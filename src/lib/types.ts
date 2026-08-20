@@ -80,6 +80,11 @@ export interface Student {
   accommodationMultiplier: 1 | 1.5 | 2;
 }
 
+// A persisted Student, as returned by the API — adds the database id.
+export interface StudentRecord extends Student {
+  id: string;
+}
+
 export interface AnalyticsSnapshot {
   weekOf: string;
   currentScore: number;
