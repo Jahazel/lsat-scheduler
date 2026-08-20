@@ -83,10 +83,25 @@ function buildLRList(analytics: AnalyticsSnapshot, rules: RulesConfig): LRCandid
     });
   }
 
-  // Weakest-first, ranked once from this week's snapshot. Walk the ranked
-  // list; on reaching the bottom, loop back to the top and escalate size.
-  const ranked = [...rules.lrAllTypes].sort(
-    (a, b) => analytics.lrAccuracyByType[a] - analytics.lrAccuracyByType[b]
+  // Restricted Stimulus Logic types — only the ones flagged top-priority
+  // this week. One appearance each, smallest unit, never part of the
+  // repeating weakest-first cycle below.
+  for (const type of analytics.lrTopPriorityLogicTypes) {
+    list.push({
+      type,
+      questionCount: rules.lrUnitSizes.small,
+      difficultyRange: nextDifficulty(type),
+    });
+  }
+
+  // Weakest-first, ranked once from this week's snapshot — the "regular
+  // pool" only: Question Stem types plus the 3 Stimulus Logic exceptions.
+  // The other Stimulus Logic types never enter this ranking at all; they're
+  // handled entirely by the top-priority block above. Walk the ranked list;
+  // on reaching the bottom, loop back to the top and escalate size.
+  const regularPool: LRType[] = [...rules.lrStemTypes, ...rules.lrLogicExceptions];
+  const ranked = regularPool.sort(
+    (a, b) => (analytics.lrAccuracyByType[a] ?? 1) - (analytics.lrAccuracyByType[b] ?? 1)
   );
 
   let usedFullSection = false;
