@@ -2,13 +2,13 @@
 
 A web app that automates weekly LSAT study schedule generation for [partner]'s tutoring business, replacing a manual process. Students get a Monday–Sunday day-by-day study plan that regenerates every week based on their latest 7Sage performance data.
 
-## Status: Design phase complete, no code written yet
+## Status: App scaffolded, no features built yet
 
-All the business rules, the data model, and the scheduling engine's logic have been worked out and written up as three reference docs — not yet built. Nothing in this repo executes anything yet.
+The business rules, the data model, and the scheduling engine's logic have been worked out and written up as reference docs. The Next.js app itself now exists (this scaffold), but no pages, API routes, or data models have been built yet.
 
 ## The Docs
 
-Three companion documents, meant to be read in order. Each is a private Claude Artifact — use the share menu on each link if you want [partner] to be able to open them.
+Two companion documents, meant to be read in order. Each is a private Claude Artifact — use the share menu on each link if you want [partner] to be able to open them.
 
 1. **[The LSAT Rulebook](https://claude.ai/code/artifact/fb4b1da9-115a-43bc-90e4-3fef792cef03)** — plain-English explainer of the LSAT concepts the rules depend on (LR vs. RC, the PT-130 split, difficulty bands, etc.). No LSAT background assumed.
 2. **[The Engine Blueprint](https://claude.ai/code/artifact/2bb4992b-32cb-4d81-b08b-676e57350096)** — the data model (Student, Analytics Snapshot, Rules Config, Weekly Schedule) and the step-by-step scheduling logic, in plain sentences plus reference pseudocode.
@@ -21,14 +21,31 @@ Three companion documents, meant to be read in order. Each is a private Claude A
 - **Sunday's review time is capped by weekend capacity**, the same way weekday drilling is capped by weekday capacity.
 - **Scheduling logic is deterministic, not LLM-generated.** AI's role is limited to screenshot extraction and surfacing override patterns — it never decides the schedule or edits the rules itself.
 
+## Tech Stack
+
+- **Next.js** (TypeScript, App Router, Tailwind) — one app, frontend and backend API routes together
+- **MongoDB Atlas** (Mongoose) — data store
+- **Cloudinary** — screenshot uploads
+- **Anthropic API** — server-side call to extract structured data from uploaded 7Sage screenshots
+- **Vercel** — the only deploy target
+
+No user auth yet — v1 is a single-user tool for [partner]. A shared password gate covers that for now; real per-student accounts come later, once the self-serve phase actually starts.
+
+## Dev Commands
+
+```bash
+npm run dev     # start the dev server at localhost:3000
+npm run build   # production build
+npm run start   # run the production build
+npm run lint    # eslint
+```
+
 ## Next steps
 
-- [ ] Pick a tech stack
-- [ ] Scaffold the actual repo (init, project structure, tooling)
-- [ ] Implement the data model
+- [ ] Implement the data model (Student, Analytics Snapshot, Rules Config, Weekly Schedule)
 - [ ] Implement the scheduling engine from the Engine Blueprint pseudocode
 - [ ] Build the screenshot → analytics extraction pipeline
 - [ ] Build the data-entry UI (partner side) and schedule view (student side)
 - [ ] Build the override-logging + pattern-flagging piece from the Feedback Loop
 
-This list lives here for now because there's no codebase yet. Once real development starts, ongoing task tracking moves to GitHub Issues (created via `/plan` per the usual workflow) — this section will shrink to just "what's not started yet" at that point.
+Each of these gets scoped individually through `/plan` as its own GitHub Issue when it's time to build it — this list is just the map, not a spec.
