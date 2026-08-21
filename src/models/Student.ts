@@ -8,6 +8,7 @@ export interface StudentDocument extends Student {
 const StudentSchema = new Schema<StudentDocument>({
   name: { type: String, required: true },
   platform: { type: String, enum: ["7Sage", "LSAT Demon"], required: true },
+  currentScore: { type: Number, required: true },
   weekdayHours: { type: Number, required: true },
   weekendHours: { type: Number, required: true },
   accommodationMultiplier: { type: Number, enum: [1, 1.5, 2], required: true },

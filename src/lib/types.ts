@@ -75,6 +75,7 @@ export type DayOfWeek =
 export interface Student {
   name: string;
   platform: "7Sage" | "LSAT Demon";
+  currentScore: number;
   weekdayHours: number;
   weekendHours: number;
   accommodationMultiplier: 1 | 1.5 | 2;
@@ -87,7 +88,6 @@ export interface StudentRecord extends Student {
 
 export interface AnalyticsSnapshot {
   weekOf: string;
-  currentScore: number;
   // Only needs entries for the "regular pool" — Question Stem types plus
   // the 3 Stimulus Logic exceptions. Restricted logic types are gated by
   // lrTopPriorityLogicTypes below, not accuracy.
@@ -95,6 +95,23 @@ export interface AnalyticsSnapshot {
   // Restricted Stimulus Logic types flagged HIGHEST priority this week —
   // mirrors 7Sage's own priority indicator, not calculated by us.
   lrTopPriorityLogicTypes: LRLogicType[];
+}
+
+// A persisted Analytics Snapshot, as returned by the API — adds the
+// database id and which student it belongs to.
+export interface AnalyticsSnapshotRecord extends AnalyticsSnapshot {
+  id: string;
+  studentId: string;
+}
+
+// One row of OCR-extracted analytics data, before it's been reviewed and
+// saved. "regular" rows carry an accuracy read off the screenshot;
+// "restricted" rows carry whether that row was flagged HIGHEST priority.
+export interface AnalyticsExtractedRow {
+  type: LRType;
+  category: "regular" | "restricted";
+  accuracy?: number;
+  isTopPriority?: boolean;
 }
 
 export interface RulesConfig {

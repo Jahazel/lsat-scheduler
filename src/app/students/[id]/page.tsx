@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { connectDB } from "@/lib/db";
 import { StudentModel } from "@/models/Student";
+import { AnalyticsSnapshotModel } from "@/models/AnalyticsSnapshot";
 import { DAY_ORDER, generateWeek } from "@/lib/engine";
 import { mockAnalytics, mockRules } from "@/lib/mockData";
-import type { Activity, Student } from "@/lib/types";
+import type { Activity, AnalyticsSnapshot, Student } from "@/lib/types";
+import AnalyticsUploader from "./AnalyticsUploader";
 
 const TYPE_LABEL: Record<string, string> = {
   drill: "Drilling",
@@ -40,14 +42,23 @@ export default async function StudentSchedulePage({
   const student: Student = {
     name: doc.name,
     platform: doc.platform,
+    currentScore: doc.currentScore,
     weekdayHours: doc.weekdayHours,
     weekendHours: doc.weekendHours,
     accommodationMultiplier: doc.accommodationMultiplier,
   };
 
-  // Analytics upload isn't built yet — every student's schedule runs
-  // against the same shared placeholder data for now.
-  const schedule = generateWeek(student, mockAnalytics, mockRules);
+  const snapshotDoc = await AnalyticsSnapshotModel.findOne({ studentId: id }).lean();
+  const analytics: AnalyticsSnapshot = snapshotDoc
+    ? {
+        weekOf: snapshotDoc.weekOf,
+        lrAccuracyByType: snapshotDoc.lrAccuracyByType,
+        lrTopPriorityLogicTypes: snapshotDoc.lrTopPriorityLogicTypes,
+      }
+    : mockAnalytics;
+  const isRealAnalytics = Boolean(snapshotDoc);
+
+  const schedule = generateWeek(student, analytics, mockRules);
 
   return (
     <div className="min-h-screen bg-zinc-50 px-6 py-12 dark:bg-black">
@@ -56,8 +67,8 @@ export default async function StudentSchedulePage({
           {schedule.studentName}&rsquo;s Week of {schedule.weekOf}
         </h1>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          {student.weekdayHours}h/day capacity · score {mockAnalytics.currentScore} (placeholder
-          analytics)
+          {student.weekdayHours}h/day capacity · score {student.currentScore}
+          {isRealAnalytics ? "" : " (placeholder analytics)"}
         </p>
 
         <div className="mt-8 flex flex-col gap-4">
@@ -89,6 +100,8 @@ export default async function StudentSchedulePage({
             );
           })}
         </div>
+
+        <AnalyticsUploader studentId={id} />
       </div>
     </div>
   );

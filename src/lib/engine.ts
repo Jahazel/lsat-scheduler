@@ -57,9 +57,13 @@ interface RCCandidate {
   difficultyLevel: number;
 }
 
-function buildLRList(analytics: AnalyticsSnapshot, rules: RulesConfig): LRCandidate[] {
+function buildLRList(
+  score: number,
+  analytics: AnalyticsSnapshot,
+  rules: RulesConfig
+): LRCandidate[] {
   const list: LRCandidate[] = [];
-  const higherBand = isHigherLRBand(analytics.currentScore, rules);
+  const higherBand = isHigherLRBand(score, rules);
 
   // Per Patrick: above the cutoff, every appearance of a type is L3-5.
   // Below the cutoff, a type's first appearance THAT WEEK is L2-4; every
@@ -264,9 +268,9 @@ export function generateWeek(
   analytics: AnalyticsSnapshot,
   rules: RulesConfig
 ): WeeklySchedule {
-  const reviewPct = reviewPercent(analytics.currentScore, rules);
+  const reviewPct = reviewPercent(student.currentScore, rules);
 
-  const lrList = buildLRList(analytics, rules);
+  const lrList = buildLRList(student.currentScore, analytics, rules);
   const rcList = buildRCList(rules);
 
   const days = {} as Record<DayOfWeek, DayPlan>;

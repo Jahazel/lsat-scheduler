@@ -11,6 +11,7 @@ export async function GET() {
     id: String(s._id),
     name: s.name,
     platform: s.platform,
+    currentScore: s.currentScore,
     weekdayHours: s.weekdayHours,
     weekendHours: s.weekendHours,
     accommodationMultiplier: s.accommodationMultiplier,
@@ -26,6 +27,7 @@ export async function POST(request: NextRequest) {
   const student = await StudentModel.create({
     name: body.name,
     platform: body.platform,
+    currentScore: body.currentScore,
     weekdayHours: body.weekdayHours,
     weekendHours: body.weekendHours,
     accommodationMultiplier: body.accommodationMultiplier,

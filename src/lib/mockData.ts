@@ -81,6 +81,7 @@ export const mockRules: RulesConfig = {
 export const mockStudent: Student = {
   name: "Jordan Rivera",
   platform: "7Sage",
+  currentScore: 160,
   weekdayHours: 1.5,
   weekendHours: 1.5,
   accommodationMultiplier: 1,
@@ -92,7 +93,6 @@ export const mockStudent: Student = {
 // restricted logic types are gated by lrTopPriorityLogicTypes instead.
 export const mockAnalytics: AnalyticsSnapshot = {
   weekOf: "2026-08-24",
-  currentScore: 160,
   lrAccuracyByType: {
     "Argument part": 0.62,
     Evaluate: 0.55,

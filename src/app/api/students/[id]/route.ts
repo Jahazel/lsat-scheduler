@@ -16,6 +16,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     id: String(student._id),
     name: student.name,
     platform: student.platform,
+    currentScore: student.currentScore,
     weekdayHours: student.weekdayHours,
     weekendHours: student.weekendHours,
     accommodationMultiplier: student.accommodationMultiplier,
