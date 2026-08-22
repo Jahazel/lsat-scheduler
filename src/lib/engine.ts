@@ -135,12 +135,16 @@ function buildRCList(rules: RulesConfig): RCCandidate[] {
   const n = types.length;
 
   let usedFullSection = false;
+  // Advances once per single passage pushed, across the whole function
+  // (never reset per lap or per tier). Since it strictly increments by 1
+  // every time, two consecutive passages never land on the same type index
+  // — true within a multi-passage tier, and true across a tier or lap
+  // boundary too, which a per-position walk didn't guarantee.
+  let cursor = 0;
   for (let lap = 0; lap < LAPS; lap++) {
     for (let i = 0; i < n; i++) {
-      const type = types[i];
-      // Diagonal walk across the type x difficulty grid — even coverage of
-      // both dimensions, independent of score.
-      const difficultyLevel = ((i + lap) % 5) + 1;
+      // How many passages this tier's pick is worth — same escalation as
+      // before (1 → 2 → one-time 4 → 2 thereafter).
       let passageCount: number;
       if (lap === 0) {
         passageCount = rules.rcUnitSizes.small;
@@ -148,11 +152,20 @@ function buildRCList(rules: RulesConfig): RCCandidate[] {
         passageCount = rules.rcUnitSizes.medium;
       } else if (!usedFullSection) {
         passageCount = rules.rcUnitSizes.fullSection;
-        usedFullSection = true;
+        usedFullSection = true; // only one full section, ever, per week
       } else {
         passageCount = rules.rcUnitSizes.medium;
       }
-      list.push({ type, passageCount, difficultyLevel });
+
+      // Every passage is its own candidate (passageCount always 1 on the
+      // way out) so a multi-passage tier never repeats the same type and
+      // difficulty back to back.
+      for (let j = 0; j < passageCount; j++) {
+        const typeIndex = cursor % n;
+        const difficultyLevel = ((typeIndex + lap) % 5) + 1;
+        list.push({ type: types[typeIndex], passageCount: 1, difficultyLevel });
+        cursor++;
+      }
     }
   }
 
@@ -208,9 +221,44 @@ interface FillResult {
   nextRcIndex: number;
 }
 
-// Strict LR/RC alternation. Tries the next candidate in turn; the moment one
-// doesn't fit, the day stops right there — nothing skipped, list pointers
-// hold their place for the next day to continue from.
+interface FillPass<C> {
+  taken: C[];
+  nextIndex: number;
+  usedMinutes: number;
+}
+
+// Takes candidates off `list` (starting at `startIndex`, in list order) until
+// the next one would bust `budgetMinutes`. Doesn't skip ahead for a smaller
+// fit further down the list — list order is priority order (weakest-first
+// for LR, the type/difficulty diagonal for RC) and that ordering is what
+// carries across days via the returned index.
+function fillList<C>(
+  list: C[],
+  startIndex: number,
+  budgetMinutes: number,
+  costOf: (c: C) => number
+): FillPass<C> {
+  const taken: C[] = [];
+  let index = startIndex;
+  let usedMinutes = 0;
+
+  while (index < list.length) {
+    const cost = costOf(list[index]);
+    if (usedMinutes + cost > budgetMinutes) break;
+    taken.push(list[index]);
+    usedMinutes += cost;
+    index++;
+  }
+
+  return { taken, nextIndex: index, usedMinutes };
+}
+
+// Splits the day's capacity ~50/50 into an LR budget and an RC budget and
+// fills each independently, so LR/RC time stays even instead of just
+// alternating turns. Whatever budget one side can't spend (its next
+// candidate doesn't fit) gets handed to the other side as a top-up, so a day
+// never comes up light just because one list's next item was a bit too big.
+// Output is grouped LR block then RC block, not interleaved.
 function fillDrillDay(
   lrList: LRCandidate[],
   lrIndex: number,
@@ -221,45 +269,34 @@ function fillDrillDay(
   accommodation: number,
   reviewPct: number
 ): FillResult {
-  const activities: Activity[] = [];
-  let totalMinutes = 0;
-  let takeLR = true;
+  const lrCost = (c: LRCandidate) => lrDrillMinutes(c, rules, accommodation) * (1 + reviewPct);
+  const rcCost = (c: RCCandidate) => rcDrillMinutes(c, rules, accommodation) * (1 + reviewPct);
+  const halfBudget = capacityMinutes / 2;
 
-  while (lrIndex < lrList.length || rcIndex < rcList.length) {
-    if (takeLR && lrIndex >= lrList.length) {
-      takeLR = false;
-      continue;
-    }
-    if (!takeLR && rcIndex >= rcList.length) {
-      takeLR = true;
-      continue;
-    }
+  const lrFirst = fillList(lrList, lrIndex, halfBudget, lrCost);
+  const rcFirst = fillList(rcList, rcIndex, halfBudget, rcCost);
 
-    if (takeLR) {
-      const candidate = lrList[lrIndex];
-      const drillMinutes = lrDrillMinutes(candidate, rules, accommodation);
-      const cost = drillMinutes * (1 + reviewPct);
-      if (totalMinutes + cost > capacityMinutes) break;
-      activities.push(lrToActivity(candidate, rules, accommodation, reviewPct));
-      totalMinutes += cost;
-      lrIndex++;
-    } else {
-      const candidate = rcList[rcIndex];
-      const drillMinutes = rcDrillMinutes(candidate, rules, accommodation);
-      const cost = drillMinutes * (1 + reviewPct);
-      if (totalMinutes + cost > capacityMinutes) break;
-      activities.push(rcToActivity(candidate, rules, accommodation, reviewPct));
-      totalMinutes += cost;
-      rcIndex++;
-    }
-    takeLR = !takeLR;
-  }
+  const lrLeftover = halfBudget - lrFirst.usedMinutes;
+  const rcLeftover = halfBudget - rcFirst.usedMinutes;
+
+  const rcTopUp = fillList(rcList, rcFirst.nextIndex, lrLeftover, rcCost);
+  const lrTopUp = fillList(lrList, lrFirst.nextIndex, rcLeftover, lrCost);
+
+  const activities: Activity[] = [
+    ...lrFirst.taken.map((c) => lrToActivity(c, rules, accommodation, reviewPct)),
+    ...lrTopUp.taken.map((c) => lrToActivity(c, rules, accommodation, reviewPct)),
+    ...rcFirst.taken.map((c) => rcToActivity(c, rules, accommodation, reviewPct)),
+    ...rcTopUp.taken.map((c) => rcToActivity(c, rules, accommodation, reviewPct)),
+  ];
+
+  const totalMinutes =
+    lrFirst.usedMinutes + lrTopUp.usedMinutes + rcFirst.usedMinutes + rcTopUp.usedMinutes;
 
   return {
     activities,
     totalMinutes: round1(totalMinutes),
-    nextLrIndex: lrIndex,
-    nextRcIndex: rcIndex,
+    nextLrIndex: lrTopUp.nextIndex,
+    nextRcIndex: rcTopUp.nextIndex,
   };
 }
 
