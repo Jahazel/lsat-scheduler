@@ -1,26 +1,37 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Light-mode only, per DESIGN.md: this system is deliberately the light
+ * counterpart of a dark reference, not a themeable dark/light pair.
+ *
+ * "ink" is the tinted-neutral ramp (backgrounds, borders, text) and
+ * "accent" is the single restrained blue-teal used for actionable elements.
+ * Both are hued toward the same ~205 hue so the whole surface reads as one
+ * family instead of accent-plus-generic-gray.
+ */
+@theme {
+  --color-ink-25: oklch(99% 0.003 205);
+  --color-ink-50: oklch(97.5% 0.005 205);
+  --color-ink-100: oklch(94% 0.006 205);
+  --color-ink-200: oklch(89% 0.008 205);
+  --color-ink-400: oklch(64% 0.01 205);
+  --color-ink-500: oklch(54% 0.011 205);
+  --color-ink-700: oklch(32% 0.012 205);
+  --color-ink-900: oklch(19% 0.013 205);
+
+  --color-accent-100: oklch(93% 0.035 205);
+  --color-accent-500: oklch(54% 0.105 205);
+  --color-accent-600: oklch(46% 0.1 205);
+  --color-accent-700: oklch(38% 0.09 205);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-ink-25);
+  color: var(--color-ink-900);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
