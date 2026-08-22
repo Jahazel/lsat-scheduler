@@ -88,7 +88,9 @@ export default async function StudentSchedulePage({
                   </span>
                 </div>
                 {plan.activities.length === 0 ? (
-                  <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-500">Nothing scheduled.</p>
+                  <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-500">
+                    {plan.type === "rest" ? "Rest day." : "Nothing scheduled."}
+                  </p>
                 ) : (
                   <ul className="mt-2 flex flex-col gap-1 text-sm text-zinc-700 dark:text-zinc-300">
                     {plan.activities.map((activity, i) => (
