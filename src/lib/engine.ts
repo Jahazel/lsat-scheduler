@@ -49,18 +49,41 @@ interface LRCandidate {
   type: LRType;
   questionCount: number;
   difficultyRange: string;
+  // A full-section drill runs the real section length (flat), not
+  // questionCount × the per-question drilling rate.
+  isFullSection: boolean;
 }
 
 interface RCCandidate {
   type: RCType;
   passageCount: number;
   difficultyLevel: number;
+  // A full-section drill runs the real section length (flat), split evenly
+  // across its exploded single-passage candidates — not passageCount × the
+  // per-passage drilling rate.
+  isFullSection: boolean;
+}
+
+// A student's accommodation category (their actual extra-time %) is not the
+// multiplier applied to scheduled block lengths — see RulesConfig.
+function timeMultiplierFor(rules: RulesConfig, student: Student): number {
+  return rules.accommodationTimeMultiplier[student.accommodationMultiplier];
+}
+
+// Deterministic per-week coin flip — one full section total per week,
+// alternating which subject (LR or RC) gets it based on the week's own
+// date string, so it isn't the same subject every single week.
+function weekPrefersLRFullSection(weekOf: string): boolean {
+  let sum = 0;
+  for (let i = 0; i < weekOf.length; i++) sum += weekOf.charCodeAt(i);
+  return sum % 2 === 0;
 }
 
 function buildLRList(
   score: number,
   analytics: AnalyticsSnapshot,
-  rules: RulesConfig
+  rules: RulesConfig,
+  allowFullSection: boolean
 ): LRCandidate[] {
   const list: LRCandidate[] = [];
   const higherBand = isHigherLRBand(score, rules);
@@ -84,6 +107,7 @@ function buildLRList(
       type,
       questionCount: rules.lrUnitSizes.small,
       difficultyRange: nextDifficulty(type),
+      isFullSection: false,
     });
   }
 
@@ -95,7 +119,17 @@ function buildLRList(
       type,
       questionCount: rules.lrUnitSizes.small,
       difficultyRange: nextDifficulty(type),
+      isFullSection: false,
     });
+  }
+
+  // A type's designated drill partner, if it has one — 10-question drills
+  // for paired types split 5+5 across both instead of running 10 of just
+  // the one type.
+  function pairPartner(type: LRType): LRType | undefined {
+    const pair = rules.lrPairedTypes.find(([a, b]) => a === type || b === type);
+    if (!pair) return undefined;
+    return pair[0] === type ? pair[1] : pair[0];
   }
 
   // Weakest-first, ranked once from this week's snapshot — the "regular
@@ -108,62 +142,104 @@ function buildLRList(
     (a, b) => (analytics.lrAccuracyByType[a] ?? 1) - (analytics.lrAccuracyByType[b] ?? 1)
   );
 
-  let usedFullSection = false;
+  // The week's one full section (LR or RC, decided one level up) goes right
+  // after the mandatory floor — on the single weakest type — rather than
+  // waiting for the escalating loop below to reach a "full section" tier
+  // that a normal week's capacity never actually gets deep enough to touch.
+  if (allowFullSection) {
+    const weakestType = ranked[0];
+    list.push({
+      type: weakestType,
+      questionCount: rules.lrUnitSizes.fullSection,
+      difficultyRange: nextDifficulty(weakestType),
+      isFullSection: true,
+    });
+  }
+
   for (let lap = 0; lap < LAPS; lap++) {
     for (const type of ranked) {
-      let questionCount: number;
-      if (lap === 0) {
-        questionCount = rules.lrUnitSizes.small;
-      } else if (lap === 1) {
-        questionCount = rules.lrUnitSizes.medium;
-      } else if (!usedFullSection) {
-        questionCount = rules.lrUnitSizes.fullSection;
-        usedFullSection = true; // only one full section, ever, per week
-      } else {
-        questionCount = rules.lrUnitSizes.medium; // stay at the largest non-full size
+      const questionCount = lap === 0 ? rules.lrUnitSizes.small : rules.lrUnitSizes.medium;
+
+      // Every medium (10-question) tier splits 5+5 across a paired type's
+      // partner instead of running 10 of just the one type.
+      if (questionCount === rules.lrUnitSizes.medium) {
+        const partner = pairPartner(type);
+        if (partner) {
+          list.push({
+            type,
+            questionCount: rules.lrUnitSizes.small,
+            difficultyRange: nextDifficulty(type),
+            isFullSection: false,
+          });
+          list.push({
+            type: partner,
+            questionCount: rules.lrUnitSizes.small,
+            difficultyRange: nextDifficulty(partner),
+            isFullSection: false,
+          });
+          continue;
+        }
       }
-      list.push({ type, questionCount, difficultyRange: nextDifficulty(type) });
+
+      list.push({ type, questionCount, difficultyRange: nextDifficulty(type), isFullSection: false });
     }
   }
 
   return list;
 }
 
-function buildRCList(rules: RulesConfig): RCCandidate[] {
+function buildRCList(rules: RulesConfig, allowFullSection: boolean): RCCandidate[] {
   const list: RCCandidate[] = [];
   const types = rules.rcTypes; // fixed order, length 5
   const n = types.length;
 
-  let usedFullSection = false;
   // Advances once per single passage pushed, across the whole function
   // (never reset per lap or per tier). Since it strictly increments by 1
   // every time, two consecutive passages never land on the same type index
   // — true within a multi-passage tier, and true across a tier or lap
-  // boundary too, which a per-position walk didn't guarantee.
+  // boundary too, which a per-position walk didn't guarantee. Doubles as
+  // the difficulty cycle for non-paired tiers (L2-L5, excluding L1).
   let cursor = 0;
+  // Advances once per 2-passage tier (not per passage) so the fixed combos
+  // cycle in order across the week instead of repeating the same one.
+  let comboIndex = 0;
+
+  // The week's one full section (LR or RC, decided one level up) goes in as
+  // a single atomic candidate — one sitting, never split across days —
+  // right at the front, rather than waiting for the escalating loop below
+  // to reach a "full section" tier that a normal week's capacity never
+  // actually gets deep enough to touch. A real section spans every type, so
+  // the type/difficultyLevel here are placeholders never shown — it renders
+  // as its own "Full RC Section" summary line, not a per-type breakdown.
+  if (allowFullSection) {
+    list.push({
+      type: types[0],
+      passageCount: rules.rcUnitSizes.fullSection,
+      difficultyLevel: 2,
+      isFullSection: true,
+    });
+  }
+
   for (let lap = 0; lap < LAPS; lap++) {
     for (let i = 0; i < n; i++) {
-      // How many passages this tier's pick is worth — same escalation as
-      // before (1 → 2 → one-time 4 → 2 thereafter).
-      let passageCount: number;
-      if (lap === 0) {
-        passageCount = rules.rcUnitSizes.small;
-      } else if (lap === 1) {
-        passageCount = rules.rcUnitSizes.medium;
-      } else if (!usedFullSection) {
-        passageCount = rules.rcUnitSizes.fullSection;
-        usedFullSection = true; // only one full section, ever, per week
-      } else {
-        passageCount = rules.rcUnitSizes.medium;
-      }
+      // How many passages this tier's pick is worth — 1 on the first pass,
+      // 2 every pass after that.
+      const passageCount = lap === 0 ? rules.rcUnitSizes.small : rules.rcUnitSizes.medium;
+
+      // A 2-passage tier uses one of the fixed [lower, higher] combos
+      // instead of the general cycle, so both slots are filled up front.
+      const combo =
+        passageCount === rules.rcUnitSizes.medium
+          ? rules.rcTwoPassageDifficultyCombos[comboIndex++ % rules.rcTwoPassageDifficultyCombos.length]
+          : undefined;
 
       // Every passage is its own candidate (passageCount always 1 on the
       // way out) so a multi-passage tier never repeats the same type and
       // difficulty back to back.
       for (let j = 0; j < passageCount; j++) {
         const typeIndex = cursor % n;
-        const difficultyLevel = ((typeIndex + lap) % 5) + 1;
-        list.push({ type: types[typeIndex], passageCount: 1, difficultyLevel });
+        const difficultyLevel = combo ? combo[j] : (cursor % 4) + 2; // L2-L5, never L1
+        list.push({ type: types[typeIndex], passageCount: 1, difficultyLevel, isFullSection: false });
         cursor++;
       }
     }
@@ -173,11 +249,16 @@ function buildRCList(rules: RulesConfig): RCCandidate[] {
 }
 
 function lrDrillMinutes(c: LRCandidate, rules: RulesConfig, accommodation: number): number {
+  if (c.isFullSection) return rules.fullSectionMinutes * accommodation;
   return (c.questionCount * rules.lrQuestionSeconds * accommodation) / 60;
 }
 
 function rcDrillMinutes(c: RCCandidate, rules: RulesConfig, accommodation: number): number {
-  return (c.passageCount * rules.rcPassageSeconds * accommodation) / 60;
+  // Per spec: regular RC passage drilling is NOT accommodation-scaled —
+  // only LR questions and full sections are. Asymmetric, but that's the
+  // stated rule.
+  if (c.isFullSection) return rules.fullSectionMinutes * accommodation;
+  return (c.passageCount * rules.rcPassageSeconds) / 60;
 }
 
 function lrToActivity(
@@ -194,6 +275,7 @@ function lrToActivity(
     difficultyRange: c.difficultyRange,
     drillMinutes: round1(drillMinutes),
     reviewMinutes: round1(drillMinutes * reviewPct),
+    isFullSection: c.isFullSection,
   };
 }
 
@@ -211,6 +293,7 @@ function rcToActivity(
     difficultyLevel: c.difficultyLevel,
     drillMinutes: round1(drillMinutes),
     reviewMinutes: round1(drillMinutes * reviewPct),
+    isFullSection: c.isFullSection,
   };
 }
 
@@ -219,46 +302,80 @@ interface FillResult {
   totalMinutes: number;
   nextLrIndex: number;
   nextRcIndex: number;
+  nextLrQuestionsSoFar: number;
+  nextRcPassagesSoFar: number;
 }
 
-interface FillPass<C> {
-  taken: C[];
+// "For every 20 LR questions, 2 RC passages is a good rule of thumb" — RC
+// drilling should trail LR at 1/10th the pace, measured in questions vs.
+// passages (not raw drill time), and tracked cumulatively across the whole
+// week (not reset per day) so the week's overall total lands close to that
+// ratio rather than each day chasing it independently.
+const LR_QUESTIONS_PER_RC_PASSAGE = 10;
+
+interface SideFill<T> {
+  taken: T[];
+  used: number;
   nextIndex: number;
-  usedMinutes: number;
 }
 
-// Takes candidates off `list` (starting at `startIndex`, in list order) until
-// the next one would bust `budgetMinutes`. Doesn't skip ahead for a smaller
-// fit further down the list — list order is priority order (weakest-first
-// for LR, the type/difficulty diagonal for RC) and that ordering is what
-// carries across days via the returned index.
-function fillList<C>(
-  list: C[],
+// Greedily takes items in order while they fit under `target`, then — if
+// what's left short of target exceeds `tolerance` — takes one more item
+// anyway as long as doing so doesn't overshoot target by more than that
+// same tolerance. Mirrors the day-level "close the gap rather than leave it
+// stranded" behavior, just scoped to one side's own target instead of the
+// whole day's capacity.
+function fillSideToTarget<T>(
+  list: T[],
   startIndex: number,
-  budgetMinutes: number,
-  costOf: (c: C) => number
-): FillPass<C> {
-  const taken: C[] = [];
-  let index = startIndex;
-  let usedMinutes = 0;
-
-  while (index < list.length) {
-    const cost = costOf(list[index]);
-    if (usedMinutes + cost > budgetMinutes) break;
-    taken.push(list[index]);
-    usedMinutes += cost;
-    index++;
+  cost: (c: T) => number,
+  target: number,
+  tolerance: number
+): SideFill<T> {
+  const taken: T[] = [];
+  let idx = startIndex;
+  let used = 0;
+  while (idx < list.length && used + cost(list[idx]) <= target) {
+    taken.push(list[idx]);
+    used += cost(list[idx]);
+    idx++;
   }
-
-  return { taken, nextIndex: index, usedMinutes };
+  const shortfall = target - used;
+  if (shortfall > tolerance && idx < list.length) {
+    const overshoot = cost(list[idx]) - shortfall;
+    if (overshoot <= tolerance) {
+      taken.push(list[idx]);
+      used += cost(list[idx]);
+      idx++;
+    }
+  }
+  return { taken, used, nextIndex: idx };
 }
 
-// Splits the day's capacity ~50/50 into an LR budget and an RC budget and
-// fills each independently, so LR/RC time stays even instead of just
-// alternating turns. Whatever budget one side can't spend (its next
-// candidate doesn't fit) gets handed to the other side as a top-up, so a day
-// never comes up light just because one list's next item was a bit too big.
-// Output is grouped LR block then RC block, not interleaved.
+// Keeps LR and RC drilling at roughly a 20-questions-to-2-passages pace,
+// tracked across the whole week rather than reset per day: whichever side
+// is further behind that pace always gets the next turn (ties favor LR,
+// since LR is meant to generally lead), and the moment the favored side's
+// next candidate doesn't fit what's left of the day, the fill stops
+// outright — it does NOT let the other side take the turn instead. That
+// fallback is what used to let RC run away with a whole day whenever LR got
+// stuck behind a big pending item (e.g. the day right before the week's
+// full section, where LR's next item is the section itself and never fits
+// until it has the day to itself); stopping there keeps the pace intact, at
+// the cost of occasionally landing a day under capacity — the accepted
+// trade, since the pace ratio is what's being optimized for, not squeezing
+// out every last capacity minute.
+//
+// The week's one full section is the exception to pace-tracking: a real
+// section is a single sitting expected to dominate whichever day it lands
+// on, so it's taken first (unconditionally, capacity permitting) and the
+// OTHER side then just fills whatever room is left on its own, using the
+// day's normal capacity-tolerance closing step since there's no pace to
+// stay behind. That side's items still count toward its running pace
+// total for the rest of the week, though — it's still regular drilling.
+//
+// Output is grouped LR block then RC block (order set by lrFirst — see
+// generateWeek, which alternates it day to day), not interleaved.
 function fillDrillDay(
   lrList: LRCandidate[],
   lrIndex: number,
@@ -267,36 +384,112 @@ function fillDrillDay(
   capacityMinutes: number,
   rules: RulesConfig,
   accommodation: number,
-  reviewPct: number
+  reviewPct: number,
+  lrFirst: boolean,
+  lrQuestionsSoFar: number,
+  rcPassagesSoFar: number
 ): FillResult {
-  const lrCost = (c: LRCandidate) => lrDrillMinutes(c, rules, accommodation) * (1 + reviewPct);
-  const rcCost = (c: RCCandidate) => rcDrillMinutes(c, rules, accommodation) * (1 + reviewPct);
-  const halfBudget = capacityMinutes / 2;
+  const lrCost = (c: LRCandidate) => lrDrillMinutes(c, rules, accommodation);
+  const rcCost = (c: RCCandidate) => rcDrillMinutes(c, rules, accommodation);
 
-  const lrFirst = fillList(lrList, lrIndex, halfBudget, lrCost);
-  const rcFirst = fillList(rcList, rcIndex, halfBudget, rcCost);
+  let lrTaken: LRCandidate[] = [];
+  let rcTaken: RCCandidate[] = [];
+  let li = lrIndex;
+  let ri = rcIndex;
+  let lrUsed = 0;
+  let rcUsed = 0;
+  let lrQuestions = lrQuestionsSoFar;
+  let rcPassages = rcPassagesSoFar;
 
-  const lrLeftover = halfBudget - lrFirst.usedMinutes;
-  const rcLeftover = halfBudget - rcFirst.usedMinutes;
+  const lrNextIsFullSection = li < lrList.length && lrList[li].isFullSection && lrCost(lrList[li]) <= capacityMinutes;
+  const rcNextIsFullSection = ri < rcList.length && rcList[ri].isFullSection && rcCost(rcList[ri]) <= capacityMinutes;
 
-  const rcTopUp = fillList(rcList, rcFirst.nextIndex, lrLeftover, rcCost);
-  const lrTopUp = fillList(lrList, lrFirst.nextIndex, rcLeftover, lrCost);
+  if (lrNextIsFullSection) {
+    lrTaken = [lrList[li]];
+    lrUsed = lrCost(lrList[li]);
+    li++;
+    const rcFill = fillSideToTarget(rcList, ri, rcCost, capacityMinutes - lrUsed, rules.capacityToleranceMinutes);
+    rcTaken = rcFill.taken;
+    rcUsed = rcFill.used;
+    ri = rcFill.nextIndex;
+    rcPassages += rcTaken.reduce((sum, c) => sum + c.passageCount, 0);
+  } else if (rcNextIsFullSection) {
+    rcTaken = [rcList[ri]];
+    rcUsed = rcCost(rcList[ri]);
+    ri++;
+    const lrFill = fillSideToTarget(lrList, li, lrCost, capacityMinutes - rcUsed, rules.capacityToleranceMinutes);
+    lrTaken = lrFill.taken;
+    lrUsed = lrFill.used;
+    li = lrFill.nextIndex;
+    lrQuestions += lrTaken.reduce((sum, c) => sum + c.questionCount, 0);
+  } else {
+    for (;;) {
+      const lrTurn = lrQuestions <= rcPassages * LR_QUESTIONS_PER_RC_PASSAGE;
+      if (lrTurn) {
+        if (li >= lrList.length) break;
+        const cost = lrCost(lrList[li]);
+        if (lrUsed + rcUsed + cost > capacityMinutes) break;
+        lrTaken.push(lrList[li]);
+        lrUsed += cost;
+        lrQuestions += lrList[li].questionCount;
+        li++;
+      } else {
+        if (ri >= rcList.length) break;
+        const cost = rcCost(rcList[ri]);
+        if (lrUsed + rcUsed + cost > capacityMinutes) break;
+        rcTaken.push(rcList[ri]);
+        rcUsed += cost;
+        rcPassages += rcList[ri].passageCount;
+        ri++;
+      }
+    }
 
-  const activities: Activity[] = [
-    ...lrFirst.taken.map((c) => lrToActivity(c, rules, accommodation, reviewPct)),
-    ...lrTopUp.taken.map((c) => lrToActivity(c, rules, accommodation, reviewPct)),
-    ...rcFirst.taken.map((c) => rcToActivity(c, rules, accommodation, reviewPct)),
-    ...rcTopUp.taken.map((c) => rcToActivity(c, rules, accommodation, reviewPct)),
-  ];
+    // The pace loop above stops the moment the favored side's next unit
+    // doesn't fit what's left of the day — which, on an ordinary day (no
+    // full section involved), can strand well more than the capacity
+    // tolerance even though the OTHER side's next unit would fit fine.
+    // Rather than leave that on the table, take ONE more item — whichever
+    // of the two next-up candidates lands the day closest to capacity —
+    // same bounded, single-item exception used by the full-section side's
+    // own closing step above. It's bounded to one item, not a fallback
+    // loop, so it can't reproduce the original bug where RC took every
+    // remaining turn once LR got permanently stuck behind the full
+    // section: that case is still caught by the "doesn't fit" break above
+    // on every turn after this one, since the loop itself never resumes.
+    const shortfall = capacityMinutes - (lrUsed + rcUsed);
+    if (shortfall > rules.capacityToleranceMinutes) {
+      const lrNextCost = li < lrList.length ? lrCost(lrList[li]) : null;
+      const rcNextCost = ri < rcList.length ? rcCost(rcList[ri]) : null;
+      const lrOvershoot = lrNextCost !== null ? lrNextCost - shortfall : Infinity;
+      const rcOvershoot = rcNextCost !== null ? rcNextCost - shortfall : Infinity;
 
-  const totalMinutes =
-    lrFirst.usedMinutes + lrTopUp.usedMinutes + rcFirst.usedMinutes + rcTopUp.usedMinutes;
+      if (lrOvershoot <= rules.capacityToleranceMinutes && lrOvershoot <= rcOvershoot) {
+        lrTaken.push(lrList[li]);
+        lrUsed += lrNextCost as number;
+        lrQuestions += lrList[li].questionCount;
+        li++;
+      } else if (rcOvershoot <= rules.capacityToleranceMinutes) {
+        rcTaken.push(rcList[ri]);
+        rcUsed += rcNextCost as number;
+        rcPassages += rcList[ri].passageCount;
+        ri++;
+      }
+    }
+  }
+
+  const lrActivities = lrTaken.map((c) => lrToActivity(c, rules, accommodation, reviewPct));
+  const rcActivities = rcTaken.map((c) => rcToActivity(c, rules, accommodation, reviewPct));
+  const orderedActivities = lrFirst ? [...lrActivities, ...rcActivities] : [...rcActivities, ...lrActivities];
 
   return {
-    activities,
-    totalMinutes: round1(totalMinutes),
-    nextLrIndex: lrTopUp.nextIndex,
-    nextRcIndex: rcTopUp.nextIndex,
+    activities: orderedActivities,
+    // Drill time only, matching what capacity was measured against — review
+    // is still shown per activity but doesn't count toward this total.
+    totalMinutes: round1(lrUsed + rcUsed),
+    nextLrIndex: li,
+    nextRcIndex: ri,
+    nextLrQuestionsSoFar: lrQuestions,
+    nextRcPassagesSoFar: rcPassages,
   };
 }
 
@@ -306,16 +499,23 @@ export function generateWeek(
   rules: RulesConfig
 ): WeeklySchedule {
   const reviewPct = reviewPercent(student.currentScore, rules);
+  const timeMult = timeMultiplierFor(rules, student);
+  const lrGetsFullSection = weekPrefersLRFullSection(analytics.weekOf);
 
-  const lrList = buildLRList(student.currentScore, analytics, rules);
-  const rcList = buildRCList(rules);
+  const lrList = buildLRList(student.currentScore, analytics, rules, lrGetsFullSection);
+  const rcList = buildRCList(rules, !lrGetsFullSection);
 
   const days = {} as Record<DayOfWeek, DayPlan>;
   const capacityMinutes = student.weekdayHours * 60;
 
   let lrIndex = 0;
   let rcIndex = 0;
-  for (const day of DRILL_DAYS) {
+  let lrQuestionsSoFar = 0;
+  let rcPassagesSoFar = 0;
+  DRILL_DAYS.forEach((day, i) => {
+    // Alternates which block leads each day: Monday RC→LR, Tuesday LR→RC,
+    // and so on down DRILL_DAYS.
+    const lrFirst = i % 2 === 1;
     const result = fillDrillDay(
       lrList,
       lrIndex,
@@ -323,8 +523,11 @@ export function generateWeek(
       rcIndex,
       capacityMinutes,
       rules,
-      student.accommodationMultiplier,
-      reviewPct
+      timeMult,
+      reviewPct,
+      lrFirst,
+      lrQuestionsSoFar,
+      rcPassagesSoFar
     );
     days[day] = {
       day,
@@ -334,7 +537,9 @@ export function generateWeek(
     };
     lrIndex = result.nextLrIndex;
     rcIndex = result.nextRcIndex;
-  }
+    lrQuestionsSoFar = result.nextLrQuestionsSoFar;
+    rcPassagesSoFar = result.nextRcPassagesSoFar;
+  });
 
   days[rules.restDay] = {
     day: rules.restDay,
@@ -343,7 +548,7 @@ export function generateWeek(
     totalMinutes: 0,
   };
 
-  const ptMinutes = round1(rules.ptDurationMinutes * student.accommodationMultiplier);
+  const ptMinutes = round1(rules.ptDurationMinutes * timeMult);
   days.SATURDAY = {
     day: "SATURDAY",
     type: "practice_test",

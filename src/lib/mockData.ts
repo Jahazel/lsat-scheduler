@@ -2,12 +2,15 @@ import type { AnalyticsSnapshot, RulesConfig, Student } from "./types";
 
 export const mockRules: RulesConfig = {
   ptSourceCutoff: 130,
-  lrQuestionSeconds: 75, // 1:15
-  rcPassageSeconds: 525, // 8:45
+  drillSourceCutoff: 130,
+  lrQuestionSeconds: 180, // 3:00 drilling pace (untimed, not exam pace)
+  rcPassageSeconds: 1035, // 17:15 drilling pace (untimed, not exam pace)
+  fullSectionMinutes: 60, // flat, accommodation-scaled — not count × rate
   ptDurationMinutes: 150, // 2.5h
+  accommodationTimeMultiplier: { 1: 1, 1.5: 1.25, 2: 1.5 },
   lrStarredTypes: [
+    "Conditional reasoning",
     "Flaw or descriptive weakening",
-    "Must be true",
     "Necessary assumption",
     "Strengthen",
     "Sufficient assumption",
@@ -70,21 +73,37 @@ export const mockRules: RulesConfig = {
     "Weighing factors",
   ],
   lrLogicExceptions: ["Diagram", "Math", "Conditional reasoning"],
+  lrPairedTypes: [
+    ["Strengthen", "Weaken"],
+    ["Flaw or descriptive weakening", "Weaken"],
+    ["Strengthen", "Most strongly supported"],
+    ["Must be true", "Must be false"],
+    ["Parallel flawed method of reasoning", "Parallel method of reasoning"],
+    ["Sufficient assumption", "Necessary assumption"],
+  ],
   rcTypes: ["Art", "Humanities", "Science", "Law", "Comparative"],
   lrUnitSizes: { small: 5, medium: 10, fullSection: 25 },
   rcUnitSizes: { small: 1, medium: 2, fullSection: 4 },
+  rcTwoPassageDifficultyCombos: [
+    [2, 4],
+    [3, 5],
+    [3, 4],
+  ],
   lrDifficultyCutoffScore: 165,
   reviewPercentByBand: { below160: 1.0, mid: 0.6, above170: 0.5 },
   restDay: "WEDNESDAY",
+  capacityToleranceMinutes: 15,
 };
 
 export const mockStudent: Student = {
   name: "Jordan Rivera",
   platform: "7Sage",
   currentScore: 160,
+  goalScore: 170,
   weekdayHours: 1.5,
   weekendHours: 1.5,
   accommodationMultiplier: 1,
+  goalTestDate: "2027-01-01", // January 2027
 };
 
 // Deliberately uneven so weakest-first is visibly exercised beyond the

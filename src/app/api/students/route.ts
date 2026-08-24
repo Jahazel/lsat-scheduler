@@ -12,9 +12,11 @@ export async function GET() {
     name: s.name,
     platform: s.platform,
     currentScore: s.currentScore,
+    goalScore: s.goalScore,
     weekdayHours: s.weekdayHours,
     weekendHours: s.weekendHours,
     accommodationMultiplier: s.accommodationMultiplier,
+    goalTestDate: s.goalTestDate,
   }));
 
   return NextResponse.json(records);
@@ -28,9 +30,11 @@ export async function POST(request: NextRequest) {
     name: body.name,
     platform: body.platform,
     currentScore: body.currentScore,
+    goalScore: body.goalScore,
     weekdayHours: body.weekdayHours,
     weekendHours: body.weekendHours,
     accommodationMultiplier: body.accommodationMultiplier,
+    goalTestDate: body.goalTestDate,
   });
 
   return NextResponse.json({ id: String(student._id) }, { status: 201 });

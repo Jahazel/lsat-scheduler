@@ -17,9 +17,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     name: student.name,
     platform: student.platform,
     currentScore: student.currentScore,
+    goalScore: student.goalScore,
     weekdayHours: student.weekdayHours,
     weekendHours: student.weekendHours,
     accommodationMultiplier: student.accommodationMultiplier,
+    goalTestDate: student.goalTestDate,
   };
 
   return NextResponse.json(record);
