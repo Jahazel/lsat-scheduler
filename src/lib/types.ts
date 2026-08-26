@@ -76,9 +76,16 @@ export interface Student {
   name: string;
   platform: "7Sage" | "LSAT Demon";
   currentScore: number;
+  goalScore: number;
   weekdayHours: number;
   weekendHours: number;
   accommodationMultiplier: 1 | 1.5 | 2;
+  // ISO date (YYYY-MM-DD, always the 1st of one of a fixed set of test
+  // months). Captured at intake; not currently a scheduling input — every
+  // plan is the same fixed 1 rest / 1 PT / 1 review / 4 drill shape
+  // regardless of proximity to test day. Surfaced today only as a "weeks
+  // until test" readout.
+  goalTestDate: string;
 }
 
 // A persisted Student, as returned by the API — adds the database id.
@@ -116,20 +123,41 @@ export interface AnalyticsExtractedRow {
 
 export interface RulesConfig {
   ptSourceCutoff: number;
+  // Drilling always pulls from below this PT number — the mirror image of
+  // ptSourceCutoff, which is where the one weekly timed PT pulls from.
+  drillSourceCutoff: number;
   lrQuestionSeconds: number;
   rcPassageSeconds: number;
+  // Flat length of a full-section drill (LR or RC alike) — real section
+  // time, not the per-question/per-passage drilling rate times the count.
+  fullSectionMinutes: number;
   ptDurationMinutes: number;
+  // A student's accommodation category (their actual extra-time %) maps to
+  // a smaller applied time multiplier — 150% extra time only stretches
+  // scheduled blocks by 125%, 200% only by 150%.
+  accommodationTimeMultiplier: Record<1 | 1.5 | 2, number>;
   lrStarredTypes: LRType[];
   lrStemTypes: LRStemType[];
   lrLogicTypes: LRLogicType[];
   // Stimulus Logic types drilled normally despite being "logic" types.
   lrLogicExceptions: LRLogicType[];
+  // Commonly-paired LR types — when the weakest-first rotation lands a
+  // 10-question drill on one of these, it splits 5+5 across the pair
+  // instead of drilling 10 of just the one type.
+  lrPairedTypes: [LRType, LRType][];
   rcTypes: RCType[];
   lrUnitSizes: { small: number; medium: number; fullSection: number };
   rcUnitSizes: { small: number; medium: number; fullSection: number };
+  // Cycled through, in order, every time a 2-passage RC drill comes up —
+  // each pair is [lower, higher] and both levels always exclude L1.
+  rcTwoPassageDifficultyCombos: [number, number][];
   lrDifficultyCutoffScore: number;
   reviewPercentByBand: { below160: number; mid: number; above170: number };
   restDay: DayOfWeek;
+  // A drilling day's total (drill + review) should land at or within this
+  // many minutes of the student's stated capacity for that day — on either
+  // side, not just under.
+  capacityToleranceMinutes: number;
 }
 
 export interface LRActivity {
@@ -139,6 +167,10 @@ export interface LRActivity {
   difficultyRange: string;
   drillMinutes: number;
   reviewMinutes: number;
+  // The week's one full section, when this is it — renders as its own
+  // summary line rather than a numbered drill (a real section spans many
+  // types, so type/questionCount here aren't meaningful for display).
+  isFullSection: boolean;
 }
 
 export interface RCActivity {
@@ -148,6 +180,8 @@ export interface RCActivity {
   difficultyLevel: number;
   drillMinutes: number;
   reviewMinutes: number;
+  // See LRActivity.isFullSection.
+  isFullSection: boolean;
 }
 
 export interface PTActivity {
