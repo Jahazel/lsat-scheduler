@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DAY_ORDER, generateWeek } from "./engine";
-import { mockAnalytics, mockRules, mockStudent } from "./mockData";
+import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "./mockData";
 import type { Activity, DayOfWeek, LRActivity, RCActivity } from "./types";
 
 const DRILL_DAYS: DayOfWeek[] = ["MONDAY", "TUESDAY", "THURSDAY", "FRIDAY"];
@@ -26,7 +26,7 @@ function drillOnly(activities: Activity[]): number {
 }
 
 describe("generateWeek", () => {
-  const schedule = generateWeek(mockStudent, mockAnalytics, mockRules);
+  const schedule = generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName);
   const capacityMinutes = mockStudent.weekdayHours * 60;
 
   // The day carrying the week's one full section is the one exception to
@@ -182,7 +182,7 @@ describe("generateWeek", () => {
     // exception (see nearFullSection above) — evenness deliberately wins
     // over capacity there.
     const student = { ...mockStudent, weekdayHours: 2 };
-    const result = generateWeek(student, mockAnalytics, mockRules);
+    const result = generateWeek(student, mockAnalytics, mockRules, mockStudentName);
     const fullSectionDayIndex = DRILL_DAYS.findIndex((day) =>
       result.days[day].activities.some((a) => (isLR(a) || isRC(a)) && a.isFullSection)
     );
@@ -196,7 +196,7 @@ describe("generateWeek", () => {
 
   it("doesn't crash or loop when a student has zero weekday capacity", () => {
     const zeroCapacityStudent = { ...mockStudent, weekdayHours: 0 };
-    const result = generateWeek(zeroCapacityStudent, mockAnalytics, mockRules);
+    const result = generateWeek(zeroCapacityStudent, mockAnalytics, mockRules, mockStudentName);
     for (const day of DRILL_DAYS) {
       expect(result.days[day].activities).toEqual([]);
       expect(result.days[day].totalMinutes).toBe(0);
@@ -205,7 +205,7 @@ describe("generateWeek", () => {
 
   it("scales practice test time by the mapped accommodation multiplier, not the raw one", () => {
     const extraTimeStudent = { ...mockStudent, accommodationMultiplier: 1.5 as const };
-    const result = generateWeek(extraTimeStudent, mockAnalytics, mockRules);
+    const result = generateWeek(extraTimeStudent, mockAnalytics, mockRules, mockStudentName);
     const expected = mockRules.ptDurationMinutes * mockRules.accommodationTimeMultiplier[1.5];
     expect(result.days.SATURDAY.totalMinutes).toBeCloseTo(expected, 5);
     expect(result.days.SATURDAY.totalMinutes).not.toBeCloseTo(mockRules.ptDurationMinutes * 1.5, 5);
@@ -213,7 +213,7 @@ describe("generateWeek", () => {
 
   it("never schedules an RC passage at L1", () => {
     const bigStudent = { ...mockStudent, weekdayHours: 20 };
-    const schedule = generateWeek(bigStudent, mockAnalytics, mockRules);
+    const schedule = generateWeek(bigStudent, mockAnalytics, mockRules, mockStudentName);
     for (const day of DRILL_DAYS) {
       for (const activity of schedule.days[day].activities.filter(isRC)) {
         expect(activity.difficultyLevel).toBeGreaterThanOrEqual(2);
@@ -224,7 +224,7 @@ describe("generateWeek", () => {
 
   it("splits 10-question LR drills into 5+5 for paired types", () => {
     const bigStudent = { ...mockStudent, weekdayHours: 20 };
-    const schedule = generateWeek(bigStudent, mockAnalytics, mockRules);
+    const schedule = generateWeek(bigStudent, mockAnalytics, mockRules, mockStudentName);
     const pairedTypes = new Set(mockRules.lrPairedTypes.flat());
     for (const day of DRILL_DAYS) {
       for (const activity of schedule.days[day].activities.filter(isLR)) {
@@ -237,7 +237,7 @@ describe("generateWeek", () => {
 
   it("integrates exactly one full section a week, LR or RC, at a flat accommodation-scaled time", () => {
     const bigStudent = { ...mockStudent, weekdayHours: 20 };
-    const schedule = generateWeek(bigStudent, mockAnalytics, mockRules);
+    const schedule = generateWeek(bigStudent, mockAnalytics, mockRules, mockStudentName);
 
     const fullSectionLR = DRILL_DAYS.flatMap((day) =>
       schedule.days[day].activities.filter(isLR).filter((a) => a.isFullSection)
@@ -266,7 +266,7 @@ describe("generateWeek", () => {
     // (mapped multiplier 1.5) should be 15×3×1.5 + 2×17.25 = 102 minutes —
     // RC passages don't pick up the multiplier the way LR questions do.
     const extraTimeStudent = { ...mockStudent, accommodationMultiplier: 2 as const, weekdayHours: 20 };
-    const schedule = generateWeek(extraTimeStudent, mockAnalytics, mockRules);
+    const schedule = generateWeek(extraTimeStudent, mockAnalytics, mockRules, mockStudentName);
     const mult = mockRules.accommodationTimeMultiplier[2];
 
     for (const day of DRILL_DAYS) {
@@ -305,7 +305,7 @@ describe("generateWeek", () => {
     // away with the day — landing under capacity that day is the accepted
     // trade, per spec.
     const student = { ...mockStudent, currentScore: 164, accommodationMultiplier: 2 as const, weekdayHours: 2 };
-    const result = generateWeek(student, mockAnalytics, mockRules);
+    const result = generateWeek(student, mockAnalytics, mockRules, mockStudentName);
     const capacity = student.weekdayHours * 60;
 
     const fullSectionDayIndex = DRILL_DAYS.findIndex((day) =>

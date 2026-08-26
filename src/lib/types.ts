@@ -73,7 +73,6 @@ export type DayOfWeek =
   | "SUNDAY";
 
 export interface Student {
-  name: string;
   platform: "7Sage" | "LSAT Demon";
   currentScore: number;
   goalScore: number;
@@ -88,9 +87,13 @@ export interface Student {
   goalTestDate: string;
 }
 
-// A persisted Student, as returned by the API — adds the database id.
+// A persisted Student, as returned by the API — adds the database id and
+// the display name/email of the User account it belongs to.
 export interface StudentRecord extends Student {
   id: string;
+  userId: string;
+  name: string;
+  email: string;
 }
 
 export interface AnalyticsSnapshot {
