@@ -1,41 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
-import { StudentModel } from "@/models/Student";
-import type { StudentRecord } from "@/lib/types";
+import { listStudentsWithOwners } from "@/lib/students";
 
+// Admin-only: the full roster across every student, for oversight.
 export async function GET() {
-  await connectDB();
-  const students = await StudentModel.find().sort({ name: 1 }).lean();
+  const session = await auth();
+  if (session?.user?.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
-  const records: StudentRecord[] = students.map((s) => ({
-    id: String(s._id),
-    name: s.name,
-    platform: s.platform,
-    currentScore: s.currentScore,
-    goalScore: s.goalScore,
-    weekdayHours: s.weekdayHours,
-    weekendHours: s.weekendHours,
-    accommodationMultiplier: s.accommodationMultiplier,
-    goalTestDate: s.goalTestDate,
-  }));
+  await connectDB();
+  const records = await listStudentsWithOwners();
 
   return NextResponse.json(records);
-}
-
-export async function POST(request: NextRequest) {
-  await connectDB();
-  const body = await request.json();
-
-  const student = await StudentModel.create({
-    name: body.name,
-    platform: body.platform,
-    currentScore: body.currentScore,
-    goalScore: body.goalScore,
-    weekdayHours: body.weekdayHours,
-    weekendHours: body.weekendHours,
-    accommodationMultiplier: body.accommodationMultiplier,
-    goalTestDate: body.goalTestDate,
-  });
-
-  return NextResponse.json({ id: String(student._id) }, { status: 201 });
 }

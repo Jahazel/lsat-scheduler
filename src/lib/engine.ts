@@ -496,7 +496,8 @@ function fillDrillDay(
 export function generateWeek(
   student: Student,
   analytics: AnalyticsSnapshot,
-  rules: RulesConfig
+  rules: RulesConfig,
+  studentName: string
 ): WeeklySchedule {
   const reviewPct = reviewPercent(student.currentScore, rules);
   const timeMult = timeMultiplierFor(rules, student);
@@ -566,5 +567,5 @@ export function generateWeek(
     totalMinutes: weekendMinutes,
   };
 
-  return { studentName: student.name, weekOf: analytics.weekOf, days };
+  return { studentName, weekOf: analytics.weekOf, days };
 }

@@ -95,8 +95,9 @@ export const mockRules: RulesConfig = {
   capacityToleranceMinutes: 15,
 };
 
+export const mockStudentName = "Jordan Rivera";
+
 export const mockStudent: Student = {
-  name: "Jordan Rivera",
   platform: "7Sage",
   currentScore: 160,
   goalScore: 170,

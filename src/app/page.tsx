@@ -1,119 +1,103 @@
 import Link from "next/link";
-import { connectDB } from "@/lib/db";
-import { StudentModel } from "@/models/Student";
-import { AnalyticsSnapshotModel } from "@/models/AnalyticsSnapshot";
+import { generateWeek } from "@/lib/engine";
+import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "@/lib/mockData";
+import WeeklyScheduleView from "@/components/WeeklyScheduleView";
+import EmailCaptureForm from "./EmailCaptureForm";
 
-function PlusIcon({ className }: { className?: string }) {
+const HOW_IT_WORKS = [
+  {
+    step: "1",
+    title: "Connect your analytics",
+    body: "Upload a 7Sage analytics screenshot — DrillMap reads your accuracy by question type automatically.",
+  },
+  {
+    step: "2",
+    title: "Get this week's plan",
+    body: "A weekly drilling schedule built around your specific weak spots, not a generic syllabus.",
+  },
+  {
+    step: "3",
+    title: "Re-check in every week",
+    body: "Upload fresh analytics each week and your plan updates — like a coach, not a static PDF.",
+  },
+];
+
+const sampleSchedule = generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName);
+
+export default function LandingPage() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path
-        d="M9 5l7 7-7 7"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function UploadIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path
-        d="M12 15V4M12 4L8 8M12 4l4 4M5 15v3a2 2 0 002 2h10a2 2 0 002-2v-3"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function RosterIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <circle cx="9" cy="7" r="3" stroke="currentColor" strokeWidth="1.75" />
-      <path
-        d="M3.5 20a5.5 5.5 0 0111 0M16 8.5a2.5 2.5 0 100-5M20.5 20a4.5 4.5 0 00-5.6-4.36"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-export default async function Home() {
-  await connectDB();
-  const [students, snapshots] = await Promise.all([
-    StudentModel.find().sort({ name: 1 }).lean(),
-    AnalyticsSnapshotModel.find({}, { studentId: 1 }).lean(),
-  ]);
-  const studentIdsWithAnalytics = new Set(snapshots.map((s) => String(s.studentId)));
-
-  return (
-    <div className="min-h-screen px-6 py-12">
-      <div className="mx-auto max-w-2xl">
-        <div className="flex items-end justify-between gap-4">
-          <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Students</h1>
-          <Link
-            href="/students/new"
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-accent-600 transition-colors duration-150 ease-out hover:bg-accent-100 hover:text-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-25"
-          >
-            <PlusIcon className="size-4" />
-            Add student
-          </Link>
-        </div>
-
-        {students.length === 0 ? (
-          <div className="mt-8 flex flex-col items-center gap-3 border-y border-ink-100 px-6 py-16 text-center">
-            <RosterIcon className="size-6 text-ink-400" />
-            <p className="text-sm text-ink-500">
-              No students yet. Add one to generate their first schedule.
-            </p>
+    <div className="px-6 py-16">
+      <div className="mx-auto max-w-3xl">
+        <section className="text-center">
+          <h1 className="text-4xl font-semibold tracking-tight text-ink-900 sm:text-5xl">
+            Your LSAT score, engineered week by week.
+          </h1>
+          <p className="mx-auto mt-4 max-w-xl text-lg text-ink-600">
+            Most students don&rsquo;t lack effort — they lack direction. DrillMap turns your analytics into a
+            targeted weekly drilling plan, automatically.
+          </p>
+          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <Link
+              href="/signup"
+              className="rounded-md bg-accent-600 px-6 py-3 text-sm font-medium text-white transition-colors duration-150 ease-out hover:bg-accent-700"
+            >
+              Get my first week free
+            </Link>
+            <Link
+              href="/legal/ai-disclosure"
+              className="text-sm font-medium text-ink-500 hover:text-ink-700"
+            >
+              How DrillMap uses AI
+            </Link>
           </div>
-        ) : (
-          <ul className="mt-8 divide-y divide-ink-100 border-y border-ink-100">
-            {students.map((student) => {
-              const needsAnalytics = !studentIdsWithAnalytics.has(String(student._id));
-              return (
-                <li key={String(student._id)}>
-                  <Link
-                    href={`/students/${student._id}`}
-                    className="group flex items-center gap-4 px-1 py-4 transition-colors duration-150 ease-out hover:bg-ink-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-25"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium text-ink-900">{student.name}</span>
-                        {needsAnalytics && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-accent-100 px-2 py-0.5 text-xs font-medium text-accent-700">
-                            <UploadIcon className="size-3" />
-                            Needs analytics
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-1 truncate text-sm text-ink-500">
-                        {student.platform} · {student.weekdayHours}h weekday /{" "}
-                        {student.weekendHours}h weekend
-                      </p>
-                    </div>
-                    <ChevronRightIcon className="size-4 shrink-0 text-ink-400 transition-transform duration-150 ease-out group-hover:translate-x-0.5" />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        </section>
+
+        <section className="mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 border-y border-ink-100 py-6 text-sm text-ink-500">
+          <span>178 score</span>
+          <span aria-hidden="true">·</span>
+          <span>Stanford Law</span>
+          <span aria-hidden="true">·</span>
+          <span>200+ students coached</span>
+          <span aria-hidden="true">·</span>
+          <span>3,000+ tutoring hours</span>
+        </section>
+
+        <section className="mt-16">
+          <h2 className="text-center text-2xl font-semibold tracking-tight text-ink-900">How it works</h2>
+          <div className="mt-8 grid gap-6 sm:grid-cols-3">
+            {HOW_IT_WORKS.map((item) => (
+              <div key={item.step} className="rounded-lg border border-ink-100 bg-white p-5">
+                <span className="flex size-7 items-center justify-center rounded-full bg-accent-100 text-sm font-semibold text-accent-700">
+                  {item.step}
+                </span>
+                <h3 className="mt-3 font-medium text-ink-900">{item.title}</h3>
+                <p className="mt-1 text-sm text-ink-600">{item.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-16">
+          <h2 className="text-center text-2xl font-semibold tracking-tight text-ink-900">
+            A real weekly plan, not a template
+          </h2>
+          <p className="mx-auto mt-2 max-w-lg text-center text-sm text-ink-600">
+            Here&rsquo;s an actual DrillMap plan — targeted drilling, one practice test, one review day.
+          </p>
+          <div className="mt-8 rounded-xl border border-ink-100 bg-ink-25 p-6">
+            <WeeklyScheduleView schedule={sampleSchedule} student={mockStudent} isRealAnalytics />
+          </div>
+        </section>
+
+        <section className="mt-16 rounded-xl border border-ink-100 bg-white p-8 text-center">
+          <h2 className="text-xl font-semibold tracking-tight text-ink-900">Not ready to start yet?</h2>
+          <p className="mt-1 text-sm text-ink-600">
+            Leave your email and we&rsquo;ll let you know when DrillMap adds your platform or features.
+          </p>
+          <div className="mx-auto mt-4 max-w-sm">
+            <EmailCaptureForm />
+          </div>
+        </section>
       </div>
     </div>
   );

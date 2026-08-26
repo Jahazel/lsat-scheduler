@@ -3,10 +3,11 @@ import type { Student } from "@/lib/types";
 
 export interface StudentDocument extends Student {
   _id: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
 }
 
 const StudentSchema = new Schema<StudentDocument>({
-  name: { type: String, required: true },
+  userId: { type: Schema.Types.ObjectId, ref: "User", required: true, unique: true },
   platform: { type: String, enum: ["7Sage", "LSAT Demon"], required: true },
   currentScore: { type: Number, required: true },
   goalScore: { type: Number, required: true },

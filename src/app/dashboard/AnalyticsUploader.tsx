@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import AnalyticsReview from "../AnalyticsReview";
+import AnalyticsReview from "@/components/AnalyticsReview";
+import { summarizeAnalyticsRows } from "@/lib/analytics";
 import type { AnalyticsExtractedRow } from "@/lib/types";
 
-export default function AnalyticsUploader({ studentId }: { studentId: string }) {
+// Always writes to the logged-in student's own snapshot via /api/analytics
+// — no studentId prop needed, unlike the old tutor-driven version.
+export default function AnalyticsUploader() {
   const router = useRouter();
   const [rows, setRows] = useState<AnalyticsExtractedRow[]>([]);
   const [hasExtracted, setHasExtracted] = useState(false);
@@ -16,26 +19,11 @@ export default function AnalyticsUploader({ studentId }: { studentId: string }) 
     setSaving(true);
     setError(null);
 
-    const lrAccuracyByType: Record<string, number> = {};
-    const lrTopPriorityLogicTypes: string[] = [];
-
-    for (const row of rows) {
-      if (row.category === "regular" && row.accuracy !== undefined) {
-        lrAccuracyByType[row.type] = row.accuracy / 100;
-      }
-      if (row.category === "restricted" && row.isTopPriority) {
-        lrTopPriorityLogicTypes.push(row.type);
-      }
-    }
-
     try {
-      const res = await fetch(`/api/students/${studentId}/analytics`, {
+      const res = await fetch("/api/analytics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lrAccuracyByType,
-          lrTopPriorityLogicTypes,
-        }),
+        body: JSON.stringify(summarizeAnalyticsRows(rows)),
       });
       if (!res.ok) throw new Error();
       setHasExtracted(false);
@@ -49,20 +37,20 @@ export default function AnalyticsUploader({ studentId }: { studentId: string }) 
   }
 
   return (
-    <div className="mt-10 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-      <h2 className="font-semibold text-black dark:text-zinc-50">Upload analytics</h2>
+    <div className="mt-10 rounded-lg border border-ink-100 bg-white p-4">
+      <h2 className="font-semibold text-ink-900">Upload this week&rsquo;s analytics</h2>
 
       <div className="mt-3 flex flex-col gap-4">
         <AnalyticsReview rows={rows} onRowsChange={setRows} onExtractedChange={setHasExtracted} />
 
         {hasExtracted && (
           <>
-            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+            {error && <p className="text-sm text-red-600">{error}</p>}
             <button
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="self-start rounded-md bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+              className="self-start rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 ease-out hover:bg-accent-700 disabled:opacity-50"
             >
               {saving ? "Saving…" : "Save analytics"}
             </button>
