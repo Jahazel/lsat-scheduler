@@ -99,6 +99,10 @@ export default function AnalyticsReview({
     );
   }
 
+  const indexed = rows.map((row, i) => ({ row, i }));
+  const accuracyRows = indexed.filter(({ row }) => row.category === "regular");
+  const priorityRows = indexed.filter(({ row }) => row.category === "restricted");
+
   return (
     <div className="flex flex-col gap-4">
       {rows.length === 0 ? (
@@ -106,39 +110,71 @@ export default function AnalyticsReview({
           Nothing recognized from that screenshot.
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {rows.map((row, i) => (
-            <li key={`${row.type}-${i}`} className="flex items-center gap-3 text-sm">
-              <span className="flex-1 text-black dark:text-zinc-50">{row.type}</span>
-              {row.category === "regular" ? (
-                <input
-                  type="number"
-                  value={row.accuracy ?? ""}
-                  onChange={(e) => updateAccuracy(i, e.target.value)}
-                  placeholder="%"
-                  className="w-20 rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                />
-              ) : (
-                <label className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400">
-                  <input
-                    type="checkbox"
-                    checked={row.isTopPriority ?? false}
-                    onChange={() => toggleTopPriority(i)}
-                  />
-                  Top priority
-                </label>
-              )}
-              <button
-                type="button"
-                onClick={() => removeRow(i)}
-                className="text-zinc-400 hover:text-red-500"
-                aria-label={`Remove ${row.type}`}
-              >
-                ✕
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+          {accuracyRows.length > 0 && (
+            <div className="p-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-500">
+                Accuracy by type
+              </h3>
+              <ul className="mt-2 divide-y divide-zinc-100 dark:divide-zinc-900">
+                {accuracyRows.map(({ row, i }) => (
+                  <li key={`${row.type}-${i}`} className="flex items-center gap-3 py-2 text-sm">
+                    <span className="flex-1 text-black dark:text-zinc-50">{row.type}</span>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        value={row.accuracy ?? ""}
+                        onChange={(e) => updateAccuracy(i, e.target.value)}
+                        placeholder="—"
+                        className="w-16 rounded-md border border-zinc-300 bg-white px-2 py-1 text-right dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                      />
+                      <span className="text-xs text-zinc-500 dark:text-zinc-500">%</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeRow(i)}
+                      className="text-zinc-400 hover:text-red-500"
+                      aria-label={`Remove ${row.type}`}
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {priorityRows.length > 0 && (
+            <div className="p-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-500">
+                Flagged as top priority
+              </h3>
+              <ul className="mt-2 divide-y divide-zinc-100 dark:divide-zinc-900">
+                {priorityRows.map(({ row, i }) => (
+                  <li key={`${row.type}-${i}`} className="flex items-center gap-3 py-2 text-sm">
+                    <span className="flex-1 text-black dark:text-zinc-50">{row.type}</span>
+                    <label className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400">
+                      <input
+                        type="checkbox"
+                        checked={row.isTopPriority ?? false}
+                        onChange={() => toggleTopPriority(i)}
+                      />
+                      Top priority
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => removeRow(i)}
+                      className="text-zinc-400 hover:text-red-500"
+                      aria-label={`Remove ${row.type}`}
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       )}
 
       <div className="flex items-center gap-2">
