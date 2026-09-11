@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-26T00:00:00.000Z",
+  "title": "Design System: DrillMap",
+  "extensions": {
+    "colorMeta": {
+      "accent-600": {
+        "role": "primary",
+        "displayName": "Drill Teal",
+        "canonical": "oklch(46% 0.1 205)",
+        "tonalRamp": [
+          "oklch(19% 0.013 205)",
+          "oklch(32% 0.012 205)",
+          "oklch(38% 0.09 205)",
+          "oklch(46% 0.1 205)",
+          "oklch(54% 0.105 205)",
+          "oklch(93% 0.035 205)",
+          "oklch(97.5% 0.005 205)",
+          "oklch(99% 0.003 205)"
+        ]
+      },
+      "accent-700": { "role": "primary", "displayName": "Drill Teal Deep", "canonical": "oklch(38% 0.09 205)" },
+      "accent-100": { "role": "primary", "displayName": "Drill Teal Light", "canonical": "oklch(93% 0.035 205)" },
+      "ink-25": { "role": "neutral", "displayName": "Paper", "canonical": "oklch(99% 0.003 205)" },
+      "ink-50": { "role": "neutral", "displayName": "Mist", "canonical": "oklch(97.5% 0.005 205)" },
+      "ink-100": { "role": "neutral", "displayName": "Hairline", "canonical": "oklch(94% 0.006 205)" },
+      "ink-200": { "role": "neutral", "displayName": "Quiet", "canonical": "oklch(89% 0.008 205)" },
+      "ink-400": { "role": "neutral", "displayName": "Muted Text Light", "canonical": "oklch(64% 0.01 205)" },
+      "ink-500": { "role": "neutral", "displayName": "Muted Text", "canonical": "oklch(54% 0.011 205)" },
+      "ink-700": { "role": "neutral", "displayName": "Ink Body", "canonical": "oklch(32% 0.012 205)" },
+      "ink-900": { "role": "neutral", "displayName": "Ink Heading", "canonical": "oklch(19% 0.013 205)" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Landing-page hero headline only." },
+      "headline": { "displayName": "Headline", "purpose": "Section titles; brand-register proof numbers per the Proof Number Rule." },
+      "body": { "displayName": "Body", "purpose": "Primary reading copy, both registers." },
+      "label": { "displayName": "Label", "purpose": "Pill badges, metadata, captions, proof-stat descriptions." }
+    },
+    "shadows": [
+      { "name": "proof-ambient", "value": "0 8px 30px oklch(19% 0.013 205 / 0.08)", "purpose": "Brand-register hero/proof containers only — never used in the authenticated app." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "150ms color/opacity transitions on hover and focus. No layout-property animation, no choreography." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main CTA button, both registers (e.g. \"Get my first week free\").",
+      "html": "<button class=\"ds-btn-primary\">Get my first week free</button>",
+      "css": ".ds-btn-primary { background: oklch(46% 0.1 205); color: #ffffff; font-size: 0.875rem; font-weight: 500; padding: 12px 24px; border: none; border-radius: 6px; transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; } .ds-btn-primary:hover, .ds-btn-primary:focus-visible { background: oklch(38% 0.09 205); } .ds-btn-primary:focus-visible { outline: 2px solid oklch(46% 0.1 205); outline-offset: 2px; }"
+    },
+    {
+      "name": "Pill Badge",
+      "kind": "chip",
+      "refersTo": "pill-badge",
+      "description": "Status/role indicator, e.g. \"Viewing as admin — read only.\"",
+      "html": "<span class=\"ds-pill\">Viewing as admin — read only</span>",
+      "css": ".ds-pill { display: inline-flex; align-items: center; gap: 6px; background: oklch(94% 0.006 205); color: oklch(54% 0.011 205); font-size: 0.75rem; font-weight: 500; padding: 4px 10px; border-radius: 9999px; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Standard bordered flat card used throughout the app and \"How it works\" steps.",
+      "html": "<div class=\"ds-card\"><span class=\"ds-card-icon\">1</span><h3 class=\"ds-card-title\">Connect your analytics</h3><p class=\"ds-card-body\">Upload a 7Sage analytics screenshot — DrillMap reads your accuracy by question type automatically.</p></div>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid oklch(94% 0.006 205); border-radius: 8px; padding: 20px; } .ds-card-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 9999px; background: oklch(93% 0.035 205); color: oklch(38% 0.09 205); font-size: 0.875rem; font-weight: 600; } .ds-card-title { margin-top: 12px; font-weight: 500; color: oklch(19% 0.013 205); } .ds-card-body { margin-top: 4px; font-size: 0.875rem; color: oklch(54% 0.011 205); }"
+    },
+    {
+      "name": "Credibility Stat",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Redesigned proof-stat unit for the landing page credibility bar — replaces the current plain-inline-text-plus-middot treatment. One of these per stat (178 score / Stanford Law / 200+ students coached / 3,000+ tutoring hours), laid out as equal-width columns with generous gap, not an inline run.",
+      "html": "<div class=\"ds-stat\"><span class=\"ds-stat-number\">178</span><span class=\"ds-stat-label\">LSAT score</span></div>",
+      "css": ".ds-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; } .ds-stat-number { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; color: oklch(46% 0.1 205); } .ds-stat-label { font-size: 0.75rem; font-weight: 500; color: oklch(54% 0.011 205); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Proof Trail",
+    "overview": "DrillMap runs two registers under one roof. The public landing page is a brand surface where a skeptical, stressed LSAT student has to be convinced fast; the authenticated app is a product surface, a calm weekly tool a signed-up student returns to. Same tokens, same hue family, different energy. The Proof Trail is the philosophy for the brand register: real evidence (a 178 score, Stanford Law, 200+ students coached, 3,000+ tutoring hours, an actual sample weekly plan) is the whole conversion argument, and design should make that evidence physically impossible to skim past. The product register keeps the system's original restraint: a weekly-cadence tool should never look like it's competing for attention.",
+    "keyCharacteristics": [
+      "One hue family (ink neutrals + accent blue-teal, both hued toward ~205) carries both registers",
+      "Brand-register moments commit to the accent at real scale; product-register moments keep it to ≤10% of the screen",
+      "Flat-by-default everywhere, with one sparing exception: brand-register hero/proof moments may take a soft shadow or solid-color block",
+      "Status and category are always conveyed through icon, label, or shape, never color alone"
+    ],
+    "rules": [
+      { "name": "The Register Determines the Rule", "body": "Product-register surfaces obey the original Quiet Accent Rule: accent-600 on ≤10% of the screen, reserved for actionable elements. Brand-register surfaces are exempt from that ceiling by design.", "section": "colors" },
+      { "name": "The Proof Number Rule", "body": "Any number that is direct evidence of credibility or outcome is never rendered at body or label scale. It gets its own visual step: minimum Headline scale, accent-600 or ink-900, with its label demoted beneath it in Label scale.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest. A shadow, if it appears, signals either a transient overlay or one of the named brand-register proof exceptions — never permanent app card structure.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do treat proof numbers as first-class visual elements on brand-register pages, per the Proof Number Rule.",
+      "Do keep the app strictly Restrained even as the landing page goes bolder. One brand, two registers.",
+      "Do use the single Geist Sans family with real weight/scale contrast to build hierarchy.",
+      "Do pair any status or state indicator with an icon or label, never color alone.",
+      "Do keep motion restrained everywhere: transitions only as direct feedback, 150ms ease-out, nothing choreographed."
+    ],
+    "donts": [
+      "Don't build a generic SaaS template landing page.",
+      "Don't default to a corporate/legacy test-prep look.",
+      "Don't render credibility or outcome numbers at the same visual weight as surrounding body copy.",
+      "Don't carry the landing page's Committed color energy into the authenticated app, or vice versa.",
+      "Don't add shadows under static, resting app cards.",
+      "Don't introduce a second accent hue to make the landing page feel bolder."
+    ]
+  }
+}

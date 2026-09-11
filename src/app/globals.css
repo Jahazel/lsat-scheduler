@@ -23,6 +23,11 @@
   --color-accent-500: oklch(54% 0.105 205);
   --color-accent-600: oklch(46% 0.1 205);
   --color-accent-700: oklch(38% 0.09 205);
+
+  /* Brand-register only (see DESIGN.md's Flat-By-Default Rule) — a soft
+     ambient lift for landing-page proof/hero moments. Never used in the
+     authenticated app, which stays flat and bordered. */
+  --shadow-proof-ambient: 0 8px 30px oklch(19% 0.013 205 / 0.08);
 }
 
 @theme inline {

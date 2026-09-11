@@ -52,14 +52,39 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 border-y border-ink-100 py-6 text-sm text-ink-500">
-          <span>178 score</span>
-          <span aria-hidden="true">·</span>
-          <span>Stanford Law</span>
-          <span aria-hidden="true">·</span>
-          <span>200+ students coached</span>
-          <span aria-hidden="true">·</span>
-          <span>3,000+ tutoring hours</span>
+        <section className="mt-12 rounded-xl border border-ink-100 bg-white px-6 py-8 shadow-proof-ambient sm:px-10 sm:py-10">
+          <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
+            <div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-accent-100 text-xl font-semibold text-accent-700">
+              [XX]
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight text-ink-900">[Partner Name]</h2>
+              <p className="text-sm text-ink-500">Founder &amp; LSAT Tutor</p>
+            </div>
+          </div>
+          <p className="mx-auto mt-4 max-w-xl text-center text-sm text-ink-600 sm:mx-0 sm:text-left">
+            [2-3 sentence bio — how they got into LSAT tutoring, what they care about, what makes these
+            numbers personal.]
+          </p>
+
+          <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-ink-100 pt-8 text-center sm:grid-cols-4">
+            <div>
+              <div className="text-2xl font-semibold tracking-tight text-accent-600 sm:text-3xl">178</div>
+              <div className="mt-1 text-xs font-medium text-ink-500">LSAT score</div>
+            </div>
+            <div>
+              <div className="text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl">Stanford</div>
+              <div className="mt-1 text-xs font-medium text-ink-500">Law School</div>
+            </div>
+            <div>
+              <div className="text-2xl font-semibold tracking-tight text-accent-600 sm:text-3xl">200+</div>
+              <div className="mt-1 text-xs font-medium text-ink-500">students coached</div>
+            </div>
+            <div>
+              <div className="text-2xl font-semibold tracking-tight text-accent-600 sm:text-3xl">3,000+</div>
+              <div className="mt-1 text-xs font-medium text-ink-500">tutoring hours</div>
+            </div>
+          </div>
         </section>
 
         <section className="mt-16">
@@ -86,6 +111,47 @@ export default function LandingPage() {
           </p>
           <div className="mt-8 rounded-xl border border-ink-100 bg-ink-25 p-6">
             <WeeklyScheduleView schedule={sampleSchedule} student={mockStudent} isRealAnalytics />
+          </div>
+        </section>
+
+        <section className="mt-16">
+          <h2 className="text-center text-2xl font-semibold tracking-tight text-ink-900">Pricing</h2>
+          <p className="mx-auto mt-2 max-w-lg text-center text-sm text-ink-600">
+            Start with your first week free. After that:
+          </p>
+          <div className="mx-auto mt-10 grid max-w-2xl items-center gap-6 sm:mt-8 sm:grid-cols-2">
+            <div className="rounded-xl border border-ink-100 bg-white p-8 text-center">
+              <h3 className="text-sm font-medium text-ink-500">Weekly</h3>
+              <div className="mt-2 text-4xl font-semibold tracking-tight text-ink-900">
+                $7.99<span className="text-base font-medium text-ink-500">/wk</span>
+              </div>
+              <p className="mt-4 text-xs text-ink-500">No monthly commitment — cancel anytime.</p>
+              <Link
+                href="/signup"
+                className="mt-6 block rounded-md border border-ink-200 px-4 py-2.5 text-sm font-medium text-ink-700 transition-colors duration-150 ease-out hover:border-ink-400"
+              >
+                Start weekly
+              </Link>
+            </div>
+            <div className="relative rounded-xl border-2 border-accent-600 bg-accent-100 p-8 text-center shadow-proof-ambient sm:scale-105">
+              <span className="absolute -top-3 right-6 rounded-full bg-accent-600 px-3 py-1 text-xs font-medium text-white">
+                Best value
+              </span>
+              <h3 className="text-sm font-medium text-accent-700">Monthly</h3>
+              <div className="mt-2 text-4xl font-semibold tracking-tight text-ink-900">
+                $25<span className="text-base font-medium text-ink-500">/mo</span>
+              </div>
+              <p className="mt-4 text-xs font-medium text-accent-700">
+                Signed up to 7Sage through our link? Mention it during signup and we&rsquo;ll confirm and
+                apply $10/mo.
+              </p>
+              <Link
+                href="/signup"
+                className="mt-6 block rounded-md bg-accent-600 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 ease-out hover:bg-accent-700"
+              >
+                Start monthly
+              </Link>
+            </div>
           </div>
         </section>
 

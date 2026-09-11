@@ -2,45 +2,38 @@
 
 ## Register
 
-product
+brand
 
 ## Users
 
-The primary user is [partner], who runs the tutoring business this tool serves. v1 is single-user — no student accounts yet. [Partner] opens the tool on a weekly cadence to:
+Primary user: **LSAT students**, self-serve. They arrive mostly via paid Google Ads, land on the public marketing site, and — if convinced — sign up, complete onboarding (platform, scores, hours, goal test date, optional 7Sage analytics), and get a new auto-generated weekly drilling schedule every week. This is a B2C product now, not an internal tool a tutor operates on a student's behalf.
 
-- Upload a student's 7Sage analytics screenshot and review the AI-extracted data before it's trusted
-- Check or regenerate a student's Monday-Sunday study schedule for the coming week
-- Manage the student roster (intake, per-student view)
+Secondary user: **admin** (the tutor/business owner), who has read-only oversight across all students — a management view, not the primary product experience.
 
-The job to be done is fast, low-friction weekly review, not deep daily use. Every screen should let [partner] verify data and confirm a schedule quickly, then get out.
+The job to be done for the primary (landing page) surface: a stressed, skeptical LSAT student needs to believe, in under a minute, that this tool will actually improve their score — and sign up. For the authenticated app: fast weekly orientation (review this week's plan, re-upload analytics, get out).
 
 ## Product Purpose
 
-Automates weekly LSAT study schedule generation, replacing a manual process [partner] used to do by hand. The scheduling logic itself is deterministic (not LLM-generated); AI's only role is extracting structured data from uploaded 7Sage screenshots, which a human then reviews before it's trusted. Success looks like: [partner] can process a student's weekly update and trust the resulting schedule in under a minute, with clear visibility into what the AI extracted versus what's been human-confirmed.
+DrillMap turns a student's LSAT analytics into a targeted weekly drilling plan, automatically regenerated every week as new analytics come in. The scheduling logic is a deterministic rules-based algorithm, not AI-generated; the only AI usage is Claude vision extracting structured data from uploaded 7Sage analytics screenshots. Success on the landing page looks like: a visitor understands the offer and the tutor's credibility fast enough to sign up before bouncing. Success in the app looks like: a student trusts and acts on their weekly plan in under a minute.
 
 ## Brand Personality
 
-Calm and professional. Understated, trustworthy, gets out of the way. This is a weekly tool, not a daily obsession — it should never feel like it demands attention or adds friction. Confidence comes from clarity (clean hierarchy, legible data, obvious next action), not from decoration.
+Modern, energetic, student-friendly. Confident but not corporate — closer to a sharp, founder-led consumer product than an institutional test-prep brand. The site should feel like it was built by someone who actually gets LSAT students (stressed, skeptical of vague promises, responsive to concrete proof), not like generic SaaS-template marketing.
 
-Reference: the Claude Console dashboard (platform.claude.com), specifically:
-- Colorful solid icon tiles anchoring each card
-- Generous whitespace and minimal chrome (thin borders, no heavy shadows)
-- Small rounded pill/tag badges for quick-scan metadata
-- Flat, simple left sidebar navigation
-
-Explicitly the **light** variant of that aesthetic, not dark mode.
+Real credibility (a 178 score, Stanford Law, 200+ students coached, 3,000+ tutoring hours) is the core trust asset and should be treated as a genuine hero-level design moment, not incidental fine print.
 
 ## Anti-references
 
-Dense spreadsheet/admin-panel look: cramped tables, tiny text, no visual hierarchy, pure data density. This tool handles a small number of students and a weekly cadence — it should never look or feel like an ops dashboard drowning in rows.
+- **Generic SaaS template**: the interchangeable hero + gradient blob + feature-card-grid layout that could belong to any startup. Nothing here should feel swappable with another landing page.
+- **Corporate/legacy test-prep** (Kaplan, Princeton Review-style): dated, institutional, stock-photo energy. DrillMap should read as founder-led and current, not corporate.
 
 ## Design Principles
 
-1. **Calm over dense** — every screen reads as a handful of at-a-glance moments, not a table to parse.
-2. **Weekly ritual, not daily grind** — optimize for fast orientation on a cold open, not for a power user living in the tool all day.
-3. **Make AI-extracted data verifiable, not opaque** — since analytics come from AI vision extraction reviewed by a human, the UI should make it obvious what's extracted versus confirmed, and easy to correct.
-4. **Single-user today, built to grow** — v1 serves one partner, but the structure should tolerate future multi-user/self-serve access without a redesign.
-5. **Status without relying on color alone** — schedule/data states (extracted, confirmed, needs review) should be legible via icon, label, or shape, not color alone.
+1. **Proof over promises** — the tutor's real track record (178 score, Stanford Law, 200+ students, 3,000+ hours) is the single strongest conversion lever on the page. Design should make it impossible to skim past, not bury it as fine print.
+2. **Specific, not generic** — every section should feel unmistakably built for LSAT prep and this tutor, never a template that could be re-skinned for another SaaS product.
+3. **Confidence through energy, not restraint** — unlike the old internal tool, this is a public acquisition surface competing for attention. Visual energy and clear hierarchy earn trust here; being quiet does not.
+4. **Make AI-generated data verifiable, not opaque** — carried over from the app's product-register surfaces: where analytics come from AI vision extraction reviewed by the student, the UI should make extracted vs. confirmed data legible.
+5. **Two registers, one system** — the public landing page (brand) and the authenticated app (product: dashboard, onboarding, admin) are different registers with different energy levels, but should still read as one coherent DrillMap brand, not two disconnected products.
 
 ## Accessibility & Inclusion
 
