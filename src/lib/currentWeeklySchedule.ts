@@ -21,7 +21,7 @@ export interface CurrentWeekRepositories {
     findByStudentAndWeek(studentId: string, weekStartDate: string): Promise<PersistedWeeklySchedule | null>;
     create(schedule: PersistedWeeklySchedule): Promise<PersistedWeeklySchedule>;
   };
-  activityCheckIns?: {
+  activityCheckIns: {
     listForSchedule(scheduleId: string): Promise<ActivityCheckIn[]>;
     ensureForSchedule(schedule: PersistedWeeklySchedule): Promise<void>;
   };
@@ -219,7 +219,7 @@ export async function loadOrGenerateCurrentWeek(
   const weekStartDate = currentWeekInTimezone(now, input.timezone);
   const existing = await input.weeklySchedules.findByStudentAndWeek(input.studentId, weekStartDate);
   if (existing) {
-    await input.activityCheckIns?.ensureForSchedule(existing);
+    await input.activityCheckIns.ensureForSchedule(existing);
     return { kind: "schedule", schedule: existing };
   }
 
@@ -257,13 +257,13 @@ export async function loadOrGenerateCurrentWeek(
   };
   try {
     const created = await input.weeklySchedules.create(saved);
-    await input.activityCheckIns?.ensureForSchedule(created);
+    await input.activityCheckIns.ensureForSchedule(created);
     return { kind: "schedule", schedule: created };
   } catch (error) {
     if (!duplicateSchedule(error)) throw error;
     const concurrent = await input.weeklySchedules.findByStudentAndWeek(input.studentId, weekStartDate);
     if (!concurrent) throw error;
-    await input.activityCheckIns?.ensureForSchedule(concurrent);
+    await input.activityCheckIns.ensureForSchedule(concurrent);
     return { kind: "schedule", schedule: concurrent };
   }
 }

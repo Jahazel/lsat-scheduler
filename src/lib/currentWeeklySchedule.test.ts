@@ -96,6 +96,37 @@ describe("loadOrGenerateCurrentWeek", () => {
     expect(repositories.checkIns().every((checkIn) => checkIn.status === "not_started")).toBe(true);
   });
 
+  it("prepares missing check-ins without overwriting an existing activity report on a later visit", async () => {
+    const repositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-14T13:00:00.000Z")]);
+    const input = {
+      studentId: "student-1",
+      student: mockStudent,
+      studentName: mockStudentName,
+      rules: mockRules,
+      policyVersion: "adaptive-weekly-schedule-v1",
+      timezone: "America/Chicago",
+      now: () => monday,
+      ...repositories,
+    };
+
+    const first = await loadOrGenerateCurrentWeek(input);
+    if (first.kind !== "schedule") throw new Error("Expected a saved schedule");
+    repositories.setCheckIns([
+      { scheduleId: first.schedule.id, activityId: "MONDAY:0", status: "completed", actualMinutes: 45 },
+    ]);
+
+    await expect(loadOrGenerateCurrentWeek(input)).resolves.toEqual(first);
+    expect(repositories.checkIns()).toContainEqual({
+      scheduleId: first.schedule.id,
+      activityId: "MONDAY:0",
+      status: "completed",
+      actualMinutes: 45,
+    });
+    expect(repositories.checkIns()).toHaveLength(
+      Object.values(first.schedule.schedule.days).flatMap((day) => day.activities).length
+    );
+  });
+
   it("returns an upload prerequisite when there is no eligible approved snapshot", async () => {
     const repositories = inMemoryRepositories([]);
 
@@ -223,6 +254,27 @@ describe("loadOrGenerateCurrentWeek", () => {
     ).resolves.toEqual({ kind: "schedule", schedule: concurrentSchedule });
   });
 
+  it("propagates a non-concurrency persistence failure", async () => {
+    const repositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-14T13:00:00.000Z")]);
+    const failure = new Error("database unavailable");
+    repositories.weeklySchedules.create = async () => {
+      throw failure;
+    };
+
+    await expect(
+      loadOrGenerateCurrentWeek({
+        studentId: "student-1",
+        student: mockStudent,
+        studentName: mockStudentName,
+        rules: mockRules,
+        policyVersion: "adaptive-weekly-schedule-v1",
+        timezone: "America/Chicago",
+        now: () => monday,
+        ...repositories,
+      })
+    ).rejects.toThrow(failure);
+  });
+
   it("uses skipped planned minutes from only the immediately preceding schedule to reduce a future unsaved schedule", async () => {
     const adaptiveRepositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-21T13:00:00.000Z")]);
     const baselineRepositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-21T13:00:00.000Z")]);
@@ -300,6 +352,39 @@ describe("loadOrGenerateCurrentWeek", () => {
     const result = await loadOrGenerateCurrentWeek({
       ...commonInput,
       now: () => new Date("2026-09-28T14:00:00.000Z"),
+    });
+
+    if (result.kind !== "schedule") throw new Error("Expected a saved schedule");
+    expect(result.schedule.generationInputs.priorWeekProgress).toEqual({
+      source: "immediately_preceding_schedule",
+      skippedPlannedMinutes: 0,
+      totalPlannedMinutes: expect.any(Number),
+      skipShare: 0,
+      workloadReductionPercent: 0,
+    });
+  });
+
+  it("keeps completed and not-started preceding activities neutral even when they report actual minutes", async () => {
+    const repositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-21T13:00:00.000Z")]);
+    const commonInput = {
+      studentId: "student-1",
+      student: mockStudent,
+      studentName: mockStudentName,
+      rules: mockRules,
+      policyVersion: "adaptive-weekly-schedule-v1",
+      timezone: "America/Chicago",
+      ...repositories,
+    };
+    const prior = await loadOrGenerateCurrentWeek({ ...commonInput, now: () => monday });
+    if (prior.kind !== "schedule") throw new Error("Expected a saved prior schedule");
+    repositories.setCheckIns([
+      { scheduleId: prior.schedule.id, activityId: "MONDAY:0", status: "completed", actualMinutes: 999 },
+      { scheduleId: prior.schedule.id, activityId: "TUESDAY:0", status: "not_started" },
+    ]);
+
+    const result = await loadOrGenerateCurrentWeek({
+      ...commonInput,
+      now: () => new Date("2026-09-21T14:00:00.000Z"),
     });
 
     if (result.kind !== "schedule") throw new Error("Expected a saved schedule");
