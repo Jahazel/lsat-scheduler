@@ -10,6 +10,9 @@ export default async function OnboardingPage() {
   if (!session?.user) {
     redirect("/login");
   }
+  if (session.user.role === "admin") {
+    redirect("/admin");
+  }
 
   await connectDB();
   const existing = await StudentModel.findOne({ userId: session.user.id }).lean();

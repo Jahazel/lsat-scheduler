@@ -3,10 +3,9 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
 import { getStudentWithOwner } from "@/lib/students";
-import { currentWeekInTimezone } from "@/lib/currentWeeklySchedule";
-import { persistedWeeklySchedule } from "@/lib/weeklyScheduleRepository";
+import { adminScheduleStateMessage, loadReadOnlyCurrentWeek } from "@/lib/readOnlyCurrentWeekSchedule";
+import { mongooseCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
 import { mongooseActivityCheckIns } from "@/lib/activityCheckInRepository";
-import { WeeklyScheduleModel } from "@/models/WeeklySchedule";
 import ScheduleCheckInView from "@/components/ScheduleCheckInView";
 
 export default async function AdminStudentPage({ params }: { params: Promise<{ id: string }> }) {
@@ -23,9 +22,13 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
     notFound();
   }
 
-  const weekStartDate = currentWeekInTimezone(new Date(), "America/Chicago");
-  const savedSchedule = await WeeklyScheduleModel.findOne({ studentId: record.id, weekStartDate }).lean();
-  const currentWeek = savedSchedule ? persistedWeeklySchedule(savedSchedule) : null;
+  const currentWeek = await loadReadOnlyCurrentWeek({
+    ...mongooseCurrentWeekRepositories,
+    activityCheckIns: mongooseActivityCheckIns,
+    studentId: record.id,
+    timezone: "America/Chicago",
+    now: () => new Date(),
+  });
 
   return (
     <div className="min-h-screen px-6 py-12">
@@ -40,16 +43,16 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
         </div>
         <p className="mt-4 text-sm text-ink-500">{record.email}</p>
         <div className="mt-2">
-          {currentWeek ? (
+          {currentWeek.kind === "schedule" ? (
             <ScheduleCheckInView
-              scheduleId={currentWeek.id}
-              schedule={currentWeek.schedule}
-              student={currentWeek.generationInputs.student}
-              checkIns={await mongooseActivityCheckIns.listForSchedule(currentWeek.id)}
+              scheduleId={currentWeek.schedule.id}
+              schedule={currentWeek.schedule.schedule}
+              student={currentWeek.schedule.generationInputs.student}
+              checkIns={currentWeek.checkIns}
               readOnly
             />
           ) : (
-            <p className="text-sm text-ink-500">No saved schedule exists for the current week.</p>
+            <p className="text-sm text-ink-500">{adminScheduleStateMessage(currentWeek)}</p>
           )}
         </div>
       </div>

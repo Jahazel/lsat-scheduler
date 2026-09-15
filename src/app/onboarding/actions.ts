@@ -7,6 +7,7 @@ import { StudentModel } from "@/models/Student";
 import { AnalyticsSnapshotModel } from "@/models/AnalyticsSnapshot";
 import { summarizeAnalyticsRows } from "@/lib/analytics";
 import { prepareApprovedSnapshot, type SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
+import { ADMIN_READ_ONLY_MESSAGE, isAdminUser } from "@/lib/accessControl";
 import type { AnalyticsExtractedRow, Student } from "@/lib/types";
 
 export async function createStudentProfile(
@@ -15,6 +16,9 @@ export async function createStudentProfile(
   const session = await auth();
   if (!session?.user) {
     throw new Error("Not authenticated");
+  }
+  if (isAdminUser(session.user)) {
+    throw new Error(ADMIN_READ_ONLY_MESSAGE);
   }
 
   await connectDB();

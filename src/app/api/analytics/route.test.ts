@@ -72,6 +72,16 @@ describe("POST /api/analytics", () => {
     });
   });
 
+  it("rejects an admin's direct attempt to append student analytics", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+
+    const response = await POST(request(confirmedUpload));
+
+    expect(response.status).toBe(403);
+    expect(mocks.findStudent).not.toHaveBeenCalled();
+    expect(mocks.createSnapshot).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["unconfirmed", { ...confirmedUpload, confirmation: { ...confirmedUpload.confirmation, isLatestAnalytics: false } }],
     ["empty", { ...confirmedUpload, lrAccuracyByType: {}, lrTopPriorityLogicTypes: [] }],

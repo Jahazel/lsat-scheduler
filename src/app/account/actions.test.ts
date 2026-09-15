@@ -65,4 +65,17 @@ describe("deleteAccount", () => {
     expect(mocks.deleteUser).toHaveBeenCalledWith({ _id: "user-1" });
     expect(mocks.signOut).toHaveBeenCalledWith({ redirectTo: "/" });
   });
+
+  it("rejects an admin's direct attempt to delete student schedules, analytics, or check-ins", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    const formData = new FormData();
+    formData.set("confirmation", "DELETE");
+
+    await expect(deleteAccount(formData)).rejects.toThrow("Admins have read-only access");
+
+    expect(mocks.connectDB).not.toHaveBeenCalled();
+    expect(mocks.deleteSnapshots).not.toHaveBeenCalled();
+    expect(mocks.deleteCheckIns).not.toHaveBeenCalled();
+    expect(mocks.deleteSchedules).not.toHaveBeenCalled();
+  });
 });
