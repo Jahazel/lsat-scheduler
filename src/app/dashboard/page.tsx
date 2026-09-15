@@ -5,8 +5,9 @@ import { StudentModel } from "@/models/Student";
 import { loadOrGenerateCurrentWeek } from "@/lib/currentWeeklySchedule";
 import { mockRules } from "@/lib/mockData";
 import { mongooseCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
+import { mongooseActivityCheckIns } from "@/lib/activityCheckInRepository";
 import type { Student } from "@/lib/types";
-import WeeklyScheduleView from "@/components/WeeklyScheduleView";
+import ScheduleCheckInView from "@/components/ScheduleCheckInView";
 import AnalyticsUploader from "./AnalyticsUploader";
 
 export default async function DashboardPage() {
@@ -41,17 +42,22 @@ export default async function DashboardPage() {
     timezone: "America/Chicago",
     now: () => new Date(),
   });
+  const checkIns = currentWeek.kind === "schedule"
+    ? await mongooseActivityCheckIns.listForSchedule(currentWeek.schedule.id)
+    : [];
 
   return (
     <div className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-3xl">
-        {currentWeek.kind === "schedule" ? (
-          <WeeklyScheduleView
-            schedule={currentWeek.schedule.schedule}
-            student={currentWeek.schedule.generationInputs.student}
-            isRealAnalytics
-          />
-        ) : (
+        {currentWeek.kind === "schedule" ? (() => {
+          const schedule = currentWeek.schedule;
+          return <ScheduleCheckInView
+            scheduleId={schedule.id}
+            schedule={schedule.schedule}
+            student={schedule.generationInputs.student}
+            checkIns={checkIns}
+          />;
+        })() : (
           <div className="rounded-lg border border-ink-100 bg-white p-6">
             <h1 className="text-xl font-semibold tracking-tight text-ink-900">Upload approved analytics to begin</h1>
             <p className="mt-2 text-sm text-ink-500">

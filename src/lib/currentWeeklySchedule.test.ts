@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { analyticsTrend, currentWeekInTimezone, loadOrGenerateCurrentWeek } from "./currentWeeklySchedule";
+import {
+  analyticsTrend,
+  currentWeekInTimezone,
+  loadOrGenerateCurrentWeek,
+  plannedActivityMinutes,
+} from "./currentWeeklySchedule";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "./mockData";
 import type { ApprovedAnalyticsSnapshot, PersistedWeeklySchedule } from "./types";
 
@@ -11,8 +16,13 @@ function approvedSnapshot(id: string, approvedAt: string): ApprovedAnalyticsSnap
 
 function inMemoryRepositories(snapshots: ApprovedAnalyticsSnapshot[]) {
   const schedules: PersistedWeeklySchedule[] = [];
+  let checkIns: { scheduleId: string; activityId: string; status: "not_started" | "completed" | "skipped"; actualMinutes?: number }[] = [];
   return {
     schedules,
+    checkIns: () => checkIns,
+    setCheckIns(next: typeof checkIns) {
+      checkIns = next;
+    },
     snapshots: {
       listEligibleForStudent: async () => snapshots,
     },
@@ -26,6 +36,19 @@ function inMemoryRepositories(snapshots: ApprovedAnalyticsSnapshot[]) {
         if (existing) throw new Error("duplicate weekly schedule");
         schedules.push(schedule);
         return schedule;
+      },
+    },
+    activityCheckIns: {
+      listForSchedule: async (scheduleId: string) => checkIns.filter((checkIn) => checkIn.scheduleId === scheduleId),
+      ensureForSchedule: async (schedule: PersistedWeeklySchedule) => {
+        for (const [day, plan] of Object.entries(schedule.schedule.days)) {
+          plan.activities.forEach((_, index) => {
+            const activityId = `${day}:${index}`;
+            if (!checkIns.some((checkIn) => checkIn.scheduleId === schedule.id && checkIn.activityId === activityId)) {
+              checkIns.push({ scheduleId: schedule.id, activityId, status: "not_started" });
+            }
+          });
+        }
       },
     },
   };
@@ -67,6 +90,10 @@ describe("loadOrGenerateCurrentWeek", () => {
       workloadReductionPercent: 0,
     });
     expect(first.schedule.policyVersion).toBe("adaptive-weekly-schedule-v1");
+    expect(repositories.checkIns()).toHaveLength(
+      Object.values(first.schedule.schedule.days).flatMap((day) => day.activities).length
+    );
+    expect(repositories.checkIns().every((checkIn) => checkIn.status === "not_started")).toBe(true);
   });
 
   it("returns an upload prerequisite when there is no eligible approved snapshot", async () => {
@@ -194,5 +221,94 @@ describe("loadOrGenerateCurrentWeek", () => {
         ...repositories,
       })
     ).resolves.toEqual({ kind: "schedule", schedule: concurrentSchedule });
+  });
+
+  it("uses skipped planned minutes from only the immediately preceding schedule to reduce a future unsaved schedule", async () => {
+    const adaptiveRepositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-21T13:00:00.000Z")]);
+    const baselineRepositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-21T13:00:00.000Z")]);
+    const commonInput = {
+      studentId: "student-1",
+      student: mockStudent,
+      studentName: mockStudentName,
+      rules: mockRules,
+      policyVersion: "adaptive-weekly-schedule-v1",
+      timezone: "America/Chicago",
+    };
+
+    const prior = await loadOrGenerateCurrentWeek({
+      ...commonInput,
+      now: () => monday,
+      ...adaptiveRepositories,
+    });
+    if (prior.kind !== "schedule") throw new Error("Expected a saved prior schedule");
+
+    const skippedActivity = prior.schedule.schedule.days.MONDAY.activities[0];
+    const skippedPlannedMinutes =
+      skippedActivity.kind === "LR" || skippedActivity.kind === "RC"
+        ? skippedActivity.drillMinutes + skippedActivity.reviewMinutes
+        : skippedActivity.minutes;
+    const totalPlannedMinutes = Object.values(prior.schedule.schedule.days)
+      .flatMap((day) => day.activities)
+      .reduce((total, activity) => total + plannedActivityMinutes(activity), 0);
+    adaptiveRepositories.setCheckIns([
+      { scheduleId: prior.schedule.id, activityId: "MONDAY:0", status: "skipped", actualMinutes: 999 },
+    ]);
+
+    const adaptive = await loadOrGenerateCurrentWeek({
+      ...commonInput,
+      now: () => new Date("2026-09-21T14:00:00.000Z"),
+      ...adaptiveRepositories,
+    });
+    const baseline = await loadOrGenerateCurrentWeek({
+      ...commonInput,
+      now: () => new Date("2026-09-21T14:00:00.000Z"),
+      ...baselineRepositories,
+    });
+
+    if (adaptive.kind !== "schedule" || baseline.kind !== "schedule") throw new Error("Expected saved schedules");
+    expect(adaptive.schedule.generationInputs.priorWeekProgress).toMatchObject({
+      source: "immediately_preceding_schedule",
+      skippedPlannedMinutes,
+      totalPlannedMinutes,
+      skipShare: skippedPlannedMinutes / totalPlannedMinutes,
+      workloadReductionPercent: Math.min(0.25, 0.25 * (skippedPlannedMinutes / totalPlannedMinutes)),
+    });
+    expect(adaptive.schedule.schedule.days.MONDAY.activities.length).toBeLessThanOrEqual(
+      baseline.schedule.schedule.days.MONDAY.activities.length
+    );
+  });
+
+  it("does not let older check-ins alter a future schedule when the immediately preceding week has no skipped work", async () => {
+    const repositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-28T13:00:00.000Z")]);
+    const commonInput = {
+      studentId: "student-1",
+      student: mockStudent,
+      studentName: mockStudentName,
+      rules: mockRules,
+      policyVersion: "adaptive-weekly-schedule-v1",
+      timezone: "America/Chicago",
+      ...repositories,
+    };
+    const older = await loadOrGenerateCurrentWeek({ ...commonInput, now: () => monday });
+    const preceding = await loadOrGenerateCurrentWeek({
+      ...commonInput,
+      now: () => new Date("2026-09-21T14:00:00.000Z"),
+    });
+    if (older.kind !== "schedule" || preceding.kind !== "schedule") throw new Error("Expected saved schedules");
+    repositories.setCheckIns([{ scheduleId: older.schedule.id, activityId: "MONDAY:0", status: "skipped" }]);
+
+    const result = await loadOrGenerateCurrentWeek({
+      ...commonInput,
+      now: () => new Date("2026-09-28T14:00:00.000Z"),
+    });
+
+    if (result.kind !== "schedule") throw new Error("Expected a saved schedule");
+    expect(result.schedule.generationInputs.priorWeekProgress).toEqual({
+      source: "immediately_preceding_schedule",
+      skippedPlannedMinutes: 0,
+      totalPlannedMinutes: expect.any(Number),
+      skipShare: 0,
+      workloadReductionPercent: 0,
+    });
   });
 });

@@ -5,6 +5,8 @@ import { auth, signOut } from "@/auth";
 import { connectDB } from "@/lib/db";
 import { StudentModel } from "@/models/Student";
 import { AnalyticsSnapshotModel } from "@/models/AnalyticsSnapshot";
+import { ActivityCheckInModel } from "@/models/ActivityCheckIn";
+import { WeeklyScheduleModel } from "@/models/WeeklySchedule";
 import { UserModel } from "@/models/User";
 import type { AnalyticsExtractedRow, Student } from "@/lib/types";
 import type { SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
@@ -45,6 +47,9 @@ export async function deleteAccount(formData: FormData) {
   const student = await StudentModel.findOne({ userId: session.user.id });
   if (student) {
     await AnalyticsSnapshotModel.deleteMany({ studentId: student._id });
+    const schedules = await WeeklyScheduleModel.find({ studentId: student._id }).select("_id").lean();
+    await ActivityCheckInModel.deleteMany({ scheduleId: { $in: schedules.map((schedule) => schedule._id) } });
+    await WeeklyScheduleModel.deleteMany({ studentId: student._id });
     await StudentModel.deleteOne({ _id: student._id });
   }
   await UserModel.deleteOne({ _id: session.user.id });

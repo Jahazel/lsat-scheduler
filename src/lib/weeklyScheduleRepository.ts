@@ -1,6 +1,7 @@
 import { listApprovedAnalyticsSnapshots } from "./analyticsSnapshotRepository";
 import type { CurrentWeekRepositories } from "./currentWeeklySchedule";
 import { WeeklyScheduleModel } from "@/models/WeeklySchedule";
+import { mongooseActivityCheckIns } from "./activityCheckInRepository";
 import type { ApprovedAnalyticsSnapshot, PersistedWeeklySchedule } from "./types";
 
 interface StoredWeeklySchedule {
@@ -61,4 +62,5 @@ export const mongooseCurrentWeekRepositories: CurrentWeekRepositories = {
       return persistedWeeklySchedule(record.toObject());
     },
   },
+  activityCheckIns: mongooseActivityCheckIns,
 };

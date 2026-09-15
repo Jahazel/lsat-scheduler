@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "migrate:analytics-snapshots": "node scripts/migrate-analytics-snapshots.mjs",
-    "migrate:weekly-schedules": "node scripts/migrate-weekly-schedules.mjs"
+    "migrate:weekly-schedules": "node scripts/migrate-weekly-schedules.mjs",
+    "migrate:activity-check-ins": "node scripts/migrate-activity-check-ins.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",

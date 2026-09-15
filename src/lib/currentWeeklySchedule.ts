@@ -1,6 +1,8 @@
 import { DAY_ORDER, generateWeek } from "./engine";
 import type {
   AnalyticsSnapshot,
+  Activity,
+  ActivityCheckIn,
   ApprovedAnalyticsSnapshot,
   DayOfWeek,
   PersistedWeeklySchedule,
@@ -18,6 +20,10 @@ export interface CurrentWeekRepositories {
   weeklySchedules: {
     findByStudentAndWeek(studentId: string, weekStartDate: string): Promise<PersistedWeeklySchedule | null>;
     create(schedule: PersistedWeeklySchedule): Promise<PersistedWeeklySchedule>;
+  };
+  activityCheckIns?: {
+    listForSchedule(scheduleId: string): Promise<ActivityCheckIn[]>;
+    ensureForSchedule(schedule: PersistedWeeklySchedule): Promise<void>;
   };
 }
 
@@ -103,21 +109,133 @@ function duplicateSchedule(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && (error as { code?: number }).code === 11000;
 }
 
+function previousWeekStartDate(weekStartDate: string) {
+  const previous = new Date(`${weekStartDate}T00:00:00.000Z`);
+  previous.setUTCDate(previous.getUTCDate() - 7);
+  return previous.toISOString().slice(0, 10);
+}
+
+export function scheduleActivityId(day: DayOfWeek, activityIndex: number) {
+  return `${day}:${activityIndex}`;
+}
+
+export function plannedActivityMinutes(activity: Activity) {
+  return activity.kind === "LR" || activity.kind === "RC"
+    ? activity.drillMinutes + activity.reviewMinutes
+    : activity.minutes;
+}
+
+async function priorWeekProgress(
+  repositories: CurrentWeekRepositories,
+  studentId: string,
+  weekStartDate: string
+) {
+  const priorSchedule = await repositories.weeklySchedules.findByStudentAndWeek(
+    studentId,
+    previousWeekStartDate(weekStartDate)
+  );
+  if (!priorSchedule) {
+    return {
+      source: "unavailable" as const,
+      skippedPlannedMinutes: 0,
+      totalPlannedMinutes: 0,
+      skipShare: 0,
+      workloadReductionPercent: 0,
+    };
+  }
+
+  const checkIns = repositories.activityCheckIns
+    ? await repositories.activityCheckIns.listForSchedule(priorSchedule.id)
+    : [];
+  const skippedActivityIds = new Set(
+    checkIns.filter((checkIn) => checkIn.status === "skipped").map((checkIn) => checkIn.activityId)
+  );
+  let totalPlannedMinutes = 0;
+  let skippedPlannedMinutes = 0;
+  for (const day of DAY_ORDER) {
+    priorSchedule.schedule.days[day].activities.forEach((activity, index) => {
+      const minutes = plannedActivityMinutes(activity);
+      totalPlannedMinutes += minutes;
+      if (skippedActivityIds.has(scheduleActivityId(day, index))) skippedPlannedMinutes += minutes;
+    });
+  }
+  const skipShare = totalPlannedMinutes === 0 ? 0 : skippedPlannedMinutes / totalPlannedMinutes;
+  return {
+    source: "immediately_preceding_schedule" as const,
+    skippedPlannedMinutes,
+    totalPlannedMinutes,
+    skipShare,
+    workloadReductionPercent: Math.min(0.25, 0.25 * skipShare),
+  };
+}
+
+function isFlexibleDrill(activity: Activity, rules: RulesConfig, analytics: AnalyticsSnapshot) {
+  if (activity.kind === "RC") return !activity.isFullSection;
+  if (activity.kind !== "LR") return false;
+  return (
+    !activity.isFullSection &&
+    !rules.lrStarredTypes.includes(activity.type) &&
+    !analytics.lrTopPriorityLogicTypes.includes(activity.type as never)
+  );
+}
+
+function reduceFlexibleWorkload(
+  schedule: WeeklySchedule,
+  rules: RulesConfig,
+  analytics: AnalyticsSnapshot,
+  workloadReductionPercent: number
+) {
+  if (workloadReductionPercent === 0) return schedule;
+  const normalWorkloadMinutes = DAY_ORDER.filter((day) => day !== "SATURDAY").reduce(
+    (total, day) => total + schedule.days[day].totalMinutes,
+    0
+  );
+  const targetReduction = normalWorkloadMinutes * workloadReductionPercent;
+  let removedMinutes = 0;
+  const days = { ...schedule.days };
+  for (const day of [...DAY_ORDER].reverse()) {
+    const plan = days[day];
+    const retained = [...plan.activities];
+    for (let index = retained.length - 1; index >= 0 && removedMinutes < targetReduction; index--) {
+      if (!isFlexibleDrill(retained[index], rules, analytics)) continue;
+      removedMinutes += plannedActivityMinutes(retained[index]);
+      retained.splice(index, 1);
+    }
+    if (retained.length !== plan.activities.length) {
+      days[day] = {
+        ...plan,
+        activities: retained,
+        totalMinutes: retained.reduce((total, activity) => total + plannedActivityMinutes(activity), 0),
+      };
+    }
+  }
+  return { ...schedule, days };
+}
+
 export async function loadOrGenerateCurrentWeek(
   input: LoadOrGenerateCurrentWeekInput
 ): Promise<LoadOrGenerateCurrentWeekResult> {
   const now = input.now();
   const weekStartDate = currentWeekInTimezone(now, input.timezone);
   const existing = await input.weeklySchedules.findByStudentAndWeek(input.studentId, weekStartDate);
-  if (existing) return { kind: "schedule", schedule: existing };
+  if (existing) {
+    await input.activityCheckIns?.ensureForSchedule(existing);
+    return { kind: "schedule", schedule: existing };
+  }
 
   const snapshots = newestApprovedSnapshots(await input.snapshots.listEligibleForStudent(input.studentId));
   if (snapshots.length === 0) return { kind: "analytics_required" };
 
   const analytics = analyticsTrend(snapshots, weekStartDate);
-  const schedule = remainingSchedule(
+  const priorWeekProgressFacts = await priorWeekProgress(input, input.studentId, weekStartDate);
+  const schedule = reduceFlexibleWorkload(
+    remainingSchedule(
     generateWeek(input.student, analytics, input.rules, input.studentName),
     currentDayInTimezone(now, input.timezone)
+    ),
+    input.rules,
+    analytics,
+    priorWeekProgressFacts.workloadReductionPercent
   );
   const saturdayCapacity = input.student.weekendHours * 60;
   schedule.saturdayOverageMinutes = Math.max(0, schedule.days.SATURDAY.totalMinutes - saturdayCapacity);
@@ -133,22 +251,19 @@ export async function loadOrGenerateCurrentWeek(
       timezone: input.timezone,
       remainingDays: DAY_ORDER.slice(DAY_ORDER.indexOf(currentDayInTimezone(now, input.timezone))),
       analytics,
-      priorWeekProgress: {
-        source: "unavailable",
-        skippedPlannedMinutes: 0,
-        totalPlannedMinutes: 0,
-        skipShare: 0,
-        workloadReductionPercent: 0,
-      },
+      priorWeekProgress: priorWeekProgressFacts,
     },
     policyVersion: input.policyVersion,
   };
   try {
-    return { kind: "schedule", schedule: await input.weeklySchedules.create(saved) };
+    const created = await input.weeklySchedules.create(saved);
+    await input.activityCheckIns?.ensureForSchedule(created);
+    return { kind: "schedule", schedule: created };
   } catch (error) {
     if (!duplicateSchedule(error)) throw error;
     const concurrent = await input.weeklySchedules.findByStudentAndWeek(input.studentId, weekStartDate);
     if (!concurrent) throw error;
+    await input.activityCheckIns?.ensureForSchedule(concurrent);
     return { kind: "schedule", schedule: concurrent };
   }
 }

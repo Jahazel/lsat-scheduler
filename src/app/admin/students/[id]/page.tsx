@@ -5,8 +5,9 @@ import { connectDB } from "@/lib/db";
 import { getStudentWithOwner } from "@/lib/students";
 import { currentWeekInTimezone } from "@/lib/currentWeeklySchedule";
 import { persistedWeeklySchedule } from "@/lib/weeklyScheduleRepository";
+import { mongooseActivityCheckIns } from "@/lib/activityCheckInRepository";
 import { WeeklyScheduleModel } from "@/models/WeeklySchedule";
-import WeeklyScheduleView from "@/components/WeeklyScheduleView";
+import ScheduleCheckInView from "@/components/ScheduleCheckInView";
 
 export default async function AdminStudentPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -40,11 +41,13 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
         <p className="mt-4 text-sm text-ink-500">{record.email}</p>
         <div className="mt-2">
           {currentWeek ? (
-            <WeeklyScheduleView
-              schedule={currentWeek.schedule}
-              student={currentWeek.generationInputs.student}
-              isRealAnalytics
-            />
+          <ScheduleCheckInView
+            scheduleId={currentWeek.id}
+            schedule={currentWeek.schedule}
+            student={currentWeek.generationInputs.student}
+            checkIns={await mongooseActivityCheckIns.listForSchedule(currentWeek.id)}
+            readOnly
+          />
           ) : (
             <p className="text-sm text-ink-500">No saved schedule exists for the current week.</p>
           )}
