@@ -4,11 +4,12 @@ import { useState, useTransition } from "react";
 import { DAY_ORDER } from "@/lib/engine";
 import { activityLabel } from "@/lib/activityLabel";
 import { plannedActivityMinutes, scheduleActivityId } from "@/lib/currentWeeklySchedule";
+import { formatScheduleWeekOf, remainingActivityCount, scheduledActivityCount } from "@/lib/scheduleCheckInSummary";
 import type { ActivityCheckIn, DayOfWeek, Student, WeeklySchedule } from "@/lib/types";
 import { saveActivityCheckIn } from "@/app/dashboard/actions";
 
 const CONTROL_CLASS =
-  "rounded-md border border-ink-200 bg-white transition-colors duration-150 ease-out hover:border-accent-600 hover:text-accent-700 focus-visible:border-accent-600 focus-visible:outline-none";
+  "rounded-md border border-ink-200 bg-white font-medium text-ink-700 transition-colors duration-150 ease-out hover:border-accent-600 hover:text-accent-700 focus-visible:border-accent-600 focus-visible:outline-none";
 const FIELD_CLASS =
   "rounded-md border border-ink-200 bg-white transition-colors duration-150 ease-out focus:border-accent-600 focus:outline-none";
 
@@ -23,7 +24,6 @@ interface ScheduleCheckInViewProps {
 export default function ScheduleCheckInView({
   scheduleId,
   schedule,
-  student,
   checkIns,
   readOnly = false,
 }: ScheduleCheckInViewProps) {
@@ -35,6 +35,10 @@ export default function ScheduleCheckInView({
   const byActivityId = new Map(savedCheckIns.map((checkIn) => [checkIn.activityId, checkIn]));
 
   function saveCheckIn(activityId: string, status: ActivityCheckIn["status"], actualMinutes?: number) {
+    setSavedCheckIns((previous) => [
+      ...previous.filter((checkIn) => checkIn.activityId !== activityId),
+      { ...previous.find((checkIn) => checkIn.activityId === activityId), scheduleId, activityId, status, actualMinutes },
+    ]);
     startTransition(async () => {
       const saved = await saveActivityCheckIn({ scheduleId, activityId, status, actualMinutes });
       setSavedCheckIns((previous) => [...previous.filter((checkIn) => checkIn.activityId !== activityId), saved]);
@@ -43,13 +47,19 @@ export default function ScheduleCheckInView({
 
   return (
     <>
-      <h1 className="text-2xl font-semibold tracking-tight text-ink-900">
-        {schedule.studentName}&rsquo;s Week of {schedule.weekOf}
-      </h1>
-      <p className="mt-1 text-sm text-ink-500">{student.weekdayHours}h/day capacity · score {student.currentScore}</p>
-      <div className="mt-6 flex flex-wrap gap-2" aria-label="Schedule view">
-        <button className={`${CONTROL_CLASS} px-3 py-1.5 text-sm`} onClick={() => setView("week")} type="button">Whole week</button>
-        <button className={`${CONTROL_CLASS} px-3 py-1.5 text-sm`} onClick={() => setView("day")} type="button">One day</button>
+      <p className="text-sm font-medium text-ink-700">Week of {formatScheduleWeekOf(schedule.weekOf)}</p>
+      <div className="mt-3 flex flex-wrap items-end justify-between gap-5">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Your plan for this week</h1>
+          <p className="mt-3 text-xl text-ink-500">Your plan is set. Check in as you go.</p>
+        </div>
+        <p aria-live="polite" className="rounded-full bg-ink-100 px-4 py-2 text-base font-medium text-ink-700">
+          {remainingActivityCount(schedule, savedCheckIns)} of {scheduledActivityCount(schedule)} activities remaining
+        </p>
+      </div>
+      <div className="mt-8 flex flex-wrap gap-2" aria-label="Schedule view">
+        <button aria-pressed={view === "week"} className={`${view === "week" ? "border-ink-900 bg-ink-900 text-white" : CONTROL_CLASS} px-4 py-2 text-sm`} onClick={() => setView("week")} type="button">Whole week</button>
+        <button aria-pressed={view === "day"} className={`${view === "day" ? "border-ink-900 bg-ink-900 text-white" : CONTROL_CLASS} px-4 py-2 text-sm`} onClick={() => setView("day")} type="button">One day</button>
         {view === "day" && (
           <select className={`${FIELD_CLASS} px-2 text-sm`} value={selectedDay} onChange={(event) => setSelectedDay(event.target.value as DayOfWeek)}>
             {DAY_ORDER.map((day) => <option key={day}>{day}</option>)}
@@ -96,6 +106,19 @@ export default function ScheduleCheckInView({
           );
         })}
       </div>
+      <section className="mt-8 border-t border-ink-200 pt-6">
+        <p className="text-sm font-medium text-ink-700">Looking ahead</p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="font-semibold text-ink-900">Prepare next week&apos;s plan</h2>
+            <p className="mt-1 text-sm text-ink-500">When you have updated 7Sage analytics, upload them to shape next week&apos;s plan.</p>
+          </div>
+          <details className="group">
+            <summary className={`${CONTROL_CLASS} cursor-pointer list-none px-4 py-2 text-sm group-open:border-accent-600 group-open:text-accent-700`}>How this works</summary>
+            <p className="mt-3 w-full max-w-xl rounded-lg border border-dashed border-ink-200 bg-ink-50 p-4 text-sm text-ink-700">Your current plan is saved and will not change. A future analytics upload is used only when a later week&apos;s plan is created.</p>
+          </details>
+        </div>
+      </section>
     </>
   );
 }
