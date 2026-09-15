@@ -41,13 +41,13 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
         <p className="mt-4 text-sm text-ink-500">{record.email}</p>
         <div className="mt-2">
           {currentWeek ? (
-          <ScheduleCheckInView
-            scheduleId={currentWeek.id}
-            schedule={currentWeek.schedule}
-            student={currentWeek.generationInputs.student}
-            checkIns={await mongooseActivityCheckIns.listForSchedule(currentWeek.id)}
-            readOnly
-          />
+            <ScheduleCheckInView
+              scheduleId={currentWeek.id}
+              schedule={currentWeek.schedule}
+              student={currentWeek.generationInputs.student}
+              checkIns={await mongooseActivityCheckIns.listForSchedule(currentWeek.id)}
+              readOnly
+            />
           ) : (
             <p className="text-sm text-ink-500">No saved schedule exists for the current week.</p>
           )}

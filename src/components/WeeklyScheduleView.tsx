@@ -1,4 +1,5 @@
 import { DAY_ORDER } from "@/lib/engine";
+import { activityLabel } from "@/lib/activityLabel";
 import { mockRules } from "@/lib/mockData";
 import type { Activity, LRActivity, RCActivity, Student, WeeklySchedule } from "@/lib/types";
 
@@ -17,21 +18,6 @@ export function weeksUntilTest(goalTestDate: string | undefined): string | null 
   if (weeks < 0) return "test date passed";
   if (weeks === 0) return "test this week";
   return `${weeks} week${weeks === 1 ? "" : "s"} until test`;
-}
-
-// PT/REVIEW days only ever carry PT/REVIEW activities — LR/RC drill days
-// use lrActivityLabel/rcDisplayLines below instead, for the sorting and
-// grouping a drill day needs.
-function activityLabel(activity: Activity): string {
-  switch (activity.kind) {
-    case "LR":
-      return `${activity.questionCount} ${activity.type} (${activity.difficultyRange})`;
-    case "RC":
-      return `${activity.passageCount} ${activity.type} passage${activity.passageCount > 1 ? "s" : ""} (L${activity.difficultyLevel})`;
-    case "PT":
-    case "REVIEW":
-      return activity.label;
-  }
 }
 
 function lrActivityLabel(activity: LRActivity): string {

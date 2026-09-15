@@ -2,15 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { DAY_ORDER } from "@/lib/engine";
+import { activityLabel } from "@/lib/activityLabel";
 import { plannedActivityMinutes, scheduleActivityId } from "@/lib/currentWeeklySchedule";
-import type { Activity, ActivityCheckIn, DayOfWeek, Student, WeeklySchedule } from "@/lib/types";
+import type { ActivityCheckIn, DayOfWeek, Student, WeeklySchedule } from "@/lib/types";
 import { saveActivityCheckIn } from "@/app/dashboard/actions";
 
-function activityLabel(activity: Activity) {
-  if (activity.kind === "LR") return `${activity.questionCount} ${activity.type} (${activity.difficultyRange})`;
-  if (activity.kind === "RC") return `${activity.passageCount} ${activity.type} passage${activity.passageCount === 1 ? "" : "s"} (L${activity.difficultyLevel})`;
-  return activity.label;
-}
+const CONTROL_CLASS =
+  "rounded-md border border-ink-200 bg-white transition-colors duration-150 ease-out hover:border-accent-600 hover:text-accent-700 focus-visible:border-accent-600 focus-visible:outline-none";
+const FIELD_CLASS =
+  "rounded-md border border-ink-200 bg-white transition-colors duration-150 ease-out focus:border-accent-600 focus:outline-none";
 
 interface ScheduleCheckInViewProps {
   scheduleId: string;
@@ -48,10 +48,10 @@ export default function ScheduleCheckInView({
       </h1>
       <p className="mt-1 text-sm text-ink-500">{student.weekdayHours}h/day capacity · score {student.currentScore}</p>
       <div className="mt-6 flex flex-wrap gap-2" aria-label="Schedule view">
-        <button className="rounded-md border border-ink-200 px-3 py-1.5 text-sm" onClick={() => setView("week")} type="button">Whole week</button>
-        <button className="rounded-md border border-ink-200 px-3 py-1.5 text-sm" onClick={() => setView("day")} type="button">One day</button>
+        <button className={`${CONTROL_CLASS} px-3 py-1.5 text-sm`} onClick={() => setView("week")} type="button">Whole week</button>
+        <button className={`${CONTROL_CLASS} px-3 py-1.5 text-sm`} onClick={() => setView("day")} type="button">One day</button>
         {view === "day" && (
-          <select className="rounded-md border border-ink-200 px-2 text-sm" value={selectedDay} onChange={(event) => setSelectedDay(event.target.value as DayOfWeek)}>
+          <select className={`${FIELD_CLASS} px-2 text-sm`} value={selectedDay} onChange={(event) => setSelectedDay(event.target.value as DayOfWeek)}>
             {DAY_ORDER.map((day) => <option key={day}>{day}</option>)}
           </select>
         )}
@@ -78,12 +78,12 @@ export default function ScheduleCheckInView({
                         {readOnly ? <p className="mt-2 text-sm text-ink-700">{status.replace("_", " ")}{checkIn?.actualMinutes !== undefined ? ` · ${checkIn.actualMinutes} min actual` : ""}</p> : (
                           <div className="mt-3 flex flex-wrap items-center gap-2">
                             {(["not_started", "completed", "skipped"] as const).map((nextStatus) => (
-                              <button disabled={pending} className="rounded-md border border-ink-200 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50" key={nextStatus} onClick={() => saveCheckIn(activityId, nextStatus)} type="button">
+                              <button disabled={pending} className={`${CONTROL_CLASS} px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50`} key={nextStatus} onClick={() => saveCheckIn(activityId, nextStatus)} type="button">
                                 {nextStatus === "not_started" ? "Not started" : nextStatus === "completed" ? "Completed" : "Skipped"}
                               </button>
                             ))}
                             {status === "completed" && (
-                              <label className="text-xs text-ink-600">Actual min <input className="ml-1 w-16 rounded-md border border-ink-200 px-1 py-0.5" defaultValue={checkIn?.actualMinutes ?? ""} min="0" onBlur={(event) => saveCheckIn(activityId, "completed", event.currentTarget.value === "" ? undefined : Number(event.currentTarget.value))} type="number" /></label>
+                              <label className="text-xs text-ink-600">Actual min <input className={`${FIELD_CLASS} ml-1 w-16 px-1 py-0.5`} defaultValue={checkIn?.actualMinutes ?? ""} min="0" onBlur={(event) => saveCheckIn(activityId, "completed", event.currentTarget.value === "" ? undefined : Number(event.currentTarget.value))} type="number" /></label>
                             )}
                           </div>
                         )}
