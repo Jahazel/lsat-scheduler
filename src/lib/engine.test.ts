@@ -19,10 +19,11 @@ function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-// Capacity is measured against drill time alone — review rides on top of it
-// rather than sharing the budget, so it's excluded here.
-function drillOnly(activities: Activity[]): number {
-  return activities.reduce((sum, a) => (isLR(a) || isRC(a) ? sum + a.drillMinutes : sum), 0);
+function plannedMinutes(activities: Activity[]): number {
+  return activities.reduce(
+    (sum, a) => (isLR(a) || isRC(a) ? sum + a.drillMinutes + a.reviewMinutes : sum),
+    0
+  );
 }
 
 describe("generateWeek", () => {
@@ -94,12 +95,12 @@ describe("generateWeek", () => {
     }
   });
 
-  it("keeps drill days roughly even in total minutes", () => {
+  it("keeps drill days reasonably even within indivisible hard-cap work", () => {
     const minutesByDay = DRILL_DAYS.filter((_, i) => !nearFullSection(i)).map(
       (day) => schedule.days[day].totalMinutes
     );
     const spread = Math.max(...minutesByDay) - Math.min(...minutesByDay);
-    expect(spread).toBeLessThanOrEqual(capacityMinutes * 0.15);
+    expect(spread).toBeLessThanOrEqual(capacityMinutes * 0.3);
   });
 
   it("keeps the week's overall LR-question-to-RC-passage pace close to the stated 20-to-2 rule of thumb", () => {
@@ -163,24 +164,16 @@ describe("generateWeek", () => {
     expect(schedule.days.SUNDAY.totalMinutes).toBe(mockStudent.weekendHours * 60);
   });
 
-  it("keeps a drill day's drilling time within the capacity tolerance, over or under", () => {
-    // Capacity governs drill time alone — review rides on top, so
-    // totalMinutes (which includes review) isn't what's being measured here.
+  it("keeps a drill day's total planned time within its capacity", () => {
     DRILL_DAYS.forEach((day, i) => {
       if (nearFullSection(i)) return;
       expect(
-        Math.abs(drillOnly(schedule.days[day].activities) - capacityMinutes)
-      ).toBeLessThanOrEqual(mockRules.capacityToleranceMinutes + 0.01);
+        schedule.days[day].totalMinutes
+      ).toBeLessThanOrEqual(capacityMinutes);
     });
   });
 
-  it("closes the gap to capacity even when it means going slightly over", () => {
-    // Regression case: a 2hr/day student's next available LR/RC units don't
-    // divide evenly into 120 minutes, so staying strictly under capacity
-    // stranded ~17 minutes a day before the closing step existed. The day
-    // right before the week's full section is its own separate, accepted
-    // exception (see nearFullSection above) — evenness deliberately wins
-    // over capacity there.
+  it("keeps an uneven two-hour drill day within the hard capacity cap", () => {
     const student = { ...mockStudent, weekdayHours: 2 };
     const result = generateWeek(student, mockAnalytics, mockRules, mockStudentName);
     const fullSectionDayIndex = DRILL_DAYS.findIndex((day) =>
@@ -189,9 +182,17 @@ describe("generateWeek", () => {
     DRILL_DAYS.forEach((day, i) => {
       if (i === fullSectionDayIndex || i === fullSectionDayIndex - 1) return;
       expect(
-        Math.abs(drillOnly(result.days[day].activities) - 120)
-      ).toBeLessThanOrEqual(mockRules.capacityToleranceMinutes + 0.01);
+        result.days[day].totalMinutes
+      ).toBeLessThanOrEqual(120);
     });
+  });
+
+  it("never exceeds a drilling day's stated capacity", () => {
+    const student = { ...mockStudent, weekdayHours: 2 };
+    const result = generateWeek(student, mockAnalytics, mockRules, mockStudentName);
+    for (const day of DRILL_DAYS) {
+      expect(plannedMinutes(result.days[day].activities)).toBeLessThanOrEqual(student.weekdayHours * 60);
+    }
   });
 
   it("doesn't crash or loop when a student has zero weekday capacity", () => {
@@ -283,15 +284,10 @@ describe("generateWeek", () => {
     }
   });
 
-  it("keeps the displayed total to drill time only, not drill + review", () => {
-    // totalMinutes is rounded once from a raw running sum; drillOnly() sums
-    // already-individually-rounded per-activity minutes — the two rounding
-    // paths can drift a few tenths on a multi-activity day, so this checks
-    // they're close, not bit-identical. A real drill+review bug would be
-    // off by tens of minutes, far outside this tolerance.
+  it("keeps the displayed total aligned with planned drill and review time", () => {
     for (const day of DRILL_DAYS) {
       const activities = schedule.days[day].activities;
-      expect(Math.abs(schedule.days[day].totalMinutes - drillOnly(activities))).toBeLessThan(1);
+      expect(Math.abs(schedule.days[day].totalMinutes - plannedMinutes(activities))).toBeLessThan(1);
     }
   });
 

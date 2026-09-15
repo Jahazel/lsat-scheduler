@@ -2,10 +2,10 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
 import { StudentModel } from "@/models/Student";
-import { listApprovedAnalyticsSnapshots } from "@/lib/analyticsSnapshotRepository";
-import { generateWeek } from "@/lib/engine";
-import { mockAnalytics, mockRules } from "@/lib/mockData";
-import type { AnalyticsSnapshot, Student } from "@/lib/types";
+import { loadOrGenerateCurrentWeek } from "@/lib/currentWeeklySchedule";
+import { mockRules } from "@/lib/mockData";
+import { mongooseCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
+import type { Student } from "@/lib/types";
 import WeeklyScheduleView from "@/components/WeeklyScheduleView";
 import AnalyticsUploader from "./AnalyticsUploader";
 
@@ -31,22 +31,34 @@ export default async function DashboardPage() {
     goalTestDate: doc.goalTestDate,
   };
 
-  const [snapshotDoc] = await listApprovedAnalyticsSnapshots(doc._id);
-  const analytics: AnalyticsSnapshot = snapshotDoc
-    ? {
-        weekOf: snapshotDoc.weekOf,
-        lrAccuracyByType: snapshotDoc.lrAccuracyByType,
-        lrTopPriorityLogicTypes: snapshotDoc.lrTopPriorityLogicTypes,
-      }
-    : mockAnalytics;
-  const isRealAnalytics = Boolean(snapshotDoc);
-
-  const schedule = generateWeek(student, analytics, mockRules, session.user.name ?? "Your");
+  const currentWeek = await loadOrGenerateCurrentWeek({
+    ...mongooseCurrentWeekRepositories,
+    studentId: String(doc._id),
+    student,
+    studentName: session.user.name ?? "Your",
+    rules: mockRules,
+    policyVersion: "adaptive-weekly-schedule-v1",
+    timezone: "America/Chicago",
+    now: () => new Date(),
+  });
 
   return (
     <div className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-3xl">
-        <WeeklyScheduleView schedule={schedule} student={student} isRealAnalytics={isRealAnalytics} />
+        {currentWeek.kind === "schedule" ? (
+          <WeeklyScheduleView
+            schedule={currentWeek.schedule.schedule}
+            student={currentWeek.schedule.generationInputs.student}
+            isRealAnalytics
+          />
+        ) : (
+          <div className="rounded-lg border border-ink-100 bg-white p-6">
+            <h1 className="text-xl font-semibold tracking-tight text-ink-900">Upload approved analytics to begin</h1>
+            <p className="mt-2 text-sm text-ink-500">
+              Confirm a fresh 7Sage analytics extraction to create this week&apos;s schedule.
+            </p>
+          </div>
+        )}
         {student.platform === "7Sage" && <AnalyticsUploader />}
       </div>
     </div>

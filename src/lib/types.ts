@@ -227,4 +227,35 @@ export interface WeeklySchedule {
   studentName: string;
   weekOf: string;
   days: Record<DayOfWeek, DayPlan>;
+  saturdayOverageMinutes?: number;
+}
+
+export interface ApprovedAnalyticsSnapshot extends AnalyticsSnapshot {
+  id: string;
+  approvedAt: string;
+}
+
+export interface PriorWeekProgressFacts {
+  source: "unavailable";
+  skippedPlannedMinutes: 0;
+  totalPlannedMinutes: 0;
+  skipShare: 0;
+  workloadReductionPercent: 0;
+}
+
+export interface PersistedWeeklySchedule {
+  id: string;
+  studentId: string;
+  weekStartDate: string;
+  generatedAt: string;
+  schedule: WeeklySchedule;
+  sourceSnapshotIds: string[];
+  generationInputs: {
+    student: Student;
+    timezone: string;
+    remainingDays: DayOfWeek[];
+    analytics: AnalyticsSnapshot;
+    priorWeekProgress: PriorWeekProgressFacts;
+  };
+  policyVersion: string;
 }

@@ -101,6 +101,11 @@ export default function WeeklyScheduleView({ schedule, student, isRealAnalytics 
                   {TYPE_LABEL[plan.type]} · {plan.totalMinutes} min
                 </span>
               </div>
+              {day === "SATURDAY" && schedule.saturdayOverageMinutes && schedule.saturdayOverageMinutes > 0 && (
+                <p className="mt-1 text-xs text-accent-700">
+                  {schedule.saturdayOverageMinutes} min over your stated Saturday capacity for the full practice test.
+                </p>
+              )}
               {plan.activities.length === 0 ? (
                 <p className="mt-2 text-sm text-ink-500">
                   {plan.type === "rest" ? "Rest day." : "Nothing scheduled."}

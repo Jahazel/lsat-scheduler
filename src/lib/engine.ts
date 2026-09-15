@@ -137,7 +137,9 @@ function buildLRList(
   // The other Stimulus Logic types never enter this ranking at all; they're
   // handled entirely by the top-priority block above. Walk the ranked list;
   // on reaching the bottom, loop back to the top and escalate size.
-  const regularPool: LRType[] = [...rules.lrStemTypes, ...rules.lrLogicExceptions];
+  const regularPool: LRType[] = [...rules.lrStemTypes, ...rules.lrLogicExceptions].filter(
+    (type) => analytics.lrAccuracyByType[type] !== undefined
+  );
   const ranked = regularPool.sort(
     (a, b) => (analytics.lrAccuracyByType[a] ?? 1) - (analytics.lrAccuracyByType[b] ?? 1)
   );
@@ -146,8 +148,8 @@ function buildLRList(
   // after the mandatory floor — on the single weakest type — rather than
   // waiting for the escalating loop below to reach a "full section" tier
   // that a normal week's capacity never actually gets deep enough to touch.
-  if (allowFullSection) {
-    const weakestType = ranked[0];
+  const weakestType = ranked[0];
+  if (allowFullSection && weakestType) {
     list.push({
       type: weakestType,
       questionCount: rules.lrUnitSizes.fullSection,
@@ -319,18 +321,13 @@ interface SideFill<T> {
   nextIndex: number;
 }
 
-// Greedily takes items in order while they fit under `target`, then — if
-// what's left short of target exceeds `tolerance` — takes one more item
-// anyway as long as doing so doesn't overshoot target by more than that
-// same tolerance. Mirrors the day-level "close the gap rather than leave it
-// stranded" behavior, just scoped to one side's own target instead of the
-// whole day's capacity.
+// Greedily takes items in order while they fit under `target`. An
+// indivisible item that would exceed the remaining capacity is omitted.
 function fillSideToTarget<T>(
   list: T[],
   startIndex: number,
   cost: (c: T) => number,
-  target: number,
-  tolerance: number
+  target: number
 ): SideFill<T> {
   const taken: T[] = [];
   let idx = startIndex;
@@ -339,15 +336,6 @@ function fillSideToTarget<T>(
     taken.push(list[idx]);
     used += cost(list[idx]);
     idx++;
-  }
-  const shortfall = target - used;
-  if (shortfall > tolerance && idx < list.length) {
-    const overshoot = cost(list[idx]) - shortfall;
-    if (overshoot <= tolerance) {
-      taken.push(list[idx]);
-      used += cost(list[idx]);
-      idx++;
-    }
   }
   return { taken, used, nextIndex: idx };
 }
@@ -389,8 +377,8 @@ function fillDrillDay(
   lrQuestionsSoFar: number,
   rcPassagesSoFar: number
 ): FillResult {
-  const lrCost = (c: LRCandidate) => lrDrillMinutes(c, rules, accommodation);
-  const rcCost = (c: RCCandidate) => rcDrillMinutes(c, rules, accommodation);
+  const lrCost = (c: LRCandidate) => lrDrillMinutes(c, rules, accommodation) * (1 + reviewPct);
+  const rcCost = (c: RCCandidate) => rcDrillMinutes(c, rules, accommodation) * (1 + reviewPct);
 
   let lrTaken: LRCandidate[] = [];
   let rcTaken: RCCandidate[] = [];
@@ -408,7 +396,7 @@ function fillDrillDay(
     lrTaken = [lrList[li]];
     lrUsed = lrCost(lrList[li]);
     li++;
-    const rcFill = fillSideToTarget(rcList, ri, rcCost, capacityMinutes - lrUsed, rules.capacityToleranceMinutes);
+    const rcFill = fillSideToTarget(rcList, ri, rcCost, capacityMinutes - lrUsed);
     rcTaken = rcFill.taken;
     rcUsed = rcFill.used;
     ri = rcFill.nextIndex;
@@ -417,7 +405,7 @@ function fillDrillDay(
     rcTaken = [rcList[ri]];
     rcUsed = rcCost(rcList[ri]);
     ri++;
-    const lrFill = fillSideToTarget(lrList, li, lrCost, capacityMinutes - rcUsed, rules.capacityToleranceMinutes);
+    const lrFill = fillSideToTarget(lrList, li, lrCost, capacityMinutes - rcUsed);
     lrTaken = lrFill.taken;
     lrUsed = lrFill.used;
     li = lrFill.nextIndex;
@@ -444,37 +432,9 @@ function fillDrillDay(
       }
     }
 
-    // The pace loop above stops the moment the favored side's next unit
-    // doesn't fit what's left of the day — which, on an ordinary day (no
-    // full section involved), can strand well more than the capacity
-    // tolerance even though the OTHER side's next unit would fit fine.
-    // Rather than leave that on the table, take ONE more item — whichever
-    // of the two next-up candidates lands the day closest to capacity —
-    // same bounded, single-item exception used by the full-section side's
-    // own closing step above. It's bounded to one item, not a fallback
-    // loop, so it can't reproduce the original bug where RC took every
-    // remaining turn once LR got permanently stuck behind the full
-    // section: that case is still caught by the "doesn't fit" break above
-    // on every turn after this one, since the loop itself never resumes.
-    const shortfall = capacityMinutes - (lrUsed + rcUsed);
-    if (shortfall > rules.capacityToleranceMinutes) {
-      const lrNextCost = li < lrList.length ? lrCost(lrList[li]) : null;
-      const rcNextCost = ri < rcList.length ? rcCost(rcList[ri]) : null;
-      const lrOvershoot = lrNextCost !== null ? lrNextCost - shortfall : Infinity;
-      const rcOvershoot = rcNextCost !== null ? rcNextCost - shortfall : Infinity;
-
-      if (lrOvershoot <= rules.capacityToleranceMinutes && lrOvershoot <= rcOvershoot) {
-        lrTaken.push(lrList[li]);
-        lrUsed += lrNextCost as number;
-        lrQuestions += lrList[li].questionCount;
-        li++;
-      } else if (rcOvershoot <= rules.capacityToleranceMinutes) {
-        rcTaken.push(rcList[ri]);
-        rcUsed += rcNextCost as number;
-        rcPassages += rcList[ri].passageCount;
-        ri++;
-      }
-    }
+    // Capacity is a hard cap for every drill. Indivisible work that does
+    // not fit is left for a later day instead of exceeding the student's
+    // stated daily capacity.
   }
 
   const lrActivities = lrTaken.map((c) => lrToActivity(c, rules, accommodation, reviewPct));
@@ -483,8 +443,8 @@ function fillDrillDay(
 
   return {
     activities: orderedActivities,
-    // Drill time only, matching what capacity was measured against — review
-    // is still shown per activity but doesn't count toward this total.
+    // Planned time includes both drilling and its assigned review, matching
+    // the capacity used when selecting each indivisible activity.
     totalMinutes: round1(lrUsed + rcUsed),
     nextLrIndex: li,
     nextRcIndex: ri,

@@ -1,0 +1,30 @@
+import { describe, expect, it, vi } from "vitest";
+import {
+  WEEKLY_SCHEDULE_INDEX,
+  WEEKLY_SCHEDULE_INDEX_NAME,
+  migrateWeeklySchedules,
+} from "./migrate-weekly-schedules.mjs";
+
+describe("migrateWeeklySchedules", () => {
+  it("creates the weekly-schedule uniqueness index once and is safe to repeat", async () => {
+    const collection = {
+      indexes: vi
+        .fn()
+        .mockResolvedValueOnce([{ name: "_id_", key: { _id: 1 } }])
+        .mockResolvedValueOnce([
+          { name: "_id_", key: { _id: 1 } },
+          { name: "studentId_1_weekStartDate_1", key: { studentId: 1, weekStartDate: 1 }, unique: true },
+        ]),
+      createIndex: vi.fn().mockResolvedValue("studentId_1_weekStartDate_1"),
+    };
+
+    await migrateWeeklySchedules(collection);
+    await migrateWeeklySchedules(collection);
+
+    expect(collection.createIndex).toHaveBeenCalledTimes(1);
+    expect(collection.createIndex).toHaveBeenCalledWith(WEEKLY_SCHEDULE_INDEX, {
+      unique: true,
+      name: WEEKLY_SCHEDULE_INDEX_NAME,
+    });
+  });
+});

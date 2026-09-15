@@ -20,7 +20,11 @@ describe("listApprovedAnalyticsSnapshots", () => {
       { id: "newest" },
       { id: "older" },
     ]);
-    expect(mocks.find).toHaveBeenCalledWith({ studentId: "student-1", status: "approved" });
+    expect(mocks.find).toHaveBeenCalledWith({
+      studentId: "student-1",
+      status: "approved",
+      approvedAt: { $type: "date" },
+    });
     expect(sort).toHaveBeenCalledWith({ approvedAt: -1 });
   });
 });
