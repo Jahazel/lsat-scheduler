@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
-const SNAPSHOT_INDEX = { studentId: 1, status: 1, approvedAt: -1 };
-const SNAPSHOT_INDEX_NAME = "studentId_1_status_1_approvedAt_-1";
+export const SNAPSHOT_INDEX = { studentId: 1, status: 1, approvedAt: -1 };
+export const SNAPSHOT_INDEX_NAME = "studentId_1_status_1_approvedAt_-1";
 
 export async function migrateAnalyticsSnapshots(collection, migratedAt = new Date()) {
   const indexes = await collection.indexes();

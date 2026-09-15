@@ -48,7 +48,10 @@ const AnalyticsSnapshotSchema = new Schema<AnalyticsSnapshotDocument>(
   { timestamps: true },
 );
 
-AnalyticsSnapshotSchema.index({ studentId: 1, status: 1, approvedAt: -1 });
+AnalyticsSnapshotSchema.index(
+  { studentId: 1, status: 1, approvedAt: -1 },
+  { name: "studentId_1_status_1_approvedAt_-1" },
+);
 
 export const AnalyticsSnapshotModel =
   (mongoose.models.AnalyticsSnapshot as mongoose.Model<AnalyticsSnapshotDocument>) ||
