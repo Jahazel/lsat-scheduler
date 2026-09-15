@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { mockRules } from "@/lib/mockData";
+import type { SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
 import type { AnalyticsExtractedRow, LRType } from "@/lib/types";
 
 // Every type the review screen might need to offer for manual add — tagged
@@ -20,6 +21,7 @@ interface AnalyticsReviewProps {
   rows: AnalyticsExtractedRow[];
   onRowsChange: (rows: AnalyticsExtractedRow[]) => void;
   onExtractedChange?: (extracted: boolean) => void;
+  onApprovalChange?: (approval: SnapshotApprovalMetadata | null) => void;
 }
 
 // Shared upload + review UI: pick a screenshot, OCR-extract candidate rows,
@@ -30,15 +32,44 @@ export default function AnalyticsReview({
   rows,
   onRowsChange,
   onExtractedChange,
+  onApprovalChange,
 }: AnalyticsReviewProps) {
   const [typeToAdd, setTypeToAdd] = useState("");
   const [extracting, setExtracting] = useState(false);
   const [hasExtracted, setHasExtracted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [extractedAt, setExtractedAt] = useState<string | null>(null);
+  const [extractedValuesMatch, setExtractedValuesMatch] = useState(false);
+  const [isLatestAnalytics, setIsLatestAnalytics] = useState(false);
 
   function setHasExtractedAndNotify(value: boolean) {
     setHasExtracted(value);
     onExtractedChange?.(value);
+    if (!value) onApprovalChange?.(null);
+  }
+
+  function updateApproval(nextValuesMatch: boolean, nextIsLatest: boolean) {
+    setExtractedValuesMatch(nextValuesMatch);
+    setIsLatestAnalytics(nextIsLatest);
+
+    if (!nextValuesMatch || !nextIsLatest || !extractedAt) {
+      onApprovalChange?.(null);
+      return;
+    }
+
+    onApprovalChange?.({
+      extraction: { source: "7sage_screenshot", extractedAt },
+      confirmation: {
+        extractedValuesMatch: true,
+        isLatestAnalytics: true,
+        confirmedAt: new Date().toISOString(),
+      },
+    });
+  }
+
+  function replaceRows(nextRows: AnalyticsExtractedRow[]) {
+    onRowsChange(nextRows);
+    updateApproval(false, false);
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -57,7 +88,8 @@ export default function AnalyticsReview({
       });
       if (!res.ok) throw new Error();
       const { rows: extracted } = await res.json();
-      onRowsChange(extracted);
+      replaceRows(extracted);
+      setExtractedAt(new Date().toISOString());
       setHasExtractedAndNotify(true);
     } catch {
       setError("Couldn't read that screenshot. Try again or a clearer image.");
@@ -67,23 +99,23 @@ export default function AnalyticsReview({
   }
 
   function updateAccuracy(index: number, value: string) {
-    onRowsChange(
+    replaceRows(
       rows.map((r, i) => (i === index ? { ...r, accuracy: value === "" ? undefined : Number(value) } : r))
     );
   }
 
   function toggleTopPriority(index: number) {
-    onRowsChange(rows.map((r, i) => (i === index ? { ...r, isTopPriority: !r.isTopPriority } : r)));
+    replaceRows(rows.map((r, i) => (i === index ? { ...r, isTopPriority: !r.isTopPriority } : r)));
   }
 
   function removeRow(index: number) {
-    onRowsChange(rows.filter((_, i) => i !== index));
+    replaceRows(rows.filter((_, i) => i !== index));
   }
 
   function addRow() {
     const match = ALL_TYPES.find((t) => t.type === typeToAdd);
     if (!match) return;
-    onRowsChange([...rows, { type: match.type, category: match.category }]);
+    replaceRows([...rows, { type: match.type, category: match.category }]);
     setTypeToAdd("");
   }
 
@@ -199,6 +231,26 @@ export default function AnalyticsReview({
           Add
         </button>
       </div>
+
+      <fieldset className="rounded-md border border-ink-100 p-3">
+        <legend className="px-1 text-sm font-medium text-ink-900">Confirm this snapshot</legend>
+        <label className="mt-2 flex items-start gap-2 text-sm text-ink-700">
+          <input
+            type="checkbox"
+            checked={extractedValuesMatch}
+            onChange={(event) => updateApproval(event.target.checked, isLatestAnalytics)}
+          />
+          <span>I reviewed these values and they match my screenshot.</span>
+        </label>
+        <label className="mt-2 flex items-start gap-2 text-sm text-ink-700">
+          <input
+            type="checkbox"
+            checked={isLatestAnalytics}
+            onChange={(event) => updateApproval(extractedValuesMatch, event.target.checked)}
+          />
+          <span>This screenshot contains my latest 7Sage analytics.</span>
+        </label>
+      </fieldset>
 
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>

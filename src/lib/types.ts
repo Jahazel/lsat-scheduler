@@ -112,6 +112,21 @@ export interface AnalyticsSnapshot {
 export interface AnalyticsSnapshotRecord extends AnalyticsSnapshot {
   id: string;
   studentId: string;
+  status: "approved" | "legacy";
+  approvedAt?: string;
+  extraction?: {
+    source: "7sage_screenshot";
+    extractedAt: string;
+  };
+  confirmation?: {
+    extractedValuesMatch: true;
+    isLatestAnalytics: true;
+    confirmedAt: string;
+  };
+  legacy?: {
+    migratedAt: string;
+    source: "single-snapshot-storage";
+  };
 }
 
 // One row of OCR-extracted analytics data, before it's been reviewed and

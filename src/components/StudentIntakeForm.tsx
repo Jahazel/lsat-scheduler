@@ -3,6 +3,7 @@
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import AnalyticsReview from "@/components/AnalyticsReview";
+import type { SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
 import type { AnalyticsExtractedRow, Student } from "@/lib/types";
 
 // Actual administered LSAT test months — stored as the 1st of that month so
@@ -34,7 +35,12 @@ interface StudentIntakeFormProps {
   mode: "create" | "edit";
   initialValues?: Student;
   submitLabel: string;
-  onSubmit: (input: Student & { analyticsRows: AnalyticsExtractedRow[] }) => Promise<void>;
+  onSubmit: (
+    input: Student & {
+      analyticsRows: AnalyticsExtractedRow[];
+      analyticsApproval: SnapshotApprovalMetadata | null;
+    }
+  ) => Promise<void>;
 }
 
 export default function StudentIntakeForm({
@@ -44,6 +50,7 @@ export default function StudentIntakeForm({
   onSubmit,
 }: StudentIntakeFormProps) {
   const [analyticsRows, setAnalyticsRows] = useState<AnalyticsExtractedRow[]>([]);
+  const [analyticsApproval, setAnalyticsApproval] = useState<SnapshotApprovalMetadata | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -53,7 +60,7 @@ export default function StudentIntakeForm({
       setSubmitError(null);
       setSubmitting(true);
       try {
-        await onSubmit({ ...value, analyticsRows });
+        await onSubmit({ ...value, analyticsRows, analyticsApproval });
       } catch {
         setSubmitError("Couldn't save. Try again.");
         setSubmitting(false);
@@ -202,7 +209,11 @@ export default function StudentIntakeForm({
             platform === "7Sage" ? (
               <div className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium text-ink-700">Analytics screenshot (optional)</span>
-                <AnalyticsReview rows={analyticsRows} onRowsChange={setAnalyticsRows} />
+                <AnalyticsReview
+                  rows={analyticsRows}
+                  onRowsChange={setAnalyticsRows}
+                  onApprovalChange={setAnalyticsApproval}
+                />
               </div>
             ) : null
           }

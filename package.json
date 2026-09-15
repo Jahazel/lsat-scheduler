@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "migrate:analytics-snapshots": "node scripts/migrate-analytics-snapshots.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",

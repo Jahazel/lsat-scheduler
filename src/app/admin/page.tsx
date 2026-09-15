@@ -14,7 +14,7 @@ export default async function AdminPage() {
   await connectDB();
   const [students, snapshots] = await Promise.all([
     listStudentsWithOwners(),
-    AnalyticsSnapshotModel.find({}, { studentId: 1 }).lean(),
+    AnalyticsSnapshotModel.find({ status: "approved" }, { studentId: 1 }).lean(),
   ]);
   const studentIdsWithAnalytics = new Set(snapshots.map((s) => String(s.studentId)));
 

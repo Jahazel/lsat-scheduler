@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
 import { StudentModel } from "@/models/Student";
-import { AnalyticsSnapshotModel } from "@/models/AnalyticsSnapshot";
+import { listApprovedAnalyticsSnapshots } from "@/lib/analyticsSnapshotRepository";
 import { generateWeek } from "@/lib/engine";
 import { mockAnalytics, mockRules } from "@/lib/mockData";
 import type { AnalyticsSnapshot, Student } from "@/lib/types";
@@ -31,7 +31,7 @@ export default async function DashboardPage() {
     goalTestDate: doc.goalTestDate,
   };
 
-  const snapshotDoc = await AnalyticsSnapshotModel.findOne({ studentId: doc._id }).lean();
+  const [snapshotDoc] = await listApprovedAnalyticsSnapshots(doc._id);
   const analytics: AnalyticsSnapshot = snapshotDoc
     ? {
         weekOf: snapshotDoc.weekOf,

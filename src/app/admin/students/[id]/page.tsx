@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
-import { AnalyticsSnapshotModel } from "@/models/AnalyticsSnapshot";
+import { listApprovedAnalyticsSnapshots } from "@/lib/analyticsSnapshotRepository";
 import { getStudentWithOwner } from "@/lib/students";
 import { generateWeek } from "@/lib/engine";
 import { mockAnalytics, mockRules } from "@/lib/mockData";
@@ -33,7 +33,7 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
     goalTestDate: record.goalTestDate,
   };
 
-  const snapshotDoc = await AnalyticsSnapshotModel.findOne({ studentId: record.id }).lean();
+  const [snapshotDoc] = await listApprovedAnalyticsSnapshots(record.id);
   const analytics: AnalyticsSnapshot = snapshotDoc
     ? {
         weekOf: snapshotDoc.weekOf,

@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
 import { StudentModel } from "@/models/Student";
 import { AnalyticsSnapshotModel } from "@/models/AnalyticsSnapshot";
+import { prepareApprovedSnapshot, SnapshotApprovalError } from "@/lib/analyticsSnapshots";
 
 // Always writes the logged-in student's own snapshot — no id in the URL.
 export async function POST(request: NextRequest) {
@@ -17,18 +18,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Complete onboarding first" }, { status: 404 });
   }
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid analytics upload." }, { status: 422 });
+  }
 
-  await AnalyticsSnapshotModel.findOneAndUpdate(
-    { studentId: student._id },
-    {
+  try {
+    await AnalyticsSnapshotModel.create({
       studentId: student._id,
-      weekOf: new Date().toISOString().slice(0, 10),
-      lrAccuracyByType: body.lrAccuracyByType,
-      lrTopPriorityLogicTypes: body.lrTopPriorityLogicTypes,
-    },
-    { upsert: true, new: true }
-  );
+      ...prepareApprovedSnapshot(body),
+    });
+  } catch (error) {
+    if (error instanceof SnapshotApprovalError) {
+      return NextResponse.json({ error: error.message }, { status: 422 });
+    }
+    throw error;
+  }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true }, { status: 201 });
 }
