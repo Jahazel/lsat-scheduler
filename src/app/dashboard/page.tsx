@@ -66,9 +66,9 @@ export default async function DashboardPage() {
             <p className="mt-2 text-sm text-ink-500">
               Confirm a fresh 7Sage analytics extraction to create this week&apos;s schedule.
             </p>
+            {student.platform === "7Sage" && <AnalyticsUploader />}
           </div>
         )}
-        {student.platform === "7Sage" && <AnalyticsUploader />}
       </div>
     </div>
   );
