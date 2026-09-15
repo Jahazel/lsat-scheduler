@@ -3,6 +3,14 @@ import mongoose from "mongoose";
 export const SNAPSHOT_INDEX = { studentId: 1, status: 1, approvedAt: -1 };
 export const SNAPSHOT_INDEX_NAME = "studentId_1_status_1_approvedAt_-1";
 
+function matchesSnapshotIndex(index) {
+  return (
+    index.name === SNAPSHOT_INDEX_NAME &&
+    !index.unique &&
+    JSON.stringify(index.key) === JSON.stringify(SNAPSHOT_INDEX)
+  );
+}
+
 export async function migrateAnalyticsSnapshots(collection, migratedAt = new Date()) {
   const indexes = await collection.indexes();
   const oldUniqueIndex = indexes.find(
@@ -22,7 +30,11 @@ export async function migrateAnalyticsSnapshots(collection, migratedAt = new Dat
     },
   );
 
-  const hasSnapshotIndex = indexes.some((index) => index.name === SNAPSHOT_INDEX_NAME);
+  const namedSnapshotIndex = indexes.find((index) => index.name === SNAPSHOT_INDEX_NAME);
+  if (namedSnapshotIndex && !matchesSnapshotIndex(namedSnapshotIndex)) {
+    await collection.dropIndex(SNAPSHOT_INDEX_NAME);
+  }
+  const hasSnapshotIndex = indexes.some(matchesSnapshotIndex);
   if (!hasSnapshotIndex) {
     await collection.createIndex(SNAPSHOT_INDEX, { name: SNAPSHOT_INDEX_NAME });
   }

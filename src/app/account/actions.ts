@@ -8,6 +8,7 @@ import { AnalyticsSnapshotModel } from "@/models/AnalyticsSnapshot";
 import { ActivityCheckInModel } from "@/models/ActivityCheckIn";
 import { WeeklyScheduleModel } from "@/models/WeeklySchedule";
 import { UserModel } from "@/models/User";
+import { deleteStudentAccount } from "@/lib/deleteStudentAccount";
 import type { AnalyticsExtractedRow, Student } from "@/lib/types";
 import type { SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
 import { ADMIN_READ_ONLY_MESSAGE, isAdminUser } from "@/lib/accessControl";
@@ -50,12 +51,20 @@ export async function deleteAccount(formData: FormData) {
   await connectDB();
   const student = await StudentModel.findOne({ userId: session.user.id });
   if (student) {
-    await AnalyticsSnapshotModel.deleteMany({ studentId: student._id });
-    const schedules = await WeeklyScheduleModel.find({ studentId: student._id }).select("_id").lean();
-    await ActivityCheckInModel.deleteMany({ scheduleId: { $in: schedules.map((schedule) => schedule._id) } });
-    await WeeklyScheduleModel.deleteMany({ studentId: student._id });
-    await StudentModel.deleteOne({ _id: student._id });
+    const studentId = String(student._id);
+    await deleteStudentAccount({ studentId, userId: session.user.id }, {
+      deleteAnalytics: async (id) => { await AnalyticsSnapshotModel.deleteMany({ studentId: id }); },
+      listScheduleIds: async (id) => {
+        const schedules = await WeeklyScheduleModel.find({ studentId: id }).select("_id").lean();
+        return schedules.map((schedule) => String(schedule._id));
+      },
+      deleteCheckIns: async (scheduleIds) => { await ActivityCheckInModel.deleteMany({ scheduleId: { $in: scheduleIds } }); },
+      deleteSchedules: async (id) => { await WeeklyScheduleModel.deleteMany({ studentId: id }); },
+      deleteStudent: async (id) => { await StudentModel.deleteOne({ _id: id }); },
+      deleteUser: async (id) => { await UserModel.deleteOne({ _id: id }); },
+    });
+  } else {
+    await UserModel.deleteOne({ _id: session.user.id });
   }
-  await UserModel.deleteOne({ _id: session.user.id });
   await signOut({ redirectTo: "/" });
 }

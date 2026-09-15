@@ -47,7 +47,8 @@ export default async function AccountPage() {
         <form action={deleteAccount} className="mt-10 border-t border-red-100 pt-6">
           <h2 className="font-semibold text-red-700">Delete account</h2>
           <p className="mt-1 text-sm text-ink-500">
-            This permanently removes your profile and approved analytics snapshots.
+            This permanently removes your profile, approved and legacy analytics snapshots, weekly schedules, and
+            activity check-ins from active storage.
           </p>
           <label className="mt-4 block text-sm font-medium text-ink-700">
             Type DELETE to confirm

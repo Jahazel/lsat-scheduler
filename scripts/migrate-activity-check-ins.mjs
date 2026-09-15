@@ -3,9 +3,21 @@ import { ACTIVITY_CHECK_IN_INDEX, ACTIVITY_CHECK_IN_INDEX_NAME } from "./activit
 
 export { ACTIVITY_CHECK_IN_INDEX, ACTIVITY_CHECK_IN_INDEX_NAME };
 
+function matchesActivityCheckInIndex(index) {
+  return (
+    index.name === ACTIVITY_CHECK_IN_INDEX_NAME &&
+    index.unique === true &&
+    JSON.stringify(index.key) === JSON.stringify(ACTIVITY_CHECK_IN_INDEX)
+  );
+}
+
 export async function migrateActivityCheckIns(collection) {
   const indexes = await collection.indexes();
-  if (!indexes.some((index) => index.name === ACTIVITY_CHECK_IN_INDEX_NAME)) {
+  const namedActivityCheckInIndex = indexes.find((index) => index.name === ACTIVITY_CHECK_IN_INDEX_NAME);
+  if (namedActivityCheckInIndex && !matchesActivityCheckInIndex(namedActivityCheckInIndex)) {
+    await collection.dropIndex(ACTIVITY_CHECK_IN_INDEX_NAME);
+  }
+  if (!indexes.some(matchesActivityCheckInIndex)) {
     await collection.createIndex(ACTIVITY_CHECK_IN_INDEX, {
       unique: true,
       name: ACTIVITY_CHECK_IN_INDEX_NAME,

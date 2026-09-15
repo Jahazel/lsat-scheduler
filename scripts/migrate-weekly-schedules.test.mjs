@@ -27,4 +27,22 @@ describe("migrateWeeklySchedules", () => {
       name: WEEKLY_SCHEDULE_INDEX_NAME,
     });
   });
+
+  it("repairs a named weekly-schedule index that does not enforce uniqueness", async () => {
+    const collection = {
+      indexes: vi.fn().mockResolvedValue([
+        { name: WEEKLY_SCHEDULE_INDEX_NAME, key: WEEKLY_SCHEDULE_INDEX, unique: false },
+      ]),
+      dropIndex: vi.fn().mockResolvedValue(undefined),
+      createIndex: vi.fn().mockResolvedValue(WEEKLY_SCHEDULE_INDEX_NAME),
+    };
+
+    await migrateWeeklySchedules(collection);
+
+    expect(collection.dropIndex).toHaveBeenCalledWith(WEEKLY_SCHEDULE_INDEX_NAME);
+    expect(collection.createIndex).toHaveBeenCalledWith(WEEKLY_SCHEDULE_INDEX, {
+      unique: true,
+      name: WEEKLY_SCHEDULE_INDEX_NAME,
+    });
+  });
 });

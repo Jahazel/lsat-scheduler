@@ -24,4 +24,22 @@ describe("migrateActivityCheckIns", () => {
       name: ACTIVITY_CHECK_IN_INDEX_NAME,
     });
   });
+
+  it("repairs a named activity check-in index that does not enforce uniqueness", async () => {
+    const collection = {
+      indexes: vi.fn().mockResolvedValue([
+        { name: ACTIVITY_CHECK_IN_INDEX_NAME, key: ACTIVITY_CHECK_IN_INDEX, unique: false },
+      ]),
+      dropIndex: vi.fn().mockResolvedValue(undefined),
+      createIndex: vi.fn().mockResolvedValue(ACTIVITY_CHECK_IN_INDEX_NAME),
+    };
+
+    await migrateActivityCheckIns(collection);
+
+    expect(collection.dropIndex).toHaveBeenCalledWith(ACTIVITY_CHECK_IN_INDEX_NAME);
+    expect(collection.createIndex).toHaveBeenCalledWith(ACTIVITY_CHECK_IN_INDEX, {
+      unique: true,
+      name: ACTIVITY_CHECK_IN_INDEX_NAME,
+    });
+  });
 });

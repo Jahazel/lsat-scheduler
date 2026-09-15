@@ -40,4 +40,23 @@ describe("migrateAnalyticsSnapshots", () => {
       { name: "studentId_1_status_1_approvedAt_-1" },
     );
   });
+
+  it("repairs a wrongly defined named snapshot index instead of accepting it as migrated", async () => {
+    const collection = {
+      indexes: vi.fn().mockResolvedValue([
+        { name: "studentId_1_status_1_approvedAt_-1", key: { studentId: 1, status: 1, approvedAt: -1 }, unique: true },
+      ]),
+      dropIndex: vi.fn().mockResolvedValue(undefined),
+      updateMany: vi.fn().mockResolvedValue({ modifiedCount: 0 }),
+      createIndex: vi.fn().mockResolvedValue("studentId_1_status_1_approvedAt_-1"),
+    };
+
+    await migrateAnalyticsSnapshots(collection);
+
+    expect(collection.dropIndex).toHaveBeenCalledWith("studentId_1_status_1_approvedAt_-1");
+    expect(collection.createIndex).toHaveBeenCalledWith(
+      { studentId: 1, status: 1, approvedAt: -1 },
+      { name: "studentId_1_status_1_approvedAt_-1" },
+    );
+  });
 });
