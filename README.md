@@ -16,8 +16,9 @@ The core student workflow is implemented:
 - Email/password and Google sign-in, with separate student and admin roles
 - Student signup, onboarding, profile editing, and a weekly dashboard
 - A deterministic scheduling engine with coverage for its rules
-- 7Sage analytics screenshot extraction and student review before saving
-- A read-only admin view of students and their analytics status
+- Append-only approved analytics snapshots, with legacy analytics retained as history
+- One immutable adaptive weekly schedule per student/week, with activity check-ins that shape a future unsaved schedule
+- A read-only admin view of each student's saved schedule and check-in state
 - Public landing, legal, login, and signup pages
 
 Billing is intentionally deferred. The tracked next feature is
@@ -77,3 +78,7 @@ npm run lint    # run ESLint
 npm run build   # create a production build
 npm run start   # run a production build
 ```
+
+For an existing database, run the adaptive-schedule migrations before the
+first release that uses persisted weekly schedules. See
+[the rollout runbook](docs/runbooks/adaptive-weekly-schedules-rollout.md).
