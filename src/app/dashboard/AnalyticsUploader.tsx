@@ -45,11 +45,11 @@ export default function AnalyticsUploader({ scheduleTestDate }: { scheduleTestDa
     <section className="overflow-hidden rounded-xl border border-ink-200 bg-white">
       <header className="border-b border-ink-200 px-6 py-5 sm:px-8">
         <p className="text-sm font-medium text-ink-700">{hasExtracted ? "Step 2 of 3 · Review" : "Create your study week"}</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink-900">{hasExtracted ? "Check the extracted analytics" : "Add this week&rsquo;s analytics"}</h1>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink-900">{hasExtracted ? "Check the extracted analytics" : "Add your latest analytics snapshot"}</h1>
         {hasExtracted && <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-700">Compare each result with your screenshot. Edit anything that needs correcting before you confirm.</p>}
       </header>
       <div className={hasExtracted ? "p-6 sm:p-8" : "grid md:grid-cols-[12rem_1fr]"}>
-        <ol aria-label="Analytics upload progress" className={hasExtracted ? "hidden" : "flex border-b border-ink-200 bg-ink-25 px-6 py-5 md:block md:border-b-0 md:border-r md:px-7 md:py-7"}>
+        <ol aria-label="Analytics snapshot progress" className={hasExtracted ? "hidden" : "flex border-b border-ink-200 bg-ink-25 px-6 py-5 md:block md:border-b-0 md:border-r md:px-7 md:py-7"}>
           <li aria-current={hasExtracted ? undefined : "step"} className={`flex items-center gap-3 text-sm font-semibold ${hasExtracted ? "text-ink-500" : "text-ink-900"}`}>
             <span aria-hidden="true" className={`grid size-7 place-items-center rounded-full text-xs ${hasExtracted ? "bg-accent-100 text-accent-700" : "bg-accent-600 text-white"}`}>{hasExtracted ? "✓" : "1"}</span>
             Upload<span className="sr-only">{hasExtracted ? " — complete" : " — current step"}</span>
@@ -86,7 +86,7 @@ export default function AnalyticsUploader({ scheduleTestDate }: { scheduleTestDa
                     type="button"
                     onClick={handleSave}
                     disabled={saving || !approval}
-                    className="self-start rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 ease-out hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50 sm:self-auto"
+                    className="self-start rounded-md bg-accent-600 px-6 py-3 text-base font-medium text-white transition-colors duration-150 ease-out hover:bg-accent-700 focus-visible:bg-accent-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 disabled:cursor-not-allowed disabled:opacity-50 sm:self-auto"
                   >
                     {saving ? "Saving…" : "Confirm snapshot"}
                   </button>

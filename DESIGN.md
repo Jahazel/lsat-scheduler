@@ -123,7 +123,7 @@ One hue family, two intensities. Tinted-neutral "ink" and blue-teal "accent" are
 - **Label** (500, 0.75rem, 1.4 line-height): pill badges, metadata, small captions — e.g. the "Viewing as admin — read only" badge.
 
 ### Named Rules
-**The Proof Number Rule.** Any number that is direct evidence of credibility or outcome (a score, a student count, an hours-tutored figure, an accuracy percentage) is never rendered at body or label scale. It gets its own visual step — minimum Headline scale, `accent-600` or `ink-900` (never `ink-500`), with its label demoted beneath it in Label scale. If a stat and a caption are the same size, the stat lost.
+**The Proof Number Rule.** Any number presented as direct evidence of credibility or outcome (a score, a student count, an hours-tutored figure, an accuracy percentage) is never rendered at body or label scale. It gets its own visual step — minimum Headline scale, `accent-600` or `ink-900` (never `ink-500`), with its label demoted beneath it in Label scale. Editable numeric inputs in product screens are form controls, not proof displays, and use body-size input typography. If a stat and a caption are the same size, the stat lost.
 
 ## 4. Elevation
 

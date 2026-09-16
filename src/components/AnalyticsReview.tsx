@@ -174,8 +174,8 @@ export default function AnalyticsReview({
     return <div className={className}><select value={typeToAdd} onChange={(e) => setTypeToAdd(e.target.value)} aria-label="Add a type the screenshot missed" className="flex-1 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"><option value="">Add a type the screenshot missed…</option>{ALL_TYPES.filter((t) => !rows.some((r) => r.type === t.type)).map((t) => <option key={t.type} value={t.type}>{t.type}</option>)}</select><button type="button" onClick={addRow} disabled={!typeToAdd} className="rounded-md border border-ink-200 px-3 py-2 text-sm font-medium text-ink-900 hover:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 disabled:cursor-not-allowed disabled:opacity-50">Add</button></div>;
   }
 
-  function approvalControls(className: string, legendClassName: string) {
-    return <fieldset className={className}><legend className={legendClassName}>Confirm this snapshot</legend><div className="mt-3 space-y-3"><label className="flex items-start gap-2 text-sm text-ink-700"><input type="checkbox" checked={extractedValuesMatch} onChange={(event) => updateApproval(event.target.checked, isLatestAnalytics)} className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" /><span>I reviewed these values and they match my screenshot.</span></label><label className="flex items-start gap-2 text-sm text-ink-700"><input type="checkbox" checked={isLatestAnalytics} onChange={(event) => updateApproval(extractedValuesMatch, event.target.checked)} className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" /><span>This screenshot contains my latest 7Sage analytics.</span></label></div></fieldset>;
+  function approvalControls(fieldsetClassName: string, legendClassName: string, wrapperClassName = "") {
+    return <div className={wrapperClassName}><fieldset className={fieldsetClassName}><legend className={legendClassName}>Confirm this snapshot</legend><div className="mt-3 space-y-3"><label className="flex items-start gap-2 text-sm text-ink-700"><input type="checkbox" checked={extractedValuesMatch} onChange={(event) => updateApproval(event.target.checked, isLatestAnalytics)} className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" /><span>I reviewed these values and they match my screenshot.</span></label><label className="flex items-start gap-2 text-sm text-ink-700"><input type="checkbox" checked={isLatestAnalytics} onChange={(event) => updateApproval(extractedValuesMatch, event.target.checked)} className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" /><span>This screenshot contains my latest 7Sage analytics.</span></label></div></fieldset></div>;
   }
 
   if (reviewPresentation === "full-width") {
@@ -206,7 +206,7 @@ export default function AnalyticsReview({
                             onChange={(e) => updateAccuracy(i, e.target.value)}
                             placeholder="—"
                             aria-label={`${row.type} accuracy`}
-                            className="w-24 rounded-md border border-ink-200 bg-white px-2 py-1 text-right text-2xl font-semibold tabular-nums text-ink-900 placeholder:text-ink-500 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
+                            className="w-20 rounded-md border border-ink-200 bg-white px-2 py-1.5 text-right text-sm font-semibold tabular-nums text-ink-900 placeholder:text-ink-500 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
                           />
                           <span className="text-sm font-medium text-ink-700">%</span>
                         </div>
@@ -223,19 +223,21 @@ export default function AnalyticsReview({
           {accuracyRows.length === 0 && <p className="mt-5 text-sm text-ink-700">No accuracy types were recognized from that screenshot.</p>}
         </section>
 
-        <fieldset className="border-t border-ink-200 pt-6">
-          <legend className="text-base font-semibold text-ink-900">Priority flags</legend>
-          <p className="mt-1 text-sm text-ink-700">Keep the flags that should influence this week&rsquo;s plan.</p>
-          {priorityRows.length === 0 ? (
-            <p className="mt-4 text-sm text-ink-700">No priority types were recognized from that screenshot.</p>
-          ) : (
-            <ul className="mt-4 grid gap-3 sm:grid-cols-2">{priorityItems()}</ul>
-          )}
-        </fieldset>
+        <section className="border-t border-ink-200 pt-6">
+          <fieldset>
+            <legend className="text-base font-semibold text-ink-900">Priority flags</legend>
+            <p className="mt-1 text-sm text-ink-700">Keep the flags that should influence this week&rsquo;s plan.</p>
+            {priorityRows.length === 0 ? (
+              <p className="mt-4 text-sm text-ink-700">No priority types were recognized from that screenshot.</p>
+            ) : (
+              <ul className="mt-4 grid gap-3 sm:grid-cols-2">{priorityItems()}</ul>
+            )}
+          </fieldset>
+        </section>
 
         {addTypeControl("flex max-w-xl items-center gap-2")}
 
-        {approvalControls("border-t border-ink-200 pt-5", "text-base font-semibold text-ink-900")}
+        {approvalControls("", "text-base font-semibold text-ink-900", "border-t border-ink-200 pt-5")}
         {errorMessage}
       </div>
     );
