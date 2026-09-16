@@ -28,24 +28,45 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <header className="border-b border-ink-100 px-6 py-4">
-          <div className="mx-auto flex max-w-3xl items-center justify-between">
-            <Link href="/" className="font-semibold tracking-tight text-ink-900">
-              DrillMap
-            </Link>
-            <nav className="flex items-center gap-4 text-sm">
+        <header className="border-b border-ink-100 bg-white">
+          <div className="mx-auto flex max-w-6xl flex-col px-5 sm:flex-row sm:items-stretch sm:px-8">
+            <div className="flex min-h-14 flex-1 items-center gap-8 sm:min-h-20">
+              <Link href="/" className="flex items-center gap-2.5 font-semibold tracking-tight text-ink-900">
+                <span className="flex size-7 items-center justify-center rounded-md bg-accent-600 text-xs text-white">
+                  D
+                </span>
+                DrillMap
+              </Link>
+              {session?.user && (
+                <div className="hidden border-l border-ink-100 pl-6 sm:block">
+                  <p className="text-xs font-medium uppercase tracking-wider text-ink-400">
+                    {session.user.role === "admin" ? "Admin workspace" : "Your study week"}
+                  </p>
+                  <p className="mt-0.5 text-sm font-medium text-ink-900">
+                    {session.user.role === "admin" ? "Students and analytics" : "Schedule and progress"}
+                  </p>
+                </div>
+              )}
+            </div>
+            <nav className="flex items-stretch justify-end border-t border-ink-100 sm:border-t-0" aria-label="Primary navigation">
               {session?.user ? (
                 <>
                   {session.user.role === "admin" ? (
-                    <Link href="/admin" className="text-ink-600 hover:text-ink-900">
+                    <Link
+                      href="/admin"
+                      className="flex items-center border-x border-ink-100 px-2 text-sm font-medium text-ink-600 hover:text-ink-900 sm:px-6"
+                    >
                       Admin
                     </Link>
                   ) : (
                     <>
-                      <Link href="/dashboard" className="text-ink-600 hover:text-ink-900">
-                        Dashboard
+                      <Link
+                        href="/dashboard"
+                        className="flex items-center border-x border-ink-100 px-2 text-sm font-medium text-ink-600 hover:text-ink-900 sm:px-6"
+                      >
+                        Weekly schedule
                       </Link>
-                      <Link href="/account" className="text-ink-600 hover:text-ink-900">
+                      <Link href="/account" className="flex items-center px-2 text-sm text-ink-600 hover:text-ink-900 sm:px-6">
                         Account
                       </Link>
                     </>
@@ -55,18 +76,22 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                       "use server";
                       await signOut({ redirectTo: "/" });
                     }}
+                    className="flex items-center pl-2"
                   >
-                    <button type="submit" className="text-ink-600 hover:text-ink-900">
+                    <button
+                      type="submit"
+                      className="rounded-md px-2 py-2 text-sm text-ink-600 hover:bg-ink-50 hover:text-ink-900 sm:px-3"
+                    >
                       Log out
                     </button>
                   </form>
                 </>
               ) : (
                 <>
-                  <Link href="/login" className="text-ink-600 hover:text-ink-900">
+                  <Link href="/login" className="flex items-center px-3 text-sm text-ink-600 hover:text-ink-900">
                     Log in
                   </Link>
-                  <Link href="/signup" className="font-medium text-accent-600 hover:text-accent-700">
+                  <Link href="/signup" className="flex items-center px-3 text-sm font-medium text-ink-600 hover:text-ink-900">
                     Sign up
                   </Link>
                 </>
