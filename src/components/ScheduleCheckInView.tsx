@@ -69,7 +69,19 @@ export default function ScheduleCheckInView({
           <button aria-pressed={view === "day"} className={statusFirst ? `${VIEW_CONTROL_CLASS} ${view === "day" ? "bg-accent-600 text-white hover:bg-accent-700 focus-visible:bg-accent-700" : "text-ink-500 hover:bg-ink-50 hover:text-ink-900 focus-visible:bg-ink-50"}` : `${view === "day" ? "border-ink-900 bg-ink-900 text-white" : CONTROL_CLASS} px-4 py-2 text-sm`} onClick={() => setView("day")} type="button">One day</button>
         </div>
         {view === "day" && (
-          <select aria-label="Day to view" className={`${FIELD_CLASS} ${statusFirst ? "mt-2 px-2 py-1" : "px-2"} text-sm`} value={selectedDay} onChange={(event) => setSelectedDay(event.target.value as DayOfWeek)}>
+          statusFirst ? <div aria-label="Day to view" className="mt-2 grid grid-cols-2 rounded-lg border border-ink-200 bg-white p-1 sm:grid-cols-7">
+            {DAY_ORDER.map((day) => (
+              <button
+                aria-pressed={selectedDay === day}
+                className={`${VIEW_CONTROL_CLASS} ${selectedDay === day ? "bg-accent-600 text-white hover:bg-accent-700 focus-visible:bg-accent-700" : "text-ink-500 hover:bg-ink-50 hover:text-ink-900 focus-visible:bg-ink-50"}`}
+                key={day}
+                onClick={() => setSelectedDay(day)}
+                type="button"
+              >
+                {day.slice(0, 3)}
+              </button>
+            ))}
+          </div> : <select aria-label="Day to view" className={`${FIELD_CLASS} px-2 text-sm`} value={selectedDay} onChange={(event) => setSelectedDay(event.target.value as DayOfWeek)}>
             {DAY_ORDER.map((day) => <option key={day}>{day}</option>)}
           </select>
         )}
