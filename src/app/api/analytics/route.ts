@@ -5,6 +5,7 @@ import { StudentModel } from "@/models/Student";
 import { AnalyticsSnapshotModel } from "@/models/AnalyticsSnapshot";
 import { prepareApprovedSnapshot, SnapshotApprovalError } from "@/lib/analyticsSnapshots";
 import { ADMIN_READ_ONLY_MESSAGE, isAdminUser } from "@/lib/accessControl";
+import { simulatedScheduleNow, simulatedSnapshotInput } from "@/lib/scheduleTestDate";
 
 // Always writes the logged-in student's own snapshot — no id in the URL.
 export async function POST(request: NextRequest) {
@@ -30,9 +31,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const scheduleTestDate = typeof body === "object" && body !== null && "scheduleTestDate" in body
+      ? body.scheduleTestDate
+      : undefined;
+    const simulatedNow = simulatedScheduleNow(scheduleTestDate);
     await AnalyticsSnapshotModel.create({
       studentId: student._id,
-      ...prepareApprovedSnapshot(body),
+      ...prepareApprovedSnapshot(simulatedSnapshotInput(body, simulatedNow), simulatedNow ?? new Date()),
     });
   } catch (error) {
     if (error instanceof SnapshotApprovalError) {

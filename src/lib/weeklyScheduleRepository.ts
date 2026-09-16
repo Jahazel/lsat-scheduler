@@ -64,3 +64,8 @@ export const mongooseCurrentWeekRepositories: CurrentWeekRepositories = {
   },
   activityCheckIns: mongooseActivityCheckIns,
 };
+
+export async function listWeeklySchedulesForStudent(studentId: string) {
+  const records = await WeeklyScheduleModel.find({ studentId }).sort({ weekStartDate: -1 }).lean();
+  return records.map(persistedWeeklySchedule);
+}

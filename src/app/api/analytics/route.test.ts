@@ -72,6 +72,18 @@ describe("POST /api/analytics", () => {
     });
   });
 
+  it("uses the selected week for an analytics upload made through the development schedule tester", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+
+    await expect(POST(request({ ...confirmedUpload, scheduleTestDate: "2026-09-21" }))).resolves.toMatchObject({ status: 201 });
+
+    expect(mocks.createSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      weekOf: "2026-09-21",
+      approvedAt: new Date("2026-09-21T12:00:00.000Z"),
+    }));
+    vi.unstubAllEnvs();
+  });
+
   it("rejects an admin's direct attempt to append student analytics", async () => {
     mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
 

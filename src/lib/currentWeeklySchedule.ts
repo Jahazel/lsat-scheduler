@@ -61,6 +61,15 @@ export function currentWeekInTimezone(now: Date, timezone: string) {
   return localDate.toISOString().slice(0, 10);
 }
 
+export function freshSnapshotsForCurrentWeek(
+  snapshots: ApprovedAnalyticsSnapshot[],
+  now: Date,
+  timezone: string
+) {
+  const weekStartDate = currentWeekInTimezone(now, timezone);
+  return snapshots.filter((snapshot) => currentWeekInTimezone(new Date(snapshot.approvedAt), timezone) === weekStartDate);
+}
+
 function currentDayInTimezone(now: Date, timezone: string): DayOfWeek {
   const { year, month, day } = localDateParts(now, timezone);
   const dayOfWeek = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
@@ -223,7 +232,9 @@ export async function loadOrGenerateCurrentWeek(
     return { kind: "schedule", schedule: existing };
   }
 
-  const snapshots = newestApprovedSnapshots(await input.snapshots.listEligibleForStudent(input.studentId));
+  const snapshots = newestApprovedSnapshots(
+    freshSnapshotsForCurrentWeek(await input.snapshots.listEligibleForStudent(input.studentId), now, input.timezone)
+  );
   if (snapshots.length === 0) return { kind: "analytics_required" };
 
   const analytics = analyticsTrend(snapshots, weekStartDate);

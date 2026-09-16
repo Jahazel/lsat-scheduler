@@ -153,11 +153,11 @@ describe("loadOrGenerateCurrentWeek", () => {
     const newest = approvedSnapshot("newest", "2026-09-14T13:00:00.000Z");
     newest.lrAccuracyByType = { Evaluate: 0.8 };
     newest.lrTopPriorityLogicTypes = ["Causal reasoning"];
-    const previous = approvedSnapshot("previous", "2026-09-13T13:00:00.000Z");
+    const previous = approvedSnapshot("previous", "2026-09-14T12:00:00.000Z");
     previous.lrAccuracyByType = { Evaluate: 0.2, Inference: 0.4 };
-    const oldest = approvedSnapshot("oldest", "2026-09-12T13:00:00.000Z");
+    const oldest = approvedSnapshot("oldest", "2026-09-14T11:00:00.000Z");
     oldest.lrAccuracyByType = { Inference: 0.8 };
-    const excluded = approvedSnapshot("excluded", "2026-09-11T13:00:00.000Z");
+    const excluded = approvedSnapshot("excluded", "2026-09-14T10:00:00.000Z");
     excluded.lrAccuracyByType = { Evaluate: 0 };
 
     const trend = analyticsTrend([newest, previous, oldest, excluded], "2026-09-14");
@@ -168,11 +168,11 @@ describe("loadOrGenerateCurrentWeek", () => {
   });
 
   it("orders an unsorted repository result by approval time before weighting and saving source references", async () => {
-    const oldest = approvedSnapshot("oldest", "2026-09-12T13:00:00.000Z");
+    const oldest = approvedSnapshot("oldest", "2026-09-14T11:00:00.000Z");
     oldest.lrAccuracyByType = { Evaluate: 0 };
     const newest = approvedSnapshot("newest", "2026-09-14T13:00:00.000Z");
     newest.lrAccuracyByType = { Evaluate: 1 };
-    const middle = approvedSnapshot("middle", "2026-09-13T13:00:00.000Z");
+    const middle = approvedSnapshot("middle", "2026-09-14T12:00:00.000Z");
     middle.lrAccuracyByType = { Evaluate: 0.5 };
     const repositories = inMemoryRepositories([oldest, newest, middle]);
 
@@ -190,6 +190,21 @@ describe("loadOrGenerateCurrentWeek", () => {
     if (result.kind !== "schedule") throw new Error("Expected a saved schedule");
     expect(result.schedule.sourceSnapshotIds).toEqual(["newest", "middle", "oldest"]);
     expect(result.schedule.generationInputs.analytics.lrAccuracyByType.Evaluate).toBeCloseTo(0.75, 5);
+  });
+
+  it("requires an analytics upload approved during the new week", async () => {
+    const repositories = inMemoryRepositories([approvedSnapshot("last-week", "2026-09-14T13:00:00.000Z")]);
+
+    await expect(loadOrGenerateCurrentWeek({
+      studentId: "student-1",
+      student: mockStudent,
+      studentName: mockStudentName,
+      rules: mockRules,
+      policyVersion: "adaptive-weekly-schedule-v1",
+      timezone: "America/Chicago",
+      now: () => new Date("2026-09-21T14:00:00.000Z"),
+      ...repositories,
+    })).resolves.toEqual({ kind: "analytics_required" });
   });
 
   it("generates only remaining days and preserves the Saturday test overage", async () => {
@@ -276,8 +291,14 @@ describe("loadOrGenerateCurrentWeek", () => {
   });
 
   it("uses skipped planned minutes from only the immediately preceding schedule to reduce a future unsaved schedule", async () => {
-    const adaptiveRepositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-21T13:00:00.000Z")]);
-    const baselineRepositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-21T13:00:00.000Z")]);
+    const adaptiveRepositories = inMemoryRepositories([
+      approvedSnapshot("snapshot-1", "2026-09-14T13:00:00.000Z"),
+      approvedSnapshot("snapshot-2", "2026-09-21T13:00:00.000Z"),
+    ]);
+    const baselineRepositories = inMemoryRepositories([
+      approvedSnapshot("snapshot-1", "2026-09-14T13:00:00.000Z"),
+      approvedSnapshot("snapshot-2", "2026-09-21T13:00:00.000Z"),
+    ]);
     const commonInput = {
       studentId: "student-1",
       student: mockStudent,
@@ -331,7 +352,11 @@ describe("loadOrGenerateCurrentWeek", () => {
   });
 
   it("does not let older check-ins alter a future schedule when the immediately preceding week has no skipped work", async () => {
-    const repositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-28T13:00:00.000Z")]);
+    const repositories = inMemoryRepositories([
+      approvedSnapshot("snapshot-1", "2026-09-14T13:00:00.000Z"),
+      approvedSnapshot("snapshot-2", "2026-09-21T13:00:00.000Z"),
+      approvedSnapshot("snapshot-3", "2026-09-28T13:00:00.000Z"),
+    ]);
     const commonInput = {
       studentId: "student-1",
       student: mockStudent,
@@ -365,7 +390,10 @@ describe("loadOrGenerateCurrentWeek", () => {
   });
 
   it("keeps completed and not-started preceding activities neutral even when they report actual minutes", async () => {
-    const repositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-21T13:00:00.000Z")]);
+    const repositories = inMemoryRepositories([
+      approvedSnapshot("snapshot-1", "2026-09-14T13:00:00.000Z"),
+      approvedSnapshot("snapshot-2", "2026-09-21T13:00:00.000Z"),
+    ]);
     const commonInput = {
       studentId: "student-1",
       student: mockStudent,

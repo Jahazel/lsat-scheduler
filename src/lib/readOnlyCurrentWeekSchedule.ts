@@ -1,4 +1,4 @@
-import { currentWeekInTimezone } from "./currentWeeklySchedule";
+import { currentWeekInTimezone, freshSnapshotsForCurrentWeek } from "./currentWeeklySchedule";
 import type { ActivityCheckIn, ApprovedAnalyticsSnapshot, PersistedWeeklySchedule } from "./types";
 
 interface ReadOnlyCurrentWeekRepositories {
@@ -37,7 +37,11 @@ export async function loadReadOnlyCurrentWeek(input: LoadReadOnlyCurrentWeekInpu
     };
   }
 
-  const snapshots = await input.snapshots.listEligibleForStudent(input.studentId);
+  const snapshots = freshSnapshotsForCurrentWeek(
+    await input.snapshots.listEligibleForStudent(input.studentId),
+    input.now(),
+    input.timezone
+  );
   return snapshots.length === 0 ? { kind: "analytics_required" } : { kind: "schedule_not_created" };
 }
 
