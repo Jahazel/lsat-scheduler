@@ -28,7 +28,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <header className="border-b border-ink-100 bg-white">
+        <header className="sticky top-0 z-40 border-b border-ink-100 bg-white">
           <div className="mx-auto flex max-w-6xl flex-col px-5 sm:flex-row sm:items-stretch sm:px-8">
             <div className="flex min-h-14 flex-1 items-center gap-8 sm:min-h-20">
               <Link href="/" className="flex items-center gap-2.5 font-semibold tracking-tight text-ink-900">
