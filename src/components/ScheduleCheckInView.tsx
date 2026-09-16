@@ -39,6 +39,10 @@ export default function ScheduleCheckInView({
   const [pending, startTransition] = useTransition();
   const visibleDays = view === "week" ? DAY_ORDER : [selectedDay];
   const byActivityId = new Map(savedCheckIns.map((checkIn) => [checkIn.activityId, checkIn]));
+  const totalActivities = scheduledActivityCount(schedule);
+  const remainingActivities = remainingActivityCount(schedule, savedCheckIns);
+  const checkedInActivities = totalActivities - remainingActivities;
+  const checkedInPercent = totalActivities === 0 ? 0 : (checkedInActivities / totalActivities) * 100;
 
   function saveCheckIn(activityId: string, status: ActivityCheckIn["status"], actualMinutes?: number) {
     setSavedCheckIns((previous) => [
@@ -59,9 +63,17 @@ export default function ScheduleCheckInView({
           <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Your plan for this week</h1>
           <p className="mt-3 text-xl text-ink-500">Your plan is set. Check in as you go.</p>
         </div>
-        <p aria-live="polite" className="rounded-full bg-ink-100 px-4 py-2 text-base font-medium text-ink-700">
-          {remainingActivityCount(schedule, savedCheckIns)} of {scheduledActivityCount(schedule)} activities remaining
-        </p>
+        {statusFirst ? <div aria-live="polite" className="w-60 rounded-lg border border-ink-100 bg-white px-4 py-3">
+          <div className="flex items-baseline justify-between gap-4">
+            <span className="text-sm font-semibold text-ink-900">{remainingActivities} remaining</span>
+            <span className="text-xs text-ink-500">{checkedInActivities} checked in</span>
+          </div>
+          <div aria-label={`${checkedInActivities} of ${totalActivities} activities checked in`} aria-valuemax={totalActivities} aria-valuemin={0} aria-valuenow={checkedInActivities} className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink-100" role="progressbar">
+            <div className="h-full rounded-full bg-accent-600" style={{ width: `${checkedInPercent}%` }} />
+          </div>
+        </div> : <p aria-live="polite" className="rounded-full bg-ink-100 px-4 py-2 text-base font-medium text-ink-700">
+          {remainingActivities} of {totalActivities} activities remaining
+        </p>}
       </div>
       <div className={statusFirst ? "mt-8" : "mt-8 flex flex-wrap gap-2"} aria-label="Schedule view">
         <div className={statusFirst ? "flex items-center justify-between rounded-lg border border-ink-200 bg-white p-1" : "contents"}>
