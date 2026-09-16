@@ -31,10 +31,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <header className="sticky top-0 z-40 border-b border-ink-100 bg-white">
           <div className="mx-auto flex max-w-6xl flex-col px-5 sm:flex-row sm:items-stretch sm:px-8">
             <div className="flex min-h-14 flex-1 items-center gap-8 sm:min-h-20">
-              <Link href="/" className="flex items-center gap-2.5 font-semibold tracking-tight text-ink-900">
-                <span className="flex size-7 items-center justify-center rounded-md bg-accent-600 text-xs text-white">
-                  D
-                </span>
+              <Link href="/" className="font-semibold tracking-tight text-ink-900">
                 DrillMap
               </Link>
               {session?.user && (
