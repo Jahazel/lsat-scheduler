@@ -59,6 +59,7 @@ export default async function DashboardPage() {
             schedule={schedule.schedule}
             student={schedule.generationInputs.student}
             checkIns={checkIns}
+            statusFirst
           />;
         })() : (
           <div className="rounded-lg border border-ink-100 bg-white p-6">
