@@ -93,13 +93,14 @@ export default async function DashboardPage({
             statusFirst
           />;
         })() : (
-          <div className="rounded-lg border border-ink-100 bg-white p-6">
-            <h1 className="text-xl font-semibold tracking-tight text-ink-900">Upload approved analytics to begin</h1>
-            <p className="mt-2 text-sm text-ink-500">
-              Confirm a fresh 7Sage analytics extraction to create this week&apos;s schedule.
-            </p>
-            {student.platform === "7Sage" && <AnalyticsUploader scheduleTestDate={typeof scheduleTestDate === "string" ? scheduleTestDate : undefined} />}
-          </div>
+          student.platform === "7Sage" ? (
+            <AnalyticsUploader scheduleTestDate={typeof scheduleTestDate === "string" ? scheduleTestDate : undefined} />
+          ) : (
+            <div className="rounded-lg border border-ink-100 bg-white p-6">
+              <h1 className="text-xl font-semibold tracking-tight text-ink-900">Upload approved analytics to begin</h1>
+              <p className="mt-2 text-sm text-ink-500">Confirm a fresh 7Sage analytics extraction to create this week&apos;s schedule.</p>
+            </div>
+          )
         )}
         {selectedHistory && (
           <section className="mt-10 border-t border-ink-200 pt-8">

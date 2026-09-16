@@ -22,6 +22,7 @@ interface AnalyticsReviewProps {
   onRowsChange: (rows: AnalyticsExtractedRow[]) => void;
   onExtractedChange?: (extracted: boolean) => void;
   onApprovalChange?: (approval: SnapshotApprovalMetadata | null) => void;
+  uploadPresentation?: "default" | "guided";
 }
 
 // Shared upload + review UI: pick a screenshot, OCR-extract candidate rows,
@@ -33,6 +34,7 @@ export default function AnalyticsReview({
   onRowsChange,
   onExtractedChange,
   onApprovalChange,
+  uploadPresentation = "default",
 }: AnalyticsReviewProps) {
   const [typeToAdd, setTypeToAdd] = useState("");
   const [extracting, setExtracting] = useState(false);
@@ -120,6 +122,29 @@ export default function AnalyticsReview({
   }
 
   if (!hasExtracted) {
+    if (uploadPresentation === "guided") {
+      return (
+        <div>
+          <label className="block cursor-pointer rounded-lg border border-dashed border-accent-600 bg-accent-100/35 p-5 transition-colors duration-150 ease-out hover:bg-accent-100/60 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent-600 has-[input:disabled]:cursor-not-allowed has-[input:disabled]:opacity-50">
+            <span className="flex items-center gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white text-accent-700">
+                <svg aria-hidden="true" className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M12 16V4m0 0-4 4m4-4 4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <span>
+                <span className="block font-semibold text-ink-900">Choose a 7Sage analytics screenshot</span>
+                <span className="mt-1 block text-sm text-ink-700">PNG, JPG, or WEBP · one image</span>
+              </span>
+            </span>
+            <input className="sr-only" type="file" accept="image/*" onChange={handleFileChange} disabled={extracting} />
+          </label>
+          {extracting && <p className="mt-3 text-sm text-ink-700">Reading your screenshot…</p>}
+          {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        </div>
+      );
+    }
+
     return (
       <div>
         <input type="file" accept="image/*" onChange={handleFileChange} disabled={extracting} />

@@ -42,35 +42,61 @@ export default function AnalyticsUploader({ scheduleTestDate }: { scheduleTestDa
   }
 
   return (
-    <div className="mt-10 rounded-lg border border-ink-100 bg-white p-4">
-      <h2 className="font-semibold text-ink-900">Upload this week&rsquo;s analytics</h2>
+    <section className="overflow-hidden rounded-xl border border-ink-200 bg-white">
+      <header className="border-b border-ink-200 px-6 py-5 sm:px-8">
+        <p className="text-sm font-medium text-ink-700">Create your study week</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink-900">Add this week&rsquo;s analytics</h1>
+      </header>
+      <div className="grid md:grid-cols-[12rem_1fr]">
+        <ol aria-label="Analytics upload progress" className="flex border-b border-ink-200 bg-ink-25 px-6 py-5 md:block md:border-b-0 md:border-r md:px-7 md:py-7">
+          <li aria-current={hasExtracted ? undefined : "step"} className={`flex items-center gap-3 text-sm font-semibold ${hasExtracted ? "text-ink-500" : "text-ink-900"}`}>
+            <span aria-hidden="true" className={`grid size-7 place-items-center rounded-full text-xs ${hasExtracted ? "bg-accent-100 text-accent-700" : "bg-accent-600 text-white"}`}>{hasExtracted ? "✓" : "1"}</span>
+            Upload<span className="sr-only">{hasExtracted ? " — complete" : " — current step"}</span>
+          </li>
+          <li aria-current={hasExtracted ? "step" : undefined} className={`ml-6 flex items-center gap-3 text-sm md:ml-0 md:mt-7 ${hasExtracted ? "font-semibold text-ink-900" : "text-ink-500"}`}>
+            <span aria-hidden="true" className={`grid size-7 place-items-center rounded-full text-xs ${hasExtracted ? "bg-accent-600 text-white" : "border border-ink-200 bg-white"}`}>2</span>
+            Review<span className="sr-only">{hasExtracted ? " — current step" : " — upcoming"}</span>
+          </li>
+          <li className="ml-6 flex items-center gap-3 text-sm text-ink-500 md:ml-0 md:mt-7">
+            <span aria-hidden="true" className="grid size-7 place-items-center rounded-full border border-ink-200 bg-white text-xs">3</span>
+            Schedule<span className="sr-only"> — upcoming</span>
+          </li>
+        </ol>
+        <div className="p-6 sm:p-8">
+          <h2 className="font-semibold text-ink-900">{hasExtracted ? "Review your extracted analytics" : "Upload your dashboard snapshot"}</h2>
+          <p className="mt-1 text-sm leading-6 text-ink-700">
+            {hasExtracted
+              ? "Compare the extracted values with your screenshot, then confirm the snapshot."
+              : "Use the analytics overview you checked most recently in 7Sage."}
+          </p>
 
-      <div className="mt-3 flex flex-col gap-4">
-        <AnalyticsReview
-          key={reviewKey}
-          rows={rows}
-          onRowsChange={setRows}
-          onExtractedChange={setHasExtracted}
-          onApprovalChange={setApproval}
-        />
+          <div className="mt-5 flex flex-col gap-4">
+            <AnalyticsReview
+              key={reviewKey}
+              rows={rows}
+              onRowsChange={setRows}
+              onExtractedChange={setHasExtracted}
+              onApprovalChange={setApproval}
+              uploadPresentation="guided"
+            />
 
-        {hasExtracted && (
-          <>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving || !approval}
-              className="self-start rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 ease-out hover:bg-accent-700 disabled:opacity-50"
-            >
-              {saving ? "Saving…" : "Save analytics"}
-            </button>
-            {!approval && (
-              <p className="text-sm text-ink-500">Confirm both statements before saving this snapshot.</p>
+            {hasExtracted && (
+              <>
+                {error && <p className="text-sm text-red-600">{error}</p>}
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving || !approval}
+                  className="self-start rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 ease-out hover:bg-accent-700 disabled:opacity-50"
+                >
+                  {saving ? "Saving…" : "Save analytics"}
+                </button>
+                {!approval && <p className="text-sm text-ink-500">Confirm both statements before saving this snapshot.</p>}
+              </>
             )}
-          </>
-        )}
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
