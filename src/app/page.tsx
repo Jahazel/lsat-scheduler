@@ -1,170 +1,74 @@
 import Link from "next/link";
-import { generateWeek } from "@/lib/engine";
-import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "@/lib/mockData";
-import WeeklyScheduleView from "@/components/WeeklyScheduleView";
-import EmailCaptureForm from "./EmailCaptureForm";
 
-const HOW_IT_WORKS = [
-  {
-    step: "1",
-    title: "Connect your analytics",
-    body: "Upload a 7Sage analytics screenshot — DrillMap reads your accuracy by question type automatically.",
-  },
-  {
-    step: "2",
-    title: "Get this week's plan",
-    body: "A weekly drilling schedule built around your specific weak spots, not a generic syllabus.",
-  },
-  {
-    step: "3",
-    title: "Re-check in every week",
-    body: "Upload fresh analytics each week and your plan updates — like a coach, not a static PDF.",
-  },
+const STUDY_DAYS = [
+  { day: "Mon", focus: "Strengthen", work: "12 questions", accuracy: "82%" },
+  { day: "Tue", focus: "Flaw", work: "14 questions", accuracy: "67%" },
+  { day: "Wed", focus: "Review", work: "Missed questions" },
+  { day: "Thu", focus: "Necessary assumption", work: "10 questions", accuracy: "71%" },
 ];
-
-const sampleSchedule = generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName);
 
 export default function LandingPage() {
   return (
-    <div className="px-6 py-16">
-      <div className="mx-auto max-w-3xl">
-        <section className="text-center">
-          <h1 className="text-4xl font-semibold tracking-tight text-ink-900 sm:text-5xl">
-            Your LSAT score, engineered week by week.
+    <div className="overflow-hidden bg-ink-25">
+      <section className="mx-auto grid max-w-6xl gap-12 px-6 pb-24 pt-12 lg:grid-cols-[1fr_0.9fr] lg:items-center lg:pt-20">
+        <div>
+          <p className="mb-5 text-xs font-medium uppercase tracking-[0.18em] text-accent-600">
+            A weekly plan from your real results
+          </p>
+          <h1 className="max-w-2xl text-4xl font-semibold leading-[1.1] tracking-tight text-ink-900 sm:text-5xl">
+            Stop guessing what to study next.
           </h1>
-          <p className="mx-auto mt-4 max-w-xl text-lg text-ink-600">
-            Most students don&rsquo;t lack effort — they lack direction. DrillMap turns your analytics into a
-            targeted weekly drilling plan, automatically.
+          <p className="mt-7 max-w-xl text-lg leading-8 text-ink-600">
+            DrillMap reads your LSAT analytics and turns them into a practical week of drilling, review, and recovery.
           </p>
-          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <Link
-              href="/signup"
-              className="rounded-md bg-accent-600 px-6 py-3 text-sm font-medium text-white transition-colors duration-150 ease-out hover:bg-accent-700"
-            >
-              Get my first week free
+          <div className="mt-9 flex flex-wrap items-center gap-4">
+            <Link href="/signup" className="rounded-md bg-accent-600 px-6 py-3 text-sm font-medium text-white transition-colors duration-150 ease-out hover:bg-accent-700">
+              Build my first plan
             </Link>
-            <Link
-              href="/legal/ai-disclosure"
-              className="text-sm font-medium text-ink-500 hover:text-ink-700"
-            >
-              How DrillMap uses AI
-            </Link>
+            <span className="text-sm text-ink-500">Your first week is free.</span>
           </div>
-        </section>
-
-        <section className="mt-12 rounded-xl border border-ink-100 bg-white px-6 py-8 shadow-proof-ambient sm:px-10 sm:py-10">
-          <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
-            <div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-accent-100 text-xl font-semibold text-accent-700">
-              [XX]
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold tracking-tight text-ink-900">[Partner Name]</h2>
-              <p className="text-sm text-ink-500">Founder &amp; LSAT Tutor</p>
-            </div>
+          <div className="mt-12 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-ink-100 pt-6 sm:grid-cols-4 sm:gap-x-12">
+            <Metric value="178" label="founder LSAT" />
+            <Metric value="Stanford" label="Law School" />
+            <Metric value="200+" label="students coached" />
+            <Metric value="3,000+" label="hours coached" />
           </div>
-          <p className="mx-auto mt-4 max-w-xl text-center text-sm text-ink-600 sm:mx-0 sm:text-left">
-            [2-3 sentence bio — how they got into LSAT tutoring, what they care about, what makes these
-            numbers personal.]
-          </p>
+        </div>
 
-          <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-ink-100 pt-8 text-center sm:grid-cols-4">
+        <section className="rounded-xl bg-ink-900 p-5 text-white shadow-proof-ambient sm:p-7" aria-label="Sample weekly study plan">
+          <div className="flex items-start justify-between border-b border-white/15 pb-5">
             <div>
-              <div className="text-2xl font-semibold tracking-tight text-accent-600 sm:text-3xl">178</div>
-              <div className="mt-1 text-xs font-medium text-ink-500">LSAT score</div>
+              <p className="text-xs font-medium uppercase tracking-[0.16em] text-accent-100">Your study week</p>
+              <h2 className="mt-1 text-2xl font-semibold">An example week</h2>
             </div>
-            <div>
-              <div className="text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl">Stanford</div>
-              <div className="mt-1 text-xs font-medium text-ink-500">Law School</div>
-            </div>
-            <div>
-              <div className="text-2xl font-semibold tracking-tight text-accent-600 sm:text-3xl">200+</div>
-              <div className="mt-1 text-xs font-medium text-ink-500">students coached</div>
-            </div>
-            <div>
-              <div className="text-2xl font-semibold tracking-tight text-accent-600 sm:text-3xl">3,000+</div>
-              <div className="mt-1 text-xs font-medium text-ink-500">tutoring hours</div>
-            </div>
+            <span className="rounded-full bg-ink-100 px-2.5 py-1 text-xs font-medium text-ink-500">Sample</span>
           </div>
-        </section>
-
-        <section className="mt-16">
-          <h2 className="text-center text-2xl font-semibold tracking-tight text-ink-900">How it works</h2>
-          <div className="mt-8 grid gap-6 sm:grid-cols-3">
-            {HOW_IT_WORKS.map((item) => (
-              <div key={item.step} className="rounded-lg border border-ink-100 bg-white p-5">
-                <span className="flex size-7 items-center justify-center rounded-full bg-accent-100 text-sm font-semibold text-accent-700">
-                  {item.step}
-                </span>
-                <h3 className="mt-3 font-medium text-ink-900">{item.title}</h3>
-                <p className="mt-1 text-sm text-ink-600">{item.body}</p>
+          <div className="mt-5 space-y-2">
+            {STUDY_DAYS.map((studyDay) => (
+              <div key={studyDay.day} className="grid grid-cols-[44px_1fr_auto] items-center gap-3 rounded-lg bg-white/10 px-3 py-3">
+                <span className="text-xs font-medium text-accent-100">{studyDay.day}</span>
+                <div>
+                  <p className="font-medium">{studyDay.focus}</p>
+                  <p className="text-xs text-white/55">{studyDay.work}</p>
+                </div>
+                {studyDay.accuracy && <span className="text-sm font-semibold text-accent-100">{studyDay.accuracy}</span>}
               </div>
             ))}
           </div>
-        </section>
-
-        <section className="mt-16">
-          <h2 className="text-center text-2xl font-semibold tracking-tight text-ink-900">
-            A real weekly plan, not a template
-          </h2>
-          <p className="mx-auto mt-2 max-w-lg text-center text-sm text-ink-600">
-            Here&rsquo;s an actual DrillMap plan — targeted drilling, one practice test, one review day.
+          <p className="mt-5 rounded-lg bg-accent-600 px-4 py-3 text-sm">
+            This week targets two question types that cost you 8 points on your last test.
           </p>
-          <div className="mt-8 rounded-xl border border-ink-100 bg-ink-25 p-6">
-            <WeeklyScheduleView schedule={sampleSchedule} student={mockStudent} isRealAnalytics />
-          </div>
         </section>
+      </section>
+    </div>
+  );
+}
 
-        <section className="mt-16">
-          <h2 className="text-center text-2xl font-semibold tracking-tight text-ink-900">Pricing</h2>
-          <p className="mx-auto mt-2 max-w-lg text-center text-sm text-ink-600">
-            Start with your first week free. After that:
-          </p>
-          <div className="mx-auto mt-10 grid max-w-2xl items-center gap-6 sm:mt-8 sm:grid-cols-2">
-            <div className="rounded-xl border border-ink-100 bg-white p-8 text-center">
-              <h3 className="text-sm font-medium text-ink-500">Weekly</h3>
-              <div className="mt-2 text-4xl font-semibold tracking-tight text-ink-900">
-                $7.99<span className="text-base font-medium text-ink-500">/wk</span>
-              </div>
-              <p className="mt-4 text-xs text-ink-500">No monthly commitment — cancel anytime.</p>
-              <Link
-                href="/signup"
-                className="mt-6 block rounded-md border border-ink-200 px-4 py-2.5 text-sm font-medium text-ink-700 transition-colors duration-150 ease-out hover:border-ink-400"
-              >
-                Start weekly
-              </Link>
-            </div>
-            <div className="relative rounded-xl border-2 border-accent-600 bg-accent-100 p-8 text-center shadow-proof-ambient sm:scale-105">
-              <span className="absolute -top-3 right-6 rounded-full bg-accent-600 px-3 py-1 text-xs font-medium text-white">
-                Best value
-              </span>
-              <h3 className="text-sm font-medium text-accent-700">Monthly</h3>
-              <div className="mt-2 text-4xl font-semibold tracking-tight text-ink-900">
-                $25<span className="text-base font-medium text-ink-500">/mo</span>
-              </div>
-              <p className="mt-4 text-xs font-medium text-accent-700">
-                Signed up to 7Sage through our link? Mention it during signup and we&rsquo;ll confirm and
-                apply $10/mo.
-              </p>
-              <Link
-                href="/signup"
-                className="mt-6 block rounded-md bg-accent-600 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 ease-out hover:bg-accent-700"
-              >
-                Start monthly
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-16 rounded-xl border border-ink-100 bg-white p-8 text-center">
-          <h2 className="text-xl font-semibold tracking-tight text-ink-900">Not ready to start yet?</h2>
-          <p className="mt-1 text-sm text-ink-600">
-            Leave your email and we&rsquo;ll let you know when DrillMap adds your platform or features.
-          </p>
-          <div className="mx-auto mt-4 max-w-sm">
-            <EmailCaptureForm />
-          </div>
-        </section>
-      </div>
+function Metric({ value, label }: { value: string; label: string }) {
+  return (
+    <div>
+      <p className="text-2xl font-semibold tracking-tight text-ink-900">{value}</p>
+      <p className="mt-1 text-xs text-ink-500">{label}</p>
     </div>
   );
 }
