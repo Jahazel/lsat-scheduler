@@ -23,6 +23,7 @@ interface AnalyticsReviewProps {
   onExtractedChange?: (extracted: boolean) => void;
   onApprovalChange?: (approval: SnapshotApprovalMetadata | null) => void;
   uploadPresentation?: "default" | "guided";
+  reviewPresentation?: "default" | "full-width";
 }
 
 // Shared upload + review UI: pick a screenshot, OCR-extract candidate rows,
@@ -35,6 +36,7 @@ export default function AnalyticsReview({
   onExtractedChange,
   onApprovalChange,
   uploadPresentation = "default",
+  reviewPresentation = "default",
 }: AnalyticsReviewProps) {
   const [typeToAdd, setTypeToAdd] = useState("");
   const [extracting, setExtracting] = useState(false);
@@ -159,6 +161,85 @@ export default function AnalyticsReview({
   const indexed = rows.map((row, i) => ({ row, i }));
   const accuracyRows = indexed.filter(({ row }) => row.category === "regular");
   const priorityRows = indexed.filter(({ row }) => row.category === "restricted");
+  const errorMessage = error && <p className="text-sm text-red-600">{error}</p>;
+
+  function priorityItems() {
+    return priorityRows.map(({ row, i }) => {
+      const inputId = `priority-${i}`;
+      return <li key={`${row.type}-${i}`} className="flex items-center gap-2"><input id={inputId} type="checkbox" checked={row.isTopPriority ?? false} onChange={() => toggleTopPriority(i)} className="size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" /><label htmlFor={inputId} className="flex-1 text-sm text-ink-900">{row.type}</label><button type="button" onClick={() => removeRow(i)} className="rounded p-1 text-ink-700 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" aria-label={`Remove ${row.type}`}>✕</button></li>;
+    });
+  }
+
+  function addTypeControl(className: string) {
+    return <div className={className}><select value={typeToAdd} onChange={(e) => setTypeToAdd(e.target.value)} aria-label="Add a type the screenshot missed" className="flex-1 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"><option value="">Add a type the screenshot missed…</option>{ALL_TYPES.filter((t) => !rows.some((r) => r.type === t.type)).map((t) => <option key={t.type} value={t.type}>{t.type}</option>)}</select><button type="button" onClick={addRow} disabled={!typeToAdd} className="rounded-md border border-ink-200 px-3 py-2 text-sm font-medium text-ink-900 hover:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 disabled:cursor-not-allowed disabled:opacity-50">Add</button></div>;
+  }
+
+  function approvalControls(className: string, legendClassName: string) {
+    return <fieldset className={className}><legend className={legendClassName}>Confirm this snapshot</legend><div className="mt-3 space-y-3"><label className="flex items-start gap-2 text-sm text-ink-700"><input type="checkbox" checked={extractedValuesMatch} onChange={(event) => updateApproval(event.target.checked, isLatestAnalytics)} className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" /><span>I reviewed these values and they match my screenshot.</span></label><label className="flex items-start gap-2 text-sm text-ink-700"><input type="checkbox" checked={isLatestAnalytics} onChange={(event) => updateApproval(extractedValuesMatch, event.target.checked)} className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" /><span>This screenshot contains my latest 7Sage analytics.</span></label></div></fieldset>;
+  }
+
+  if (reviewPresentation === "full-width") {
+    return (
+      <div className="flex flex-col gap-6">
+        <section>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[34rem] text-left text-sm">
+              <thead className="border-b border-ink-200 text-xs font-medium uppercase tracking-wide text-ink-500">
+                <tr>
+                  <th className="pb-3">Question type</th>
+                  <th className="w-32 pb-3">Accuracy</th>
+                  <th className="w-10 pb-3"><span className="sr-only">Remove</span></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink-100">
+                {accuracyRows.map(({ row, i }) => {
+                  const inputId = `accuracy-${i}`;
+                  return (
+                    <tr key={`${row.type}-${i}`}>
+                      <td className="py-4 pr-6 font-medium text-ink-900">{row.type}</td>
+                      <td className="py-4">
+                        <div className="flex items-center gap-1">
+                          <input
+                            id={inputId}
+                            type="number"
+                            value={row.accuracy ?? ""}
+                            onChange={(e) => updateAccuracy(i, e.target.value)}
+                            placeholder="—"
+                            aria-label={`${row.type} accuracy`}
+                            className="w-24 rounded-md border border-ink-200 bg-white px-2 py-1 text-right text-2xl font-semibold tabular-nums text-ink-900 placeholder:text-ink-500 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
+                          />
+                          <span className="text-sm font-medium text-ink-700">%</span>
+                        </div>
+                      </td>
+                      <td className="py-4 text-right">
+                        <button type="button" onClick={() => removeRow(i)} className="rounded p-1 text-ink-700 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" aria-label={`Remove ${row.type}`}>✕</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {accuracyRows.length === 0 && <p className="mt-5 text-sm text-ink-700">No accuracy types were recognized from that screenshot.</p>}
+        </section>
+
+        <fieldset className="border-t border-ink-200 pt-6">
+          <legend className="text-base font-semibold text-ink-900">Priority flags</legend>
+          <p className="mt-1 text-sm text-ink-700">Keep the flags that should influence this week&rsquo;s plan.</p>
+          {priorityRows.length === 0 ? (
+            <p className="mt-4 text-sm text-ink-700">No priority types were recognized from that screenshot.</p>
+          ) : (
+            <ul className="mt-4 grid gap-3 sm:grid-cols-2">{priorityItems()}</ul>
+          )}
+        </fieldset>
+
+        {addTypeControl("flex max-w-xl items-center gap-2")}
+
+        {approvalControls("border-t border-ink-200 pt-5", "text-base font-semibold text-ink-900")}
+        {errorMessage}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -232,83 +313,15 @@ export default function AnalyticsReview({
             {priorityRows.length === 0 ? (
               <p className="mt-3 text-sm text-ink-700">No priority types were recognized from that screenshot.</p>
             ) : (
-              <ul className="mt-3 space-y-3">
-                {priorityRows.map(({ row, i }) => {
-                  const inputId = `priority-${i}`;
-                  return (
-                    <li key={`${row.type}-${i}`} className="flex items-center gap-2">
-                      <input
-                        id={inputId}
-                        type="checkbox"
-                        checked={row.isTopPriority ?? false}
-                        onChange={() => toggleTopPriority(i)}
-                        className="size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
-                      />
-                      <label htmlFor={inputId} className="flex-1 text-sm text-ink-900">{row.type}</label>
-                      <button
-                        type="button"
-                        onClick={() => removeRow(i)}
-                        className="rounded p-1 text-ink-700 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
-                        aria-label={`Remove ${row.type}`}
-                      >
-                        ✕
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+              <ul className="mt-3 space-y-3">{priorityItems()}</ul>
             )}
           </div>
         </aside>
       </section>
 
-      <div className="flex items-center gap-2">
-        <select
-          value={typeToAdd}
-          onChange={(e) => setTypeToAdd(e.target.value)}
-          aria-label="Add a type the screenshot missed"
-          className="flex-1 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
-        >
-          <option value="">Add a type the screenshot missed…</option>
-          {ALL_TYPES.filter((t) => !rows.some((r) => r.type === t.type)).map((t) => (
-            <option key={t.type} value={t.type}>
-              {t.type}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          onClick={addRow}
-          disabled={!typeToAdd}
-          className="rounded-md border border-ink-200 px-3 py-2 text-sm font-medium text-ink-900 hover:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Add
-        </button>
-      </div>
-
-      <fieldset className="rounded-md border border-ink-100 p-3">
-        <legend className="px-1 text-sm font-medium text-ink-900">Confirm this snapshot</legend>
-        <label className="mt-2 flex items-start gap-2 text-sm text-ink-700">
-          <input
-            type="checkbox"
-            checked={extractedValuesMatch}
-            onChange={(event) => updateApproval(event.target.checked, isLatestAnalytics)}
-            className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
-          />
-          <span>I reviewed these values and they match my screenshot.</span>
-        </label>
-        <label className="mt-2 flex items-start gap-2 text-sm text-ink-700">
-          <input
-            type="checkbox"
-            checked={isLatestAnalytics}
-            onChange={(event) => updateApproval(extractedValuesMatch, event.target.checked)}
-            className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
-          />
-          <span>This screenshot contains my latest 7Sage analytics.</span>
-        </label>
-      </fieldset>
-
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {addTypeControl("flex items-center gap-2")}
+      {approvalControls("rounded-md border border-ink-100 p-3", "px-1 text-sm font-medium text-ink-900")}
+      {errorMessage}
     </div>
   );
 }
