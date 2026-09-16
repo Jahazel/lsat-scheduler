@@ -137,83 +137,112 @@ export default function AnalyticsReview({
 
   return (
     <div className="flex flex-col gap-4">
-      {rows.length === 0 ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-500">
-          Nothing recognized from that screenshot.
-        </p>
-      ) : (
-        <div className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
-          {accuracyRows.length > 0 && (
-            <div className="p-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-500">
-                Accuracy by type
-              </h3>
-              <ul className="mt-2 divide-y divide-zinc-100 dark:divide-zinc-900">
-                {accuracyRows.map(({ row, i }) => (
-                  <li key={`${row.type}-${i}`} className="flex items-center gap-3 py-2 text-sm">
-                    <span className="flex-1 text-black dark:text-zinc-50">{row.type}</span>
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="number"
-                        value={row.accuracy ?? ""}
-                        onChange={(e) => updateAccuracy(i, e.target.value)}
-                        placeholder="—"
-                        className="w-16 rounded-md border border-zinc-300 bg-white px-2 py-1 text-right dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                      />
-                      <span className="text-xs text-zinc-500 dark:text-zinc-500">%</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeRow(i)}
-                      className="text-zinc-400 hover:text-red-500"
-                      aria-label={`Remove ${row.type}`}
-                    >
-                      ✕
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+      <section className="grid overflow-hidden rounded-xl border border-ink-200 bg-white md:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.8fr)]">
+        <div className="p-5 sm:p-6 md:border-r md:border-ink-200">
+          <h3 className="text-base font-semibold text-ink-900">Accuracy by type</h3>
+          <p className="mt-1 text-sm text-ink-700">Compare each percentage with the screenshot.</p>
 
-          {priorityRows.length > 0 && (
-            <div className="p-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-500">
-                Flagged as top priority
-              </h3>
-              <ul className="mt-2 divide-y divide-zinc-100 dark:divide-zinc-900">
-                {priorityRows.map(({ row, i }) => (
-                  <li key={`${row.type}-${i}`} className="flex items-center gap-3 py-2 text-sm">
-                    <span className="flex-1 text-black dark:text-zinc-50">{row.type}</span>
-                    <label className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400">
+          {accuracyRows.length === 0 ? (
+            <p className="mt-6 text-sm text-ink-700">No accuracy types were recognized from that screenshot.</p>
+          ) : (
+            <ul className="mt-6 space-y-5">
+              {accuracyRows.map(({ row, i }) => {
+                const accuracy = typeof row.accuracy === "number" && Number.isFinite(row.accuracy)
+                  ? Math.max(0, Math.min(100, row.accuracy))
+                  : 0;
+                const inputId = `accuracy-${i}`;
+
+                return (
+                  <li key={`${row.type}-${i}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-4 gap-y-2">
+                    <div className="min-w-0">
+                      <label htmlFor={inputId} className="block text-sm font-medium text-ink-900">
+                        {row.type}
+                      </label>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-ink-100">
+                        <div
+                          className="h-full rounded-full bg-accent-600"
+                          style={{ width: `${accuracy}%` }}
+                          aria-hidden="true"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <input
+                          id={inputId}
+                          type="number"
+                          value={row.accuracy ?? ""}
+                          onChange={(e) => updateAccuracy(i, e.target.value)}
+                          placeholder="—"
+                          className="w-20 rounded-md border border-ink-300 bg-white px-2 py-1.5 text-right text-sm font-semibold tabular-nums text-ink-900 placeholder:text-ink-500 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
+                        />
+                        <span className="text-sm font-medium text-ink-700">%</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeRow(i)}
+                        className="rounded p-1 text-ink-700 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
+                        aria-label={`Remove ${row.type}`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <aside className="bg-ink-25 p-5 sm:p-6">
+          <h3 className="text-base font-semibold text-ink-900">Review checklist</h3>
+          <ol className="mt-4 space-y-3 text-sm text-ink-700">
+            <li>1. Compare the values against your screenshot.</li>
+            <li>2. Confirm the priority flags.</li>
+            <li>3. Confirm the snapshot before saving.</li>
+          </ol>
+
+          <div className="mt-6 border-t border-ink-200 pt-5">
+            <h4 className="text-sm font-semibold text-ink-900">Priority flags</h4>
+            {priorityRows.length === 0 ? (
+              <p className="mt-3 text-sm text-ink-700">No priority types were recognized from that screenshot.</p>
+            ) : (
+              <ul className="mt-3 space-y-3">
+                {priorityRows.map(({ row, i }) => {
+                  const inputId = `priority-${i}`;
+                  return (
+                    <li key={`${row.type}-${i}`} className="flex items-center gap-2">
                       <input
+                        id={inputId}
                         type="checkbox"
                         checked={row.isTopPriority ?? false}
                         onChange={() => toggleTopPriority(i)}
+                        className="size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
                       />
-                      Top priority
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => removeRow(i)}
-                      className="text-zinc-400 hover:text-red-500"
-                      aria-label={`Remove ${row.type}`}
-                    >
-                      ✕
-                    </button>
-                  </li>
-                ))}
+                      <label htmlFor={inputId} className="flex-1 text-sm text-ink-900">{row.type}</label>
+                      <button
+                        type="button"
+                        onClick={() => removeRow(i)}
+                        className="rounded p-1 text-ink-700 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
+                        aria-label={`Remove ${row.type}`}
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        </aside>
+      </section>
 
       <div className="flex items-center gap-2">
         <select
           value={typeToAdd}
           onChange={(e) => setTypeToAdd(e.target.value)}
-          className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-black dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+          aria-label="Add a type the screenshot missed"
+          className="flex-1 rounded-md border border-ink-300 bg-white px-3 py-2 text-sm text-ink-900 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
         >
           <option value="">Add a type the screenshot missed…</option>
           {ALL_TYPES.filter((t) => !rows.some((r) => r.type === t.type)).map((t) => (
@@ -226,7 +255,7 @@ export default function AnalyticsReview({
           type="button"
           onClick={addRow}
           disabled={!typeToAdd}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-black disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-50"
+          className="rounded-md border border-ink-300 px-3 py-2 text-sm font-medium text-ink-900 hover:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Add
         </button>
@@ -239,6 +268,7 @@ export default function AnalyticsReview({
             type="checkbox"
             checked={extractedValuesMatch}
             onChange={(event) => updateApproval(event.target.checked, isLatestAnalytics)}
+            className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
           />
           <span>I reviewed these values and they match my screenshot.</span>
         </label>
@@ -247,6 +277,7 @@ export default function AnalyticsReview({
             type="checkbox"
             checked={isLatestAnalytics}
             onChange={(event) => updateApproval(extractedValuesMatch, event.target.checked)}
+            className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
           />
           <span>This screenshot contains my latest 7Sage analytics.</span>
         </label>
