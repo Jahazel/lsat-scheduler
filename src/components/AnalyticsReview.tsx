@@ -174,7 +174,7 @@ export default function AnalyticsReview({
                           value={row.accuracy ?? ""}
                           onChange={(e) => updateAccuracy(i, e.target.value)}
                           placeholder="—"
-                          className="w-20 rounded-md border border-ink-300 bg-white px-2 py-1.5 text-right text-sm font-semibold tabular-nums text-ink-900 placeholder:text-ink-500 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
+                          className="w-20 rounded-md border border-ink-200 bg-white px-2 py-1.5 text-right text-sm font-semibold tabular-nums text-ink-900 placeholder:text-ink-500 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
                         />
                         <span className="text-sm font-medium text-ink-700">%</span>
                       </div>
@@ -197,9 +197,9 @@ export default function AnalyticsReview({
         <aside className="bg-ink-25 p-5 sm:p-6">
           <h3 className="text-base font-semibold text-ink-900">Review checklist</h3>
           <ol className="mt-4 space-y-3 text-sm text-ink-700">
-            <li>1. Compare the values against your screenshot.</li>
-            <li>2. Confirm the priority flags.</li>
-            <li>3. Confirm the snapshot before saving.</li>
+            <li>Compare the values against your screenshot.</li>
+            <li>Confirm the priority flags.</li>
+            <li>Confirm the snapshot before saving.</li>
           </ol>
 
           <div className="mt-6 border-t border-ink-200 pt-5">
@@ -242,7 +242,7 @@ export default function AnalyticsReview({
           value={typeToAdd}
           onChange={(e) => setTypeToAdd(e.target.value)}
           aria-label="Add a type the screenshot missed"
-          className="flex-1 rounded-md border border-ink-300 bg-white px-3 py-2 text-sm text-ink-900 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
+          className="flex-1 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
         >
           <option value="">Add a type the screenshot missed…</option>
           {ALL_TYPES.filter((t) => !rows.some((r) => r.type === t.type)).map((t) => (
@@ -255,7 +255,7 @@ export default function AnalyticsReview({
           type="button"
           onClick={addRow}
           disabled={!typeToAdd}
-          className="rounded-md border border-ink-300 px-3 py-2 text-sm font-medium text-ink-900 hover:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-md border border-ink-200 px-3 py-2 text-sm font-medium text-ink-900 hover:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Add
         </button>
