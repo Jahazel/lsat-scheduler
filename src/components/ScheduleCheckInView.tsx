@@ -24,6 +24,7 @@ interface ScheduleCheckInViewProps {
   checkIns: ActivityCheckIn[];
   readOnly?: boolean;
   statusFirst?: boolean;
+  heading?: string;
 }
 
 export default function ScheduleCheckInView({
@@ -32,6 +33,7 @@ export default function ScheduleCheckInView({
   checkIns,
   readOnly = false,
   statusFirst = false,
+  heading = "Your plan for this week",
 }: ScheduleCheckInViewProps) {
   const [view, setView] = useState<"week" | "day">("week");
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>("MONDAY");
@@ -43,6 +45,7 @@ export default function ScheduleCheckInView({
   const remainingActivities = remainingActivityCount(schedule, savedCheckIns);
   const checkedInActivities = totalActivities - remainingActivities;
   const checkedInPercent = totalActivities === 0 ? 0 : (checkedInActivities / totalActivities) * 100;
+  const isPastPlan = heading === "Your past plan";
 
   function saveCheckIn(activityId: string, status: ActivityCheckIn["status"], actualMinutes?: number) {
     setSavedCheckIns((previous) => [
@@ -57,11 +60,11 @@ export default function ScheduleCheckInView({
 
   return (
     <>
-      <p className="text-sm font-medium text-ink-700">Week of {formatScheduleWeekOf(schedule.weekOf)}</p>
+      {!isPastPlan && <p className="text-sm font-medium text-ink-700">Week of {formatScheduleWeekOf(schedule.weekOf)}</p>}
       <div className="mt-3 flex flex-wrap items-end justify-between gap-5">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Your plan for this week</h1>
-          <p className="mt-3 text-xl text-ink-500">Your plan is set. Check in as you go.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink-900">{heading}</h1>
+          {!isPastPlan && <p className="mt-3 text-xl text-ink-500">Your plan is set. Check in as you go.</p>}
         </div>
         {statusFirst ? <div aria-live="polite" className="w-60 rounded-lg border border-ink-100 bg-white px-4 py-3">
           <div className="flex items-baseline justify-between gap-4">
