@@ -25,6 +25,11 @@ export const mongooseActivityCheckIns = {
     const records = await ActivityCheckInModel.find({ scheduleId }).lean();
     return records.map(activityCheckIn);
   },
+  async listForSchedules(scheduleIds: string[]) {
+    if (scheduleIds.length === 0) return [];
+    const records = await ActivityCheckInModel.find({ scheduleId: { $in: scheduleIds } }).lean();
+    return records.map(activityCheckIn);
+  },
   async save({
     scheduleId,
     activityId,
