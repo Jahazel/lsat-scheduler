@@ -4,6 +4,8 @@ The study-planning context for LSAT students using DrillMap. It defines the reco
 
 ## Language
 
+### Records
+
 **Weekly schedule**:
 A saved Monday–Sunday study plan for one student and one calendar week. It is the historical record of work assigned for that week.
 _Avoid_: schedule generation, plan template
@@ -33,3 +35,49 @@ The named version of the deterministic rules used to create a weekly schedule. I
 
 **Legacy analytics record**:
 An analytics record carried forward from the previous storage model without the approval provenance required for adaptive planning. It may remain visible as history but cannot qualify a student for a new weekly schedule.
+
+### Weekly shape
+
+**Drilling day**:
+A day in a weekly schedule that is not the rest day, a practice-test day, or a practice-test review day.
+_Avoid_: study day, work day
+
+**Rest day**:
+The one day in a weekly schedule with no schedule activities.
+_Avoid_: off day
+
+**Preferred practice-test day**:
+The day of the week a student selects for their weekly practice test.
+_Avoid_: PT day, test day
+
+**Practice-test review day**:
+The day after a practice test, reserved only for reviewing that test.
+_Avoid_: Sunday review, blind review day
+
+### Capacity
+
+**Daily capacity**:
+The minutes a student says they can study on a given day of the week.
+_Avoid_: availability, weekday capacity, weekend capacity
+
+**Daily minimum**:
+The smallest amount of LR or RC work every drilling day receives, even when it exceeds that day's daily capacity.
+_Avoid_: floor, minimum drill
+
+**Capacity overage**:
+The minutes by which a day's planned schedule activities exceed its daily capacity.
+_Avoid_: overflow
+
+**Accommodation**:
+A student's approved extra-time category (standard, 1.5x, or 2x), which lengthens the planned time of their schedule activities.
+_Avoid_: multiplier, extra time
+
+### Drill content
+
+**Full section**:
+One complete LR or RC section from a practice test, done as a single schedule activity.
+_Avoid_: section drill
+
+**Starred question type**:
+An LR question type the tutor ranks first for drilling.
+_Avoid_: mandatory type, core type
