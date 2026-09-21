@@ -43,7 +43,7 @@ A day in a weekly schedule that is not the rest day, a practice-test day, or a p
 _Avoid_: study day, work day
 
 **Rest day**:
-The one day in a weekly schedule with no schedule activities.
+The one day in a weekly schedule the scheduling policy keeps free of schedule activities. It moves off its usual day when a practice test or practice-test review day takes that day.
 _Avoid_: off day
 
 **Preferred practice-test day**:
@@ -51,8 +51,16 @@ The day of the week a student selects for their weekly practice test.
 _Avoid_: PT day, test day
 
 **Practice-test review day**:
-The day after a practice test, reserved only for reviewing that test.
+The day after a practice test, reserved only for reviewing that test. It falls in the next weekly schedule when the practice test is on Sunday.
 _Avoid_: Sunday review, blind review day
+
+**Near-test week**:
+A weekly schedule close enough to the student's goal test date to hold two practice tests instead of one, each taken on LawHub.
+_Avoid_: crunch week, final month
+
+**Unscheduled day**:
+A day that had already passed when a weekly schedule was created, so it holds no schedule activities. It is not the rest day.
+_Avoid_: empty day, missed day
 
 ### Capacity
 
