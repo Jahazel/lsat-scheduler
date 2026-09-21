@@ -36,6 +36,10 @@ The named version of the deterministic rules used to create a weekly schedule. I
 **Legacy analytics record**:
 An analytics record carried forward from the previous storage model without the approval provenance required for adaptive planning. It may remain visible as history but cannot qualify a student for a new weekly schedule.
 
+**Automatic rejection**:
+A condition that disqualifies a weekly schedule outright, however good the rest of it is. A schedule passes review only when it triggers none.
+_Avoid_: validation error, failed check
+
 ### Weekly shape
 
 **Drilling day**:
@@ -71,6 +75,10 @@ _Avoid_: availability, weekday capacity, weekend capacity
 **Daily minimum**:
 The smallest amount of LR or RC work every drilling day receives, even when it exceeds that day's daily capacity.
 _Avoid_: floor, minimum drill
+
+**Day fill**:
+A drilling day's planned schedule-activity minutes as a share of that day's daily capacity. The weekly schedule quality rubric compares day fill across drilling days to detect a large discrepancy.
+_Avoid_: utilization, load
 
 **Capacity overage**:
 The minutes by which a day's planned schedule activities exceed its daily capacity.
