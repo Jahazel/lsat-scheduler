@@ -80,6 +80,10 @@ _Avoid_: overflow
 A student's approved extra-time category (standard, 1.5x, or 2x), which lengthens the planned time of their schedule activities.
 _Avoid_: multiplier, extra time
 
+**Skip reduction**:
+The cut to a weekly schedule's planned work, sized by the share of planned minutes the student skipped in the immediately preceding week. It never reduces a drilling day below its daily minimum.
+_Avoid_: workload reduction, penalty
+
 ### Drill content
 
 **Full section**:
@@ -89,3 +93,15 @@ _Avoid_: section drill
 **Starred question type**:
 An LR question type the tutor ranks first for drilling.
 _Avoid_: mandatory type, core type
+
+**Drill**:
+A schedule activity covering a set number of LR questions of one question type, or a set number of RC passages. It is the unit the daily minimum and the drilling ratio are counted in.
+_Avoid_: drill block, practice set
+
+**Drilling ratio**:
+The fixed proportion of LR to RC drilling within one weekly schedule: 10 LR questions for every RC passage. Full sections and practice tests are counted separately.
+_Avoid_: LR/RC balance, study-time split
+
+**Starred rotation**:
+The order that returns starred question types across successive weekly schedules, used when one weekly schedule cannot hold a drill of every starred question type.
+_Avoid_: starred cycle, rotation schedule
