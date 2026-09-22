@@ -9,7 +9,7 @@ import type { AnalyticsExtractedRow } from "@/lib/types";
 
 // Always writes to the logged-in student's own snapshot via /api/analytics
 // — no studentId prop needed, unlike the old tutor-driven version.
-export default function AnalyticsUploader({ scheduleTestDate }: { scheduleTestDate?: string }) {
+export default function AnalyticsUploader() {
   const router = useRouter();
   const [rows, setRows] = useState<AnalyticsExtractedRow[]>([]);
   const [hasExtracted, setHasExtracted] = useState(false);
@@ -26,7 +26,7 @@ export default function AnalyticsUploader({ scheduleTestDate }: { scheduleTestDa
       const res = await fetch("/api/analytics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...summarizeAnalyticsRows(rows), ...approval, scheduleTestDate }),
+        body: JSON.stringify({ ...summarizeAnalyticsRows(rows), ...approval }),
       });
       if (!res.ok) throw new Error();
       setHasExtracted(false);

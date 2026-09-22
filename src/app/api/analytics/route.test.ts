@@ -72,14 +72,14 @@ describe("POST /api/analytics", () => {
     });
   });
 
-  it("uses the selected week for an analytics upload made through the development schedule tester", async () => {
+  it("ignores a schedule test date in an analytics upload", async () => {
     vi.stubEnv("NODE_ENV", "development");
 
     await expect(POST(request({ ...confirmedUpload, scheduleTestDate: "2026-09-21" }))).resolves.toMatchObject({ status: 201 });
 
     expect(mocks.createSnapshot).toHaveBeenCalledWith(expect.objectContaining({
-      weekOf: "2026-09-21",
-      approvedAt: new Date("2026-09-21T12:00:00.000Z"),
+      weekOf: "2026-09-14",
+      approvedAt: new Date("2026-09-14T16:00:00.000Z"),
     }));
     vi.unstubAllEnvs();
   });
