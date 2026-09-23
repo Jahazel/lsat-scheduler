@@ -149,6 +149,12 @@ export default function StudentIntakeForm({
         )}
       </form.Field>
 
+      {mode === "edit" && (
+        <p className="-mb-1 text-sm text-ink-500">
+          Changes to daily capacity and your preferred practice-test day apply from next week&apos;s plan.
+        </p>
+      )}
+
       <form.Field name="dailyCapacityMinutes">
         {(field) => <DailyCapacityFieldset value={field.state.value} onChange={field.handleChange} />}
       </form.Field>
@@ -189,7 +195,8 @@ export default function StudentIntakeForm({
               </span>
             )}
             <span id="preferred-practice-test-day-hint" className="text-sm text-ink-500">
-              We schedule your full practice test on this day. Pick a day you can give about 3 hours.
+              We schedule your full practice test on this day. Pick a day you can give about 3 hours,
+              longer with extra time.
             </span>
           </label>
         )}

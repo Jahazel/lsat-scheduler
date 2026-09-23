@@ -16,6 +16,17 @@ export function dailyCapacityError(minutes: number): string | null {
   return null;
 }
 
+// The minute options valid for a given hour, so the form never offers a
+// value dailyCapacityError would then reject (0 h 00 min, or 8 h 15/30/45
+// min).
+export function minuteOptionsForHour(hour: number): number[] {
+  const allSteps = [0, 15, 30, 45];
+  return allSteps.filter((minute) => {
+    const total = hour * 60 + minute;
+    return total >= MIN_DAILY_CAPACITY_MINUTES && total <= MAX_DAILY_CAPACITY_MINUTES;
+  });
+}
+
 const dayOfWeekSchema = z.enum(DAY_ORDER as [DayOfWeek, ...DayOfWeek[]]);
 
 const dailyCapacitySchema = z

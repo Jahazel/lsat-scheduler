@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dailyCapacityError, studentProfileSchema } from "./studentProfile";
+import { dailyCapacityError, minuteOptionsForHour, studentProfileSchema } from "./studentProfile";
 import { mockStudent } from "./mockData";
 
 describe("studentProfileSchema", () => {
@@ -65,5 +65,19 @@ describe("dailyCapacityError", () => {
     [480, null],
   ])("returns the form message for %i minutes", (minutes, message) => {
     expect(dailyCapacityError(minutes)).toBe(message);
+  });
+});
+
+describe("minuteOptionsForHour", () => {
+  it("excludes :00 and :15 at the lowest hour, since those would be below the daily minimum", () => {
+    expect(minuteOptionsForHour(0)).toEqual([30, 45]);
+  });
+
+  it("excludes :15, :30, :45 at the highest hour, since those would be over the daily maximum", () => {
+    expect(minuteOptionsForHour(8)).toEqual([0]);
+  });
+
+  it.each([1, 2, 3, 4, 5, 6, 7])("offers all four minute steps at hour %i", (hour) => {
+    expect(minuteOptionsForHour(hour)).toEqual([0, 15, 30, 45]);
   });
 });
