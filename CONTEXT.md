@@ -33,6 +33,10 @@ _Avoid_: smart schedule, AI schedule
 **Scheduling policy version**:
 The named version of the deterministic rules used to create a weekly schedule. It is retained with the schedule so historical plans remain explainable and reproducible.
 
+**Schedule reason**:
+A structured fact, saved with a weekly schedule when it is created, recording why the scheduling policy made the week depart from the student's normal week, such as a skip reduction or a capacity overage. It is turned into one short sentence for the student when shown, so a past explanation never changes with the scheduling policy.
+_Avoid_: explanation, rationale, note
+
 **Legacy analytics record**:
 An analytics record carried forward from the previous storage model without the approval provenance required for adaptive planning. It may remain visible as history but cannot qualify a student for a new weekly schedule.
 
