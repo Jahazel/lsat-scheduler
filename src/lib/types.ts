@@ -76,8 +76,10 @@ export interface Student {
   platform: "7Sage" | "LSAT Demon";
   currentScore: number;
   goalScore: number;
-  weekdayHours: number;
-  weekendHours: number;
+  // Minutes the student can study on each day of the week: 30 to 480, in
+  // 15-minute steps (see studentProfile.ts).
+  dailyCapacityMinutes: Record<DayOfWeek, number>;
+  preferredPracticeTestDay: DayOfWeek;
   accommodationMultiplier: 1 | 1.5 | 2;
   // ISO date (YYYY-MM-DD, always the 1st of one of a fixed set of test
   // months). Captured at intake; not currently a scheduling input — every

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
 import { AnalyticsSnapshotModel } from "@/models/AnalyticsSnapshot";
+import { formatDuration } from "@/lib/formatDuration";
 import { listStudentsWithOwners } from "@/lib/students";
 
 export default async function AdminPage() {
@@ -47,8 +48,11 @@ export default async function AdminPage() {
                         )}
                       </div>
                       <p className="mt-1 truncate text-sm text-ink-500">
-                        {student.email} · {student.platform} · {student.weekdayHours}h weekday /{" "}
-                        {student.weekendHours}h weekend
+                        {student.email} · {student.platform} ·{" "}
+                        {formatDuration(
+                          Object.values(student.dailyCapacityMinutes).reduce((sum, minutes) => sum + minutes, 0)
+                        )}{" "}
+                        per week
                       </p>
                     </div>
                   </Link>

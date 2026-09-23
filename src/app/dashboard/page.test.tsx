@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { mockStudent } from "@/lib/mockData";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
@@ -59,8 +60,8 @@ describe("DashboardPage", () => {
         platform: "7Sage",
         currentScore: 150,
         goalScore: 160,
-        weekdayHours: 2,
-        weekendHours: 4,
+        dailyCapacityMinutes: mockStudent.dailyCapacityMinutes,
+        preferredPracticeTestDay: "SATURDAY",
         accommodationMultiplier: 1,
         goalTestDate: "2026-12-01",
       }),
@@ -88,8 +89,8 @@ describe("DashboardPage", () => {
         platform: "7Sage",
         currentScore: 150,
         goalScore: 160,
-        weekdayHours: 2,
-        weekendHours: 4,
+        dailyCapacityMinutes: mockStudent.dailyCapacityMinutes,
+        preferredPracticeTestDay: "SATURDAY",
         accommodationMultiplier: 1,
         goalTestDate: "2026-12-01",
       }),
@@ -158,8 +159,8 @@ function studentRecord() {
     platform: "7Sage",
     currentScore: 150,
     goalScore: 160,
-    weekdayHours: 2,
-    weekendHours: 4,
+    dailyCapacityMinutes: mockStudent.dailyCapacityMinutes,
+    preferredPracticeTestDay: "SATURDAY",
     accommodationMultiplier: 1,
     goalTestDate: "2026-12-01",
   };

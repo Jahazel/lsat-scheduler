@@ -467,7 +467,6 @@ export function generateWeek(
   const rcList = buildRCList(rules, !lrGetsFullSection);
 
   const days = {} as Record<DayOfWeek, DayPlan>;
-  const capacityMinutes = student.weekdayHours * 60;
 
   let lrIndex = 0;
   let rcIndex = 0;
@@ -482,7 +481,7 @@ export function generateWeek(
       lrIndex,
       rcList,
       rcIndex,
-      capacityMinutes,
+      student.dailyCapacityMinutes[day],
       rules,
       timeMult,
       reviewPct,
@@ -519,12 +518,12 @@ export function generateWeek(
     totalMinutes: ptMinutes,
   };
 
-  const weekendMinutes = round1(student.weekendHours * 60);
+  const reviewMinutes = student.dailyCapacityMinutes.SUNDAY;
   days.SUNDAY = {
     day: "SUNDAY",
     type: "review",
-    activities: [{ kind: "REVIEW", label: "PT Review + Blind Review", minutes: weekendMinutes }],
-    totalMinutes: weekendMinutes,
+    activities: [{ kind: "REVIEW", label: "PT Review + Blind Review", minutes: reviewMinutes }],
+    totalMinutes: reviewMinutes,
   };
 
   return { studentName, weekOf: analytics.weekOf, days };

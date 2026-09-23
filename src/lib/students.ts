@@ -3,7 +3,7 @@ import { StudentModel } from "@/models/Student";
 // Imported for its side effect of registering the "User" model — required
 // for the populate("userId") calls below to resolve.
 import "@/models/User";
-import type { StudentRecord } from "@/lib/types";
+import type { DayOfWeek, StudentRecord } from "@/lib/types";
 
 interface PopulatedOwner {
   _id: mongoose.Types.ObjectId;
@@ -17,8 +17,8 @@ function toStudentRecord(doc: {
   platform: StudentRecord["platform"];
   currentScore: number;
   goalScore: number;
-  weekdayHours: number;
-  weekendHours: number;
+  dailyCapacityMinutes: Record<DayOfWeek, number>;
+  preferredPracticeTestDay: DayOfWeek;
   accommodationMultiplier: StudentRecord["accommodationMultiplier"];
   goalTestDate: string;
 }): StudentRecord {
@@ -30,8 +30,8 @@ function toStudentRecord(doc: {
     platform: doc.platform,
     currentScore: doc.currentScore,
     goalScore: doc.goalScore,
-    weekdayHours: doc.weekdayHours,
-    weekendHours: doc.weekendHours,
+    dailyCapacityMinutes: doc.dailyCapacityMinutes,
+    preferredPracticeTestDay: doc.preferredPracticeTestDay,
     accommodationMultiplier: doc.accommodationMultiplier,
     goalTestDate: doc.goalTestDate,
   };

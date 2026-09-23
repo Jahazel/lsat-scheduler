@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { DAY_ORDER } from "@/lib/engine";
 import { activityLabel } from "@/lib/activityLabel";
+import { formatDuration, roundMinutesToTotal } from "@/lib/formatDuration";
 import { plannedActivityMinutes, scheduleActivityId } from "@/lib/currentWeeklySchedule";
 import { formatScheduleWeekOf, remainingActivityCount, scheduledActivityCount } from "@/lib/scheduleCheckInSummary";
 import type { ActivityCheckIn, DayOfWeek, Student, WeeklySchedule } from "@/lib/types";
@@ -30,6 +31,7 @@ interface ScheduleCheckInViewProps {
 export default function ScheduleCheckInView({
   scheduleId,
   schedule,
+  student,
   checkIns,
   readOnly = false,
   statusFirst = false,
@@ -104,11 +106,19 @@ export default function ScheduleCheckInView({
       <div className="mt-5 flex flex-col gap-4">
         {visibleDays.map((day) => {
           const plan = schedule.days[day];
+          const activityMinutes = roundMinutesToTotal(plan.activities.map(plannedActivityMinutes));
+          const plannedMinutes = activityMinutes.reduce((total, minutes) => total + minutes, 0);
           return (
             <section key={day} className={statusFirst ? "overflow-hidden rounded-lg border border-ink-100 bg-white" : "rounded-lg border border-ink-100 bg-white p-5"}>
               <div className={`flex items-baseline justify-between ${statusFirst ? "border-b border-ink-100 px-5 py-4" : ""}`}>
                 <h2 className="font-mono text-sm font-semibold tracking-wide text-ink-900">{day}</h2>
-                <span className="text-xs text-ink-500">{plan.totalMinutes} min planned</span>
+                {/* `student` is the saved generationInputs snapshot, so a past week
+                    keeps the daily capacity it was created with. */}
+                {plan.type !== "rest" && (
+                  <span className="text-xs text-ink-500">
+                    {formatDuration(plannedMinutes)} planned of {formatDuration(student.dailyCapacityMinutes[day])}
+                  </span>
+                )}
               </div>
               {plan.activities.length === 0 ? <p className={`${statusFirst ? "px-5 py-4" : "mt-2"} text-sm text-ink-500`}>{plan.type === "rest" ? "Rest day." : "Nothing scheduled."}</p> : (
                 <div className={statusFirst ? "" : "mt-3 flex flex-col gap-3"}>
@@ -123,7 +133,7 @@ export default function ScheduleCheckInView({
                         </span>}
                         <div className={statusFirst ? "min-w-40 flex-1" : ""}>
                           <p className="text-sm font-medium text-ink-900">{activityLabel(activity)}</p>
-                          <p className="mt-1 text-xs text-ink-500">{plannedActivityMinutes(activity)} min planned</p>
+                          <p className="mt-1 text-xs text-ink-500">{formatDuration(activityMinutes[index])} planned</p>
                           {statusFirst && status === "skipped" && <p className="mt-1 text-xs font-medium text-ink-700">Skipped</p>}
                           {readOnly && <p className="mt-2 text-sm text-ink-700">{status.replace("_", " ")}{checkIn?.actualMinutes !== undefined ? ` · ${checkIn.actualMinutes} min actual` : ""}</p>}
                         </div>
