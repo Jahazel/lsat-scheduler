@@ -238,20 +238,20 @@ export async function loadOrGenerateCurrentWeek(
   if (snapshots.length === 0) return { kind: "analytics_required" };
 
   const analytics = analyticsTrend(snapshots, weekStartDate);
-  const previousSchedule = await input.weeklySchedules.findByStudentAndWeek(
+  const priorSchedule = await input.weeklySchedules.findByStudentAndWeek(
     input.studentId, previousWeekStartDate(weekStartDate)
   );
-  const priorWeekProgressFacts = await priorWeekProgress(input, previousSchedule);
-  const previousSunday = previousSchedule?.schedule.days.SUNDAY;
-  const carryOverReviewMinutes = previousSunday?.type === "practice_test"
-    ? previousSunday.activities.find((activity) => activity.kind === "PT")?.minutes
+  const priorWeekProgressFacts = await priorWeekProgress(input, priorSchedule);
+  const priorSunday = priorSchedule?.schedule.days.SUNDAY;
+  const priorWeekPracticeTestReviewMinutes = priorSunday?.type === "practice_test"
+    ? priorSunday.activities.find((activity) => activity.kind === "PT")?.minutes
     : undefined;
   const currentDay = currentDayInTimezone(now, input.timezone);
   const schedule = reduceFlexibleWorkload(
     remainingSchedule(
       generateWeek(input.student, analytics, input.rules, input.studentName, {
         createdOn: currentDay,
-        carryOverReviewMinutes,
+        priorWeekPracticeTestReviewMinutes,
       }),
       currentDay
     ),
@@ -272,7 +272,7 @@ export async function loadOrGenerateCurrentWeek(
       remainingDays: DAY_ORDER.slice(DAY_ORDER.indexOf(currentDay)),
       analytics,
       priorWeekProgress: priorWeekProgressFacts,
-      carryOverReviewMinutes,
+      priorWeekPracticeTestReviewMinutes,
     },
     policyVersion: SCHEDULING_POLICY_VERSION,
   };

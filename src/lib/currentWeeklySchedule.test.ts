@@ -224,7 +224,7 @@ describe("loadOrGenerateCurrentWeek", () => {
     expect(result.schedule.schedule.days.SATURDAY.capacityOverageMinutes).toBe(90);
   });
 
-  it("carries a saved Sunday test into Monday review despite a later preference change", async () => {
+  it("keeps the prior week's Sunday practice-test review day despite a later preference change", async () => {
     const repositories = inMemoryRepositories([
       approvedSnapshot("first", "2026-09-14T13:00:00.000Z"),
       approvedSnapshot("second", "2026-09-21T13:00:00.000Z"),
@@ -250,10 +250,10 @@ describe("loadOrGenerateCurrentWeek", () => {
     ]);
     expect(next.schedule.schedule.days.MONDAY.capacityOverageMinutes).toBe(97.5);
     expect(next.schedule.schedule.days.SATURDAY.type).toBe("practice_test");
-    expect(next.schedule.generationInputs.carryOverReviewMinutes).toBe(187.5);
+    expect(next.schedule.generationInputs.priorWeekPracticeTestReviewMinutes).toBe(187.5);
   });
 
-  it("does not infer Monday review from the current Sunday preference", async () => {
+  it("does not infer a Monday practice-test review day from the current Sunday preference", async () => {
     const repositories = inMemoryRepositories([approvedSnapshot("second", "2026-09-21T13:00:00.000Z")]);
     const result = await loadOrGenerateCurrentWeek({
       studentId: "student-1", student: { ...mockStudent, preferredPracticeTestDay: "SUNDAY" },

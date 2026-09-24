@@ -22,7 +22,7 @@ export const DAY_ORDER: DayOfWeek[] = [
   "SUNDAY",
 ];
 
-const SECOND_TEST_DAY: Record<DayOfWeek, DayOfWeek> = {
+const SECOND_PRACTICE_TEST_DAY: Record<DayOfWeek, DayOfWeek> = {
   MONDAY: "THURSDAY",
   TUESDAY: "FRIDAY",
   WEDNESDAY: "SATURDAY",
@@ -41,7 +41,7 @@ function nearTestWeek(weekOf: string, goalTestDate: string): boolean {
 
 export interface WeekShapeOptions {
   createdOn?: DayOfWeek;
-  carryOverReviewMinutes?: number;
+  priorWeekPracticeTestReviewMinutes?: number;
 }
 
 // Generous — far more laps than any realistic week could consume. The list
@@ -489,42 +489,47 @@ export function generateWeek(
   const rcList = buildRCList(rules, !lrGetsFullSection);
 
   const days = {} as Record<DayOfWeek, DayPlan>;
-  const preferred = student.preferredPracticeTestDay;
+  const preferredPracticeTestDay = student.preferredPracticeTestDay;
   const createdIndex = DAY_ORDER.indexOf(options.createdOn ?? "MONDAY");
-  const carryOverReview = options.carryOverReviewMinutes !== undefined;
-  // A saved Sunday test owns Monday. Use Tuesday's shape if Monday was preferred.
-  const shapePreferred = carryOverReview && preferred === "MONDAY" ? "TUESDAY" : preferred;
-  const fullWeekTestDays = [shapePreferred, ...(isNearTestWeek ? [SECOND_TEST_DAY[shapePreferred]] : [])];
-  const restShapeTestDays = carryOverReview
-    ? fullWeekTestDays.filter((day) => day !== "MONDAY")
-    : fullWeekTestDays;
-  const reviewDayFor = (day: DayOfWeek) => (day === "SUNDAY" ? undefined : DAY_ORDER[DAY_ORDER.indexOf(day) + 1]);
-  // The rest day keeps the day the full shape gives it, even when that day has passed.
-  const restShapeReviewDays = restShapeTestDays.flatMap((day) => reviewDayFor(day) ?? []);
-  const restDay = restShapeTestDays.includes("WEDNESDAY") ? "TUESDAY"
-    : restShapeReviewDays.includes("WEDNESDAY") ? "MONDAY"
+  const priorWeekPracticeTestReviewMinutes = options.priorWeekPracticeTestReviewMinutes;
+  const hasPriorWeekPracticeTestReview = priorWeekPracticeTestReviewMinutes !== undefined;
+  // A prior-week Sunday practice test reserves Monday for its practice-test review day.
+  // Use Tuesday's shape when Monday is the preferred practice-test day.
+  const effectivePreferredPracticeTestDay = hasPriorWeekPracticeTestReview && preferredPracticeTestDay === "MONDAY"
+    ? "TUESDAY" : preferredPracticeTestDay;
+  const fullWeekPracticeTestDays = [effectivePreferredPracticeTestDay,
+    ...(isNearTestWeek ? [SECOND_PRACTICE_TEST_DAY[effectivePreferredPracticeTestDay]] : [])];
+  const plannedPracticeTestDays = hasPriorWeekPracticeTestReview
+    ? fullWeekPracticeTestDays.filter((day) => day !== "MONDAY")
+    : fullWeekPracticeTestDays;
+  const practiceTestReviewDayFor = (day: DayOfWeek) =>
+    (day === "SUNDAY" ? undefined : DAY_ORDER[DAY_ORDER.indexOf(day) + 1]);
+  // The rest day keeps the day the full weekly shape gives it, even when that day has passed.
+  const plannedPracticeTestReviewDays = plannedPracticeTestDays.flatMap((day) => practiceTestReviewDayFor(day) ?? []);
+  const computedRestDay = plannedPracticeTestDays.includes("WEDNESDAY") ? "TUESDAY"
+    : plannedPracticeTestReviewDays.includes("WEDNESDAY") ? "MONDAY"
     : rules.restDay;
-  // Once the preferred day has passed, the week has no tests or test reviews.
-  const scheduledTestDays = createdIndex > DAY_ORDER.indexOf(shapePreferred)
+  // Once the effective preferred practice-test day has passed, the week has no practice tests or review days.
+  const scheduledPracticeTestDays = createdIndex > DAY_ORDER.indexOf(effectivePreferredPracticeTestDay)
     ? []
-    : restShapeTestDays.filter((day) => DAY_ORDER.indexOf(day) >= createdIndex);
-  const scheduledReviewDays = scheduledTestDays.flatMap((day) => reviewDayFor(day) ?? []);
+    : plannedPracticeTestDays.filter((day) => DAY_ORDER.indexOf(day) >= createdIndex);
+  const scheduledPracticeTestReviewDays = scheduledPracticeTestDays.flatMap((day) => practiceTestReviewDayFor(day) ?? []);
   const occupied = new Set<DayOfWeek>([
-    ...scheduledTestDays,
-    ...scheduledReviewDays,
-    ...(carryOverReview ? ["MONDAY" as const] : []),
+    ...scheduledPracticeTestDays,
+    ...scheduledPracticeTestReviewDays,
+    ...(hasPriorWeekPracticeTestReview ? ["MONDAY" as const] : []),
   ]);
-  // If Monday's earned review displaces rest, use the first free day from creation onward.
-  const actualRestDay = occupied.has(restDay)
-    ? DAY_ORDER.slice(createdIndex).find((day) => !occupied.has(day)) ?? restDay
-    : restDay;
-  const drillDays = DAY_ORDER.filter((day) => day !== actualRestDay && !occupied.has(day));
+  // If the prior-week practice-test review displaces rest, use the first free day from creation onward.
+  const restDay = occupied.has(computedRestDay)
+    ? DAY_ORDER.slice(createdIndex).find((day) => !occupied.has(day)) ?? computedRestDay
+    : computedRestDay;
+  const drillingDays = DAY_ORDER.filter((day) => day !== restDay && !occupied.has(day));
 
   let lrIndex = 0;
   let rcIndex = 0;
   let lrQuestionsSoFar = 0;
   let rcPassagesSoFar = 0;
-  drillDays.forEach((day, i) => {
+  drillingDays.forEach((day, i) => {
     // Alternate which block leads across the actual drilling days.
     const lrFirst = i % 2 === 1;
     const result = fillDrillDay(
@@ -552,15 +557,15 @@ export function generateWeek(
     rcPassagesSoFar = result.nextRcPassagesSoFar;
   });
 
-  days[actualRestDay] = {
-    day: actualRestDay,
+  days[restDay] = {
+    day: restDay,
     type: "rest",
     activities: [],
     totalMinutes: 0,
   };
 
   const ptMinutes = round1(rules.ptDurationMinutes * timeMult);
-  for (const day of scheduledTestDays) {
+  for (const day of scheduledPracticeTestDays) {
     days[day] = {
       day, type: "practice_test",
       activities: [{ kind: "PT", label: isNearTestWeek
@@ -571,7 +576,7 @@ export function generateWeek(
     };
   }
 
-  function setReviewDay(day: DayOfWeek, minutes: number) {
+  function setPracticeTestReviewDay(day: DayOfWeek, minutes: number) {
     days[day] = {
       day, type: "review",
       activities: [{ kind: "REVIEW", label: "PT Review + Blind Review", minutes }],
@@ -579,8 +584,10 @@ export function generateWeek(
       capacityOverageMinutes: Math.max(0, minutes - student.dailyCapacityMinutes[day]),
     };
   }
-  for (const day of scheduledReviewDays) setReviewDay(day, ptMinutes);
-  if (carryOverReview) setReviewDay("MONDAY", options.carryOverReviewMinutes!);
+  for (const day of scheduledPracticeTestReviewDays) setPracticeTestReviewDay(day, ptMinutes);
+  if (priorWeekPracticeTestReviewMinutes !== undefined) {
+    setPracticeTestReviewDay("MONDAY", priorWeekPracticeTestReviewMinutes);
+  }
 
   return { studentName, weekOf: analytics.weekOf, days };
 }
