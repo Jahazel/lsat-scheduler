@@ -61,6 +61,28 @@ describe("daily capacity filler", () => {
     expect(schedule.days.FRIDAY.capacityOverageMinutes).toBe(0);
   });
 
+  it("keeps a second-pass pair whole when one first-pass drill is left at the LR daily minimum", () => {
+    const student = { ...mockStudent, preferredPracticeTestDay: "SUNDAY" as const,
+      dailyCapacityMinutes: { ...everyDay(240), FRIDAY: 30, SATURDAY: 120 } };
+    const schedule = generateWeek(student, mockAnalytics, mockRules, mockStudentName);
+    expect(schedule.days.FRIDAY.activities.filter(isLR).map((activity) => [activity.type, activity.questionCount]))
+      .toEqual([["Sufficient assumption", 5], ["Necessary assumption", 5]]);
+    expect(schedule.days.FRIDAY.capacityOverageMinutes).toBe(0);
+    expect(schedule.days.SATURDAY.activities.filter(isLR)[0])
+      .toMatchObject({ type: "Main conclusion or main point", questionCount: 5 });
+  });
+
+  it("keeps the LR daily minimum at 10 questions when one first-pass drill meets a 10-question drill", () => {
+    const analytics = { ...mockAnalytics,
+      lrAccuracyByType: { ...mockAnalytics.lrAccuracyByType, "Conditional reasoning": 0 } };
+    const student = { ...mockStudent,
+      dailyCapacityMinutes: { ...everyDay(160), TUESDAY: 405, FRIDAY: 30 } };
+    const schedule = generateWeek(student, analytics, mockRules, mockStudentName);
+    expect(schedule.days.FRIDAY.activities.filter(isLR).map((activity) => [activity.type, activity.questionCount]))
+      .toEqual([["Conditional reasoning", 10]]);
+    expect(schedule.days.FRIDAY.capacityOverageMinutes).toBe(0);
+  });
+
   it("matches the flat 45-minute case and covers all starred types", () => {
     const schedule = generated(45);
     expect(totals(schedule)).toEqual([45, 34.5, 45, 32.25]);
