@@ -24,7 +24,7 @@ const nearTest: Record<DayOfWeek, string> = {
 };
 
 const withSundayCarryOver: Record<DayOfWeek, string> = {
-  MONDAY: "review drill rest drill drill drill drill",
+  MONDAY: "review practice_test review rest drill drill drill",
   TUESDAY: "review practice_test review rest drill drill drill",
   WEDNESDAY: "review rest practice_test review drill drill drill",
   THURSDAY: "review drill rest practice_test review drill drill",
@@ -118,12 +118,39 @@ describe("weekly shape", () => {
     expect(schedule.days.MONDAY.activities[0].kind).toBe("REVIEW");
   });
 
+  it("moves a Monday-preferred near-test week's tests to Tuesday and Friday after a carried-over review", () => {
+    const schedule = generateWeek({ ...mockStudent, preferredPracticeTestDay: "MONDAY", goalTestDate: "2026-10-01" },
+      { ...mockAnalytics, weekOf: "2026-09-21" }, mockRules, mockStudentName,
+      { carryOverReviewMinutes: 150 });
+    expect(types(schedule.days)).toBe("review practice_test review rest practice_test review drill");
+  });
+
+  it("uses Tuesday as the test cutoff when a carried-over review displaces a preferred Monday test", () => {
+    const student = { ...mockStudent, preferredPracticeTestDay: "MONDAY" as const };
+    const analytics = { ...mockAnalytics, weekOf: "2026-09-21" };
+    const tuesday = generateWeek(student, analytics, mockRules, mockStudentName,
+      { carryOverReviewMinutes: 150, createdOn: "TUESDAY" });
+    const wednesday = generateWeek(student, analytics, mockRules, mockStudentName,
+      { carryOverReviewMinutes: 150, createdOn: "WEDNESDAY" });
+    expect(tuesday.days.TUESDAY.type).toBe("practice_test");
+    expect(Object.values(wednesday.days).filter((day) => day.type === "practice_test")).toHaveLength(0);
+  });
+
   it("moves a conflicting Monday rest day to the first available day", () => {
     const schedule = generateWeek({ ...mockStudent, preferredPracticeTestDay: "TUESDAY" },
       { ...mockAnalytics, weekOf: "2026-09-21" }, mockRules, mockStudentName,
       { carryOverReviewMinutes: 150 });
     expect(schedule.days.MONDAY.type).toBe("review");
     expect(schedule.days.THURSDAY.type).toBe("rest");
+  });
+
+  it("moves a conflicting rest day to the first free day on or after creation", () => {
+    const schedule = generateWeek({ ...mockStudent, preferredPracticeTestDay: "TUESDAY" },
+      { ...mockAnalytics, weekOf: "2026-09-21" }, mockRules, mockStudentName,
+      { carryOverReviewMinutes: 150, createdOn: "THURSDAY" });
+    expect(schedule.days.THURSDAY.type).toBe("rest");
+    expect(Object.values(schedule.days).filter((day) => day.type === "practice_test" || day.type === "review"))
+      .toHaveLength(1);
   });
 
   it("places the second test only in weeks starting within the calendar month before the goal", () => {

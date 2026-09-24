@@ -491,9 +491,10 @@ export function generateWeek(
   const days = {} as Record<DayOfWeek, DayPlan>;
   const preferred = student.preferredPracticeTestDay;
   const createdIndex = DAY_ORDER.indexOf(options.createdOn ?? "MONDAY");
-  const fullWeekTestDays = [preferred, ...(isNearTestWeek ? [SECOND_TEST_DAY[preferred]] : [])];
   const carryOverReview = options.carryOverReviewMinutes !== undefined;
-  // A saved Sunday test owns Monday, even if it displaces this week's test.
+  // A saved Sunday test owns Monday. Use Tuesday's shape if Monday was preferred.
+  const shapePreferred = carryOverReview && preferred === "MONDAY" ? "TUESDAY" : preferred;
+  const fullWeekTestDays = [shapePreferred, ...(isNearTestWeek ? [SECOND_TEST_DAY[shapePreferred]] : [])];
   const restShapeTestDays = carryOverReview
     ? fullWeekTestDays.filter((day) => day !== "MONDAY")
     : fullWeekTestDays;
@@ -504,7 +505,7 @@ export function generateWeek(
     : restShapeReviewDays.includes("WEDNESDAY") ? "MONDAY"
     : rules.restDay;
   // Once the preferred day has passed, the week has no tests or test reviews.
-  const scheduledTestDays = createdIndex > DAY_ORDER.indexOf(preferred)
+  const scheduledTestDays = createdIndex > DAY_ORDER.indexOf(shapePreferred)
     ? []
     : restShapeTestDays.filter((day) => DAY_ORDER.indexOf(day) >= createdIndex);
   const scheduledReviewDays = scheduledTestDays.flatMap((day) => reviewDayFor(day) ?? []);
@@ -513,9 +514,9 @@ export function generateWeek(
     ...scheduledReviewDays,
     ...(carryOverReview ? ["MONDAY" as const] : []),
   ]);
-  // If Monday's earned review displaces rest, use the first free day.
+  // If Monday's earned review displaces rest, use the first free day from creation onward.
   const actualRestDay = occupied.has(restDay)
-    ? DAY_ORDER.find((day) => !occupied.has(day)) ?? restDay
+    ? DAY_ORDER.slice(createdIndex).find((day) => !occupied.has(day)) ?? restDay
     : restDay;
   const drillDays = DAY_ORDER.filter((day) => day !== actualRestDay && !occupied.has(day));
 
