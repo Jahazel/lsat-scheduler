@@ -22,7 +22,27 @@ export const DAY_ORDER: DayOfWeek[] = [
   "SUNDAY",
 ];
 
-const DRILL_DAYS: DayOfWeek[] = ["MONDAY", "TUESDAY", "THURSDAY", "FRIDAY"];
+const SECOND_TEST_DAY: Record<DayOfWeek, DayOfWeek> = {
+  MONDAY: "THURSDAY",
+  TUESDAY: "FRIDAY",
+  WEDNESDAY: "SATURDAY",
+  THURSDAY: "MONDAY",
+  FRIDAY: "TUESDAY",
+  SATURDAY: "WEDNESDAY",
+  SUNDAY: "THURSDAY",
+};
+
+function nearTestWeek(weekOf: string, goalTestDate: string): boolean {
+  const goal = new Date(`${goalTestDate}T00:00:00.000Z`);
+  const monthBefore = new Date(goal);
+  monthBefore.setUTCMonth(monthBefore.getUTCMonth() - 1);
+  return weekOf >= monthBefore.toISOString().slice(0, 10) && weekOf < goalTestDate;
+}
+
+export interface WeekShapeOptions {
+  createdOn?: DayOfWeek;
+  carryOverReviewMinutes?: number;
+}
 
 // Generous — far more laps than any realistic week could consume. The list
 // only needs to be "long enough"; the day-by-day fill decides how much of
@@ -457,24 +477,49 @@ export function generateWeek(
   student: Student,
   analytics: AnalyticsSnapshot,
   rules: RulesConfig,
-  studentName: string
+  studentName: string,
+  options: WeekShapeOptions = {}
 ): WeeklySchedule {
   const reviewPct = reviewPercent(student.currentScore, rules);
   const timeMult = timeMultiplierFor(rules, student);
+  const isNearTestWeek = nearTestWeek(analytics.weekOf, student.goalTestDate);
   const lrGetsFullSection = weekPrefersLRFullSection(analytics.weekOf);
 
   const lrList = buildLRList(student.currentScore, analytics, rules, lrGetsFullSection);
   const rcList = buildRCList(rules, !lrGetsFullSection);
 
   const days = {} as Record<DayOfWeek, DayPlan>;
+  const preferred = student.preferredPracticeTestDay;
+  const preferredIndex = DAY_ORDER.indexOf(preferred);
+  const createdIndex = DAY_ORDER.indexOf(options.createdOn ?? "MONDAY");
+  const testDays = createdIndex <= preferredIndex
+    ? [preferred, ...(isNearTestWeek ? [SECOND_TEST_DAY[preferred]] : [])]
+    : [];
+  const carryOverReview = options.carryOverReviewMinutes !== undefined;
+  // A saved Sunday test owns Monday, even if it displaces this week's test.
+  if (carryOverReview) {
+    const mondayIndex = testDays.indexOf("MONDAY");
+    if (mondayIndex !== -1) testDays.splice(mondayIndex, 1);
+  }
+  const reviewDays = testDays
+    .filter((day) => day !== "SUNDAY")
+    .map((day) => DAY_ORDER[DAY_ORDER.indexOf(day) + 1]);
+  const wednesdayTest = testDays.includes("WEDNESDAY");
+  const wednesdayReview = reviewDays.includes("WEDNESDAY");
+  const restDay = wednesdayTest ? "TUESDAY" : wednesdayReview ? "MONDAY" : rules.restDay;
+  const occupied = new Set<DayOfWeek>([...testDays, ...reviewDays, ...(carryOverReview ? ["MONDAY" as const] : [])]);
+  // If Monday's earned review displaces rest, use the first free day.
+  const actualRestDay = occupied.has(restDay)
+    ? DAY_ORDER.find((day) => !occupied.has(day)) ?? restDay
+    : restDay;
+  const drillDays = DAY_ORDER.filter((day) => day !== actualRestDay && !occupied.has(day));
 
   let lrIndex = 0;
   let rcIndex = 0;
   let lrQuestionsSoFar = 0;
   let rcPassagesSoFar = 0;
-  DRILL_DAYS.forEach((day, i) => {
-    // Alternates which block leads each day: Monday RC→LR, Tuesday LR→RC,
-    // and so on down DRILL_DAYS.
+  drillDays.forEach((day, i) => {
+    // Alternate which block leads across the actual drilling days.
     const lrFirst = i % 2 === 1;
     const result = fillDrillDay(
       lrList,
@@ -501,30 +546,35 @@ export function generateWeek(
     rcPassagesSoFar = result.nextRcPassagesSoFar;
   });
 
-  days[rules.restDay] = {
-    day: rules.restDay,
+  days[actualRestDay] = {
+    day: actualRestDay,
     type: "rest",
     activities: [],
     totalMinutes: 0,
   };
 
   const ptMinutes = round1(rules.ptDurationMinutes * timeMult);
-  days.SATURDAY = {
-    day: "SATURDAY",
-    type: "practice_test",
-    activities: [
-      { kind: "PT", label: `Practice Test (from PT ${rules.ptSourceCutoff}+)`, minutes: ptMinutes },
-    ],
-    totalMinutes: ptMinutes,
-  };
+  for (const day of testDays) {
+    days[day] = {
+      day, type: "practice_test",
+      activities: [{ kind: "PT", label: isNearTestWeek
+        ? "LawHub Practice Test"
+        : `Practice Test (from PT ${rules.ptSourceCutoff}+)`, minutes: ptMinutes }],
+      totalMinutes: ptMinutes,
+      capacityOverageMinutes: Math.max(0, ptMinutes - student.dailyCapacityMinutes[day]),
+    };
+  }
 
-  const reviewMinutes = student.dailyCapacityMinutes.SUNDAY;
-  days.SUNDAY = {
-    day: "SUNDAY",
-    type: "review",
-    activities: [{ kind: "REVIEW", label: "PT Review + Blind Review", minutes: reviewMinutes }],
-    totalMinutes: reviewMinutes,
-  };
+  function setReviewDay(day: DayOfWeek, minutes: number) {
+    days[day] = {
+      day, type: "review",
+      activities: [{ kind: "REVIEW", label: "PT Review + Blind Review", minutes }],
+      totalMinutes: minutes,
+      capacityOverageMinutes: Math.max(0, minutes - student.dailyCapacityMinutes[day]),
+    };
+  }
+  for (const day of reviewDays) setReviewDay(day, ptMinutes);
+  if (carryOverReview) setReviewDay("MONDAY", options.carryOverReviewMinutes!);
 
   return { studentName, weekOf: analytics.weekOf, days };
 }

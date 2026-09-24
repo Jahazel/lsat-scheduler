@@ -160,13 +160,13 @@ describe("generateWeek", () => {
     expect(restDay.totalMinutes).toBe(0);
   });
 
-  it("keeps the practice test and review days unchanged", () => {
+  it("reserves the practice test and its full-length review day", () => {
     expect(schedule.days.SATURDAY.type).toBe("practice_test");
     expect(schedule.days.SATURDAY.totalMinutes).toBe(
       mockRules.ptDurationMinutes * mockStudent.accommodationMultiplier
     );
     expect(schedule.days.SUNDAY.type).toBe("review");
-    expect(schedule.days.SUNDAY.totalMinutes).toBe(mockStudent.dailyCapacityMinutes.SUNDAY);
+    expect(schedule.days.SUNDAY.totalMinutes).toBe(mockRules.ptDurationMinutes);
   });
 
   it("keeps a drill day's total planned time within its capacity", () => {
