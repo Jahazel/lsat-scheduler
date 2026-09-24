@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/db";
 import { getStudentWithOwner } from "@/lib/students";
 import { adminScheduleStateMessage, loadReadOnlyCurrentWeek } from "@/lib/readOnlyCurrentWeekSchedule";
 import { mongooseCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
+import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { mongooseActivityCheckIns } from "@/lib/activityCheckInRepository";
 import ScheduleCheckInView from "@/components/ScheduleCheckInView";
 
@@ -26,7 +27,7 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
     ...mongooseCurrentWeekRepositories,
     activityCheckIns: mongooseActivityCheckIns,
     studentId: record.id,
-    timezone: "America/Chicago",
+    timezone: SCHEDULE_TIMEZONE,
     now: () => new Date(),
   });
 

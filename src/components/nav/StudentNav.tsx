@@ -3,16 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { NavIcon, type NavIconName } from "./NavIcon";
-
-const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600";
-const cx = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(" ");
-
-const TABS: { href: string; label: string; short: string; icon: NavIconName }[] = [
-  { href: "/dashboard", label: "This week", short: "This week", icon: "week" },
-  { href: "/progress", label: "Progress", short: "Progress", icon: "progress" },
-  { href: "/settings", label: "Study settings", short: "Settings", icon: "settings" },
-];
+import { NavIcon } from "./NavIcon";
+import { FOCUS, Logo, TABS, cx, isTabActive } from "./shared";
 
 export interface StudentNavProps {
   initials: string;
@@ -27,16 +19,8 @@ function UploadDot({ className }: { className?: string }) {
   return (
     <>
       <span className={cx("inline-block size-2 rounded-full bg-accent-600", className)} aria-hidden />
-      <span className="sr-only"> — analytics upload needed</span>
+      <span className="sr-only"> analytics upload needed</span>
     </>
-  );
-}
-
-function Logo() {
-  return (
-    <Link href="/dashboard" className={cx("font-semibold tracking-tight text-ink-900", FOCUS)}>
-      DrillMap
-    </Link>
   );
 }
 
@@ -127,13 +111,13 @@ function Countdown({ label, isTestDay }: { label: string; isTestDay: boolean }) 
 
 export default function StudentNav(props: StudentNavProps) {
   const pathname = usePathname();
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) => isTabActive(pathname, href);
 
   return (
     <>
       {/* Mobile: slim bar. The countdown lives in the avatar menu. */}
       <div className="flex h-14 items-center justify-between px-4 md:hidden">
-        <Logo />
+        <Logo href="/dashboard" />
         <AvatarMenu {...props} compact />
       </div>
 
@@ -141,7 +125,7 @@ export default function StudentNav(props: StudentNavProps) {
       <div className="@container hidden md:block">
         <div className="grid h-16 grid-cols-[1fr_auto_1fr] items-center gap-6 px-8">
           <div className="flex items-center">
-            <Logo />
+            <Logo href="/dashboard" />
           </div>
           <nav aria-label="Primary" className="flex gap-1 rounded-full bg-ink-50 p-1">
             {TABS.map((tab) => {
@@ -160,7 +144,7 @@ export default function StudentNav(props: StudentNavProps) {
                   )}
                 >
                   {tab.label}
-                  {tab.href === "/dashboard" && props.uploadNeeded && <UploadDot />}
+                  {tab.flagsUpload && props.uploadNeeded && <UploadDot />}
                 </Link>
               );
             })}
@@ -182,11 +166,12 @@ export default function StudentNav(props: StudentNavProps) {
 // Floating bottom tab bar, mobile only. Rendered outside the header so it can be fixed to the viewport.
 export function StudentTabBar({ uploadNeeded }: { uploadNeeded: boolean }) {
   const pathname = usePathname();
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) => isTabActive(pathname, href);
 
   return (
     <nav
       aria-label="Primary"
+      data-tab-bar
       className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-3 rounded-2xl border border-ink-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_4px_16px_oklch(19%_0.013_205/0.1)] md:hidden"
     >
       {TABS.map((tab) => {
@@ -204,7 +189,7 @@ export function StudentTabBar({ uploadNeeded }: { uploadNeeded: boolean }) {
           >
             <span className="relative flex h-7 w-12 items-center justify-center">
               <NavIcon name={tab.icon} />
-              {tab.href === "/dashboard" && uploadNeeded && <UploadDot className="absolute right-2 top-0.5 ring-2 ring-white" />}
+              {tab.flagsUpload && uploadNeeded && <UploadDot className="absolute right-2 top-0.5 ring-2 ring-white" />}
             </span>
             {tab.short}
           </Link>

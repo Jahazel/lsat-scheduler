@@ -3,18 +3,11 @@ import { auth } from "@/auth";
 import { initialsFor, loadStudentNavState } from "@/lib/studentNav";
 import StudentNav, { StudentTabBar } from "./StudentNav";
 import { logOut } from "./actions";
+import { FOCUS, Logo, cx } from "./shared";
 
 const HEADER = "sticky top-0 z-40 border-b border-ink-100 bg-white";
 const BAR = "flex h-14 items-center justify-between px-4 md:h-16 md:px-8";
-const LINK = "rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-ink-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600";
-
-function Logo({ href }: { href: string }) {
-  return (
-    <Link href={href} className="font-semibold tracking-tight text-ink-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600">
-      DrillMap
-    </Link>
-  );
-}
+const LINK = cx("rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-ink-50", FOCUS);
 
 function LogOutButton() {
   return (
@@ -24,7 +17,6 @@ function LogOutButton() {
   );
 }
 
-// Returns the header plus whether a floating tab bar needs room at the bottom of the page.
 export default async function SiteHeader() {
   const session = await auth();
   const user = session?.user;
@@ -36,7 +28,7 @@ export default async function SiteHeader() {
           <Logo href="/" />
           <nav aria-label="Primary" className="flex items-center gap-1">
             <Link href="/login" className={LINK}>Log in</Link>
-            <Link href="/signup" className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600">
+            <Link href="/signup" className={cx("rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700", FOCUS)}>
               Sign up
             </Link>
           </nav>
