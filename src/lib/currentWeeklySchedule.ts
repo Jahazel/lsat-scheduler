@@ -19,6 +19,7 @@ export interface CurrentWeekRepositories {
   };
   weeklySchedules: {
     findByStudentAndWeek(studentId: string, weekStartDate: string): Promise<PersistedWeeklySchedule | null>;
+    listBeforeWeek(studentId: string, weekStartDate: string): Promise<PersistedWeeklySchedule[]>;
     create(schedule: PersistedWeeklySchedule): Promise<PersistedWeeklySchedule>;
   };
   activityCheckIns: {
@@ -135,7 +136,7 @@ export function scheduleActivityId(day: DayOfWeek, activityIndex: number) {
 
 export function plannedActivityMinutes(activity: Activity) {
   return activity.kind === "LR" || activity.kind === "RC"
-    ? activity.drillMinutes + activity.reviewMinutes
+    ? activity.drillMinutes + (activity.reviewMinutes ?? 0)
     : activity.minutes;
 }
 
@@ -178,49 +179,6 @@ async function priorWeekProgress(
   };
 }
 
-function isFlexibleDrill(activity: Activity, rules: RulesConfig, analytics: AnalyticsSnapshot) {
-  if (activity.kind === "RC") return !activity.isFullSection;
-  if (activity.kind !== "LR") return false;
-  return (
-    !activity.isFullSection &&
-    !rules.lrStarredTypes.includes(activity.type) &&
-    !analytics.lrTopPriorityLogicTypes.includes(activity.type as never)
-  );
-}
-
-function reduceFlexibleWorkload(
-  schedule: WeeklySchedule,
-  rules: RulesConfig,
-  analytics: AnalyticsSnapshot,
-  workloadReductionPercent: number
-) {
-  if (workloadReductionPercent === 0) return schedule;
-  const normalWorkloadMinutes = DAY_ORDER.filter((day) => schedule.days[day].type === "drill").reduce(
-    (total, day) => total + schedule.days[day].totalMinutes,
-    0
-  );
-  const targetReduction = normalWorkloadMinutes * workloadReductionPercent;
-  let removedMinutes = 0;
-  const days = { ...schedule.days };
-  for (const day of [...DAY_ORDER].reverse()) {
-    const plan = days[day];
-    const retained = [...plan.activities];
-    for (let index = retained.length - 1; index >= 0 && removedMinutes < targetReduction; index--) {
-      if (!isFlexibleDrill(retained[index], rules, analytics)) continue;
-      removedMinutes += plannedActivityMinutes(retained[index]);
-      retained.splice(index, 1);
-    }
-    if (retained.length !== plan.activities.length) {
-      days[day] = {
-        ...plan,
-        activities: retained,
-        totalMinutes: retained.reduce((total, activity) => total + plannedActivityMinutes(activity), 0),
-      };
-    }
-  }
-  return { ...schedule, days };
-}
-
 export async function loadOrGenerateCurrentWeek(
   input: LoadOrGenerateCurrentWeekInput
 ): Promise<LoadOrGenerateCurrentWeekResult> {
@@ -242,22 +200,20 @@ export async function loadOrGenerateCurrentWeek(
     input.studentId, previousWeekStartDate(weekStartDate)
   );
   const priorWeekProgressFacts = await priorWeekProgress(input, priorSchedule);
+  const history = await input.weeklySchedules.listBeforeWeek(input.studentId, weekStartDate);
   const priorSunday = priorSchedule?.schedule.days.SUNDAY;
   const priorWeekPracticeTestReviewMinutes = priorSunday?.type === "practice_test"
     ? priorSunday.activities.find((activity) => activity.kind === "PT")?.minutes
     : undefined;
   const currentDay = currentDayInTimezone(now, input.timezone);
-  const schedule = reduceFlexibleWorkload(
-    remainingSchedule(
-      generateWeek(input.student, analytics, input.rules, input.studentName, {
-        createdOn: currentDay,
-        priorWeekPracticeTestReviewMinutes,
-      }),
-      currentDay
-    ),
-    input.rules,
-    analytics,
-    priorWeekProgressFacts.workloadReductionPercent
+  const schedule = remainingSchedule(
+    generateWeek(input.student, analytics, input.rules, input.studentName, {
+      createdOn: currentDay,
+      priorWeekPracticeTestReviewMinutes,
+      priorSchedules: history.map((record) => record.schedule),
+      workloadReductionPercent: priorWeekProgressFacts.workloadReductionPercent,
+    }),
+    currentDay
   );
   const saved: PersistedWeeklySchedule = {
     id: `${input.studentId}:${weekStartDate}`,

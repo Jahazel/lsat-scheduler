@@ -30,6 +30,8 @@ function inMemoryRepositories(snapshots: ApprovedAnalyticsSnapshot[]) {
     weeklySchedules: {
       findByStudentAndWeek: async (studentId: string, weekStartDate: string) =>
         schedules.find((schedule) => schedule.studentId === studentId && schedule.weekStartDate === weekStartDate) ?? null,
+      listBeforeWeek: async (studentId: string, weekStartDate: string) =>
+        schedules.filter((schedule) => schedule.studentId === studentId && schedule.weekStartDate < weekStartDate),
       create: async (schedule: PersistedWeeklySchedule) => {
         const existing = schedules.find(
           (saved) => saved.studentId === schedule.studentId && saved.weekStartDate === schedule.weekStartDate
@@ -371,10 +373,7 @@ describe("loadOrGenerateCurrentWeek", () => {
     if (prior.kind !== "schedule") throw new Error("Expected a saved prior schedule");
 
     const skippedActivity = prior.schedule.schedule.days.MONDAY.activities[0];
-    const skippedPlannedMinutes =
-      skippedActivity.kind === "LR" || skippedActivity.kind === "RC"
-        ? skippedActivity.drillMinutes + skippedActivity.reviewMinutes
-        : skippedActivity.minutes;
+    const skippedPlannedMinutes = plannedActivityMinutes(skippedActivity);
     const totalPlannedMinutes = Object.values(prior.schedule.schedule.days)
       .flatMap((day) => day.activities)
       .reduce((total, activity) => total + plannedActivityMinutes(activity), 0);

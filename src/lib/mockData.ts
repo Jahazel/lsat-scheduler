@@ -90,9 +90,7 @@ export const mockRules: RulesConfig = {
     [3, 4],
   ],
   lrDifficultyCutoffScore: 165,
-  reviewPercentByBand: { below160: 1.0, mid: 0.6, above170: 0.5 },
   restDay: "WEDNESDAY",
-  capacityToleranceMinutes: 15,
 };
 
 export const mockStudentName = "Jordan Rivera";

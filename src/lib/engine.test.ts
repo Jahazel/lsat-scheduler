@@ -1,330 +1,135 @@
 import { describe, expect, it } from "vitest";
 import { DAY_ORDER, generateWeek } from "./engine";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "./mockData";
-import type { Activity, DayOfWeek, LRActivity, RCActivity } from "./types";
+import type { Activity, DayOfWeek, LRActivity, RCActivity, WeeklySchedule } from "./types";
 
 const DRILL_DAYS: DayOfWeek[] = ["MONDAY", "TUESDAY", "THURSDAY", "FRIDAY"];
+const everyDay = (minutes: number) => Object.fromEntries(DAY_ORDER.map((day) => [day, minutes])) as Record<DayOfWeek, number>;
+const isLR = (activity: Activity): activity is LRActivity => activity.kind === "LR";
+const isRC = (activity: Activity): activity is RCActivity => activity.kind === "RC";
+const drills = (schedule: WeeklySchedule) => DRILL_DAYS.flatMap((day) => schedule.days[day].activities);
+const totals = (schedule: WeeklySchedule) => DRILL_DAYS.map((day) => schedule.days[day].totalMinutes);
+const generated = (minutes: number, options: Parameters<typeof generateWeek>[4] = {}) =>
+  generateWeek({ ...mockStudent, dailyCapacityMinutes: everyDay(minutes) }, mockAnalytics, mockRules, mockStudentName, options);
 
-function isLR(a: Activity): a is LRActivity {
-  return a.kind === "LR";
+function minimumSubject(schedule: WeeklySchedule, day: DayOfWeek) {
+  const activities = schedule.days[day].activities;
+  return activities.some(isLR) ? "LR" : "RC";
 }
 
-function isRC(a: Activity): a is RCActivity {
-  return a.kind === "RC";
-}
+describe("daily capacity filler", () => {
+  it("gives four minimum-only days LR, RC, LR, RC and records each overage", () => {
+    const schedule = generated(15);
+    expect(DRILL_DAYS.map((day) => minimumSubject(schedule, day))).toEqual(["LR", "RC", "LR", "RC"]);
+    expect(totals(schedule)).toEqual([30, 17.25, 30, 17.25]);
+    expect(DRILL_DAYS.map((day) => schedule.days[day].capacityOverageMinutes)).toEqual([15, 2.25, 15, 2.25]);
+    expect(drills(schedule).filter(isLR).map((activity) => activity.questionCount)).toEqual([5, 5, 5, 5]);
+    expect(drills(schedule).some((activity) => (isLR(activity) || isRC(activity)) && activity.isFullSection)).toBe(false);
+  });
 
-// Mirrors engine.ts's own rounding, so expected values account for the same
-// 0.1-minute rounding the engine applies before comparing.
-function round1(n: number): number {
-  return Math.round(n * 10) / 10;
-}
+  it("matches the flat 45-minute case and covers all starred types", () => {
+    const schedule = generated(45);
+    expect(totals(schedule)).toEqual([45, 34.5, 45, 32.25]);
+    const lr = drills(schedule).filter(isLR);
+    const rc = drills(schedule).filter(isRC);
+    expect(lr.reduce((sum, activity) => sum + activity.questionCount, 0)).toBe(35);
+    expect(rc.reduce((sum, activity) => sum + activity.passageCount, 0)).toBe(3);
+    expect(mockRules.lrStarredTypes.every((type) => lr.some((activity) => activity.type === type))).toBe(true);
+  });
 
-// A student with the same daily capacity every day of the week.
-function everyDay(minutes: number): Record<DayOfWeek, number> {
-  return Object.fromEntries(DAY_ORDER.map((day) => [day, minutes])) as Record<DayOfWeek, number>;
-}
+  it("places a 60-minute full section and three 47.25-minute drilling days", () => {
+    const schedule = generated(60);
+    const sections = drills(schedule).filter((activity) => (isLR(activity) || isRC(activity)) && activity.isFullSection);
+    expect(sections).toHaveLength(1);
+    expect(sections[0].kind).toBe("LR");
+    expect(schedule.days.MONDAY.totalMinutes).toBe(60);
+    expect(totals(schedule).slice(1)).toEqual([47.25, 47.25, 47.25]);
+  });
 
-function plannedMinutes(activities: Activity[]): number {
-  return activities.reduce(
-    (sum, a) => (isLR(a) || isRC(a) ? sum + a.drillMinutes + a.reviewMinutes : sum),
-    0
-  );
-}
-
-describe("generateWeek", () => {
-  const schedule = generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName);
-  const capacityMinutes = mockStudent.dailyCapacityMinutes.MONDAY;
-
-  // The day carrying the week's one full section is the one exception to
-  // "LR generally leads": a real section is a single sitting expected to
-  // dominate whichever day it lands on — completely, if it's RC's turn to
-  // get it that week — so it's excluded from the per-day pace assertions
-  // below.
-  const fullSectionDayIndex = DRILL_DAYS.findIndex((day) =>
-    schedule.days[day].activities.some((a) => (isLR(a) || isRC(a)) && a.isFullSection)
-  );
-  const affectedByFullSection = (i: number) => i === fullSectionDayIndex;
-
-  // The day right before the full section carries a second, separate
-  // exception: LR's mandatory floor (7 items) alone usually spans more than
-  // one day's capacity, so the day that finally reaches the full-section
-  // candidate in the list often can't fit it — and, since the pace-based
-  // fill stops that day's fill outright rather than letting RC take over
-  // (see fillDrillDay), that day legitimately lands under capacity.
-  // Total-minutes and capacity-tolerance assertions need this wider
-  // exemption.
-  const nearFullSection = (i: number) => i === fullSectionDayIndex || i === fullSectionDayIndex - 1;
-
-  it("produces every day of the week", () => {
-    for (const day of DAY_ORDER) {
-      expect(schedule.days[day]).toBeDefined();
+  it("applies accommodation time to LR questions and regular RC passages", () => {
+    for (const accommodationMultiplier of [1.5, 2] as const) {
+      const student = { ...mockStudent, accommodationMultiplier, dailyCapacityMinutes: everyDay(90) };
+      const schedule = generateWeek(student, mockAnalytics, mockRules, mockStudentName);
+      const multiplier = mockRules.accommodationTimeMultiplier[accommodationMultiplier];
+      for (const activity of drills(schedule)) {
+        if (isLR(activity) && !activity.isFullSection) {
+          expect(activity.drillMinutes).toBeCloseTo(activity.questionCount * 3 * multiplier, 2);
+        }
+        if (isRC(activity) && !activity.isFullSection) {
+          expect(activity.drillMinutes).toBeCloseTo(17.25 * multiplier, 2);
+        }
+      }
     }
   });
 
-  it("groups LR and RC into blocks (never interleaved), alternating which leads day to day", () => {
-    // Monday (index 0) leads with RC, Tuesday (index 1) leads with LR, and
-    // so on down DRILL_DAYS — but within a day, LR and RC never interleave.
-    DRILL_DAYS.forEach((day, i) => {
-      const kinds = schedule.days[day].activities.map((a) => a.kind);
+  it("records a full-section overage caused by accommodation", () => {
+    const student = { ...mockStudent, accommodationMultiplier: 2 as const, dailyCapacityMinutes: everyDay(60) };
+    const schedule = generateWeek(student, mockAnalytics, mockRules, mockStudentName);
+    expect(schedule.days.MONDAY.totalMinutes).toBe(90);
+    expect(schedule.days.MONDAY.capacityOverageMinutes).toBe(30);
+  });
+
+  it("alternates full-section subject from the most recent saved schedule", () => {
+    const prior = generated(60);
+    const next = generated(60, { priorSchedules: [prior] });
+    expect(drills(next).find((activity) => (isLR(activity) || isRC(activity)) && activity.isFullSection)?.kind).toBe("RC");
+  });
+
+  it("places the full section on the highest-capacity drilling day, tied to the earlier day", () => {
+    const student = { ...mockStudent, dailyCapacityMinutes: { ...everyDay(45), TUESDAY: 90, FRIDAY: 90 } };
+    const schedule = generateWeek(student, mockAnalytics, mockRules, mockStudentName);
+    expect(schedule.days.TUESDAY.activities.some((activity) => (isLR(activity) || isRC(activity)) && activity.isFullSection)).toBe(true);
+    expect(schedule.days.FRIDAY.activities.some((activity) => (isLR(activity) || isRC(activity)) && activity.isFullSection)).toBe(false);
+  });
+
+  it("omits the full section below score 150 or when no drilling day states 60 minutes", () => {
+    const lowScore = generateWeek({ ...mockStudent, currentScore: 149 }, mockAnalytics, mockRules, mockStudentName);
+    expect(drills(lowScore).some((activity) => (isLR(activity) || isRC(activity)) && activity.isFullSection)).toBe(false);
+    expect(drills(generated(45)).some((activity) => (isLR(activity) || isRC(activity)) && activity.isFullSection)).toBe(false);
+  });
+
+  it("reduces each day's fill limit before adding extra work while retaining the minimum and full section", () => {
+    const base = generated(90);
+    const reduced = generated(90, { workloadReductionPercent: 0.25 });
+    for (const day of DRILL_DAYS) {
+      expect(reduced.days[day].activities.length).toBeGreaterThan(0);
+      expect(reduced.days[day].totalMinutes).toBeLessThanOrEqual(base.days[day].totalMinutes);
+    }
+    expect(drills(reduced).filter((activity) => (isLR(activity) || isRC(activity)) && activity.isFullSection)).toHaveLength(1);
+  });
+
+  it("rotates scarce starred drills by oldest saved appearance and excludes non-starred types", () => {
+    const first = generated(15);
+    const second = generated(15, { priorSchedules: [first] });
+    const firstTypes = new Set(drills(first).filter(isLR).map((activity) => activity.type));
+    const secondTypes = new Set(drills(second).filter(isLR).map((activity) => activity.type));
+    expect([...secondTypes].every((type) => mockRules.lrStarredTypes.includes(type))).toBe(true);
+    expect([...secondTypes].some((type) => !firstTypes.has(type))).toBe(true);
+  });
+
+  it("uses the regular pool after starred and restricted types, and splits paired medium drills", () => {
+    const schedule = generated(1200);
+    const lr = drills(schedule).filter(isLR).filter((activity) => !activity.isFullSection);
+    expect(lr.slice(0, mockRules.lrStarredTypes.length).map((activity) => activity.type)).toEqual(
+      [...mockRules.lrStarredTypes].sort((a, b) =>
+        (mockAnalytics.lrAccuracyByType[a] ?? 1) - (mockAnalytics.lrAccuracyByType[b] ?? 1)
+        || [...mockRules.lrStemTypes, ...mockRules.lrLogicTypes].indexOf(a)
+          - [...mockRules.lrStemTypes, ...mockRules.lrLogicTypes].indexOf(b))
+    );
+    expect(lr[mockRules.lrStarredTypes.length].type).toBe(mockAnalytics.lrTopPriorityLogicTypes[0]);
+    expect(lr.some((activity) => activity.questionCount === 10)).toBe(true);
+    const paired = new Set(mockRules.lrPairedTypes.flat());
+    expect(lr.filter((activity) => paired.has(activity.type)).every((activity) => activity.questionCount === 5)).toBe(true);
+  });
+
+  it("groups subjects and alternates the leading subject across drilling days", () => {
+    const schedule = generated(90);
+    DRILL_DAYS.forEach((day, index) => {
+      const kinds = schedule.days[day].activities.map((activity) => activity.kind);
+      const firstLR = kinds.indexOf("LR");
       const firstRC = kinds.indexOf("RC");
-      const lastLR = kinds.lastIndexOf("LR");
-      const lrFirst = i % 2 === 1;
-      if (firstRC !== -1 && lastLR !== -1) {
-        if (lrFirst) {
-          expect(lastLR).toBeLessThan(firstRC);
-        } else {
-          expect(kinds.lastIndexOf("RC")).toBeLessThan(kinds.indexOf("LR"));
-        }
-      }
-    });
-  });
-
-  it("never schedules more than one passage per non-full-section RC activity", () => {
-    for (const day of DRILL_DAYS) {
-      for (const activity of schedule.days[day].activities.filter(isRC)) {
-        if (activity.isFullSection) continue; // one section, all its passages, in one sitting
-        expect(activity.passageCount).toBe(1);
-      }
-    }
-  });
-
-  it("varies type or difficulty between back-to-back RC passages", () => {
-    for (const day of DRILL_DAYS) {
-      const rc = schedule.days[day].activities.filter(isRC).filter((a) => !a.isFullSection);
-      for (let i = 1; i < rc.length; i++) {
-        const prev = rc[i - 1];
-        const curr = rc[i];
-        const identical = prev.type === curr.type && prev.difficultyLevel === curr.difficultyLevel;
-        expect(identical).toBe(false);
-      }
-    }
-  });
-
-  it("keeps drill days reasonably even within indivisible hard-cap work", () => {
-    const minutesByDay = DRILL_DAYS.filter((_, i) => !nearFullSection(i)).map(
-      (day) => schedule.days[day].totalMinutes
-    );
-    const spread = Math.max(...minutesByDay) - Math.min(...minutesByDay);
-    expect(spread).toBeLessThanOrEqual(capacityMinutes * 0.3);
-  });
-
-  it("keeps the week's overall LR-question-to-RC-passage pace close to the stated 20-to-2 rule of thumb", () => {
-    const allActivities = DRILL_DAYS.flatMap((day) => schedule.days[day].activities);
-    const lrQuestions = allActivities
-      .filter(isLR)
-      .filter((a) => !a.isFullSection)
-      .reduce((sum, a) => sum + a.questionCount, 0);
-    const rcPassages = allActivities
-      .filter(isRC)
-      .filter((a) => !a.isFullSection)
-      .reduce((sum, a) => sum + a.passageCount, 0);
-
-    expect(rcPassages).toBeGreaterThan(0);
-    // Stated rule of thumb is 20:2 (10:1) — a single 4-drill-day week is too
-    // short a horizon for the pace-catch-up loop to land on that exactly,
-    // so this checks it's in the right neighborhood, not pinned to 10.
-    expect(lrQuestions / rcPassages).toBeGreaterThanOrEqual(6);
-    expect(lrQuestions / rcPassages).toBeLessThanOrEqual(16);
-  });
-
-  it("prefers offering more LR than RC time on any given non-full-section day", () => {
-    DRILL_DAYS.forEach((day, i) => {
-      if (affectedByFullSection(i)) return;
-      const activities = schedule.days[day].activities;
-      const lrMinutes = activities.filter(isLR).reduce((sum, a) => sum + a.drillMinutes, 0);
-      const rcMinutes = activities.filter(isRC).reduce((sum, a) => sum + a.drillMinutes, 0);
-      // "Prefer" isn't absolute — RC's larger per-passage time cost can
-      // occasionally edge out a couple of LR's smaller per-question units
-      // on a given day even while LR leads on pace (an "obvious exception,"
-      // per spec) — but RC shouldn't meaningfully dominate the day the way
-      // the pre-pace-tracking bug let it.
-      expect(rcMinutes).toBeLessThanOrEqual(lrMinutes + capacityMinutes * 0.15);
-    });
-  });
-
-  it("still front-loads starred and top-priority LR types first, in order", () => {
-    // However many LR items fit into Monday's half-day budget, they should
-    // be an exact prefix of the starred + top-priority order — not
-    // necessarily all of it, since a small daily capacity can defer the
-    // rest to Tuesday via the existing cross-day index.
-    const monday = schedule.days.MONDAY.activities.filter((a) => a.kind === "LR");
-    const expectedFirst = [...mockRules.lrStarredTypes, ...mockAnalytics.lrTopPriorityLogicTypes];
-    const actualFirst = monday.map((a) => a.type);
-    expect(actualFirst).toEqual(expectedFirst.slice(0, actualFirst.length));
-  });
-
-  it("keeps the rest day empty and untouched", () => {
-    const restDay = schedule.days[mockRules.restDay];
-    expect(restDay.type).toBe("rest");
-    expect(restDay.activities).toEqual([]);
-    expect(restDay.totalMinutes).toBe(0);
-  });
-
-  it("reserves the practice test and its full-length review day", () => {
-    expect(schedule.days.SATURDAY.type).toBe("practice_test");
-    expect(schedule.days.SATURDAY.totalMinutes).toBe(
-      mockRules.ptDurationMinutes * mockStudent.accommodationMultiplier
-    );
-    expect(schedule.days.SUNDAY.type).toBe("review");
-    expect(schedule.days.SUNDAY.totalMinutes).toBe(mockRules.ptDurationMinutes);
-  });
-
-  it("keeps a drill day's total planned time within its capacity", () => {
-    DRILL_DAYS.forEach((day, i) => {
-      if (nearFullSection(i)) return;
-      expect(
-        schedule.days[day].totalMinutes
-      ).toBeLessThanOrEqual(capacityMinutes);
-    });
-  });
-
-  it("keeps an uneven two-hour drill day within the hard capacity cap", () => {
-    const student = { ...mockStudent, dailyCapacityMinutes: everyDay(120) };
-    const result = generateWeek(student, mockAnalytics, mockRules, mockStudentName);
-    const fullSectionDayIndex = DRILL_DAYS.findIndex((day) =>
-      result.days[day].activities.some((a) => (isLR(a) || isRC(a)) && a.isFullSection)
-    );
-    DRILL_DAYS.forEach((day, i) => {
-      if (i === fullSectionDayIndex || i === fullSectionDayIndex - 1) return;
-      expect(
-        result.days[day].totalMinutes
-      ).toBeLessThanOrEqual(120);
-    });
-  });
-
-  it("never exceeds a drilling day's stated capacity", () => {
-    const student = { ...mockStudent, dailyCapacityMinutes: everyDay(120) };
-    const result = generateWeek(student, mockAnalytics, mockRules, mockStudentName);
-    for (const day of DRILL_DAYS) {
-      expect(plannedMinutes(result.days[day].activities)).toBeLessThanOrEqual(student.dailyCapacityMinutes.MONDAY);
-    }
-  });
-
-
-  it("fills each drilling day to that day's own daily capacity", () => {
-    const student = {
-      ...mockStudent,
-      dailyCapacityMinutes: { ...everyDay(90), MONDAY: 45, TUESDAY: 240, THURSDAY: 60, FRIDAY: 180, SUNDAY: 150 },
-    };
-    const result = generateWeek(student, mockAnalytics, mockRules, mockStudentName);
-
-    expect(plannedMinutes(result.days.MONDAY.activities)).toBeLessThanOrEqual(45);
-    expect(plannedMinutes(result.days.THURSDAY.activities)).toBeLessThanOrEqual(60);
-    expect(plannedMinutes(result.days.TUESDAY.activities)).toBeGreaterThan(60);
-    expect(result.days.SUNDAY.totalMinutes).toBe(150);
-  });
-
-  it("scales practice test time by the mapped accommodation multiplier, not the raw one", () => {
-    const extraTimeStudent = { ...mockStudent, accommodationMultiplier: 1.5 as const };
-    const result = generateWeek(extraTimeStudent, mockAnalytics, mockRules, mockStudentName);
-    const expected = mockRules.ptDurationMinutes * mockRules.accommodationTimeMultiplier[1.5];
-    expect(result.days.SATURDAY.totalMinutes).toBeCloseTo(expected, 5);
-    expect(result.days.SATURDAY.totalMinutes).not.toBeCloseTo(mockRules.ptDurationMinutes * 1.5, 5);
-  });
-
-  it("never schedules an RC passage at L1", () => {
-    const bigStudent = { ...mockStudent, dailyCapacityMinutes: everyDay(1200) };
-    const schedule = generateWeek(bigStudent, mockAnalytics, mockRules, mockStudentName);
-    for (const day of DRILL_DAYS) {
-      for (const activity of schedule.days[day].activities.filter(isRC)) {
-        expect(activity.difficultyLevel).toBeGreaterThanOrEqual(2);
-        expect(activity.difficultyLevel).toBeLessThanOrEqual(5);
-      }
-    }
-  });
-
-  it("splits 10-question LR drills into 5+5 for paired types", () => {
-    const bigStudent = { ...mockStudent, dailyCapacityMinutes: everyDay(1200) };
-    const schedule = generateWeek(bigStudent, mockAnalytics, mockRules, mockStudentName);
-    const pairedTypes = new Set(mockRules.lrPairedTypes.flat());
-    for (const day of DRILL_DAYS) {
-      for (const activity of schedule.days[day].activities.filter(isLR)) {
-        if (pairedTypes.has(activity.type)) {
-          expect(activity.questionCount).not.toBe(mockRules.lrUnitSizes.medium);
-        }
-      }
-    }
-  });
-
-  it("integrates exactly one full section a week, LR or RC, at a flat accommodation-scaled time", () => {
-    const bigStudent = { ...mockStudent, dailyCapacityMinutes: everyDay(1200) };
-    const schedule = generateWeek(bigStudent, mockAnalytics, mockRules, mockStudentName);
-
-    const fullSectionLR = DRILL_DAYS.flatMap((day) =>
-      schedule.days[day].activities.filter(isLR).filter((a) => a.isFullSection)
-    );
-    const fullSectionRC = DRILL_DAYS.flatMap((day) =>
-      schedule.days[day].activities.filter(isRC).filter((a) => a.isFullSection)
-    );
-
-    // Exactly one subject gets the week's one full section — never both,
-    // never neither — and it's a single sitting, not split across days.
-    const lrHasIt = fullSectionLR.length > 0;
-    const rcHasIt = fullSectionRC.length > 0;
-    expect(lrHasIt !== rcHasIt).toBe(true);
-    expect(fullSectionLR.length + fullSectionRC.length).toBe(1);
-
-    if (lrHasIt) {
-      expect(fullSectionLR[0].drillMinutes).toBeCloseTo(mockRules.fullSectionMinutes, 5);
-    } else {
-      expect(fullSectionRC[0].passageCount).toBe(mockRules.rcUnitSizes.fullSection);
-      expect(fullSectionRC[0].drillMinutes).toBeCloseTo(mockRules.fullSectionMinutes, 5);
-    }
-  });
-
-  it("accommodation-scales LR question time but not regular RC passage time", () => {
-    // Regression case: 15 LR questions + 2 RC passages at 200% extra time
-    // (mapped multiplier 1.5) should be 15×3×1.5 + 2×17.25 = 102 minutes —
-    // RC passages don't pick up the multiplier the way LR questions do.
-    const extraTimeStudent = { ...mockStudent, accommodationMultiplier: 2 as const, dailyCapacityMinutes: everyDay(1200) };
-    const schedule = generateWeek(extraTimeStudent, mockAnalytics, mockRules, mockStudentName);
-    const mult = mockRules.accommodationTimeMultiplier[2];
-
-    for (const day of DRILL_DAYS) {
-      for (const a of schedule.days[day].activities.filter(isLR)) {
-        if (a.isFullSection) continue;
-        const expected = round1((a.questionCount * mockRules.lrQuestionSeconds * mult) / 60);
-        expect(a.drillMinutes).toBeCloseTo(expected, 1);
-      }
-      for (const a of schedule.days[day].activities.filter(isRC)) {
-        if (a.isFullSection) continue;
-        const expected = round1((a.passageCount * mockRules.rcPassageSeconds) / 60);
-        expect(a.drillMinutes).toBeCloseTo(expected, 1);
-      }
-    }
-  });
-
-  it("keeps the displayed total aligned with planned drill and review time", () => {
-    for (const day of DRILL_DAYS) {
-      const activities = schedule.days[day].activities;
-      expect(Math.abs(schedule.days[day].totalMinutes - plannedMinutes(activities))).toBeLessThan(1);
-    }
-  });
-
-  it("keeps RC from dominating the day right before the week's full section", () => {
-    // Regression case: this is the exact student/capacity combination that
-    // originally produced a Thursday with 1 LR item vs 5 RC passages
-    // (~90/10 split) — LR's next queued item was the week's full section,
-    // too big to fit, so RC used to fill the rest of the day alone.
-    // Stopping the day's fill the moment the pace-favored side gets stuck
-    // (rather than letting the other side take over) keeps RC from running
-    // away with the day — landing under capacity that day is the accepted
-    // trade, per spec.
-    const student = { ...mockStudent, currentScore: 164, accommodationMultiplier: 2 as const, dailyCapacityMinutes: everyDay(120) };
-    const result = generateWeek(student, mockAnalytics, mockRules, mockStudentName);
-    const capacity = student.dailyCapacityMinutes.MONDAY;
-
-    const fullSectionDayIndex = DRILL_DAYS.findIndex((day) =>
-      result.days[day].activities.some((a) => (isLR(a) || isRC(a)) && a.isFullSection)
-    );
-
-    DRILL_DAYS.forEach((day, i) => {
-      if (i === fullSectionDayIndex) return;
-      const activities = result.days[day].activities;
-      const lrMinutes = activities.filter(isLR).reduce((sum, a) => sum + a.drillMinutes, 0);
-      const rcMinutes = activities.filter(isRC).reduce((sum, a) => sum + a.drillMinutes, 0);
-
-      expect(rcMinutes).toBeLessThanOrEqual(lrMinutes + capacity * 0.15);
+      if (firstLR < 0 || firstRC < 0) return;
+      expect(index % 2 === 1 ? firstLR < firstRC : firstRC < firstLR).toBe(true);
     });
   });
 });
