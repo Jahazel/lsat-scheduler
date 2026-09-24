@@ -70,6 +70,24 @@ _Avoid_: crunch week, final month
 A day that had already passed when a weekly schedule was created, so it holds no schedule activities. It is not the rest day.
 _Avoid_: empty day, missed day
 
+### Student app
+
+**This week**:
+The student's current weekly schedule, where they check in activities, or the analytics upload that creates it when none exists yet.
+_Avoid_: dashboard, current plan
+
+**Progress**:
+The student's history across finished weeks: completion stats and each past weekly schedule, opened read-in-place.
+_Avoid_: history, past plans
+
+**Study settings**:
+The student's study profile: scores, goal test date, daily capacity, preferred practice-test day and accommodation. Changes apply to the next weekly schedule created.
+_Avoid_: account settings, profile
+
+**Account**:
+The student's email and account deletion. It does not hold study settings.
+_Avoid_: settings
+
 ### Capacity
 
 **Daily capacity**:
