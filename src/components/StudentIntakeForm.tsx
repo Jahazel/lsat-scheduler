@@ -151,7 +151,7 @@ export default function StudentIntakeForm({
 
       {mode === "edit" && (
         <p className="-mb-1 text-sm text-ink-500">
-          Changes to daily capacity and your preferred practice-test day apply from next week&apos;s plan.
+          Changes to daily capacity and your preferred practice-test day apply to the next weekly schedule created.
         </p>
       )}
 

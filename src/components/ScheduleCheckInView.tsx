@@ -114,11 +114,9 @@ export default function ScheduleCheckInView({
                 <h2 className="font-mono text-sm font-semibold tracking-wide text-ink-900">{day}</h2>
                 {/* `student` is the saved generationInputs snapshot, so a past week
                     keeps the daily capacity it was created with. */}
-                {plan.type !== "rest" && (
-                  <span className="text-xs text-ink-500">
-                    {formatDuration(plannedMinutes)} planned of {formatDuration(student.dailyCapacityMinutes[day])}
-                  </span>
-                )}
+                <span className="text-xs text-ink-500">
+                  {formatDuration(plannedMinutes)} planned of {formatDuration(student.dailyCapacityMinutes[day])}
+                </span>
               </div>
               {plan.activities.length === 0 ? <p className={`${statusFirst ? "px-5 py-4" : "mt-2"} text-sm text-ink-500`}>{plan.type === "rest" ? "Rest day." : "Nothing scheduled."}</p> : (
                 <div className={statusFirst ? "" : "mt-3 flex flex-col gap-3"}>
