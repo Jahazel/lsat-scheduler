@@ -1,7 +1,8 @@
 import type {
   Activity, AnalyticsSnapshot, DayOfWeek, DayPlan, LRActivity, LRType,
-  RCActivity, RCType, RulesConfig, Student, WeeklySchedule,
+  RCActivity, RCType, RulesConfig, ScheduleReason, Student, WeeklySchedule,
 } from "./types";
+import { dateInWeek, dayName, duration, starredNames } from "./scheduleReasonText";
 
 export const DAY_ORDER: DayOfWeek[] = [
   "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY",
@@ -24,6 +25,7 @@ export interface WeekShapeOptions {
   priorWeekPracticeTestReviewMinutes?: number;
   priorSchedules?: WeeklySchedule[];
   skipReductionPercent?: number;
+  skippedShare?: number;
 }
 
 function round2(n: number): number { return Math.round(n * 100) / 100; }
@@ -194,6 +196,24 @@ export function generateWeek(
 ): WeeklySchedule {
   const timeMult = multiplier(rules, student);
   const isNearTestWeek = nearTestWeek(analytics.weekOf, student.goalTestDate);
+  const reasons: ScheduleReason[] = [];
+  const weekReason = (code: ScheduleReason["code"], sentence: string) =>
+    reasons.push({ code, placement: { scope: "week" }, sentence });
+  const dayReason = (code: ScheduleReason["code"], day: DayOfWeek, sentence: string) =>
+    reasons.push({ code, placement: { scope: "day", day }, sentence });
+  const recordOverage = (day: DayOfWeek, plan: DayPlan) => {
+    if (!plan.capacityOverageMinutes || plan.capacityOverageMinutes <= 0) return;
+    const capacity = duration(student.dailyCapacityMinutes[day]);
+    const planned = duration(plan.totalMinutes);
+    const sentence = plan.type === "practice_test"
+      ? `The practice test takes ${planned}, even though your ${dayName(day)} capacity is ${capacity}.`
+      : plan.type === "review"
+        ? `Practice test review takes ${planned}, even though your ${dayName(day)} capacity is ${capacity}.`
+        : plan.activities.some((activity) => (activity.kind === "LR" || activity.kind === "RC") && activity.isFullSection)
+          ? `The full section takes ${planned}, even though your ${dayName(day)} capacity is ${capacity}.`
+          : `The daily minimum takes ${planned}, even though your ${dayName(day)} capacity is ${capacity}.`;
+    dayReason("capacity_overage", day, sentence);
+  };
 
   const days = {} as Record<DayOfWeek, DayPlan>;
   const preferredPracticeTestDay = student.preferredPracticeTestDay;
@@ -221,6 +241,15 @@ export function generateWeek(
     ? []
     : plannedPracticeTestDays.filter((day) => DAY_ORDER.indexOf(day) >= createdIndex);
   const scheduledPracticeTestReviewDays = scheduledPracticeTestDays.flatMap((day) => practiceTestReviewDayFor(day) ?? []);
+  if (isNearTestWeek && scheduledPracticeTestDays.length > 0) {
+    const count = scheduledPracticeTestDays.length;
+    const testDate = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", timeZone: "UTC" })
+      .format(new Date(`${student.goalTestDate}T00:00:00.000Z`));
+    weekReason("near_test_week", `This near-test week has ${count} LawHub practice ${count === 1 ? "test" : "tests"} before your ${testDate} test.`);
+  }
+  if (scheduledPracticeTestDays.length === 0) {
+    weekReason("no_practice_test", `No practice test this week; your next one is ${dateInWeek(analytics.weekOf, 7 + DAY_ORDER.indexOf(preferredPracticeTestDay))}.`);
+  }
   const occupied = new Set<DayOfWeek>([
     ...scheduledPracticeTestDays,
     ...scheduledPracticeTestReviewDays,
@@ -230,6 +259,14 @@ export function generateWeek(
   const restDay = occupied.has(computedRestDay)
     ? DAY_ORDER.slice(createdIndex).find((day) => !occupied.has(day)) ?? computedRestDay
     : computedRestDay;
+  if (restDay !== rules.restDay) {
+    const originalRestOccupiedBy = plannedPracticeTestDays.includes(rules.restDay) ? "practice test"
+      : plannedPracticeTestReviewDays.includes(rules.restDay) || (rules.restDay === "MONDAY" && hasPriorWeekPracticeTestReview)
+        ? "practice test review" : "practice test schedule";
+    dayReason("rest_day_moved", restDay, occupied.has(rules.restDay)
+      ? `Rest day moved to ${dayName(restDay)}: your ${originalRestOccupiedBy} takes ${dayName(rules.restDay)}.`
+      : `Rest day moved to ${dayName(restDay)}: ${dayName(rules.restDay)} was reserved for ${originalRestOccupiedBy}.`);
+  }
   const drillingDays = DAY_ORDER.filter((day) => day !== restDay && !occupied.has(day));
 
   const activeDrillingDays = drillingDays.filter((day) => DAY_ORDER.indexOf(day) >= createdIndex);
@@ -237,10 +274,18 @@ export function generateWeek(
     .filter((day) => student.dailyCapacityMinutes[day] >= 60)
     .sort((a, b) => student.dailyCapacityMinutes[b] - student.dailyCapacityMinutes[a]
       || DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))[0];
+  if (!fullSectionDay) {
+    weekReason("full_section_dropped", student.currentScore < 150
+      ? `No full section this week: your current score is ${student.currentScore}, below 150.`
+      : "No full section this week: no remaining drilling day has 60 minutes of daily capacity.");
+  }
   const history = options.priorSchedules ?? [];
   const fullSubject = latestFullSection(history) === "LR" ? "RC" : "LR";
   const rcList = buildRCList(rules);
   const reduction = Math.max(0, Math.min(0.25, options.skipReductionPercent ?? 0));
+  if (reduction > 0) {
+    weekReason("skip_reduction", `You skipped ${round2((options.skippedShare ?? reduction * 4) * 100)}% of last week's planned time, so each drilling day's fill limit is ${round2(reduction * 100)}% lower.`);
+  }
   const fillWith = (rotate: boolean) => {
     const lrList = buildLRList(lrTypeOrder(analytics, rules, history, rotate), student.currentScore, rules);
     const state: FillState = { lrIndex: 0, rcIndex: 0, lrQuestions: 0, rcPassages: 0 };
@@ -259,7 +304,16 @@ export function generateWeek(
   };
   const firstPass = fillWith(false);
   const filled = firstPass.lrDrills < rules.lrStarredTypes.length ? fillWith(true) : firstPass;
+  if (filled !== firstPass) {
+    const scheduled = new Set(Object.values(filled.plans).flatMap((plan) => plan?.activities ?? [])
+      .filter((activity): activity is LRActivity => activity.kind === "LR" && !activity.isFullSection)
+      .map((activity) => activity.type));
+    const sittingOut = rules.lrStarredTypes.filter((type) => !scheduled.has(type));
+    if (sittingOut.length > 0) weekReason("starred_rotation",
+      `${starredNames(sittingOut)} ${sittingOut.length === 1 ? "sits" : "sit"} out this week in the starred rotation.`);
+  }
   Object.assign(days, filled.plans);
+  for (const day of activeDrillingDays) recordOverage(day, days[day]);
   for (const day of drillingDays) {
     if (!days[day]) days[day] = { day, type: "drill", activities: [], totalMinutes: 0 };
   }
@@ -281,6 +335,7 @@ export function generateWeek(
       totalMinutes: ptMinutes,
       capacityOverageMinutes: Math.max(0, ptMinutes - student.dailyCapacityMinutes[day]),
     };
+    recordOverage(day, days[day]);
   }
 
   function setPracticeTestReviewDay(day: DayOfWeek, minutes: number) {
@@ -290,11 +345,18 @@ export function generateWeek(
       totalMinutes: minutes,
       capacityOverageMinutes: Math.max(0, minutes - student.dailyCapacityMinutes[day]),
     };
+    recordOverage(day, days[day]);
   }
   for (const day of scheduledPracticeTestReviewDays) setPracticeTestReviewDay(day, ptMinutes);
   if (priorWeekPracticeTestReviewMinutes !== undefined) {
     setPracticeTestReviewDay("MONDAY", priorWeekPracticeTestReviewMinutes);
+    dayReason("review_carried_over", "MONDAY",
+      `Review for last Sunday's practice test (${dateInWeek(analytics.weekOf, -1)}).`);
   }
 
-  return { studentName, weekOf: analytics.weekOf, days };
+  if (scheduledPracticeTestDays.includes("SUNDAY")) {
+    dayReason("sunday_review_next_monday", "SUNDAY", "Review is next Monday, in next week's plan.");
+  }
+
+  return { studentName, weekOf: analytics.weekOf, days, reasons };
 }

@@ -94,6 +94,10 @@ describe("loadOrGenerateCurrentWeek", () => {
       skipReductionPercent: 0,
     });
     expect(first.schedule.policyVersion).toBe("adaptive-weekly-schedule-v2");
+    const originalSentences = first.schedule.schedule.reasons?.map((reason) => reason.sentence);
+    expect(originalSentences?.length).toBeGreaterThan(0);
+    expect(second.kind === "schedule" && second.schedule.schedule.reasons?.map((reason) => reason.sentence))
+      .toEqual(originalSentences);
     expect(repositories.checkIns()).toHaveLength(
       Object.values(first.schedule.schedule.days).flatMap((day) => day.activities).length
     );
@@ -187,7 +191,6 @@ describe("loadOrGenerateCurrentWeek", () => {
       now: () => monday,
       ...repositories,
     });
-
     if (result.kind !== "schedule") throw new Error("Expected a saved schedule");
     expect(result.schedule.sourceSnapshotIds).toEqual(["newest", "middle", "oldest"]);
     expect(result.schedule.generationInputs.analytics.lrAccuracyByType.Evaluate).toBeCloseTo(0.75, 5);
@@ -225,6 +228,10 @@ describe("loadOrGenerateCurrentWeek", () => {
     expect(result.schedule.schedule.days.WEDNESDAY.type).toBe("rest");
     expect(result.schedule.schedule.days.SATURDAY.totalMinutes).toBe(150);
     expect(result.schedule.schedule.days.SATURDAY.capacityOverageMinutes).toBe(90);
+    expect(result.schedule.schedule.reasons).toContainEqual({
+      code: "unscheduled_day", placement: { scope: "day", day: "FRIDAY" },
+      sentence: "Not scheduled. This plan started Saturday.",
+    });
   });
 
   it("leaves Monday and Tuesday unscheduled when approval arrives Thursday", async () => {
@@ -290,6 +297,10 @@ describe("loadOrGenerateCurrentWeek", () => {
     });
     if (prior.kind !== "schedule") throw new Error("Expected a saved schedule");
     expect(prior.schedule.schedule.days.SUNDAY.type).toBe("practice_test");
+    expect(prior.schedule.schedule.reasons).toContainEqual({
+      code: "sunday_review_next_monday", placement: { scope: "day", day: "SUNDAY" },
+      sentence: "Review is next Monday, in next week's plan.",
+    });
     expect(prior.schedule.schedule.days.MONDAY.type).toBe("drill");
 
     const next = await loadOrGenerateCurrentWeek({
@@ -304,6 +315,10 @@ describe("loadOrGenerateCurrentWeek", () => {
     ]);
     expect(next.schedule.schedule.days.MONDAY.capacityOverageMinutes).toBe(97.5);
     expect(next.schedule.schedule.days.SATURDAY.type).toBe("practice_test");
+    expect(next.schedule.schedule.reasons).toContainEqual({
+      code: "review_carried_over", placement: { scope: "day", day: "MONDAY" },
+      sentence: "Review for last Sunday's practice test (September 20).",
+    });
     expect(next.schedule.generationInputs.priorWeekPracticeTestReviewMinutes).toBe(187.5);
     expect(next.schedule.generationInputs.priorScheduleIds).toEqual([prior.schedule.id]);
   });
@@ -321,10 +336,12 @@ describe("loadOrGenerateCurrentWeek", () => {
 
   it("keeps a saved v1 schedule exactly as stored", async () => {
     const repositories = inMemoryRepositories([]);
+    const legacySchedule = generateWeek(mockStudent, { ...mockAnalytics, weekOf: "2026-09-14" },
+      mockRules, mockStudentName);
+    delete legacySchedule.reasons;
     const saved: PersistedWeeklySchedule = {
       id: "old", studentId: "student-1", weekStartDate: "2026-09-14", generatedAt: monday.toISOString(),
-      schedule: { ...generateWeek(mockStudent, { ...mockAnalytics, weekOf: "2026-09-14" }, mockRules, mockStudentName),
-        saturdayOverageMinutes: 60 },
+      schedule: { ...legacySchedule, saturdayOverageMinutes: 60 },
       sourceSnapshotIds: [], generationInputs: {
         student: mockStudent, timezone: "America/Chicago", remainingDays: ["MONDAY"], analytics: mockAnalytics,
         priorWeekProgress: { source: "unavailable", skippedPlannedMinutes: 0, totalPlannedMinutes: 0,
@@ -332,6 +349,7 @@ describe("loadOrGenerateCurrentWeek", () => {
       }, policyVersion: "adaptive-weekly-schedule-v1",
     };
     repositories.schedules.push(saved);
+    expect(saved.schedule.reasons).toBeUndefined();
     const result = await loadOrGenerateCurrentWeek({
       studentId: "student-1", student: mockStudent, studentName: mockStudentName, rules: mockRules,
       timezone: "America/Chicago", now: () => monday, ...repositories,
@@ -456,6 +474,8 @@ describe("loadOrGenerateCurrentWeek", () => {
     expect(adaptive.schedule.schedule.days.MONDAY.activities.length).toBeLessThanOrEqual(
       baseline.schedule.schedule.days.MONDAY.activities.length
     );
+    expect(adaptive.schedule.schedule.reasons?.find((reason) => reason.code === "skip_reduction")?.sentence)
+      .toContain(`${Math.round(10000 * skippedPlannedMinutes / totalPlannedMinutes) / 100}% of last week's planned time`);
   });
 
   it("does not let older check-ins alter a future schedule when the immediately preceding week has no skipped work", async () => {
