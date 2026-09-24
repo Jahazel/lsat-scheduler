@@ -72,17 +72,14 @@ describe("weekly shape", () => {
       ]);
     });
 
-    it(`omits tests when created after ${preferred}`, () => {
+    it(`omits the test and review when a one-test week is created after ${preferred}`, () => {
       const preferredIndex = DAY_ORDER.indexOf(preferred);
       if (preferredIndex === 6) return;
-      const schedule = generateWeek({ ...mockStudent, preferredPracticeTestDay: preferred, goalTestDate: "2026-10-01" },
+      const schedule = generateWeek({ ...mockStudent, preferredPracticeTestDay: preferred },
         { ...mockAnalytics, weekOf: "2026-09-14" }, mockRules, mockStudentName,
         { createdOn: DAY_ORDER[preferredIndex + 1] });
-      expect(Object.values(schedule.days).filter((day) => day.type === "practice_test" || day.type === "review")).toEqual([]);
-      expect(schedule.days.WEDNESDAY.type).toBe("rest");
-      for (const day of DAY_ORDER.filter((day) => day !== "WEDNESDAY")) {
-        expect(schedule.days[day].type).toBe("drill");
-      }
+      const expected = oneTest[preferred].split(" ").map((type) => (type === "rest" ? "rest" : "drill")).join(" ");
+      expect(types(schedule.days)).toBe(expected);
     });
 
     it(`keeps the preferred test when created on ${preferred}`, () => {
@@ -136,4 +133,23 @@ describe("weekly shape", () => {
       expect(Object.values(schedule.days).filter((day) => day.type === "practice_test")).toHaveLength(count);
     }
   });
+
+  it("keeps a near-test week's second test when only the first test day has passed", () => {
+    const schedule = generateWeek({ ...mockStudent, preferredPracticeTestDay: "MONDAY", goalTestDate: "2026-10-01" },
+      { ...mockAnalytics, weekOf: "2026-09-14" }, mockRules, mockStudentName, { createdOn: "TUESDAY" });
+    expect(types(schedule.days)).toBe("drill drill rest practice_test review drill drill");
+  });
+
+  it("drops the review day of a past test, even when that review day is today", () => {
+    const schedule = generateWeek({ ...mockStudent, preferredPracticeTestDay: "SATURDAY", goalTestDate: "2026-10-01" },
+      { ...mockAnalytics, weekOf: "2026-09-14" }, mockRules, mockStudentName, { createdOn: "THURSDAY" });
+    expect(types(schedule.days)).toBe("drill rest drill drill drill practice_test review");
+  });
+
+  it.each([["TUESDAY", "rest drill drill drill drill drill drill"], ["WEDNESDAY", "drill rest drill drill drill drill drill"]] as const)(
+    "keeps the computed rest day when a %s-preference week is created late", (preferred, expected) => {
+      const schedule = generateWeek({ ...mockStudent, preferredPracticeTestDay: preferred },
+        { ...mockAnalytics, weekOf: "2026-09-14" }, mockRules, mockStudentName, { createdOn: "THURSDAY" });
+      expect(types(schedule.days)).toBe(expected);
+    });
 });

@@ -490,23 +490,20 @@ export function generateWeek(
 
   const days = {} as Record<DayOfWeek, DayPlan>;
   const preferred = student.preferredPracticeTestDay;
-  const preferredIndex = DAY_ORDER.indexOf(preferred);
   const createdIndex = DAY_ORDER.indexOf(options.createdOn ?? "MONDAY");
-  const testDays = createdIndex <= preferredIndex
-    ? [preferred, ...(isNearTestWeek ? [SECOND_TEST_DAY[preferred]] : [])]
-    : [];
+  const plannedTestDays = [preferred, ...(isNearTestWeek ? [SECOND_TEST_DAY[preferred]] : [])];
   const carryOverReview = options.carryOverReviewMinutes !== undefined;
   // A saved Sunday test owns Monday, even if it displaces this week's test.
-  if (carryOverReview) {
-    const mondayIndex = testDays.indexOf("MONDAY");
-    if (mondayIndex !== -1) testDays.splice(mondayIndex, 1);
-  }
-  const reviewDays = testDays
-    .filter((day) => day !== "SUNDAY")
-    .map((day) => DAY_ORDER[DAY_ORDER.indexOf(day) + 1]);
-  const wednesdayTest = testDays.includes("WEDNESDAY");
-  const wednesdayReview = reviewDays.includes("WEDNESDAY");
-  const restDay = wednesdayTest ? "TUESDAY" : wednesdayReview ? "MONDAY" : rules.restDay;
+  const shapeTestDays = carryOverReview ? plannedTestDays.filter((day) => day !== "MONDAY") : plannedTestDays;
+  const reviewDayFor = (day: DayOfWeek) => (day === "SUNDAY" ? undefined : DAY_ORDER[DAY_ORDER.indexOf(day) + 1]);
+  // The rest day keeps the day the full shape gives it, even when that day has passed.
+  const shapeReviewDays = shapeTestDays.flatMap((day) => reviewDayFor(day) ?? []);
+  const restDay = shapeTestDays.includes("WEDNESDAY") ? "TUESDAY"
+    : shapeReviewDays.includes("WEDNESDAY") ? "MONDAY"
+    : rules.restDay;
+  // A test whose day has passed is dropped together with its review day.
+  const testDays = shapeTestDays.filter((day) => DAY_ORDER.indexOf(day) >= createdIndex);
+  const reviewDays = testDays.flatMap((day) => reviewDayFor(day) ?? []);
   const occupied = new Set<DayOfWeek>([...testDays, ...reviewDays, ...(carryOverReview ? ["MONDAY" as const] : [])]);
   // If Monday's earned review displaces rest, use the first free day.
   const actualRestDay = occupied.has(restDay)
