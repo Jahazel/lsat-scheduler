@@ -124,6 +124,11 @@ function fillDrillDay(lrList: LRCandidate[], rcList: RCCandidate[], state: FillS
     state.lrQuestions += c.questionCount;
     lrDrills++;
   };
+  const takeLRUnit = () => {
+    const paired = lrList[state.lrIndex].pairStart;
+    takeLR();
+    if (paired) takeLR();
+  };
   const takeRC = () => {
     const c = rcList[state.rcIndex++];
     const minutes = rcMinutes(c, rules, timeMult);
@@ -135,23 +140,20 @@ function fillDrillDay(lrList: LRCandidate[], rcList: RCCandidate[], state: FillS
     if (state.lrQuestions <= state.rcPassages * 10) {
       const next = lrList[state.lrIndex];
       const after = lrList[state.lrIndex + 1];
-      const lastFirstPassDrill = next.questionCount === rules.lrUnitSizes.small && !next.pairStart
-        && (after.pairStart || after.questionCount !== rules.lrUnitSizes.small);
-      if (lastFirstPassDrill) {
-        // One first-pass drill cannot make 10 questions alone. The next complete second-pass
-        // unit is the daily minimum, and the first-pass drill stays next in line after it.
-        const unit = lrList.splice(state.lrIndex + 1, after.pairStart ? 2 : 1);
-        lrList.splice(state.lrIndex, 0, ...unit);
+      const isFirstPassDrill = next.questionCount === rules.lrUnitSizes.small && !next.pairStart;
+      const atPassBoundary = isFirstPassDrill && after
+        && (after.pairStart || after.questionCount === rules.lrUnitSizes.medium);
+      if (atPassBoundary) {
+        // Finish the first pass, then take the next complete second-pass unit as the daily minimum.
         takeLR();
-        if (after.pairStart) takeLR();
-      } else if (next.questionCount === rules.lrUnitSizes.small && !next.pairStart) {
+        takeLRUnit();
+      } else if (isFirstPassDrill) {
         // The first pass uses two distinct five-question drills.
         takeLR();
         takeLR();
       } else {
         // A second-pass drill or pair is one complete 10-question unit.
-        takeLR();
-        if (next.pairStart) takeLR();
+        takeLRUnit();
       }
     } else takeRC();
   }
@@ -164,9 +166,7 @@ function fillDrillDay(lrList: LRCandidate[], rcList: RCCandidate[], state: FillS
     if (!lrFits && !rcFits) break;
     const preferLR = state.lrQuestions <= state.rcPassages * 10;
     if (preferLR ? lrFits : !rcFits) {
-      const paired = lrList[state.lrIndex].pairStart;
-      takeLR();
-      if (paired) takeLR();
+      takeLRUnit();
     }
     else takeRC();
   }

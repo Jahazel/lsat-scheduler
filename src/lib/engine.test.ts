@@ -40,15 +40,19 @@ describe("daily capacity filler", () => {
     expect(fridayLR.map((activity) => [activity.type, activity.questionCount])).toEqual([["Diagram", 10]]);
   });
 
-  it("keeps the LR daily minimum at 10 across the first-to-second-pass boundary", () => {
+  it("uses 15 questions only when the LR daily minimum crosses the pass boundary", () => {
     for (let earlierCapacity = 180; earlierCapacity <= 420; earlierCapacity += 5) {
       const student = { ...mockStudent,
         dailyCapacityMinutes: { ...everyDay(earlierCapacity), FRIDAY: 30 } };
       const schedule = generateWeek(student, mockAnalytics, mockRules, mockStudentName);
       const fridayLR = schedule.days.FRIDAY.activities.filter(isLR);
       if (fridayLR.length > 0) {
-        expect(fridayLR.reduce((total, activity) => total + activity.questionCount, 0),
-          `earlier capacity ${earlierCapacity}`).toBe(10);
+        const questions = fridayLR.reduce((total, activity) => total + activity.questionCount, 0);
+        expect([10, 15], `earlier capacity ${earlierCapacity}`).toContain(questions);
+        if (questions === 15) {
+          expect(fridayLR[0].questionCount, `earlier capacity ${earlierCapacity}`).toBe(5);
+          expect(schedule.days.FRIDAY.capacityOverageMinutes, `earlier capacity ${earlierCapacity}`).toBe(15);
+        }
       }
     }
   });
@@ -61,26 +65,78 @@ describe("daily capacity filler", () => {
     expect(schedule.days.FRIDAY.capacityOverageMinutes).toBe(0);
   });
 
-  it("keeps a second-pass pair whole when one first-pass drill is left at the LR daily minimum", () => {
+  it("takes the last first-pass drill and a whole second-pass pair as the LR daily minimum", () => {
     const student = { ...mockStudent, preferredPracticeTestDay: "SUNDAY" as const,
       dailyCapacityMinutes: { ...everyDay(240), FRIDAY: 30, SATURDAY: 120 } };
     const schedule = generateWeek(student, mockAnalytics, mockRules, mockStudentName);
     expect(schedule.days.FRIDAY.activities.filter(isLR).map((activity) => [activity.type, activity.questionCount]))
-      .toEqual([["Sufficient assumption", 5], ["Necessary assumption", 5]]);
-    expect(schedule.days.FRIDAY.capacityOverageMinutes).toBe(0);
-    expect(schedule.days.SATURDAY.activities.filter(isLR)[0])
-      .toMatchObject({ type: "Main conclusion or main point", questionCount: 5 });
+      .toEqual([["Main conclusion or main point", 5], ["Sufficient assumption", 5], ["Necessary assumption", 5]]);
+    expect(schedule.days.FRIDAY.capacityOverageMinutes).toBe(15);
   });
 
-  it("keeps the LR daily minimum at 10 questions when one first-pass drill meets a 10-question drill", () => {
+  it("takes the last first-pass drill and a 10-question drill as the LR daily minimum", () => {
     const analytics = { ...mockAnalytics,
       lrAccuracyByType: { ...mockAnalytics.lrAccuracyByType, "Conditional reasoning": 0 } };
     const student = { ...mockStudent,
       dailyCapacityMinutes: { ...everyDay(160), TUESDAY: 405, FRIDAY: 30 } };
     const schedule = generateWeek(student, analytics, mockRules, mockStudentName);
     expect(schedule.days.FRIDAY.activities.filter(isLR).map((activity) => [activity.type, activity.questionCount]))
-      .toEqual([["Conditional reasoning", 10]]);
-    expect(schedule.days.FRIDAY.capacityOverageMinutes).toBe(0);
+      .toEqual([["Main conclusion or main point", 5], ["Conditional reasoning", 10]]);
+    expect(schedule.days.FRIDAY.capacityOverageMinutes).toBe(15);
+  });
+
+  it("finishes each LR first pass before the second pass and retains starred types without rotation", () => {
+    const starredOnly = { ...mockAnalytics,
+      lrAccuracyByType: Object.fromEntries(mockRules.lrStarredTypes.map((type) =>
+        [type, mockAnalytics.lrAccuracyByType[type] ?? 0.5])),
+      lrTopPriorityLogicTypes: [],
+    };
+    const regularTypes = [...mockRules.lrStemTypes, ...mockRules.lrLogicExceptions].filter((type) =>
+      mockAnalytics.lrAccuracyByType[type] !== undefined);
+    const allTypes = new Set([...mockRules.lrStarredTypes, ...mockAnalytics.lrTopPriorityLogicTypes, ...regularTypes]);
+    const cases = [
+      { analytics: mockAnalytics, expectedTypes: allTypes, highCapacities: [150, 210, 240, 335, 420],
+        lowCapacities: [15, 30, 45], scores: [mockStudent.currentScore] },
+      { analytics: starredOnly, expectedTypes: new Set(mockRules.lrStarredTypes),
+        highCapacities: [15, 45, 90, 150], lowCapacities: [15, 30, 45], scores: [140] },
+    ];
+    for (const { analytics, expectedTypes, highCapacities, lowCapacities, scores } of cases) {
+      for (const score of scores) for (const high of highCapacities) for (const low of lowCapacities) {
+        for (const reduction of [0, 0.1, 0.25]) for (const practiceTestDay of ["SATURDAY", "SUNDAY"] as const) {
+          const student = { ...mockStudent, currentScore: score, preferredPracticeTestDay: practiceTestDay,
+            dailyCapacityMinutes: { ...everyDay(high), THURSDAY: low, FRIDAY: low, SATURDAY: low } };
+          const schedule = generateWeek(student, analytics, mockRules, mockStudentName,
+            { skipReductionPercent: reduction });
+          const lr = DAY_ORDER.flatMap((day) => schedule.days[day].activities)
+            .filter(isLR).filter((activity) => !activity.isFullSection);
+          const context = `${score}/${high}/${low}/${reduction}/${practiceTestDay}/${analytics === starredOnly ? "starred" : "full"}`;
+          const seen = new Set<string>();
+          const firstSecondPass = lr.findIndex((activity) => {
+            if (activity.questionCount === 10 || seen.has(activity.type)) return true;
+            seen.add(activity.type);
+            return false;
+          });
+          const withoutRotation = analytics === starredOnly
+            ? lr.length >= mockRules.lrStarredTypes.length
+            : lr.some((activity) => !mockRules.lrStarredTypes.includes(activity.type));
+          if (firstSecondPass >= 0) {
+            expect(new Set(lr.slice(0, firstSecondPass).map((activity) => activity.type)), context)
+              .toEqual(withoutRotation ? expectedTypes : new Set(mockRules.lrStarredTypes));
+          }
+          if (withoutRotation) {
+            const present = new Set(lr.map((activity) => activity.type));
+            expect(mockRules.lrStarredTypes.filter((type) => !present.has(type)), context).toEqual([]);
+          }
+        }
+      }
+    }
+    const starredBoundary = generateWeek({ ...mockStudent, currentScore: 140,
+      preferredPracticeTestDay: "SUNDAY",
+      dailyCapacityMinutes: { ...everyDay(15), THURSDAY: 45, FRIDAY: 45 } },
+    starredOnly, mockRules, mockStudentName);
+    const starredBoundaryTypes = new Set(DAY_ORDER.flatMap((day) => starredBoundary.days[day].activities)
+      .filter(isLR).filter((activity) => !activity.isFullSection).map((activity) => activity.type));
+    expect(starredBoundaryTypes).toEqual(new Set(mockRules.lrStarredTypes));
   });
 
   it("matches the flat 45-minute case and covers all starred types", () => {
