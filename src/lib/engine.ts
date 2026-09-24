@@ -22,7 +22,27 @@ export const DAY_ORDER: DayOfWeek[] = [
   "SUNDAY",
 ];
 
-const DRILL_DAYS: DayOfWeek[] = ["MONDAY", "TUESDAY", "THURSDAY", "FRIDAY"];
+const SECOND_PRACTICE_TEST_DAY: Record<DayOfWeek, DayOfWeek> = {
+  MONDAY: "THURSDAY",
+  TUESDAY: "FRIDAY",
+  WEDNESDAY: "SATURDAY",
+  THURSDAY: "MONDAY",
+  FRIDAY: "TUESDAY",
+  SATURDAY: "WEDNESDAY",
+  SUNDAY: "THURSDAY",
+};
+
+function nearTestWeek(weekOf: string, goalTestDate: string): boolean {
+  const goal = new Date(`${goalTestDate}T00:00:00.000Z`);
+  const monthBefore = new Date(goal);
+  monthBefore.setUTCMonth(monthBefore.getUTCMonth() - 1);
+  return weekOf >= monthBefore.toISOString().slice(0, 10) && weekOf < goalTestDate;
+}
+
+export interface WeekShapeOptions {
+  createdOn?: DayOfWeek;
+  priorWeekPracticeTestReviewMinutes?: number;
+}
 
 // Generous — far more laps than any realistic week could consume. The list
 // only needs to be "long enough"; the day-by-day fill decides how much of
@@ -457,24 +477,60 @@ export function generateWeek(
   student: Student,
   analytics: AnalyticsSnapshot,
   rules: RulesConfig,
-  studentName: string
+  studentName: string,
+  options: WeekShapeOptions = {}
 ): WeeklySchedule {
   const reviewPct = reviewPercent(student.currentScore, rules);
   const timeMult = timeMultiplierFor(rules, student);
+  const isNearTestWeek = nearTestWeek(analytics.weekOf, student.goalTestDate);
   const lrGetsFullSection = weekPrefersLRFullSection(analytics.weekOf);
 
   const lrList = buildLRList(student.currentScore, analytics, rules, lrGetsFullSection);
   const rcList = buildRCList(rules, !lrGetsFullSection);
 
   const days = {} as Record<DayOfWeek, DayPlan>;
+  const preferredPracticeTestDay = student.preferredPracticeTestDay;
+  const createdIndex = DAY_ORDER.indexOf(options.createdOn ?? "MONDAY");
+  const priorWeekPracticeTestReviewMinutes = options.priorWeekPracticeTestReviewMinutes;
+  const hasPriorWeekPracticeTestReview = priorWeekPracticeTestReviewMinutes !== undefined;
+  // A prior-week Sunday practice test reserves Monday for its practice-test review day.
+  // Use Tuesday's shape when Monday is the preferred practice-test day.
+  const effectivePreferredPracticeTestDay = hasPriorWeekPracticeTestReview && preferredPracticeTestDay === "MONDAY"
+    ? "TUESDAY" : preferredPracticeTestDay;
+  const fullWeekPracticeTestDays = [effectivePreferredPracticeTestDay,
+    ...(isNearTestWeek ? [SECOND_PRACTICE_TEST_DAY[effectivePreferredPracticeTestDay]] : [])];
+  const plannedPracticeTestDays = hasPriorWeekPracticeTestReview
+    ? fullWeekPracticeTestDays.filter((day) => day !== "MONDAY")
+    : fullWeekPracticeTestDays;
+  const practiceTestReviewDayFor = (day: DayOfWeek) =>
+    (day === "SUNDAY" ? undefined : DAY_ORDER[DAY_ORDER.indexOf(day) + 1]);
+  // The rest day keeps the day the full weekly shape gives it, even when that day has passed.
+  const plannedPracticeTestReviewDays = plannedPracticeTestDays.flatMap((day) => practiceTestReviewDayFor(day) ?? []);
+  const computedRestDay = plannedPracticeTestDays.includes("WEDNESDAY") ? "TUESDAY"
+    : plannedPracticeTestReviewDays.includes("WEDNESDAY") ? "MONDAY"
+    : rules.restDay;
+  // Once the effective preferred practice-test day has passed, the week has no practice tests or review days.
+  const scheduledPracticeTestDays = createdIndex > DAY_ORDER.indexOf(effectivePreferredPracticeTestDay)
+    ? []
+    : plannedPracticeTestDays.filter((day) => DAY_ORDER.indexOf(day) >= createdIndex);
+  const scheduledPracticeTestReviewDays = scheduledPracticeTestDays.flatMap((day) => practiceTestReviewDayFor(day) ?? []);
+  const occupied = new Set<DayOfWeek>([
+    ...scheduledPracticeTestDays,
+    ...scheduledPracticeTestReviewDays,
+    ...(hasPriorWeekPracticeTestReview ? ["MONDAY" as const] : []),
+  ]);
+  // If the prior-week practice-test review displaces rest, use the first free day from creation onward.
+  const restDay = occupied.has(computedRestDay)
+    ? DAY_ORDER.slice(createdIndex).find((day) => !occupied.has(day)) ?? computedRestDay
+    : computedRestDay;
+  const drillingDays = DAY_ORDER.filter((day) => day !== restDay && !occupied.has(day));
 
   let lrIndex = 0;
   let rcIndex = 0;
   let lrQuestionsSoFar = 0;
   let rcPassagesSoFar = 0;
-  DRILL_DAYS.forEach((day, i) => {
-    // Alternates which block leads each day: Monday RC→LR, Tuesday LR→RC,
-    // and so on down DRILL_DAYS.
+  drillingDays.forEach((day, i) => {
+    // Alternate which block leads across the actual drilling days.
     const lrFirst = i % 2 === 1;
     const result = fillDrillDay(
       lrList,
@@ -501,30 +557,37 @@ export function generateWeek(
     rcPassagesSoFar = result.nextRcPassagesSoFar;
   });
 
-  days[rules.restDay] = {
-    day: rules.restDay,
+  days[restDay] = {
+    day: restDay,
     type: "rest",
     activities: [],
     totalMinutes: 0,
   };
 
   const ptMinutes = round1(rules.ptDurationMinutes * timeMult);
-  days.SATURDAY = {
-    day: "SATURDAY",
-    type: "practice_test",
-    activities: [
-      { kind: "PT", label: `Practice Test (from PT ${rules.ptSourceCutoff}+)`, minutes: ptMinutes },
-    ],
-    totalMinutes: ptMinutes,
-  };
+  for (const day of scheduledPracticeTestDays) {
+    days[day] = {
+      day, type: "practice_test",
+      activities: [{ kind: "PT", label: isNearTestWeek
+        ? "LawHub Practice Test"
+        : `Practice Test (from PT ${rules.ptSourceCutoff}+)`, minutes: ptMinutes }],
+      totalMinutes: ptMinutes,
+      capacityOverageMinutes: Math.max(0, ptMinutes - student.dailyCapacityMinutes[day]),
+    };
+  }
 
-  const reviewMinutes = student.dailyCapacityMinutes.SUNDAY;
-  days.SUNDAY = {
-    day: "SUNDAY",
-    type: "review",
-    activities: [{ kind: "REVIEW", label: "PT Review + Blind Review", minutes: reviewMinutes }],
-    totalMinutes: reviewMinutes,
-  };
+  function setPracticeTestReviewDay(day: DayOfWeek, minutes: number) {
+    days[day] = {
+      day, type: "review",
+      activities: [{ kind: "REVIEW", label: "PT Review + Blind Review", minutes }],
+      totalMinutes: minutes,
+      capacityOverageMinutes: Math.max(0, minutes - student.dailyCapacityMinutes[day]),
+    };
+  }
+  for (const day of scheduledPracticeTestReviewDays) setPracticeTestReviewDay(day, ptMinutes);
+  if (priorWeekPracticeTestReviewMinutes !== undefined) {
+    setPracticeTestReviewDay("MONDAY", priorWeekPracticeTestReviewMinutes);
+  }
 
   return { studentName, weekOf: analytics.weekOf, days };
 }

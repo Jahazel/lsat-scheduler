@@ -112,7 +112,9 @@ function remainingSchedule(schedule: WeeklySchedule, currentDay: DayOfWeek): Wee
   const currentIndex = DAY_ORDER.indexOf(currentDay);
   const days = { ...schedule.days };
   for (const day of DAY_ORDER.slice(0, currentIndex)) {
-    days[day] = { day, type: "rest", activities: [], totalMinutes: 0 };
+    if (days[day].type !== "rest") {
+      days[day] = { day, type: "unscheduled", activities: [], totalMinutes: 0 };
+    }
   }
   return { ...schedule, days };
 }
@@ -139,13 +141,8 @@ export function plannedActivityMinutes(activity: Activity) {
 
 async function priorWeekProgress(
   repositories: CurrentWeekRepositories,
-  studentId: string,
-  weekStartDate: string
+  priorSchedule: PersistedWeeklySchedule | null
 ) {
-  const priorSchedule = await repositories.weeklySchedules.findByStudentAndWeek(
-    studentId,
-    previousWeekStartDate(weekStartDate)
-  );
   if (!priorSchedule) {
     return {
       source: "unavailable" as const,
@@ -198,7 +195,7 @@ function reduceFlexibleWorkload(
   workloadReductionPercent: number
 ) {
   if (workloadReductionPercent === 0) return schedule;
-  const normalWorkloadMinutes = DAY_ORDER.filter((day) => day !== "SATURDAY").reduce(
+  const normalWorkloadMinutes = DAY_ORDER.filter((day) => schedule.days[day].type === "drill").reduce(
     (total, day) => total + schedule.days[day].totalMinutes,
     0
   );
@@ -241,18 +238,27 @@ export async function loadOrGenerateCurrentWeek(
   if (snapshots.length === 0) return { kind: "analytics_required" };
 
   const analytics = analyticsTrend(snapshots, weekStartDate);
-  const priorWeekProgressFacts = await priorWeekProgress(input, input.studentId, weekStartDate);
+  const priorSchedule = await input.weeklySchedules.findByStudentAndWeek(
+    input.studentId, previousWeekStartDate(weekStartDate)
+  );
+  const priorWeekProgressFacts = await priorWeekProgress(input, priorSchedule);
+  const priorSunday = priorSchedule?.schedule.days.SUNDAY;
+  const priorWeekPracticeTestReviewMinutes = priorSunday?.type === "practice_test"
+    ? priorSunday.activities.find((activity) => activity.kind === "PT")?.minutes
+    : undefined;
+  const currentDay = currentDayInTimezone(now, input.timezone);
   const schedule = reduceFlexibleWorkload(
     remainingSchedule(
-    generateWeek(input.student, analytics, input.rules, input.studentName),
-    currentDayInTimezone(now, input.timezone)
+      generateWeek(input.student, analytics, input.rules, input.studentName, {
+        createdOn: currentDay,
+        priorWeekPracticeTestReviewMinutes,
+      }),
+      currentDay
     ),
     input.rules,
     analytics,
     priorWeekProgressFacts.workloadReductionPercent
   );
-  const saturdayCapacity = input.student.dailyCapacityMinutes.SATURDAY;
-  schedule.saturdayOverageMinutes = Math.max(0, schedule.days.SATURDAY.totalMinutes - saturdayCapacity);
   const saved: PersistedWeeklySchedule = {
     id: `${input.studentId}:${weekStartDate}`,
     studentId: input.studentId,
@@ -263,9 +269,10 @@ export async function loadOrGenerateCurrentWeek(
     generationInputs: {
       student: input.student,
       timezone: input.timezone,
-      remainingDays: DAY_ORDER.slice(DAY_ORDER.indexOf(currentDayInTimezone(now, input.timezone))),
+      remainingDays: DAY_ORDER.slice(DAY_ORDER.indexOf(currentDay)),
       analytics,
       priorWeekProgress: priorWeekProgressFacts,
+      priorWeekPracticeTestReviewMinutes,
     },
     policyVersion: SCHEDULING_POLICY_VERSION,
   };

@@ -118,7 +118,7 @@ export default function ScheduleCheckInView({
                   {formatDuration(plannedMinutes)} planned of {formatDuration(student.dailyCapacityMinutes[day])}
                 </span>
               </div>
-              {plan.activities.length === 0 ? <p className={`${statusFirst ? "px-5 py-4" : "mt-2"} text-sm text-ink-500`}>{plan.type === "rest" ? "Rest day." : "Nothing scheduled."}</p> : (
+              {plan.activities.length === 0 ? <p className={`${statusFirst ? "px-5 py-4" : "mt-2"} text-sm text-ink-500`}>{plan.type === "rest" ? "Rest day." : plan.type === "unscheduled" ? "Not scheduled." : "Nothing scheduled."}</p> : (
                 <div className={statusFirst ? "" : "mt-3 flex flex-col gap-3"}>
                   {plan.activities.map((activity, index) => {
                     const activityId = scheduleActivityId(day, index);

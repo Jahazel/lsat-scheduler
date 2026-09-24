@@ -6,6 +6,7 @@ import {
   plannedActivityMinutes,
 } from "./currentWeeklySchedule";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "./mockData";
+import { generateWeek } from "./engine";
 import type { ApprovedAnalyticsSnapshot, PersistedWeeklySchedule } from "./types";
 
 const monday = new Date("2026-09-14T14:00:00.000Z");
@@ -203,7 +204,7 @@ describe("loadOrGenerateCurrentWeek", () => {
     })).resolves.toEqual({ kind: "analytics_required" });
   });
 
-  it("generates only remaining days and measures the Saturday capacity overage against Saturday's daily capacity", async () => {
+  it("marks past days unscheduled and records the test-day capacity overage", async () => {
     const repositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-19T13:00:00.000Z")]);
     const result = await loadOrGenerateCurrentWeek({
       studentId: "student-1",
@@ -217,8 +218,70 @@ describe("loadOrGenerateCurrentWeek", () => {
 
     if (result.kind !== "schedule") throw new Error("Expected a saved schedule");
     expect(result.schedule.schedule.days.FRIDAY.activities).toEqual([]);
+    expect(result.schedule.schedule.days.FRIDAY.type).toBe("unscheduled");
+    expect(result.schedule.schedule.days.WEDNESDAY.type).toBe("rest");
     expect(result.schedule.schedule.days.SATURDAY.totalMinutes).toBe(150);
-    expect(result.schedule.schedule.saturdayOverageMinutes).toBe(90);
+    expect(result.schedule.schedule.days.SATURDAY.capacityOverageMinutes).toBe(90);
+  });
+
+  it("keeps the prior week's Sunday practice-test review day despite a later preference change", async () => {
+    const repositories = inMemoryRepositories([
+      approvedSnapshot("first", "2026-09-14T13:00:00.000Z"),
+      approvedSnapshot("second", "2026-09-21T13:00:00.000Z"),
+    ]);
+    const prior = await loadOrGenerateCurrentWeek({
+      studentId: "student-1", student: { ...mockStudent, preferredPracticeTestDay: "SUNDAY", accommodationMultiplier: 1.5 },
+      studentName: mockStudentName, rules: mockRules, timezone: "America/Chicago", now: () => monday,
+      ...repositories,
+    });
+    if (prior.kind !== "schedule") throw new Error("Expected a saved schedule");
+    expect(prior.schedule.schedule.days.SUNDAY.type).toBe("practice_test");
+    expect(prior.schedule.schedule.days.MONDAY.type).toBe("drill");
+
+    const next = await loadOrGenerateCurrentWeek({
+      studentId: "student-1", student: { ...mockStudent, preferredPracticeTestDay: "SATURDAY" },
+      studentName: mockStudentName, rules: mockRules, timezone: "America/Chicago",
+      now: () => new Date("2026-09-21T14:00:00.000Z"), ...repositories,
+    });
+    if (next.kind !== "schedule") throw new Error("Expected a saved schedule");
+    expect(next.schedule.schedule.days.MONDAY.type).toBe("review");
+    expect(next.schedule.schedule.days.MONDAY.activities).toEqual([
+      { kind: "REVIEW", label: "PT Review + Blind Review", minutes: 187.5 },
+    ]);
+    expect(next.schedule.schedule.days.MONDAY.capacityOverageMinutes).toBe(97.5);
+    expect(next.schedule.schedule.days.SATURDAY.type).toBe("practice_test");
+    expect(next.schedule.generationInputs.priorWeekPracticeTestReviewMinutes).toBe(187.5);
+  });
+
+  it("does not infer a Monday practice-test review day from the current Sunday preference", async () => {
+    const repositories = inMemoryRepositories([approvedSnapshot("second", "2026-09-21T13:00:00.000Z")]);
+    const result = await loadOrGenerateCurrentWeek({
+      studentId: "student-1", student: { ...mockStudent, preferredPracticeTestDay: "SUNDAY" },
+      studentName: mockStudentName, rules: mockRules, timezone: "America/Chicago",
+      now: () => new Date("2026-09-21T14:00:00.000Z"), ...repositories,
+    });
+    if (result.kind !== "schedule") throw new Error("Expected a saved schedule");
+    expect(result.schedule.schedule.days.MONDAY.type).toBe("drill");
+  });
+
+  it("keeps a saved v1 schedule exactly as stored", async () => {
+    const repositories = inMemoryRepositories([]);
+    const saved: PersistedWeeklySchedule = {
+      id: "old", studentId: "student-1", weekStartDate: "2026-09-14", generatedAt: monday.toISOString(),
+      schedule: { ...generateWeek(mockStudent, { ...mockAnalytics, weekOf: "2026-09-14" }, mockRules, mockStudentName),
+        saturdayOverageMinutes: 60 },
+      sourceSnapshotIds: [], generationInputs: {
+        student: mockStudent, timezone: "America/Chicago", remainingDays: ["MONDAY"], analytics: mockAnalytics,
+        priorWeekProgress: { source: "unavailable", skippedPlannedMinutes: 0, totalPlannedMinutes: 0,
+          skipShare: 0, workloadReductionPercent: 0 },
+      }, policyVersion: "adaptive-weekly-schedule-v1",
+    };
+    repositories.schedules.push(saved);
+    const result = await loadOrGenerateCurrentWeek({
+      studentId: "student-1", student: mockStudent, studentName: mockStudentName, rules: mockRules,
+      timezone: "America/Chicago", now: () => monday, ...repositories,
+    });
+    expect(result).toEqual({ kind: "schedule", schedule: saved });
   });
 
   it("returns the winner when concurrent generation loses the unique-record race", async () => {

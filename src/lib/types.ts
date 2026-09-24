@@ -82,10 +82,8 @@ export interface Student {
   preferredPracticeTestDay: DayOfWeek;
   accommodationMultiplier: 1 | 1.5 | 2;
   // ISO date (YYYY-MM-DD, always the 1st of one of a fixed set of test
-  // months). Captured at intake; not currently a scheduling input — every
-  // plan is the same fixed 1 rest / 1 PT / 1 review / 4 drill shape
-  // regardless of proximity to test day. Surfaced today only as a "weeks
-  // until test" readout.
+  // months). Weeks starting within one calendar month before this date
+  // receive a second practice test.
   goalTestDate: string;
 }
 
@@ -220,15 +218,17 @@ export type Activity = LRActivity | RCActivity | PTActivity | ReviewActivity;
 
 export interface DayPlan {
   day: DayOfWeek;
-  type: "drill" | "practice_test" | "review" | "rest";
+  type: "drill" | "practice_test" | "review" | "rest" | "unscheduled";
   activities: Activity[];
   totalMinutes: number;
+  capacityOverageMinutes?: number;
 }
 
 export interface WeeklySchedule {
   studentName: string;
   weekOf: string;
   days: Record<DayOfWeek, DayPlan>;
+  // Retained for saved v1 schedules. New schedules record overage on each day.
   saturdayOverageMinutes?: number;
 }
 
@@ -268,6 +268,7 @@ export interface PersistedWeeklySchedule {
     remainingDays: DayOfWeek[];
     analytics: AnalyticsSnapshot;
     priorWeekProgress: PriorWeekProgressFacts;
+    priorWeekPracticeTestReviewMinutes?: number;
   };
   policyVersion: string;
 }
