@@ -272,6 +272,7 @@ export async function loadOrGenerateCurrentWeek(
       remainingDays: DAY_ORDER.slice(DAY_ORDER.indexOf(currentDay)),
       analytics,
       priorWeekProgress: priorWeekProgressFacts,
+      carryOverReviewMinutes,
     },
     policyVersion: SCHEDULING_POLICY_VERSION,
   };

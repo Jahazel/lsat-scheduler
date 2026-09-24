@@ -21,6 +21,7 @@ export interface WeeklyScheduleDocument {
     remainingDays: DayOfWeek[];
     analytics: AnalyticsSnapshot;
     priorWeekProgress: PriorWeekProgressFacts;
+    carryOverReviewMinutes?: number;
   };
   policyVersion: string;
 }

@@ -268,6 +268,7 @@ export interface PersistedWeeklySchedule {
     remainingDays: DayOfWeek[];
     analytics: AnalyticsSnapshot;
     priorWeekProgress: PriorWeekProgressFacts;
+    carryOverReviewMinutes?: number;
   };
   policyVersion: string;
 }

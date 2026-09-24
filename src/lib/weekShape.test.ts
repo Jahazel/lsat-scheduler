@@ -134,10 +134,10 @@ describe("weekly shape", () => {
     }
   });
 
-  it("keeps a near-test week's second test when only the first test day has passed", () => {
+  it("omits both tests and reviews when a near-test week is created after its preferred day", () => {
     const schedule = generateWeek({ ...mockStudent, preferredPracticeTestDay: "MONDAY", goalTestDate: "2026-10-01" },
       { ...mockAnalytics, weekOf: "2026-09-14" }, mockRules, mockStudentName, { createdOn: "TUESDAY" });
-    expect(types(schedule.days)).toBe("drill drill rest practice_test review drill drill");
+    expect(types(schedule.days)).toBe("drill drill rest drill drill drill drill");
   });
 
   it("drops the review day of a past test, even when that review day is today", () => {

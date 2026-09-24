@@ -250,6 +250,7 @@ describe("loadOrGenerateCurrentWeek", () => {
     ]);
     expect(next.schedule.schedule.days.MONDAY.capacityOverageMinutes).toBe(97.5);
     expect(next.schedule.schedule.days.SATURDAY.type).toBe("practice_test");
+    expect(next.schedule.generationInputs.carryOverReviewMinutes).toBe(187.5);
   });
 
   it("does not infer Monday review from the current Sunday preference", async () => {
