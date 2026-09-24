@@ -233,13 +233,15 @@ export interface ApprovedAnalyticsSnapshot extends AnalyticsSnapshot {
   approvedAt: string;
 }
 
-export interface PriorWeekProgressFacts {
+export type PriorWeekProgressFacts = {
   source: "unavailable" | "immediately_preceding_schedule";
   skippedPlannedMinutes: number;
   totalPlannedMinutes: number;
   skipShare: number;
-  workloadReductionPercent: number;
-}
+} & (
+  { skipReductionPercent: number; workloadReductionPercent?: never }
+  | { workloadReductionPercent: number; skipReductionPercent?: never }
+);
 
 export type ActivityCheckInStatus = "not_started" | "completed" | "skipped";
 
@@ -265,6 +267,7 @@ export interface PersistedWeeklySchedule {
     analytics: AnalyticsSnapshot;
     priorWeekProgress: PriorWeekProgressFacts;
     priorWeekPracticeTestReviewMinutes?: number;
+    priorScheduleIds?: string[];
   };
   policyVersion: string;
 }

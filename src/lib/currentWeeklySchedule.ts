@@ -150,7 +150,7 @@ async function priorWeekProgress(
       skippedPlannedMinutes: 0,
       totalPlannedMinutes: 0,
       skipShare: 0,
-      workloadReductionPercent: 0,
+      skipReductionPercent: 0,
     };
   }
 
@@ -175,7 +175,7 @@ async function priorWeekProgress(
     skippedPlannedMinutes,
     totalPlannedMinutes,
     skipShare,
-    workloadReductionPercent: Math.min(0.25, 0.25 * skipShare),
+    skipReductionPercent: Math.min(0.25, 0.25 * skipShare),
   };
 }
 
@@ -211,7 +211,7 @@ export async function loadOrGenerateCurrentWeek(
       createdOn: currentDay,
       priorWeekPracticeTestReviewMinutes,
       priorSchedules: history.map((record) => record.schedule),
-      workloadReductionPercent: priorWeekProgressFacts.workloadReductionPercent,
+      skipReductionPercent: priorWeekProgressFacts.skipReductionPercent,
     }),
     currentDay
   );
@@ -229,6 +229,7 @@ export async function loadOrGenerateCurrentWeek(
       analytics,
       priorWeekProgress: priorWeekProgressFacts,
       priorWeekPracticeTestReviewMinutes,
+      priorScheduleIds: history.map((record) => record.id),
     },
     policyVersion: SCHEDULING_POLICY_VERSION,
   };

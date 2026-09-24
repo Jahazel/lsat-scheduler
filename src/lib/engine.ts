@@ -23,7 +23,7 @@ export interface WeekShapeOptions {
   createdOn?: DayOfWeek;
   priorWeekPracticeTestReviewMinutes?: number;
   priorSchedules?: WeeklySchedule[];
-  workloadReductionPercent?: number;
+  skipReductionPercent?: number;
 }
 
 function round2(n: number): number { return Math.round(n * 100) / 100; }
@@ -133,9 +133,16 @@ function fillDrillDay(lrList: LRCandidate[], rcList: RCCandidate[], state: FillS
   };
   if (!fullSection) {
     if (state.lrQuestions <= state.rcPassages * 10) {
-      // The LR minimum is two distinct five-question drills.
-      takeLR();
-      takeLR();
+      const next = lrList[state.lrIndex];
+      if (next.questionCount === rules.lrUnitSizes.small && !next.pairStart) {
+        // The first pass uses two distinct five-question drills.
+        takeLR();
+        takeLR();
+      } else {
+        // A second-pass drill or pair is one complete 10-question unit.
+        takeLR();
+        if (next.pairStart) takeLR();
+      }
     } else takeRC();
   }
   while (state.lrIndex < lrList.length && state.rcIndex < rcList.length) {
@@ -235,7 +242,7 @@ export function generateWeek(
   const history = options.priorSchedules ?? [];
   const fullSubject = latestFullSection(history) === "LR" ? "RC" : "LR";
   const rcList = buildRCList(rules);
-  const reduction = Math.max(0, Math.min(0.25, options.workloadReductionPercent ?? 0));
+  const reduction = Math.max(0, Math.min(0.25, options.skipReductionPercent ?? 0));
   const fillWith = (rotate: boolean) => {
     const lrList = buildLRList(lrTypeOrder(analytics, rules, history, rotate), student.currentScore, rules);
     const state: FillState = { lrIndex: 0, rcIndex: 0, lrQuestions: 0, rcPassages: 0 };
