@@ -170,12 +170,7 @@ export interface RulesConfig {
   // each pair is [lower, higher] and both levels always exclude L1.
   rcTwoPassageDifficultyCombos: [number, number][];
   lrDifficultyCutoffScore: number;
-  reviewPercentByBand: { below160: number; mid: number; above170: number };
   restDay: DayOfWeek;
-  // A drilling day's total (drill + review) should land at or within this
-  // many minutes of the student's stated capacity for that day — on either
-  // side, not just under.
-  capacityToleranceMinutes: number;
 }
 
 export interface LRActivity {
@@ -184,7 +179,8 @@ export interface LRActivity {
   questionCount: number;
   difficultyRange: string;
   drillMinutes: number;
-  reviewMinutes: number;
+  // Saved v1 activities can still carry separate review minutes.
+  reviewMinutes?: number;
   // The week's one full section, when this is it — renders as its own
   // summary line rather than a numbered drill (a real section spans many
   // types, so type/questionCount here aren't meaningful for display).
@@ -197,7 +193,7 @@ export interface RCActivity {
   passageCount: number;
   difficultyLevel: number;
   drillMinutes: number;
-  reviewMinutes: number;
+  reviewMinutes?: number;
   // See LRActivity.isFullSection.
   isFullSection: boolean;
 }
@@ -237,13 +233,15 @@ export interface ApprovedAnalyticsSnapshot extends AnalyticsSnapshot {
   approvedAt: string;
 }
 
-export interface PriorWeekProgressFacts {
+export type PriorWeekProgressFacts = {
   source: "unavailable" | "immediately_preceding_schedule";
   skippedPlannedMinutes: number;
   totalPlannedMinutes: number;
   skipShare: number;
-  workloadReductionPercent: number;
-}
+} & (
+  { skipReductionPercent: number; workloadReductionPercent?: never }
+  | { workloadReductionPercent: number; skipReductionPercent?: never }
+);
 
 export type ActivityCheckInStatus = "not_started" | "completed" | "skipped";
 
@@ -269,6 +267,7 @@ export interface PersistedWeeklySchedule {
     analytics: AnalyticsSnapshot;
     priorWeekProgress: PriorWeekProgressFacts;
     priorWeekPracticeTestReviewMinutes?: number;
+    priorScheduleIds?: string[];
   };
   policyVersion: string;
 }

@@ -49,6 +49,11 @@ export const mongooseCurrentWeekRepositories: CurrentWeekRepositories = {
       const record = await WeeklyScheduleModel.findOne({ studentId, weekStartDate }).lean();
       return record ? persistedWeeklySchedule(record) : null;
     },
+    async listBeforeWeek(studentId, weekStartDate) {
+      const records = await WeeklyScheduleModel.find({ studentId, weekStartDate: { $lt: weekStartDate } })
+        .sort({ weekStartDate: -1 }).lean();
+      return records.map(persistedWeeklySchedule);
+    },
     async create(schedule) {
       const record = await WeeklyScheduleModel.create({
         studentId: schedule.studentId,

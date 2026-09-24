@@ -1,35 +1,15 @@
 import type {
-  Activity,
-  AnalyticsSnapshot,
-  DayOfWeek,
-  DayPlan,
-  LRActivity,
-  LRType,
-  RCActivity,
-  RCType,
-  RulesConfig,
-  Student,
-  WeeklySchedule,
+  Activity, AnalyticsSnapshot, DayOfWeek, DayPlan, LRActivity, LRType,
+  RCActivity, RCType, RulesConfig, Student, WeeklySchedule,
 } from "./types";
 
 export const DAY_ORDER: DayOfWeek[] = [
-  "MONDAY",
-  "TUESDAY",
-  "WEDNESDAY",
-  "THURSDAY",
-  "FRIDAY",
-  "SATURDAY",
-  "SUNDAY",
+  "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY",
 ];
 
 const SECOND_PRACTICE_TEST_DAY: Record<DayOfWeek, DayOfWeek> = {
-  MONDAY: "THURSDAY",
-  TUESDAY: "FRIDAY",
-  WEDNESDAY: "SATURDAY",
-  THURSDAY: "MONDAY",
-  FRIDAY: "TUESDAY",
-  SATURDAY: "WEDNESDAY",
-  SUNDAY: "THURSDAY",
+  MONDAY: "THURSDAY", TUESDAY: "FRIDAY", WEDNESDAY: "SATURDAY",
+  THURSDAY: "MONDAY", FRIDAY: "TUESDAY", SATURDAY: "WEDNESDAY", SUNDAY: "THURSDAY",
 };
 
 function nearTestWeek(weekOf: string, goalTestDate: string): boolean {
@@ -42,435 +22,167 @@ function nearTestWeek(weekOf: string, goalTestDate: string): boolean {
 export interface WeekShapeOptions {
   createdOn?: DayOfWeek;
   priorWeekPracticeTestReviewMinutes?: number;
+  priorSchedules?: WeeklySchedule[];
+  skipReductionPercent?: number;
 }
 
-// Generous — far more laps than any realistic week could consume. The list
-// only needs to be "long enough"; the day-by-day fill decides how much of
-// it actually gets used.
-const LAPS = 6;
-
-function round1(n: number): number {
-  return Math.round(n * 10) / 10;
-}
-
-function reviewPercent(score: number, rules: RulesConfig): number {
-  if (score < 160) return rules.reviewPercentByBand.below160;
-  if (score < 170) return rules.reviewPercentByBand.mid;
-  return rules.reviewPercentByBand.above170;
-}
-
-// Score boundary goes to the higher band — same convention as the 160/170
-// review-percent bands elsewhere in the rules.
-function isHigherLRBand(score: number, rules: RulesConfig): boolean {
-  return score >= rules.lrDifficultyCutoffScore;
-}
-
-interface LRCandidate {
-  type: LRType;
-  questionCount: number;
-  difficultyRange: string;
-  // A full-section drill runs the real section length (flat), not
-  // questionCount × the per-question drilling rate.
-  isFullSection: boolean;
-}
-
-interface RCCandidate {
-  type: RCType;
-  passageCount: number;
-  difficultyLevel: number;
-  // A full-section drill runs the real section length (flat), split evenly
-  // across its exploded single-passage candidates — not passageCount × the
-  // per-passage drilling rate.
-  isFullSection: boolean;
-}
-
-// A student's accommodation category (their actual extra-time %) is not the
-// multiplier applied to scheduled block lengths — see RulesConfig.
-function timeMultiplierFor(rules: RulesConfig, student: Student): number {
+function round2(n: number): number { return Math.round(n * 100) / 100; }
+function multiplier(rules: RulesConfig, student: Student): number {
   return rules.accommodationTimeMultiplier[student.accommodationMultiplier];
 }
 
-// Deterministic per-week coin flip — one full section total per week,
-// alternating which subject (LR or RC) gets it based on the week's own
-// date string, so it isn't the same subject every single week.
-function weekPrefersLRFullSection(weekOf: string): boolean {
-  let sum = 0;
-  for (let i = 0; i < weekOf.length; i++) sum += weekOf.charCodeAt(i);
-  return sum % 2 === 0;
+interface LRCandidate { type: LRType; questionCount: number; difficultyRange: string; pairStart?: boolean; }
+interface RCCandidate { type: RCType; passageCount: number; difficultyLevel: number; }
+
+function recentTypeWeek(type: LRType, history: WeeklySchedule[]): string {
+  return history.filter((schedule) => DAY_ORDER.some((day) => schedule.days[day].activities.some(
+    (activity) => activity.kind === "LR" && !activity.isFullSection && activity.type === type
+  ))).map((schedule) => schedule.weekOf).sort().at(-1) ?? "";
 }
 
-function buildLRList(
-  score: number,
-  analytics: AnalyticsSnapshot,
-  rules: RulesConfig,
-  allowFullSection: boolean
-): LRCandidate[] {
+function lrTypeOrder(analytics: AnalyticsSnapshot, rules: RulesConfig, history: WeeklySchedule[], rotate: boolean): LRType[] {
+  const listOrder = [...rules.lrStemTypes, ...rules.lrLogicTypes];
+  const weakness = (a: LRType, b: LRType) =>
+    (analytics.lrAccuracyByType[a] ?? 1) - (analytics.lrAccuracyByType[b] ?? 1)
+    || listOrder.indexOf(a) - listOrder.indexOf(b);
+  const starred = [...rules.lrStarredTypes].sort((a, b) =>
+    rotate ? recentTypeWeek(a, history).localeCompare(recentTypeWeek(b, history)) || weakness(a, b) : weakness(a, b));
+  if (rotate) return starred;
+  const regular = [...rules.lrStemTypes, ...rules.lrLogicExceptions]
+    .filter((type) => analytics.lrAccuracyByType[type] !== undefined && !starred.includes(type))
+    .sort(weakness);
+  return [...starred, ...analytics.lrTopPriorityLogicTypes.filter((type) => !starred.includes(type)), ...regular];
+}
+
+function buildLRList(order: LRType[], score: number, rules: RulesConfig): LRCandidate[] {
+  const seen = new Set<LRType>();
   const list: LRCandidate[] = [];
-  const higherBand = isHigherLRBand(score, rules);
-
-  // Per Patrick: above the cutoff, every appearance of a type is L3-5.
-  // Below the cutoff, a type's first appearance THAT WEEK is L2-4; every
-  // appearance after that (same type, same week) is L3-5. Tracked here by
-  // how many times each type has already been pushed onto the list, since
-  // list order is the order the week actually plays out in.
-  const occurrences = new Map<LRType, number>();
-  function nextDifficulty(type: LRType): string {
-    const seen = occurrences.get(type) ?? 0;
-    occurrences.set(type, seen + 1);
-    if (higherBand) return "L3-5";
-    return seen === 0 ? "L2-4" : "L3-5";
+  function add(type: LRType, questionCount: number) {
+    list.push({ type, questionCount, difficultyRange: score >= rules.lrDifficultyCutoffScore || seen.has(type) ? "L3-5" : "L2-4" });
+    seen.add(type);
   }
-
-  // Mandatory floor — every starred type, smallest unit, before anything else.
-  for (const type of rules.lrStarredTypes) {
-    list.push({
-      type,
-      questionCount: rules.lrUnitSizes.small,
-      difficultyRange: nextDifficulty(type),
-      isFullSection: false,
-    });
-  }
-
-  // Restricted Stimulus Logic types — only the ones flagged top-priority
-  // this week. One appearance each, smallest unit, never part of the
-  // repeating weakest-first cycle below.
-  for (const type of analytics.lrTopPriorityLogicTypes) {
-    list.push({
-      type,
-      questionCount: rules.lrUnitSizes.small,
-      difficultyRange: nextDifficulty(type),
-      isFullSection: false,
-    });
-  }
-
-  // A type's designated drill partner, if it has one — 10-question drills
-  // for paired types split 5+5 across both instead of running 10 of just
-  // the one type.
-  function pairPartner(type: LRType): LRType | undefined {
-    const pair = rules.lrPairedTypes.find(([a, b]) => a === type || b === type);
-    if (!pair) return undefined;
-    return pair[0] === type ? pair[1] : pair[0];
-  }
-
-  // Weakest-first, ranked once from this week's snapshot — the "regular
-  // pool" only: Question Stem types plus the 3 Stimulus Logic exceptions.
-  // The other Stimulus Logic types never enter this ranking at all; they're
-  // handled entirely by the top-priority block above. Walk the ranked list;
-  // on reaching the bottom, loop back to the top and escalate size.
-  const regularPool: LRType[] = [...rules.lrStemTypes, ...rules.lrLogicExceptions].filter(
-    (type) => analytics.lrAccuracyByType[type] !== undefined
-  );
-  const ranked = regularPool.sort(
-    (a, b) => (analytics.lrAccuracyByType[a] ?? 1) - (analytics.lrAccuracyByType[b] ?? 1)
-  );
-
-  // The week's one full section (LR or RC, decided one level up) goes right
-  // after the mandatory floor — on the single weakest type — rather than
-  // waiting for the escalating loop below to reach a "full section" tier
-  // that a normal week's capacity never actually gets deep enough to touch.
-  const weakestType = ranked[0];
-  if (allowFullSection && weakestType) {
-    list.push({
-      type: weakestType,
-      questionCount: rules.lrUnitSizes.fullSection,
-      difficultyRange: nextDifficulty(weakestType),
-      isFullSection: true,
-    });
-  }
-
-  for (let lap = 0; lap < LAPS; lap++) {
-    for (const type of ranked) {
-      const questionCount = lap === 0 ? rules.lrUnitSizes.small : rules.lrUnitSizes.medium;
-
-      // Every medium (10-question) tier splits 5+5 across a paired type's
-      // partner instead of running 10 of just the one type.
-      if (questionCount === rules.lrUnitSizes.medium) {
-        const partner = pairPartner(type);
-        if (partner) {
-          list.push({
-            type,
-            questionCount: rules.lrUnitSizes.small,
-            difficultyRange: nextDifficulty(type),
-            isFullSection: false,
-          });
-          list.push({
-            type: partner,
-            questionCount: rules.lrUnitSizes.small,
-            difficultyRange: nextDifficulty(partner),
-            isFullSection: false,
-          });
-          continue;
-        }
-      }
-
-      list.push({ type, questionCount, difficultyRange: nextDifficulty(type), isFullSection: false });
+  order.forEach((type) => add(type, rules.lrUnitSizes.small));
+  for (let lap = 0; lap < 8; lap++) {
+    for (const type of order) {
+      const pair = rules.lrPairedTypes.find(([a, b]) => a === type || b === type);
+      if (pair) {
+        add(type, rules.lrUnitSizes.small);
+        list[list.length - 1].pairStart = true;
+        add(pair[0] === type ? pair[1] : pair[0], rules.lrUnitSizes.small);
+      } else add(type, rules.lrUnitSizes.medium);
     }
   }
-
   return list;
 }
 
-function buildRCList(rules: RulesConfig, allowFullSection: boolean): RCCandidate[] {
+function buildRCList(rules: RulesConfig): RCCandidate[] {
   const list: RCCandidate[] = [];
-  const types = rules.rcTypes; // fixed order, length 5
-  const n = types.length;
-
-  // Advances once per single passage pushed, across the whole function
-  // (never reset per lap or per tier). Since it strictly increments by 1
-  // every time, two consecutive passages never land on the same type index
-  // — true within a multi-passage tier, and true across a tier or lap
-  // boundary too, which a per-position walk didn't guarantee. Doubles as
-  // the difficulty cycle for non-paired tiers (L2-L5, excluding L1).
   let cursor = 0;
-  // Advances once per 2-passage tier (not per passage) so the fixed combos
-  // cycle in order across the week instead of repeating the same one.
   let comboIndex = 0;
-
-  // The week's one full section (LR or RC, decided one level up) goes in as
-  // a single atomic candidate — one sitting, never split across days —
-  // right at the front, rather than waiting for the escalating loop below
-  // to reach a "full section" tier that a normal week's capacity never
-  // actually gets deep enough to touch. A real section spans every type, so
-  // the type/difficultyLevel here are placeholders never shown — it renders
-  // as its own "Full RC Section" summary line, not a per-type breakdown.
-  if (allowFullSection) {
-    list.push({
-      type: types[0],
-      passageCount: rules.rcUnitSizes.fullSection,
-      difficultyLevel: 2,
-      isFullSection: true,
-    });
-  }
-
-  for (let lap = 0; lap < LAPS; lap++) {
-    for (let i = 0; i < n; i++) {
-      // How many passages this tier's pick is worth — 1 on the first pass,
-      // 2 every pass after that.
-      const passageCount = lap === 0 ? rules.rcUnitSizes.small : rules.rcUnitSizes.medium;
-
-      // A 2-passage tier uses one of the fixed [lower, higher] combos
-      // instead of the general cycle, so both slots are filled up front.
-      const combo =
-        passageCount === rules.rcUnitSizes.medium
-          ? rules.rcTwoPassageDifficultyCombos[comboIndex++ % rules.rcTwoPassageDifficultyCombos.length]
-          : undefined;
-
-      // Every passage is its own candidate (passageCount always 1 on the
-      // way out) so a multi-passage tier never repeats the same type and
-      // difficulty back to back.
-      for (let j = 0; j < passageCount; j++) {
-        const typeIndex = cursor % n;
-        const difficultyLevel = combo ? combo[j] : (cursor % 4) + 2; // L2-L5, never L1
-        list.push({ type: types[typeIndex], passageCount: 1, difficultyLevel, isFullSection: false });
+  for (let lap = 0; lap < 8; lap++) {
+    for (let i = 0; i < rules.rcTypes.length; i++) {
+      const count = lap === 0 ? rules.rcUnitSizes.small : rules.rcUnitSizes.medium;
+      const combo = count === 2 ? rules.rcTwoPassageDifficultyCombos[comboIndex++ % rules.rcTwoPassageDifficultyCombos.length] : undefined;
+      for (let j = 0; j < count; j++) {
+        list.push({ type: rules.rcTypes[cursor % rules.rcTypes.length], passageCount: 1,
+          difficultyLevel: combo ? combo[j] : cursor % 4 + 2 });
         cursor++;
       }
     }
   }
-
   return list;
 }
 
-function lrDrillMinutes(c: LRCandidate, rules: RulesConfig, accommodation: number): number {
-  if (c.isFullSection) return rules.fullSectionMinutes * accommodation;
-  return (c.questionCount * rules.lrQuestionSeconds * accommodation) / 60;
+function lrMinutes(c: LRCandidate, rules: RulesConfig, timeMult: number): number {
+  return round2(c.questionCount * rules.lrQuestionSeconds * timeMult / 60);
+}
+function rcMinutes(c: RCCandidate, rules: RulesConfig, timeMult: number): number {
+  return round2(c.passageCount * rules.rcPassageSeconds * timeMult / 60);
+}
+function lrActivity(c: LRCandidate, minutes: number): LRActivity {
+  return { kind: "LR", type: c.type, questionCount: c.questionCount, difficultyRange: c.difficultyRange,
+    drillMinutes: round2(minutes), isFullSection: false };
+}
+function rcActivity(c: RCCandidate, minutes: number): RCActivity {
+  return { kind: "RC", type: c.type, passageCount: c.passageCount, difficultyLevel: c.difficultyLevel,
+    drillMinutes: round2(minutes), isFullSection: false };
 }
 
-function rcDrillMinutes(c: RCCandidate, rules: RulesConfig, accommodation: number): number {
-  // Per spec: regular RC passage drilling is NOT accommodation-scaled —
-  // only LR questions and full sections are. Asymmetric, but that's the
-  // stated rule.
-  if (c.isFullSection) return rules.fullSectionMinutes * accommodation;
-  return (c.passageCount * rules.rcPassageSeconds) / 60;
-}
-
-function lrToActivity(
-  c: LRCandidate,
-  rules: RulesConfig,
-  accommodation: number,
-  reviewPct: number
-): LRActivity {
-  const drillMinutes = lrDrillMinutes(c, rules, accommodation);
-  return {
-    kind: "LR",
-    type: c.type,
-    questionCount: c.questionCount,
-    difficultyRange: c.difficultyRange,
-    drillMinutes: round1(drillMinutes),
-    reviewMinutes: round1(drillMinutes * reviewPct),
-    isFullSection: c.isFullSection,
+interface FillState { lrIndex: number; rcIndex: number; lrQuestions: number; rcPassages: number; }
+function fillDrillDay(lrList: LRCandidate[], rcList: RCCandidate[], state: FillState,
+  limit: number, rules: RulesConfig, timeMult: number, lrFirst: boolean, fullSection?: Activity
+): { activities: Activity[]; totalMinutes: number; lrDrills: number } {
+  const lr: LRActivity[] = [];
+  const rc: RCActivity[] = [];
+  let used = fullSection?.kind === "LR" || fullSection?.kind === "RC" ? fullSection.drillMinutes : 0;
+  let lrDrills = 0;
+  const takeLR = () => {
+    const c = lrList[state.lrIndex++];
+    const minutes = lrMinutes(c, rules, timeMult);
+    lr.push(lrActivity(c, minutes));
+    used += minutes;
+    state.lrQuestions += c.questionCount;
+    lrDrills++;
   };
-}
-
-function rcToActivity(
-  c: RCCandidate,
-  rules: RulesConfig,
-  accommodation: number,
-  reviewPct: number
-): RCActivity {
-  const drillMinutes = rcDrillMinutes(c, rules, accommodation);
-  return {
-    kind: "RC",
-    type: c.type,
-    passageCount: c.passageCount,
-    difficultyLevel: c.difficultyLevel,
-    drillMinutes: round1(drillMinutes),
-    reviewMinutes: round1(drillMinutes * reviewPct),
-    isFullSection: c.isFullSection,
+  const takeLRUnit = () => {
+    const paired = lrList[state.lrIndex].pairStart;
+    takeLR();
+    if (paired) takeLR();
   };
-}
-
-interface FillResult {
-  activities: Activity[];
-  totalMinutes: number;
-  nextLrIndex: number;
-  nextRcIndex: number;
-  nextLrQuestionsSoFar: number;
-  nextRcPassagesSoFar: number;
-}
-
-// "For every 20 LR questions, 2 RC passages is a good rule of thumb" — RC
-// drilling should trail LR at 1/10th the pace, measured in questions vs.
-// passages (not raw drill time), and tracked cumulatively across the whole
-// week (not reset per day) so the week's overall total lands close to that
-// ratio rather than each day chasing it independently.
-const LR_QUESTIONS_PER_RC_PASSAGE = 10;
-
-interface SideFill<T> {
-  taken: T[];
-  used: number;
-  nextIndex: number;
-}
-
-// Greedily takes items in order while they fit under `target`. An
-// indivisible item that would exceed the remaining capacity is omitted.
-function fillSideToTarget<T>(
-  list: T[],
-  startIndex: number,
-  cost: (c: T) => number,
-  target: number
-): SideFill<T> {
-  const taken: T[] = [];
-  let idx = startIndex;
-  let used = 0;
-  while (idx < list.length && used + cost(list[idx]) <= target) {
-    taken.push(list[idx]);
-    used += cost(list[idx]);
-    idx++;
+  const takeRC = () => {
+    const c = rcList[state.rcIndex++];
+    const minutes = rcMinutes(c, rules, timeMult);
+    rc.push(rcActivity(c, minutes));
+    used += minutes;
+    state.rcPassages += c.passageCount;
+  };
+  if (!fullSection) {
+    if (state.lrQuestions <= state.rcPassages * 10) {
+      const next = lrList[state.lrIndex];
+      // A first-pass drill is followed by the next complete unit: another first-pass drill,
+      // or at the pass boundary a 10-question drill or whole 5+5 pair.
+      if (next.questionCount === rules.lrUnitSizes.small && !next.pairStart) takeLR();
+      takeLRUnit();
+    } else takeRC();
   }
-  return { taken, used, nextIndex: idx };
-}
-
-// Keeps LR and RC drilling at roughly a 20-questions-to-2-passages pace,
-// tracked across the whole week rather than reset per day: whichever side
-// is further behind that pace always gets the next turn (ties favor LR,
-// since LR is meant to generally lead), and the moment the favored side's
-// next candidate doesn't fit what's left of the day, the fill stops
-// outright — it does NOT let the other side take the turn instead. That
-// fallback is what used to let RC run away with a whole day whenever LR got
-// stuck behind a big pending item (e.g. the day right before the week's
-// full section, where LR's next item is the section itself and never fits
-// until it has the day to itself); stopping there keeps the pace intact, at
-// the cost of occasionally landing a day under capacity — the accepted
-// trade, since the pace ratio is what's being optimized for, not squeezing
-// out every last capacity minute.
-//
-// The week's one full section is the exception to pace-tracking: a real
-// section is a single sitting expected to dominate whichever day it lands
-// on, so it's taken first (unconditionally, capacity permitting) and the
-// OTHER side then just fills whatever room is left on its own, using the
-// day's normal capacity-tolerance closing step since there's no pace to
-// stay behind. That side's items still count toward its running pace
-// total for the rest of the week, though — it's still regular drilling.
-//
-// Output is grouped LR block then RC block (order set by lrFirst — see
-// generateWeek, which alternates it day to day), not interleaved.
-function fillDrillDay(
-  lrList: LRCandidate[],
-  lrIndex: number,
-  rcList: RCCandidate[],
-  rcIndex: number,
-  capacityMinutes: number,
-  rules: RulesConfig,
-  accommodation: number,
-  reviewPct: number,
-  lrFirst: boolean,
-  lrQuestionsSoFar: number,
-  rcPassagesSoFar: number
-): FillResult {
-  const lrCost = (c: LRCandidate) => lrDrillMinutes(c, rules, accommodation) * (1 + reviewPct);
-  const rcCost = (c: RCCandidate) => rcDrillMinutes(c, rules, accommodation) * (1 + reviewPct);
-
-  let lrTaken: LRCandidate[] = [];
-  let rcTaken: RCCandidate[] = [];
-  let li = lrIndex;
-  let ri = rcIndex;
-  let lrUsed = 0;
-  let rcUsed = 0;
-  let lrQuestions = lrQuestionsSoFar;
-  let rcPassages = rcPassagesSoFar;
-
-  const lrNextIsFullSection = li < lrList.length && lrList[li].isFullSection && lrCost(lrList[li]) <= capacityMinutes;
-  const rcNextIsFullSection = ri < rcList.length && rcList[ri].isFullSection && rcCost(rcList[ri]) <= capacityMinutes;
-
-  if (lrNextIsFullSection) {
-    lrTaken = [lrList[li]];
-    lrUsed = lrCost(lrList[li]);
-    li++;
-    const rcFill = fillSideToTarget(rcList, ri, rcCost, capacityMinutes - lrUsed);
-    rcTaken = rcFill.taken;
-    rcUsed = rcFill.used;
-    ri = rcFill.nextIndex;
-    rcPassages += rcTaken.reduce((sum, c) => sum + c.passageCount, 0);
-  } else if (rcNextIsFullSection) {
-    rcTaken = [rcList[ri]];
-    rcUsed = rcCost(rcList[ri]);
-    ri++;
-    const lrFill = fillSideToTarget(lrList, li, lrCost, capacityMinutes - rcUsed);
-    lrTaken = lrFill.taken;
-    lrUsed = lrFill.used;
-    li = lrFill.nextIndex;
-    lrQuestions += lrTaken.reduce((sum, c) => sum + c.questionCount, 0);
-  } else {
-    for (;;) {
-      const lrTurn = lrQuestions <= rcPassages * LR_QUESTIONS_PER_RC_PASSAGE;
-      if (lrTurn) {
-        if (li >= lrList.length) break;
-        const cost = lrCost(lrList[li]);
-        if (lrUsed + rcUsed + cost > capacityMinutes) break;
-        lrTaken.push(lrList[li]);
-        lrUsed += cost;
-        lrQuestions += lrList[li].questionCount;
-        li++;
-      } else {
-        if (ri >= rcList.length) break;
-        const cost = rcCost(rcList[ri]);
-        if (lrUsed + rcUsed + cost > capacityMinutes) break;
-        rcTaken.push(rcList[ri]);
-        rcUsed += cost;
-        rcPassages += rcList[ri].passageCount;
-        ri++;
-      }
+  while (state.lrIndex < lrList.length && state.rcIndex < rcList.length) {
+    const nextLR = lrList[state.lrIndex];
+    const lrUnitMinutes = lrMinutes(nextLR, rules, timeMult) +
+      (nextLR.pairStart ? lrMinutes(lrList[state.lrIndex + 1], rules, timeMult) : 0);
+    const lrFits = used + lrUnitMinutes <= limit + 1e-8;
+    const rcFits = used + rcMinutes(rcList[state.rcIndex], rules, timeMult) <= limit + 1e-8;
+    if (!lrFits && !rcFits) break;
+    const preferLR = state.lrQuestions <= state.rcPassages * 10;
+    if (preferLR ? lrFits : !rcFits) {
+      takeLRUnit();
     }
-
-    // Capacity is a hard cap for every drill. Indivisible work that does
-    // not fit is left for a later day instead of exceeding the student's
-    // stated daily capacity.
+    else takeRC();
   }
+  if (fullSection?.kind === "LR") lr.unshift(fullSection);
+  if (fullSection?.kind === "RC") rc.unshift(fullSection);
+  const activities = lrFirst ? [...lr, ...rc] : [...rc, ...lr];
+  return { activities, totalMinutes: round2(activities.reduce((total, activity) =>
+    total + activity.drillMinutes, 0)), lrDrills };
+}
 
-  const lrActivities = lrTaken.map((c) => lrToActivity(c, rules, accommodation, reviewPct));
-  const rcActivities = rcTaken.map((c) => rcToActivity(c, rules, accommodation, reviewPct));
-  const orderedActivities = lrFirst ? [...lrActivities, ...rcActivities] : [...rcActivities, ...lrActivities];
+function latestFullSection(history: WeeklySchedule[]): "LR" | "RC" | undefined {
+  for (const schedule of [...history].sort((a, b) => b.weekOf.localeCompare(a.weekOf))) {
+    for (const day of [...DAY_ORDER].reverse()) {
+      const activity = schedule.days[day].activities.find((item) =>
+        (item.kind === "LR" || item.kind === "RC") && item.isFullSection);
+      if (activity?.kind === "LR" || activity?.kind === "RC") return activity.kind;
+    }
+  }
+}
 
-  return {
-    activities: orderedActivities,
-    // Planned time includes both drilling and its assigned review, matching
-    // the capacity used when selecting each indivisible activity.
-    totalMinutes: round1(lrUsed + rcUsed),
-    nextLrIndex: li,
-    nextRcIndex: ri,
-    nextLrQuestionsSoFar: lrQuestions,
-    nextRcPassagesSoFar: rcPassages,
+function fullSectionActivity(subject: "LR" | "RC", rules: RulesConfig, timeMult: number): Activity {
+  const minutes = round2(rules.fullSectionMinutes * timeMult);
+  if (subject === "LR") return {
+    kind: "LR", type: rules.lrStarredTypes[0], questionCount: rules.lrUnitSizes.fullSection,
+    difficultyRange: "L3-5", drillMinutes: minutes, isFullSection: true,
   };
+  return { kind: "RC", type: rules.rcTypes[0], passageCount: rules.rcUnitSizes.fullSection,
+    difficultyLevel: 2, drillMinutes: minutes, isFullSection: true };
 }
 
 export function generateWeek(
@@ -480,13 +192,8 @@ export function generateWeek(
   studentName: string,
   options: WeekShapeOptions = {}
 ): WeeklySchedule {
-  const reviewPct = reviewPercent(student.currentScore, rules);
-  const timeMult = timeMultiplierFor(rules, student);
+  const timeMult = multiplier(rules, student);
   const isNearTestWeek = nearTestWeek(analytics.weekOf, student.goalTestDate);
-  const lrGetsFullSection = weekPrefersLRFullSection(analytics.weekOf);
-
-  const lrList = buildLRList(student.currentScore, analytics, rules, lrGetsFullSection);
-  const rcList = buildRCList(rules, !lrGetsFullSection);
 
   const days = {} as Record<DayOfWeek, DayPlan>;
   const preferredPracticeTestDay = student.preferredPracticeTestDay;
@@ -525,37 +232,37 @@ export function generateWeek(
     : computedRestDay;
   const drillingDays = DAY_ORDER.filter((day) => day !== restDay && !occupied.has(day));
 
-  let lrIndex = 0;
-  let rcIndex = 0;
-  let lrQuestionsSoFar = 0;
-  let rcPassagesSoFar = 0;
-  drillingDays.forEach((day, i) => {
-    // Alternate which block leads across the actual drilling days.
-    const lrFirst = i % 2 === 1;
-    const result = fillDrillDay(
-      lrList,
-      lrIndex,
-      rcList,
-      rcIndex,
-      student.dailyCapacityMinutes[day],
-      rules,
-      timeMult,
-      reviewPct,
-      lrFirst,
-      lrQuestionsSoFar,
-      rcPassagesSoFar
-    );
-    days[day] = {
-      day,
-      type: "drill",
-      activities: result.activities,
-      totalMinutes: result.totalMinutes,
-    };
-    lrIndex = result.nextLrIndex;
-    rcIndex = result.nextRcIndex;
-    lrQuestionsSoFar = result.nextLrQuestionsSoFar;
-    rcPassagesSoFar = result.nextRcPassagesSoFar;
-  });
+  const activeDrillingDays = drillingDays.filter((day) => DAY_ORDER.indexOf(day) >= createdIndex);
+  const fullSectionDay = student.currentScore < 150 ? undefined : activeDrillingDays
+    .filter((day) => student.dailyCapacityMinutes[day] >= 60)
+    .sort((a, b) => student.dailyCapacityMinutes[b] - student.dailyCapacityMinutes[a]
+      || DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))[0];
+  const history = options.priorSchedules ?? [];
+  const fullSubject = latestFullSection(history) === "LR" ? "RC" : "LR";
+  const rcList = buildRCList(rules);
+  const reduction = Math.max(0, Math.min(0.25, options.skipReductionPercent ?? 0));
+  const fillWith = (rotate: boolean) => {
+    const lrList = buildLRList(lrTypeOrder(analytics, rules, history, rotate), student.currentScore, rules);
+    const state: FillState = { lrIndex: 0, rcIndex: 0, lrQuestions: 0, rcPassages: 0 };
+    const plans = {} as Partial<Record<DayOfWeek, DayPlan>>;
+    let lrDrills = 0;
+    activeDrillingDays.forEach((day) => {
+      const full = day === fullSectionDay ? fullSectionActivity(fullSubject, rules, timeMult) : undefined;
+      const result = fillDrillDay(lrList, rcList, state, student.dailyCapacityMinutes[day] * (1 - reduction),
+        rules, timeMult, drillingDays.indexOf(day) % 2 === 1, full);
+      lrDrills += result.lrDrills;
+      plans[day] = { day, type: "drill", activities: result.activities,
+        totalMinutes: result.totalMinutes,
+        capacityOverageMinutes: Math.max(0, round2(result.totalMinutes - student.dailyCapacityMinutes[day])) };
+    });
+    return { plans, lrDrills };
+  };
+  const firstPass = fillWith(false);
+  const filled = firstPass.lrDrills < rules.lrStarredTypes.length ? fillWith(true) : firstPass;
+  Object.assign(days, filled.plans);
+  for (const day of drillingDays) {
+    if (!days[day]) days[day] = { day, type: "drill", activities: [], totalMinutes: 0 };
+  }
 
   days[restDay] = {
     day: restDay,
@@ -564,7 +271,7 @@ export function generateWeek(
     totalMinutes: 0,
   };
 
-  const ptMinutes = round1(rules.ptDurationMinutes * timeMult);
+  const ptMinutes = round2(rules.ptDurationMinutes * timeMult);
   for (const day of scheduledPracticeTestDays) {
     days[day] = {
       day, type: "practice_test",
