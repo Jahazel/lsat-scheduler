@@ -31,12 +31,15 @@ export type LoadOrGenerateCurrentWeekResult =
   | { kind: "analytics_required" }
   | { kind: "schedule"; schedule: PersistedWeeklySchedule };
 
+// The scheduling policy version recorded on every newly created weekly
+// schedule. Saved schedules keep the version they were created with.
+export const SCHEDULING_POLICY_VERSION = "adaptive-weekly-schedule-v2";
+
 interface LoadOrGenerateCurrentWeekInput extends CurrentWeekRepositories {
   studentId: string;
   student: Student;
   studentName: string;
   rules: RulesConfig;
-  policyVersion: string;
   timezone: string;
   now: () => Date;
 }
@@ -248,7 +251,7 @@ export async function loadOrGenerateCurrentWeek(
     analytics,
     priorWeekProgressFacts.workloadReductionPercent
   );
-  const saturdayCapacity = input.student.weekendHours * 60;
+  const saturdayCapacity = input.student.dailyCapacityMinutes.SATURDAY;
   schedule.saturdayOverageMinutes = Math.max(0, schedule.days.SATURDAY.totalMinutes - saturdayCapacity);
   const saved: PersistedWeeklySchedule = {
     id: `${input.studentId}:${weekStartDate}`,
@@ -264,7 +267,7 @@ export async function loadOrGenerateCurrentWeek(
       analytics,
       priorWeekProgress: priorWeekProgressFacts,
     },
-    policyVersion: input.policyVersion,
+    policyVersion: SCHEDULING_POLICY_VERSION,
   };
   try {
     const created = await input.weeklySchedules.create(saved);

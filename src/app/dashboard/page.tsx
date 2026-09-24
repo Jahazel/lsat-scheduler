@@ -40,8 +40,8 @@ export default async function DashboardPage({
     platform: doc.platform,
     currentScore: doc.currentScore,
     goalScore: doc.goalScore,
-    weekdayHours: doc.weekdayHours,
-    weekendHours: doc.weekendHours,
+    dailyCapacityMinutes: doc.dailyCapacityMinutes,
+    preferredPracticeTestDay: doc.preferredPracticeTestDay,
     accommodationMultiplier: doc.accommodationMultiplier,
     goalTestDate: doc.goalTestDate,
   };
@@ -52,7 +52,6 @@ export default async function DashboardPage({
     student,
     studentName: session.user.name ?? "Your",
     rules: mockRules,
-    policyVersion: "adaptive-weekly-schedule-v1",
     timezone: "America/Chicago",
     now: () => new Date(),
   });

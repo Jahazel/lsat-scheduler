@@ -8,6 +8,7 @@ import { AnalyticsSnapshotModel } from "@/models/AnalyticsSnapshot";
 import { summarizeAnalyticsRows } from "@/lib/analytics";
 import { prepareApprovedSnapshot, type SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
 import { ADMIN_READ_ONLY_MESSAGE, isAdminUser } from "@/lib/accessControl";
+import { studentProfileSchema } from "@/lib/studentProfile";
 import type { AnalyticsExtractedRow, Student } from "@/lib/types";
 
 export async function createStudentProfile(
@@ -21,6 +22,9 @@ export async function createStudentProfile(
     throw new Error(ADMIN_READ_ONLY_MESSAGE);
   }
 
+  const { analyticsRows, analyticsApproval, ...profile } = input;
+  const studentFields = studentProfileSchema.parse(profile);
+
   await connectDB();
 
   const existing = await StudentModel.findOne({ userId: session.user.id });
@@ -28,7 +32,6 @@ export async function createStudentProfile(
     redirect("/dashboard");
   }
 
-  const { analyticsRows, analyticsApproval, ...studentFields } = input;
   const approvedSnapshot =
     analyticsRows.length > 0 && analyticsApproval
       ? prepareApprovedSnapshot({ ...summarizeAnalyticsRows(analyticsRows), ...analyticsApproval })

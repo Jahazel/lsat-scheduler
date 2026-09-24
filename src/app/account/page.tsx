@@ -25,8 +25,8 @@ export default async function AccountPage() {
     platform: doc.platform,
     currentScore: doc.currentScore,
     goalScore: doc.goalScore,
-    weekdayHours: doc.weekdayHours,
-    weekendHours: doc.weekendHours,
+    dailyCapacityMinutes: doc.dailyCapacityMinutes,
+    preferredPracticeTestDay: doc.preferredPracticeTestDay,
     accommodationMultiplier: doc.accommodationMultiplier,
     goalTestDate: doc.goalTestDate,
   };

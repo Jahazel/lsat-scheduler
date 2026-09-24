@@ -101,8 +101,16 @@ export const mockStudent: Student = {
   platform: "7Sage",
   currentScore: 160,
   goalScore: 170,
-  weekdayHours: 1.5,
-  weekendHours: 1.5,
+  dailyCapacityMinutes: {
+    MONDAY: 90,
+    TUESDAY: 90,
+    WEDNESDAY: 90,
+    THURSDAY: 90,
+    FRIDAY: 90,
+    SATURDAY: 90,
+    SUNDAY: 90,
+  },
+  preferredPracticeTestDay: "SATURDAY",
   accommodationMultiplier: 1,
   goalTestDate: "2027-01-01", // January 2027
 };

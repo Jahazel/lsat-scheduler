@@ -3,8 +3,11 @@
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import AnalyticsReview from "@/components/AnalyticsReview";
+import DailyCapacityFieldset, { DAY_LABEL, everyDay } from "@/components/DailyCapacityFieldset";
 import type { SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
-import type { AnalyticsExtractedRow, Student } from "@/lib/types";
+import { DAY_ORDER } from "@/lib/engine";
+import { dailyCapacityError } from "@/lib/studentProfile";
+import type { AnalyticsExtractedRow, DayOfWeek, Student } from "@/lib/types";
 
 // Actual administered LSAT test months — stored as the 1st of that month so
 // the "weeks until test" countdown elsewhere has a real date to work with.
@@ -17,12 +20,17 @@ const GOAL_TEST_DATE_OPTIONS = [
   { label: "June 2027", value: "2027-06-01" },
 ];
 
-const DEFAULT_VALUES: Student = {
+// A new student has no preferred practice-test day until they choose one.
+type StudentFormValues = Omit<Student, "preferredPracticeTestDay"> & {
+  preferredPracticeTestDay: DayOfWeek | "";
+};
+
+const DEFAULT_VALUES: StudentFormValues = {
   platform: "7Sage",
   currentScore: 150,
   goalScore: 165,
-  weekdayHours: 1.5,
-  weekendHours: 1.5,
+  dailyCapacityMinutes: everyDay(90),
+  preferredPracticeTestDay: "",
   accommodationMultiplier: 1,
   goalTestDate: "",
 };
@@ -52,15 +60,29 @@ export default function StudentIntakeForm({
   const [analyticsRows, setAnalyticsRows] = useState<AnalyticsExtractedRow[]>([]);
   const [analyticsApproval, setAnalyticsApproval] = useState<SnapshotApprovalMetadata | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [practiceTestDayError, setPracticeTestDayError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const form = useForm({
-    defaultValues: initialValues ?? DEFAULT_VALUES,
+    defaultValues: (initialValues ?? DEFAULT_VALUES) as StudentFormValues,
     onSubmit: async ({ value }) => {
       setSubmitError(null);
+      if (DAY_ORDER.some((day) => dailyCapacityError(value.dailyCapacityMinutes[day]))) {
+        setSubmitError("Fix the daily capacity above.");
+        return;
+      }
+      if (value.preferredPracticeTestDay === "") {
+        setPracticeTestDayError("Select a preferred practice-test day.");
+        return;
+      }
       setSubmitting(true);
       try {
-        await onSubmit({ ...value, analyticsRows, analyticsApproval });
+        await onSubmit({
+          ...value,
+          preferredPracticeTestDay: value.preferredPracticeTestDay,
+          analyticsRows,
+          analyticsApproval,
+        });
       } catch {
         setSubmitError("Couldn't save. Try again.");
         setSubmitting(false);
@@ -127,36 +149,55 @@ export default function StudentIntakeForm({
         )}
       </form.Field>
 
-      <form.Field name="weekdayHours">
-        {(field) => (
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink-700">Weekday hours/day</span>
-            <input
-              type="number"
-              step={0.5}
-              min={0}
-              required
-              value={field.state.value}
-              onChange={(e) => field.handleChange(Number(e.target.value))}
-              className="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900"
-            />
-          </label>
-        )}
+      {mode === "edit" && (
+        <p className="-mb-1 text-sm text-ink-500">
+          Changes to daily capacity and your preferred practice-test day apply to the next weekly schedule created.
+        </p>
+      )}
+
+      <form.Field name="dailyCapacityMinutes">
+        {(field) => <DailyCapacityFieldset value={field.state.value} onChange={field.handleChange} />}
       </form.Field>
 
-      <form.Field name="weekendHours">
+      <form.Field name="preferredPracticeTestDay">
         {(field) => (
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink-700">Weekend hours/day</span>
-            <input
-              type="number"
-              step={0.5}
-              min={0}
+            <span className="text-sm font-medium text-ink-700">Preferred practice-test day</span>
+            <select
               required
+              aria-invalid={practiceTestDayError ? true : undefined}
+              aria-describedby={
+                practiceTestDayError
+                  ? "preferred-practice-test-day-error preferred-practice-test-day-hint"
+                  : "preferred-practice-test-day-hint"
+              }
               value={field.state.value}
-              onChange={(e) => field.handleChange(Number(e.target.value))}
-              className="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900"
-            />
+              onChange={(e) => {
+                setPracticeTestDayError(null);
+                field.handleChange(e.target.value as DayOfWeek);
+              }}
+              className={`rounded-md border bg-white px-3 py-2 text-sm text-ink-900 ${
+                practiceTestDayError ? "border-red-500" : "border-ink-200"
+              }`}
+            >
+              <option value="" disabled>
+                Select a day
+              </option>
+              {DAY_ORDER.map((day) => (
+                <option key={day} value={day}>
+                  {DAY_LABEL[day]}
+                </option>
+              ))}
+            </select>
+            {practiceTestDayError && (
+              <span id="preferred-practice-test-day-error" className="text-sm text-red-600">
+                {practiceTestDayError}
+              </span>
+            )}
+            <span id="preferred-practice-test-day-hint" className="text-sm text-ink-500">
+              We schedule your full practice test on this day. Pick a day you can give about 3 hours,
+              longer with extra time.
+            </span>
           </label>
         )}
       </form.Field>

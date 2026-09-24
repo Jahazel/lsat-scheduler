@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mockStudent } from "@/lib/mockData";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
@@ -36,7 +37,7 @@ vi.mock("@/models/ActivityCheckIn", () => ({
 vi.mock("@/models/User", () => ({ UserModel: { deleteOne: mocks.deleteUser } }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 
-import { deleteAccount } from "./actions";
+import { deleteAccount, updateStudentProfile } from "./actions";
 
 describe("deleteAccount", () => {
   beforeEach(() => {
@@ -77,5 +78,56 @@ describe("deleteAccount", () => {
     expect(mocks.deleteSnapshots).not.toHaveBeenCalled();
     expect(mocks.deleteCheckIns).not.toHaveBeenCalled();
     expect(mocks.deleteSchedules).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateStudentProfile", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.auth.mockResolvedValue({ user: { id: "user-1" } });
+    mocks.updateStudent.mockResolvedValue({ _id: "student-1" });
+  });
+
+  it("rejects a daily capacity off the 15-minute step without changing the student", async () => {
+    await expect(
+      updateStudentProfile({
+        ...mockStudent,
+        dailyCapacityMinutes: { ...mockStudent.dailyCapacityMinutes, FRIDAY: 100 },
+        analyticsRows: [],
+        analyticsApproval: null,
+      })
+    ).rejects.toThrow();
+
+    expect(mocks.updateStudent).not.toHaveBeenCalled();
+  });
+
+  it("rejects a daily capacity over 8 hours without changing the student", async () => {
+    await expect(
+      updateStudentProfile({
+        ...mockStudent,
+        dailyCapacityMinutes: { ...mockStudent.dailyCapacityMinutes, SUNDAY: 495 },
+        analyticsRows: [],
+        analyticsApproval: null,
+      })
+    ).rejects.toThrow();
+
+    expect(mocks.updateStudent).not.toHaveBeenCalled();
+  });
+
+  it("saves a changed daily capacity and preferred practice-test day", async () => {
+    const dailyCapacityMinutes = { ...mockStudent.dailyCapacityMinutes, WEDNESDAY: 480 };
+
+    await updateStudentProfile({
+      ...mockStudent,
+      dailyCapacityMinutes,
+      preferredPracticeTestDay: "WEDNESDAY",
+      analyticsRows: [],
+      analyticsApproval: null,
+    });
+
+    expect(mocks.updateStudent).toHaveBeenCalledWith(
+      { userId: "user-1" },
+      expect.objectContaining({ dailyCapacityMinutes, preferredPracticeTestDay: "WEDNESDAY" })
+    );
   });
 });

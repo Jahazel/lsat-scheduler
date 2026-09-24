@@ -62,7 +62,6 @@ describe("loadOrGenerateCurrentWeek", () => {
       student: mockStudent,
       studentName: mockStudentName,
       rules: mockRules,
-      policyVersion: "adaptive-weekly-schedule-v1",
       timezone: "America/Chicago",
       now: () => monday,
       ...repositories,
@@ -71,7 +70,7 @@ describe("loadOrGenerateCurrentWeek", () => {
     const first = await loadOrGenerateCurrentWeek(input);
     const second = await loadOrGenerateCurrentWeek({
       ...input,
-      student: { ...mockStudent, weekdayHours: 8 },
+      student: { ...mockStudent, dailyCapacityMinutes: { ...mockStudent.dailyCapacityMinutes, MONDAY: 480 } },
     });
 
     expect(first.kind).toBe("schedule");
@@ -80,7 +79,8 @@ describe("loadOrGenerateCurrentWeek", () => {
     if (first.kind !== "schedule") throw new Error("Expected a saved schedule");
     expect(first.schedule.weekStartDate).toBe("2026-09-14");
     expect(first.schedule.sourceSnapshotIds).toEqual(["snapshot-1"]);
-    expect(first.schedule.generationInputs.student.weekdayHours).toBe(mockStudent.weekdayHours);
+    expect(first.schedule.generationInputs.student.dailyCapacityMinutes.MONDAY).toBe(90);
+    expect(first.schedule.generationInputs.student.preferredPracticeTestDay).toBe("SATURDAY");
     expect(first.schedule.generationInputs.analytics.weekOf).toBe("2026-09-14");
     expect(first.schedule.generationInputs.priorWeekProgress).toEqual({
       source: "unavailable",
@@ -89,7 +89,7 @@ describe("loadOrGenerateCurrentWeek", () => {
       skipShare: 0,
       workloadReductionPercent: 0,
     });
-    expect(first.schedule.policyVersion).toBe("adaptive-weekly-schedule-v1");
+    expect(first.schedule.policyVersion).toBe("adaptive-weekly-schedule-v2");
     expect(repositories.checkIns()).toHaveLength(
       Object.values(first.schedule.schedule.days).flatMap((day) => day.activities).length
     );
@@ -103,7 +103,6 @@ describe("loadOrGenerateCurrentWeek", () => {
       student: mockStudent,
       studentName: mockStudentName,
       rules: mockRules,
-      policyVersion: "adaptive-weekly-schedule-v1",
       timezone: "America/Chicago",
       now: () => monday,
       ...repositories,
@@ -136,7 +135,6 @@ describe("loadOrGenerateCurrentWeek", () => {
         student: mockStudent,
         studentName: mockStudentName,
         rules: mockRules,
-        policyVersion: "adaptive-weekly-schedule-v1",
         timezone: "America/Chicago",
         now: () => monday,
         ...repositories,
@@ -181,7 +179,6 @@ describe("loadOrGenerateCurrentWeek", () => {
       student: mockStudent,
       studentName: mockStudentName,
       rules: mockRules,
-      policyVersion: "adaptive-weekly-schedule-v1",
       timezone: "America/Chicago",
       now: () => monday,
       ...repositories,
@@ -200,21 +197,19 @@ describe("loadOrGenerateCurrentWeek", () => {
       student: mockStudent,
       studentName: mockStudentName,
       rules: mockRules,
-      policyVersion: "adaptive-weekly-schedule-v1",
       timezone: "America/Chicago",
       now: () => new Date("2026-09-21T14:00:00.000Z"),
       ...repositories,
     })).resolves.toEqual({ kind: "analytics_required" });
   });
 
-  it("generates only remaining days and preserves the Saturday test overage", async () => {
+  it("generates only remaining days and measures the Saturday capacity overage against Saturday's daily capacity", async () => {
     const repositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-19T13:00:00.000Z")]);
     const result = await loadOrGenerateCurrentWeek({
       studentId: "student-1",
-      student: { ...mockStudent, weekendHours: 1 },
+      student: { ...mockStudent, dailyCapacityMinutes: { ...mockStudent.dailyCapacityMinutes, SATURDAY: 60 } },
       studentName: mockStudentName,
       rules: mockRules,
-      policyVersion: "adaptive-weekly-schedule-v1",
       timezone: "America/Chicago",
       now: () => new Date("2026-09-19T17:00:00.000Z"),
       ...repositories,
@@ -261,7 +256,6 @@ describe("loadOrGenerateCurrentWeek", () => {
         student: mockStudent,
         studentName: mockStudentName,
         rules: mockRules,
-        policyVersion: "adaptive-weekly-schedule-v1",
         timezone: "America/Chicago",
         now: () => monday,
         ...repositories,
@@ -282,7 +276,6 @@ describe("loadOrGenerateCurrentWeek", () => {
         student: mockStudent,
         studentName: mockStudentName,
         rules: mockRules,
-        policyVersion: "adaptive-weekly-schedule-v1",
         timezone: "America/Chicago",
         now: () => monday,
         ...repositories,
@@ -304,7 +297,6 @@ describe("loadOrGenerateCurrentWeek", () => {
       student: mockStudent,
       studentName: mockStudentName,
       rules: mockRules,
-      policyVersion: "adaptive-weekly-schedule-v1",
       timezone: "America/Chicago",
     };
 
@@ -362,7 +354,6 @@ describe("loadOrGenerateCurrentWeek", () => {
       student: mockStudent,
       studentName: mockStudentName,
       rules: mockRules,
-      policyVersion: "adaptive-weekly-schedule-v1",
       timezone: "America/Chicago",
       ...repositories,
     };
@@ -399,7 +390,6 @@ describe("loadOrGenerateCurrentWeek", () => {
       student: mockStudent,
       studentName: mockStudentName,
       rules: mockRules,
-      policyVersion: "adaptive-weekly-schedule-v1",
       timezone: "America/Chicago",
       ...repositories,
     };
