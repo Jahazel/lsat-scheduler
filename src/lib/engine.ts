@@ -139,22 +139,10 @@ function fillDrillDay(lrList: LRCandidate[], rcList: RCCandidate[], state: FillS
   if (!fullSection) {
     if (state.lrQuestions <= state.rcPassages * 10) {
       const next = lrList[state.lrIndex];
-      const after = lrList[state.lrIndex + 1];
-      const isFirstPassDrill = next.questionCount === rules.lrUnitSizes.small && !next.pairStart;
-      const atPassBoundary = isFirstPassDrill && after
-        && (after.pairStart || after.questionCount === rules.lrUnitSizes.medium);
-      if (atPassBoundary) {
-        // Finish the first pass, then take the next complete second-pass unit as the daily minimum.
-        takeLR();
-        takeLRUnit();
-      } else if (isFirstPassDrill) {
-        // The first pass uses two distinct five-question drills.
-        takeLR();
-        takeLR();
-      } else {
-        // A second-pass drill or pair is one complete 10-question unit.
-        takeLRUnit();
-      }
+      // A first-pass drill is followed by the next complete unit: another first-pass drill,
+      // or at the pass boundary a 10-question drill or whole 5+5 pair.
+      if (next.questionCount === rules.lrUnitSizes.small && !next.pairStart) takeLR();
+      takeLRUnit();
     } else takeRC();
   }
   while (state.lrIndex < lrList.length && state.rcIndex < rcList.length) {
