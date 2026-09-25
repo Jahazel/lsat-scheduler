@@ -1,18 +1,22 @@
 import mongoose from "mongoose";
 
 export function getMongoHost(uri) {
+  if (!uri) throw new Error("MONGODB_URI is not set. Set it to the target database.");
   const authority = uri.match(/^mongodb(?:\+srv)?:\/\/([^/?#]+)/)?.[1];
   if (!authority) throw new Error("Invalid MONGODB_URI");
   return authority.slice(authority.lastIndexOf("@") + 1);
 }
 
-export async function makeAdmin(collection, email, host) {
+export async function makeAdmin(collection, email) {
   const normalizedEmail = email.trim().toLowerCase();
   const user = await collection.findOne({ email: normalizedEmail });
-  if (!user) throw new Error(`No account found for ${normalizedEmail} on ${host}`);
+  if (!user) throw new Error(`No account found for ${normalizedEmail}`);
   if (user.role === "admin") return { status: "already-admin", normalizedEmail };
 
-  await collection.updateOne({ _id: user._id }, { $set: { role: "admin" } });
+  const result = await collection.updateOne({ _id: user._id }, { $set: { role: "admin" } });
+  if (result.matchedCount === 0) {
+    throw new Error(`No account updated for ${normalizedEmail}`);
+  }
   return { status: "promoted", normalizedEmail };
 }
 
@@ -23,12 +27,16 @@ async function main() {
   }
 
   const uri = process.env.MONGODB_URI;
-  if (!uri) throw new Error("MONGODB_URI is not set");
   const host = getMongoHost(uri);
 
   await mongoose.connect(uri, { dbName: "lsat-scheduler" });
   try {
-    const result = await makeAdmin(mongoose.connection.collection("users"), email, host);
+    let result;
+    try {
+      result = await makeAdmin(mongoose.connection.collection("users"), email);
+    } catch (error) {
+      throw new Error(`${error.message} on ${host}`, { cause: error });
+    }
     if (result.status === "already-admin") {
       console.log(`${result.normalizedEmail} is already an admin on ${host}.`);
     } else {
