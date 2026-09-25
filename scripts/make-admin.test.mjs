@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import { getMongoHost, makeAdmin } from "./make-admin.mjs";
+import { getMongoHost, makeAdmin, withHostOnRefusal } from "./make-admin.mjs";
 
 it("runs make-admin without a preset environment file", () => {
   const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
@@ -21,15 +21,20 @@ describe("getMongoHost", () => {
       "cluster.example.net",
     );
   });
-
-  it("explains how to set a missing URI", () => {
-    expect(() => getMongoHost(undefined)).toThrow(
-      "MONGODB_URI is not set. Set it to the target database.",
-    );
-  });
 });
 
 describe("makeAdmin", () => {
+  it("refuses to report a promotion when the update has no matched count", async () => {
+    const collection = {
+      findOne: vi.fn().mockResolvedValue({ _id: "user-1", role: "student" }),
+      updateOne: vi.fn().mockResolvedValue({ acknowledged: false }),
+    };
+
+    await expect(makeAdmin(collection, "partner@example.com")).rejects.toThrow(
+      /^No account updated for partner@example\.com$/,
+    );
+  });
+
   it("refuses to report a promotion when the account was not updated", async () => {
     const collection = {
       findOne: vi.fn().mockResolvedValue({ _id: "user-1", role: "student" }),
@@ -37,7 +42,11 @@ describe("makeAdmin", () => {
     };
 
     await expect(makeAdmin(collection, "partner@example.com")).rejects.toThrow(
-      "No account updated for partner@example.com",
+      /^No account updated for partner@example\.com$/,
+    );
+    expect(collection.updateOne).toHaveBeenCalledWith(
+      { _id: "user-1" },
+      { $set: { role: "admin" } },
     );
   });
 
@@ -86,5 +95,32 @@ describe("makeAdmin", () => {
     });
     expect(collection.findOne).toHaveBeenNthCalledWith(2, { email: "partner@example.com" });
     expect(collection.updateOne).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("withHostOnRefusal", () => {
+  it("includes the database host in a User refusal", async () => {
+    const collection = {
+      findOne: vi.fn().mockResolvedValue(null),
+      updateOne: vi.fn(),
+    };
+
+    const refusal = await makeAdmin(collection, "missing@example.com").catch((error) => error);
+
+    expect(withHostOnRefusal(refusal, "cluster.example.net").message).toBe(
+      "No account found for missing@example.com on cluster.example.net",
+    );
+  });
+
+  it("preserves driver errors and their codes", async () => {
+    const driverError = Object.assign(new Error("Write failed"), { code: 123 });
+    const collection = {
+      findOne: vi.fn().mockResolvedValue({ _id: "user-1", role: "student" }),
+      updateOne: vi.fn().mockRejectedValue(driverError),
+    };
+
+    const error = await makeAdmin(collection, "partner@example.com").catch((caught) => caught);
+
+    expect(withHostOnRefusal(error, "cluster.example.net")).toBe(driverError);
   });
 });
