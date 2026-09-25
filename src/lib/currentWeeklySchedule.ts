@@ -194,10 +194,11 @@ export async function loadOrGenerateCurrentWeek(
     return { kind: "schedule", schedule: existing };
   }
 
-  const snapshots = newestApprovedSnapshots(
-    freshSnapshotsForCurrentWeek(await input.snapshots.listEligibleForStudent(input.studentId), now, input.timezone)
-  );
-  if (snapshots.length === 0) return { kind: "analytics_required" };
+  const eligibleSnapshots = await input.snapshots.listEligibleForStudent(input.studentId);
+  if (freshSnapshotsForCurrentWeek(eligibleSnapshots, now, input.timezone).length === 0) {
+    return { kind: "analytics_required" };
+  }
+  const snapshots = newestApprovedSnapshots(eligibleSnapshots).slice(0, 3);
 
   const analytics = analyticsTrend(snapshots, weekStartDate);
   const priorSchedule = await input.weeklySchedules.findByStudentAndWeek(
@@ -226,7 +227,7 @@ export async function loadOrGenerateCurrentWeek(
     weekStartDate,
     generatedAt: now.toISOString(),
     schedule,
-    sourceSnapshotIds: snapshots.slice(0, 3).map((snapshot) => snapshot.id),
+    sourceSnapshotIds: snapshots.map((snapshot) => snapshot.id),
     generationInputs: {
       student: input.student,
       timezone: input.timezone,

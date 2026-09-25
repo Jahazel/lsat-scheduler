@@ -196,6 +196,33 @@ describe("loadOrGenerateCurrentWeek", () => {
     expect(result.schedule.generationInputs.analytics.lrAccuracyByType.Evaluate).toBeCloseTo(0.75, 5);
   });
 
+  it("weights the newest three snapshots approved across weeks when this week has an approval", async () => {
+    const week0 = approvedSnapshot("week-0", "2026-09-01T15:00:00.000Z");
+    week0.lrAccuracyByType = { "Necessary assumption": 0 };
+    const week1 = approvedSnapshot("week-1", "2026-09-08T15:00:00.000Z");
+    week1.lrAccuracyByType = { "Necessary assumption": 0.4 };
+    const week2 = approvedSnapshot("week-2", "2026-09-15T15:00:00.000Z");
+    week2.lrAccuracyByType = { "Necessary assumption": 0.45 };
+    const week3 = approvedSnapshot("week-3", "2026-09-21T15:00:00.000Z");
+    week3.lrAccuracyByType = { "Necessary assumption": 0.9 };
+    const repositories = inMemoryRepositories([week0, week1, week2, week3]);
+
+    const result = await loadOrGenerateCurrentWeek({
+      studentId: "student-1",
+      student: mockStudent,
+      studentName: mockStudentName,
+      rules: mockRules,
+      timezone: "America/Chicago",
+      now: () => new Date("2026-09-21T16:00:00.000Z"),
+      ...repositories,
+    });
+    if (result.kind !== "schedule") throw new Error("Expected a saved schedule");
+
+    expect(result.schedule.sourceSnapshotIds).toEqual(["week-3", "week-2", "week-1"]);
+    expect(result.schedule.generationInputs.analytics.lrAccuracyByType["Necessary assumption"])
+      .toBeCloseTo(0.715, 5);
+  });
+
   it("requires an analytics upload approved during the new week", async () => {
     const repositories = inMemoryRepositories([approvedSnapshot("last-week", "2026-09-14T13:00:00.000Z")]);
 
