@@ -95,7 +95,7 @@ The smallest amount of LR or RC work every drilling day receives, even when it e
 _Avoid_: floor, minimum drill
 
 **Fill limit**:
-The portion of a drilling day's daily capacity available for work beyond the daily minimum after a skip reduction. Mandatory work can exceed it.
+A drilling day's daily capacity after any skip reduction. The daily minimum and full section count toward it and can exceed it; other work is added only while the day stays within it.
 _Avoid_: daily cap, available hours
 
 **Day fill**:

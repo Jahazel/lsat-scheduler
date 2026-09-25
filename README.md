@@ -48,10 +48,11 @@ references for the scheduling model:
 - The engine outputs a study-plan shopping list—question type, count,
   difficulty, and PT-130 side—not licensed LSAT question numbers.
 - Students set capacity for each day and choose a preferred practice-test day.
-  Practice-test review follows the test, and rest moves when the test or review
-  takes Wednesday. Near-test weeks can contain two LawHub practice tests.
-- Every drilling day has a minimum assignment. The practice test, its review,
-  a full section, or the daily minimum can exceed stated capacity; the day card
+  A practice-test review day follows each practice test, and the rest day moves
+  off Wednesday when one of them takes it; the specification lists every case.
+  Near-test weeks can contain two LawHub practice tests.
+- Every drilling day has a daily minimum. The practice test, its review,
+  a full section, or the daily minimum can exceed daily capacity; the day card
   shows the overage. Other drilling work stays within its fill limit.
 - The `adaptive-weekly-schedule-v2` policy saves reason sentences when it
   creates a schedule. Past weeks keep their planned work, capacities, and wording.
@@ -90,5 +91,5 @@ first release that uses persisted weekly schedules. See
 [the rollout runbook](docs/runbooks/adaptive-weekly-schedules-rollout.md).
 
 The [v2 schedule specification](docs/specs/adaptive-weekly-schedules.md) records
-the current rules. Before release, the tutor must review eight Level 2 schedules
-as described in the [implementation plan](docs/plans/adaptive-weekly-schedules.md).
+the current rules. Before release, the tutor must review eight scenario
+schedules as described in the [implementation plan](docs/plans/adaptive-weekly-schedules.md).
