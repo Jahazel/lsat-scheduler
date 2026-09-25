@@ -284,7 +284,8 @@ export function generateWeek(
       || DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))[0];
   if (!fullSectionDay) {
     weekReason("full_section_dropped", fullSectionDroppedSentence(
-      student.currentScore < 150 ? student.currentScore : undefined));
+      student.currentScore < 150 ? { kind: "score", score: student.currentScore }
+        : activeDrillingDays.length === 0 ? { kind: "no_drilling_day" } : { kind: "capacity" }));
   }
   const history = options.priorSchedules ?? [];
   const fullSubject = latestFullSection(history) === "LR" ? "RC" : "LR";
@@ -312,7 +313,7 @@ export function generateWeek(
   };
   const firstPass = fillWith(false);
   const filled = firstPass.lrDrills < rules.lrStarredTypes.length ? fillWith(true) : firstPass;
-  if (filled !== firstPass) {
+  if (filled !== firstPass && filled.lrDrills > 0) {
     const scheduled = new Set(Object.values(filled.plans).flatMap((plan) => plan?.activities ?? [])
       .filter((activity): activity is LRActivity => activity.kind === "LR" && !activity.isFullSection)
       .map((activity) => activity.type));

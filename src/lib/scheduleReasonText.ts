@@ -40,7 +40,10 @@ export function capacityOverageSentence(day: DayOfWeek, plan: DayPlan, capacityM
 }
 
 export function skipReductionSentence(skipShare: number, reduction: number): string {
-  const percent = (value: number) => Math.round(value * 100);
+  const percent = (value: number) => {
+    const whole = Math.round(value * 100);
+    return whole === 0 && value !== 0 ? Number((value * 100).toPrecision(1)) : whole;
+  };
   return `You skipped ${percent(skipShare)}% last week; skip reduction sets each drilling day's fill limit ${percent(reduction)}% below daily capacity.`;
 }
 
@@ -48,10 +51,18 @@ export function starredRotationSentence(types: LRType[]): string {
   return `${starredNames(types)} ${types.length === 1 ? "sits" : "sit"} out this week in the starred rotation.`;
 }
 
-export function fullSectionDroppedSentence(score?: number): string {
-  return score === undefined
-    ? "No full section this week: no remaining drilling day has 60 minutes of daily capacity."
-    : `No full section this week: your current score is ${score}, below 150.`;
+export type FullSectionDroppedCause =
+  | { kind: "score"; score: number }
+  | { kind: "no_drilling_day" }
+  | { kind: "capacity" };
+
+export function fullSectionDroppedSentence(
+  cause: FullSectionDroppedCause
+): string {
+  if (cause.kind === "score") return `No full section this week: your current score is ${cause.score}, below 150.`;
+  return cause.kind === "no_drilling_day"
+    ? "No full section this week: no drilling day remains."
+    : "No full section this week: no remaining drilling day has 60 minutes of daily capacity.";
 }
 
 type OriginalRestDayUse = "practice test" | "practice test review";

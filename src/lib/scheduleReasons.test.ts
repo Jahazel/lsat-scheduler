@@ -38,6 +38,17 @@ describe("saved schedule reasons", () => {
     expect(reason(week().reasons, "skip_reduction")).toBeUndefined();
   });
 
+  it("keeps a small skip reduction visible in its saved sentence", () => {
+    const sentence = reason(week(mockStudent, { skipReductionPercent: 0.003125, skipShare: 0.0125 }).reasons,
+      "skip_reduction")?.sentence;
+    expect(sentence).toBe("You skipped 1% last week; skip reduction sets each drilling day's fill limit 0.3% below daily capacity.");
+    expect(sentence?.split(/\s+/).length).toBeLessThanOrEqual(20);
+    const smaller = reason(week(mockStudent, { skipReductionPercent: 0.001, skipShare: 0.004 }).reasons,
+      "skip_reduction")?.sentence;
+    expect(smaller).toBe("You skipped 0.4% last week; skip reduction sets each drilling day's fill limit 0.1% below daily capacity.");
+    expect(smaller?.split(/\s+/).length).toBeLessThanOrEqual(20);
+  });
+
   it("groups the starred types sitting out into one reason", () => {
     const schedule = week({ ...mockStudent, currentScore: 140, dailyCapacityMinutes: capacities(15) });
     const sittingOut = mockRules.lrStarredTypes.filter((type) =>
@@ -49,11 +60,41 @@ describe("saved schedule reasons", () => {
     sittingOut.forEach((type) => expect(rotations[0].sentence).toContain(type));
   });
 
+  it("does not claim a starred rotation when no drilling day remains", () => {
+    const schedule = week({ ...mockStudent, preferredPracticeTestDay: "SUNDAY",
+      dailyCapacityMinutes: capacities(90) }, { createdOn: "SUNDAY" });
+    expect(reason(schedule.reasons, "starred_rotation")).toBeUndefined();
+  });
+
+  it("does not claim a starred rotation when the only drilling day holds a full section", () => {
+    const schedule = week({ ...mockStudent, preferredPracticeTestDay: "SUNDAY",
+      dailyCapacityMinutes: { ...capacities(90), SATURDAY: 60 } }, { createdOn: "SATURDAY" });
+    expect(schedule.days.SATURDAY.activities.some((activity) =>
+      (activity.kind === "LR" || activity.kind === "RC") && activity.isFullSection)).toBe(true);
+    expect(reason(schedule.reasons, "starred_rotation")).toBeUndefined();
+  });
+
   it("records the score and capacity reasons for dropping a full section", () => {
     expect(reason(week({ ...mockStudent, currentScore: 149 }).reasons, "full_section_dropped")?.sentence)
       .toContain("149, below 150");
     expect(reason(week({ ...mockStudent, dailyCapacityMinutes: capacities(45) }).reasons, "full_section_dropped")?.sentence)
       .toContain("no remaining drilling day has 60 minutes");
+  });
+
+  it("says a full section was dropped because no drilling day remains", () => {
+    const schedule = week({ ...mockStudent, preferredPracticeTestDay: "SUNDAY",
+      dailyCapacityMinutes: capacities(90) }, { createdOn: "SUNDAY" });
+    const sentence = reason(schedule.reasons, "full_section_dropped")?.sentence;
+    expect(sentence).toBe("No full section this week: no drilling day remains.");
+    expect(sentence?.split(/\s+/).length).toBeLessThanOrEqual(20);
+  });
+
+  it("records the score cause when no drilling day remains", () => {
+    const schedule = week({ ...mockStudent, currentScore: 149, preferredPracticeTestDay: "SUNDAY",
+      dailyCapacityMinutes: capacities(90) }, { createdOn: "SUNDAY" });
+    const sentence = reason(schedule.reasons, "full_section_dropped")?.sentence;
+    expect(sentence).toBe("No full section this week: your current score is 149, below 150.");
+    expect(sentence?.split(/\s+/).length).toBeLessThanOrEqual(20);
   });
 
   it("places a moved rest reason on its new day", () => {
