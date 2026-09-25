@@ -1,4 +1,5 @@
 import { DAY_ORDER, generateWeek } from "./engine";
+import { isoDateInWeek, unscheduledDaySentence } from "./scheduleReasonText";
 import type {
   AnalyticsSnapshot,
   Activity,
@@ -112,12 +113,17 @@ export function analyticsTrend(snapshots: ApprovedAnalyticsSnapshot[], weekOf: s
 function remainingSchedule(schedule: WeeklySchedule, currentDay: DayOfWeek): WeeklySchedule {
   const currentIndex = DAY_ORDER.indexOf(currentDay);
   const days = { ...schedule.days };
+  let reasons = [...(schedule.reasons ?? [])];
   for (const day of DAY_ORDER.slice(0, currentIndex)) {
     if (days[day].type !== "rest") {
       days[day] = { day, type: "unscheduled", activities: [], totalMinutes: 0 };
+      reasons = reasons.filter((reason) =>
+        reason.placement.scope !== "day" || reason.placement.day !== day);
+      reasons.push({ code: "unscheduled_day", placement: { scope: "day", day },
+        sentence: unscheduledDaySentence(currentDay) });
     }
   }
-  return { ...schedule, days };
+  return { ...schedule, days, reasons };
 }
 
 function duplicateSchedule(error: unknown): boolean {
@@ -125,9 +131,7 @@ function duplicateSchedule(error: unknown): boolean {
 }
 
 function previousWeekStartDate(weekStartDate: string) {
-  const previous = new Date(`${weekStartDate}T00:00:00.000Z`);
-  previous.setUTCDate(previous.getUTCDate() - 7);
-  return previous.toISOString().slice(0, 10);
+  return isoDateInWeek(weekStartDate, -7);
 }
 
 export function scheduleActivityId(day: DayOfWeek, activityIndex: number) {
@@ -212,6 +216,7 @@ export async function loadOrGenerateCurrentWeek(
       priorWeekPracticeTestReviewMinutes,
       priorSchedules: history.map((record) => record.schedule),
       skipReductionPercent: priorWeekProgressFacts.skipReductionPercent,
+      skipShare: priorWeekProgressFacts.skipShare,
     }),
     currentDay
   );

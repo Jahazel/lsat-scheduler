@@ -1,7 +1,13 @@
 import type {
   Activity, AnalyticsSnapshot, DayOfWeek, DayPlan, LRActivity, LRType,
-  RCActivity, RCType, RulesConfig, Student, WeeklySchedule,
+  RCActivity, RCType, RulesConfig, ScheduleReason, Student, WeeklySchedule,
 } from "./types";
+import {
+  capacityOverageSentence, dateInWeek, fullSectionDroppedSentence, isoDateInWeek, nearTestWeekSentence,
+  noPracticeTestSentence, restDayMovedSentence, reviewCarriedOverSentence,
+  skipReductionSentence, starredRotationSentence, practiceTestReviewDayNextWeekSentence,
+} from "./scheduleReasonText";
+import type { RestDayMoveCase } from "./scheduleReasonText";
 
 export const DAY_ORDER: DayOfWeek[] = [
   "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY",
@@ -19,12 +25,14 @@ function nearTestWeek(weekOf: string, goalTestDate: string): boolean {
   return weekOf >= monthBefore.toISOString().slice(0, 10) && weekOf < goalTestDate;
 }
 
-export interface WeekShapeOptions {
+export type WeekShapeOptions = {
   createdOn?: DayOfWeek;
   priorWeekPracticeTestReviewMinutes?: number;
   priorSchedules?: WeeklySchedule[];
-  skipReductionPercent?: number;
-}
+} & (
+  | { skipReductionPercent?: never; skipShare?: never }
+  | { skipReductionPercent: number; skipShare: number }
+);
 
 function round2(n: number): number { return Math.round(n * 100) / 100; }
 function multiplier(rules: RulesConfig, student: Student): number {
@@ -194,6 +202,15 @@ export function generateWeek(
 ): WeeklySchedule {
   const timeMult = multiplier(rules, student);
   const isNearTestWeek = nearTestWeek(analytics.weekOf, student.goalTestDate);
+  const reasons: ScheduleReason[] = [];
+  const weekReason = (code: ScheduleReason["code"], sentence: string) =>
+    reasons.push({ code, placement: { scope: "week" }, sentence });
+  const dayReason = (code: ScheduleReason["code"], day: DayOfWeek, sentence: string) =>
+    reasons.push({ code, placement: { scope: "day", day }, sentence });
+  const recordOverage = (day: DayOfWeek, plan: DayPlan) => {
+    if (!plan.capacityOverageMinutes || plan.capacityOverageMinutes <= 0) return;
+    dayReason("capacity_overage", day, capacityOverageSentence(day, plan, student.dailyCapacityMinutes[day]));
+  };
 
   const days = {} as Record<DayOfWeek, DayPlan>;
   const preferredPracticeTestDay = student.preferredPracticeTestDay;
@@ -221,6 +238,22 @@ export function generateWeek(
     ? []
     : plannedPracticeTestDays.filter((day) => DAY_ORDER.indexOf(day) >= createdIndex);
   const scheduledPracticeTestReviewDays = scheduledPracticeTestDays.flatMap((day) => practiceTestReviewDayFor(day) ?? []);
+  if (isNearTestWeek && scheduledPracticeTestDays.length > 0) {
+    const count = scheduledPracticeTestDays.length;
+    const allBeforeGoal = scheduledPracticeTestDays.every((day) =>
+      isoDateInWeek(analytics.weekOf, DAY_ORDER.indexOf(day)) < student.goalTestDate);
+    weekReason("near_test_week", nearTestWeekSentence(count,
+      allBeforeGoal ? student.goalTestDate : undefined));
+  }
+  if (scheduledPracticeTestDays.length === 0) {
+    const nextWeekOf = isoDateInWeek(analytics.weekOf, 7);
+    const nextWeekDays = [preferredPracticeTestDay,
+      ...(nearTestWeek(nextWeekOf, student.goalTestDate)
+        ? [SECOND_PRACTICE_TEST_DAY[preferredPracticeTestDay]] : [])];
+    const firstDayIndex = Math.min(...nextWeekDays.map((day) => DAY_ORDER.indexOf(day)));
+    weekReason("no_practice_test", noPracticeTestSentence(isoDateInWeek(nextWeekOf, firstDayIndex) >= student.goalTestDate
+      ? undefined : dateInWeek(nextWeekOf, firstDayIndex)));
+  }
   const occupied = new Set<DayOfWeek>([
     ...scheduledPracticeTestDays,
     ...scheduledPracticeTestReviewDays,
@@ -230,6 +263,18 @@ export function generateWeek(
   const restDay = occupied.has(computedRestDay)
     ? DAY_ORDER.slice(createdIndex).find((day) => !occupied.has(day)) ?? computedRestDay
     : computedRestDay;
+  if (restDay !== rules.restDay) {
+    const originalRestOccupiedBy = plannedPracticeTestDays.includes(rules.restDay) ? "practice test"
+      : plannedPracticeTestReviewDays.includes(rules.restDay) || (rules.restDay === "MONDAY" && hasPriorWeekPracticeTestReview)
+        ? "practice test review" : undefined;
+    let moveCase: RestDayMoveCase = { kind: "schedule" };
+    if (originalRestOccupiedBy !== undefined && occupied.has(rules.restDay)) {
+      moveCase = { kind: "occupied", by: originalRestOccupiedBy };
+    } else if (originalRestOccupiedBy !== undefined) {
+      moveCase = { kind: "reserved", for: originalRestOccupiedBy };
+    }
+    dayReason("rest_day_moved", restDay, restDayMovedSentence(restDay, rules.restDay, moveCase));
+  }
   const drillingDays = DAY_ORDER.filter((day) => day !== restDay && !occupied.has(day));
 
   const activeDrillingDays = drillingDays.filter((day) => DAY_ORDER.indexOf(day) >= createdIndex);
@@ -237,10 +282,19 @@ export function generateWeek(
     .filter((day) => student.dailyCapacityMinutes[day] >= 60)
     .sort((a, b) => student.dailyCapacityMinutes[b] - student.dailyCapacityMinutes[a]
       || DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))[0];
+  if (!fullSectionDay) {
+    weekReason("full_section_dropped", fullSectionDroppedSentence(
+      student.currentScore < 150 ? { kind: "score", score: student.currentScore }
+        : activeDrillingDays.length === 0 ? { kind: "no_drilling_day" } : { kind: "capacity" }));
+  }
   const history = options.priorSchedules ?? [];
   const fullSubject = latestFullSection(history) === "LR" ? "RC" : "LR";
   const rcList = buildRCList(rules);
   const reduction = Math.max(0, Math.min(0.25, options.skipReductionPercent ?? 0));
+  if (reduction > 0) {
+    if (options.skipShare === undefined) throw new Error("Skip reduction requires skipShare");
+    weekReason("skip_reduction", skipReductionSentence(options.skipShare, reduction));
+  }
   const fillWith = (rotate: boolean) => {
     const lrList = buildLRList(lrTypeOrder(analytics, rules, history, rotate), student.currentScore, rules);
     const state: FillState = { lrIndex: 0, rcIndex: 0, lrQuestions: 0, rcPassages: 0 };
@@ -259,7 +313,15 @@ export function generateWeek(
   };
   const firstPass = fillWith(false);
   const filled = firstPass.lrDrills < rules.lrStarredTypes.length ? fillWith(true) : firstPass;
+  if (filled !== firstPass && filled.lrDrills > 0) {
+    const scheduled = new Set(Object.values(filled.plans).flatMap((plan) => plan?.activities ?? [])
+      .filter((activity): activity is LRActivity => activity.kind === "LR" && !activity.isFullSection)
+      .map((activity) => activity.type));
+    const sittingOut = rules.lrStarredTypes.filter((type) => !scheduled.has(type));
+    if (sittingOut.length > 0) weekReason("starred_rotation", starredRotationSentence(sittingOut));
+  }
   Object.assign(days, filled.plans);
+  for (const day of activeDrillingDays) recordOverage(day, days[day]);
   for (const day of drillingDays) {
     if (!days[day]) days[day] = { day, type: "drill", activities: [], totalMinutes: 0 };
   }
@@ -281,6 +343,7 @@ export function generateWeek(
       totalMinutes: ptMinutes,
       capacityOverageMinutes: Math.max(0, ptMinutes - student.dailyCapacityMinutes[day]),
     };
+    recordOverage(day, days[day]);
   }
 
   function setPracticeTestReviewDay(day: DayOfWeek, minutes: number) {
@@ -290,11 +353,17 @@ export function generateWeek(
       totalMinutes: minutes,
       capacityOverageMinutes: Math.max(0, minutes - student.dailyCapacityMinutes[day]),
     };
+    recordOverage(day, days[day]);
   }
   for (const day of scheduledPracticeTestReviewDays) setPracticeTestReviewDay(day, ptMinutes);
   if (priorWeekPracticeTestReviewMinutes !== undefined) {
     setPracticeTestReviewDay("MONDAY", priorWeekPracticeTestReviewMinutes);
+    dayReason("review_carried_over", "MONDAY", reviewCarriedOverSentence(analytics.weekOf));
   }
 
-  return { studentName, weekOf: analytics.weekOf, days };
+  if (scheduledPracticeTestDays.includes("SUNDAY")) {
+    dayReason("practice_test_review_day_next_week", "SUNDAY", practiceTestReviewDayNextWeekSentence());
+  }
+
+  return { studentName, weekOf: analytics.weekOf, days, reasons };
 }
