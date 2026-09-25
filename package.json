@@ -12,7 +12,8 @@
     "migrate:weekly-schedules": "node scripts/migrate-weekly-schedules.mjs",
     "migrate:activity-check-ins": "node scripts/migrate-activity-check-ins.mjs",
     "verify:adaptive-schedule-rollout": "node scripts/verify-adaptive-schedule-rollout.mjs",
-    "reset:dev-data": "node --env-file=.env.local scripts/reset-dev-data.mjs"
+    "reset:dev-data": "node --env-file=.env.local scripts/reset-dev-data.mjs",
+    "make-admin": "node scripts/make-admin.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",

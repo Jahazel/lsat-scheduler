@@ -90,5 +90,9 @@ For an existing database, run the adaptive-schedule migrations before the
 first release that uses persisted weekly schedules. See
 [the rollout runbook](docs/runbooks/adaptive-weekly-schedules-rollout.md).
 
+To promote an existing account on production, set `MONGODB_URI` to the
+production URI in the command environment, then run
+`npm run make-admin -- <email>`.
+
 The [v2 schedule specification](docs/specs/adaptive-weekly-schedules.md) records
 the current rules.
