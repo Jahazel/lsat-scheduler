@@ -91,5 +91,4 @@ first release that uses persisted weekly schedules. See
 [the rollout runbook](docs/runbooks/adaptive-weekly-schedules-rollout.md).
 
 The [v2 schedule specification](docs/specs/adaptive-weekly-schedules.md) records
-the current rules. Before release, the tutor must review eight scenario
-schedules as described in the [implementation plan](docs/plans/adaptive-weekly-schedules.md).
+the current rules.

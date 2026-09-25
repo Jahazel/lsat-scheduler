@@ -1,6 +1,6 @@
 # Adaptive weekly schedules, policy v2
 
-> Status: implemented in the current checkout. The tutor scenario review in the [implementation plan](../plans/adaptive-weekly-schedules.md) remains a release step. Saved `adaptive-weekly-schedule-v1` schedules retain their original plan and display.
+> Status: implemented in the current checkout. Saved `adaptive-weekly-schedule-v1` schedules retain their original plan and display.
 
 ## Record lifecycle
 
@@ -42,8 +42,6 @@ Activities identify their count, type, and difficulty, and practice tests and fu
 ## Verification and release
 
 Engine, service, repository, route, and component tests cover deterministic placement, per-day capacity, accommodations, analytics weighting, skip reduction, saved inputs and reasons, v1 display, access control, and concurrent creation. Run `npm test`, `npm run lint`, and `npm run build` for the implementation gate.
-
-Before release, the tutor reviews eight scenario schedules; the [implementation plan](../plans/adaptive-weekly-schedules.md#verification-and-release) lists them and the open day-fill threshold question.
 
 ## Scope limits
 

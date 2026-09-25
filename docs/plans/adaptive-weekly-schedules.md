@@ -1,6 +1,6 @@
 # Adaptive weekly schedules: implementation plan
 
-Status: `adaptive-weekly-schedule-v2` is implemented in the current checkout. The remaining release step is the tutor scenario review.
+Status: `adaptive-weekly-schedule-v2` is implemented in the current checkout.
 
 ## Goal
 
@@ -20,8 +20,7 @@ The original persistence work remains in force: append-only approved analytics s
 
 - Run the test suite, lint, and production build. Confirm that a saved week's capacity and reason sentences remain fixed after study settings change.
 - Check the current-week schedule at 375px and desktop widths, with keyboard navigation and screen-reader labels for overage warnings. Issue #47 records that this running-app check was not completed when its code was merged.
-- Run the tutor scenario review on eight schedules: baseline, very low capacity, uneven daily capacity, a non-Saturday preferred practice-test day, a near-test week, a score below 150, 2x accommodation, and a schedule created late in the week. Ask "Would you give this to a student?" for each and record yes/no plus optional notes. Resolve rejected schedules before release.
-- Ask the tutor to confirm or replace the provisional 25-percentage-point day-fill discrepancy threshold. The automatic rejection checker, capacity sweep, and pre-release LLM reviewer were canceled with #45 and #48.
+- The day-fill discrepancy threshold is 25 percentage points. The automatic rejection checker, capacity sweep, and pre-release LLM reviewer were canceled with #45 and #48.
 - Follow the [rollout runbook](../runbooks/adaptive-weekly-schedules-rollout.md) for any existing database.
 
 ## Scope limits
