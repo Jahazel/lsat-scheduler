@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { DAY_ORDER } from "@/lib/engine";
 import { activityLabel } from "@/lib/activityLabel";
 import { formatDuration, roundMinutesToTotal } from "@/lib/formatDuration";
 import { plannedActivityMinutes, scheduleActivityId } from "@/lib/currentWeeklySchedule";
 import { formatScheduleWeekOf, remainingActivityCount, scheduledActivityCount } from "@/lib/scheduleCheckInSummary";
+import { dateInWeek, dayName } from "@/lib/scheduleReasonText";
 import type { ActivityCheckIn, DayOfWeek, Student, WeeklySchedule } from "@/lib/types";
 import { saveActivityCheckIn } from "@/app/dashboard/actions";
 
@@ -17,6 +19,13 @@ const VIEW_CONTROL_CLASS =
   "flex-1 rounded-md px-4 py-2 text-sm font-semibold transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-1";
 const STATUS_CONTROL_CLASS =
   "rounded-md px-2.5 py-1 text-xs font-semibold transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 disabled:cursor-not-allowed disabled:opacity-50";
+
+function WarningIcon() {
+  return <svg aria-hidden="true" className="mt-0.5 size-4 shrink-0" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} viewBox="0 0 24 24">
+    <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+    <path d="M12 9v4M12 17h.01" />
+  </svg>;
+}
 
 interface ScheduleCheckInViewProps {
   scheduleId: string;
@@ -48,6 +57,8 @@ export default function ScheduleCheckInView({
   const checkedInActivities = totalActivities - remainingActivities;
   const checkedInPercent = totalActivities === 0 ? 0 : (checkedInActivities / totalActivities) * 100;
   const isPastPlan = heading === "Your past plan";
+  const weekReasons = schedule.reasons?.filter((reason) => reason.placement.scope === "week") ?? [];
+  const practiceTestDays = DAY_ORDER.filter((day) => schedule.days[day].type === "practice_test");
 
   function saveCheckIn(activityId: string, status: ActivityCheckIn["status"], actualMinutes?: number) {
     setSavedCheckIns((previous) => [
@@ -80,6 +91,9 @@ export default function ScheduleCheckInView({
           {remainingActivities} of {totalActivities} activities remaining
         </p>}
       </div>
+      {weekReasons.length > 0 && <div className="mt-5 max-w-2xl rounded-lg border border-ink-200 bg-ink-50 px-4 py-3 text-sm text-ink-700">
+        {weekReasons.map((reason, index) => <p className={index > 0 ? "mt-2" : ""} key={`${reason.code}-${index}`}>{reason.sentence}</p>)}
+      </div>}
       <div className={statusFirst ? "mt-8" : "mt-8 flex flex-wrap gap-2"} aria-label="Schedule view">
         <div className={statusFirst ? "flex items-center justify-between rounded-lg border border-ink-200 bg-white p-1" : "contents"}>
           <button aria-pressed={view === "week"} className={statusFirst ? `${VIEW_CONTROL_CLASS} ${view === "week" ? "bg-accent-600 text-white hover:bg-accent-700 focus-visible:bg-accent-700" : "text-ink-500 hover:bg-ink-50 hover:text-ink-900 focus-visible:bg-ink-50"}` : `${view === "week" ? "border-ink-900 bg-ink-900 text-white" : CONTROL_CLASS} px-4 py-2 text-sm`} onClick={() => setView("week")} type="button">Whole week</button>
@@ -108,18 +122,34 @@ export default function ScheduleCheckInView({
           const plan = schedule.days[day];
           const activityMinutes = roundMinutesToTotal(plan.activities.map(plannedActivityMinutes));
           const plannedMinutes = activityMinutes.reduce((total, minutes) => total + minutes, 0);
+          const dayReasons = schedule.reasons?.filter((reason) => reason.placement.scope === "day" && reason.placement.day === day) ?? [];
+          const overageMinutes = plan.capacityOverageMinutes ?? Math.max(0, plannedMinutes - student.dailyCapacityMinutes[day]);
+          const warning = dayReasons.find((reason) => reason.code === "capacity_overage");
+          const otherDayReasons = dayReasons.filter((reason) => reason.code !== "capacity_overage");
+          const isUnscheduled = plan.type === "unscheduled";
           return (
-            <section key={day} className={statusFirst ? "overflow-hidden rounded-lg border border-ink-100 bg-white" : "rounded-lg border border-ink-100 bg-white p-5"}>
-              <div className={`flex items-baseline justify-between ${statusFirst ? "border-b border-ink-100 px-5 py-4" : ""}`}>
-                <h2 className="font-mono text-sm font-semibold tracking-wide text-ink-900">{day}</h2>
+            <section key={day} className={`overflow-hidden rounded-lg border ${isUnscheduled ? "border-dashed border-ink-200 bg-transparent" : warning ? "border-ink-400 bg-white" : "border-ink-100 bg-white"}`}>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-ink-100 px-5 py-4">
+                <h2 className="text-sm font-semibold text-ink-900">{dayName(day)} <span className="font-normal text-ink-500">{dateInWeek(schedule.weekOf, DAY_ORDER.indexOf(day))}</span></h2>
                 {/* `student` is the saved generationInputs snapshot, so a past week
                     keeps the daily capacity it was created with. */}
                 <span className="text-xs text-ink-500">
-                  {formatDuration(plannedMinutes)} planned of {formatDuration(student.dailyCapacityMinutes[day])}
+                  {isUnscheduled ? "Not scheduled" : plan.type === "rest" ? "Rest day" : plan.type === "practice_test" ? `Practice test${practiceTestDays.length > 1 ? ` ${practiceTestDays.indexOf(day) + 1} of ${practiceTestDays.length}` : ""}` : plan.type === "review" ? "Practice-test review" : "Drilling"} · {formatDuration(plannedMinutes)} of {formatDuration(student.dailyCapacityMinutes[day])}
                 </span>
               </div>
-              {plan.activities.length === 0 ? <p className={`${statusFirst ? "px-5 py-4" : "mt-2"} text-sm text-ink-500`}>{plan.type === "rest" ? "Rest day." : plan.type === "unscheduled" ? "Not scheduled." : "Nothing scheduled."}</p> : (
-                <div className={statusFirst ? "" : "mt-3 flex flex-col gap-3"}>
+              {warning && <div className="flex gap-3 border-b border-ink-100 bg-ink-50 px-5 py-3 text-ink-900" role="note" aria-label={`${dayName(day)} capacity warning`}>
+                <WarningIcon />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">{formatDuration(Math.round(overageMinutes))} over your {formatDuration(student.dailyCapacityMinutes[day])} {dayName(day)}</p>
+                  <p className="mt-0.5 text-sm text-ink-700">{warning.sentence}</p>
+                  {!readOnly && !isPastPlan && <p className="mt-2 text-sm"><Link className="font-medium text-accent-600 underline underline-offset-4 hover:text-accent-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-700" href="/settings">Change daily capacity</Link><span className="text-ink-500"> · applies from next week&apos;s plan</span></p>}
+                </div>
+              </div>}
+              {otherDayReasons.length > 0 && <div className={isUnscheduled && plan.activities.length === 0 ? "px-5 py-4" : "px-5 pt-4"}>
+                {otherDayReasons.map((reason, index) => <p className={`${isUnscheduled && plan.activities.length === 0 ? "text-sm text-ink-500" : "text-sm font-medium text-ink-700"}${index > 0 ? " mt-2" : ""}`} key={`${reason.code}-${index}`}>{reason.sentence}</p>)}
+              </div>}
+              {plan.activities.length === 0 ? (isUnscheduled && otherDayReasons.length > 0 ? null : <p className="px-5 py-4 text-sm text-ink-500">{plan.type === "rest" ? "Rest day. Nothing planned." : isUnscheduled ? "Not scheduled." : "Nothing scheduled."}</p>) : (
+                <div className={statusFirst ? "" : "flex flex-col gap-3 px-5 py-4"}>
                   {plan.activities.map((activity, index) => {
                     const activityId = scheduleActivityId(day, index);
                     const checkIn = byActivityId.get(activityId);
