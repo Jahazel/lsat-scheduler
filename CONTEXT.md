@@ -135,3 +135,17 @@ _Avoid_: LR/RC balance, study-time split
 **Starred rotation**:
 The order that returns starred question types across successive weekly schedules, used when one weekly schedule cannot hold a drill of every starred question type.
 _Avoid_: starred cycle, rotation schedule
+
+### Admin
+
+**Admin**:
+One of the two people who run DrillMap. An admin can view every student's saved weekly schedule without changing it, and has a student side of their own for testing how the app behaves as weeks pass.
+_Avoid_: tester, superuser
+
+**Simulated date**:
+The fixed "today" an admin sets for their own student side. It moves only forward and does not advance with real time, and it never affects real students or the admin's view of them. Resetting it returns the admin to the real date.
+_Avoid_: test date, fake date, time travel
+
+**Sample analytics snapshot**:
+An analytics snapshot generated for an admin's student side instead of extracted from a 7Sage screenshot. The admin reviews and approves it like an uploaded snapshot.
+_Avoid_: mock analytics, fake analytics
