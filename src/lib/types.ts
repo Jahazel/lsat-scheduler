@@ -220,10 +220,13 @@ export interface DayPlan {
   capacityOverageMinutes?: number;
 }
 
-export type ScheduleReasonCode =
-  | "capacity_overage" | "skip_reduction" | "starred_rotation" | "full_section_dropped"
-  | "rest_day_moved" | "no_practice_test" | "near_test_week" | "unscheduled_day"
-  | "review_carried_over" | "sunday_review_next_monday";
+export const SCHEDULE_REASON_CODES = [
+  "capacity_overage", "skip_reduction", "starred_rotation", "full_section_dropped",
+  "rest_day_moved", "no_practice_test", "near_test_week", "unscheduled_day",
+  "review_carried_over", "practice_test_review_day_next_week",
+] as const;
+
+export type ScheduleReasonCode = (typeof SCHEDULE_REASON_CODES)[number];
 
 export interface ScheduleReason {
   code: ScheduleReasonCode;
@@ -235,7 +238,7 @@ export interface WeeklySchedule {
   studentName: string;
   weekOf: string;
   days: Record<DayOfWeek, DayPlan>;
-  // V1 schedules have no reasons. V2 writes final sentences at creation.
+  // Older v1 and v2 schedules may have no reasons; newer v2 schedules save final sentences at creation.
   reasons?: ScheduleReason[];
   // Retained for saved v1 schedules. New schedules record overage on each day.
   saturdayOverageMinutes?: number;

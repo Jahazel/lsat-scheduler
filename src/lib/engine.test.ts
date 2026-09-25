@@ -132,7 +132,7 @@ describe("daily capacity filler", () => {
           const student = { ...mockStudent, currentScore: score, preferredPracticeTestDay: practiceTestDay,
             dailyCapacityMinutes: { ...everyDay(high), THURSDAY: low, FRIDAY: low, SATURDAY: low } };
           const schedule = generateWeek(student, analytics, mockRules, mockStudentName,
-            { skipReductionPercent: reduction });
+            { skipReductionPercent: reduction, skipShare: reduction * 4 });
           const lr = lrDrillsInDayOrder(schedule);
           const context = `${score}/${high}/${low}/${reduction}/${practiceTestDay}/${analytics === starredOnlyAnalytics ? "starred" : "full"}`;
           const seen = new Set<string>();
@@ -239,7 +239,7 @@ describe("daily capacity filler", () => {
 
   it("reduces each day's fill limit before adding extra work while retaining the minimum and full section", () => {
     const base = generated(90);
-    const reduced = generated(90, { skipReductionPercent: 0.25 });
+    const reduced = generated(90, { skipReductionPercent: 0.25, skipShare: 1 });
     for (const day of DRILL_DAYS) {
       expect(reduced.days[day].activities.length).toBeGreaterThan(0);
       expect(reduced.days[day].totalMinutes).toBeLessThanOrEqual(base.days[day].totalMinutes);
@@ -293,7 +293,7 @@ describe("daily capacity filler", () => {
       difficultyRange: "L2-4", drillMinutes: 15, isFullSection: false,
     }];
     const withoutReduction = generated(40, { priorSchedules: [prior] });
-    const reduced = generated(40, { priorSchedules: [prior], skipReductionPercent: 0.25 });
+    const reduced = generated(40, { priorSchedules: [prior], skipReductionPercent: 0.25, skipShare: 1 });
     expect(drills(withoutReduction).filter(isLR).length).toBeGreaterThanOrEqual(mockRules.lrStarredTypes.length);
     expect(drills(reduced).filter(isLR).length).toBeLessThan(mockRules.lrStarredTypes.length);
     expect(drills(withoutReduction).filter(isLR)[0].type).toBe("Sufficient assumption");

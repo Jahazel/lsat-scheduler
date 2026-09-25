@@ -230,7 +230,7 @@ describe("loadOrGenerateCurrentWeek", () => {
     expect(result.schedule.schedule.days.SATURDAY.capacityOverageMinutes).toBe(90);
     expect(result.schedule.schedule.reasons).toContainEqual({
       code: "unscheduled_day", placement: { scope: "day", day: "FRIDAY" },
-      sentence: "Not scheduled. This plan started Saturday.",
+      sentence: "Not scheduled because this weekly schedule started Saturday.",
     });
   });
 
@@ -298,8 +298,8 @@ describe("loadOrGenerateCurrentWeek", () => {
     if (prior.kind !== "schedule") throw new Error("Expected a saved schedule");
     expect(prior.schedule.schedule.days.SUNDAY.type).toBe("practice_test");
     expect(prior.schedule.schedule.reasons).toContainEqual({
-      code: "sunday_review_next_monday", placement: { scope: "day", day: "SUNDAY" },
-      sentence: "Review is next Monday, in next week's plan.",
+      code: "practice_test_review_day_next_week", placement: { scope: "day", day: "SUNDAY" },
+      sentence: "The practice-test review day is next Monday in the next weekly schedule.",
     });
     expect(prior.schedule.schedule.days.MONDAY.type).toBe("drill");
 
@@ -321,6 +321,39 @@ describe("loadOrGenerateCurrentWeek", () => {
     });
     expect(next.schedule.generationInputs.priorWeekPracticeTestReviewMinutes).toBe(187.5);
     expect(next.schedule.generationInputs.priorScheduleIds).toEqual([prior.schedule.id]);
+  });
+
+  it("saves only the unscheduled reason for a passed carried-over review day", async () => {
+    const repositories = inMemoryRepositories([
+      approvedSnapshot("first", "2026-09-14T13:00:00.000Z"),
+      approvedSnapshot("second", "2026-09-23T13:00:00.000Z"),
+    ]);
+    const prior = await loadOrGenerateCurrentWeek({
+      studentId: "student-1", student: { ...mockStudent, preferredPracticeTestDay: "SUNDAY" },
+      studentName: mockStudentName, rules: mockRules, timezone: "America/Chicago", now: () => monday,
+      ...repositories,
+    });
+    if (prior.kind !== "schedule") throw new Error("Expected a saved prior schedule");
+    expect(prior.schedule.schedule.days.SUNDAY.type).toBe("practice_test");
+
+    const next = await loadOrGenerateCurrentWeek({
+      studentId: "student-1", student: { ...mockStudent, currentScore: 140, dailyCapacityMinutes: {
+        ...mockStudent.dailyCapacityMinutes, MONDAY: 60,
+      } },
+      studentName: mockStudentName, rules: mockRules, timezone: "America/Chicago",
+      now: () => new Date("2026-09-23T14:00:00.000Z"), ...repositories,
+    });
+    if (next.kind !== "schedule") throw new Error("Expected a saved schedule");
+    expect(next.schedule.schedule.days.MONDAY.type).toBe("unscheduled");
+    expect(next.schedule.schedule.reasons?.filter((item) =>
+      item.placement.scope === "day" && item.placement.day === "MONDAY")).toEqual([{
+      code: "unscheduled_day", placement: { scope: "day", day: "MONDAY" },
+      sentence: "Not scheduled because this weekly schedule started Wednesday.",
+    }]);
+    expect(next.schedule.schedule.reasons).toContainEqual({
+      code: "full_section_dropped", placement: { scope: "week" },
+      sentence: "No full section this week: your current score is 140, below 150.",
+    });
   });
 
   it("does not infer a Monday practice-test review day from the current Sunday preference", async () => {
@@ -475,7 +508,7 @@ describe("loadOrGenerateCurrentWeek", () => {
       baseline.schedule.schedule.days.MONDAY.activities.length
     );
     expect(adaptive.schedule.schedule.reasons?.find((reason) => reason.code === "skip_reduction")?.sentence)
-      .toContain(`${Math.round(10000 * skippedPlannedMinutes / totalPlannedMinutes) / 100}% of last week's planned time`);
+      .toContain(`You skipped ${Math.round(100 * skippedPlannedMinutes / totalPlannedMinutes)}% last week; skip reduction`);
   });
 
   it("does not let older check-ins alter a future schedule when the immediately preceding week has no skipped work", async () => {
