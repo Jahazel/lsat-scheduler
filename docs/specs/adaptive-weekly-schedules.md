@@ -1,89 +1,50 @@
-> Status: implemented on `main`. This is the accepted specification for the
-> feature; see the rollout runbook for release steps in an existing database.
+# Adaptive weekly schedules, policy v2
 
-## Problem Statement
+> Status: implemented in the current checkout. The tutor's eight Level 2 scenario reviews remain a release step. Saved v1 schedules retain their original plan and display.
 
-Students currently receive a schedule generated on request from one replaceable analytics record. That makes the plan non-historical, prevents reported progress from shaping future workload, loses analytics history, and allows later uploads or profile changes to change what a student sees for the same week. Students need a trustworthy Monday–Sunday plan that responds to current performance and realistic capacity while preserving the record they were given.
+## Record lifecycle
 
-## Solution
+DrillMap saves one Monday–Sunday weekly schedule per student in the configured application timezone, initially `America/Chicago`. The deterministic `adaptive-weekly-schedule-v2` policy uses the student's study settings, a fresh approved analytics snapshot window, and check-ins on the immediately preceding saved week. Repeat and concurrent visits return the same schedule. Later uploads, setting changes, and check-in corrections affect only a schedule that has not yet been created.
 
-Replace request-time schedule generation with a deterministic, persisted adaptive weekly schedule. A new current-week schedule is generated at most once per student per calendar week in the configured application timezone (`America/Chicago` initially), using a fresh approved analytics snapshot window and the immediately preceding week's activity check-ins. The schedule is immutable after saving; check-ins are separately editable. The student dashboard and read-only admin view display the same saved record. The public landing-page sample remains illustrative mock data.
+The saved record holds the policy version, generation time and inputs, source snapshot IDs, day plans, daily capacities, and schedule reasons. Activity check-ins are separate, editable records. Students see their own saved schedule; the tutor's admin view reads the same schedule and reasons. Past v1 schedules remain readable without a v2 backfill.
 
-## User Stories
+An eligible analytics snapshot requires a fresh, usable 7Sage screenshot and student confirmation that the extraction matches and is the latest. The newest three eligible snapshots form the performance trend, weighted 60%, 30%, and 10%, with weights renormalized when fewer exist. A missing skill row contributes no invented accuracy; ranking uses only snapshots that report it. The newest snapshot supplies restricted priority flags. Without an eligible snapshot, the student returns to upload or correction.
 
-1. As a student, I want my current week to have one saved weekly schedule, so that returning to the dashboard always shows the same plan.
-2. As a student, I want my plan to use my latest approved 7Sage analytics, so that the work targets my current weak areas.
-3. As a student, I want recent analytics to matter more than older analytics without erasing longer-term evidence, so that the plan responds to change while recognizing sustained trends.
-4. As a student, I want one approved snapshot to be enough to establish a baseline, so that I do not have to wait for multiple uploads before receiving a plan.
-5. As a student, I want missing skill rows to be handled without invented accuracy values, so that absent data does not falsely change my priorities.
-6. As a student, I want an unusable, rejected, stale, or unconfirmed upload to leave me in a correction/upload state, so that bad analytics cannot silently drive my plan.
-7. As a student, I want to confirm that extracted analytics match my screenshot and are my latest analytics before they affect planning, so that AI extraction remains verifiable.
-8. As a student, I want to see the required Wednesday rest day, drilling days, Saturday practice test, and Sunday review in the weekly shape, so that I can orient quickly.
-9. As a student, I want planned work to fit my stated daily capacity, so that the plan is realistic.
-10. As a student, I want the full Saturday practice test to remain scheduled even when accommodation-adjusted time exceeds Saturday capacity, so that the required test is never silently dropped or shortened.
-11. As a student, I want any Saturday overage to be shown clearly and to have no extra Saturday work added, so that I understand the exception.
-12. As a student, I want a late-approved analytics snapshot to create work only for the remaining days of the current week, so that I am not assigned missed work retroactively.
-13. As a student, I want missed weeks not to be backfilled, so that a new plan starts from the current calendar week.
-14. As a student, I want to mark each schedule activity as not started, completed, or skipped, so that my progress is accurately represented.
-15. As a student, I want actual minutes to be optional for completed activities, so that I can record useful effort without being forced to time every activity.
-16. As a student, I want not started to remain distinct from skipped, so that unknown progress is not treated as failure to complete.
-17. As a student, I want skipped planned minutes from the immediately preceding week to reduce future flexible workload, so that the next plan reflects what I could realistically complete.
-18. As a student, I want completed work not to increase next week's target above baseline, so that the system does not escalate workload unexpectedly.
-19. As a student, I want actual minutes to remain historical information rather than alter my stated capacity or reduction formula, so that the planning rules stay predictable.
-20. As a student, I want to correct a check-in after the week ends, so that my history remains accurate.
-21. As a student, I want a correction made before the next unsaved week is generated to influence that future plan, so that the next plan uses the best available history.
-22. As a student, I want corrections never to mutate a previously saved weekly schedule, so that historical plans remain trustworthy.
-23. As a student, I want Whole week and One day views to show the same check-in state, so that changing views does not create conflicting progress.
-24. As a student, I want to see historical analytics snapshots retained, so that I can understand performance trends over time.
-25. As an admin, I want read-only visibility into a student's saved weekly schedule and check-ins, so that I can provide oversight without changing student records.
-26. As a student, I want access limited to my own analytics, schedules, and check-ins, so that my study data remains private.
-27. As a student, I want account deletion to remove my linked snapshots, schedules, check-ins, and account, so that my active data is deleted together.
-28. As an operator, I want an interrupted or repeated first visit to return one schedule, so that concurrent requests cannot create contradictory weekly plans.
-29. As an operator, I want historical schedules to retain their generation inputs and policy version, so that a plan can be explained and reproduced without recalculation.
-30. As an operator, I want the migration to preserve the surviving old analytics record as legacy history while excluding it from planning, so that migration does not invent provenance.
+## Study settings and weekly shape
 
-## Implementation Decisions
+- Students set capacity for each day in 15-minute steps, from 30 minutes through 8 hours, and choose a preferred practice-test day. The app stores capacity in minutes. No day may have zero capacity, and there is no default preferred day. Changes apply to the next schedule created.
+- A normal week puts a full practice test on the preferred day and review alone on the following day. The usual rest day is Wednesday. If the test or review takes Wednesday, rest moves to the day before the practice test. Remaining days are drilling days.
+- A Sunday practice test creates a review-only Monday in the next weekly schedule. That schedule reads the preceding saved schedule to identify the carry-over, even if the student's preference has changed.
+- A week beginning within the calendar month before the goal test date, and before that date, is a near-test week. It schedules two LawHub practice tests three or four days apart, each followed by a review-only day. The second test day is Thursday, Friday, Saturday, Monday, Tuesday, Wednesday, or Thursday when the preferred day is Monday through Sunday respectively.
+- If the schedule is created after the preferred practice-test day, it contains no practice test that week. A schedule created on that day keeps the test. Past non-rest days are unscheduled, with no retroactive work; the computed rest day remains rest even if it has passed. Missed weeks are not backfilled.
+- The practice test and its review each use the accommodation-adjusted full-test duration: 150 minutes at standard time, 187.5 at 1.5x, or 225 at 2x. Review holds no other activity.
 
-- Keep schedule generation deterministic and separate from persistence. The generation boundary accepts student capacity/profile, the current time, configured timezone, approved snapshot window, prior-week progress facts, and a named scheduling policy.
-- Replace the current single-snapshot storage behavior with append-only approved analytics snapshots. Store approval time, confirmed extracted values, confirmation metadata, and legacy provenance. Retain older snapshots; use only the newest three eligible approved snapshots for planning.
-- Use performance to select focus and reported progress to control workload. Use weights of 60% newest, 30% previous, and 10% oldest; renormalize when fewer snapshots exist. For a skill missing from a snapshot, renormalize only across snapshots reporting that skill. If absent from all retained snapshots, exclude it from adaptive ranking while preserving independent mandatory floors. Use only the newest approved snapshot for restricted yes/no priority flags.
-- Add a persisted weekly schedule record keyed by student and Monday week-start date. Store generated time, immutable planned activities and minutes, source snapshot IDs, profile/capacity inputs, progress facts used at generation, and scheduling policy version.
-- Add separately persisted activity check-ins keyed by schedule and activity. Enforce one check-in per activity, keep planned and actual minutes distinct, and clear completed-only actual minutes when status changes to skipped.
-- Enforce uniqueness for one schedule per student/week and one check-in per schedule/activity. Make load-or-generate idempotent and safely re-read an existing record after a concurrent uniqueness conflict.
-- Compute weeks and remaining days in the configured application timezone, initially `America/Chicago`. Do not make timezone student-editable in this scope.
-- For prior-week progress, use only the immediately preceding saved weekly schedule. Compute skipped planned minutes divided by all prior planned minutes. Reduce the next normal workload by `min(25%, 25% × skipShare)`, trim flexible drills first, and do not copy skipped or unfinished activities.
-- Preserve the established weekly shape where feasible: Wednesday rest, four drilling days, Saturday practice test, and Sunday review. All planned non-test work must fit daily stated capacity; omit indivisible work that does not fit. The full Saturday practice test is the sole capacity exception, remains intact, shows its overage, and receives no additional Saturday work.
-- Require a fresh, approved, usable screenshot and student confirmation before generating a new schedule. No approved snapshot means no schedule; rejected/stale/unusable data returns to upload or correction. Generate only the current remaining week after late approval and never backfill prior weeks.
-- Once saved, a weekly schedule's planned activities, capacity inputs, source references, and generation facts are immutable. Later uploads, profile edits, check-in corrections, and dashboard visits cannot change it.
-- Replace student dashboard request-time generation with loading or generating the saved current-week record. Replace the admin generated view with the same saved record and check-ins in read-only mode. Leave the public landing-page example on mock data.
-- Use the existing analytics extraction/review flow as the approval boundary; only confirmed extraction creates an append-only approved snapshot.
-- For an existing database, use a database-first rollout: run the idempotent migrations, deploy snapshot/schedule/check-in persistence and generation code, and verify indexes and representative records before first real-user use. The dashboard/admin reads and generation use the replacement path; there is no feature flag.
-- Do not add a scheduling rules-management UI. Preserve the deterministic policy and record its version on every schedule.
+## Filling drilling days
 
-## Testing Decisions
+The policy walks active drilling days in Monday–Sunday order. Every drilling day receives at least 10 LR questions or one RC passage, whichever subject is behind the week's 10:1 LR-question-to-RC-passage pace; ties choose LR. A basic LR minimum uses two five-question drills. At the boundary between the first and second LR passes, it uses the last five-question first-pass drill plus the next complete second-pass unit, for 15 questions. The minimum is assigned even when it exceeds capacity.
 
-- Prefer external behavior over implementation details. The primary seam is a load-or-generate-current-week application service using a fake clock/timezone and in-memory repositories; it should exercise lifecycle, generation, persistence, idempotency, immutability, and prerequisite behavior together.
-- Retain the existing deterministic engine tests as focused domain tests for activity ordering, LR/RC shape, capacity behavior, accommodation timing, full-section behavior, and stable output. Update obsolete tolerance expectations to the new hard-cap rules and add the Saturday exception explicitly.
-- Test exact one-, two-, and three-snapshot weighting, four-snapshot retention/window behavior, contradictory accuracy values, missing-row renormalization, absent-everywhere skills, newest-only restricted flags, deterministic tie-breaks, and stable ordering.
-- Test prior-week progress with zero, partial, and complete skips; not-started neutrality; completed neutrality; planned-minute—not actual-minute—calculation; flexible-first trimming; mandatory floors; and the 25% maximum reduction.
-- Test zero capacity, indivisible activities, accommodation-adjusted durations, the full Saturday exception, late approval, no remaining fit, current-timezone week boundaries, no backfill, and the fixed weekly shape.
-- Test database uniqueness, repeated and concurrent first visits, immutable saved inputs, editable check-ins, completed-to-skipped minute clearing, Whole week/One day consistency, student ownership, admin read-only access, deletion cascade, and migration preservation/exclusion of legacy records.
-- Use the repository's existing Vitest scheduling tests as prior art, and add service, persistence, route, and component tests only at the highest seams needed to verify observable behavior.
-- The implementation is complete only when the full test suite, lint, and production build pass.
+After the minimum, the engine adds the next complete unit of the subject behind the 10:1 pace if it fits the day's fill limit. If it does not, it tries the other subject. It stops when neither fits. Review time is included in each item's estimate. LR question and regular RC passage estimates use multipliers of 1, 1.25, and 1.5 for standard, 1.5x, and 2x accommodations.
 
-## Out of Scope
+LR drills put starred question types first, then restricted top-priority Stimulus Logic types, then other eligible types from weakest to strongest with stable list-order ties. When the whole week cannot fit one drill of every starred type, starred rotation uses the least recently scheduled type first, then weakness and list order; non-starred types wait. A complete LR unit is a five-question first-pass drill, a ten-question second-pass drill, or an indivisible paired 5+5 second-pass unit. RC passage type and difficulty follow deterministic cycles. The day alternates which subject appears first.
 
-- AI-generated schedules or replacing deterministic scheduling rules with an LLM.
-- Automatic granular question-level imports or 7Sage scraping.
-- A student-editable or admin-editable scheduling policy.
-- Backfilling missed weeks.
-- Reconstructing overwritten analytics uploads or old schedules that cannot be recovered.
-- Storing uploaded screenshot images.
-- Billing, subscriptions, or referral discounts.
-- Student-configurable timezones.
+One full LR or RC section goes on the remaining drilling day with the most stated capacity, with earlier days winning ties. It alternates subject from the student's most recent saved full section, starting with LR when none exists. The full section satisfies that day's minimum but does not count toward the 10:1 drilling ratio or starred coverage. Drop it only when the current score is below 150 or no remaining drilling day has at least 60 minutes of stated capacity.
 
-## Further Notes
+Skipped planned minutes divided by all planned minutes in the immediately preceding saved week give `skipShare`. The next week's per-day fill limit is `daily capacity × (1 − min(25%, 25% × skipShare))`. Not-started work is neutral, completed work does not raise the limit, and actual minutes are historical only. The reduction applies before filling and never removes a daily minimum or full section. Above the minimum, the fill limit is a hard cap. A mandatory minimum, full section, practice test, or review may exceed stated capacity; the saved day records its overage.
 
-- The existing domain glossary defines the canonical terms weekly schedule, schedule activity, activity check-in, analytics snapshot, performance trend, adaptive weekly schedule, scheduling policy version, and legacy analytics record.
-- The architectural rationale is recorded in the ADR for persisted immutable adaptive weekly schedules.
-- The initial migration must remove the old unique-per-student analytics constraint before append-only writes can operate safely. Privacy documentation should describe active-data deletion and finite backup retention before real-user release.
+## Student-facing schedule
+
+Each day card shows planned time against the capacity saved with that schedule. Capacity overage is the only warning. It appears on the affected card with an icon, the overage and capacity, a saved reason sentence, and a link to Study settings on the current week. That link changes future schedules only. Unscheduled days have a distinct dashed card. The rest day, near-test week, no-test week, and carried review use plain labels.
+
+V2 saves a code, week or day placement, and final sentence for each policy departure at creation. Reasons cover capacity overage, skip reduction, starred rotation, a dropped full section, a moved rest day, no practice test, a near-test week, an unscheduled day, review carried over from Sunday, and a Sunday review due next Monday. The baseline drilling ratio and LR type focus do not get explanations. Past sentences never change when policy wording changes. The admin view shows the same saved sentences.
+
+Activities identify their count, type, and difficulty, and practice tests and full sections identify their source PT range. Students can mark activities not started, completed, or skipped, with optional actual minutes for completed work. A later correction changes the check-in, not the saved plan.
+
+## Verification and release
+
+Engine, service, repository, route, and component tests cover deterministic placement, per-day capacity, accommodations, analytics weighting, skip reduction, saved inputs and reasons, v1 display, access control, and concurrent creation. Run `npm test`, `npm run lint`, and `npm run build` for the implementation gate.
+
+Before release, review eight v2 scenarios with the tutor: baseline, very low capacity, uneven daily capacity, a non-Saturday preferred practice-test day, a near-test week, a score below 150, 2x accommodation, and a schedule created late in the week. For each, record the answer to "Would you give this to a student?" and any note. Resolve rejected scenarios before release. The proposed 25-percentage-point day-fill discrepancy threshold still needs tutor confirmation; no automatic rejection checker or generated capacity sweep is part of this release.
+
+## Scope limits
+
+Scheduling remains deterministic. The app does not use an LLM to create, modify, explain, or review a weekly schedule. It does not scrape 7Sage, import questions individually, store screenshot images, backfill missed weeks, or offer an editable scheduling policy or timezone.

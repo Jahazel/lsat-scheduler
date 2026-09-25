@@ -6,5 +6,5 @@ DrillMap will save one immutable adaptive weekly schedule per student and Monday
 
 - Generation must be idempotent and protected by a unique `(studentId, weekStartDate)` constraint.
 - The application must distinguish planned minutes from reported actual minutes.
-- A fresh approved snapshot is required for a new plan; a full Saturday practice test is the only planned-work capacity exception.
+- A fresh approved snapshot is required for a new plan. ADR 0002 supersedes the original Saturday-only capacity exception for policy v2.
 - An existing database must migrate its indexes and legacy analytics before its first use of the persisted schedule path.

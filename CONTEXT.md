@@ -40,10 +40,6 @@ _Avoid_: explanation, rationale, note
 **Legacy analytics record**:
 An analytics record carried forward from the previous storage model without the approval provenance required for adaptive planning. It may remain visible as history but cannot qualify a student for a new weekly schedule.
 
-**Automatic rejection**:
-A condition that disqualifies a weekly schedule outright, however good the rest of it is. A schedule passes review only when it triggers none.
-_Avoid_: validation error, failed check
-
 ### Weekly shape
 
 **Drilling day**:
@@ -98,8 +94,12 @@ _Avoid_: availability, weekday capacity, weekend capacity
 The smallest amount of LR or RC work every drilling day receives, even when it exceeds that day's daily capacity.
 _Avoid_: floor, minimum drill
 
+**Fill limit**:
+The portion of a drilling day's daily capacity available for work beyond the daily minimum after a skip reduction. Mandatory work can exceed it.
+_Avoid_: daily cap, available hours
+
 **Day fill**:
-A drilling day's planned schedule-activity minutes as a share of that day's daily capacity. The weekly schedule quality rubric compares day fill across drilling days to detect a large discrepancy.
+A drilling day's planned schedule-activity minutes as a share of that day's daily capacity. The tutor uses it to judge whether assigned work differs too much between days.
 _Avoid_: utilization, load
 
 **Capacity overage**:
