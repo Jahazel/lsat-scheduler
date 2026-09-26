@@ -20,7 +20,6 @@ export default async function ProgressPage({
   const { week } = await searchParams;
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role === "admin") redirect("/admin");
 
   await connectDB();
   const student = await StudentModel.findOne({ userId: session.user.id }).lean();

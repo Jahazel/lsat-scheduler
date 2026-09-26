@@ -26,7 +26,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       {/* has-[] adds room for the floating mobile tab bar, only when it is on the page (students). */}
-      <body className="min-h-full flex flex-col has-[[data-tab-bar]]:pb-24 md:has-[[data-tab-bar]]:pb-0">
+      <body className="min-h-full flex flex-col has-[[data-tab-bar]]:pb-24 md:has-[[data-tab-bar]]:pb-0 md:has-[[data-workspace-tabs]]:pb-24 xl:has-[[data-workspace-tabs]]:pb-0">
         <SiteHeader />
         <main className="flex-1">{children}</main>
         <footer className="border-t border-ink-100 px-6 py-6 text-center text-xs text-ink-400">

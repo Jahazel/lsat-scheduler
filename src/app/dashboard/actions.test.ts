@@ -26,17 +26,23 @@ describe("saveActivityCheckIn", () => {
     mocks.auth.mockResolvedValue({ user: { id: "user-1", role: "student" } });
   });
 
-  it("rejects an admin's direct attempt to change a student check-in before any persistence reads or writes", async () => {
+  it("saves an activity check-in on the admin's own student side", async () => {
     mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    mocks.findStudent.mockImplementation(({ userId }) => ({
+      lean: async () => userId === "admin-1" ? { _id: "admin-student" } : null,
+    }));
+    mocks.findSchedule.mockImplementation(({ _id, studentId }) => ({
+      lean: async () => _id === "schedule-1" && studentId === "admin-student"
+        ? { schedule: { days: { MONDAY: { day: "MONDAY", activities: [{}] } } } }
+        : null,
+    }));
+    mocks.saveCheckIn.mockImplementation(async (checkIn) => checkIn);
 
-    await expect(saveActivityCheckIn(input)).rejects.toThrow("Admins have read-only access");
-
-    expect(mocks.connectDB).not.toHaveBeenCalled();
-    expect(mocks.findStudent).not.toHaveBeenCalled();
-    expect(mocks.saveCheckIn).not.toHaveBeenCalled();
+    await expect(saveActivityCheckIn(input)).resolves.toEqual(input);
   });
 
-  it("does not let a student update a check-in on another student's schedule", async () => {
+  it.each(["student", "admin"])("does not let a %s update another student's schedule", async (role) => {
+    mocks.auth.mockResolvedValue({ user: { id: "user-1", role } });
     mocks.findStudent.mockReturnValue({ lean: () => Promise.resolve({ _id: "student-1" }) });
     mocks.findSchedule.mockReturnValue({ lean: () => Promise.resolve(null) });
 

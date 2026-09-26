@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NavIcon } from "./NavIcon";
 import { FOCUS, Logo, TABS, cx, isTabActive } from "./shared";
 
@@ -109,23 +109,27 @@ function Countdown({ label, isTestDay }: { label: string; isTestDay: boolean }) 
   );
 }
 
-export default function StudentNav(props: StudentNavProps) {
+export default function StudentNav(props: StudentNavProps & { workspaceSwitcher?: ReactNode }) {
   const pathname = usePathname();
   const isActive = (href: string) => isTabActive(pathname, href);
 
   return (
     <>
       {/* Mobile: slim bar. The countdown lives in the avatar menu. */}
-      <div className="flex h-14 items-center justify-between px-4 md:hidden">
-        <Logo href="/dashboard" />
+      <div className={cx("flex h-14 items-center justify-between px-4", props.workspaceSwitcher ? "xl:hidden" : "md:hidden")}>
+        <div className="flex items-center gap-1 sm:gap-3">
+          <Logo href="/dashboard" />
+          {props.workspaceSwitcher}
+        </div>
         <AvatarMenu {...props} compact />
       </div>
 
       {/* Desktop: centred pill tabs. Below 900px of bar width the countdown folds into the menu. */}
-      <div className="@container hidden md:block">
+      <div className={cx("@container hidden", props.workspaceSwitcher ? "xl:block" : "md:block")}>
         <div className="grid h-16 grid-cols-[1fr_auto_1fr] items-center gap-6 px-8">
-          <div className="flex items-center">
+          <div className="flex items-center gap-3">
             <Logo href="/dashboard" />
+            {props.workspaceSwitcher}
           </div>
           <nav aria-label="Primary" className="flex gap-1 rounded-full bg-ink-50 p-1">
             {TABS.map((tab) => {
@@ -164,7 +168,7 @@ export default function StudentNav(props: StudentNavProps) {
 }
 
 // Floating bottom tab bar, mobile only. Rendered outside the header so it can be fixed to the viewport.
-export function StudentTabBar({ uploadNeeded }: { uploadNeeded: boolean }) {
+export function StudentTabBar({ uploadNeeded, withWorkspaceSwitcher = false }: { uploadNeeded: boolean; withWorkspaceSwitcher?: boolean }) {
   const pathname = usePathname();
   const isActive = (href: string) => isTabActive(pathname, href);
 
@@ -172,7 +176,8 @@ export function StudentTabBar({ uploadNeeded }: { uploadNeeded: boolean }) {
     <nav
       aria-label="Primary"
       data-tab-bar
-      className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-3 rounded-2xl border border-ink-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_4px_16px_oklch(19%_0.013_205/0.1)] md:hidden"
+      data-workspace-tabs={withWorkspaceSwitcher || undefined}
+      className={cx("fixed inset-x-3 bottom-3 z-40 grid grid-cols-3 rounded-2xl border border-ink-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_4px_16px_oklch(19%_0.013_205/0.1)]", withWorkspaceSwitcher ? "xl:hidden" : "md:hidden")}
     >
       {TABS.map((tab) => {
         const active = isActive(tab.href);

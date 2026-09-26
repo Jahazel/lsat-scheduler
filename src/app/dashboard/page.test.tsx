@@ -40,15 +40,14 @@ describe("DashboardPage", () => {
     mocks.listForSchedule.mockResolvedValue([]);
   });
 
-  it("redirects admins before loading or generating a student schedule", async () => {
-    await expect(DashboardPage({ searchParams: Promise.resolve({}) })).rejects.toThrow("redirect:/admin");
-
-    expect(mocks.findStudent).not.toHaveBeenCalled();
-    expect(mocks.loadCurrentWeek).not.toHaveBeenCalled();
+  it("sends an admin without a Student to onboarding", async () => {
+    mocks.findStudent.mockReturnValue({ lean: async () => null });
+    await expect(DashboardPage({ searchParams: Promise.resolve({}) })).rejects.toThrow("redirect:/onboarding");
+    expect(mocks.findStudent).toHaveBeenCalledWith({ userId: "admin-1" });
   });
 
-  it("hides analytics upload once the current-week schedule exists", async () => {
-    mocks.auth.mockResolvedValue({ user: { id: "student-1", role: "student", name: "Student" } });
+  it.each(["student", "admin"])("shows the %s their saved current-week schedule", async (role) => {
+    mocks.auth.mockResolvedValue({ user: { id: "student-1", role, name: "Student" } });
     mocks.findStudent.mockReturnValue({
       lean: vi.fn().mockResolvedValue({
         _id: "student-record-1",

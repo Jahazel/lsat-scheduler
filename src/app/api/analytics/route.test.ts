@@ -84,14 +84,19 @@ describe("POST /api/analytics", () => {
     vi.unstubAllEnvs();
   });
 
-  it("rejects an admin's direct attempt to append student analytics", async () => {
+  it("approves a screenshot on the real date for the admin's own student side", async () => {
     mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    mocks.findStudent.mockImplementation(async ({ userId }) => userId === "admin-1" ? { _id: "admin-student" } : null);
 
-    const response = await POST(request(confirmedUpload));
+    const response = await POST(request({ ...confirmedUpload, studentId: "someone-else" }));
 
-    expect(response.status).toBe(403);
-    expect(mocks.findStudent).not.toHaveBeenCalled();
-    expect(mocks.createSnapshot).not.toHaveBeenCalled();
+    expect(response.status).toBe(201);
+    expect(mocks.createSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      studentId: "admin-student",
+      weekOf: "2026-09-14",
+      approvedAt: new Date("2026-09-14T16:00:00.000Z"),
+      status: "approved",
+    }));
   });
 
   it.each([

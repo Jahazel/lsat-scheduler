@@ -43,9 +43,10 @@ describe("ProgressPage", () => {
     mocks.listScheduleHistory.mockResolvedValue([]);
   });
 
-  it("redirects admins away", async () => {
+  it("opens Progress on the admin's student side", async () => {
     mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
-    await expect(render()).rejects.toThrow("redirect:/admin");
+    expect(await render()).toContain("No finished weeks yet.");
+    expect(mocks.findStudent).toHaveBeenCalledWith({ userId: "admin-1" });
   });
 
   it("explains the empty state when only the current week exists", async () => {

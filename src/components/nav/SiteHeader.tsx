@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { initialsFor, loadStudentNavState } from "@/lib/studentNav";
+import AdminNav from "./AdminNav";
 import StudentNav, { StudentTabBar } from "./StudentNav";
 import { logOut } from "./actions";
 import { FOCUS, Logo, cx } from "./shared";
@@ -38,16 +39,16 @@ export default async function SiteHeader() {
   }
 
   if (user.role === "admin") {
+    const state = user.id ? await loadStudentNavState(user.id) : null;
     return (
-      <header className={HEADER}>
-        <div className={BAR}>
-          <Logo href="/admin" />
-          <nav aria-label="Primary" className="flex items-center gap-1">
-            <Link href="/admin" className={LINK}>Admin</Link>
-            <LogOutButton />
-          </nav>
-        </div>
-      </header>
+      <AdminNav
+        initials={initialsFor(user.name, user.email)}
+        email={user.email ?? ""}
+        countdownLabel={state?.countdownLabel ?? null}
+        isTestDay={state?.isTestDay ?? false}
+        uploadNeeded={state?.uploadNeeded ?? false}
+        logOut={logOut}
+      />
     );
   }
 

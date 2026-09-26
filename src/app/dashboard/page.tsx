@@ -27,9 +27,6 @@ export default async function DashboardPage({
   if (!session?.user) {
     redirect("/login");
   }
-  if (session.user.role === "admin") {
-    redirect("/admin");
-  }
 
   await connectDB();
   const doc = await StudentModel.findOne({ userId: session.user.id }).lean();

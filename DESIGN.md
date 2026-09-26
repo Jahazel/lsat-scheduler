@@ -164,6 +164,8 @@ The one register-specific exception: brand-register hero and proof moments (the 
 ### Navigation
 - **Style:** flat top bar, `ink-100` bottom border, `DrillMap` wordmark at `ink-900` left-aligned, right-aligned text links (`ink-600`, `ink-900` on hover). No dropdowns, no mega-menu — this is a small, flat nav by design at every screen size so far.
 
+- **Admin exception:** A workspace dropdown next to the wordmark switches between All students and My student side. It appears only for admins. Each option describes whose records it opens and the date they use. The student side retains the student navigation.
+
 ### Credibility Bar (signature component, brand register)
 The landing page's proof-stat row. Currently under-designed: four stats rendered as plain inline `text-sm text-ink-500` separated by middot characters — identical visual weight to filler copy, which is exactly why it doesn't land. Per the Proof Number Rule, each stat should be a two-line unit: the number/fact at Headline scale in `ink-900` or `accent-600`, its description beneath at Label scale in `ink-500`, arranged as a row of equal-width columns (not an inline run of text) with generous horizontal spacing (`gap-x-12`+) rather than middot separators doing the work of visual separation.
 

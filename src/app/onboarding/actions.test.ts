@@ -24,13 +24,12 @@ describe("createStudentProfile", () => {
     mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
   });
 
-  it("rejects an admin's direct attempt to create student records or analytics", async () => {
-    await expect(createStudentProfile({ ...mockStudent, analyticsRows: [], analyticsApproval: null })).rejects.toThrow(
-      "Admins have read-only access"
-    );
-
-    expect(mocks.connectDB).not.toHaveBeenCalled();
-    expect(mocks.createStudent).not.toHaveBeenCalled();
+  it("creates the admin's own student side", async () => {
+    mocks.findStudent.mockResolvedValue(null);
+    mocks.createStudent.mockResolvedValue({ _id: "admin-student" });
+    await createStudentProfile({ ...mockStudent, analyticsRows: [], analyticsApproval: null });
+    expect(mocks.createStudent).toHaveBeenCalledWith({ userId: "admin-1", ...mockStudent });
+    expect(mocks.redirect).toHaveBeenCalledWith("/dashboard");
     expect(mocks.createSnapshot).not.toHaveBeenCalled();
   });
 

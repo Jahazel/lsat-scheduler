@@ -9,6 +9,7 @@ interface PopulatedOwner {
   _id: mongoose.Types.ObjectId;
   name: string;
   email: string;
+  role: "student" | "admin";
 }
 
 function toStudentRecord(doc: {
@@ -37,23 +38,23 @@ function toStudentRecord(doc: {
   };
 }
 
-// Admin-only: every student with their owning User's name/email resolved,
+// Admin-only: real students with their owning User's name/email resolved,
 // sorted by name. Pre-migration Student rows that predate the userId field
 // (orphaned test data) are silently dropped — they have no owner to show.
 export async function listStudentsWithOwners(): Promise<StudentRecord[]> {
-  const students = await StudentModel.find().populate<{ userId: PopulatedOwner }>("userId", "name email").lean();
+  const students = await StudentModel.find().populate<{ userId: PopulatedOwner }>("userId", "name email role").lean();
 
   return students
-    .filter((s) => s.userId)
+    .filter((s) => s.userId && s.userId.role !== "admin")
     .map(toStudentRecord)
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // Admin-only: one student by id, with their owning User's name/email
-// resolved. Returns null for a missing id or an orphaned pre-migration row.
+// resolved. Admin-owned Students, missing ids and orphaned rows return null.
 export async function getStudentWithOwner(id: string): Promise<StudentRecord | null> {
-  const doc = await StudentModel.findById(id).populate<{ userId: PopulatedOwner }>("userId", "name email").lean();
-  if (!doc || !doc.userId) return null;
+  const doc = await StudentModel.findById(id).populate<{ userId: PopulatedOwner }>("userId", "name email role").lean();
+  if (!doc || !doc.userId || doc.userId.role === "admin") return null;
 
   return toStudentRecord(doc);
 }

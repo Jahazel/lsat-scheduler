@@ -8,7 +8,6 @@ import { scheduleActivityId } from "@/lib/currentWeeklySchedule";
 import { connectDB } from "@/lib/db";
 import { StudentModel } from "@/models/Student";
 import { WeeklyScheduleModel } from "@/models/WeeklySchedule";
-import { ADMIN_READ_ONLY_MESSAGE, isAdminUser } from "@/lib/accessControl";
 
 const CheckInInput = z.object({
   scheduleId: z.string().min(1),
@@ -21,7 +20,6 @@ export async function saveActivityCheckIn(input: z.input<typeof CheckInInput>) {
   const parsed = CheckInInput.parse(input);
   const session = await auth();
   if (!session?.user) throw new Error("Not authenticated");
-  if (isAdminUser(session.user)) throw new Error(ADMIN_READ_ONLY_MESSAGE);
 
   await connectDB();
   const student = await StudentModel.findOne({ userId: session.user.id }).lean();

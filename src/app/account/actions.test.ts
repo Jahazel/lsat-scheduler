@@ -78,6 +78,8 @@ describe("deleteAccount", () => {
     expect(mocks.deleteSnapshots).not.toHaveBeenCalled();
     expect(mocks.deleteCheckIns).not.toHaveBeenCalled();
     expect(mocks.deleteSchedules).not.toHaveBeenCalled();
+    expect(mocks.deleteStudent).not.toHaveBeenCalled();
+    expect(mocks.deleteUser).not.toHaveBeenCalled();
   });
 });
 
@@ -114,7 +116,8 @@ describe("updateStudentProfile", () => {
     expect(mocks.updateStudent).not.toHaveBeenCalled();
   });
 
-  it("saves a changed daily capacity and preferred practice-test day", async () => {
+  it.each(["student", "admin"])("saves study settings on the signed-in %s's own Student", async (role) => {
+    mocks.auth.mockResolvedValue({ user: { id: "user-1", role } });
     const dailyCapacityMinutes = { ...mockStudent.dailyCapacityMinutes, WEDNESDAY: 480 };
 
     await updateStudentProfile({
