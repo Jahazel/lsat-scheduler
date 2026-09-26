@@ -7,7 +7,7 @@ import StudentNav, { StudentTabBar, type StudentNavProps } from "./StudentNav";
 import { NavIcon } from "./NavIcon";
 import { FOCUS, Logo, TABS, cx, isTabActive } from "./shared";
 
-function WorkspaceSwitcher({ studentSide }: { studentSide: boolean }) {
+function WorkspaceSwitcher({ studentSide, adminSide }: { studentSide: boolean; adminSide: boolean }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -18,8 +18,18 @@ function WorkspaceSwitcher({ studentSide }: { studentSide: boolean }) {
     const dismiss = (event: PointerEvent) => {
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setOpen(false);
+      trigger.current?.focus();
+    };
     document.addEventListener("pointerdown", dismiss);
-    return () => document.removeEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [open]);
 
   return (
@@ -30,13 +40,6 @@ function WorkspaceSwitcher({ studentSide }: { studentSide: boolean }) {
         // Safari mouse clicks may blur without focusing the destination link.
         // Outside pointer presses are handled separately.
         if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) setOpen(false);
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Escape" && open) {
-          event.preventDefault();
-          setOpen(false);
-          trigger.current?.focus();
-        }
       }}
     >
       <button
@@ -57,7 +60,7 @@ function WorkspaceSwitcher({ studentSide }: { studentSide: boolean }) {
           className="absolute -left-20 top-full z-50 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-ink-200 bg-white py-1 shadow-[0_8px_24px_oklch(19%_0.013_205/0.12)] sm:left-0"
         >
           {[
-            { href: "/admin", label: "All students", detail: "Real students on the real date", active: !studentSide },
+            { href: "/admin", label: "All students", detail: "Real students on the real date", active: adminSide },
             { href: "/dashboard", label: "My student side", detail: "Your test profile on the real date", active: studentSide },
           ].map((option) => (
             <Link
@@ -65,10 +68,13 @@ function WorkspaceSwitcher({ studentSide }: { studentSide: boolean }) {
               href={option.href}
               aria-current={option.active ? "true" : undefined}
               onClick={() => setOpen(false)}
-              className={cx("block px-4 py-3 text-sm text-ink-900 hover:bg-ink-50", option.active && "bg-ink-50", FOCUS)}
+              className={cx("flex items-center justify-between gap-3 px-4 py-3 text-sm text-ink-900 hover:bg-ink-50", option.active && "bg-ink-50 font-semibold", FOCUS)}
             >
-              <span className="block font-medium">{option.label}</span>
-              <span className="block text-xs text-ink-700">{option.detail}</span>
+              <span>
+                <span className={cx("block font-medium", option.active && "font-semibold")}>{option.label}</span>
+                <span className="block text-xs font-normal text-ink-700">{option.detail}</span>
+              </span>
+              {option.active && <NavIcon name="check" className="size-4 text-accent-700" />}
             </Link>
           ))}
         </nav>
@@ -81,7 +87,8 @@ export default function AdminNav(props: StudentNavProps) {
   const pathname = usePathname();
   const studentSide = [...TABS.map(({ href }) => href), "/onboarding", "/account"]
     .some((href) => isTabActive(pathname, href));
-  const switcher = <WorkspaceSwitcher key={pathname} studentSide={studentSide} />;
+  const adminSide = isTabActive(pathname, "/admin");
+  const switcher = <WorkspaceSwitcher key={pathname} studentSide={studentSide} adminSide={adminSide} />;
 
   return (
     <>
@@ -92,6 +99,7 @@ export default function AdminNav(props: StudentNavProps) {
           <div className="flex min-h-14 items-center justify-between gap-1 px-4 md:h-16 md:px-8">
             <div className="flex items-center gap-1 sm:gap-3">
               <Logo href="/admin" />
+              <span className="text-ink-200" aria-hidden data-workspace-separator="true">/</span>
               {switcher}
             </div>
             <form action={props.logOut}>

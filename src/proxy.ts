@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { landingPathForRole } from "@/lib/landingPath";
 
 // Optimistic checks only — role comes straight off the session cookie, no
 // DB lookups here (Proxy runs on every request, including prefetches).
@@ -20,7 +21,7 @@ export default auth((req) => {
   }
 
   if (session?.user && (pathname === "/login" || pathname === "/signup")) {
-    const destination = session.user.role === "admin" ? "/admin" : "/dashboard";
+    const destination = landingPathForRole(session.user.role);
     return NextResponse.redirect(new URL(destination, req.nextUrl));
   }
 

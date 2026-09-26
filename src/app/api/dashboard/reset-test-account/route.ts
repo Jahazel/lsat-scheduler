@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
-import { ADMIN_READ_ONLY_MESSAGE, isAdminUser } from "@/lib/accessControl";
+import { ADMIN_RESTRICTED_ACTION_MESSAGE, isAdminUser } from "@/lib/accessControl";
 import { StudentModel } from "@/models/Student";
 import { WeeklyScheduleModel } from "@/models/WeeklySchedule";
 import { ActivityCheckInModel } from "@/models/ActivityCheckIn";
@@ -14,7 +14,7 @@ export async function POST() {
 
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (isAdminUser(session.user)) return NextResponse.json({ error: ADMIN_READ_ONLY_MESSAGE }, { status: 403 });
+  if (isAdminUser(session.user)) return NextResponse.json({ error: ADMIN_RESTRICTED_ACTION_MESSAGE }, { status: 403 });
 
   await connectDB();
   const student = await StudentModel.findOne({ userId: session.user.id }).lean();

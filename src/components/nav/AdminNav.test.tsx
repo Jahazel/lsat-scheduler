@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({ pathname: "/admin" }));
 vi.mock("next/navigation", () => ({ usePathname: () => mocks.pathname }));
 
 import AdminNav from "./AdminNav";
+import StudentNav from "./StudentNav";
 
 const props = {
   initials: "QA", email: "qa@example.test", countdownLabel: "30 days to test",
@@ -36,6 +37,27 @@ describe("admin navigation", () => {
     expect(markup).toContain('href="/progress"');
     expect(markup).toContain('href="/settings"');
     expect(markup).toContain('data-workspace-tabs="true"');
+    expect(markup).toContain('data-workspace-separator="true"');
+  });
+
+  it.each(["/", "/legal/terms", "/issue-47-preview"])("keeps the chosen switcher label and no current option outside workspaces on %s", (path) => {
+    mocks.pathname = path;
+    const markup = renderToStaticMarkup(<AdminNav {...props} />);
+    expect(markup).toContain("All students");
+    expect(markup).not.toContain('aria-current="true"');
+  });
+
+  it("does not add the workspace separator to a real student's header", () => {
+    const markup = renderToStaticMarkup(<StudentNav {...props} />);
+    expect(markup).not.toContain("data-workspace-separator");
+    expect(markup).not.toContain("/</span>");
+  });
+
+  it("uses the shared lg breakpoint for workspace navigation and page padding", () => {
+    mocks.pathname = "/dashboard";
+    const markup = renderToStaticMarkup(<AdminNav {...props} />);
+    expect(markup).toContain("lg:hidden");
+    expect(markup).toContain("lg:block");
   });
 });
 
@@ -71,6 +93,27 @@ describe("workspace switcher interactions", () => {
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("navigation", { name: "Workspace" })).toBeNull();
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it("closes on document Escape after a mouse click and returns focus to the trigger", () => {
+    render(<AdminNav {...props} />);
+    const trigger = screen.getByRole("button", { name: "All students" });
+    fireEvent.click(trigger);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("navigation", { name: "Workspace" })).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("marks the current workspace with a check icon distinct from hover", () => {
+    render(<AdminNav {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "All students" }));
+    const current = screen.getByRole("link", { name: /All students/ });
+    const other = screen.getByRole("link", { name: /My student side/ });
+    expect(current.getAttribute("aria-current")).toBe("true");
+    expect(current.querySelector("svg")).not.toBeNull();
+    expect(current.querySelector("span > span")?.className).toContain("font-semibold");
+    expect(other.className).toContain("hover:bg-ink-50");
+    expect(other.querySelector("span > span")?.className).not.toContain("font-semibold");
   });
 
   it("closes when Tab leaves the switcher", async () => {

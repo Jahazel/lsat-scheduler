@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NavIcon } from "./NavIcon";
 import { FOCUS, Logo, TABS, cx, isTabActive } from "./shared";
+import { WORKSPACE_NAV_BREAKPOINT } from "./workspaceBreakpoint";
 
 export interface StudentNavProps {
   initials: string;
@@ -116,19 +117,21 @@ export default function StudentNav(props: StudentNavProps & { workspaceSwitcher?
   return (
     <>
       {/* Mobile: slim bar. The countdown lives in the avatar menu. */}
-      <div className={cx("flex h-14 items-center justify-between px-4", props.workspaceSwitcher ? "xl:hidden" : "md:hidden")}>
+      <div className={cx("flex h-14 items-center justify-between px-4", props.workspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.mobileHeader : "md:hidden")}>
         <div className="flex items-center gap-1 sm:gap-3">
           <Logo href="/dashboard" />
+          {props.workspaceSwitcher && <span className="text-ink-200" aria-hidden data-workspace-separator="true">/</span>}
           {props.workspaceSwitcher}
         </div>
         <AvatarMenu {...props} compact />
       </div>
 
       {/* Desktop: centred pill tabs. Below 900px of bar width the countdown folds into the menu. */}
-      <div className={cx("@container hidden", props.workspaceSwitcher ? "xl:block" : "md:block")}>
+      <div className={cx("@container hidden", props.workspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.desktopHeader : "md:block")}>
         <div className="grid h-16 grid-cols-[1fr_auto_1fr] items-center gap-6 px-8">
           <div className="flex items-center gap-3">
             <Logo href="/dashboard" />
+            {props.workspaceSwitcher && <span className="text-ink-200" aria-hidden data-workspace-separator="true">/</span>}
             {props.workspaceSwitcher}
           </div>
           <nav aria-label="Primary" className="flex gap-1 rounded-full bg-ink-50 p-1">
@@ -177,7 +180,7 @@ export function StudentTabBar({ uploadNeeded, withWorkspaceSwitcher = false }: {
       aria-label="Primary"
       data-tab-bar
       data-workspace-tabs={withWorkspaceSwitcher || undefined}
-      className={cx("fixed inset-x-3 bottom-3 z-40 grid grid-cols-3 rounded-2xl border border-ink-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_4px_16px_oklch(19%_0.013_205/0.1)]", withWorkspaceSwitcher ? "xl:hidden" : "md:hidden")}
+      className={cx("fixed inset-x-3 bottom-3 z-40 grid grid-cols-3 rounded-2xl border border-ink-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_4px_16px_oklch(19%_0.013_205/0.1)]", withWorkspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.mobileTabBar : "md:hidden")}
     >
       {TABS.map((tab) => {
         const active = isActive(tab.href);

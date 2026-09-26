@@ -72,7 +72,7 @@ describe("deleteAccount", () => {
     const formData = new FormData();
     formData.set("confirmation", "DELETE");
 
-    await expect(deleteAccount(formData)).rejects.toThrow("Admins have read-only access");
+    await expect(deleteAccount(formData)).rejects.toThrow("This action is not available for admin accounts.");
 
     expect(mocks.connectDB).not.toHaveBeenCalled();
     expect(mocks.deleteSnapshots).not.toHaveBeenCalled();

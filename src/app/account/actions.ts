@@ -12,7 +12,7 @@ import { deleteStudentAccount } from "@/lib/deleteStudentAccount";
 import { studentProfileSchema } from "@/lib/studentProfile";
 import type { AnalyticsExtractedRow, Student } from "@/lib/types";
 import type { SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
-import { ADMIN_READ_ONLY_MESSAGE, isAdminUser } from "@/lib/accessControl";
+import { ADMIN_RESTRICTED_ACTION_MESSAGE, isAdminUser } from "@/lib/accessControl";
 
 export async function updateStudentProfile(
   input: Student & { analyticsRows: AnalyticsExtractedRow[]; analyticsApproval: SnapshotApprovalMetadata | null }
@@ -42,7 +42,7 @@ export async function deleteAccount(formData: FormData) {
     throw new Error("Not authenticated");
   }
   if (isAdminUser(session.user)) {
-    throw new Error(ADMIN_READ_ONLY_MESSAGE);
+    throw new Error(ADMIN_RESTRICTED_ACTION_MESSAGE);
   }
   if (formData.get("confirmation") !== "DELETE") {
     throw new Error("Type DELETE to confirm account deletion.");

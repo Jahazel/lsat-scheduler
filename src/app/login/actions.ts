@@ -5,6 +5,7 @@ import { signIn } from "@/auth";
 import { redirect } from "next/navigation";
 import { connectDB } from "@/lib/db";
 import { UserModel } from "@/models/User";
+import { landingPathForRole } from "@/lib/landingPath";
 
 export interface LoginState {
   error?: string;
@@ -28,7 +29,7 @@ export async function login(_state: LoginState, formData: FormData): Promise<Log
   // Redirect directly: a proxy redirect after an action can leave /login in the URL.
   await connectDB();
   const user = await UserModel.findOne({ email });
-  redirect(user?.role === "admin" ? "/admin" : "/dashboard");
+  redirect(landingPathForRole(user?.role));
 }
 
 export async function signInWithGoogle() {

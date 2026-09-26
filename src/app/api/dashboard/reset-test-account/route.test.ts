@@ -47,4 +47,16 @@ describe("POST /api/dashboard/reset-test-account", () => {
     await expect(POST()).resolves.toMatchObject({ status: 404 });
     expect(mocks.auth).not.toHaveBeenCalled();
   });
+
+  it("keeps the reset endpoint blocked for admins", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+
+    const response = await POST();
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "This action is not available for admin accounts.",
+    });
+    expect(mocks.findStudent).not.toHaveBeenCalled();
+  });
 });
