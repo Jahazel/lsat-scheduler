@@ -129,6 +129,7 @@ function workspace() {
   const { user, repository } = clock("admin", "2026-10-07");
   const records = {
     students: ["admin-student", "real-student"],
+    studySettings: ["admin-student", "real-student"],
     schedules: [
       { id: "old", studentId: "admin-student", week: "2026-09-28" },
       { id: "current", studentId: "admin-student", week: "2026-10-05" },
@@ -136,6 +137,7 @@ function workspace() {
     ],
     checkIns: ["old", "current", "real"],
     snapshots: ["admin-student", "real-student"],
+    resetCalls: [] as { userId: string; studentId: string | null; scope: string }[],
   };
   const repos: AdminTestRepositories = {
     clock: repository,
@@ -155,11 +157,14 @@ function workspace() {
       records.schedules = records.schedules.filter((s) => !ids.includes(s.id));
     },
     async reset(userId, studentId, scope) {
+      records.resetCalls.push({ userId, studentId, scope });
       if (studentId) {
         await this.deleteSchedules(studentId);
         records.snapshots = records.snapshots.filter((id) => id !== studentId);
-        if (scope === "everything")
+        if (scope === "everything") {
           records.students = records.students.filter((id) => id !== studentId);
+          records.studySettings = records.studySettings.filter((id) => id !== studentId);
+        }
       }
       user.simulatedDate = null;
     },
@@ -187,11 +192,26 @@ it.each(["test-data", "everything"] as const)(
     expect(records.students).toEqual(
       scope === "everything" ? ["real-student"] : ["admin-student", "real-student"],
     );
+    expect(records.studySettings).toEqual(
+      scope === "everything" ? ["real-student"] : ["admin-student", "real-student"],
+    );
+    expect(records.resetCalls).toEqual([
+      { userId: "admin", studentId: "admin-student", scope },
+    ]);
     expect(user.simulatedDate).toBeNull();
-    if (scope === "everything")
+    if (scope === "everything") {
       await expect(
         resetTestWorkspace("admin", "everything", repos),
       ).resolves.toBeUndefined();
+      expect(records.resetCalls[1]).toEqual({
+        userId: "admin",
+        studentId: null,
+        scope: "everything",
+      });
+      expect(records.students).toEqual(["real-student"]);
+      expect(records.studySettings).toEqual(["real-student"]);
+      expect(user.simulatedDate).toBeNull();
+    }
   },
 );
 
