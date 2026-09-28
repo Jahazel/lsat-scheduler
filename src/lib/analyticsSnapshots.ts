@@ -1,4 +1,4 @@
-import { dateInScheduleTimezone } from "./adminTestWorkspace";
+import { dateInScheduleTimezone, type StudentClock } from "./adminTestWorkspace";
 import { z } from "zod";
 import type { LRLogicType } from "@/lib/types";
 
@@ -32,8 +32,8 @@ export interface SnapshotApprovalMetadata {
 
 export class SnapshotApprovalError extends Error {}
 
-export function snapshotWeekOptions(approvedAt: Date, realNow: Date) {
-  return approvedAt !== realNow ? { weekOf: dateInScheduleTimezone(approvedAt) } : {};
+export function snapshotWeekOptions(clock: StudentClock) {
+  return clock.simulated ? { weekOf: dateInScheduleTimezone(clock.now) } : {};
 }
 
 export function prepareApprovedSnapshot(input: unknown, approvedAt = new Date(), realNow = approvedAt, options: { allowAdminSample?: boolean; weekOf?: string } = {}) {
@@ -55,7 +55,11 @@ export function prepareApprovedSnapshot(input: unknown, approvedAt = new Date(),
 
   const extractedAt = new Date(values.extraction.extractedAt);
   if (realNow.getTime() - extractedAt.getTime() > MAX_EXTRACTION_AGE_MS || extractedAt > realNow) {
-    throw new SnapshotApprovalError("Upload a fresh analytics screenshot before saving.");
+    throw new SnapshotApprovalError(
+      values.extraction.source === "admin_sample"
+        ? "Generate a new sample analytics snapshot before saving."
+        : "Upload a fresh analytics screenshot before saving.",
+    );
   }
 
   const confirmedAt = new Date(values.confirmation.confirmedAt);

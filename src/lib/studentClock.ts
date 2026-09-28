@@ -1,6 +1,7 @@
 import { connectDB } from "./db";
 import { UserModel } from "@/models/User";
 import {
+  resolveStudentClock,
   resolveStudentTime,
   type AdminClockRepository,
 } from "./adminTestWorkspace";
@@ -25,4 +26,11 @@ export function studentSideNow(
   real = new Date(),
 ) {
   return resolveStudentTime(user, real, mongooseAdminClock);
+}
+
+export function studentSideClock(
+  user: { id?: string; role?: string },
+  real = new Date(),
+) {
+  return resolveStudentClock(user, real, mongooseAdminClock);
 }

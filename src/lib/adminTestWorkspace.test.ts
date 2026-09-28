@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  resolveStudentClock,
   resolveStudentTime,
   moveSimulatedDate,
   type AdminClockRepository,
@@ -36,6 +37,48 @@ function clock(role = "admin", simulatedDate: string | null = null) {
 }
 
 describe("admin student-side clock", () => {
+  it("marks a real student's clock as unsimulated and reuses real time", async () => {
+    const real = new Date("2026-09-23T18:24:32.123Z");
+    const result = await resolveStudentClock(
+      { id: "student", role: "student" },
+      real,
+      {
+        async findUser() { throw new Error("Must not read"); },
+        async moveDate() { throw new Error("Must not write"); },
+      },
+    );
+    expect(result).toEqual({ now: real, real, simulated: false });
+    expect(result.now).toBe(real);
+  });
+  it("marks an admin without a simulated date as unsimulated", async () => {
+    const { repository } = clock();
+    const real = new Date("2026-09-23T18:24:32.123Z");
+    expect(await resolveStudentClock({ id: "admin", role: "admin" }, real, repository))
+      .toEqual({ now: real, real, simulated: false });
+  });
+  it("marks an admin with a simulated date and preserves the real wall-clock time", async () => {
+    const { repository } = clock("admin", "2026-12-09");
+    const real = new Date("2026-09-23T18:24:32.123Z");
+    const result = await resolveStudentClock({ id: "admin", role: "admin" }, real, repository);
+    expect(result).toEqual({
+      now: new Date("2026-12-09T19:24:32.123Z"),
+      real,
+      simulated: true,
+    });
+  });
+  it("ignores a stray simulated date on a student database record", async () => {
+    const { repository } = clock("student", "2026-12-09");
+    const real = new Date("2026-09-23T18:24:32.123Z");
+    expect(await resolveStudentClock({ id: "admin", role: "admin" }, real, repository))
+      .toEqual({ now: real, real, simulated: false });
+  });
+  it("marks an admin simulated on today's real date as simulated", async () => {
+    const { repository } = clock("admin", "2026-09-23");
+    const real = new Date("2026-09-23T18:24:32.123Z");
+    const result = await resolveStudentClock({ id: "admin", role: "admin" }, real, repository);
+    expect(result.now.getTime()).toBe(real.getTime());
+    expect(result.simulated).toBe(true);
+  });
   it("keeps the real local time of day across daylight saving offsets", async () => {
     const { repository } = clock("admin", "2026-12-09");
     const now = await resolveStudentTime(

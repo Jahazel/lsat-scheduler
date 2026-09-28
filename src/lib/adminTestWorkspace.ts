@@ -20,6 +20,8 @@ export interface AdminClockRepository {
   ): Promise<boolean>;
 }
 
+export type StudentClock = { now: Date; real: Date; simulated: boolean };
+
 export function dateInScheduleTimezone(now: Date) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: SCHEDULE_TIMEZONE,
@@ -98,19 +100,34 @@ export async function resolveStudentTime(
   real: Date,
   repository: AdminClockRepository,
 ) {
-  if (!isAdminUser(user) || !user.id) return real;
+  return (await resolveStudentClock(user, real, repository)).now;
+}
+
+export async function resolveStudentClock(
+  user: { id?: string; role?: string },
+  real: Date,
+  repository: AdminClockRepository,
+): Promise<StudentClock> {
+  if (!isAdminUser(user) || !user.id) return { now: real, real, simulated: false };
   const current = await repository.findUser(user.id);
-  return timeForVerifiedUser(current, real);
+  return clockForVerifiedUser(current, real);
 }
 
 // The caller supplies a database record, never a session claim.
+export function clockForVerifiedUser(
+  current: { role: string; simulatedDate?: string | null } | null,
+  real: Date,
+): StudentClock {
+  return isAdminUser(current) && current.simulatedDate
+    ? { now: timeOnDate(current.simulatedDate, real), real, simulated: true }
+    : { now: real, real, simulated: false };
+}
+
 export function timeForVerifiedUser(
   current: { role: string; simulatedDate?: string | null } | null,
   real: Date,
 ) {
-  return isAdminUser(current) && current.simulatedDate
-    ? timeOnDate(current.simulatedDate, real)
-    : real;
+  return clockForVerifiedUser(current, real).now;
 }
 
 export async function moveSimulatedDate(

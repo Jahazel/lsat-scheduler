@@ -1,5 +1,5 @@
 import { isAdminUser } from "@/lib/accessControl";
-import { studentSideNow } from "@/lib/studentClock";
+import { studentSideClock } from "@/lib/studentClock";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
@@ -46,14 +46,14 @@ export default async function DashboardPage({
     goalTestDate: doc.goalTestDate,
   };
 
-  const realNow = new Date();
-  const now = await studentSideNow(session.user, realNow);
+  const clock = await studentSideClock(session.user);
+  const now = clock.now;
   const currentWeek = await loadOrGenerateCurrentWeek({
     ...mongooseCurrentWeekRepositories,
     activityCheckIns: {
       ...mongooseActivityCheckIns,
       ensureForSchedule: (schedule) => mongooseActivityCheckIns.ensureForSchedule(
-        schedule, now !== realNow ? new Date(schedule.generatedAt) : undefined,
+        schedule, clock.simulated ? new Date(schedule.generatedAt) : undefined,
       ),
     },
     studentId: String(doc._id),

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { requireCurrentAdmin } from "@/lib/requireAdmin";
 import { NextRequest, NextResponse } from "next/server";
-import { studentSideNow } from "@/lib/studentClock";
+import { studentSideClock } from "@/lib/studentClock";
 import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
 import { StudentModel } from "@/models/Student";
@@ -35,12 +35,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Complete onboarding first" }, { status: 404 });
   }
 
-  const realNow = new Date();
-  const approvedAt = await studentSideNow(session.user, realNow);
+  const clock = await studentSideClock(session.user);
   try {
     await AnalyticsSnapshotModel.create({
       studentId: student._id,
-      ...prepareApprovedSnapshot(body, approvedAt, realNow, { allowAdminSample: isSample, ...snapshotWeekOptions(approvedAt, realNow) }),
+      ...prepareApprovedSnapshot(body, clock.now, clock.real, { allowAdminSample: isSample, ...snapshotWeekOptions(clock) }),
     });
   } catch (error) {
     if (error instanceof SnapshotApprovalError) {

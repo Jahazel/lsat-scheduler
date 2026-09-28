@@ -1,6 +1,6 @@
 "use server";
 
-import { studentSideNow } from "@/lib/studentClock";
+import { studentSideClock } from "@/lib/studentClock";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
@@ -30,11 +30,10 @@ export async function createStudentProfile(
     redirect("/dashboard");
   }
 
-  const realNow = new Date();
-  const now = await studentSideNow(session.user, realNow);
+  const clock = await studentSideClock(session.user);
   const approvedSnapshot =
     analyticsRows.length > 0 && analyticsApproval
-      ? prepareApprovedSnapshot({ ...summarizeAnalyticsRows(analyticsRows), ...analyticsApproval }, now, realNow, snapshotWeekOptions(now, realNow))
+      ? prepareApprovedSnapshot({ ...summarizeAnalyticsRows(analyticsRows), ...analyticsApproval }, clock.now, clock.real, snapshotWeekOptions(clock))
       : null;
   const student = await StudentModel.create({ userId: session.user.id, ...studentFields });
 

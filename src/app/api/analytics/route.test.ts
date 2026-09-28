@@ -139,7 +139,18 @@ describe("POST /api/analytics", () => {
     mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
     mocks.findUser.mockReturnValue({ lean: async () => ({ role: "admin", simulatedDate: "2026-10-07" }) });
     expect((await POST(request({ ...confirmedUpload, extraction: { ...confirmedUpload.extraction, source: "admin_sample" } }))).status).toBe(201);
-    expect(mocks.createSnapshot).toHaveBeenCalledWith(expect.objectContaining({ approvedAt: new Date("2026-10-07T16:00:00Z"), extraction: expect.objectContaining({ source: "admin_sample" }) }));
+    expect(mocks.createSnapshot).toHaveBeenCalledWith(expect.objectContaining({ weekOf: "2026-10-07", approvedAt: new Date("2026-10-07T16:00:00Z"), extraction: expect.objectContaining({ source: "admin_sample" }) }));
+  });
+  it("asks for a new sample when an admin approves a sample older than 24 hours", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    const response = await POST(request({
+      ...confirmedUpload,
+      extraction: { source: "admin_sample", extractedAt: "2026-09-13T15:59:59.999Z" },
+    }));
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({ error: "Generate a new sample analytics snapshot before saving." });
+    expect(mocks.createSnapshot).not.toHaveBeenCalled();
   });
   it("records the simulated calendar date when Chicago's evening falls on tomorrow in UTC", async () => {
     vi.setSystemTime(new Date("2026-09-15T03:00:00Z"));
