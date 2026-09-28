@@ -10,6 +10,7 @@ import {
   rebuildTestWeek,
   resetTestWorkspace,
 } from "@/lib/adminTestWorkspace";
+import type { SampleDirection } from "@/lib/sampleAnalytics";
 
 export async function setSimulatedDate(date: string) {
   const userId = await requireCurrentAdmin();
@@ -22,9 +23,7 @@ export async function setSimulatedDate(date: string) {
   revalidatePath("/", "layout");
 }
 
-export async function generateTestSample(
-  direction: "improving" | "steady" | "slipping",
-) {
+export async function generateTestSample(direction: SampleDirection) {
   const userId = await requireCurrentAdmin();
   const rows = await generateTestAnalytics(
     userId,

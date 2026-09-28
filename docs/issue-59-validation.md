@@ -44,7 +44,7 @@ Polish fixes included refreshing navigation after onboarding and study-setting c
 
 The initial review requested stronger rebuild coverage, which was added. Its clean-review conclusion was incorrect. A subsequent review found a real-student save-error regression, prohibited simulated-date names, missing LSAT Demon rebuild availability, sample clock skew, changed screenshot wording and check-in creation timestamps, plus the cleanup items recorded below. It also identified same-date approval ordering as a known limitation.
 
-Changes are uncommitted for user review. No deployment or issue-tracker updates were made.
+These changes were committed in `97af8cc`.
 
 
 ## Review fixes, September 27, 2026
@@ -96,4 +96,4 @@ The save failure variants and skewed clocks were verified in automated regressio
 
 Finding 4 remains deferred by user decision. Approvals made on different real days but the same simulated date can sort incorrectly because their simulated timestamps keep the real time of day. This can select the wrong latest snapshot and alter the performance trend. Changing the ordering policy requires a separate spec decision.
 
-The walkthrough comment for issue 67 is drafted in `docs/issue-67-comment-draft.md`. It has not been posted. ADR 0003 remains proposed. Changes remain uncommitted; no push, PR, merge or issue comment was made.
+The walkthrough comment for issue 67 is drafted in `docs/issue-67-comment-draft.md`. It has not been posted. ADR 0003 remains proposed. The work is committed in `97af8cc` and pushed to `main`. Issue 63 is closed; issues 59 and 64–67 remain open.

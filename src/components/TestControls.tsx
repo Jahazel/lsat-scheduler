@@ -163,9 +163,7 @@ export default function TestControls({
                     "min-h-12 rounded-md py-2 text-xs tabular-nums enabled:hover:bg-ink-100 disabled:cursor-not-allowed disabled:opacity-50",
                     target === state.date
                       ? "bg-ink-900 text-white"
-                      : target < state.date
-                        ? "text-ink-900"
-                        : "text-ink-900",
+                      : "text-ink-900",
                     FOCUS,
                   )}
                 >
