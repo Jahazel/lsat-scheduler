@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
 }));
 
+vi.mock("@/models/User", () => ({ UserModel: { findById: () => ({ lean: async () => ({ role: "admin" }) }) } }));
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
 vi.mock("@/lib/db", () => ({ connectDB: mocks.connectDB }));
 vi.mock("@/models/Student", () => ({ StudentModel: { findOne: mocks.findStudent } }));

@@ -9,6 +9,7 @@ export interface StudentNavState {
   countdownLabel: string | null;
   isTestDay: boolean;
   uploadNeeded: boolean;
+  hasCurrentWeek?: boolean;
 }
 
 export function initialsFor(name: string | null | undefined, email: string | null | undefined) {
@@ -25,17 +26,15 @@ export async function loadStudentNavState(userId: string, now = new Date()): Pro
   if (!student) return null;
 
   const countdown = testCountdown(student.goalTestDate, now, SCHEDULE_TIMEZONE);
-  // Only 7Sage students upload analytics, and the upload is what creates the current week.
-  const currentWeek = student.platform === "7Sage"
-    ? await mongooseCurrentWeekRepositories.weeklySchedules.findByStudentAndWeek(
-        String(student._id),
-        currentWeekInTimezone(now, SCHEDULE_TIMEZONE),
-      )
-    : null;
+  const currentWeek = await mongooseCurrentWeekRepositories.weeklySchedules.findByStudentAndWeek(
+    String(student._id),
+    currentWeekInTimezone(now, SCHEDULE_TIMEZONE),
+  );
 
   return {
     countdownLabel: testCountdownLabel(countdown),
     isTestDay: countdown?.kind === "today",
+    hasCurrentWeek: !!currentWeek,
     uploadNeeded: student.platform === "7Sage" && !currentWeek,
   };
 }

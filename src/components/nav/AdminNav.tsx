@@ -1,5 +1,8 @@
 "use client";
 
+import { useAdminTest } from "@/components/AdminTestContext";
+import AdminTestPanel from "@/components/AdminTestPanel";
+import type { TestControlState } from "@/components/TestControls";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
@@ -61,7 +64,7 @@ function WorkspaceSwitcher({ studentSide, adminSide }: { studentSide: boolean; a
         >
           {[
             { href: "/admin", label: "All students", detail: "Real students on the real date", active: adminSide },
-            { href: "/dashboard", label: "My student side", detail: "Your test profile on the real date", active: studentSide },
+            { href: "/dashboard", label: "My student side", detail: "Your test profile with date controls", active: studentSide },
           ].map((option) => (
             <Link
               key={option.href}
@@ -83,8 +86,12 @@ function WorkspaceSwitcher({ studentSide, adminSide }: { studentSide: boolean; a
   );
 }
 
-export default function AdminNav(props: StudentNavProps) {
+export default function AdminNav(props: StudentNavProps & { testState?: TestControlState }) {
   const pathname = usePathname();
+  const { currentWeek } = useAdminTest();
+  const uploadNeeded = currentWeek?.week === props.testState?.weekStartDate
+    ? props.uploadNeeded && !currentWeek?.exists
+    : props.uploadNeeded;
   const studentSide = [...TABS.map(({ href }) => href), "/onboarding", "/account"]
     .some((href) => isTabActive(pathname, href));
   const adminSide = isTabActive(pathname, "/admin");
@@ -94,7 +101,7 @@ export default function AdminNav(props: StudentNavProps) {
     <>
       <header className="sticky top-0 z-40 border-b border-ink-100 bg-white">
         {studentSide ? (
-          <StudentNav {...props} workspaceSwitcher={switcher} />
+          <StudentNav {...props} uploadNeeded={uploadNeeded} workspaceSwitcher={switcher} />
         ) : (
           <div className="flex min-h-14 items-center justify-between gap-1 px-4 md:h-16 md:px-8">
             <div className="flex items-center gap-1 sm:gap-3">
@@ -107,8 +114,9 @@ export default function AdminNav(props: StudentNavProps) {
             </form>
           </div>
         )}
+        {studentSide && props.testState && <AdminTestPanel state={props.testState} />}
       </header>
-      {studentSide && <StudentTabBar uploadNeeded={props.uploadNeeded} withWorkspaceSwitcher />}
+      {studentSide && <StudentTabBar uploadNeeded={uploadNeeded} withWorkspaceSwitcher />}
     </>
   );
 }

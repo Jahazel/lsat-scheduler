@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   listForSchedules: vi.fn(),
 }));
 
+vi.mock("@/models/User", () => ({ UserModel: { findById: () => ({ lean: async () => ({ role: "admin" }) }) } }));
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 vi.mock("@/lib/db", () => ({ connectDB: vi.fn() }));

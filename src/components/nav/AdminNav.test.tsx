@@ -8,6 +8,7 @@ afterEach(cleanup);
 import { renderToStaticMarkup } from "react-dom/server";
 
 const mocks = vi.hoisted(() => ({ pathname: "/admin" }));
+vi.mock("@/app/admin/test/actions", () => ({ rebuildThisWeek: vi.fn(), resetTestData: vi.fn(), resetEverything: vi.fn(), setSimulatedDate: vi.fn(), generateTestSample: vi.fn() }));
 vi.mock("next/navigation", () => ({ usePathname: () => mocks.pathname }));
 
 import AdminNav from "./AdminNav";

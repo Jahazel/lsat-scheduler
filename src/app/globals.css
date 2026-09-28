@@ -40,3 +40,10 @@ body {
   color: var(--color-ink-900);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
+
+@media (min-width: 64rem) {
+  body:has([data-test-dock="expanded"]) main,
+  body:has([data-test-dock="expanded"]) footer { margin-right: 20rem; }
+  body:has([data-test-dock="collapsed"]) main,
+  body:has([data-test-dock="collapsed"]) footer { margin-right: 5rem; }
+}

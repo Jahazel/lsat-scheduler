@@ -3,10 +3,13 @@ import { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
+  findUser: vi.fn(),
   connectDB: vi.fn(),
   findStudent: vi.fn(),
   createSnapshot: vi.fn(),
 }));
+
+vi.mock("@/models/User", () => ({ UserModel: { findById: mocks.findUser } }));
 
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
 vi.mock("@/lib/db", () => ({ connectDB: mocks.connectDB }));
@@ -46,6 +49,7 @@ describe("POST /api/analytics", () => {
     mocks.auth.mockResolvedValue({ user: { id: "user-1" } });
     mocks.findStudent.mockResolvedValue({ _id: "student-1" });
     mocks.createSnapshot.mockResolvedValue({});
+    mocks.findUser.mockReturnValue({ lean: async () => ({ role: "admin" }) });
   });
 
   it("appends a provenance-bearing approved snapshot for each confirmed upload", async () => {
@@ -112,4 +116,47 @@ describe("POST /api/analytics", () => {
     expect(response.status).toBe(422);
     expect(mocks.createSnapshot).not.toHaveBeenCalled();
   });
+ it("accepts today's screenshot while recording the admin's simulated approval date", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    mocks.findUser.mockReturnValue({ lean: async () => ({ role: "admin", simulatedDate: "2026-10-07" }) });
+    const response = await POST(request(confirmedUpload));
+    expect(response.status).toBe(201);
+    expect(mocks.createSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      weekOf: "2026-10-07", approvedAt: new Date("2026-10-07T16:00:00.000Z"),
+    }));
+  });
+
+
+  it.each(["student", "stale-admin"])("rejects an admin sample from a %s", async (role) => {
+    mocks.auth.mockResolvedValue({ user: { id: "user-1", role: role === "student" ? "student" : "admin" } });
+    mocks.findUser.mockReturnValue({ lean: async () => ({ role: "student" }) });
+    const response = await POST(request({ ...confirmedUpload, extraction: { ...confirmedUpload.extraction, source: "admin_sample" } }));
+    expect(response.status).toBe(403);
+    expect(mocks.createSnapshot).not.toHaveBeenCalled();
+  });
+
+  it("approves a reviewed sample on the admin's simulated date", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    mocks.findUser.mockReturnValue({ lean: async () => ({ role: "admin", simulatedDate: "2026-10-07" }) });
+    expect((await POST(request({ ...confirmedUpload, extraction: { ...confirmedUpload.extraction, source: "admin_sample" } }))).status).toBe(201);
+    expect(mocks.createSnapshot).toHaveBeenCalledWith(expect.objectContaining({ approvedAt: new Date("2026-10-07T16:00:00Z"), extraction: expect.objectContaining({ source: "admin_sample" }) }));
+  });
+  it("records the simulated calendar date when Chicago's evening falls on tomorrow in UTC", async () => {
+    vi.setSystemTime(new Date("2026-09-15T03:00:00Z"));
+    mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    mocks.findUser.mockReturnValue({ lean: async () => ({ role: "admin", simulatedDate: "2026-10-07" }) });
+    expect((await POST(request(confirmedUpload))).status).toBe(201);
+    expect(mocks.createSnapshot).toHaveBeenCalledWith(expect.objectContaining({ weekOf: "2026-10-07", approvedAt: new Date("2026-10-08T03:00:00Z") }));
+  });
+  it.each([["admin_sample", 201], ["7sage_screenshot", 422]])("handles a browser clock behind extraction for %s", async (source, status) => {
+    mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
+    const response = await POST(request({
+      ...confirmedUpload,
+      extraction: { source, extractedAt: "2026-09-14T15:59:00.000Z" },
+      confirmation: { ...confirmedUpload.confirmation, confirmedAt: "2026-09-14T15:58:00.000Z" },
+    }));
+    expect(response.status).toBe(status);
+    if (status === 422) expect(mocks.createSnapshot).not.toHaveBeenCalled();
+  });
+
 });

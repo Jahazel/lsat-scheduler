@@ -4,6 +4,8 @@ import { mockStudent } from "@/lib/mockData";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
+  findUser: vi.fn(),
+  ensureForSchedule: vi.fn(),
   redirect: vi.fn((path: string) => {
     throw new Error(`redirect:${path}`);
   }),
@@ -12,30 +14,32 @@ const mocks = vi.hoisted(() => ({
   listForSchedule: vi.fn(),
 }));
 
+vi.mock("@/models/User", () => ({ UserModel: { findById: mocks.findUser } }));
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 vi.mock("@/lib/db", () => ({ connectDB: vi.fn() }));
 vi.mock("@/models/Student", () => ({ StudentModel: { findOne: mocks.findStudent } }));
 vi.mock("@/lib/currentWeeklySchedule", () => ({
+  currentWeekInTimezone: () => "2026-09-21",
   loadOrGenerateCurrentWeek: mocks.loadCurrentWeek,
   plannedActivityMinutes: (activity: { minutes: number }) => activity.minutes,
   scheduleActivityId: (day: string, index: number) => `${day}:${index}`,
 }));
 vi.mock("@/lib/weeklyScheduleRepository", () => ({ mongooseCurrentWeekRepositories: {} }));
 vi.mock("@/lib/activityCheckInRepository", () => ({
-  mongooseActivityCheckIns: { listForSchedule: mocks.listForSchedule },
+  mongooseActivityCheckIns: { listForSchedule: mocks.listForSchedule, ensureForSchedule: mocks.ensureForSchedule },
 }));
 vi.mock("@/components/ScheduleCheckInView", () => ({
   default: ({ scheduleId, heading }: { scheduleId: string; heading?: string }) => <div>{scheduleId} {heading ?? "Your plan for this week"}</div>,
 }));
 vi.mock("./AnalyticsUploader", () => ({ default: () => <div>analytics uploader</div> }));
-vi.mock("./ResetTestAccountButton", () => ({ default: () => <div>reset test account</div> }));
 
 import DashboardPage from "./page";
 
 describe("DashboardPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.findUser.mockReturnValue({ lean: async () => ({ role: "admin" }) });
     mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
     mocks.listForSchedule.mockResolvedValue([]);
   });
@@ -102,4 +106,17 @@ describe("DashboardPage", () => {
 
     expect(mocks.loadCurrentWeek).not.toHaveBeenCalled();
   });
+  it.each(["student", "admin", "stale-admin"])("limits simulated check-in creation timestamps for %s", async (role) => {
+    mocks.auth.mockResolvedValue({ user: { id: "user-1", role: role === "student" ? "student" : "admin" } });
+    mocks.findUser.mockReturnValue({ lean: async () => ({ role: role === "stale-admin" ? "student" : role, simulatedDate: "2026-10-07" }) });
+    mocks.findStudent.mockReturnValue({ lean: async () => ({ _id: "student-1", ...mockStudent }) });
+    const saved = { id: "schedule-1", generatedAt: "2026-10-07T12:00:00.000Z" };
+    mocks.loadCurrentWeek.mockImplementationOnce(async ({ activityCheckIns }) => {
+      await activityCheckIns.ensureForSchedule(saved);
+      return { kind: "analytics_required" };
+    });
+    await DashboardPage({ searchParams: Promise.resolve({}) });
+    expect(mocks.ensureForSchedule).toHaveBeenCalledWith(saved, role === "admin" ? new Date("2026-10-07T12:00:00.000Z") : undefined);
+  });
+
 });

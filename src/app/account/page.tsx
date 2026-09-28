@@ -1,3 +1,4 @@
+import { isAdminUser } from "@/lib/accessControl";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
@@ -21,7 +22,7 @@ export default async function AccountPage() {
       <div className="mx-auto max-w-md">
         <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Account</h1>
         <p className="mt-1 text-sm text-ink-500">{session.user.email}</p>
-        {session.user.role !== "admin" && (
+        {!isAdminUser(session.user) && (
           <form action={deleteAccount} className="mt-10 border-t border-red-100 pt-6">
             <h2 className="font-semibold text-red-700">Delete account</h2>
             <p className="mt-1 text-sm text-ink-500">

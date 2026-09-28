@@ -1,5 +1,6 @@
 "use server";
 
+import { studentSideNow } from "@/lib/studentClock";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/auth";
@@ -34,6 +35,7 @@ export async function saveActivityCheckIn(input: z.input<typeof CheckInInput>) {
     throw new Error("Schedule activity not found");
   }
 
+  const now = await studentSideNow(session.user);
   const checkIn = await mongooseActivityCheckIns.save({
     scheduleId: parsed.scheduleId,
     activityId: parsed.activityId,
@@ -41,7 +43,7 @@ export async function saveActivityCheckIn(input: z.input<typeof CheckInInput>) {
     ...(parsed.status === "completed" && parsed.actualMinutes !== undefined
       ? { actualMinutes: parsed.actualMinutes }
       : {}),
-  });
+  }, now);
   revalidatePath("/dashboard");
   return checkIn;
 }

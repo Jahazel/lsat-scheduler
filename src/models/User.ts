@@ -7,12 +7,14 @@ export interface UserDocument extends mongoose.Document {
   // Absent for accounts created via Google sign-in.
   passwordHash?: string;
   role: "student" | "admin";
+  simulatedDate?: string;
 }
 
 const UserSchema = new Schema<UserDocument>({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   name: { type: String, required: true },
   passwordHash: { type: String },
+  simulatedDate: { type: String, match: /^\d{4}-\d{2}-\d{2}$/ },
   role: { type: String, enum: ["student", "admin"], required: true, default: "student" },
 });
 

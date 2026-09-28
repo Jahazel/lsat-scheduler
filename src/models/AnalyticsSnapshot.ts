@@ -9,7 +9,7 @@ export interface AnalyticsSnapshotDocument extends AnalyticsSnapshot {
   status: AnalyticsSnapshotStatus;
   approvedAt?: Date;
   extraction?: {
-    source: "7sage_screenshot";
+    source: "7sage_screenshot" | "admin_sample";
     extractedAt: Date;
   };
   confirmation?: {
@@ -32,7 +32,7 @@ const AnalyticsSnapshotSchema = new Schema<AnalyticsSnapshotDocument>(
     status: { type: String, enum: ["approved", "legacy"], required: true },
     approvedAt: { type: Date },
     extraction: {
-      source: { type: String, enum: ["7sage_screenshot"] },
+      source: { type: String, enum: ["7sage_screenshot", "admin_sample"] },
       extractedAt: { type: Date },
     },
     confirmation: {

@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { connectDB } from "@/lib/db";
@@ -33,6 +34,7 @@ export async function updateStudentProfile(
     redirect("/onboarding");
   }
 
+  if (isAdminUser(session.user)) revalidatePath("/", "layout");
   redirect("/dashboard");
 }
 

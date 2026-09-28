@@ -1,3 +1,9 @@
+import { isAdminUser } from "@/lib/accessControl";
+import { dateInScheduleTimezone, timeForVerifiedUser } from "@/lib/adminTestWorkspace";
+import { currentWeekInTimezone } from "@/lib/currentWeeklySchedule";
+import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
+import { mongooseAdminClock } from "@/lib/studentClock";
+import { studentSideNow } from "@/lib/studentClock";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { initialsFor, loadStudentNavState } from "@/lib/studentNav";
@@ -38,10 +44,20 @@ export default async function SiteHeader() {
     );
   }
 
-  if (user.role === "admin") {
-    const state = user.id ? await loadStudentNavState(user.id) : null;
+  if (isAdminUser(user)) {
+    const realNow = new Date();
+    const currentUser = user.id ? await mongooseAdminClock.findUser(user.id) : null;
+    const now = timeForVerifiedUser(currentUser, realNow);
+    const state = user.id ? await loadStudentNavState(user.id, now) : null;
+    const testState = isAdminUser(currentUser) ? {
+      date: dateInScheduleTimezone(now), realDate: dateInScheduleTimezone(realNow),
+      weekStartDate: currentWeekInTimezone(now, SCHEDULE_TIMEZONE),
+      simulated: !!currentUser.simulatedDate, onboarded: !!state,
+      canRebuild: state?.hasCurrentWeek ?? false,
+    } : undefined;
     return (
       <AdminNav
+        testState={testState}
         initials={initialsFor(user.name, user.email)}
         email={user.email ?? ""}
         countdownLabel={state?.countdownLabel ?? null}
@@ -52,7 +68,7 @@ export default async function SiteHeader() {
     );
   }
 
-  const state = user.id ? await loadStudentNavState(user.id) : null;
+  const state = user.id ? await loadStudentNavState(user.id, await studentSideNow(user)) : null;
   if (!state) {
     return (
       <header className={HEADER}>

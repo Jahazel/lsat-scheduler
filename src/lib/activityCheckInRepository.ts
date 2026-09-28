@@ -35,20 +35,20 @@ export const mongooseActivityCheckIns = {
     activityId,
     status,
     actualMinutes,
-  }: Omit<ActivityCheckIn, "id">): Promise<ActivityCheckIn> {
+  }: Omit<ActivityCheckIn, "id">, now = new Date()): Promise<ActivityCheckIn> {
     const update =
       status === "completed" && actualMinutes !== undefined
-        ? { $set: { status, actualMinutes } }
-        : { $set: { status }, $unset: { actualMinutes: 1 } };
+        ? { $set: { status, actualMinutes, updatedAt: now }, $setOnInsert: { createdAt: now } }
+        : { $set: { status, updatedAt: now }, $setOnInsert: { createdAt: now }, $unset: { actualMinutes: 1 } };
     const record = await ActivityCheckInModel.findOneAndUpdate(
       { scheduleId, activityId },
       update,
-      { new: true, upsert: true, runValidators: true }
+      { new: true, upsert: true, runValidators: true, timestamps: false }
     ).lean();
     if (!record) throw new Error("Activity check-in could not be saved");
     return activityCheckIn(record);
   },
-  async ensureForSchedule(schedule: PersistedWeeklySchedule) {
+  async ensureForSchedule(schedule: PersistedWeeklySchedule, createdAt = new Date()) {
     const writes = Object.entries(schedule.schedule.days).flatMap(([day, plan]) =>
       plan.activities.map((_, index) => ({
         scheduleId: schedule.id,
@@ -59,8 +59,8 @@ export const mongooseActivityCheckIns = {
       writes.map(({ scheduleId, activityId }) =>
         ActivityCheckInModel.updateOne(
           { scheduleId, activityId },
-          { $setOnInsert: { scheduleId, activityId, status: "not_started" } },
-          { upsert: true }
+          { $setOnInsert: { scheduleId, activityId, status: "not_started", createdAt, updatedAt: createdAt } },
+          { upsert: true, timestamps: false }
         ).exec()
       )
     );

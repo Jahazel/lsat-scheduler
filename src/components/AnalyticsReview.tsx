@@ -18,6 +18,7 @@ const ALL_TYPES: { type: LRType; category: "regular" | "restricted" }[] = [
 ];
 
 interface AnalyticsReviewProps {
+  initialExtraction?: SnapshotApprovalMetadata["extraction"];
   rows: AnalyticsExtractedRow[];
   onRowsChange: (rows: AnalyticsExtractedRow[]) => void;
   onExtractedChange?: (extracted: boolean) => void;
@@ -31,6 +32,7 @@ interface AnalyticsReviewProps {
 // screenshot missed. Used both on student intake (optional, before the
 // student exists) and on the per-student page (weekly re-upload).
 export default function AnalyticsReview({
+  initialExtraction,
   rows,
   onRowsChange,
   onExtractedChange,
@@ -40,9 +42,9 @@ export default function AnalyticsReview({
 }: AnalyticsReviewProps) {
   const [typeToAdd, setTypeToAdd] = useState("");
   const [extracting, setExtracting] = useState(false);
-  const [hasExtracted, setHasExtracted] = useState(false);
+  const [hasExtracted, setHasExtracted] = useState(!!initialExtraction);
   const [error, setError] = useState<string | null>(null);
-  const [extractedAt, setExtractedAt] = useState<string | null>(null);
+  const [extractedAt, setExtractedAt] = useState<string | null>(initialExtraction?.extractedAt ?? null);
   const [extractedValuesMatch, setExtractedValuesMatch] = useState(false);
   const [isLatestAnalytics, setIsLatestAnalytics] = useState(false);
 
@@ -62,7 +64,7 @@ export default function AnalyticsReview({
     }
 
     onApprovalChange?.({
-      extraction: { source: "7sage_screenshot", extractedAt },
+      extraction: { source: initialExtraction?.source ?? "7sage_screenshot", extractedAt },
       confirmation: {
         extractedValuesMatch: true,
         isLatestAnalytics: true,
@@ -171,11 +173,12 @@ export default function AnalyticsReview({
   }
 
   function addTypeControl(className: string) {
-    return <div className={className}><select value={typeToAdd} onChange={(e) => setTypeToAdd(e.target.value)} aria-label="Add a type the screenshot missed" className="flex-1 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"><option value="">Add a type the screenshot missed…</option>{ALL_TYPES.filter((t) => !rows.some((r) => r.type === t.type)).map((t) => <option key={t.type} value={t.type}>{t.type}</option>)}</select><button type="button" onClick={addRow} disabled={!typeToAdd} className="rounded-md border border-ink-200 px-3 py-2 text-sm font-medium text-ink-900 hover:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 disabled:cursor-not-allowed disabled:opacity-50">Add</button></div>;
+    const label = initialExtraction?.source === "admin_sample" ? "Add a question type" : "Add a type the screenshot missed";
+    return <div className={className}><select value={typeToAdd} onChange={(e) => setTypeToAdd(e.target.value)} aria-label={label} className="flex-1 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"><option value="">{label}…</option>{ALL_TYPES.filter((t) => !rows.some((r) => r.type === t.type)).map((t) => <option key={t.type} value={t.type}>{t.type}</option>)}</select><button type="button" onClick={addRow} disabled={!typeToAdd} className="rounded-md border border-ink-200 px-3 py-2 text-sm font-medium text-ink-900 hover:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 disabled:cursor-not-allowed disabled:opacity-50">Add</button></div>;
   }
 
   function approvalControls(fieldsetClassName: string, legendClassName: string, wrapperClassName = "") {
-    return <div className={wrapperClassName}><fieldset className={fieldsetClassName}><legend className={legendClassName}>Confirm this snapshot</legend><div className="mt-3 space-y-3"><label className="flex items-start gap-2 text-sm text-ink-700"><input type="checkbox" checked={extractedValuesMatch} onChange={(event) => updateApproval(event.target.checked, isLatestAnalytics)} className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" /><span>I reviewed these values and they match my screenshot.</span></label><label className="flex items-start gap-2 text-sm text-ink-700"><input type="checkbox" checked={isLatestAnalytics} onChange={(event) => updateApproval(extractedValuesMatch, event.target.checked)} className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" /><span>This screenshot contains my latest 7Sage analytics.</span></label></div></fieldset></div>;
+    return <div className={wrapperClassName}><fieldset className={fieldsetClassName}><legend className={legendClassName}>Confirm this snapshot</legend><div className="mt-3 space-y-3"><label className="flex items-start gap-2 text-sm text-ink-700"><input type="checkbox" checked={extractedValuesMatch} onChange={(event) => updateApproval(event.target.checked, isLatestAnalytics)} className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" /><span>{initialExtraction?.source === "admin_sample" ? "I reviewed and approved these sample values." : "I reviewed these values and they match my screenshot."}</span></label><label className="flex items-start gap-2 text-sm text-ink-700"><input type="checkbox" checked={isLatestAnalytics} onChange={(event) => updateApproval(extractedValuesMatch, event.target.checked)} className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" /><span>{initialExtraction?.source === "admin_sample" ? "Use this sample as my latest analytics." : "This screenshot contains my latest 7Sage analytics."}</span></label></div></fieldset></div>;
   }
 
   if (reviewPresentation === "full-width") {

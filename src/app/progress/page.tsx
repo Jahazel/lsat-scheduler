@@ -1,3 +1,4 @@
+import { studentSideNow } from "@/lib/studentClock";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
@@ -25,7 +26,7 @@ export default async function ProgressPage({
   const student = await StudentModel.findOne({ userId: session.user.id }).lean();
   if (!student) redirect("/onboarding");
 
-  const currentWeekStartDate = currentWeekInTimezone(new Date(), SCHEDULE_TIMEZONE);
+  const currentWeekStartDate = currentWeekInTimezone(await studentSideNow(session.user), SCHEDULE_TIMEZONE);
   const requestedWeek = Array.isArray(week) ? week[0] : week;
   if (requestedWeek === currentWeekStartDate) redirect("/dashboard");
 

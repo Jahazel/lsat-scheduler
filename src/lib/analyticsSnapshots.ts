@@ -1,3 +1,4 @@
+import { dateInScheduleTimezone } from "./adminTestWorkspace";
 import { z } from "zod";
 import type { LRLogicType } from "@/lib/types";
 
@@ -7,7 +8,7 @@ const SnapshotApprovalSchema = z.object({
   lrAccuracyByType: z.record(z.string(), z.number().finite().min(0).max(1)),
   lrTopPriorityLogicTypes: z.array(z.string()),
   extraction: z.object({
-    source: z.literal("7sage_screenshot"),
+    source: z.enum(["7sage_screenshot", "admin_sample"]),
     extractedAt: z.string().datetime(),
   }),
   confirmation: z.object({
@@ -19,7 +20,7 @@ const SnapshotApprovalSchema = z.object({
 
 export interface SnapshotApprovalMetadata {
   extraction: {
-    source: "7sage_screenshot";
+    source: "7sage_screenshot" | "admin_sample";
     extractedAt: string;
   };
   confirmation: {
@@ -31,13 +32,20 @@ export interface SnapshotApprovalMetadata {
 
 export class SnapshotApprovalError extends Error {}
 
-export function prepareApprovedSnapshot(input: unknown, approvedAt = new Date()) {
+export function snapshotWeekOptions(approvedAt: Date, realNow: Date) {
+  return approvedAt !== realNow ? { weekOf: dateInScheduleTimezone(approvedAt) } : {};
+}
+
+export function prepareApprovedSnapshot(input: unknown, approvedAt = new Date(), realNow = approvedAt, options: { allowAdminSample?: boolean; weekOf?: string } = {}) {
   const parsed = SnapshotApprovalSchema.safeParse(input);
   if (!parsed.success) {
     throw new SnapshotApprovalError("Confirm that the reviewed extraction matches your latest analytics.");
   }
 
   const values = parsed.data;
+  if (values.extraction.source === "admin_sample" && !options.allowAdminSample) {
+    throw new SnapshotApprovalError("Admin access required for sample analytics.");
+  }
   if (
     Object.keys(values.lrAccuracyByType).length === 0 &&
     values.lrTopPriorityLogicTypes.length === 0
@@ -46,17 +54,19 @@ export function prepareApprovedSnapshot(input: unknown, approvedAt = new Date())
   }
 
   const extractedAt = new Date(values.extraction.extractedAt);
-  if (approvedAt.getTime() - extractedAt.getTime() > MAX_EXTRACTION_AGE_MS || extractedAt > approvedAt) {
+  if (realNow.getTime() - extractedAt.getTime() > MAX_EXTRACTION_AGE_MS || extractedAt > realNow) {
     throw new SnapshotApprovalError("Upload a fresh analytics screenshot before saving.");
   }
 
   const confirmedAt = new Date(values.confirmation.confirmedAt);
-  if (confirmedAt < extractedAt || confirmedAt > approvedAt) {
+  // Samples are generated on the server and confirmed on the browser's clock.
+  // Screenshot extraction and confirmation both use the browser's clock.
+  if ((values.extraction.source !== "admin_sample" && confirmedAt < extractedAt) || confirmedAt > realNow) {
     throw new SnapshotApprovalError("Confirm the extraction after reviewing it.");
   }
 
   return {
-    weekOf: approvedAt.toISOString().slice(0, 10),
+    weekOf: options.weekOf ?? approvedAt.toISOString().slice(0, 10),
     lrAccuracyByType: values.lrAccuracyByType,
     lrTopPriorityLogicTypes: values.lrTopPriorityLogicTypes as LRLogicType[],
     status: "approved" as const,

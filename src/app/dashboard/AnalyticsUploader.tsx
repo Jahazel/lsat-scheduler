@@ -1,5 +1,6 @@
 "use client";
 
+import type { SampleDraft } from "@/components/AdminTestContext";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AnalyticsReview from "@/components/AnalyticsReview";
@@ -9,10 +10,10 @@ import type { AnalyticsExtractedRow } from "@/lib/types";
 
 // Always writes to the logged-in student's own snapshot via /api/analytics
 // — no studentId prop needed, unlike the old tutor-driven version.
-export default function AnalyticsUploader() {
+export default function AnalyticsUploader({ sample, onSampleDone }: { sample?: SampleDraft; onSampleDone?: () => void }) {
   const router = useRouter();
-  const [rows, setRows] = useState<AnalyticsExtractedRow[]>([]);
-  const [hasExtracted, setHasExtracted] = useState(false);
+  const [rows, setRows] = useState<AnalyticsExtractedRow[]>(sample?.rows ?? []);
+  const [hasExtracted, setHasExtracted] = useState(!!sample);
   const [approval, setApproval] = useState<SnapshotApprovalMetadata | null>(null);
   const [reviewKey, setReviewKey] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -28,11 +29,20 @@ export default function AnalyticsUploader() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...summarizeAnalyticsRows(rows), ...approval }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const result = sample ? await res.json().catch(() => null) : null;
+        setError(
+          typeof result?.error === "string" && result.error.trim()
+            ? result.error
+            : "Couldn't save. Try again.",
+        );
+        return;
+      }
       setHasExtracted(false);
       setApproval(null);
       setRows([]);
       setReviewKey((key) => key + 1);
+      onSampleDone?.();
       router.refresh();
     } catch {
       setError("Couldn't save. Try again.");
@@ -45,8 +55,8 @@ export default function AnalyticsUploader() {
     <section className="overflow-hidden rounded-xl border border-ink-200 bg-white">
       <header className="border-b border-ink-200 px-6 py-5 sm:px-8">
         <p className="text-sm font-medium text-ink-700">{hasExtracted ? "Step 2 of 3 · Review" : "Create your study week"}</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink-900">{hasExtracted ? "Check the extracted analytics" : "Add your latest analytics snapshot"}</h1>
-        {hasExtracted && <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-700">Compare each result with your screenshot. Edit anything that needs correcting before you confirm.</p>}
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink-900">{hasExtracted ? (sample ? "Review sample analytics" : "Check the extracted analytics") : "Add your latest analytics snapshot"}</h1>
+        {hasExtracted && <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-700">{sample ? "Edit the accuracies and priority flags for the week you want to test, then confirm." : "Compare each result with your screenshot. Edit anything that needs correcting before you confirm."}</p>}
       </header>
       <div className={hasExtracted ? "p-6 sm:p-8" : "grid md:grid-cols-[12rem_1fr]"}>
         <ol aria-label="Analytics snapshot progress" className={hasExtracted ? "hidden" : "flex border-b border-ink-200 bg-ink-25 px-6 py-5 md:block md:border-b-0 md:border-r md:px-7 md:py-7"}>
@@ -70,6 +80,7 @@ export default function AnalyticsUploader() {
           <div className="mt-5 flex flex-col gap-4">
             <AnalyticsReview
               key={reviewKey}
+              initialExtraction={sample ? { source: "admin_sample", extractedAt: sample.extractedAt } : undefined}
               rows={rows}
               onRowsChange={setRows}
               onExtractedChange={setHasExtracted}
@@ -79,6 +90,7 @@ export default function AnalyticsUploader() {
             />
             {hasExtracted && (
               <>
+                {sample && <button type="button" onClick={onSampleDone} className="self-start rounded-md px-3 py-2 text-sm text-ink-700 underline focus-visible:outline-2 focus-visible:outline-accent-600">Cancel sample</button>}
                 {error && <p className="text-sm text-red-600">{error}</p>}
                 <div className="flex flex-col gap-3 border-t border-ink-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-ink-500">{approval ? "Ready to create your schedule." : "Confirm both statements before saving this snapshot."}</p>

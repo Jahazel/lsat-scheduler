@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { initialsFor } from "./studentNav";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { initialsFor, loadStudentNavState } from "./studentNav";
 
 describe("initialsFor", () => {
   it("uses first and last name initials", () => {
@@ -11,5 +11,24 @@ describe("initialsFor", () => {
     expect(initialsFor("Sam", null)).toBe("SA");
     expect(initialsFor(null, "jo@example.com")).toBe("J");
     expect(initialsFor("  ", undefined)).toBe("?");
+  });
+});
+
+const mocks = vi.hoisted(() => ({ findStudent: vi.fn(), findWeek: vi.fn() }));
+vi.mock("./db", () => ({ connectDB: vi.fn() }));
+vi.mock("@/models/Student", () => ({ StudentModel: { findOne: mocks.findStudent } }));
+vi.mock("./weeklyScheduleRepository", () => ({ mongooseCurrentWeekRepositories: { weeklySchedules: { findByStudentAndWeek: mocks.findWeek } } }));
+
+describe("loadStudentNavState", () => {
+  beforeEach(() => vi.clearAllMocks());
+  it.each(["LSAT Demon", "7Sage"])("reports an existing weekly schedule for %s", async (platform) => {
+    mocks.findStudent.mockReturnValue({ lean: async () => ({ _id: "student-1", platform, goalTestDate: "2027-01-01" }) });
+    mocks.findWeek.mockResolvedValue({ id: "week-1" });
+    expect(await loadStudentNavState("user-1", new Date("2026-09-30T12:00:00Z"))).toMatchObject({ hasCurrentWeek: true, uploadNeeded: false });
+  });
+  it.each([["LSAT Demon", false], ["7Sage", true]])("only requests an upload for 7Sage when %s has no schedule", async (platform, uploadNeeded) => {
+    mocks.findStudent.mockReturnValue({ lean: async () => ({ _id: "student-1", platform, goalTestDate: "2027-01-01" }) });
+    mocks.findWeek.mockResolvedValue(null);
+    expect(await loadStudentNavState("user-1")).toMatchObject({ hasCurrentWeek: false, uploadNeeded });
   });
 });

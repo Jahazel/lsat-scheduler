@@ -1,8 +1,10 @@
+import { isAdminUser } from "@/lib/accessControl";
+import { studentSideNow } from "@/lib/studentClock";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
 import { StudentModel } from "@/models/Student";
-import { loadOrGenerateCurrentWeek } from "@/lib/currentWeeklySchedule";
+import { currentWeekInTimezone, loadOrGenerateCurrentWeek } from "@/lib/currentWeeklySchedule";
 import { mockRules } from "@/lib/mockData";
 import { mongooseCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
 import { mongooseActivityCheckIns } from "@/lib/activityCheckInRepository";
@@ -10,7 +12,7 @@ import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import type { Student } from "@/lib/types";
 import ScheduleCheckInView from "@/components/ScheduleCheckInView";
 import AnalyticsUploader from "./AnalyticsUploader";
-import ResetTestAccountButton from "./ResetTestAccountButton";
+import { SampleReviewSlot } from "@/components/AdminTestContext";
 
 type DashboardSearchParams = { historyWeek?: string | string[] };
 
@@ -44,23 +46,25 @@ export default async function DashboardPage({
     goalTestDate: doc.goalTestDate,
   };
 
+  const realNow = new Date();
+  const now = await studentSideNow(session.user, realNow);
   const currentWeek = await loadOrGenerateCurrentWeek({
     ...mongooseCurrentWeekRepositories,
+    activityCheckIns: {
+      ...mongooseActivityCheckIns,
+      ensureForSchedule: (schedule) => mongooseActivityCheckIns.ensureForSchedule(
+        schedule, now !== realNow ? new Date(schedule.generatedAt) : undefined,
+      ),
+    },
     studentId: String(doc._id),
     student,
     studentName: session.user.name ?? "Your",
     rules: mockRules,
     timezone: SCHEDULE_TIMEZONE,
-    now: () => new Date(),
+    now: () => now,
   });
   const currentSchedule = currentWeek.kind === "schedule" ? currentWeek.schedule : null;
   const checkIns = currentSchedule ? await mongooseActivityCheckIns.listForSchedule(currentSchedule.id) : [];
-
-  const resetTestAccount = process.env.NODE_ENV === "development" && (
-    <div className="mb-8">
-      <ResetTestAccountButton />
-    </div>
-  );
 
   const dashboardContent = currentSchedule ? (
     <ScheduleCheckInView
@@ -82,8 +86,14 @@ export default async function DashboardPage({
   return (
     <div className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-3xl">
-        {resetTestAccount}
-        {dashboardContent}
+        {isAdminUser(session.user) ? (
+          <SampleReviewSlot
+            week={currentWeekInTimezone(now, SCHEDULE_TIMEZONE)}
+            hasSchedule={!!currentSchedule}
+          >
+            {dashboardContent}
+          </SampleReviewSlot>
+        ) : dashboardContent}
       </div>
     </div>
   );

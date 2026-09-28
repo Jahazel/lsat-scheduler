@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   redirect: vi.fn(),
 }));
 
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/auth", () => ({ auth: mocks.auth, signOut: mocks.signOut }));
 vi.mock("@/lib/db", () => ({ connectDB: mocks.connectDB }));
 vi.mock("@/models/Student", () => ({
