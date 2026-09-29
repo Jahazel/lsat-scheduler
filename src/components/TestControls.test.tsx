@@ -2,9 +2,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { AdminTestProvider, SampleReviewSlot } from "./AdminTestContext";
 const mocks = vi.hoisted(() => ({ move: vi.fn(), rebuild: vi.fn(), data: vi.fn(), everything: vi.fn(), push: vi.fn(), refresh: vi.fn() }));
 vi.mock("@/app/admin/test/actions", () => ({ setSimulatedDate: mocks.move, rebuildThisWeek: mocks.rebuild, resetTestData: mocks.data, resetEverything: mocks.everything, generateTestSample: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push, refresh: mocks.refresh }) }));
+vi.mock("@/app/dashboard/AnalyticsUploader", () => ({ default: () => null }));
 import TestControls from "./TestControls";
 const state = { date: "2026-10-07", realDate: "2026-09-27", weekStartDate: "2026-10-05", simulated: true, onboarded: true, canRebuild: true };
 afterEach(cleanup);
@@ -44,5 +46,60 @@ describe("Test controls", () => {
     render(<TestControls state={{ ...state, canRebuild: false }} onClose={() => {}} />);
     expect((screen.getByRole("button", { name: "Rebuild this week" }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole("button", { name: "Reset test data" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+  it("keeps rebuild available after leaving This week when a weekly schedule exists", () => {
+    const controls = <TestControls state={{ ...state, canRebuild: false }} onClose={() => {}} />;
+    const view = render(
+      <AdminTestProvider>
+        <SampleReviewSlot week={state.weekStartDate} hasSchedule>Review</SampleReviewSlot>
+        {controls}
+      </AdminTestProvider>,
+    );
+    view.rerender(<AdminTestProvider>{controls}</AdminTestProvider>);
+    expect((screen.getByRole("button", { name: "Rebuild this week" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+  it.each(["Reset test data", "Reset everything"])("disables rebuild after %s succeeds", async (label) => {
+    const user = userEvent.setup();
+    const controls = <TestControls state={{ ...state, canRebuild: false }} onClose={() => {}} />;
+    const view = render(
+      <AdminTestProvider>
+        <SampleReviewSlot week={state.weekStartDate} hasSchedule>Review</SampleReviewSlot>
+        {controls}
+      </AdminTestProvider>,
+    );
+    view.rerender(<AdminTestProvider>{controls}</AdminTestProvider>);
+    expect((screen.getByRole("button", { name: "Rebuild this week" }) as HTMLButtonElement).disabled).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: label }));
+    await user.click(screen.getByRole("button", { name: "Confirm reset" }));
+    await screen.findByText(`${label} complete.`);
+    expect((screen.getByRole("button", { name: "Rebuild this week" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+  it("keeps rebuild available when a reset fails", async () => {
+    mocks.data.mockRejectedValueOnce(new Error("Reset failed."));
+    const user = userEvent.setup();
+    const controls = <TestControls state={{ ...state, canRebuild: false }} onClose={() => {}} />;
+    const view = render(
+      <AdminTestProvider>
+        <SampleReviewSlot week={state.weekStartDate} hasSchedule>Review</SampleReviewSlot>
+        {controls}
+      </AdminTestProvider>,
+    );
+    view.rerender(<AdminTestProvider>{controls}</AdminTestProvider>);
+
+    await user.click(screen.getByRole("button", { name: "Reset test data" }));
+    await user.click(screen.getByRole("button", { name: "Confirm reset" }));
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "Reset failed.");
+    expect((screen.getByRole("button", { name: "Rebuild this week" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+  it("shows the rebuild error instead of a completion message", async () => {
+    mocks.rebuild.mockRejectedValueOnce(new Error("There is no weekly schedule to rebuild."));
+    const user = userEvent.setup();
+    render(<TestControls state={state} onClose={() => {}} />);
+    await user.click(screen.getByRole("button", { name: "Rebuild this week" }));
+    await user.click(screen.getByRole("button", { name: "Confirm rebuild" }));
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "There is no weekly schedule to rebuild.");
+    expect(screen.queryByText("Rebuild this week complete.")).toBeNull();
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 });

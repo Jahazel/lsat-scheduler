@@ -23,7 +23,8 @@ async function deleteSchedules(
     { scheduleId: { $in: schedules.map((s) => s._id) } },
     { session },
   );
-  await WeeklyScheduleModel.deleteMany(filter, { session });
+  const result = await WeeklyScheduleModel.deleteMany(filter, { session });
+  return result.deletedCount;
 }
 
 export const mongooseAdminTestRepositories: AdminTestRepositories = {
@@ -49,24 +50,25 @@ export const mongooseAdminTestRepositories: AdminTestRepositories = {
         : {}),
     }));
   },
-  async deleteSchedules(studentId, weekStartDate) {
+  async inTransaction(work) {
     await mongoose.connection.transaction(async (session) => {
-      await deleteSchedules(studentId, session, weekStartDate);
-    });
-  },
-  async reset(userId, studentId, scope) {
-    await mongoose.connection.transaction(async (session) => {
-      if (studentId) {
-        await deleteSchedules(studentId, session);
-        await AnalyticsSnapshotModel.deleteMany({ studentId }, { session });
-        if (scope === "everything")
+      await work({
+        deleteSchedules: (studentId, weekStartDate) =>
+          deleteSchedules(studentId, session, weekStartDate),
+        async deleteSnapshots(studentId) {
+          await AnalyticsSnapshotModel.deleteMany({ studentId }, { session });
+        },
+        async deleteStudent(studentId, userId) {
           await StudentModel.deleteOne({ _id: studentId, userId }, { session });
-      }
-      await UserModel.updateOne(
-        { _id: userId, role: "admin" },
-        { $unset: { simulatedDate: 1 } },
-        { session },
-      );
+        },
+        async clearSimulatedDate(userId) {
+          await UserModel.updateOne(
+            { _id: userId, role: "admin" },
+            { $unset: { simulatedDate: 1 } },
+            { session },
+          );
+        },
+      });
     });
   },
 };

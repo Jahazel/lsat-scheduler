@@ -156,6 +156,14 @@ export async function moveSimulatedDate(
 
 export type ResetScope = "test-data" | "everything";
 
+export interface AdminTestWrites {
+  // This write deletes activity check-ins with their weekly schedule.
+  deleteSchedules(studentId: string, weekStartDate?: string): Promise<number>;
+  deleteSnapshots(studentId: string): Promise<void>;
+  deleteStudent(studentId: string, userId: string): Promise<void>;
+  clearSimulatedDate(userId: string): Promise<void>;
+}
+
 export interface AdminTestRepositories {
   clock: AdminClockRepository;
   findStudent(
@@ -166,13 +174,7 @@ export interface AdminTestRepositories {
   ): Promise<
     (ApprovedAnalyticsSnapshot & { extraction?: { source: string } })[]
   >;
-  // These operations atomically delete schedules with their check-ins.
-  deleteSchedules(studentId: string, weekStartDate?: string): Promise<void>;
-  reset(
-    userId: string,
-    studentId: string | null,
-    scope: ResetScope,
-  ): Promise<void>;
+  inTransaction(work: (writes: AdminTestWrites) => Promise<void>): Promise<void>;
 }
 
 export async function rebuildTestWeek(
@@ -180,17 +182,19 @@ export async function rebuildTestWeek(
   real: Date,
   repositories: AdminTestRepositories,
 ) {
+  const user = await repositories.clock.findUser(userId);
+  if (!isAdminUser(user)) throw new Error("Admin access required.");
   const student = await repositories.findStudent(userId);
-  if (!student) return;
-  const now = await resolveStudentTime(
-    { id: userId, role: "admin" },
-    real,
-    repositories.clock,
-  );
-  await repositories.deleteSchedules(
-    student.id,
-    currentWeekInTimezone(now, SCHEDULE_TIMEZONE),
-  );
+  if (!student) throw new Error("There is no weekly schedule to rebuild.");
+  const now = clockForVerifiedUser(user, real).now;
+  await repositories.inTransaction(async (writes) => {
+    const deletedCount = await writes.deleteSchedules(
+      student.id,
+      currentWeekInTimezone(now, SCHEDULE_TIMEZONE),
+    );
+    if (deletedCount === 0)
+      throw new Error("There is no weekly schedule to rebuild.");
+  });
 }
 
 export async function resetTestWorkspace(
@@ -198,8 +202,18 @@ export async function resetTestWorkspace(
   scope: ResetScope,
   repositories: AdminTestRepositories,
 ) {
+  const user = await repositories.clock.findUser(userId);
+  if (!isAdminUser(user)) throw new Error("Admin access required.");
   const student = await repositories.findStudent(userId);
-  await repositories.reset(userId, student?.id ?? null, scope);
+  await repositories.inTransaction(async (writes) => {
+    if (student) {
+      await writes.deleteSchedules(student.id);
+      await writes.deleteSnapshots(student.id);
+      if (scope === "everything")
+        await writes.deleteStudent(student.id, userId);
+    }
+    await writes.clearSimulatedDate(userId);
+  });
 }
 
 export async function generateTestAnalytics(

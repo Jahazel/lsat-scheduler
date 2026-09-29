@@ -129,7 +129,6 @@ function workspace() {
   const { user, repository } = clock("admin", "2026-10-07");
   const records = {
     students: ["admin-student", "real-student"],
-    studySettings: ["admin-student", "real-student"],
     schedules: [
       { id: "old", studentId: "admin-student", week: "2026-09-28" },
       { id: "current", studentId: "admin-student", week: "2026-10-05" },
@@ -137,7 +136,6 @@ function workspace() {
     ],
     checkIns: ["old", "current", "real"],
     snapshots: ["admin-student", "real-student"],
-    resetCalls: [] as { userId: string; studentId: string | null; scope: string }[],
   };
   const repos: AdminTestRepositories = {
     clock: repository,
@@ -149,24 +147,27 @@ function workspace() {
     async approvedSnapshots() {
       return [];
     },
-    async deleteSchedules(studentId, week) {
-      const ids = records.schedules
-        .filter((s) => s.studentId === studentId && (!week || s.week === week))
-        .map((s) => s.id);
-      records.checkIns = records.checkIns.filter((id) => !ids.includes(id));
-      records.schedules = records.schedules.filter((s) => !ids.includes(s.id));
-    },
-    async reset(userId, studentId, scope) {
-      records.resetCalls.push({ userId, studentId, scope });
-      if (studentId) {
-        await this.deleteSchedules(studentId);
-        records.snapshots = records.snapshots.filter((id) => id !== studentId);
-        if (scope === "everything") {
+    async inTransaction(work) {
+      await work({
+        async deleteSchedules(studentId, week) {
+          const ids = records.schedules
+            .filter((s) => s.studentId === studentId && (!week || s.week === week))
+            .map((s) => s.id);
+          records.checkIns = records.checkIns.filter((id) => !ids.includes(id));
+          records.schedules = records.schedules.filter((s) => !ids.includes(s.id));
+          return ids.length;
+        },
+        async deleteSnapshots(studentId) {
+          records.snapshots = records.snapshots.filter((id) => id !== studentId);
+        },
+        async deleteStudent(studentId, userId) {
+          if (userId !== "admin") return;
           records.students = records.students.filter((id) => id !== studentId);
-          records.studySettings = records.studySettings.filter((id) => id !== studentId);
-        }
-      }
-      user.simulatedDate = null;
+        },
+        async clearSimulatedDate(userId) {
+          if (userId === "admin") user.simulatedDate = null;
+        },
+      });
     },
   };
   return { repos, records, user };
@@ -181,6 +182,43 @@ it("rebuilds only the current simulated week's weekly schedule and activity chec
   expect(user.simulatedDate).toBe("2026-10-07");
 });
 
+it("reports an error when there is no weekly schedule to rebuild", async () => {
+  const { repos, records } = workspace();
+  records.students = ["real-student"];
+  await expect(
+    rebuildTestWeek("admin", new Date("2026-09-23T18:00:00Z"), repos),
+  ).rejects.toThrow("There is no weekly schedule to rebuild.");
+});
+
+it("reports an error when this week has no weekly schedule to rebuild", async () => {
+  const { repos, records } = workspace();
+  records.schedules = records.schedules.filter((schedule) => schedule.id !== "current");
+  records.checkIns = records.checkIns.filter((id) => id !== "current");
+
+  await expect(
+    rebuildTestWeek("admin", new Date("2026-09-23T18:00:00Z"), repos),
+  ).rejects.toThrow("There is no weekly schedule to rebuild.");
+  expect(records.schedules.map((schedule) => schedule.id)).toEqual(["old", "real"]);
+  expect(records.checkIns).toEqual(["old", "real"]);
+});
+
+it("rejects a non-admin before reading their Student for rebuild", async () => {
+  const { repos } = workspace();
+  repos.clock = clock("student", "2026-10-07").repository;
+  repos.findStudent = async () => { throw new Error("Student was read"); };
+  await expect(
+    rebuildTestWeek("admin", new Date("2026-09-23T18:00:00Z"), repos),
+  ).rejects.toThrow("Admin access required.");
+});
+
+it("rejects a non-admin before reading their Student for reset", async () => {
+  const { repos } = workspace();
+  repos.clock = clock("student", "2026-10-07").repository;
+  repos.findStudent = async () => { throw new Error("Student was read"); };
+  await expect(resetTestWorkspace("admin", "everything", repos))
+    .rejects.toThrow("Admin access required.");
+});
+
 it.each(["test-data", "everything"] as const)(
   "resets %s, preserving real students",
   async (scope) => {
@@ -192,24 +230,13 @@ it.each(["test-data", "everything"] as const)(
     expect(records.students).toEqual(
       scope === "everything" ? ["real-student"] : ["admin-student", "real-student"],
     );
-    expect(records.studySettings).toEqual(
-      scope === "everything" ? ["real-student"] : ["admin-student", "real-student"],
-    );
-    expect(records.resetCalls).toEqual([
-      { userId: "admin", studentId: "admin-student", scope },
-    ]);
     expect(user.simulatedDate).toBeNull();
     if (scope === "everything") {
+      user.simulatedDate = "2026-10-07";
       await expect(
         resetTestWorkspace("admin", "everything", repos),
       ).resolves.toBeUndefined();
-      expect(records.resetCalls[1]).toEqual({
-        userId: "admin",
-        studentId: null,
-        scope: "everything",
-      });
       expect(records.students).toEqual(["real-student"]);
-      expect(records.studySettings).toEqual(["real-student"]);
       expect(user.simulatedDate).toBeNull();
     }
   },
@@ -355,20 +382,28 @@ it("carries performance trend, skip reduction and Sunday practice-test review ac
   const adminRepos = {
     ...workspace().repos,
     clock: repository,
-    async deleteSchedules(studentId: string, week?: string) {
-      const deleted = schedules.filter(
-        (s) => s.studentId === studentId && s.weekStartDate === week,
-      );
-      schedules.splice(
-        0,
-        schedules.length,
-        ...schedules.filter((s) => !deleted.includes(s)),
-      );
-      checkIns.splice(
-        0,
-        checkIns.length,
-        ...checkIns.filter((c) => !deleted.some((s) => s.id === c.scheduleId)),
-      );
+    async inTransaction(work: Parameters<AdminTestRepositories["inTransaction"]>[0]) {
+      await work({
+        async deleteSchedules(studentId, week) {
+          const deleted = schedules.filter(
+            (s) => s.studentId === studentId && s.weekStartDate === week,
+          );
+          schedules.splice(
+            0,
+            schedules.length,
+            ...schedules.filter((s) => !deleted.includes(s)),
+          );
+          checkIns.splice(
+            0,
+            checkIns.length,
+            ...checkIns.filter((c) => !deleted.some((s) => s.id === c.scheduleId)),
+          );
+          return deleted.length;
+        },
+        async deleteSnapshots() {},
+        async deleteStudent() {},
+        async clearSimulatedDate() {},
+      });
     },
   };
   await rebuildTestWeek("admin", real, adminRepos);

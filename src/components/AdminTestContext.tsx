@@ -16,7 +16,7 @@ export interface SampleDraft {
 }
 const AdminTestContext = createContext<{
   currentWeek: { week: string; exists: boolean } | null;
-  setCurrentWeek: (week: { week: string; exists: boolean }) => void;
+  setCurrentWeek: (week: { week: string; exists: boolean } | null) => void;
   sample: SampleDraft | null;
   setSample: (sample: SampleDraft | null) => void;
 }>({

@@ -77,7 +77,7 @@ export default function TestControls({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const { setSample, currentWeek } = useAdminTest();
+  const { setSample, currentWeek, setCurrentWeek } = useAdminTest();
   const canRebuild =
     currentWeek?.week === state.weekStartDate
       ? currentWeek.exists
@@ -299,6 +299,7 @@ export default function TestControls({
                           run(async () => {
                             await reset.action();
                             setSample(null);
+                            if (reset.returnsToRealDate) setCurrentWeek(null);
                             router.push(
                               reset.destination,
                             );
