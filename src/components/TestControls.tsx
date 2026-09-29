@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState, type Ref } from "react";
 import { useRouter } from "next/navigation";
 import {
   setSimulatedDate,
@@ -72,9 +72,13 @@ export function displaySimulatedDate(date: string) {
 export default function TestControls({
   state,
   onClose,
+  closeRef,
+  closeExpanded,
 }: {
   state: TestControlState;
   onClose: () => void;
+  closeRef?: Ref<HTMLButtonElement>;
+  closeExpanded?: boolean;
 }) {
   const router = useRouter();
   const { setSample, currentWeek, setCurrentWeek } = useAdminTest();
@@ -89,6 +93,19 @@ export default function TestControls({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const cancelButton = useRef<HTMLButtonElement>(null);
+  const resetButtons = useRef(new Map<string, HTMLButtonElement>());
+  const lastConfirmation = useRef<string | null>(null);
+  // A confirmation replaces its reset button, and closing it removes the
+  // focused button. Move focus to the button that takes its place.
+  useEffect(() => {
+    const previous = lastConfirmation.current;
+    lastConfirmation.current = confirmation;
+    if (confirmation) cancelButton.current?.focus();
+    else if (previous && document.activeElement === document.body) {
+      resetButtons.current.get(previous)?.focus();
+    }
+  }, [confirmation]);
 
   async function run(action: () => Promise<void>, message: string) {
     setBusy(true);
@@ -135,10 +152,12 @@ export default function TestControls({
           </p>
         </div>
         <button
+          ref={closeRef}
           type="button"
           onClick={onClose}
           className={BUTTON}
           aria-label="Close test controls"
+          aria-expanded={closeExpanded}
         >
           Close
         </button>
@@ -151,27 +170,30 @@ export default function TestControls({
           <div className="mt-3 grid grid-cols-7 gap-1">
             {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((day, index) => {
               const target = isoDateInWeek(state.weekStartDate, index);
+              const dayNumber = Number(target.slice(-2));
+              const status = target < state.date ? "Past" : target === state.date ? "Today" : "";
               return (
                 <button
                   key={day}
                   type="button"
                   disabled={target <= state.date}
-                  aria-label={target < state.date ? `${displaySimulatedDate(target)}, past date` : target === state.date ? `${displaySimulatedDate(target)}, today` : `Move to ${displaySimulatedDate(target)}`}
+                  aria-label={status
+                    ? `${day} ${dayNumber} ${status}, ${displaySimulatedDate(target)}`
+                    : `${day} ${dayNumber}, move to ${displaySimulatedDate(target)}`}
                   aria-current={target === state.date ? "date" : undefined}
                   onClick={() => move(target)}
                   className={cx(
-                    "min-h-12 rounded-md py-2 text-xs tabular-nums enabled:hover:bg-ink-100 disabled:cursor-not-allowed disabled:opacity-50",
+                    "min-h-12 rounded-md py-2 text-xs tabular-nums enabled:hover:bg-ink-100 disabled:cursor-not-allowed",
+                    // Today is not a move target, but it stays at full strength.
                     target === state.date
                       ? "bg-ink-900 text-white"
-                      : "text-ink-900",
+                      : "text-ink-900 disabled:opacity-50",
                     FOCUS,
                   )}
                 >
                   <span className="block">{day}</span>
-                  <span className="mt-1 block text-sm">
-                    {Number(target.slice(-2))}
-                  </span>
-                  <span className="mt-1 block h-4 text-xs">{target < state.date ? "Past" : target === state.date ? "Today" : ""}</span>
+                  <span className="mt-1 block text-sm">{dayNumber}</span>
+                  <span className="mt-1 block h-4 text-xs">{status}</span>
                 </button>
               );
             })}
@@ -286,6 +308,7 @@ export default function TestControls({
                     )}
                     <div className="flex flex-wrap gap-2">
                       <button
+                        ref={cancelButton}
                         type="button"
                         className={BUTTON}
                         onClick={() => setConfirmation(null)}
@@ -312,10 +335,18 @@ export default function TestControls({
                   </div>
                 ) : (
                   <button
+                    ref={(button) => {
+                      if (button) resetButtons.current.set(reset.key, button);
+                      else resetButtons.current.delete(reset.key);
+                    }}
                     type="button"
                     className={cx(BUTTON, "mt-2")}
                     disabled={reset.requiresSchedule && !canRebuild}
-                    onClick={() => setConfirmation(reset.key)}
+                    onClick={() => {
+                      setNotice(null);
+                      setError(null);
+                      setConfirmation(reset.key);
+                    }}
                   >
                     {reset.label}
                   </button>

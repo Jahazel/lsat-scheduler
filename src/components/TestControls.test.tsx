@@ -24,7 +24,7 @@ describe("Test controls", () => {
   it("moves to a later simulated date and displays its formatted date", async () => {
     const user = userEvent.setup();
     render(<TestControls state={state} onClose={() => {}} />);
-    await user.click(screen.getByRole("button", { name: "Move to Oct 8, 2026" }));
+    await user.click(screen.getByRole("button", { name: "Th 8, move to Oct 8, 2026" }));
     expect(mocks.move).toHaveBeenCalledWith("2026-10-08");
     expect(await screen.findByText("Moved to Oct 8, 2026.")).toBeDefined();
   });
@@ -101,5 +101,44 @@ describe("Test controls", () => {
     expect(await screen.findByRole("alert")).toHaveProperty("textContent", "There is no weekly schedule to rebuild.");
     expect(screen.queryByText("Rebuild this week complete.")).toBeNull();
     expect(mocks.push).not.toHaveBeenCalled();
+  });
+  it("clears the completion message when another reset confirmation opens", async () => {
+    const user = userEvent.setup();
+    render(<TestControls state={state} onClose={() => {}} />);
+    await user.click(screen.getByRole("button", { name: "Reset test data" }));
+    await user.click(screen.getByRole("button", { name: "Confirm reset" }));
+    await screen.findByText("Reset test data complete.");
+    await user.click(screen.getByRole("button", { name: "Reset everything" }));
+    expect(screen.queryByText("Reset test data complete.")).toBeNull();
+  });
+  it("clears the reset error when another reset confirmation opens", async () => {
+    mocks.data.mockRejectedValueOnce(new Error("Reset failed."));
+    const user = userEvent.setup();
+    render(<TestControls state={state} onClose={() => {}} />);
+    await user.click(screen.getByRole("button", { name: "Reset test data" }));
+    await user.click(screen.getByRole("button", { name: "Confirm reset" }));
+    await screen.findByRole("alert");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "Reset everything" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+  it("keeps keyboard focus when a reset confirmation opens and is cancelled", async () => {
+    const user = userEvent.setup();
+    render(<TestControls state={state} onClose={() => {}} />);
+    await user.click(screen.getByRole("button", { name: "Reset test data" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Cancel" }));
+    await user.keyboard("{Enter}");
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Reset test data" }));
+  });
+  it("starts each day's name with its visible text", () => {
+    render(<TestControls state={state} onClose={() => {}} />);
+    expect(screen.getByRole("button", { name: "Mo 5 Past, Oct 5, 2026" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "We 7 Today, Oct 7, 2026" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Su 11, move to Oct 11, 2026" })).toBeDefined();
+  });
+  it("fades past days but shows today at full strength", () => {
+    render(<TestControls state={state} onClose={() => {}} />);
+    expect(screen.getByRole("button", { name: /Past, Oct 5, 2026/ }).className).toContain("opacity-50");
+    expect(screen.getByRole("button", { name: /Today, Oct 7, 2026/ }).className).not.toContain("opacity-50");
   });
 });

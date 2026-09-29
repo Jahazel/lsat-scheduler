@@ -1,7 +1,7 @@
 "use client";
 
 import { useAdminTest } from "@/components/AdminTestContext";
-import AdminTestPanel from "@/components/AdminTestPanel";
+import AdminTestPanel, { AdminTestOpener } from "@/components/AdminTestPanel";
 import type { TestControlState } from "@/components/TestControls";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -96,6 +96,8 @@ export default function AdminNav(props: StudentNavProps & { testState?: TestCont
     .some((href) => isTabActive(pathname, href));
   const adminSide = isTabActive(pathname, "/admin");
   const switcher = <WorkspaceSwitcher key={pathname} studentSide={studentSide} adminSide={adminSide} />;
+  const testPanelId = useId();
+  const testState = studentSide ? props.testState : undefined;
 
   return (
     <>
@@ -114,8 +116,9 @@ export default function AdminNav(props: StudentNavProps & { testState?: TestCont
             </form>
           </div>
         )}
-        {studentSide && props.testState && <AdminTestPanel state={props.testState} />}
+        {testState && <AdminTestOpener state={testState} panelId={testPanelId} />}
       </header>
+      {testState && <AdminTestPanel state={testState} panelId={testPanelId} />}
       {studentSide && <StudentTabBar uploadNeeded={uploadNeeded} withWorkspaceSwitcher />}
     </>
   );
