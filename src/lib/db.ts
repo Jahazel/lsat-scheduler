@@ -27,6 +27,12 @@ export async function connectDB() {
     cache.promise = mongoose.connect(MONGODB_URI, { dbName: "lsat-scheduler" });
   }
 
-  cache.conn = await cache.promise;
-  return cache.conn;
+  const promise = cache.promise;
+  try {
+    cache.conn = await promise;
+    return cache.conn;
+  } catch (error) {
+    if (cache.promise === promise) cache.promise = null;
+    throw error;
+  }
 }
