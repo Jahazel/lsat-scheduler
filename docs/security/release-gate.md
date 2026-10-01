@@ -58,39 +58,39 @@ Each row needs a policy before its exact limits can be written. The policy ticke
 | A2 | A submitted owner, role, or operator field cannot change who owns a record or who has power. | Auto | F10 | None needed | Not tested |
 | A3 | An admin can view a student's weekly schedule. The view creates no weekly schedule and writes nothing. | Auto, Copy | ADR 0003, domain model | None needed | Not tested |
 | A4 | Admin test actions, such as a simulated date or a sample analytics snapshot, change only the admin's own student side. | Auto | Domain model | None needed | Not tested |
-| A5 | Student A signs out and student B signs in on the same browser. Student B sees none of student A's data, including from browser or CDN caches. | Real | F13 | Browser and data | Not tested |
+| A5 | Student A signs out and student B signs in on the same browser. Student B sees none of student A's data, including from browser or CDN caches. | Real | F13 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
 
 ### B. Sign-in and accounts
 
 | ID | Check | Kind | Evidence | Policy ticket | Status |
 | --- | --- | --- | --- | --- | --- |
-| B1 | Keep a session in two browsers. Demote, disable, or delete the account. The next protected request refuses the removed power, including admin pages, onboarding, and extraction. No paid call starts and no record comes back. | Auto, Copy | F01, F02 | Account security | Not tested |
-| B2 | Google sign-in stores the stable Google account ID. A matching email alone cannot attach a person to an existing account. | Auto, Copy | F03 | Account security | Not tested |
-| B3 | A password signup with someone else's email cannot later take over that person's account. | Copy | F03 | Account security | Not tested |
-| B4 | Linking Google and password sign-in needs proof of control of both. A changed Google email cannot move an account. | Copy | F03 | Account security | Not tested |
-| B5 | Two passwords that differ only after byte 72 do not both work. Multibyte passwords work at the limit. | Auto | F04 | Account security | Not tested |
-| B6 | The chosen password policy rejects common passwords. | Auto | F04 | Account security | Not tested |
-| B7 | Password reset tokens expire and work once. A reset signs out other sessions. Reset does not reveal whether an email has an account. | Copy | F04 | Account security | Not tested |
-| B8 | Existing accounts move to the new rules without a silent email verification or a moved admin role. | Copy | F03 | Account security | Not tested |
-| B9 | Admin MFA works as the chosen policy says. | Copy | Issue 72 | Account security | Not tested |
+| B1 | Keep a session in two browsers. Demote, disable, or delete the account. The next protected request refuses the removed power, including admin pages, onboarding, and extraction. No paid call starts and no record comes back. | Auto, Copy | F01, F02 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
+| B2 | Google sign-in stores the stable Google account ID. A matching email alone cannot attach a person to an existing account. | Auto, Copy | F03 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
+| B3 | A password signup with someone else's email cannot later take over that person's account. | Copy | F03 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
+| B4 | Linking Google and password sign-in needs proof of control of both. A changed Google email cannot move an account. | Copy | F03 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
+| B5 | Two passwords that differ only after byte 72 do not both work. Multibyte passwords work at the limit. | Auto | F04 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
+| B6 | The chosen password policy rejects common passwords. | Auto | F04 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
+| B7 | Password reset tokens expire and work once. A reset signs out other sessions. Reset does not reveal whether an email has an account. | Copy | F04 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
+| B8 | Existing accounts move to the new rules without a silent email verification or a moved admin role. | Copy | F03 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
+| B9 | Admin MFA works as the chosen policy says. | Copy | Issue 72 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
 
 ### C. Abuse limits and spending
 
 | ID | Check | Kind | Evidence | Policy ticket | Status |
 | --- | --- | --- | --- | --- | --- |
-| C1 | At each agreed limit N for signup, login, lead capture, and snapshot saves, request N+1 gets a clear refusal before any expensive work or write. | Auto, Copy | F05, F09 | Abuse and extraction | Not tested |
-| C2 | Limits hold under parallel requests and across server instances. | Copy | F05 | Abuse and extraction | Not tested |
-| C3 | A student who reaches the extraction limit gets a clear refusal. No paid call starts. | Auto, Copy | F05 | Abuse and extraction | Not tested |
-| C4 | The app's $10 monthly extraction limit counts each provider attempt, including retries. When it is reached, no new paid call starts. | Copy (real calls, $5 workspace) | Issue 72 | Abuse and extraction | Not tested |
-| C5 | An emergency switch stops extraction. No new paid call starts. Manual entry, this week, and progress still work. | Copy, Real | Issue 72 | Abuse and extraction | Not tested |
-| C6 | A student can enter analytics by hand when scanning fails or is off, and can still get a weekly schedule. | Copy | Issue 72 | Abuse and extraction | Not tested |
+| C1 | At each agreed limit N for signup, login, lead capture, and snapshot saves, request N+1 gets a clear refusal before any expensive work or write. | Auto, Copy | F05, F09 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)) | Not tested |
+| C2 | Limits hold under parallel requests and across server instances. | Copy | F05 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)) | Not tested |
+| C3 | A student who reaches the extraction limit gets a clear refusal. No paid call starts. | Auto, Copy | F05 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)) | Not tested |
+| C4 | The app's $10 monthly extraction limit counts each provider attempt, including retries. When it is reached, no new paid call starts. | Copy (real calls, $5 workspace) | Issue 72 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)) | Not tested |
+| C5 | An emergency switch stops extraction. No new paid call starts. Manual entry, this week, and progress still work. | Copy, Real | Issue 72 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)) | Not tested |
+| C6 | A student can enter analytics by hand when scanning fails or is off, and can still get a weekly schedule. | Copy | Issue 72 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)) | Not tested |
 
 ### D. Screenshots and model output
 
 | ID | Check | Kind | Evidence | Policy ticket | Status |
 | --- | --- | --- | --- | --- | --- |
 | D1 | An anonymous or deleted account causes zero extraction calls. The handler checks the session itself. | Auto | F06 | None needed | Not tested |
-| D2 | The app refuses a forged file type, a broken image, an oversized request, and too many pixels or frames before it reads the whole file or calls the model. | Auto | F07 | Abuse and extraction | Not tested |
+| D2 | The app refuses a forged file type, a broken image, an oversized request, and too many pixels or frames before it reads the whole file or calls the model. | Auto | F07 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)) | Not tested |
 | D3 | The app refuses a wrong tool, unknown labels, too many rows, bad true/false values, and numbers out of range. Nothing usable returns and no analytics snapshot saves. | Auto | F08 | None needed | Not tested |
 | D4 | Onboarding works for an existing account with no student record. | Auto | Issue 72 | None needed | Not tested |
 
@@ -98,47 +98,47 @@ Each row needs a policy before its exact limits can be written. The policy ticke
 
 | ID | Check | Kind | Evidence | Policy ticket | Status |
 | --- | --- | --- | --- | --- | --- |
-| E1 | A request from another site, or with a wrong content type, cannot change data or start a paid call. | Copy | F12 | Browser and data | Not tested |
-| E2 | Session cookies are Secure, HttpOnly, and use the chosen SameSite value on the real site. | Real | F13 | Browser and data | Not tested |
-| E3 | Private pages send `no-store`. | Real | F13 | Browser and data | Not tested |
-| E4 | The chosen CSP, framing, referrer, and content-type headers are present. Google sign-in still works. | Real | F13, issue 71 | Browser and data | Not tested |
+| E1 | A request from another site, or with a wrong content type, cannot change data or start a paid call. | Copy | F12 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
+| E2 | Session cookies are Secure, HttpOnly, and use the chosen SameSite value on the real site. | Real | F13 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
+| E3 | Private pages send `no-store`. | Real | F13 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
+| E4 | The chosen CSP, framing, referrer, and content-type headers are present. Google sign-in still works. | Real | F13, issue 71 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
 
 ### F. Deletion, privacy, errors, and logs
 
 | ID | Check | Kind | Evidence | Policy ticket | Status |
 | --- | --- | --- | --- | --- | --- |
-| F1 | Force a failure during account deletion. Deletion finishes or can be finished. A retry does not restore access or leave unexplained records. | Copy | F11 | Browser and data | Not tested |
+| F1 | Force a failure during account deletion. Deletion finishes or can be finished. A retry does not restore access or leave unexplained records. | Copy | F11 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
 | F2 | Onboarding survives failures and parallel requests without broken records. | Copy | F11 | None needed | Not tested |
-| F3 | The privacy page matches real handling: data kept, screenshots sent to Anthropic, Anthropic's 30-day retention, and backups. | Settings | F11, issue 71 | Browser and data | Not tested |
-| F4 | A restore from backup does not bring back a deleted account. | Copy | Issue 72 | Browser and data | Not tested |
-| F5 | Bad requests and provider or database failures return safe errors. Logs contain no credentials, cookies, screenshots, or extra student data. | Auto, Copy | F15 | Browser and data | Not tested |
-| F6 | The chosen sign-in, permission, and abuse events appear in logs. | Copy | F15 | Browser and data | Not tested |
+| F3 | The privacy page matches real handling: data kept, screenshots sent to Anthropic, Anthropic's 30-day retention, and backups. | Settings | F11, issue 71 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
+| F4 | A restore from backup does not bring back a deleted account. | Copy | Issue 72 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
+| F5 | Bad requests and provider or database failures return safe errors. Logs contain no credentials, cookies, screenshots, or extra student data. | Auto, Copy | F15 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
+| F6 | The chosen sign-in, permission, and abuse events appear in logs. | Copy | F15 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
 
 ### G. Dependencies and code
 
 | ID | Check | Kind | Evidence | Policy ticket | Status |
 | --- | --- | --- | --- | --- | --- |
-| G1 | Each known runtime advisory is patched or shown unreachable, within the agreed response time. | Auto, Settings | F16 | Infrastructure | Not tested |
-| G2 | GitHub Dependabot alerts and secret scanning are on, or a stated replacement covers them. | Settings | Issue 71 | Infrastructure | Not tested |
+| G1 | Each known runtime advisory is patched or shown unreachable, within the agreed response time. | Auto, Settings | F16 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Not tested |
+| G2 | GitHub Dependabot alerts and secret scanning are on, or a stated replacement covers them. | Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Not tested |
 | G3 | GitHub runs the automatic checks after every push. | Settings | Issue 73 | None needed | Not tested |
 
 ### H. Provider access and credentials
 
 | ID | Check | Kind | Evidence | Policy ticket | Status |
 | --- | --- | --- | --- | --- | --- |
-| H1 | Two-step sign-in is on for Vercel, GitHub, Atlas, Google Cloud, and the Anthropic Console, for every login method. | Settings | Issue 71 | Infrastructure | Not tested |
-| H2 | The app's database user can do the app's work only. It cannot manage users or other databases. | Copy, Settings | Issue 71 | Infrastructure | Not tested |
-| H3 | Database network access matches the chosen policy, or the policy's replacement protection is in place. | Settings | Issue 71 | Infrastructure | Not tested |
-| H4 | Your computer, the copy of the site, and the real site use different credentials. Local work cannot read or change real records. | Settings | Issue 71 | Infrastructure | Not tested |
-| H5 | Each credential can be revoked at its provider. The steps are tested without showing any secret. | Copy | Issue 71 | Infrastructure | Not tested |
-| H6 | The Google sign-in client has branding, privacy, and terms links, and is published as the chosen policy says. | Settings | Issue 71 | Account security | Not tested |
+| H1 | Two-step sign-in is on for Vercel, GitHub, Atlas, Google Cloud, and the Anthropic Console, for every login method. | Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Not tested |
+| H2 | The app's database user can do the app's work only. It cannot manage users or other databases. | Copy, Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Not tested |
+| H3 | Database network access matches the chosen policy, or the policy's replacement protection is in place. | Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Not tested |
+| H4 | Your computer, the copy of the site, and the real site use different credentials. Local work cannot read or change real records. | Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Not tested |
+| H5 | Each credential can be revoked at its provider. The steps are tested without showing any secret. | Copy | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Not tested |
+| H6 | The Google sign-in client has branding, privacy, and terms links, and is published as the chosen policy says. | Settings | Issue 71 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
 
 ### I. Recovery and alerts
 
 | ID | Check | Kind | Evidence | Policy ticket | Status |
 | --- | --- | --- | --- | --- | --- |
-| I1 | A daily backup exists and is no more than 24 hours old. | Settings | Issue 71 | Database research | Not tested |
-| I2 | A restore into a separate database finishes within 48 hours and the data is complete. | Copy | Issue 71 | Database research | Not tested |
+| I1 | A daily backup exists and is no more than 24 hours old. | Settings | Issue 71 | Database research ([#78](https://github.com/Jahazel/lsat-scheduler/issues/78)) | Not tested |
+| I2 | A restore into a separate database finishes within 48 hours and the data is complete. | Copy | Issue 71 | Database research ([#78](https://github.com/Jahazel/lsat-scheduler/issues/78)) | Not tested |
 | I3 | Each of the five alerts reaches the owner. | Settings | Issue 71 | None needed | Not tested |
 | I4 | The emergency guide exists, and each step was tried once on the copy of the site. | Copy | Issue 71 | None needed | Not tested |
 
@@ -261,15 +261,15 @@ This work follows from the decisions above. Issue 69 keeps implementation out of
 
 ## Policy tickets
 
-To be created as children of issue 69. None blocks issue 73.
+Created on October 1, 2026, as children of issue 69. None blocks issue 73.
 
 | Ticket | Type | Scope |
 | --- | --- | --- |
-| Account security | Decision | Email verification, Google ID storage, account linking, password policy, reset, existing-account migration, session length, revocation timing, sign-out everywhere, recent sign-in for deletion, admin MFA, Google client publishing |
-| Abuse and extraction | Decision | Signup, login, and lead limits; upload formats, size, and pixels; limit per student; retries; parallel requests; budget counting; the emergency switch; where hand-entered analytics snapshots come from |
-| Browser and data | Decision | CSP and header policy, SameSite value, deletion handling, data retention, log retention, which events to log, privacy page text |
-| Infrastructure | Decision | Database network access, least-privilege database user, separate credentials, credential rotation, dependency response times, two-step sign-in on provider accounts, Dependabot and secret scanning |
-| Database research | Research | Keep MongoDB Atlas or move to hosted Postgres. Review again if DrillMap needs reports across many students, the data stops fitting documents, or Flex costs more than $30 per month |
+| Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Decision | Email verification, Google ID storage, account linking, password policy, reset, existing-account migration, session length, revocation timing, sign-out everywhere, recent sign-in for deletion, admin MFA, Google client publishing |
+| Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)) | Decision | Signup, login, and lead limits; upload formats, size, and pixels; limit per student; retries; parallel requests; budget counting; the emergency switch; where hand-entered analytics snapshots come from |
+| Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Decision | CSP and header policy, SameSite value, deletion handling, data retention, log retention, which events to log, privacy page text |
+| Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Decision | Database network access, least-privilege database user, separate credentials, credential rotation, dependency response times, two-step sign-in on provider accounts, Dependabot and secret scanning |
+| Database research ([#78](https://github.com/Jahazel/lsat-scheduler/issues/78)) | Research | Keep MongoDB Atlas or move to hosted Postgres. Review again if DrillMap needs reports across many students, the data stops fitting documents, or Flex costs more than $30 per month |
 
 ## Decisions recorded
 
