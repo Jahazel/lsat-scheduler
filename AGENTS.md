@@ -8,13 +8,6 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-## Git workflow
-
-- Work directly in the project's existing checkout. Do not create Git worktrees or
-  branches unless the user asks.
-- Do not commit, push, open a pull request, or merge until the user has reviewed the
-  changes and given explicit approval.
-
 ## Shared workspace memory
 
 - The outer workspace's long-term memory starts at `../wiki/index.md`.

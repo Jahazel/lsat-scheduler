@@ -211,7 +211,7 @@ This workflow applies before and after launch.
 1. **Write the code.** Work from an issue.
 2. **Check the risk.** If the change is a risky change, add or update its checks in this file.
 3. **Run the tests locally.**
-4. **The owner approves the commit and the push.**
+4. **Commit the checked changes.**
 5. **Push.** GitHub runs the automatic checks. The copy of the site updates. The real site does not change.
 6. **Try the change on the copy of the site.**
 7. **Release.** Green on GitHub means the owner can release. Red means fix first. The owner releases that exact version.
