@@ -64,15 +64,16 @@ Each row needs a policy before its exact limits can be written. The policy ticke
 
 | ID | Check | Kind | Evidence | Policy ticket | Status |
 | --- | --- | --- | --- | --- | --- |
-| B1 | Keep a session in two browsers. Demote, disable, or delete the account. The next protected request refuses the removed power, including admin pages, onboarding, and extraction. No paid call starts and no record comes back. | Auto, Copy | F01, F02 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
-| B2 | Google sign-in stores the stable Google account ID. A matching email alone cannot attach a person to an existing account. | Auto, Copy | F03 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
-| B3 | A password signup with someone else's email cannot later take over that person's account. | Copy | F03 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
-| B4 | Linking Google and password sign-in needs proof of control of both. A changed Google email cannot move an account. | Copy | F03 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
-| B5 | Two passwords that differ only after byte 72 do not both work. Multibyte passwords work at the limit. | Auto | F04 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
-| B6 | The chosen password policy rejects common passwords. | Auto | F04 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
-| B7 | Password reset tokens expire and work once. A reset signs out other sessions. Reset does not reveal whether an email has an account. | Copy | F04 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
-| B8 | Existing accounts move to the new rules without a silent email verification or a moved admin role. | Copy | F03 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
-| B9 | Admin MFA works as the chosen policy says. | Copy | Issue 72 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
+| B1 | Keep a session in two browsers. Then demote, disable, delete, reset the password, change the password, or press "Sign out of all devices." The next protected request in the other browser is refused, including admin pages, onboarding, and extraction. No paid call starts and no record is recreated. A disabled account cannot sign in. Student sessions end after 14 days without use and 30 days after sign-in. Admin sessions end 24 hours after sign-in. | Auto, Copy | F01, F02 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)); [Account rules](issue-74-decisions.md) | Not tested |
+| B2 | A known Google ID opens its account after the Google email changes, and the DrillMap email stays the same. A new Google ID with the email of a Google account is refused. A Google profile whose `email_verified` is not `true` is refused. | Auto, Copy | F03 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)); [Account rules](issue-74-decisions.md) | Not tested |
+| B3 | A password signup with someone else's email makes a pending account that cannot sign in. The real owner gets the email back through Google sign-in or a newer signup. The signup screen is the same for all four signup cases. A pending account is deleted after 7 days. | Copy | F03 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)); [Account rules](issue-74-decisions.md) | Not tested |
+| B4 | A Google sign-in with the email of a verified password account is refused and starts no session. A password signup with the email of a Google account makes no account. No account has both a password and a Google ID. | Auto, Copy | F03 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)); [Account rules](issue-74-decisions.md) | Not tested |
+| B5 | Signup, login, reset, and change refuse passwords over 72 UTF-8 bytes. A multibyte password of exactly 72 bytes works. Two passwords with the same first 72 bytes cannot both work. | Auto | F04 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)); [Account rules](issue-74-decisions.md) | Not tested |
+| B6 | Signup, reset, and change refuse a password on the common list, the person's own email, and "drillmap". | Auto | F04 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)); [Account rules](issue-74-decisions.md) | Not tested |
+| B7 | The reset screen is the same for an unknown email, a password account, and a Google account. A reset link works once, expires after 30 minutes, and stops working when a newer link is requested. The database holds only token hashes. A reset signs out all devices. Login gives the same message, with the same hash work, for a wrong email and a wrong password. | Copy | F04 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)); [Account rules](issue-74-decisions.md) | Not tested |
+| B8 | On synthetic data shaped like the real data, the migration rules hold. No role changes. No email becomes verified without a link, a reset, or a verified Google sign-in. Every session from before the release is refused. | Copy | F03 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)); [Account rules](issue-74-decisions.md) | Not tested |
+| B9 | An admin password sign-in is refused, even when a password hash exists. Admin accounts have no password after migration. Both admins have Google 2-Step Verification on, with the date recorded. | Copy, Settings | Issue 72 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)); [Account rules](issue-74-decisions.md) | Not tested |
+| B10 | Account deletion and password change are refused when the last sign-in is more than 10 minutes old. They work after a new sign-in. A password change also works with the current password. | Auto, Copy | F02 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)); [Account rules](issue-74-decisions.md) | Not tested |
 
 ### C. Abuse limits and spending
 
@@ -131,7 +132,7 @@ Each row needs a policy before its exact limits can be written. The policy ticke
 | H3 | Database network access matches the chosen policy, or the policy's replacement protection is in place. | Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Not tested |
 | H4 | Your computer, the copy of the site, and the real site use different credentials. Local work cannot read or change real records. | Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Not tested |
 | H5 | Each credential can be revoked at its provider. The steps are tested without showing any secret. | Copy | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Not tested |
-| H6 | The Google sign-in client has branding, privacy, and terms links, and is published as the chosen policy says. | Settings | Issue 71 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)) | Not tested |
+| H6 | The Google sign-in client has home, privacy, and terms links and no logo. It is published to "In production" with only `openid email profile`. The copy of the site uses a separate client. | Settings | Issue 71 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)); [Account rules](issue-74-decisions.md) | Not tested |
 
 ### I. Recovery and alerts
 
@@ -261,7 +262,7 @@ This work follows from the decisions above. Issue 69 keeps implementation out of
 
 ## Policy tickets
 
-Created on October 1, 2026, as children of issue 69. None blocks issue 73.
+Created on October 1, 2026, as children of issue 69. None blocks issue 73. Account security (#74) was decided on October 2, 2026. Its rules are in [issue-74-decisions.md](issue-74-decisions.md).
 
 | Ticket | Type | Scope |
 | --- | --- | --- |
@@ -294,6 +295,8 @@ All decisions were made by the owner on October 1, 2026, in the issue 73 discuss
 | New features | A risky change adds its own checks. Payments need a new review. |
 | How the checklist runs | An agent rule, automatic tests on GitHub, and a stop before release. |
 | Deliverable | This file, five child tickets, and summary comments on issues 73 and 69. |
+
+The owner decided the account security rules on October 1 and 2, 2026, in the issue 74 discussion. See [issue-74-decisions.md](issue-74-decisions.md). They set checks B1 to B10 and H6.
 
 ## Standards references
 
