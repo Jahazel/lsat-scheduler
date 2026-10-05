@@ -126,21 +126,21 @@ The evidence comes from [issue 70](issue-70-evidence.md) findings F01 to F04 and
 
 ## Checks
 
-These rows replace B1 to B9 and H6 in [release-gate.md](release-gate.md#b-sign-in-and-accounts), and add B10.
+The [launch checklist](release-gate.md#b-sign-in-and-accounts) holds the full text of each check. This table shows which rules each check tests.
 
-| ID | Check | Kind | Rules |
-| --- | --- | --- | --- |
-| B1 | Keep a session in two browsers. Then demote, disable, delete, reset the password, change the password, or press "Sign out of all devices." The next protected request in the other browser is refused, including admin pages, onboarding, and extraction. No paid call starts and no record is recreated. A disabled Account cannot sign in. Student sessions end after 14 days without use and 30 days after sign-in. Admin sessions end 24 hours after sign-in. | Auto, Copy | 22 to 28 |
-| B2 | A known Google ID opens its Account after the Google email changes, and the DrillMap email stays the same. A new Google ID with the email of a Google Account is refused. A Google profile whose `email_verified` is not `true` is refused. | Auto, Copy | 2 to 5 |
-| B3 | A password signup with someone else's email makes a pending Account that cannot sign in. The real owner gets the email back through Google sign-in or a newer signup. The signup screen is the same for all four signup cases. A pending Account is deleted after 7 days. | Copy | 7 to 9 |
-| B4 | A Google sign-in with the email of a verified password Account is refused and starts no session. A password signup with the email of a Google Account makes no Account. No Account has both a password and a Google ID. | Auto, Copy | 6, 9 |
-| B5 | Signup, login, reset, and change refuse passwords over 72 UTF-8 bytes. A multibyte password of exactly 72 bytes works. Two passwords with the same first 72 bytes cannot both work. | Auto | 10, 11 |
-| B6 | Signup, reset, and change refuse a password on the common list, the person's own email, and "drillmap". | Auto | 13 |
-| B7 | The reset screen is the same for an unknown email, a password Account, and a Google Account. A reset link works once, expires after 30 minutes, and stops working when a newer link is requested. The database holds only token hashes. A reset signs out all devices. Login gives the same message, with the same hash work, for a wrong email and a wrong password. | Copy | 14, 15, 17 to 20 |
-| B8 | On synthetic data shaped like the real data, rules 38 to 43 hold. No role changes. No email becomes verified without a link, a reset, or a verified Google sign-in. Every session from before the release is refused. | Copy | 38 to 43 |
-| B9 | An admin password sign-in is refused, even when a password hash exists. Admin Accounts have no password after migration. Both admins have Google 2-Step Verification on, with the date recorded. | Copy, Settings | 31 to 33 |
-| B10 | Account deletion and password change are refused when the last sign-in is more than 10 minutes old. They work after a new sign-in. A password change also works with the current password. | Auto, Copy | 21, 29 |
-| H6 | The Google sign-in client has home, privacy, and terms links and no logo. It is published to "In production" with only `openid email profile`. The copy of the site uses a separate client. | Settings | 34 to 37 |
+| Check | Rules |
+| --- | --- |
+| B1 | 22 to 28 |
+| B2 | 2 to 5 |
+| B3 | 7 to 9 |
+| B4 | 6, 9 |
+| B5 | 10, 11 |
+| B6 | 13 |
+| B7 | 14, 15, 17 to 20 |
+| B8 | 38 to 43 |
+| B9 | 31 to 33 |
+| B10 | 21, 29 |
+| [H6](release-gate.md#h-provider-access-and-credentials) | 34 to 37 |
 
 ## Not decided here
 
