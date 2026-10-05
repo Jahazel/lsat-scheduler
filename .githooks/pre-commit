@@ -1,0 +1,9 @@
+#!/bin/sh
+# Runs before each commit. Any failing check stops the commit.
+set -e
+
+gitleaks protect --staged --redact --exit-code 1
+
+npm run --silent lint
+npm run --silent typecheck
+npm test --silent
