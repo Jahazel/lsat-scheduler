@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "prepare": "git config core.hooksPath .githooks || true",
     "migrate:analytics-snapshots": "node scripts/migrate-analytics-snapshots.mjs",
