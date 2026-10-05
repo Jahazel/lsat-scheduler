@@ -79,19 +79,19 @@ Each row needs a policy before its exact limits can be written. The policy ticke
 
 | ID | Check | Kind | Evidence | Policy ticket | Status |
 | --- | --- | --- | --- | --- | --- |
-| C1 | At each agreed limit N for signup, login, lead capture, and snapshot saves, request N+1 gets a clear refusal before any expensive work or write. | Auto, Copy | F05, F09 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)) | Not tested |
-| C2 | Limits hold under parallel requests and across server instances. | Copy | F05 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)) | Not tested |
-| C3 | A student who reaches the extraction limit gets a clear refusal. No paid call starts. | Auto, Copy | F05 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)) | Not tested |
-| C4 | The app's $10 monthly extraction limit counts each provider attempt, including retries. When it is reached, no new paid call starts. | Copy (real calls, $5 workspace) | Issue 72 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)) | Not tested |
-| C5 | An emergency switch stops extraction. No new paid call starts. Manual entry, this week, and progress still work. | Copy, Real | Issue 72 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)) | Not tested |
-| C6 | A student can enter analytics by hand when scanning fails or is off, and can still get a weekly schedule. | Copy | Issue 72 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)) | Not tested |
+| C1 | At each limit, request N+1 gets HTTP 429 with `Retry-After` before any bcrypt, email, write, or paid call. Signup: the 4th email in 1 hour and the 6th in 1 day for one email, and the 11th signup in 1 hour for one IP address. The signup screen does not change. Login: the 11th failure in 15 minutes for one email, known or unknown, and the 51st in 1 hour for one IP address. The message is the same for every email. Reset: the 4th in 1 hour for one email, and the 11th for one IP address. Lead capture: the 6th in 1 hour for one IP address, and a repeat email writes nothing. Analytics snapshot saves: the 6th in 1 day for one student. Each limit works again after its window ends. A simulated date does not change any limit. | Auto, Copy | F05, F09 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)); [Abuse rules](issue-75-decisions.md) | Not tested |
+| C2 | Send N+5 requests at the same time for each limit in C1 and C3, across at least two server instances. Exactly N succeed. One student's second extraction at the same time is refused. A 6th extraction at the same time on the site is refused. A place held by a stopped extraction is free after 2 minutes. | Copy | F05 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)); [Abuse rules](issue-75-decisions.md) | Not tested |
+| C3 | The 6th extraction in 1 day and the 21st in 1 month for one student, including an admin, are refused. No Anthropic call starts. | Auto, Copy | F05 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)); [Abuse rules](issue-75-decisions.md) | Not tested |
+| C4 | Each extraction counts $0.02 before the call. A reply changes it to the real cost. A timeout or error keeps $0.02. With the total at the limit minus $0.01, the next extraction is refused and no call starts. The SDK makes no retry. The timeout is 30 seconds. Admin and failed extractions count. The total goes back to $0 at midnight on the 1st, America/Chicago. A changed limit works on the next extraction, with no new release. Run on the copy of the site with real calls in the $5 workspace. | Copy (real calls, $5 workspace) | Issue 72 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)); [Abuse rules](issue-75-decisions.md) | Not tested |
+| C5 | With the emergency switch on, no new Anthropic call starts on the next extraction, and the student sees "Scanning is off right now. Enter your analytics by hand." Hand-typed analytics snapshots, this week, and progress still work. The emergency guide lists the commands for the switch and the limit. | Copy, Real | Issue 72 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)); [Abuse rules](issue-75-decisions.md) | Not tested |
+| C6 | With extraction on, off, and at its limit, a student types analytics by hand, approves them, and gets a weekly schedule. The analytics snapshot has source `manual_entry`. Every source refuses unknown type names, accuracy outside 0 to 1, a top-priority type that is not a Stimulus Logic type, and two rows for one type. A student cannot save `admin_sample`. | Auto, Copy | Issue 72, F09 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)); [Abuse rules](issue-75-decisions.md) | Not tested |
 
 ### D. Screenshots and model output
 
 | ID | Check | Kind | Evidence | Policy ticket | Status |
 | --- | --- | --- | --- | --- | --- |
 | D1 | An anonymous or deleted account causes zero extraction calls. The handler checks the session itself. | Auto | F06 | None needed | Not tested |
-| D2 | The app refuses a forged file type, a broken image, an oversized request, and too many pixels or frames before it reads the whole file or calls the model. | Auto | F07 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)) | Not tested |
+| D2 | The server refuses a file whose first bytes are not PNG, JPEG, or WebP, whatever type the browser sends. It refuses GIF, a broken image, a file over 4 MB, a request over 4.5 MB, a side over 8,000 px, more than 25 megapixels, and an animated PNG or WebP. Each refusal happens before the server reads the whole file and before an Anthropic call. A file at each limit is accepted. The browser shrinks a large screenshot until its longer side is at most 1,568 px. | Auto | F07 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)); [Abuse rules](issue-75-decisions.md) | Not tested |
 | D3 | The app refuses a wrong tool, unknown labels, too many rows, bad true/false values, and numbers out of range. Nothing usable returns and no analytics snapshot saves. | Auto | F08 | None needed | Not tested |
 | D4 | Onboarding works for an existing account with no student record. | Auto | Issue 72 | None needed | Not tested |
 
@@ -185,7 +185,7 @@ The owner is the only person with provider access. The owner accepts this single
 | Site is down | A free external uptime check |
 | Backup failed | Atlas or the backup job |
 
-**Emergency guide.** A runbook in `docs/runbooks/` lists the steps: pause the Vercel project, turn off extraction, revoke the Anthropic key, rotate the database and Google credentials, and sign out all sessions. Redeploying with new settings does not, by itself, revoke old copies.
+**Emergency guide.** A runbook in `docs/runbooks/` lists the steps: pause the Vercel project, turn off extraction with the database switch, change the app extraction limit, revoke the Anthropic key, rotate the database and Google credentials, and sign out all sessions. Redeploying with new settings does not, by itself, revoke old copies.
 
 ## Ready and go
 
@@ -262,7 +262,7 @@ This work follows from the decisions above. Issue 69 keeps implementation out of
 
 ## Policy tickets
 
-Created on October 1, 2026, as children of issue 69. None blocks issue 73. Account security (#74) was decided on October 2, 2026. Its rules are in [issue-74-decisions.md](issue-74-decisions.md).
+Created on October 1, 2026, as children of issue 69. None blocks issue 73. Account security (#74) was decided on October 2, 2026. Its rules are in [issue-74-decisions.md](issue-74-decisions.md). Abuse and extraction (#75) was decided on October 2, 2026. Its rules are in [issue-75-decisions.md](issue-75-decisions.md).
 
 | Ticket | Type | Scope |
 | --- | --- | --- |
@@ -297,6 +297,8 @@ All decisions were made by the owner on October 1, 2026, in the issue 73 discuss
 | Deliverable | This file, five child tickets, and summary comments on issues 73 and 69. |
 
 The owner decided the account security rules on October 1 and 2, 2026, in the issue 74 discussion. See [issue-74-decisions.md](issue-74-decisions.md). They set checks B1 to B10 and H6.
+
+The owner decided the abuse and extraction rules on October 2, 2026, in the issue 75 discussion. See [issue-75-decisions.md](issue-75-decisions.md). They set checks C1 to C6 and D2.
 
 ## Standards references
 
