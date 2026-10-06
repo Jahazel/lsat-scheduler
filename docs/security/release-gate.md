@@ -41,6 +41,14 @@ Signup stays open. The owner does not promote DrillMap. The risk is small becaus
 
 Only screenshot extraction uses this Anthropic organization, so the $20 limit affects nothing else.
 
+Your computer and the real site use the same database and the same admin password. The owner confirmed this on October 6, 2026. A local test or script can change or delete real students' records, and no backup exists. This work is urgent and comes before other launch work ([infrastructure rules](issue-77-decisions.md) 18 to 20):
+
+| Step | Required result | Status |
+| --- | --- | --- |
+| Local scripts and tests that save data | None run until the separation is done | In force from October 6, 2026 |
+| Separate database for your computer | `.env.local` holds only local values. `.env.vercel.local` is deleted. | Not done |
+| Replace the four real-site credentials | New database password, Anthropic key, Auth.js secret, and Google client secret. The old ones are refused. | Not done |
+
 ## The checks
 
 Each row needs a policy before its exact limits can be written. The policy ticket column names where that decision happens. The "Kind" column says how the check runs:
@@ -119,19 +127,19 @@ Each row needs a policy before its exact limits can be written. The policy ticke
 
 | ID | Check | Kind | Evidence | Policy ticket | Status |
 | --- | --- | --- | --- | --- | --- |
-| G1 | Each known runtime advisory is patched or shown unreachable, within the agreed response time. | Auto, Settings | F16 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Not tested |
-| G2 | GitHub Dependabot alerts and secret scanning are on, or a stated replacement covers them. | Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Not tested |
+| G1 | Each advisory that Dependabot or `npm audit` reports is fixed, or has a current unreachable note in `docs/security/advisory-notes.md`, within its deadline. Runtime packages: critical in 2 days, high in 7 days, moderate in 30 days, low at the next routine update. Development-only packages: critical and high in 30 days, others at the next routine update. A note names the package, the advisory ID, the reason, and a recheck date no more than 90 days later. GitHub runs `npm audit --omit=dev` after every push, and a critical or high runtime advisory with no fix and no current note stops the release. | Auto, Settings | F16 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)); [Infrastructure rules](issue-77-decisions.md) | Not tested |
+| G2 | Dependabot alerts and Dependabot security updates are on. GitHub Actions runs gitleaks on every push, and the run passes. One gitleaks scan of the full Git history before launch finds no credential, or each found credential was rotated within 1 day. The date and the redacted result are recorded. | Auto, Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)); [Infrastructure rules](issue-77-decisions.md) | Not tested |
 | G3 | GitHub runs the automatic checks after every push. | Settings | Issue 73 | None needed | Not tested |
 
 ### H. Provider access and credentials
 
 | ID | Check | Kind | Evidence | Policy ticket | Status |
 | --- | --- | --- | --- | --- | --- |
-| H1 | Two-step sign-in is on for Vercel, GitHub, Atlas, Google Cloud, and the Anthropic Console, for every login method. | Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Not tested |
-| H2 | The app's database user can do the app's work only. It cannot manage users or other databases. | Copy, Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Not tested |
-| H3 | Database network access matches the chosen policy, or the policy's replacement protection is in place. | Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Not tested |
-| H4 | Your computer, the copy of the site, and the real site use different credentials. Local work cannot read or change real records. | Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Not tested |
-| H5 | Each credential can be revoked at its provider. The steps are tested without showing any secret. | Copy | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Not tested |
+| H1 | Two-step sign-in with a passkey or an authenticator app is on for Vercel, GitHub, Atlas, the Google account that owns Google Cloud, the Anthropic Console, and the email provider. No account allows text-message codes. Every login method on each account needs the second step, or it is removed. Recovery codes are in the password manager and on one printed copy. The method and the date are recorded for each account. | Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)); [Infrastructure rules](issue-77-decisions.md) | Not tested |
+| H2 | The real site's database user has only `readWrite` on `lsat-scheduler`. No permanent database user has admin powers. On the copy of the site, with the app's user, a list of other databases, a new user, and a database drop each fail. Signup, check-in, analytics upload, and Account deletion still work. Owner work uses a temporary database user that expires in 1 week or less. | Copy, Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)); [Infrastructure rules](issue-77-decisions.md) | Not tested |
+| H3 | The network access list holds only `0.0.0.0/0`. Each database password is random and at least 32 characters long. Every connection uses TLS with certificate checks on. H2 passes. If the database or the Vercel plan changed since October 6, 2026, the owner decided the rule again. | Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)); [Infrastructure rules](issue-77-decisions.md) | Not tested |
+| H4 | Your computer, the copy of the site, and the real site each have their own database, database user, Auth.js secret, and Google client, and their own Anthropic and email keys or none. A comparison of hashes shows no shared value. No file on your computer holds a real-site credential. Previews of the real project have no credentials. Each database credential on your computer fails to sign in to the real database. A script that deletes or changes data refuses the real database host. | Auto, Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)); [Infrastructure rules](issue-77-decisions.md) | Not tested |
+| H5 | On the copy of the site, rotate each credential with the emergency guide. The provider refuses the old credential, and the site works with the new one. No secret is shown, and the date is recorded. The drill runs before launch and then each year. The four real-site credentials that were on your computer were replaced, and the old ones are refused. | Copy, Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)); [Infrastructure rules](issue-77-decisions.md) | Not tested |
 | H6 | The Google sign-in client has home, privacy, and terms links and no logo. It is published to "In production" with only `openid email profile`. The copy of the site uses a separate client. | Settings | Issue 71 | Account security ([#74](https://github.com/Jahazel/lsat-scheduler/issues/74)); [Account rules](issue-74-decisions.md) | Not tested |
 
 ### I. Recovery and alerts
@@ -150,7 +158,7 @@ These items were not verified in issue 71. Rule 2 makes each one a failure until
 | Item | Covered by |
 | --- | --- |
 | Anthropic Console two-step sign-in and login methods | H1 |
-| Which credentials the real site actually uses | H4 |
+| Which credentials the real site actually uses. On October 6, 2026, the owner confirmed that the local database is the real one. | H4 |
 | Other GitHub tokens, apps, and deploy keys | H5 |
 | Vercel shareable links for old deployments | H5 |
 | Log retention, redaction, and access | F5, F6 |
@@ -243,26 +251,30 @@ This work follows from the decisions above. Issue 69 keeps implementation out of
 **Operations**
 
 1. Make the four Anthropic changes in [Until launch](#until-launch). Done on October 1, 2026.
-2. Set up daily backups on the database that the research ticket chooses. If it keeps Atlas, use the Flex plan ($8 to $30 per month). Flex keeps a daily snapshot for the last 8 days.
-3. Create the copy of the site: its own Vercel deployment, its own database, its own Google sign-in client, and a separate Anthropic workspace with its own key and a $5 monthly limit.
-4. Turn off automatic production deploys. Release by manual promotion only.
-5. Set up the five alerts and test each one.
-6. Write the emergency guide in `docs/runbooks/`.
-7. Run the first restore test.
+2. Urgent: give your computer its own database and credentials, then replace the four real-site credentials. See [Until launch](#until-launch).
+3. Set up daily backups on the database that the research ticket chooses. If it keeps Atlas, use the Flex plan ($8 to $30 per month). Flex keeps a daily snapshot for the last 8 days.
+4. Create the copy of the site: a separate Vercel project, its own database, its own Google sign-in client, and a separate Anthropic workspace with its own key and a $5 monthly limit.
+5. Turn off automatic production deploys. Release by manual promotion only.
+6. Give the real site a database user with only `readWrite` on `lsat-scheduler`. Then delete `atlasAdmin`.
+7. Turn on two-step sign-in on every provider account and login method. Turn on Dependabot alerts and security updates.
+8. Set up the five alerts and test each one.
+9. Write the emergency guide in `docs/runbooks/`, with the rotation steps for each credential.
+10. Run the first restore test and the first rotation drill.
 
 **Automation**
 
-8. Add a GitHub Actions workflow that runs the automatic checks after every push.
-9. Add a rule to `AGENTS.md`: a risky change must read this file and add or update its checks.
-10. Add a fake extractor for tests and for the copy of the site.
+11. Add a GitHub Actions workflow that runs the automatic checks after every push, including `npm audit --omit=dev` and gitleaks.
+12. Add a rule to `AGENTS.md`: a risky change must read this file and add or update its checks.
+13. Add a fake extractor for tests, for your computer, and for the copy of the site.
+14. Make every script that deletes or changes data refuse the real database host.
 
 **App fixes**
 
-11. Build the protections in sections A to F after their policy tickets close.
+15. Build the protections in sections A to F after their policy tickets close.
 
 ## Policy tickets
 
-Created on October 1, 2026, as children of issue 69. None blocks issue 73. Account security (#74) was decided on October 2, 2026. Its rules are in [issue-74-decisions.md](issue-74-decisions.md). Abuse and extraction (#75) was decided on October 2, 2026. Its rules are in [issue-75-decisions.md](issue-75-decisions.md). Browser and data (#76) was decided on October 5, 2026. Its rules are in [issue-76-decisions.md](issue-76-decisions.md).
+Created on October 1, 2026, as children of issue 69. None blocks issue 73. Account security (#74) was decided on October 2, 2026. Its rules are in [issue-74-decisions.md](issue-74-decisions.md). Abuse and extraction (#75) was decided on October 2, 2026. Its rules are in [issue-75-decisions.md](issue-75-decisions.md). Browser and data (#76) was decided on October 5, 2026. Its rules are in [issue-76-decisions.md](issue-76-decisions.md). Infrastructure (#77) was decided on October 6, 2026. Its rules are in [issue-77-decisions.md](issue-77-decisions.md).
 
 | Ticket | Type | Scope |
 | --- | --- | --- |
@@ -302,6 +314,8 @@ The owner decided the abuse and extraction rules on October 2, 2026, in the issu
 
 The owner decided the browser and data rules on October 5, 2026, in the issue 76 discussion. See [issue-76-decisions.md](issue-76-decisions.md). They set checks A5, E1 to E4, F1, and F3 to F6.
 
+The owner decided the infrastructure rules on October 6, 2026, in the issue 77 discussion. See [issue-77-decisions.md](issue-77-decisions.md). They set checks G1, G2, and H1 to H5.
+
 ## Standards references
 
 Requirement IDs come from [OWASP ASVS 5.0.0](https://github.com/OWASP/ASVS/blob/v5.0.0_release/5.0/docs_en/OWASP_Application_Security_Verification_Standard_5.0.0_en.csv). They mark relevant requirements. They are not a certification.
@@ -314,4 +328,5 @@ Requirement IDs come from [OWASP ASVS 5.0.0](https://github.com/OWASP/ASVS/blob/
 | D. Screenshots and model output | `v5.0.0-5.2.1`, `v5.0.0-5.2.2`, `v5.0.0-1.2.4` |
 | E. Browser protections | `v5.0.0-3.4.1` to `v5.0.0-3.4.6`, `v5.0.0-3.3.1`, `v5.0.0-14.3.2` |
 | F. Deletion, privacy, errors, logs | `v5.0.0-14.1.2`, `v5.0.0-14.2.3`, `v5.0.0-14.2.4`, `v5.0.0-16.2.5`, `v5.0.0-16.3.1`, `v5.0.0-16.3.2` |
+| G. Dependencies and code | `v5.0.0-15.1.1`, `v5.0.0-15.1.2`, `v5.0.0-15.2.1` |
 | H. Provider access | `v5.0.0-13.2.1`, `v5.0.0-13.2.2`, `v5.0.0-13.3.1`, `v5.0.0-13.3.2` |
