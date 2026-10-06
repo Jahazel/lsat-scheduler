@@ -135,7 +135,7 @@ Each row needs a policy before its exact limits can be written. The policy ticke
 
 | ID | Check | Kind | Evidence | Policy ticket | Status |
 | --- | --- | --- | --- | --- | --- |
-| H1 | Two-step sign-in with a passkey or an authenticator app is on for Vercel, GitHub, Atlas, the Google account that owns Google Cloud, the Anthropic Console, and the email provider. No account allows text-message codes. Every login method on each account needs the second step, or it is removed. Recovery codes are in the password manager and on one printed copy. The method and the date are recorded for each account. | Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)); [Infrastructure rules](issue-77-decisions.md) | Not tested |
+| H1 | Two-step sign-in with a passkey or an authenticator app is on for Vercel, GitHub, Neon, Atlas until its project is deleted, the Google account that owns Google Cloud, the Anthropic Console, and the email provider. No account allows text-message codes. Every login method on each account needs the second step, or it is removed. Recovery codes are in the password manager and on one printed copy. The method and the date are recorded for each account. | Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)); [Infrastructure rules](issue-77-decisions.md) | Not tested |
 | H2 | The real site's database user has only `readWrite` on `lsat-scheduler`. No permanent database user has admin powers. On the copy of the site, with the app's user, a list of other databases, a new user, and a database drop each fail. Signup, check-in, analytics upload, and Account deletion still work. Owner work uses a temporary database user that expires in 1 week or less. | Copy, Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)); [Infrastructure rules](issue-77-decisions.md) | Not tested |
 | H3 | The network access list holds only `0.0.0.0/0`. Each database password is random and at least 32 characters long. Every connection uses TLS with certificate checks on. H2 passes. If the database or the Vercel plan changed since October 6, 2026, the owner decided the rule again. | Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)); [Infrastructure rules](issue-77-decisions.md) | Not tested |
 | H4 | Your computer, the copy of the site, and the real site each have their own database, database user, Auth.js secret, and Google client, and their own Anthropic and email keys or none. A comparison of hashes shows no shared value. No file on your computer holds a real-site credential. Previews of the real project have no credentials. Each database credential on your computer fails to sign in to the real database. A script that deletes or changes data refuses the real database host. | Auto, Settings | Issue 71 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)); [Infrastructure rules](issue-77-decisions.md) | Not tested |
@@ -146,8 +146,8 @@ Each row needs a policy before its exact limits can be written. The policy ticke
 
 | ID | Check | Kind | Evidence | Policy ticket | Status |
 | --- | --- | --- | --- | --- | --- |
-| I1 | A daily backup exists and is no more than 24 hours old. | Settings | Issue 71 | Database research ([#78](https://github.com/Jahazel/lsat-scheduler/issues/78)) | Not tested |
-| I2 | A restore into a separate database finishes within 48 hours and the data is complete. | Copy | Issue 71 | Database research ([#78](https://github.com/Jahazel/lsat-scheduler/issues/78)) | Not tested |
+| I1 | The real site's Neon project has a daily snapshot schedule, and the newest snapshot is no more than 24 hours old. The history window is at least 1 day. Snapshot retention is 30 days or less. The daily snapshot check alerts the owner when the newest snapshot is older than 24 hours. | Settings | Issue 71 | Database research ([#78](https://github.com/Jahazel/lsat-scheduler/issues/78)); [Database research](issue-78-database-research.md#decision) | Not tested |
+| I2 | Restore a snapshot or a past moment into a new Neon branch. It finishes within 48 hours. The record count of each table matches the source at that moment. The deletion list runs before the branch is used. The branch is deleted after the test. | Copy | Issue 71 | Database research ([#78](https://github.com/Jahazel/lsat-scheduler/issues/78)); [Database research](issue-78-database-research.md#decision) | Not tested |
 | I3 | Each of the five alerts reaches the owner. | Settings | Issue 71 | None needed | Not tested |
 | I4 | The emergency guide exists, and each step was tried once on the copy of the site. | Copy | Issue 71 | None needed | Not tested |
 
@@ -172,7 +172,7 @@ These items were not verified in issue 71. Rule 2 makes each one a failure until
 - **Most data you can lose:** 1 day.
 - **Longest time to recover:** 2 days.
 - **Restore test:** once before launch, then every 3 months.
-- **Plan:** Set up daily backups on the database that the research ticket chooses. If it keeps Atlas, use the Flex plan ($8 to $30 per month). Flex keeps a daily snapshot for the last 8 days. The recovery targets do not change.
+- **Plan:** Move to Postgres on Neon, chosen in [issue 78](issue-78-database-research.md#decision). The real site uses the Launch plan with a daily snapshot schedule, a history window of at least 1 day, and snapshot retention of 30 days or less. Neon can restore to any moment in the history window. The recovery targets do not change.
 
 ## Owner and alerts
 
@@ -189,9 +189,9 @@ The owner is the only person with provider access. The owner accepts this single
 | --- | --- |
 | Anthropic spend at $5 and $8 | Anthropic Console |
 | App extraction limit reached | DrillMap |
-| Database problems | Atlas email alerts |
+| Database problems | Neon (alert method not yet checked) |
 | Site is down | A free external uptime check |
-| Backup failed | Atlas or the backup job |
+| Backup failed | The daily snapshot check |
 
 **Emergency guide.** A runbook in `docs/runbooks/` lists the steps: pause the Vercel project, turn off extraction with the database switch, change the app extraction limit, revoke the Anthropic key, rotate the database and Google credentials, and sign out all sessions. Redeploying with new settings does not, by itself, revoke old copies.
 
@@ -252,10 +252,10 @@ This work follows from the decisions above. Issue 69 keeps implementation out of
 
 1. Make the four Anthropic changes in [Until launch](#until-launch). Done on October 1, 2026.
 2. Urgent: give your computer its own database and credentials, then replace the four real-site credentials. See [Until launch](#until-launch).
-3. Set up daily backups on the database that the research ticket chooses. If it keeps Atlas, use the Flex plan ($8 to $30 per month). Flex keeps a daily snapshot for the last 8 days.
+3. Move DrillMap to Postgres on Neon and set up daily backups there. Follow the [rules for the move](issue-78-database-research.md#decision). The new databases start separate, so this also covers the database part of step 2.
 4. Create the copy of the site: a separate Vercel project, its own database, its own Google sign-in client, and a separate Anthropic workspace with its own key and a $5 monthly limit.
 5. Turn off automatic production deploys. Release by manual promotion only.
-6. Give the real site a database user with only `readWrite` on `lsat-scheduler`. Then delete `atlasAdmin`.
+6. Give the real site a Neon role, made in SQL, that can only read and write DrillMap's tables. After the two admin accounts work on Neon, delete the Atlas project.
 7. Turn on two-step sign-in on every provider account and login method. Turn on Dependabot alerts and security updates.
 8. Set up the five alerts and test each one.
 9. Write the emergency guide in `docs/runbooks/`, with the rotation steps for each credential.
@@ -274,7 +274,7 @@ This work follows from the decisions above. Issue 69 keeps implementation out of
 
 ## Policy tickets
 
-Created on October 1, 2026, as children of issue 69. None blocks issue 73. Account security (#74) was decided on October 2, 2026. Its rules are in [issue-74-decisions.md](issue-74-decisions.md). Abuse and extraction (#75) was decided on October 2, 2026. Its rules are in [issue-75-decisions.md](issue-75-decisions.md). Browser and data (#76) was decided on October 5, 2026. Its rules are in [issue-76-decisions.md](issue-76-decisions.md). Infrastructure (#77) was decided on October 6, 2026. Its rules are in [issue-77-decisions.md](issue-77-decisions.md).
+Created on October 1, 2026, as children of issue 69. None blocks issue 73. Account security (#74) was decided on October 2, 2026. Its rules are in [issue-74-decisions.md](issue-74-decisions.md). Abuse and extraction (#75) was decided on October 2, 2026. Its rules are in [issue-75-decisions.md](issue-75-decisions.md). Browser and data (#76) was decided on October 5, 2026. Its rules are in [issue-76-decisions.md](issue-76-decisions.md). Infrastructure (#77) was decided on October 6, 2026. Its rules are in [issue-77-decisions.md](issue-77-decisions.md). Database research (#78) was decided on October 6, 2026. Its findings are in [issue-78-database-research.md](issue-78-database-research.md).
 
 | Ticket | Type | Scope |
 | --- | --- | --- |
@@ -282,7 +282,7 @@ Created on October 1, 2026, as children of issue 69. None blocks issue 73. Accou
 | Abuse and extraction ([#75](https://github.com/Jahazel/lsat-scheduler/issues/75)) | Decision | Signup, login, and lead limits; upload formats, size, and pixels; limit per student; retries; parallel requests; budget counting; the emergency switch; where hand-entered analytics snapshots come from |
 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Decision | CSP and header policy, SameSite value, deletion handling, data retention, log retention, which events to log, privacy page text |
 | Infrastructure ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)) | Decision | Database network access, least-privilege database user, separate credentials, credential rotation, dependency response times, two-step sign-in on provider accounts, Dependabot and secret scanning |
-| Database research ([#78](https://github.com/Jahazel/lsat-scheduler/issues/78)) | Research | Keep MongoDB Atlas or move to hosted Postgres. Review again if DrillMap needs reports across many students, the data stops fitting documents, or Flex costs more than $30 per month |
+| Database research ([#78](https://github.com/Jahazel/lsat-scheduler/issues/78)) | Research | Keep MongoDB Atlas or move to hosted Postgres. Decided: Postgres on Neon |
 
 ## Decisions recorded
 
@@ -298,7 +298,7 @@ All decisions were made by the owner on October 1, 2026, in the issue 73 discuss
 | Real model calls on the copy | A fake extractor by default. Real calls only in a separate workspace with a $5 limit. |
 | Release control | Manual release only. |
 | Recovery targets | At most 1 day of data loss and 2 days to recover. |
-| Backups | Decide the database first, in the research ticket. Then set up daily backups on the database you choose. |
+| Backups | Decide the database first, in the research ticket. Then set up daily backups on the database you choose. On October 6, 2026, the owner chose Postgres on Neon (issue 78). |
 | Owner | The owner alone, with the risk accepted. Respond within 1 day. |
 | Alerts | Five alerts, each tested. |
 | Spend until launch | $20 Anthropic limit, no new credit, and emails at $5 and $8. |
@@ -315,6 +315,8 @@ The owner decided the abuse and extraction rules on October 2, 2026, in the issu
 The owner decided the browser and data rules on October 5, 2026, in the issue 76 discussion. See [issue-76-decisions.md](issue-76-decisions.md). They set checks A5, E1 to E4, F1, and F3 to F6.
 
 The owner decided the infrastructure rules on October 6, 2026, in the issue 77 discussion. See [issue-77-decisions.md](issue-77-decisions.md). They set checks G1, G2, and H1 to H5.
+
+The owner chose Postgres on Neon on October 6, 2026, in the issue 78 discussion. See [issue-78-database-research.md](issue-78-database-research.md#decision). It sets checks I1 and I2. Issue 77 rules 1 to 3 and 5 name Atlas features, so the owner decides them again for Neon before H2 and H3 can pass.
 
 ## Standards references
 
