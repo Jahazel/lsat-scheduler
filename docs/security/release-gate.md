@@ -58,7 +58,7 @@ Each row needs a policy before its exact limits can be written. The policy ticke
 | A2 | A submitted owner, role, or operator field cannot change who owns a record or who has power. | Auto | F10 | None needed | Not tested |
 | A3 | An admin can view a student's weekly schedule. The view creates no weekly schedule and writes nothing. | Auto, Copy | ADR 0003, domain model | None needed | Not tested |
 | A4 | Admin test actions, such as a simulated date or a sample analytics snapshot, change only the admin's own student side. | Auto | Domain model | None needed | Not tested |
-| A5 | Student A signs out and student B signs in on the same browser. Student B sees none of student A's data, including from browser or CDN caches. | Real | F13 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
+| A5 | Student A opens this week, progress, settings, and the Account page, then signs out. Sign-out sends `Clear-Site-Data: "cache"`. Student B signs in on the same browser. The back button, a reload, and each of student A's addresses show none of student A's data, from the browser or the CDN. | Real | F13 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)); [Browser and data rules](issue-76-decisions.md) | Not tested |
 
 ### B. Sign-in and accounts
 
@@ -99,21 +99,21 @@ Each row needs a policy before its exact limits can be written. The policy ticke
 
 | ID | Check | Kind | Evidence | Policy ticket | Status |
 | --- | --- | --- | --- | --- | --- |
-| E1 | A request from another site, or with a wrong content type, cannot change data or start a paid call. | Copy | F12 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
-| E2 | Session cookies are Secure, HttpOnly, and use the chosen SameSite value on the real site. | Real | F13 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
-| E3 | Private pages send `no-store`. | Real | F13 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
-| E4 | The chosen CSP, framing, referrer, and content-type headers are present. Google sign-in still works. | Real | F13, issue 71 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
+| E1 | Send each request that changes data with a foreign `Origin`, with no `Origin`, and with a wrong content type. A wrong or missing `Origin` gets HTTP 403. A wrong content type gets HTTP 415. JSON routes accept only `application/json`, and only extraction accepts `multipart/form-data`. No write, email, or Anthropic call happens, and each refusal is in the security log. A same-site request works. | Copy | F12 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)); [Browser and data rules](issue-76-decisions.md) | Not tested |
+| E2 | Session cookies on the real site are Secure, HttpOnly, and SameSite=Lax. The email verification link, the reset link, and Google sign-in still work. | Real | F13 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)); [Browser and data rules](issue-76-decisions.md) | Not tested |
+| E3 | Every page, Route Handler, and Server Action response that reads a session sends `Cache-Control: private, no-store`. The landing page, legal pages, login, and signup may be cached. | Real | F13 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)); [Browser and data rules](issue-76-decisions.md) | Not tested |
+| E4 | Every page sends an enforced CSP with a new nonce on each request, `'strict-dynamic'`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, and `frame-ancestors 'none'`. Every response sends `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Strict-Transport-Security: max-age=63072000`, and `Permissions-Policy: camera=(), microphone=(), geolocation=()`. Two loads of the same page get different nonces. Google sign-in, onboarding, upload, this week, progress, and the admin pages work with no CSP violations. | Real | F13, issue 71 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)); [Browser and data rules](issue-76-decisions.md) | Not tested |
 
 ### F. Deletion, privacy, errors, and logs
 
 | ID | Check | Kind | Evidence | Policy ticket | Status |
 | --- | --- | --- | --- | --- | --- |
-| F1 | Force a failure during account deletion. Deletion finishes or can be finished. A retry does not restore access or leave unexplained records. | Copy | F11 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
+| F1 | Force a failure after the Account is marked "deleting." Every protected request is refused at once. The student retry or the daily job finishes the deletion. No Account, Student, analytics snapshot, weekly schedule, activity check-in, or matching lead remains. Exactly one deletion list row exists. A retry never restores access. | Copy | F11 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)); [Browser and data rules](issue-76-decisions.md) | Not tested |
 | F2 | Onboarding survives failures and parallel requests without broken records. | Copy | F11 | None needed | Not tested |
-| F3 | The privacy page matches real handling: data kept, screenshots sent to Anthropic, Anthropic's 30-day retention, and backups. | Settings | F11, issue 71 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
-| F4 | A restore from backup does not bring back a deleted account. | Copy | Issue 72 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
-| F5 | Bad requests and provider or database failures return safe errors. Logs contain no credentials, cookies, screenshots, or extra student data. | Auto, Copy | F15 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
-| F6 | The chosen sign-in, permission, and abuse events appear in logs. | Copy | F15 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)) | Not tested |
+| F3 | The privacy and AI disclosure pages match the approved text and the facts on the release day: data kept, admin access, screenshots sent to Anthropic, Anthropic's 30-day retention, providers, security log, retention periods, deletion, backups, and the privacy contact address. The upload screen shows the screenshot notice. Leads older than 12 months, security log entries older than 90 days, and deletion list rows older than 30 days are gone. An Account with no sign-in for 2 years gets the warning email and is deleted 30 days later. | Settings | F11, issue 71 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)); [Browser and data rules](issue-76-decisions.md) | Not tested |
+| F4 | Delete a test Account on the copy of the site. Restore a backup from before the deletion. The deletion list runs before the site opens. The Account, its records, and its lead stay deleted. No backup is kept longer than 30 days. | Copy | Issue 72 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)); [Browser and data rules](issue-76-decisions.md) | Not tested |
+| F5 | A malformed upload, a bad student ID, an Anthropic failure, and a database failure each return "Something went wrong. Try again." with an error code, or a planned message. The security log has an entry with the same code. A search of the security log and the Vercel logs after the test run finds no test password, cookie, token, reset link, screenshot, model output, request body, or full email. | Auto, Copy | F15 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)); [Browser and data rules](issue-76-decisions.md) | Not tested |
+| F6 | Each event in rule 27 of the browser and data rules makes one security log entry with the time, event, result, Account ID or email hash, IP address, and route. Entries are deleted after 90 days. | Copy | F15 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)); [Browser and data rules](issue-76-decisions.md) | Not tested |
 
 ### G. Dependencies and code
 
@@ -209,7 +209,7 @@ A readiness claim expires when any of these happens:
 This workflow applies before and after launch.
 
 1. **Write the code.** Work from an issue.
-2. **Check the risk.** If the change is a risky change, add or update its checks in this file.
+2. **Check the risk.** If the change is a risky change, add or update its checks in this file. If the change stores new data, sends data to a new provider, or changes a retention period, update the privacy page in the same change.
 3. **Run the tests locally.**
 4. **Commit the checked changes.**
 5. **Push.** GitHub runs the automatic checks. The copy of the site updates. The real site does not change.
@@ -262,7 +262,7 @@ This work follows from the decisions above. Issue 69 keeps implementation out of
 
 ## Policy tickets
 
-Created on October 1, 2026, as children of issue 69. None blocks issue 73. Account security (#74) was decided on October 2, 2026. Its rules are in [issue-74-decisions.md](issue-74-decisions.md). Abuse and extraction (#75) was decided on October 2, 2026. Its rules are in [issue-75-decisions.md](issue-75-decisions.md).
+Created on October 1, 2026, as children of issue 69. None blocks issue 73. Account security (#74) was decided on October 2, 2026. Its rules are in [issue-74-decisions.md](issue-74-decisions.md). Abuse and extraction (#75) was decided on October 2, 2026. Its rules are in [issue-75-decisions.md](issue-75-decisions.md). Browser and data (#76) was decided on October 5, 2026. Its rules are in [issue-76-decisions.md](issue-76-decisions.md).
 
 | Ticket | Type | Scope |
 | --- | --- | --- |
@@ -299,6 +299,8 @@ All decisions were made by the owner on October 1, 2026, in the issue 73 discuss
 The owner decided the account security rules on October 1 and 2, 2026, in the issue 74 discussion. See [issue-74-decisions.md](issue-74-decisions.md). They set checks B1 to B10 and H6.
 
 The owner decided the abuse and extraction rules on October 2, 2026, in the issue 75 discussion. See [issue-75-decisions.md](issue-75-decisions.md). They set checks C1 to C6 and D2.
+
+The owner decided the browser and data rules on October 5, 2026, in the issue 76 discussion. See [issue-76-decisions.md](issue-76-decisions.md). They set checks A5, E1 to E4, F1, and F3 to F6.
 
 ## Standards references
 
