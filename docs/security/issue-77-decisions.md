@@ -158,3 +158,9 @@ The owner made each decision in the issue 77 discussion.
 | Advisories found before these rules | The clock starts on October 6, 2026. |
 | Two-step sign-in | Passkey or authenticator app on every provider account and every login method. No text messages. |
 | Dependabot and secret scanning | Dependabot alerts and security updates on. gitleaks on every push, plus one full-history scan before launch. |
+
+## Neon replacement rules
+
+On October 6, 2026, the owner settled the access rules again after choosing Neon. The [final assessment's Neon decisions](issue-69-assessment.md#neon-access-and-monitoring-decisions) replace the Atlas-specific network and database-user rules above for the new provider. They allow the public endpoint on Launch, a limited SQL-created app role, one owner-only browser admin role, and temporary script access with expiry and explicit cleanup. This is an explicit change to rule 6's prohibition of every permanent admin database user. Separate credentials, no production secrets in local files, rotation, and provider two-step sign-in still apply.
+
+The backup checker prefers a read-only monitoring account. The owner approved a project-only Editor key as the fallback if read-only monitoring is unavailable. The key is confined to a separate scheduled checker and is not an owner-wide API key. These decisions do not waive any launch check.

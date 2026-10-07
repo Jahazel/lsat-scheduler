@@ -119,9 +119,21 @@ On October 6, 2026, the owner chose to move DrillMap from MongoDB Atlas to Postg
 6. The privacy page names the new provider and backup period in the same change (release-gate workflow step 2).
 7. After the two admin accounts work on Neon, delete the Atlas project.
 
-## Open questions for the owner
+## Questions raised by the database choice
 
 1. Network access. Neon allows IP limits only on the Scale plan, and Vercel Hobby addresses change. Issue 77 rule 3 requires the owner to decide network access again.
 2. Owner's own database work. Issue 77 rule 5 uses Atlas temporary users. A Neon replacement must be decided.
 3. Is a Neon API key, stored as a secret for the daily snapshot check, acceptable? The other choice is a daily manual check.
 4. The no-backup risk ends November 1, 2026. If the move is not done by then, the owner must extend it in writing or set up an interim backup.
+
+The owner settled questions 1 to 3 on October 6, 2026, during [the final assessment](issue-69-assessment.md#neon-access-and-monitoring-decisions). Question 4 remains the existing deadline rule, not a new risk acceptance. No setting or application protection passes until verified.
+
+## Findings added during the final assessment
+
+Checked October 6, 2026, while preparing [the public-signup assessment](issue-69-assessment.md). These facts refine the implementation plan. The owner decisions are recorded separately in the assessment; these findings alone do not approve access exceptions.
+
+- **Snapshot retention has an exception.** Neon keeps the latest scheduled snapshot while its schedule remains active, even after its retention deadline. Manual snapshots also need an explicit expiration or deletion. Setting retention to 30 days does not by itself prove the launch check that no backup is older than 30 days. The backup checker must inspect actual ages and the recovery procedure must remove expired copies, including the retained latest snapshot when necessary. The removal procedure must account for Neon's latest-snapshot protection. See [snapshot retention](https://neon.com/docs/guides/backup-restore#snapshot-retention).
+- **Project-only API keys have write powers.** An organization key scoped to one project has Editor access and can change or delete project resources. It is not a read-only snapshot key. API keys remain valid until revoked. A separate Collaborator account with Viewer access only to production can provide a read-only personal API key under Neon's new permissions model. Existing organizations and Vercel-managed organizations may still use legacy permissions. Verify the available model before provisioning the checker. See [API keys](https://neon.com/docs/manage/api-keys), [permissions](https://neon.com/docs/manage/user-permissions), and [snapshot list API](https://neon.com/docs/reference/api/snapshots/list-snapshots).
+- **Owner-access expiry needs explicit cleanup.** PostgreSQL's `VALID UNTIL` expires password authentication, not the role or its privileges, and does not end already open sessions. A temporary-access plan must also disable the login, terminate its sessions, remove its privileges, and delete the role when the job ends. See [Neon roles](https://neon.com/docs/manage/roles) and [PostgreSQL CREATE ROLE](https://www.postgresql.org/docs/current/sql-createrole.html).
+- **The app role needs explicit SQL grants.** Roles created through the Neon Console, CLI, or API receive `neon_superuser` membership. A role created through SQL does not automatically receive that membership. Grant only the app's required database, schema, table, and sequence permissions. Generic read/write examples can include schema creation, which the running app does not require. See [Neon roles](https://neon.com/docs/manage/roles) and [database access](https://neon.com/docs/manage/database-access).
+- **Launch uses the public endpoint.** Neon's IP Allow needs Scale. Neon refuses unencrypted connections and recommends `sslmode=verify-full` to check the server certificate. The driver choice must preserve those checks. See [IP Allow](https://neon.com/docs/introduction/ip-allow) and [secure connections](https://neon.com/docs/connect/connect-securely).
