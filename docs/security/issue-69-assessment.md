@@ -12,7 +12,7 @@ This report combines the assessment evidence and orders the remediation work. It
 
 The scope covers password and Google sign-in, student records, admin reads and the admin's own student side, account deletion, public lead capture, browser protections, and paid Anthropic screenshot extraction. Payments remain outside the scope. Adding payments requires another review.
 
-The record relationships come from [CONTEXT.md](../../CONTEXT.md). A student owns analytics snapshots and weekly schedules. A weekly schedule owns schedule activities and their activity check-ins. Admins can read real students' weekly schedules without changing them. Admin test changes affect only the admin's own student side.
+The record relationships come from [GLOSSARY.md](../../GLOSSARY.md). A student owns analytics snapshots and weekly schedules. A weekly schedule owns schedule activities and their activity check-ins. Admins can read real students' weekly schedules without changing them. Admin test changes affect only the admin's own student side.
 
 | Evidence | What it establishes | Limit |
 | --- | --- | --- |

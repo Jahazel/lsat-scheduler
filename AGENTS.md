@@ -17,3 +17,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
   the write workflow in `../wiki/index.md`.
 - This project's files remain authoritative for its current code and behavior. Do not
   copy wiki content into this project.
+
+## Agent skills
+
+Read `docs/agents/issue-tracker.md` before issue or pull-request work.
+Read `docs/agents/triage-labels.md` before sorting or labeling issues.
+Read `docs/agents/domain.md` before exploring domain concepts.
+For this repository, use `GLOSSARY.md` whenever an installed skill requests
+`CONTEXT.md`. Use `GLOSSARY-MAP.md` if a skill requests `CONTEXT-MAP.md`.

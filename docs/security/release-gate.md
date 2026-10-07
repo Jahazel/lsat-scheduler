@@ -176,7 +176,7 @@ These items were not verified in issue 71. Rule 2 makes each one a failure until
 
 ## Owner and alerts
 
-The owner is the only person with provider access. The owner accepts this single-person risk. `CONTEXT.md` names two admins. The other admin can get permission to pause the site later, without other provider access.
+The owner is the only person with provider access. The owner accepts this single-person risk. `GLOSSARY.md` names two admins. The other admin can get permission to pause the site later, without other provider access.
 
 **Response times:**
 
