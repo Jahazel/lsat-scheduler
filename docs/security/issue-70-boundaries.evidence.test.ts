@@ -49,6 +49,7 @@ function approvalRequest(extra: Record<string, unknown> = {}, origin?: string) {
 describe("issue 70 request boundary evidence", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.stubEnv("ANTHROPIC_API_KEY", "synthetic-anthropic-key");
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-01T15:00:00.000Z"));
     mocks.auth.mockResolvedValue({ user: { id: "synthetic-user", role: "student" } });
@@ -60,7 +61,10 @@ describe("issue 70 request boundary evidence", () => {
     mocks.getStudent.mockResolvedValue({ email: "student@example.invalid" });
     mocks.findUser.mockReturnValue({ lean: async () => ({ role: "student" }) });
   });
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
 
   it.each([null, { user: { id: "synthetic-user", role: "student" } }])("denies a roster read without an admin session", async (session) => {
     mocks.auth.mockResolvedValue(session);
