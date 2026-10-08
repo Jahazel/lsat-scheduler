@@ -41,13 +41,13 @@ Signup stays open. The owner does not promote DrillMap. The risk is small becaus
 
 Only screenshot extraction uses this Anthropic organization, so the $20 limit affects nothing else.
 
-Your computer and the real site use the same database and the same admin password. The owner confirmed this on October 6, 2026. A local test or script can change or delete real students' records, and no backup exists. This work is urgent and comes before other launch work ([infrastructure rules](issue-77-decisions.md) 18 to 20):
+On October 6, 2026, the owner confirmed that the computer and the real site used the same database and the same admin password. A local test or script could change or delete real students' records, and no backup existed. The owner confirmed the real-site credential replacement on October 8, 2026 ([issue #85](https://github.com/Jahazel/lsat-scheduler/issues/85)). Final separation and old-credential refusal checks remain pending in [issue #86](https://github.com/Jahazel/lsat-scheduler/issues/86). The pause on local writes stays in force. This work comes before other launch work ([infrastructure rules](issue-77-decisions.md) 18 to 20):
 
 | Step | Required result | Status |
 | --- | --- | --- |
 | Local scripts and tests that save data | None run until the separation is done | In force from October 6, 2026 |
 | Separate database for your computer | `.env.local` holds only local values. `.env.vercel.local` is deleted. | Not done |
-| Replace the four real-site credentials | New database password, Anthropic key, Auth.js secret, and Google client secret. The old ones are refused. | Not done |
+| Replace the four real-site credentials | New database password, Anthropic key, Auth.js secret, and Google client secret. The old ones are refused. | Done on 2026-10-08 for issue #85. Owner confirmed all four replacements, Production-only sensitive settings, successful redeploy, and old provider-key removal. Direct refusal checks, including the old sign-in session, remain pending in issue #86. See [replacement evidence](issue-85-evidence.md). |
 
 ## The checks
 
