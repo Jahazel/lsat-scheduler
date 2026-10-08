@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { requireLocalDatabase } from "./localDatabaseGuard.mjs";
 
 // Dev only: removes every student profile and the records that hang off it,
 // so dev data can be reseeded after a Student shape change. User accounts
@@ -17,8 +18,7 @@ export async function resetDevData(collection) {
 async function main() {
   if (process.env.NODE_ENV === "production") throw new Error("Refusing to reset data with NODE_ENV=production.");
   const uri = process.env.MONGODB_URI;
-  if (!uri) throw new Error("MONGODB_URI is not set");
-  const host = new URL(uri.replace(/^mongodb(\+srv)?:/, "http:")).host;
+  const host = requireLocalDatabase(uri);
   if (!process.argv.includes("--yes")) {
     throw new Error(`This deletes all ${COLLECTIONS.join(", ")} on ${host}. Re-run with --yes to confirm.`);
   }

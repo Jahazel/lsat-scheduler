@@ -1,5 +1,11 @@
 # Adaptive weekly schedules production rollout
 
+The migration commands below now refuse every non-local database host. This
+historical production procedure cannot run as written. Use migrations only
+with a local test database after the Stage 1 write freeze (#80) ends. The
+read-only verification command has no host guard. Do not use local files that
+hold real credentials. This runbook does not authorize a production rollout.
+
 Use this runbook when releasing to a database that already contains data from
 the pre-adaptive-schedule application. Each migration is idempotent and may be
 rerun after an interrupted deployment. The application has no feature flag or

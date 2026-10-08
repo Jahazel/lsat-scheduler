@@ -86,13 +86,22 @@ npm run build   # create a production build
 npm run start   # run a production build
 ```
 
-For an existing database, run the adaptive-schedule migrations before the
-first release that uses persisted weekly schedules. See
+For an existing local database, run the adaptive-schedule migrations before
+testing persisted weekly schedules. See
 [the rollout runbook](docs/runbooks/adaptive-weekly-schedules-rollout.md).
 
-To promote an existing account on production, set `MONGODB_URI` to the
-production URI in the command environment, then run
-`npm run make-admin -- <email>`.
+The reset, `make-admin`, and migration commands only allow database hosts
+`localhost`, `127.0.0.1`, and `::1`. Every host in a seed list must be local.
+They refuse remote hosts, all `mongodb+srv` strings, and missing or unreadable
+connection strings before connecting. No flag or environment setting bypasses
+this check. The read-only rollout check does not use this restriction.
+
+To promote an existing local Account to Admin, set `MONGODB_URI` to the local
+connection string, then run `npm run make-admin -- <email>`.
+
+The freeze on local writes in issue #77 remains in force until Stage 1 (#80)
+is complete. Do not run these commands or `npm run dev` while `.env.local`
+still holds the real database connection string.
 
 The [v2 schedule specification](docs/specs/adaptive-weekly-schedules.md) records
 the current rules.
