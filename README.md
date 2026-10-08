@@ -71,16 +71,15 @@ by the application.
 
 ## Local setup
 
-The freeze on local writes in [issue #77](https://github.com/Jahazel/lsat-scheduler/issues/77)
-remains in force until [Stage 1](https://github.com/Jahazel/lsat-scheduler/issues/80)
-is complete. While `.env.local` still holds the real database connection string,
-do not read, print, or change `.env.local` or `.env.vercel.local`. Do not run
-`npm run dev` or any script to check these instructions. The owner must complete
-the local setup, replace the real-site credentials, and pass the separation
-checks in Stage 1 before local work resumes.
+The Stage 1 pause on local data writes ended on October 8, 2026 after the
+separation, real-site, and local validation checks passed under the owner's
+evidence exception for unavailable old credentials. See
+[issue #86](https://github.com/Jahazel/lsat-scheduler/issues/86) and the
+[validation evidence](docs/security/issue-86-evidence.md). The no-promotion rule
+remains in force. This does not approve launch.
 
-The steps below describe the setup for a new copy of the repository after that
-freeze ends. Local work uses MongoDB Community Server on your Mac with test data
+The steps below describe setup for a new copy of the repository. Local work uses
+MongoDB Community Server on your Mac with test data
 only. A loopback address accepts connections from this computer only. Never keep
 real-site credentials in local files. A credential is a secret that gives access,
 such as a password or an API key.

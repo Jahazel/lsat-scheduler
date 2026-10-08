@@ -34,20 +34,20 @@ Signup stays open. The owner does not promote DrillMap. The risk is small becaus
 
 | Setting | Required value | Status |
 | --- | --- | --- |
-| Anthropic auto-reload | Off | Observed off on October 1, 2026 |
-| Anthropic credit balance | Under $10; add no credit | $4.68 observed on October 1, 2026 |
-| Anthropic monthly spend limit | $20 (was $500) | Set to $20 on October 1, 2026 |
-| Anthropic spend emails | At $5 and at $8 | Added on October 1, 2026 (Billing > Add notifications) |
+| Anthropic auto-reload | Off | Observed off on October 1, 2026; owner reconfirmed off on 2026-10-08 |
+| Anthropic credit balance | Under $10; add no credit | $4.68 observed on October 1, 2026; owner reconfirmed under $10 on 2026-10-08 |
+| Anthropic monthly spend limit | $20 (was $500) | Set to $20 on October 1, 2026; owner reconfirmed $20 on 2026-10-08 |
+| Anthropic spend emails | At $5 and at $8 | Added on October 1, 2026 (Billing > Add notifications); owner reconfirmed both on 2026-10-08 |
 
 Only screenshot extraction uses this Anthropic organization, so the $20 limit affects nothing else.
 
-On October 6, 2026, the owner confirmed that the computer and the real site used the same database and the same admin password. A local test or script could change or delete real students' records, and no backup existed. The owner confirmed the real-site credential replacement on October 8, 2026 ([issue #85](https://github.com/Jahazel/lsat-scheduler/issues/85)). Final separation and old-credential refusal checks remain pending in [issue #86](https://github.com/Jahazel/lsat-scheduler/issues/86). The pause on local writes stays in force. This work comes before other launch work ([infrastructure rules](issue-77-decisions.md) 18 to 20):
+On October 6, 2026, the owner confirmed that the computer and the real site used the same database and the same admin password. A local test or script could change or delete real students' records, and no backup existed. The owner completed the separate local setup on October 8, 2026 ([issue #84](https://github.com/Jahazel/lsat-scheduler/issues/84)). The owner also confirmed the real-site credential replacement on October 8, 2026 ([issue #85](https://github.com/Jahazel/lsat-scheduler/issues/85)). The final separation, real-site, and local validation checks completed on October 8, 2026 ([issue #86](https://github.com/Jahazel/lsat-scheduler/issues/86)). The owner approved provider-action records instead of the three unavailable direct refusal tests for Stage 1 only. The second Auth.js secret replacement refused the preserved sign-in session. The pause on normal local writes ended on October 8, 2026 after local validation passed. See [Stage 1 evidence](issue-86-evidence.md). The no-promotion rule remains in force; the full environment-separation and credential replacement drill checks remain Not tested. This work comes before other launch work ([infrastructure rules](issue-77-decisions.md) 18 to 20):
 
 | Step | Required result | Status |
 | --- | --- | --- |
-| Local scripts and tests that save data | None run until the separation is done | In force from October 6, 2026 |
-| Separate database for your computer | `.env.local` holds only local values. `.env.vercel.local` is deleted. | Not done |
-| Replace the four real-site credentials | New database password, Anthropic key, Auth.js secret, and Google client secret. The old ones are refused. | Done on 2026-10-08 for issue #85. Owner confirmed all four replacements, Production-only sensitive settings, successful redeploy, and old provider-key removal. Direct refusal checks, including the old sign-in session, remain pending in issue #86. See [replacement evidence](issue-85-evidence.md). |
+| Local scripts and tests that save data | None run until the separation is done | Pause ended on 2026-10-08 after issue #86 validation passed under the owner-approved evidence exception. Normal local work may resume only against the separate local database. |
+| Separate database for your computer | `.env.local` holds only local values. `.env.vercel.local` is deleted. | Done on 2026-10-08. Owner ran issue #84 setup. MongoDB listens only on loopback; local credentials are new; both Google redirect settings rechecked. |
+| Replace the four real-site credentials | New database password, Anthropic key, Auth.js secret, and Google client secret. The old ones are refused. | Replaced on 2026-10-08 in issue #85. Issue #86 records owner-approved provider-action evidence for the three unavailable direct refusal tests. AUTH_SECRET was replaced a second time on 2026-10-08; the preserved session was refused and fresh sign-in worked. See [replacement evidence](issue-85-evidence.md) and [final validation](issue-86-evidence.md). |
 
 ## The checks
 
