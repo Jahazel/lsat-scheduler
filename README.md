@@ -71,10 +71,95 @@ by the application.
 
 ## Local setup
 
-1. Install dependencies with `npm install`.
-2. Copy `.env.example` to `.env.local` and supply MongoDB, Auth.js, Google OAuth,
-   and Anthropic credentials as appropriate.
-3. Start the development server with `npm run dev`.
+The freeze on local writes in [issue #77](https://github.com/Jahazel/lsat-scheduler/issues/77)
+remains in force until [Stage 1](https://github.com/Jahazel/lsat-scheduler/issues/80)
+is complete. While `.env.local` still holds the real database connection string,
+do not read, print, or change `.env.local` or `.env.vercel.local`. Do not run
+`npm run dev` or any script to check these instructions. The owner must complete
+the local setup, replace the real-site credentials, and pass the separation
+checks in Stage 1 before local work resumes.
+
+The steps below describe the setup for a new copy of the repository after that
+freeze ends. Local work uses MongoDB Community Server on your Mac with test data
+only. A loopback address accepts connections from this computer only. Never keep
+real-site credentials in local files. A credential is a secret that gives access,
+such as a password or an API key.
+
+This setup is temporary. Stage 2 replaces MongoDB with Postgres.
+
+1. Install the app dependencies from the repository folder:
+
+   ```bash
+   npm install
+   ```
+
+2. Install MongoDB Community Server 8.0 with Homebrew, the Mac package installer.
+   This version requires macOS 14 or later. Docker is not needed. Follow the
+   [MongoDB macOS installation guide](https://www.mongodb.com/docs/v8.0/tutorial/install-mongodb-on-os-x/):
+
+   ```bash
+   brew tap mongodb/brew
+   brew trust mongodb/brew
+   brew update
+   brew install mongodb-community@8.0
+   mkdir -p "$HOME/.local/share/drillmap/mongodb"
+   ```
+
+3. Start the local database with this command each time you work:
+
+   ```bash
+   mongod --dbpath "$HOME/.local/share/drillmap/mongodb" --bind_ip 127.0.0.1 --port 27017
+   ```
+
+   `mongod` is the MongoDB server. `--dbpath` selects the folder that keeps its
+   data between runs. `--bind_ip 127.0.0.1` makes it listen only on the loopback
+   address. Keep this terminal open. Press `Ctrl+C` to stop the database. It runs
+   as one plain server. DrillMap does not use MongoDB transactions, which group
+   changes into one operation. It needs no replica set, a group of database
+   servers that keep copies of the same data.
+
+4. In a second terminal, open the repository folder. Copy `.env.example` to
+   `.env.local` for this new local setup:
+
+   ```bash
+   cp .env.example .env.local
+   ```
+
+   Keep `MONGODB_URI=mongodb://127.0.0.1:27017/lsat-scheduler`. This connection
+   string tells the app where to find the local database. Generate a new local
+   Auth.js secret with the command in `.env.example`. Auth.js uses this secret
+   to protect sign-in sessions. Put it in `AUTH_SECRET`.
+
+   For Google sign-in, create a separate Google client for local work. Set its
+   authorized origin to `http://localhost:3000` and its only authorized redirect
+   to `http://localhost:3000/api/auth/callback/google`. The redirect is where
+   Google sends the browser after sign-in. Put this local client's ID and secret
+   in `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`.
+
+   Leave `ANTHROPIC_API_KEY` unset, including in your terminal environment. Local
+   screenshot upload shows "Couldn't read that screenshot" without a key.
+   Admins use Sample analytics snapshots for their student side instead. An
+   Admin reviews and approves each Sample analytics snapshot like an uploaded
+   snapshot.
+
+5. Start the app from the repository folder:
+
+   ```bash
+   npm run dev
+   ```
+
+   Open `http://localhost:3000`. The local database starts empty. Sign up locally
+   to create your Account. Do not copy real students' records into it.
+
+6. In another terminal, make that local Account an Admin. `make-admin` reads
+   `MONGODB_URI` from the terminal environment, so pass the local value explicitly:
+
+   ```bash
+   MONGODB_URI=mongodb://127.0.0.1:27017/lsat-scheduler npm run make-admin -- your-local-email@example.test
+   ```
+
+   Replace `your-local-email@example.test` with the email you used to sign up
+   locally. Sign out and back in to see the Admin controls.
 
 ## Commands
 
@@ -95,13 +180,6 @@ The reset, `make-admin`, and migration commands only allow database hosts
 They refuse remote hosts, all `mongodb+srv` strings, and missing or unreadable
 connection strings before connecting. No flag or environment setting bypasses
 this check. The read-only rollout check does not use this restriction.
-
-To promote an existing local user to Admin, set `MONGODB_URI` to the local
-connection string, then run `npm run make-admin -- <email>`.
-
-The freeze on local writes in issue #77 remains in force until Stage 1 (#80)
-is complete. Do not run these commands or `npm run dev` while `.env.local`
-still holds the real database connection string.
 
 The [v2 schedule specification](docs/specs/adaptive-weekly-schedules.md) records
 the current rules.
