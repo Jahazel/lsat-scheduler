@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { requireLocalDatabase } from "./localDatabaseGuard.mjs";
 import { WEEKLY_SCHEDULE_INDEX, WEEKLY_SCHEDULE_INDEX_NAME } from "./weeklyScheduleIndex.mjs";
 
 export { WEEKLY_SCHEDULE_INDEX, WEEKLY_SCHEDULE_INDEX_NAME };
@@ -28,9 +29,7 @@ export async function migrateWeeklySchedules(collection) {
 
 async function run() {
   const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    throw new Error("MONGODB_URI is not set");
-  }
+  requireLocalDatabase(uri);
 
   await mongoose.connect(uri, { dbName: "lsat-scheduler" });
   try {

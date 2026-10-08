@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { requireLocalDatabase } from "./localDatabaseGuard.mjs";
 
 export const SNAPSHOT_INDEX = { studentId: 1, status: 1, approvedAt: -1 };
 export const SNAPSHOT_INDEX_NAME = "studentId_1_status_1_approvedAt_-1";
@@ -42,9 +43,7 @@ export async function migrateAnalyticsSnapshots(collection, migratedAt = new Dat
 
 async function run() {
   const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    throw new Error("MONGODB_URI is not set");
-  }
+  requireLocalDatabase(uri);
 
   await mongoose.connect(uri, { dbName: "lsat-scheduler" });
   try {

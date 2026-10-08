@@ -1,26 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import { getMongoHost, makeAdmin, withHostOnRefusal } from "./make-admin.mjs";
+import { makeAdmin, withHostOnRefusal } from "./make-admin.mjs";
 
 it("runs make-admin without a preset environment file", () => {
   const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
   expect(packageJson.scripts["make-admin"]).toBe("node scripts/make-admin.mjs");
-});
-
-describe("getMongoHost", () => {
-  it("shows every seed-list host without credentials", () => {
-    expect(getMongoHost("mongodb://user:secret@h1:27017,h2:27017/db?replicaSet=rs")).toBe(
-      "h1:27017,h2:27017",
-    );
-  });
-
-  it("shows the host for standard and SRV MongoDB URIs", () => {
-    expect(getMongoHost("mongodb://user:secret@localhost:27017/db")).toBe("localhost:27017");
-    expect(getMongoHost("mongodb+srv://user:secret@cluster.example.net/db")).toBe(
-      "cluster.example.net",
-    );
-  });
 });
 
 describe("makeAdmin", () => {

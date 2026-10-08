@@ -1,12 +1,7 @@
 import mongoose from "mongoose";
+import { requireLocalDatabase } from "./localDatabaseGuard.mjs";
 
 class UserRefusalError extends Error {}
-
-export function getMongoHost(uri) {
-  const authority = uri.match(/^mongodb(?:\+srv)?:\/\/([^/?#]+)/)?.[1];
-  if (!authority) throw new Error("Invalid MONGODB_URI");
-  return authority.slice(authority.lastIndexOf("@") + 1);
-}
 
 export async function makeAdmin(collection, email) {
   const normalizedEmail = email.trim().toLowerCase();
@@ -33,8 +28,7 @@ async function main() {
   }
 
   const uri = process.env.MONGODB_URI;
-  if (!uri) throw new Error("MONGODB_URI is not set. Set it to the target database.");
-  const host = getMongoHost(uri);
+  const host = requireLocalDatabase(uri);
 
   await mongoose.connect(uri, { dbName: "lsat-scheduler" });
   try {

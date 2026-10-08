@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { requireLocalDatabase } from "./localDatabaseGuard.mjs";
 import { ACTIVITY_CHECK_IN_INDEX, ACTIVITY_CHECK_IN_INDEX_NAME } from "./activityCheckInIndex.mjs";
 
 export { ACTIVITY_CHECK_IN_INDEX, ACTIVITY_CHECK_IN_INDEX_NAME };
@@ -27,7 +28,7 @@ export async function migrateActivityCheckIns(collection) {
 
 async function run() {
   const uri = process.env.MONGODB_URI;
-  if (!uri) throw new Error("MONGODB_URI is not set");
+  requireLocalDatabase(uri);
   await mongoose.connect(uri, { dbName: "lsat-scheduler" });
   try {
     await migrateActivityCheckIns(mongoose.connection.collection("activitycheckins"));
