@@ -46,7 +46,7 @@ export function requireLocalDatabase(uri) {
   }
   const { protocol, hosts, names } = target;
   if (protocol === "mongodb+srv" || names.some((host) => !["localhost", "127.0.0.1", "::1"].includes(host))) {
-    throw new Error(`Refusing database host ${hosts.join(",")}. This script only runs against a local database.`);
+    throw new Error(`Refusing database host ${hosts.join(",")}: not a local host. This script only runs against a local database.`);
   }
   return hosts.join(",");
 }

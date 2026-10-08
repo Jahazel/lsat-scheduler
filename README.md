@@ -96,7 +96,7 @@ They refuse remote hosts, all `mongodb+srv` strings, and missing or unreadable
 connection strings before connecting. No flag or environment setting bypasses
 this check. The read-only rollout check does not use this restriction.
 
-To promote an existing local Account to Admin, set `MONGODB_URI` to the local
+To promote an existing local user to Admin, set `MONGODB_URI` to the local
 connection string, then run `npm run make-admin -- <email>`.
 
 The freeze on local writes in issue #77 remains in force until Stage 1 (#80)

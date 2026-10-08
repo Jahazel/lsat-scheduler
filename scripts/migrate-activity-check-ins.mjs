@@ -39,7 +39,7 @@ async function run() {
 
 if (process.argv[1] && new URL(import.meta.url).pathname === process.argv[1]) {
   run().catch((error) => {
-    console.error(error.message);
+    console.error(error);
     process.exitCode = 1;
   });
 }

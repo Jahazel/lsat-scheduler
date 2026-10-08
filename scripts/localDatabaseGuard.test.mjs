@@ -30,6 +30,7 @@ describe("local database guard", () => {
     ["mongodb://user:secret@remote.example.net:27017/db", "remote.example.net:27017"],
     ["mongodb://user:secret@localhost:27017,remote.example.net:27017/db", "localhost:27017,remote.example.net:27017"],
     ["mongodb://user:secret@localhost.example.net/db", "localhost.example.net"],
+    ["mongodb://localhost./db", "localhost."],
     ["mongodb://127.1/db", "127.1"],
     ["mongodb://2130706433/db", "2130706433"],
     ["mongodb://127.0.0.2/db", "127.0.0.2"],
@@ -39,7 +40,7 @@ describe("local database guard", () => {
     ["postgresql://localhost/db?host=remote.example.net", "localhost,remote.example.net"],
     ["postgresql://localhost/db?hostaddr=192.0.2.1", "localhost,192.0.2.1"],
   ])("refuses non-local targets in %s without credentials", (uri, hosts) => {
-    expect(() => requireLocalDatabase(uri)).toThrow(`Refusing database host ${hosts}.`);
+    expect(() => requireLocalDatabase(uri)).toThrow(`Refusing database host ${hosts}: not a local host.`);
     expect(() => requireLocalDatabase(uri)).not.toThrow("secret");
     expect(() => requireLocalDatabase(uri)).not.toThrow("user:");
   });
