@@ -42,7 +42,7 @@ The evidence comes from [issue 70](issue-70-evidence.md) finding F16 and from [i
 2. These protections replace a short list. All are required:
    - The app's database user follows rule 4.
    - Each database password is random and at least 32 characters long.
-   - Every connection uses TLS. No connection setting turns off TLS or certificate checks.
+   - Every connection uses TLS. No connection setting turns off TLS or certificate checks. One exception: a loopback connection, where the app and the database run on the same computer, may skip TLS. The owner approved this exception for the Postgres work in [issue 95](https://github.com/Jahazel/lsat-scheduler/issues/95) on October 9, 2026.
 3. If issue 78 chooses a different database, or the Vercel plan changes, the owner decides this rule again. If the chosen provider gives a private connection on the plan in use at no extra cost, DrillMap uses it.
 
 **Why:** Vercel Hobby sends requests from addresses that change. Fixed addresses need Vercel Pro and Static IPs at $100 a month for each project ([Vercel](https://vercel.com/docs/networking/static-ips)). The main risk is a leaked password, and rules 4 to 20 reduce that risk directly.
