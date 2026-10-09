@@ -95,8 +95,13 @@ function connectionConfig() {
 export function createPostgresConnection({ database }: { database?: string } = {}) {
   const { config } = connectionConfig();
   const pool = new Pool({ ...config, database: database ?? config.database });
-  pool.on("error", () => {
-    console.error(JSON.stringify({ event: "postgres_idle_connection_error" }));
+  pool.on("error", (error: Error) => {
+    const code = "code" in error && typeof error.code === "string"
+      && /^(?:[0-9A-Z]{5}|E[A-Z_]{2,30})$/.test(error.code) ? error.code : "UNKNOWN";
+    console.error(JSON.stringify({
+      event: "postgres_idle_connection_error", code,
+      connections: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount,
+    }));
   });
   return { db: drizzle(pool), close: () => pool.end() };
 }
