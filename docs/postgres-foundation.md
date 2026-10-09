@@ -13,6 +13,8 @@ docker compose up -d --wait postgres
 ```
 
 The container runs Postgres 17. It exposes port 5432 only at `127.0.0.1`.
+It uses [Docker's official Postgres image on Amazon ECR Public](https://gallery.ecr.aws/docker/library/postgres).
+This avoids Docker Hub's shared-runner download limit in GitHub tests.
 This loopback address accepts connections from this computer only. Its volume
 keeps local data when the container stops. The password `local-only` is a
 public local example. Never use it on a hosted database.
