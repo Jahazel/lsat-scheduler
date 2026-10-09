@@ -180,5 +180,19 @@ They refuse remote hosts, all `mongodb+srv` strings, and missing or unreadable
 connection strings before connecting. No flag or environment setting bypasses
 this check. The read-only rollout check does not use this restriction.
 
+The shared guard also reads `postgres://` and `postgresql://` strings for the
+Postgres move. It checks every host in the address and in the `host` and
+`hostaddr` query settings, even when the address has no host. Postgres can also
+use exact copy-site hosts committed in [scripts/copyDatabaseHosts.json](scripts/copyDatabaseHosts.json).
+That list is empty until the owner verifies the copy's hosts. Add only full,
+lowercase host names for the copy, with no ports or credentials. Never add the
+real site's host, a wildcard, or a provider-wide suffix. MongoDB hosts still
+need to be loopback addresses.
+
+The guard refuses Postgres service settings because they can load connection
+settings from a separate file. See the [Postgres connection documentation](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNECT-SERVICE).
+The current commands still read `MONGODB_URI` and use MongoDB. Later Stage 2
+tickets move those commands to Postgres.
+
 The [v2 schedule specification](docs/specs/adaptive-weekly-schedules.md) records
 the current rules.
