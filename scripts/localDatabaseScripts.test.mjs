@@ -50,6 +50,8 @@ describe.each(commands)("%s local database protection", (name, args) => {
     ["postgresql://guard-user:guard-password@localhost:invalid/db", "[unknown]"],
     ["postgresql://guard-user:guard-password@localhost/db?host=guard-user%3Aguard-password%40ep-other.example.neon.tech", "[unknown]"],
     ["postgresql+srv://guard-user:guard-password@localhost/db", "[unknown]"],
+    ["postgresql://guard-user:1234/guard-password@ep-other.example.neon.tech/db", "[unknown]"],
+    ["postgresql://guard-user:1234?guard-password@ep-other.example.neon.tech/db", "[unknown]"],
     ["not-a-connection-string-guard-password", "[unknown]"],
     [undefined, "[unknown]"],
     ["mongodb://guard-user:guard-password@localhost:invalid/db", "[unknown]"],

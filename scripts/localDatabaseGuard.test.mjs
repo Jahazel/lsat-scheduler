@@ -105,9 +105,13 @@ describe("local database guard", () => {
     "postgresql://user:secret@localhost,,127.0.0.1/db",
     "postgresql://user:secret@localhost/db?host=user%3Asecret%40remote.example.net",
     "postgresql://user:secret@localhost/db?host=%00localhost",
+    // An unencoded "/" or "?" in a password ends the host early, and drivers read the host there too.
+    "postgresql://user:1234/secret@remote.example.net/db", "postgresql://user:1234?secret@remote.example.net/db",
+    "mongodb://user:1234/secret@remote.example.net/db", "postgresql://remote.example.net:5432/secret@localhost/db",
   ])("refuses unreadable or missing input without exposing it", (uri) => {
     expect(() => requireLocalDatabase(uri)).toThrow("This script only runs against a local database or an approved copy-site host.");
     expect(() => requireLocalDatabase(uri)).not.toThrow("secret");
+    expect(() => requireLocalDatabase(uri)).not.toThrow("user:");
     expect(() => getDatabaseHost(uri)).toThrow("Cannot read the database host.");
   });
 });

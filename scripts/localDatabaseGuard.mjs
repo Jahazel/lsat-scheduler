@@ -11,6 +11,9 @@ function readDatabaseHosts(uri) {
   if (!match || /\s|\\/.test(uri)) throw new Error("unreadable connection string");
   decodeURI(uri);
   const [, protocol, authority, rest] = match;
+  // A later "@" means an unencoded "/" or "?" in a password ended the authority early.
+  // Drivers read the host from that early cut, so refuse instead of guessing.
+  if (rest.includes("@")) throw new Error("unreadable credentials");
   if (!["mongodb", "mongodb+srv", "postgres", "postgresql"].includes(protocol.toLowerCase())) {
     throw new Error("unsupported protocol");
   }
