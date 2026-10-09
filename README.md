@@ -11,6 +11,10 @@ snapshot.
 
 ## Current state
 
+Stage 2 adds a Postgres foundation alongside the current MongoDB app.
+See [Postgres setup and tests](docs/postgres-foundation.md) for the local
+startup command, migrations, and database tests.
+
 The core student workflow is implemented:
 
 - Email/password and Google sign-in, with separate student and admin roles
