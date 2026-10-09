@@ -73,6 +73,8 @@ components:
 
 # Design System: DrillMap
 
+> This system is a starting point, not a strict rulebook (owner, 2026-09-29). Design explorations may bend its rules; list each bend in the report. Ask the owner before you add tokens or fonts.
+
 ## 1. Overview
 
 **Creative North Star: "The Proof Trail"**
