@@ -23,3 +23,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 Read `docs/agents/issue-tracker.md` before issue or pull-request work.
 Read `docs/agents/triage-labels.md` before sorting or labeling issues.
 Read `docs/agents/domain.md` before exploring domain concepts.
+
+## Owner decisions
+
+- **Tutor rules come first.** When the owner's tutor partner answers a scheduling
+  question, that answer outranks the spec, the ADRs, the behavior of `src/lib/engine.ts`,
+  and earlier owner decisions. Treat it as fixed. State which older rule it replaces.
+  When the tutor's answer is unclear, ask the owner; do not fall back to the older rule.
+- **The live site has no real students yet** (2026-10-07). Do not plan student notices,
+  real-data migrations, or "users will be signed out" steps. Ask the owner again before
+  launch work.
