@@ -52,3 +52,32 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+
+  postgres:
+    name: Postgres tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        # Docker's official public mirror avoids Docker Hub's shared-runner limit.
+        image: public.ecr.aws/docker/library/postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local-only
+          POSTGRES_DB: drillmap
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d drillmap"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql://postgres:local-only@127.0.0.1:5432/drillmap
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:postgres

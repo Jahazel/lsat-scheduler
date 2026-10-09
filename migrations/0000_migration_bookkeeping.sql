@@ -1,0 +1,3 @@
+-- Drizzle creates drillmap_migrations.applied and records this migration there.
+-- The first foundation migration contains no application tables.
+-- Issue #96 adds the domain tables.
