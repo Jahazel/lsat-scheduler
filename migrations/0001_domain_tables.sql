@@ -1,19 +1,25 @@
+CREATE FUNCTION normalized_email(value text) RETURNS text
+LANGUAGE sql IMMUTABLE AS $$
+  SELECT lower(regexp_replace(value, '^\s+|\s+$', '', 'g'));
+$$;
+--> statement-breakpoint
 CREATE TABLE accounts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- A domain would reject untrimmed input before the normalization trigger runs.
   email text NOT NULL UNIQUE,
   name text NOT NULL,
   password_hash text,
   role text NOT NULL DEFAULT 'student' CHECK (role IN ('student', 'admin')),
   simulated_date date,
   CONSTRAINT accounts_email_normalized CHECK (
-    email <> '' AND email = lower(regexp_replace(email, '^\s+|\s+$', '', 'g'))
+    email <> '' AND email = normalized_email(email)
   )
 );
 --> statement-breakpoint
 CREATE FUNCTION normalize_email() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
-  NEW.email := lower(regexp_replace(NEW.email, '^\s+|\s+$', '', 'g'));
+  NEW.email := normalized_email(NEW.email);
   RETURN NEW;
 END;
 $$;
@@ -37,7 +43,7 @@ CREATE TABLE students (
   preferred_practice_test_day text NOT NULL CHECK (preferred_practice_test_day IN (
     'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'
   )),
-  accommodation_multiplier numeric NOT NULL CHECK (accommodation_multiplier IN (1, 1.5, 2)),
+  accommodation numeric NOT NULL CHECK (accommodation IN (1, 1.5, 2)),
   monday_capacity_minutes daily_capacity_minutes NOT NULL,
   tuesday_capacity_minutes daily_capacity_minutes NOT NULL,
   wednesday_capacity_minutes daily_capacity_minutes NOT NULL,
@@ -53,13 +59,25 @@ CREATE TABLE leads (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT leads_email_normalized CHECK (
-    email <> '' AND email = lower(regexp_replace(email, '^\s+|\s+$', '', 'g'))
+    email <> '' AND email = normalized_email(email)
   )
 );
 --> statement-breakpoint
 CREATE TRIGGER leads_normalize_email
 BEFORE INSERT OR UPDATE ON leads
 FOR EACH ROW EXECUTE FUNCTION normalize_email();
+--> statement-breakpoint
+CREATE FUNCTION set_updated_at() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.updated_at := statement_timestamp();
+  RETURN NEW;
+END;
+$$;
+--> statement-breakpoint
+CREATE TRIGGER leads_set_updated_at
+BEFORE UPDATE ON leads
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 --> statement-breakpoint
 -- Every new snapshot is approved. Legacy status and metadata belong to MongoDB only.
 CREATE TABLE analytics_snapshots (
@@ -80,6 +98,10 @@ CREATE TABLE analytics_snapshots (
 --> statement-breakpoint
 CREATE INDEX analytics_snapshots_student_approved_at ON analytics_snapshots (student_id, approved_at DESC);
 --> statement-breakpoint
+CREATE TRIGGER analytics_snapshots_set_updated_at
+BEFORE UPDATE ON analytics_snapshots
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+--> statement-breakpoint
 CREATE TABLE weekly_schedules (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id uuid NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -91,7 +113,6 @@ CREATE TABLE weekly_schedules (
   generation_inputs jsonb NOT NULL,
   policy_version text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT weekly_schedules_student_week_unique UNIQUE (student_id, week_start_date)
 );
 --> statement-breakpoint
@@ -137,3 +158,7 @@ $$;
 CREATE TRIGGER activity_check_ins_protect_links
 BEFORE UPDATE ON activity_check_ins
 FOR EACH ROW EXECUTE FUNCTION protect_activity_check_in_links();
+--> statement-breakpoint
+CREATE TRIGGER activity_check_ins_set_updated_at
+BEFORE UPDATE ON activity_check_ins
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();

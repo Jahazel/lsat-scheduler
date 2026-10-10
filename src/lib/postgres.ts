@@ -2,8 +2,14 @@ import { readFileSync } from "node:fs";
 import { isIP } from "node:net";
 import { checkServerIdentity } from "node:tls";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool, type PoolConfig } from "pg";
+import { Pool, types, type PoolConfig } from "pg";
 import { getDatabaseHost, requireLocalDatabase } from "../../scripts/localDatabaseGuard.mjs";
+
+// Drizzle supplies query-level parsers, so a Pool-only override does not apply.
+// Current numeric columns hold Daily capacity and Accommodation, which fit exactly
+// in JavaScript numbers. Revisit this shared parser before adding money or other
+// high-precision numeric columns.
+types.setTypeParser(types.builtins.NUMERIC, Number);
 
 const loopbackHosts = new Set(["localhost", "127.0.0.1", "::1"]);
 const acceptedOptions = new Set(["host", "port", "user", "password", "sslmode", "sslrootcert", "channel_binding"]);

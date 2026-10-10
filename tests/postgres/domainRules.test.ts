@@ -30,7 +30,7 @@ async function createStudent({ accountId }: { accountId: AccountId }) {
   return studentRow.parse((await db.execute(sql`
     insert into students (
       account_id, platform, current_score, goal_score, goal_test_date,
-      preferred_practice_test_day, accommodation_multiplier,
+      preferred_practice_test_day, accommodation,
       monday_capacity_minutes, tuesday_capacity_minutes, wednesday_capacity_minutes,
       thursday_capacity_minutes, friday_capacity_minutes, saturday_capacity_minutes, sunday_capacity_minutes
     ) values (${accountId}, '7Sage', 150, 170, '2026-11-01', 'SATURDAY', 1, 30, 45, 60, 90, 120, 480, 180)
@@ -87,17 +87,37 @@ beforeEach(async () => {
   await db.execute(sql`truncate accounts, leads cascade`);
 });
 
+it("reads Daily capacity and Accommodation as numbers", async () => {
+  const studentId = await createStudent({ accountId: await createAccount() });
+  for (const accommodation of [1, 1.5, 2]) {
+    await db.execute(sql`
+      update students set accommodation = ${accommodation} where id = ${studentId}
+    `);
+    expect((await db.execute(sql`
+      select accommodation, monday_capacity_minutes, tuesday_capacity_minutes,
+        wednesday_capacity_minutes, thursday_capacity_minutes, friday_capacity_minutes,
+        saturday_capacity_minutes, sunday_capacity_minutes from students where id = ${studentId}
+    `)).rows).toEqual([{
+      accommodation, monday_capacity_minutes: 30, tuesday_capacity_minutes: 45,
+      wednesday_capacity_minutes: 60, thursday_capacity_minutes: 90, friday_capacity_minutes: 120,
+      saturday_capacity_minutes: 480, sunday_capacity_minutes: 180,
+    }]);
+  }
+});
+
 it("ties each student to one Account and refuses orphan or duplicate students", async () => {
-  await expect(createStudent({ accountId: accountIdSchema.parse(randomUUID()) })).rejects.toMatchObject({ cause: { code: "23503" } });
+  await expect(createStudent({ accountId: accountIdSchema.parse(randomUUID()) }))
+    .rejects.toMatchObject({ cause: { code: "23503", constraint: "students_account_id_fkey" } });
   const accountId = await createAccount();
   const studentId = await createStudent({ accountId });
-  await expect(createStudent({ accountId })).rejects.toMatchObject({ cause: { code: "23505" } });
+  await expect(createStudent({ accountId })).rejects.toMatchObject({ cause: { code: "23505", constraint: "students_account_id_key" } });
   await db.execute(sql`delete from accounts where id = ${accountId}`);
   expect((await db.execute(sql`select id from students where id = ${studentId}`)).rows).toEqual([]);
 });
 
 it("stores approved Analytics snapshot facts and deletes them with their student", async () => {
-  await expect(createSnapshot({ studentId: studentIdSchema.parse(randomUUID()) })).rejects.toMatchObject({ cause: { code: "23503" } });
+  await expect(createSnapshot({ studentId: studentIdSchema.parse(randomUUID()) }))
+    .rejects.toMatchObject({ cause: { code: "23503", constraint: "analytics_snapshots_student_id_fkey" } });
   const accountId = await createAccount();
   const studentId = await createStudent({ accountId });
   const snapshotId = await createSnapshot({ studentId });
@@ -114,11 +134,13 @@ it("stores approved Analytics snapshot facts and deletes them with their student
 });
 
 it("stores one Weekly schedule per student and week and keeps its analytics after a source snapshot is deleted", async () => {
-  await expect(createSchedule({ studentId: studentIdSchema.parse(randomUUID()) })).rejects.toMatchObject({ cause: { code: "23503" } });
+  await expect(createSchedule({ studentId: studentIdSchema.parse(randomUUID()) }))
+    .rejects.toMatchObject({ cause: { code: "23503", constraint: "weekly_schedules_student_id_fkey" } });
   const studentId = await createStudent({ accountId: await createAccount() });
   const snapshotId = await createSnapshot({ studentId });
   const scheduleId = await createSchedule({ studentId, snapshotIds: [snapshotId] });
-  await expect(createSchedule({ studentId })).rejects.toMatchObject({ cause: { code: "23505" } });
+  await expect(createSchedule({ studentId }))
+    .rejects.toMatchObject({ cause: { code: "23505", constraint: "weekly_schedules_student_week_unique" } });
   await createSchedule({ studentId, week: "2026-10-12" });
   await createSchedule({ studentId: await createStudent({ accountId: await createAccount() }) });
   await db.execute(sql`delete from analytics_snapshots where id = ${snapshotId}`);
@@ -151,11 +173,13 @@ it("refuses every Weekly schedule update by the database owner but allows delete
 });
 
 it("creates one Activity check-in per Weekly schedule and Schedule activity and deletes it with its schedule", async () => {
-  await expect(createCheckIn({ scheduleId: scheduleRow.shape.id.parse(randomUUID()) })).rejects.toMatchObject({ cause: { code: "23503" } });
+  await expect(createCheckIn({ scheduleId: scheduleRow.shape.id.parse(randomUUID()) }))
+    .rejects.toMatchObject({ cause: { code: "23503", constraint: "activity_check_ins_schedule_id_fkey" } });
   const studentId = await createStudent({ accountId: await createAccount() });
   const scheduleId = await createSchedule({ studentId });
   const checkInId = await createCheckIn({ scheduleId });
-  await expect(createCheckIn({ scheduleId })).rejects.toMatchObject({ cause: { code: "23505" } });
+  await expect(createCheckIn({ scheduleId }))
+    .rejects.toMatchObject({ cause: { code: "23505", constraint: "activity_check_ins_schedule_activity_unique" } });
   await createCheckIn({ scheduleId, activityId: "MONDAY:1" });
   await createCheckIn({ scheduleId: await createSchedule({ studentId, week: "2026-10-12" }) });
   await db.execute(sql`
@@ -181,7 +205,9 @@ it("refuses changes to an Activity check-in's Weekly schedule or Schedule activi
     sql`update activity_check_ins set schedule_id = ${otherScheduleId} where id = ${checkInId}`,
     sql`update activity_check_ins set activity_id = 'MONDAY:1' where id = ${checkInId}`,
   ]) {
-    await expect(db.execute(update)).rejects.toMatchObject({ cause: { code: "23514" } });
+    await expect(db.execute(update)).rejects.toMatchObject({ cause: {
+      code: "23514", message: "An Activity check-in cannot change its Weekly schedule or Schedule activity.",
+    } });
   }
   await db.execute(sql`
     update activity_check_ins set schedule_id = ${scheduleId}, activity_id = 'MONDAY:0', status = 'completed', actual_minutes = 0
@@ -192,7 +218,35 @@ it("refuses changes to an Activity check-in's Weekly schedule or Schedule activi
   `)).rows).toEqual([{ schedule_id: scheduleId, activity_id: "MONDAY:0", status: "completed", actual_minutes: 0 }]);
 });
 
-it("deleting an Account removes all of its students, Analytics snapshots, Weekly schedules, and Activity check-ins", async () => {
+it("advances the update time on leads, Analytics snapshots, and Activity check-ins", async () => {
+  const studentId = await createStudent({ accountId: await createAccount() });
+  const snapshotId = await createSnapshot({ studentId });
+  const checkInId = await createCheckIn({ scheduleId: await createSchedule({ studentId }) });
+  const leadId = leadRow.parse((await db.execute(sql`
+    insert into leads (email) values ('original@example.test') returning id
+  `)).rows[0]).id;
+  const timestampRow = z.object({ created_at: z.string(), updated_at: z.string() });
+  const cases = [
+    { table: "leads", id: leadId, update: sql`email = 'changed@example.test'` },
+    { table: "analytics_snapshots", id: snapshotId, update: sql`lr_accuracy_by_type = '{"Weaken": 60}'::jsonb` },
+    { table: "activity_check_ins", id: checkInId, update: sql`status = 'completed', actual_minutes = 42.5` },
+  ];
+  await db.transaction(async (tx) => {
+    for (const { table, id, update } of cases) {
+      // Two updates in one transaction must each get their own update time.
+      await tx.execute(sql`update ${sql.identifier(table)} set ${update} where id = ${id}`);
+      const before = timestampRow.parse((await tx.execute(sql`
+        select created_at, updated_at from ${sql.identifier(table)} where id = ${id}
+      `)).rows[0]);
+      expect((await tx.execute(sql`
+        update ${sql.identifier(table)} set ${update} where id = ${id}
+        returning created_at, updated_at > ${before.updated_at}::timestamptz as advanced
+      `)).rows).toEqual([{ created_at: before.created_at, advanced: true }]);
+    }
+  });
+});
+
+it("deleting an Account removes its student, Analytics snapshots, Weekly schedules, and Activity check-ins", async () => {
   const accountId = await createAccount();
   const studentId = await createStudent({ accountId });
   const snapshotId = await createSnapshot({ studentId });
@@ -214,22 +268,26 @@ it("deleting an Account removes all of its students, Analytics snapshots, Weekly
 
 it.each(["owner", "ADMIN", "", null])("refuses an unknown or missing Account role %s", async (role) => {
   await expect(db.execute(sql`insert into accounts (email, name, role) values ('invalid@example.test', 'Student', ${role})`))
-    .rejects.toMatchObject({ cause: { code: role === null ? "23502" : "23514" } });
+    .rejects.toMatchObject({ cause: role === null
+      ? { code: "23502", table: "accounts", column: "role" }
+      : { code: "23514", constraint: "accounts_role_check" } });
 });
 
 it.each([
   { field: "platform", value: "Other", code: "23514" },
   { field: "platform", value: null, code: "23502" },
-  { field: "accommodation_multiplier", value: 1.25, code: "23514" },
-  { field: "accommodation_multiplier", value: 0, code: "23514" },
-  { field: "accommodation_multiplier", value: null, code: "23502" },
+  { field: "accommodation", value: 1.25, code: "23514" },
+  { field: "accommodation", value: 0, code: "23514" },
+  { field: "accommodation", value: null, code: "23502" },
   { field: "preferred_practice_test_day", value: "FUNDAY", code: "23514" },
   { field: "preferred_practice_test_day", value: "saturday", code: "23514" },
   { field: "preferred_practice_test_day", value: null, code: "23502" },
 ])("refuses invalid student $field value $value", async ({ field, value, code }) => {
   const studentId = await createStudent({ accountId: await createAccount() });
   await expect(db.execute(sql`update students set ${sql.identifier(field)} = ${value} where id = ${studentId}`))
-    .rejects.toMatchObject({ cause: { code } });
+    .rejects.toMatchObject({ cause: value === null
+      ? { code, table: "students", column: field }
+      : { code, constraint: `students_${field}_check` } });
 });
 
 it.each(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"])(
@@ -238,12 +296,12 @@ it.each(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "su
     const column = sql.identifier(`${day}_capacity_minutes`);
     for (const value of [0, 15, 29, 31, 479, 481, 495, -30]) {
       await expect(db.execute(sql`update students set ${column} = ${value} where id = ${studentId}`))
-        .rejects.toMatchObject({ cause: { code: "23514" } });
+        .rejects.toMatchObject({ cause: { code: "23514", constraint: "daily_capacity_minutes_check" } });
     }
     await expect(db.execute(sql`update students set ${column} = 30.1 where id = ${studentId}`))
-      .rejects.toMatchObject({ cause: { code: "23514" } });
+      .rejects.toMatchObject({ cause: { code: "23514", constraint: "daily_capacity_minutes_check" } });
     await expect(db.execute(sql`update students set ${column} = null where id = ${studentId}`))
-      .rejects.toMatchObject({ cause: { code: "23502" } });
+      .rejects.toMatchObject({ cause: { code: "23502", table: "students", column: `${day}_capacity_minutes` } });
     for (const value of [30, 45, 480]) {
       await db.execute(sql`update students set ${column} = ${value} where id = ${studentId}`);
     }
@@ -256,7 +314,7 @@ it("allows both platforms, all Accommodations, and all Preferred practice-test d
     for (const accommodation of [1, 1.5, 2]) {
       for (const day of ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]) {
         await db.execute(sql`
-          update students set platform = ${platform}, accommodation_multiplier = ${accommodation},
+          update students set platform = ${platform}, accommodation = ${accommodation},
             preferred_practice_test_day = ${day} where id = ${studentId}
         `);
       }
@@ -276,13 +334,14 @@ it("refuses unknown check-in status and invalid actual minutes on insert and upd
     { status: "skipped", minutes: 15 },
   ];
   for (const { status, minutes } of cases) {
+    const constraint = status === "unknown" ? "activity_check_ins_status_check" : "activity_check_ins_actual_minutes_valid";
     await expect(db.execute(sql`
       insert into activity_check_ins (schedule_id, activity_id, status, actual_minutes)
       values (${scheduleId}, 'MONDAY:1', ${status}, ${minutes})
-    `)).rejects.toMatchObject({ cause: { code: "23514" } });
+    `)).rejects.toMatchObject({ cause: { code: "23514", constraint } });
     await expect(db.execute(sql`
       update activity_check_ins set status = ${status}, actual_minutes = ${minutes} where id = ${checkInId}
-    `)).rejects.toMatchObject({ cause: { code: "23514" } });
+    `)).rejects.toMatchObject({ cause: { code: "23514", constraint } });
   }
   for (const status of ["not_started", "completed", "skipped"]) {
     await db.execute(sql`update activity_check_ins set status = ${status}, actual_minutes = null where id = ${checkInId}`);
@@ -300,7 +359,7 @@ it("creates an Account with a database UUID and stores a normalized, unique emai
   });
   await expect(db.execute(sql`
     insert into accounts (email, name) values ('STUDENT@example.test', 'Duplicate')
-  `)).rejects.toMatchObject({ cause: { code: "23505" } });
+  `)).rejects.toMatchObject({ cause: { code: "23505", constraint: "accounts_email_key" } });
   await db.execute(sql`
     update accounts set email = ' Changed@Example.test ', role = 'admin',
       password_hash = 'fake-hash', simulated_date = '2026-10-12' where id = ${account.id}
@@ -319,7 +378,26 @@ it("keeps leads separate from Accounts with their own normalized, unique emails"
   leadRow.parse(lead.rows[0]);
   expect(lead.rows[0]).toMatchObject({ email: "lead@example.test", created_at: expect.any(String), updated_at: expect.any(String) });
   await expect(db.execute(sql`insert into leads (email) values ('LEAD@example.test')`))
-    .rejects.toMatchObject({ cause: { code: "23505" } });
+    .rejects.toMatchObject({ cause: { code: "23505", constraint: "leads_email_key" } });
+  const leadId = leadRow.parse(lead.rows[0]).id;
+  await db.execute(sql`update leads set email = ${"\n Changed@Example.test \t"} where id = ${leadId}`);
   await db.execute(sql`delete from accounts where id = ${account.id}`);
-  expect((await db.execute(sql`select email from leads`)).rows).toEqual([{ email: "lead@example.test" }]);
+  expect((await db.execute(sql`select email from leads`)).rows).toEqual([{ email: "changed@example.test" }]);
+});
+
+it.each(["accounts", "leads"])("refuses empty or missing email on %s insert and update", async (table) => {
+  const id = table === "accounts" ? await createAccount() : leadRow.parse((await db.execute(sql`
+    insert into leads (email) values ('valid@example.test') returning id
+  `)).rows[0]).id;
+  for (const email of ["", " \t\n ", null]) {
+    const cause = email === null
+      ? { code: "23502", table, column: "email" }
+      : { code: "23514", constraint: `${table}_email_normalized` };
+    const insert = table === "accounts"
+      ? sql`insert into accounts (email, name) values (${email}, 'Student')`
+      : sql`insert into leads (email) values (${email})`;
+    await expect(db.execute(insert)).rejects.toMatchObject({ cause });
+    await expect(db.execute(sql`update ${sql.identifier(table)} set email = ${email} where id = ${id}`))
+      .rejects.toMatchObject({ cause });
+  }
 });
