@@ -5,7 +5,7 @@ export default defineConfig({
     include: ["tests/postgres/**/*.test.ts"],
     globalSetup: ["./tests/postgres/globalSetup.ts"],
     setupFiles: ["./tests/postgres/setup.ts"],
-    // The migration test clears its own bookkeeping. Other suites must wait.
+    // Keep local database connection counts small by running suites sequentially.
     fileParallelism: false,
     testTimeout: 10000,
   },
