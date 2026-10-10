@@ -41,7 +41,57 @@ Migration files live in `migrations/`. Drizzle reads them in the order in
 with a later `when` value. Keep applied files and journal entries unchanged.
 Drizzle records each file's hash and time in `drillmap_migrations.applied`.
 It skips recorded migrations on later runs. The first migration adds no
-application tables. Issue #96 owns that table design.
+application tables. Issue #96 adds the six domain tables in
+`0001_domain_tables.sql`.
+
+## Domain tables
+
+All six tables create UUID ids with Postgres `gen_random_uuid()`. Accounts
+keep the current email, name, optional password hash, role, and optional
+Simulated date. Later migrations can add Stage 4 fields with `ALTER TABLE`.
+
+| Table | Owner link and uniqueness |
+| --- | --- |
+| `accounts` | Unique normalized email |
+| `students` | One student per Account through unique `account_id` |
+| `leads` | Separate from Accounts, with its own unique normalized email |
+| `analytics_snapshots` | Each Analytics snapshot belongs to a student |
+| `weekly_schedules` | One Weekly schedule per student and `week_start_date` |
+| `activity_check_ins` | One Activity check-in per `schedule_id` and `activity_id` |
+
+Every owner link deletes its child records when the owner is deleted.
+Deleting an Account therefore removes its student, Analytics snapshots,
+Weekly schedules, and Activity check-ins. It keeps leads and other Accounts.
+An Account can exist before onboarding creates its student.
+
+Accounts and leads normalize emails on insert and update. Database checks
+enforce the allowed role, platform, Accommodation, Preferred practice-test
+day, and Activity check-in status. Seven student columns store Daily capacity.
+They use the `daily_capacity_minutes` domain, a shared SQL value rule that
+allows 30 to 480 minutes in 15-minute steps. Its exact numeric type prevents
+Postgres from rounding fractional input into an allowed integer. Actual
+minutes must be finite, nonnegative, and present only on a completed check-in.
+A completed check-in can omit actual minutes.
+
+The Weekly schedule, its generation inputs, and accuracy by question type use
+`jsonb`, Postgres's JSON storage type. The app still validates their nested
+shapes. `source_snapshot_ids` is a UUID array of reference data, with no foreign
+keys. A schedule keeps the analytics it used inside `generation_inputs`.
+Deleting a source Analytics snapshot leaves that saved history intact.
+
+Analytics snapshots retain their approval, extraction, and confirmation facts.
+Every snapshot in Postgres is approved, so there is no status or legacy column.
+Legacy records remain a concern of the old MongoDB database only.
+
+A trigger, database code that runs when a command reaches a table, refuses
+every Weekly schedule update. It also refuses no-op and zero-row updates and
+applies to the database owner. Insert and delete remain available for the
+Admin rebuild behavior in ADR 0003. A second trigger refuses changes to an
+Activity check-in's Weekly schedule or Schedule activity, while allowing
+status and actual-minutes corrections.
+
+Issue #97 adds the limited app role and its permission tests. Later tickets
+add the typed queries and move the app to these tables.
 
 ## Use the shared connection
 
