@@ -1,18 +1,22 @@
 import bcrypt from "bcryptjs";
 import { execFile } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTestUser, parseTestUserArgs } from "./create-test-user.mjs";
 
 const fixture = fileURLToPath(new URL("./test-fixtures/stop-database-connection.mjs", import.meta.url));
+const fakeUsersFixture = fileURLToPath(new URL("./test-fixtures/fake-users-collection.mjs", import.meta.url));
 const script = fileURLToPath(new URL("./create-test-user.mjs", import.meta.url));
 const stoppedConnection = "Test stopped before database connection.";
 
-function runScript(uri, nodeEnv = "test", args = []) {
+function runScript(uri, nodeEnv = "test", args = [], { importFixture = fixture, extraEnv = {} } = {}) {
   return new Promise((resolve, reject) => {
-    const env = { NODE_ENV: nodeEnv };
+    const env = { NODE_ENV: nodeEnv, ...extraEnv };
     if (uri !== undefined) env.MONGODB_URI = uri;
-    execFile(process.execPath, ["--import", fixture, script, ...args], { env, timeout: 2000 }, (error, stdout, stderr) => {
+    execFile(process.execPath, ["--import", importFixture, script, ...args], { env, timeout: 2000 }, (error, stdout, stderr) => {
       if (error?.killed || error?.signal) return reject(new Error("Command did not stop before the connection timeout."));
       resolve({ code: error?.code ?? 0, output: stdout + stderr });
     });
@@ -60,6 +64,60 @@ describe("create-test-user command protection", () => {
     expect(result.code).toBe(1);
     expect(result.output).not.toContain(stoppedConnection);
     expect(result.output).toContain("Usage: npm run create-test-user");
+  });
+});
+
+describe("create-test-user command runs", () => {
+  let tempDir;
+
+  afterEach(() => {
+    if (tempDir) rmSync(tempDir, { recursive: true, force: true });
+    tempDir = undefined;
+  });
+
+  function useUsersFile(users) {
+    tempDir = mkdtempSync(path.join(tmpdir(), "create-test-user-"));
+    const usersFile = path.join(tempDir, "users.json");
+    writeFileSync(usersFile, JSON.stringify(users));
+    return usersFile;
+  }
+
+  function runWithUsersFile(usersFile, args = []) {
+    return runScript("mongodb://127.0.0.1:27017/db", "test", args, {
+      importFixture: fakeUsersFixture,
+      extraEnv: { FAKE_USERS_FILE: usersFile },
+    });
+  }
+
+  it.each([
+    [[], "student@test.local", "student"],
+    [["--admin"], "admin@test.local", "admin"],
+  ])("prints the email, password, and role for %j", async (args, email, role) => {
+    const result = await runWithUsersFile(useUsersFile([]), args);
+
+    expect(result.code).toBe(0);
+    expect(result.output).toContain(`Email: ${email}\n`);
+    expect(result.output).toContain("Password: DrillMapTest123\n");
+    expect(result.output).toContain(`Role: ${role}\n`);
+  });
+
+  it("keeps one Account when the command runs again on an existing Account", async () => {
+    const usersFile = useUsersFile([
+      { _id: "account-1", email: "parallel@test.local", name: "Existing Student", role: "student", simulatedDate: "2026-10-15" },
+    ]);
+
+    const first = await runWithUsersFile(usersFile, ["--email", " Parallel@Test.Local ", "--admin"]);
+    const second = await runWithUsersFile(usersFile, ["--email", "parallel@test.local", "--admin"]);
+
+    expect(first.code).toBe(0);
+    expect(second.code).toBe(0);
+    const users = JSON.parse(readFileSync(usersFile, "utf8"));
+    expect(users).toHaveLength(1);
+    expect(users[0]).toMatchObject({
+      _id: "account-1", email: "parallel@test.local", name: "Existing Student",
+      role: "admin", simulatedDate: "2026-10-15",
+    });
+    expect(await bcrypt.compare("DrillMapTest123", users[0].passwordHash)).toBe(true);
   });
 });
 
