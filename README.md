@@ -178,7 +178,24 @@ For an existing local database, run the adaptive-schedule migrations before
 testing persisted weekly schedules. See
 [the rollout runbook](docs/runbooks/adaptive-weekly-schedules-rollout.md).
 
-The reset, `make-admin`, and migration commands only allow database hosts
+Create a local test Account for email-and-password sign-in:
+
+```bash
+npm run create-test-user               # student@test.local, role student
+npm run create-test-user -- --admin    # admin@test.local, role admin
+npm run create-test-user -- --email parallel@test.local
+npm run create-test-user -- --admin --email parallel-admin@test.local
+```
+
+The command reads `.env.local` and prints the email, fixed test password, and
+role. Sign in at `/login`. A new student reaches onboarding. An Admin reaches
+`/admin`. Each run resets the Account's password and role. Existing Accounts
+keep their names, Study settings, and Weekly schedules. The command creates
+only an Account, with no Study settings or Weekly schedules. Use a separate
+`--email` for each parallel test run. It supports MongoDB only and refuses
+`NODE_ENV=production` before connecting.
+
+The reset, `make-admin`, `create-test-user`, and migration commands only allow database hosts
 `localhost`, `127.0.0.1`, and `::1`. Every host in a seed list must be local.
 They refuse remote hosts, all `mongodb+srv` strings, and missing or unreadable
 connection strings before connecting. No flag or environment setting bypasses
