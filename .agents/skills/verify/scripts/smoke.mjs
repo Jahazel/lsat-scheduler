@@ -12,7 +12,7 @@ if (!directory || process.argv.length !== 3) throw new Error("Usage: smoke.mjs .
 const run = resolve(root, directory);
 const base = resolve(root, ".verification/evidence");
 if (!relative(base, run) || relative(base, run).startsWith("..")) throw new Error("Use a directory below .verification/evidence/.");
-const helper = resolve(root, ".claude/skills/verify/scripts/local.mjs");
+const helper = resolve(root, ".agents/skills/verify/scripts/local.mjs");
 const check = (command) => JSON.parse(execFileSync(process.execPath, [helper, command, directory], { cwd: root, encoding: "utf8" }));
 const healthy = check("doctor");
 const modulePath = process.env.VERIFY_PLAYWRIGHT_MODULE || resolve(run, "scratch/tools/node_modules/playwright/index.mjs");
