@@ -32,7 +32,7 @@ const stateSchema = z.object({
 const loadState = () => stateSchema.parse(JSON.parse(readFileSync(statePath, "utf8")));
 function assertSupervisor(state) {
   const args = execFileSync("ps", ["-p", String(state.supervisorPid), "-o", "command="], { encoding: "utf8" });
-  if (!args.includes(".claude/skills/verify/scripts/local.mjs") || !args.includes("launch") || !args.includes(directory)) {
+  if (!args.includes("skills/verify/scripts/local.mjs") || !args.includes("launch") || !args.includes(directory)) {
     throw new Error("The recorded process is not this run's verification supervisor.");
   }
 }

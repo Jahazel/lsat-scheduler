@@ -15,7 +15,7 @@ Create a new run name and start the executable helper in a terminal session that
 
 ```bash
 VERIFY_RUN_DIR=".verification/evidence/$(date -u +%Y%m%dT%H%M%SZ)"
-./.claude/skills/verify/scripts/local.mjs launch "$VERIFY_RUN_DIR"
+./.agents/skills/verify/scripts/local.mjs launch "$VERIFY_RUN_DIR"
 ```
 
 Retain the printed absolute run directory across terminal calls. Readiness is the `Ready: http://127.0.0.1:3100` line. It requires `/login` to return HTTP 200 with `Log in`. The helper runs the repo's `next dev` command with `--hostname 127.0.0.1 --port 3100`. It starts an empty, disposable database on port 27117 with a private data directory. It initializes a single-member MongoDB replica set, a database mode that supports the transactions used by Admin resets. This is database infrastructure setup. It creates no app records.
@@ -31,7 +31,7 @@ Teardown is `Ctrl+C` in the launch terminal, or the cleanup command below. Run c
 Run this read-only check before driving, and whenever navigation, authentication, or persistence looks wrong:
 
 ```bash
-./.claude/skills/verify/scripts/local.mjs doctor "$VERIFY_RUN_DIR"
+./.agents/skills/verify/scripts/local.mjs doctor "$VERIFY_RUN_DIR"
 ```
 
 Require exit code 0 and `healthy: true`. It checks the recorded supervisor, port ownership, the Git revision, the installed Next version, the login response, and the disposable database's writable primary. It performs no database writes. Do not drive another process that happens to answer on port 3100. A changed Git commit requires a restart. Uncommitted source changes use normal Next hot reload. Save the command output as `doctor.json` in the run directory.
@@ -50,7 +50,7 @@ If T3 tools are absent or `preview_open` explicitly reports unsupported or unava
 mkdir -p "$VERIFY_RUN_DIR/scratch/tools"
 npm install --prefix "$VERIFY_RUN_DIR/scratch/tools" --no-save --no-package-lock playwright
 node "$VERIFY_RUN_DIR/scratch/tools/node_modules/playwright/cli.js" install chromium
-./.claude/skills/verify/scripts/smoke.mjs "$VERIFY_RUN_DIR"
+./.agents/skills/verify/scripts/smoke.mjs "$VERIFY_RUN_DIR"
 ```
 
 An existing Playwright installation can replace that install. Set `VERIFY_PLAYWRIGHT_MODULE` to its absolute `index.mjs` path. Require an empty disposable database for smoke. It captures screenshots, accessibility snapshots, action descriptions, a video, a Playwright trace, and stored-record inspections. Require `smoke-result.json` to have `passed: true`. Its remaining paths are explicitly listed in that file. Run cleanup even if smoke fails. The script closes only the browser it launched in a `finally` block. Browser downloads use Playwright's shared cache; do not delete that cache during cleanup.
@@ -62,8 +62,8 @@ The shortest interactive first proof is [sign-up and Account](features/sign-up-a
 All proof survives at `.verification/evidence/<run-name>/`, ignored by Git. Save evidence while the disposable database is running:
 
 ```bash
-./.claude/skills/verify/scripts/local.mjs doctor "$VERIFY_RUN_DIR" > "$VERIFY_RUN_DIR/doctor.json"
-./.claude/skills/verify/scripts/local.mjs inspect "$VERIFY_RUN_DIR" > "$VERIFY_RUN_DIR/records-after.json"
+./.agents/skills/verify/scripts/local.mjs doctor "$VERIFY_RUN_DIR" > "$VERIFY_RUN_DIR/doctor.json"
+./.agents/skills/verify/scripts/local.mjs inspect "$VERIFY_RUN_DIR" > "$VERIFY_RUN_DIR/records-after.json"
 ```
 
 `inspect` checks Doctor first, then reads users, students, analytics snapshots, weekly schedules, activity check-ins, and leads from this run's database. It omits password hashes. Capture `records-before.json` before a mutation when proving absence, immutability, or deletion. Compare the affected IDs and values. Do not equate a success notice with persistence.
@@ -79,7 +79,7 @@ The helper also retains `app.log`, `database.log`, `instance.json`, and `cleanup
 Stop a browser recording before teardown. Navigate the dedicated verification tab to `about:blank` or close it using the harness's own tab command. Do not close a user tab.
 
 ```bash
-./.claude/skills/verify/scripts/local.mjs cleanup "$VERIFY_RUN_DIR"
+./.agents/skills/verify/scripts/local.mjs cleanup "$VERIFY_RUN_DIR"
 test -f "$VERIFY_RUN_DIR/result.md"
 test -f "$VERIFY_RUN_DIR/cleanup.json"
 test ! -d "$VERIFY_RUN_DIR/scratch"
