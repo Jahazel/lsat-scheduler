@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { connectDB } from "@/lib/db";
-import { StudentModel } from "@/models/Student";
+import { findStudentByAccountId } from "@/lib/studentRepository";
 import StudentIntakeForm from "@/components/StudentIntakeForm";
 import { createStudentProfile } from "./actions";
 
@@ -11,8 +10,7 @@ export default async function OnboardingPage() {
     redirect("/login");
   }
 
-  await connectDB();
-  const existing = await StudentModel.findOne({ userId: session.user.id }).lean();
+  const existing = await findStudentByAccountId(session.user.id);
   if (existing) {
     redirect("/dashboard");
   }

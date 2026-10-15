@@ -4,7 +4,7 @@ import { mockStudent } from "@/lib/mockData";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
-  findUser: vi.fn(),
+  findAccountById: vi.fn(),
   ensureForSchedule: vi.fn(),
   redirect: vi.fn((path: string) => {
     throw new Error(`redirect:${path}`);
@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   listForSchedule: vi.fn(),
 }));
 
-vi.mock("@/models/User", () => ({ UserModel: { findById: mocks.findUser } }));
+vi.mock("@/lib/accountRepository", () => ({ findAccountById: mocks.findAccountById }));
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 vi.mock("@/lib/db", () => ({ connectDB: vi.fn() }));
@@ -39,7 +39,7 @@ import DashboardPage from "./page";
 describe("DashboardPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.findUser.mockReturnValue({ lean: async () => ({ role: "admin" }) });
+    mocks.findAccountById.mockResolvedValue({ role: "admin" });
     mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } });
     mocks.listForSchedule.mockResolvedValue([]);
   });
@@ -108,7 +108,7 @@ describe("DashboardPage", () => {
   });
   it.each(["student", "admin", "stale-admin"])("limits simulated check-in creation timestamps for %s", async (role) => {
     mocks.auth.mockResolvedValue({ user: { id: "user-1", role: role === "student" ? "student" : "admin" } });
-    mocks.findUser.mockReturnValue({ lean: async () => ({ role: role === "stale-admin" ? "student" : role, simulatedDate: "2026-10-07" }) });
+    mocks.findAccountById.mockResolvedValue({ role: role === "stale-admin" ? "student" : role, simulatedDate: "2026-10-07" });
     mocks.findStudent.mockReturnValue({ lean: async () => ({ _id: "student-1", ...mockStudent }) });
     const saved = { id: "schedule-1", generatedAt: "2026-10-07T12:00:00.000Z" };
     mocks.loadCurrentWeek.mockImplementationOnce(async ({ activityCheckIns }) => {

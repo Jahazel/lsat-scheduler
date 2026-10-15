@@ -10,25 +10,20 @@ import { ActivityCheckInModel } from "@/models/ActivityCheckIn";
 import { WeeklyScheduleModel } from "@/models/WeeklySchedule";
 import { UserModel } from "@/models/User";
 import { deleteStudentAccount } from "@/lib/deleteStudentAccount";
+import { updateStudentByAccountId } from "@/lib/studentRepository";
 import { studentProfileSchema } from "@/lib/studentProfile";
-import type { AnalyticsExtractedRow, Student } from "@/lib/types";
-import type { SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
+import type { Student } from "@/lib/types";
 import { ADMIN_RESTRICTED_ACTION_MESSAGE, isAdminUser } from "@/lib/accessControl";
 
-export async function updateStudentProfile(
-  input: Student & { analyticsRows: AnalyticsExtractedRow[]; analyticsApproval: SnapshotApprovalMetadata | null }
-) {
+export async function updateStudentProfile(input: Student) {
   const session = await auth();
   if (!session?.user) {
     throw new Error("Not authenticated");
   }
 
-  // Parsing drops the analytics fields, which the account form never sends
-  // anyway: weekly re-upload happens on the dashboard.
   const studentFields = studentProfileSchema.parse(input);
 
-  await connectDB();
-  const updated = await StudentModel.findOneAndUpdate({ userId: session.user.id }, studentFields);
+  const updated = await updateStudentByAccountId(session.user.id, studentFields);
 
   if (!updated) {
     redirect("/onboarding");

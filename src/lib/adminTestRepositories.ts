@@ -6,7 +6,7 @@ import { WeeklyScheduleModel } from "@/models/WeeklySchedule";
 import { ActivityCheckInModel } from "@/models/ActivityCheckIn";
 import { AnalyticsSnapshotModel } from "@/models/AnalyticsSnapshot";
 import { listApprovedAnalyticsSnapshots } from "./analyticsSnapshotRepository";
-import { mongooseAdminClock } from "./studentClock";
+import { postgresAdminClock } from "./studentClock";
 import type { AdminTestRepositories } from "./adminTestWorkspace";
 
 async function deleteSchedules(
@@ -28,7 +28,7 @@ async function deleteSchedules(
 }
 
 export const mongooseAdminTestRepositories: AdminTestRepositories = {
-  clock: mongooseAdminClock,
+  clock: postgresAdminClock,
   async findStudent(userId) {
     const student = await StudentModel.findOne({ userId }).lean();
     return student

@@ -19,10 +19,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/auth", () => ({ auth: mocks.auth, signOut: mocks.signOut }));
 vi.mock("@/lib/db", () => ({ connectDB: mocks.connectDB }));
+vi.mock("@/lib/studentRepository", () => ({ updateStudentByAccountId: mocks.updateStudent }));
 vi.mock("@/models/Student", () => ({
   StudentModel: {
     findOne: mocks.findStudent,
-    findOneAndUpdate: mocks.updateStudent,
     deleteOne: mocks.deleteStudent,
   },
 }));
@@ -88,7 +88,7 @@ describe("updateStudentProfile", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.auth.mockResolvedValue({ user: { id: "user-1" } });
-    mocks.updateStudent.mockResolvedValue({ _id: "student-1" });
+    mocks.updateStudent.mockResolvedValue(true);
   });
 
   it("rejects a daily capacity off the 15-minute step without changing the student", async () => {
@@ -96,8 +96,6 @@ describe("updateStudentProfile", () => {
       updateStudentProfile({
         ...mockStudent,
         dailyCapacityMinutes: { ...mockStudent.dailyCapacityMinutes, FRIDAY: 100 },
-        analyticsRows: [],
-        analyticsApproval: null,
       })
     ).rejects.toThrow();
 
@@ -109,8 +107,6 @@ describe("updateStudentProfile", () => {
       updateStudentProfile({
         ...mockStudent,
         dailyCapacityMinutes: { ...mockStudent.dailyCapacityMinutes, SUNDAY: 495 },
-        analyticsRows: [],
-        analyticsApproval: null,
       })
     ).rejects.toThrow();
 
@@ -125,12 +121,10 @@ describe("updateStudentProfile", () => {
       ...mockStudent,
       dailyCapacityMinutes,
       preferredPracticeTestDay: "WEDNESDAY",
-      analyticsRows: [],
-      analyticsApproval: null,
     });
 
     expect(mocks.updateStudent).toHaveBeenCalledWith(
-      { userId: "user-1" },
+      "user-1",
       expect.objectContaining({ dailyCapacityMinutes, preferredPracticeTestDay: "WEDNESDAY" })
     );
   });

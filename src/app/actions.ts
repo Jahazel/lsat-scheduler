@@ -1,8 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { connectDB } from "@/lib/db";
-import { LeadModel } from "@/models/Lead";
+import { getPostgresDatabase } from "@/lib/postgres";
+import { leads } from "@/lib/postgresSchema";
 
 const EmailSchema = z.email({ error: "Enter a valid email." });
 
@@ -19,8 +19,9 @@ export async function captureLead(_state: CaptureLeadState, formData: FormData):
     return { error: "Enter a valid email." };
   }
 
-  await connectDB();
-  await LeadModel.create({ email: validated.data.toLowerCase() });
+  await getPostgresDatabase().insert(leads)
+    .values({ email: validated.data.toLowerCase() })
+    .onConflictDoNothing({ target: leads.email });
 
   return { success: true };
 }

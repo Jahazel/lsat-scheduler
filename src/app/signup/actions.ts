@@ -2,8 +2,7 @@
 
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { connectDB } from "@/lib/db";
-import { UserModel } from "@/models/User";
+import { createAccount } from "@/lib/accountRepository";
 import { signIn } from "@/auth";
 
 const SignupSchema = z.object({
@@ -42,14 +41,11 @@ export async function signup(_state: SignupState, formData: FormData): Promise<S
 
   const { name, email, password } = validated.data;
 
-  await connectDB();
-  const existing = await UserModel.findOne({ email: email.toLowerCase() });
-  if (existing) {
+  const passwordHash = await bcrypt.hash(password, 10);
+  const account = await createAccount({ name, email, passwordHash, role: "student" });
+  if (!account) {
     return { message: "An account with that email already exists." };
   }
-
-  const passwordHash = await bcrypt.hash(password, 10);
-  await UserModel.create({ name, email: email.toLowerCase(), passwordHash, role: "student" });
 
   await signIn("credentials", { email, password, redirectTo: "/onboarding" });
   return {};

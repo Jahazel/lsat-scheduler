@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const { signIn, findOne } = vi.hoisted(() => ({ signIn: vi.fn(), findOne: vi.fn() }));
 vi.mock("@/auth", () => ({ signIn }));
-vi.mock("@/lib/db", () => ({ connectDB: vi.fn() }));
-vi.mock("@/models/User", () => ({ UserModel: { findOne } }));
+vi.mock("@/lib/accountRepository", () => ({ findAccountByEmail: findOne }));
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`REDIRECT:${path}`); } }));
 vi.mock("next-auth", () => ({ AuthError: class AuthError extends Error {} }));
 import { login, signInWithGoogle } from "./actions";
@@ -24,7 +23,7 @@ describe("sign-in destination", () => {
   });
 
   it("sends a verified admin directly to All students", async () => {
-    findOne.mockImplementation(async ({ email }) => email === "qa@example.test" ? { role: "admin" } : null);
+    findOne.mockImplementation(async (email) => email === "qa@example.test" ? { role: "admin" } : null);
     await expect(login({}, credentials())).rejects.toThrow("REDIRECT:/admin");
   });
 

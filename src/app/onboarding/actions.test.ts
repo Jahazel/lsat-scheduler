@@ -3,19 +3,15 @@ import { mockStudent } from "@/lib/mockData";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
-  connectDB: vi.fn(),
   findStudent: vi.fn(),
   createStudent: vi.fn(),
-  createSnapshot: vi.fn(),
   redirect: vi.fn(),
 }));
 
-vi.mock("@/models/User", () => ({ UserModel: { findById: () => ({ lean: async () => ({ role: "admin" }) }) } }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
-vi.mock("@/lib/db", () => ({ connectDB: mocks.connectDB }));
-vi.mock("@/models/Student", () => ({ StudentModel: { findOne: mocks.findStudent, create: mocks.createStudent } }));
-vi.mock("@/models/AnalyticsSnapshot", () => ({ AnalyticsSnapshotModel: { create: mocks.createSnapshot } }));
+vi.mock("@/lib/studentRepository", () => ({ findStudentByAccountId: mocks.findStudent, createStudent: mocks.createStudent }));
+vi.mock("@/lib/studentClock", () => ({ studentSideClock: async () => ({ now: new Date(), real: new Date(), simulated: false }) }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 
 import { createStudentProfile } from "./actions";
@@ -28,11 +24,10 @@ describe("createStudentProfile", () => {
 
   it("creates the admin's own student side", async () => {
     mocks.findStudent.mockResolvedValue(null);
-    mocks.createStudent.mockResolvedValue({ _id: "admin-student" });
+    mocks.createStudent.mockResolvedValue({ id: "admin-student" });
     await createStudentProfile({ ...mockStudent, analyticsRows: [], analyticsApproval: null });
-    expect(mocks.createStudent).toHaveBeenCalledWith({ userId: "admin-1", ...mockStudent });
+    expect(mocks.createStudent).toHaveBeenCalledWith("admin-1", mockStudent, null);
     expect(mocks.redirect).toHaveBeenCalledWith("/dashboard");
-    expect(mocks.createSnapshot).not.toHaveBeenCalled();
   });
 
   it("rejects a daily capacity outside 30 minutes to 8 hours without saving the student", async () => {
@@ -70,7 +65,7 @@ describe("createStudentProfile", () => {
   it("saves each day's capacity and the preferred practice-test day", async () => {
     mocks.auth.mockResolvedValue({ user: { id: "user-1" } });
     mocks.findStudent.mockResolvedValue(null);
-    mocks.createStudent.mockResolvedValue({ _id: "student-1" });
+    mocks.createStudent.mockResolvedValue({ id: "student-1" });
     const dailyCapacityMinutes = { ...mockStudent.dailyCapacityMinutes, MONDAY: 30, SATURDAY: 225 };
 
     await createStudentProfile({
@@ -82,7 +77,9 @@ describe("createStudentProfile", () => {
     });
 
     expect(mocks.createStudent).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "user-1", dailyCapacityMinutes, preferredPracticeTestDay: "SUNDAY" })
+      "user-1",
+      expect.objectContaining({ dailyCapacityMinutes, preferredPracticeTestDay: "SUNDAY" }),
+      null
     );
   });
 });
