@@ -8,6 +8,12 @@ import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import mongoose from "mongoose";
 import { z } from "zod";
+import { tsImport } from "tsx/esm/api";
+
+const { createPostgresTestDatabase } = await tsImport("../../../../tests/postgres/testDatabase.ts", import.meta.url);
+const { createPostgresConnection, requirePostgresTestTarget } = await tsImport("../../../../src/lib/postgres.ts", import.meta.url);
+const { sql } = await import("drizzle-orm");
+requirePostgresTestTarget();
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const [command, directory] = process.argv.slice(2);
@@ -28,6 +34,7 @@ const stateSchema = z.object({
   root: z.literal(root), run: z.literal(run), url: z.literal(url), uri: z.literal(uri),
   supervisorPid: z.number().int().positive(), databasePid: z.number().int().positive(),
   appPid: z.number().int().positive(), revision: z.string(), status: z.enum(["starting", "ready", "stopped"]),
+  postgresDatabase: z.string().regex(/^drillmap_test_[a-f0-9]+$/),
 });
 const loadState = () => stateSchema.parse(JSON.parse(readFileSync(statePath, "utf8")));
 function assertSupervisor(state) {
@@ -47,6 +54,10 @@ async function freePort(port) {
 async function database(work) {
   const connection = await mongoose.createConnection(uri, { serverSelectionTimeoutMS: 3000 }).asPromise();
   try { return await work(connection); } finally { await connection.close(); }
+}
+async function postgres(work) {
+  const connection = createPostgresConnection({ database: loadState().postgresDatabase });
+  try { return await work(connection.db); } finally { await connection.close(); }
 }
 function listener(port) {
   return execFileSync("lsof", ["-t", "-nP", `-iTCP:${port}`, "-sTCP:LISTEN"], { encoding: "utf8" })
@@ -71,7 +82,8 @@ async function doctor() {
   if (response.status !== 200 || !(await response.text()).includes("Log in")) throw new Error("Login page is not healthy.");
   const primary = await database(async (connection) => (await connection.db.admin().command({ hello: 1 })).isWritablePrimary);
   if (!primary) throw new Error("The disposable database is not the writable replica-set primary.");
-  return { healthy: true, url, uri, revision: state.revision, next: JSON.parse(readFileSync(resolve(root, "node_modules/next/package.json"))).version, databasePrimary: primary };
+  await postgres((db) => db.execute(sql`select 1 from weekly_schedules limit 0`));
+  return { healthy: true, url, uri, postgresDatabase: state.postgresDatabase, revision: state.revision, next: JSON.parse(readFileSync(resolve(root, "node_modules/next/package.json"))).version, databasePrimary: primary };
 }
 
 async function launch() {
@@ -92,6 +104,7 @@ async function launch() {
   const children = [];
   let stopping = false;
   let state;
+  let postgresDatabase;
   const start = (program, args, log, env) => {
     const fd = openSync(resolve(run, log), "a");
     const child = spawn(program, args, { cwd: root, detached: true, stdio: ["ignore", fd, fd], env });
@@ -116,6 +129,7 @@ async function launch() {
       }
       stopped.push(child.pid ?? null);
     }
+    if (postgresDatabase) await postgresDatabase.cleanup();
     rmSync(resolve(run, "scratch"), { recursive: true, force: true });
     if (state) save("instance.json", { ...state, status: "stopped" });
     save("cleanup.json", { stoppedPids: stopped, scratchRemoved: !existsSync(data), finishedAt: new Date().toISOString() });
@@ -125,6 +139,7 @@ async function launch() {
   process.on("SIGINT", () => void stop(0));
   process.on("SIGTERM", () => void stop(0));
   try {
+    postgresDatabase = await createPostgresTestDatabase();
     const mongo = start("mongod", ["--dbpath", data, "--bind_ip", "127.0.0.1", "--port", "27117", "--replSet", "drillmap_verify"], "database.log", process.env);
     // Replica-set initialization is infrastructure setup, not an app fixture or user action.
     let initialized = false;
@@ -138,12 +153,12 @@ async function launch() {
     }
     if (!initialized) throw new Error("MongoDB did not start. Read database.log.");
     await database(async (connection) => connection.db.admin().command({ ping: 1 }));
-    const appEnv = { ...process.env, NODE_ENV: "development", MONGODB_URI: uri,
+    const appEnv = { ...process.env, NODE_ENV: "development", MONGODB_URI: uri, DATABASE_URL: postgresDatabase.setting,
       AUTH_SECRET: randomBytes(32).toString("base64"), AUTH_URL: url, NEXTAUTH_URL: url, AUTH_TRUST_HOST: "true",
       AUTH_GOOGLE_ID: "", AUTH_GOOGLE_SECRET: "", GOOGLE_CLIENT_ID: "", GOOGLE_CLIENT_SECRET: "",
       ANTHROPIC_API_KEY: "", SCREENSHOT_EXTRACTOR: process.env.VERIFY_SCREENSHOT_EXTRACTOR ?? "fake", VERCEL_ENV: "development", NEXT_TELEMETRY_DISABLED: "1" };
     const app = start(process.execPath, [resolve(root, "node_modules/next/dist/bin/next"), "dev", "--hostname", "127.0.0.1", "--port", "3100"], "app.log", appEnv);
-    state = { root, run, url, uri, supervisorPid: process.pid, databasePid: mongo.pid, appPid: app.pid, revision: revision(), status: "starting" };
+    state = { root, run, url, uri, postgresDatabase: postgresDatabase.name, supervisorPid: process.pid, databasePid: mongo.pid, appPid: app.pid, revision: revision(), status: "starting" };
     save("instance.json", state);
     for (let attempt = 0; attempt < 60; attempt++) {
       try {
@@ -165,10 +180,11 @@ if (command === "launch") await launch();
 if (command === "doctor") console.log(JSON.stringify(await doctor(), null, 2));
 if (command === "inspect") {
   await doctor();
-  const records = await database(async (connection) => {
+  const records = await postgres(async (db) => {
     const result = {};
-    for (const name of ["users", "students", "analyticssnapshots", "weeklyschedules", "activitycheckins", "leads"]) {
-      result[name] = await connection.collection(name).find({}, { projection: { passwordHash: 0 } }).toArray();
+    result.accounts = (await db.execute(sql`select id, email, name, role, simulated_date from accounts`)).rows;
+    for (const name of ["students", "analytics_snapshots", "weekly_schedules", "activity_check_ins", "leads"]) {
+      result[name] = (await db.execute(sql`select * from ${sql.identifier(name)}`)).rows;
     }
     return result;
   });

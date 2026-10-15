@@ -1,49 +1,39 @@
+import { and, desc, eq, lt } from "drizzle-orm";
 import { listApprovedAnalyticsSnapshots } from "./analyticsSnapshotRepository";
 import type { CurrentWeekRepositories } from "./currentWeeklySchedule";
-import { WeeklyScheduleModel } from "@/models/WeeklySchedule";
-import { mongooseActivityCheckIns } from "./activityCheckInRepository";
+import { postgresActivityCheckIns } from "./activityCheckInRepository";
+import { getPostgresDatabase } from "./postgres";
+import { weeklySchedules } from "./postgresSchema";
 import type { PersistedWeeklySchedule } from "./types";
 
-interface StoredWeeklySchedule {
-  _id: unknown;
-  studentId: unknown;
-  weekStartDate: string;
-  generatedAt: Date;
-  schedule: PersistedWeeklySchedule["schedule"];
-  sourceSnapshotIds: unknown[];
-  generationInputs: PersistedWeeklySchedule["generationInputs"];
-  policyVersion: string;
+export function persistedWeeklySchedule(record: typeof weeklySchedules.$inferSelect): PersistedWeeklySchedule {
+  return { ...record, generatedAt: record.generatedAt.toISOString() };
 }
 
-export function persistedWeeklySchedule(record: StoredWeeklySchedule): PersistedWeeklySchedule {
-  return {
-    id: String(record._id),
-    studentId: String(record.studentId),
-    weekStartDate: record.weekStartDate,
-    generatedAt: record.generatedAt.toISOString(),
-    schedule: record.schedule,
-    sourceSnapshotIds: record.sourceSnapshotIds.map(String),
-    generationInputs: record.generationInputs,
-    policyVersion: record.policyVersion,
-  };
+export async function findWeeklyScheduleForStudent(studentId: string, scheduleId: string) {
+  const [record] = await getPostgresDatabase().select().from(weeklySchedules)
+    .where(and(eq(weeklySchedules.studentId, studentId), eq(weeklySchedules.id, scheduleId)));
+  return record ? persistedWeeklySchedule(record) : null;
 }
 
-export const mongooseCurrentWeekRepositories: CurrentWeekRepositories = {
-  snapshots: {
-    listEligibleForStudent: listApprovedAnalyticsSnapshots,
-  },
+async function findByStudentAndWeek(studentId: string, weekStartDate: string) {
+  const [record] = await getPostgresDatabase().select().from(weeklySchedules)
+    .where(and(eq(weeklySchedules.studentId, studentId), eq(weeklySchedules.weekStartDate, weekStartDate)));
+  return record ? persistedWeeklySchedule(record) : null;
+}
+
+export const postgresCurrentWeekRepositories: CurrentWeekRepositories = {
+  snapshots: { listEligibleForStudent: listApprovedAnalyticsSnapshots },
   weeklySchedules: {
-    async findByStudentAndWeek(studentId, weekStartDate) {
-      const record = await WeeklyScheduleModel.findOne({ studentId, weekStartDate }).lean();
-      return record ? persistedWeeklySchedule(record) : null;
-    },
+    findByStudentAndWeek,
     async listBeforeWeek(studentId, weekStartDate) {
-      const records = await WeeklyScheduleModel.find({ studentId, weekStartDate: { $lt: weekStartDate } })
-        .sort({ weekStartDate: -1 }).lean();
+      const records = await getPostgresDatabase().select().from(weeklySchedules)
+        .where(and(eq(weeklySchedules.studentId, studentId), lt(weeklySchedules.weekStartDate, weekStartDate)))
+        .orderBy(desc(weeklySchedules.weekStartDate));
       return records.map(persistedWeeklySchedule);
     },
     async create(schedule) {
-      const record = await WeeklyScheduleModel.create({
+      const [record] = await getPostgresDatabase().insert(weeklySchedules).values({
         studentId: schedule.studentId,
         weekStartDate: schedule.weekStartDate,
         generatedAt: new Date(schedule.generatedAt),
@@ -51,14 +41,19 @@ export const mongooseCurrentWeekRepositories: CurrentWeekRepositories = {
         sourceSnapshotIds: schedule.sourceSnapshotIds,
         generationInputs: schedule.generationInputs,
         policyVersion: schedule.policyVersion,
-      });
-      return persistedWeeklySchedule(record.toObject());
+      }).onConflictDoNothing({ target: [weeklySchedules.studentId, weeklySchedules.weekStartDate] }).returning();
+      if (record) return persistedWeeklySchedule(record);
+      // A separate statement sees the winner after a concurrent insert commits.
+      const existing = await findByStudentAndWeek(schedule.studentId, schedule.weekStartDate);
+      if (!existing) throw new Error("Weekly schedule could not be saved");
+      return existing;
     },
   },
-  activityCheckIns: mongooseActivityCheckIns,
+  activityCheckIns: postgresActivityCheckIns,
 };
 
 export async function listWeeklySchedulesForStudent(studentId: string) {
-  const records = await WeeklyScheduleModel.find({ studentId }).sort({ weekStartDate: -1 }).lean();
+  const records = await getPostgresDatabase().select().from(weeklySchedules)
+    .where(eq(weeklySchedules.studentId, studentId)).orderBy(desc(weeklySchedules.weekStartDate));
   return records.map(persistedWeeklySchedule);
 }

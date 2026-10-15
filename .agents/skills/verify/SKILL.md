@@ -9,7 +9,9 @@ Read [the feature index](features/README.md), then the files for the changed beh
 
 ## Launch
 
-Run from the repository root. Prerequisites are installed npm dependencies, Node.js, MongoDB Community Server `mongod`, and the macOS `lsof` and `ps` commands. Use the README's local setup if a prerequisite is missing. The current app uses MongoDB, not Postgres. There is no existing end-to-end browser suite. Vitest tests cover components and scheduling rules, and do not replace this browser proof.
+Run from the repository root. Prerequisites are installed npm dependencies, Node.js, a loopback Postgres 17 server, MongoDB Community Server `mongod`, and the macOS `lsof` and `ps` commands. Use the README's local setup if a prerequisite is missing. The migrated app paths use Postgres. Remaining Admin list and student-read paths still use MongoDB until issue 103. There is no existing end-to-end browser suite. Vitest tests cover components and scheduling rules, and do not replace this browser proof.
+
+Set `DATABASE_URL` to a loopback Postgres owner connection in the shell. The helper refuses remote hosts, creates a random database, applies migrations, and drops only that database on cleanup. It overrides the app connection before Next loads `.env.local`. No connection setting is written into evidence. Use the same shell setting for launch, Doctor, inspect, and cleanup.
 
 Create a new run name and start the executable helper in a terminal session that stays open:
 
@@ -34,7 +36,7 @@ Run this read-only check before driving, and whenever navigation, authentication
 ./.agents/skills/verify/scripts/local.mjs doctor "$VERIFY_RUN_DIR"
 ```
 
-Require exit code 0 and `healthy: true`. It checks the recorded supervisor, port ownership, the Git revision, the installed Next version, the login response, and the disposable database's writable primary. It performs no database writes. Do not drive another process that happens to answer on port 3100. A changed Git commit requires a restart. Uncommitted source changes use normal Next hot reload. Save the command output as `doctor.json` in the run directory.
+Require exit code 0 and `healthy: true`. It checks the recorded supervisor, port ownership, the Git revision, the installed Next version, the login response, and the disposable MongoDB writable primary and the migrated Postgres tables. It performs no database writes. Do not drive another process that happens to answer on port 3100. A changed Git commit requires a restart. Uncommitted source changes use normal Next hot reload. Save the command output as `doctor.json` in the run directory.
 
 ## Drive
 
@@ -66,7 +68,7 @@ All proof survives at `.verification/evidence/<run-name>/`, ignored by Git. Save
 ./.agents/skills/verify/scripts/local.mjs inspect "$VERIFY_RUN_DIR" > "$VERIFY_RUN_DIR/records-after.json"
 ```
 
-`inspect` checks Doctor first, then reads users, students, analytics snapshots, weekly schedules, activity check-ins, and leads from this run's database. It omits password hashes. Capture `records-before.json` before a mutation when proving absence, immutability, or deletion. Compare the affected IDs and values. Do not equate a success notice with persistence.
+`inspect` checks Doctor first, then reads Accounts, students, Analytics snapshots, Weekly schedules, Activity check-ins, and leads from this run's Postgres database. Evidence uses the SQL table and column names. It omits password hashes. Capture `records-before.json` before a mutation when proving absence, immutability, or deletion. Compare the affected IDs and values. Do not equate a success notice with persistence.
 
 For a browser proof, save a before snapshot, the actions and their locators, an after snapshot, and screenshots with DrillMap visible. In T3, start `preview_recording_start` before the action and call `preview_recording_stop` afterward. Copy the returned recording file into the run directory. Use `preview_snapshot` with `save: true` for each screenshot and copy its returned `screenshotPath` there. Save text snapshots separately with `includeImage: false`. Tool-result images alone are not files. Use a read-only `preview_evaluate` to inspect DOM values or browser state when needed.
 
@@ -85,12 +87,12 @@ test -f "$VERIFY_RUN_DIR/cleanup.json"
 test ! -d "$VERIFY_RUN_DIR/scratch"
 ```
 
-Require `Cleanup complete` or `Already stopped`. Confirm both ports are free with `lsof -nP -iTCP:3100 -iTCP:27117 -sTCP:LISTEN`. No output is the expected result. Confirm the screenshot, recording, snapshots, and stored-record evidence still exist. The supervisor stops only the child process groups it started and removes only this run's scratch database. It never kills by process name. It retains evidence and leaves `.env.local`, the user's database, and the Next cache alone. Never run `reset:dev-data` against the user's database as verification cleanup.
+Require `Cleanup complete` or `Already stopped`. Confirm both ports are free with `lsof -nP -iTCP:3100 -iTCP:27117 -sTCP:LISTEN`. No output is the expected result. Confirm the screenshot, recording, snapshots, and stored-record evidence still exist. The supervisor stops only the child process groups it started and removes only this run's scratch MongoDB database and random Postgres database. It never kills by process name. It retains evidence and leaves `.env.local`, the user's database, and the Next cache alone. Never run `reset:dev-data` against the user's database as verification cleanup.
 
 If launch fails before it creates `instance.json`, it started no app process or has already run its failure cleanup. Inspect the error and logs. If the supervisor no longer matches the recorded command, cleanup refuses to signal that PID. Identify the recorded children from their log paths and process ownership before any manual recovery.
 
 ## Helpers
 
-The executable [scripts/local.mjs](scripts/local.mjs) supports four commands, all shown above: `launch`, `doctor`, `inspect`, and `cleanup`. Each requires a run directory below `.verification/evidence/`. Evidence directories cannot be reused. Its process and database operations target only the local verification instance. This helper is specific to the current MongoDB app. Update it when the app moves to Postgres. The executable [scripts/smoke.mjs](scripts/smoke.mjs) runs the browser baseline with the invocation shown in Drive. Both helpers run from the repository root.
+The executable [scripts/local.mjs](scripts/local.mjs) supports four commands, all shown above: `launch`, `doctor`, `inspect`, and `cleanup`. Each requires a run directory below `.verification/evidence/`. Evidence directories cannot be reused. Its process and database operations target only the local verification instance. The helper runs Postgres for migrated paths and a disposable MongoDB replica set for the remaining Admin reads. Remove that MongoDB setup when those reads move to Postgres. The executable [scripts/smoke.mjs](scripts/smoke.mjs) runs the browser baseline with the invocation shown in Drive. Both helpers run from the repository root.
 
 Use `/maintain-verification-skill` when app changes make these recipes or the feature map stale.

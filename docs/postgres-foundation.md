@@ -1,10 +1,10 @@
 # Postgres foundation
 
-Stage 2 moves the app to Postgres on the `stage2-postgres` integration branch.
-Accounts, students, leads, and Analytics snapshots now use Postgres there.
-Weekly schedule and Activity check-in storage, plus the remaining Admin reads,
-still await their Stage 2 tickets. This intermediate branch must not reach
-`main` until the remaining storage paths move together.
+Stage 2 moves the app to Postgres on throwaway data.
+Accounts, students, leads, Analytics snapshots, Weekly schedules, and Activity
+check-ins now use Postgres. This week and Progress use these records. Remaining
+Admin list and student-read paths await issue 103. Deployment and the real-site
+database move remain Stage 3 work.
 
 ## Start local Postgres
 
@@ -95,10 +95,11 @@ Admin rebuild behavior in ADR 0003. A second trigger refuses changes to an
 Activity check-in's Weekly schedule or Schedule activity, while allowing
 status and actual-minutes corrections.
 
-Typed queries now serve Accounts, students, leads, and Analytics snapshots.
+Typed queries now serve Accounts, students, leads, Analytics snapshots, Weekly
+schedules, and Activity check-ins.
 Snapshot-dependent Account deletion and Admin resets also use Postgres, so
-they remove related records in one atomic operation or transaction. Later
-tickets move the remaining schedule, check-in, and Admin read paths.
+they remove related records in one atomic operation or transaction. Issue 103
+moves the remaining Admin read paths.
 
 ## Create the limited app role
 

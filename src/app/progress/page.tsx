@@ -2,12 +2,11 @@ import { studentSideNow } from "@/lib/studentClock";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { connectDB } from "@/lib/db";
-import { StudentModel } from "@/models/Student";
+import { findStudentByAccountId } from "@/lib/studentRepository";
 import { currentWeekInTimezone } from "@/lib/currentWeeklySchedule";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { listWeeklySchedulesForStudent } from "@/lib/weeklyScheduleRepository";
-import { mongooseActivityCheckIns } from "@/lib/activityCheckInRepository";
+import { postgresActivityCheckIns } from "@/lib/activityCheckInRepository";
 import { formatScheduleWeekOf } from "@/lib/scheduleCheckInSummary";
 import { groupCheckInsByScheduleId, summarizeScheduleHistoryWeek } from "@/lib/scheduleHistorySummary";
 import ScheduleCheckInView from "@/components/ScheduleCheckInView";
@@ -22,16 +21,15 @@ export default async function ProgressPage({
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  await connectDB();
-  const student = await StudentModel.findOne({ userId: session.user.id }).lean();
+  const student = await findStudentByAccountId(session.user.id);
   if (!student) redirect("/onboarding");
 
   const currentWeekStartDate = currentWeekInTimezone(await studentSideNow(session.user), SCHEDULE_TIMEZONE);
   const requestedWeek = Array.isArray(week) ? week[0] : week;
   if (requestedWeek === currentWeekStartDate) redirect("/dashboard");
 
-  const history = await listWeeklySchedulesForStudent(String(student._id));
-  const allCheckIns = await mongooseActivityCheckIns.listForSchedules(history.map((schedule) => schedule.id));
+  const history = await listWeeklySchedulesForStudent(student.id);
+  const allCheckIns = await postgresActivityCheckIns.listForSchedules(history.map((schedule) => schedule.id));
   const checkInsByScheduleId = groupCheckInsByScheduleId(allCheckIns);
   const checkInsFor = (scheduleId: string) => checkInsByScheduleId.get(scheduleId) ?? [];
 

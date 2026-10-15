@@ -4,9 +4,9 @@ import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
 import { getStudentWithOwner } from "@/lib/students";
 import { adminScheduleStateMessage, loadReadOnlyCurrentWeek } from "@/lib/readOnlyCurrentWeekSchedule";
-import { mongooseCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
+import { postgresCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
-import { mongooseActivityCheckIns } from "@/lib/activityCheckInRepository";
+import { postgresActivityCheckIns } from "@/lib/activityCheckInRepository";
 import ScheduleCheckInView from "@/components/ScheduleCheckInView";
 
 export default async function AdminStudentPage({ params }: { params: Promise<{ id: string }> }) {
@@ -24,8 +24,8 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
   }
 
   const currentWeek = await loadReadOnlyCurrentWeek({
-    ...mongooseCurrentWeekRepositories,
-    activityCheckIns: mongooseActivityCheckIns,
+    ...postgresCurrentWeekRepositories,
+    activityCheckIns: postgresActivityCheckIns,
     studentId: record.id,
     timezone: SCHEDULE_TIMEZONE,
     now: () => new Date(),

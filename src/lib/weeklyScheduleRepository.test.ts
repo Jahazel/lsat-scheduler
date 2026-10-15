@@ -9,7 +9,7 @@ describe("saved weekly schedule reads", () => {
     if (!schedule.reasons?.length) throw new Error("Expected schedule reasons");
     schedule.reasons[0].sentence = "The sentence saved under an older policy.";
     const record = {
-      _id: "schedule-1", studentId: "student-1", weekStartDate: schedule.weekOf,
+      id: "schedule-1", studentId: "student-1", weekStartDate: schedule.weekOf,
       generatedAt: new Date("2026-08-24T14:00:00.000Z"), schedule,
       sourceSnapshotIds: ["snapshot-1"],
       generationInputs: {
@@ -44,7 +44,7 @@ describe("saved weekly schedule reads", () => {
       saturdayOverageMinutes: 60,
     };
     const record = {
-      _id: "schedule-1", studentId: "student-1", weekStartDate: schedule.weekOf,
+      id: "schedule-1", studentId: "student-1", weekStartDate: schedule.weekOf,
       generatedAt: new Date("2026-08-24T14:00:00.000Z"), schedule, sourceSnapshotIds: [],
       generationInputs: {
         student: mockStudent, timezone: "America/Chicago", remainingDays: ["MONDAY" as const],

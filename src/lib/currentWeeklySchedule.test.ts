@@ -36,7 +36,7 @@ function inMemoryRepositories(snapshots: ApprovedAnalyticsSnapshot[]) {
         const existing = schedules.find(
           (saved) => saved.studentId === schedule.studentId && saved.weekStartDate === schedule.weekStartDate
         );
-        if (existing) throw new Error("duplicate weekly schedule");
+        if (existing) return existing;
         schedules.push(schedule);
         return schedule;
       },
@@ -415,48 +415,6 @@ describe("loadOrGenerateCurrentWeek", () => {
       timezone: "America/Chicago", now: () => monday, ...repositories,
     });
     expect(result).toEqual({ kind: "schedule", schedule: saved });
-  });
-
-  it("returns the winner when concurrent generation loses the unique-record race", async () => {
-    const repositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-14T13:00:00.000Z")]);
-    const concurrentSchedule: PersistedWeeklySchedule = {
-      id: "persisted-id",
-      studentId: "student-1",
-      weekStartDate: "2026-09-14",
-      generatedAt: monday.toISOString(),
-      schedule: { studentName: mockStudentName, weekOf: "2026-09-14", days: {} as never },
-      sourceSnapshotIds: ["snapshot-1"],
-      generationInputs: {
-        student: mockStudent,
-        timezone: "America/Chicago",
-        remainingDays: ["MONDAY"],
-        analytics: { ...mockAnalytics, weekOf: "2026-09-14" },
-        priorWeekProgress: {
-          source: "unavailable",
-          skippedPlannedMinutes: 0,
-          totalPlannedMinutes: 0,
-          skipShare: 0,
-          workloadReductionPercent: 0,
-        },
-      },
-      policyVersion: "adaptive-weekly-schedule-v1",
-    };
-    repositories.weeklySchedules.create = async () => {
-      repositories.schedules.push(concurrentSchedule);
-      throw { code: 11000 };
-    };
-
-    await expect(
-      loadOrGenerateCurrentWeek({
-        studentId: "student-1",
-        student: mockStudent,
-        studentName: mockStudentName,
-        rules: mockRules,
-        timezone: "America/Chicago",
-        now: () => monday,
-        ...repositories,
-      })
-    ).resolves.toEqual({ kind: "schedule", schedule: concurrentSchedule });
   });
 
   it("propagates a non-concurrency persistence failure", async () => {

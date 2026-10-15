@@ -38,7 +38,7 @@ await context.tracing.start({ screenshots: true, snapshots: true, sources: true 
 try {
   save("doctor.json", healthy);
   const initial = records("records-before.json");
-  assert.equal(initial.users.length, 0, "Smoke requires an empty disposable database.");
+  assert.equal(initial.accounts.length, 0, "Smoke requires an empty disposable database.");
   await goto("/");
   await capture("landing");
   log("Choose Build my first plan");
@@ -65,16 +65,16 @@ try {
   log("Submit valid signup fields without consent");
   await page.getByRole("button", { name: "Sign up", exact: true }).click();
   assert(await page.locator('input[name="agreedToTerms"]').evaluate((input) => input.validity.valueMissing));
-  assert.equal(records("records-consent-refused.json").users.length, 0);
+  assert.equal(records("records-consent-refused.json").accounts.length, 0);
   await capture("consent-refused");
   log("Accept terms and create the Account");
   await page.locator('input[name="agreedToTerms"]').check();
   await page.getByRole("button", { name: "Sign up", exact: true }).click();
   await heading("Tell us about your prep");
   const signedUp = records("records-signup.json");
-  assert.equal(signedUp.users.length, 1);
-  assert.equal(signedUp.users[0].email, email);
-  assert.equal(signedUp.users[0].role, "student");
+  assert.equal(signedUp.accounts.length, 1);
+  assert.equal(signedUp.accounts[0].email, email);
+  assert.equal(signedUp.accounts[0].role, "student");
   assert.equal(signedUp.students.length, 0);
   await page.reload();
   await heading("Tell us about your prep");
@@ -86,11 +86,11 @@ try {
   await heading("Add your latest analytics snapshot");
   const onboarded = records("records-onboarding.json");
   assert.equal(onboarded.students.length, 1);
-  assert.equal(onboarded.students[0].goalScore, 165);
-  assert.equal(onboarded.students[0].preferredPracticeTestDay, "SATURDAY");
-  assert.equal(onboarded.students[0].goalTestDate, "2027-06-01");
-  assert.deepEqual(Object.values(onboarded.students[0].dailyCapacityMinutes), Array(7).fill(90));
-  assert.equal(onboarded.weeklyschedules.length, 0);
+  assert.equal(onboarded.students[0].goal_score, 165);
+  assert.equal(onboarded.students[0].preferred_practice_test_day, "SATURDAY");
+  assert.equal(onboarded.students[0].goal_test_date, "2027-06-01");
+  assert.deepEqual(Object.entries(onboarded.students[0]).filter(([key]) => key.endsWith("_capacity_minutes")).map(([, value]) => Number(value)), Array(7).fill(90));
+  assert.equal(onboarded.weekly_schedules.length, 0);
   log("Open Study settings through navigation");
   await page.getByRole("link", { name: "Study settings", exact: true }).click();
   await heading("Study settings");
@@ -109,8 +109,8 @@ try {
     assert.equal(await page.getByRole("combobox", { name: `${day} minutes`, exact: true }).inputValue(), "30");
   }
   const updated = records("records-settings.json");
-  assert.equal(updated.students[0].goalScore, 168);
-  assert.deepEqual(Object.values(updated.students[0].dailyCapacityMinutes), Array(7).fill(30));
+  assert.equal(updated.students[0].goal_score, 168);
+  assert.deepEqual(Object.entries(updated.students[0]).filter(([key]) => key.endsWith("_capacity_minutes")).map(([, value]) => Number(value)), Array(7).fill(30));
   await capture("settings-reopened");
   log("Open Account through its menu");
   await page.getByRole("button", { name: `Account menu for ${email}`, exact: true }).click();
@@ -145,7 +145,7 @@ try {
   await page.getByRole("button", { name: "Delete account", exact: true }).click();
   await page.getByRole("link", { name: "Build my first plan", exact: true }).waitFor();
   const deleted = records("records-deleted.json");
-  for (const collection of ["users", "students", "analyticssnapshots", "weeklyschedules", "activitycheckins"]) assert.equal(deleted[collection].length, 0);
+  for (const collection of ["accounts", "students", "analytics_snapshots", "weekly_schedules", "activity_check_ins"]) assert.equal(deleted[collection].length, 0);
   await goto("/login");
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill(password);
