@@ -7,7 +7,16 @@ import { weeklySchedules } from "./postgresSchema";
 import type { PersistedWeeklySchedule } from "./types";
 
 export function persistedWeeklySchedule(record: typeof weeklySchedules.$inferSelect): PersistedWeeklySchedule {
-  return { ...record, generatedAt: record.generatedAt.toISOString() };
+  return {
+    id: record.id,
+    studentId: record.studentId,
+    weekStartDate: record.weekStartDate,
+    generatedAt: record.generatedAt.toISOString(),
+    schedule: record.schedule,
+    sourceSnapshotIds: record.sourceSnapshotIds,
+    generationInputs: record.generationInputs,
+    policyVersion: record.policyVersion,
+  };
 }
 
 export async function findWeeklyScheduleForStudent(studentId: string, scheduleId: string) {

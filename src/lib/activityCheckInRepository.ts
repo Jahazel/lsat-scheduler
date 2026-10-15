@@ -1,4 +1,6 @@
 import { eq, inArray } from "drizzle-orm";
+import { scheduleActivityId } from "./currentWeeklySchedule";
+import { DAY_ORDER } from "./engine";
 import { getPostgresDatabase } from "./postgres";
 import { activityCheckIns } from "./postgresSchema";
 import type { ActivityCheckIn, PersistedWeeklySchedule } from "./types";
@@ -37,9 +39,9 @@ export const postgresActivityCheckIns = {
     return activityCheckIn(record);
   },
   async ensureForSchedule(schedule: PersistedWeeklySchedule, createdAt = new Date()) {
-    const values = Object.entries(schedule.schedule.days).flatMap(([day, plan]) =>
-      plan.activities.map((_, index) => ({
-        scheduleId: schedule.id, activityId: `${day}:${index}`, status: "not_started" as const,
+    const values = DAY_ORDER.flatMap((day) =>
+      schedule.schedule.days[day].activities.map((_, index) => ({
+        scheduleId: schedule.id, activityId: scheduleActivityId(day, index), status: "not_started" as const,
         createdAt, updatedAt: createdAt,
       }))
     );

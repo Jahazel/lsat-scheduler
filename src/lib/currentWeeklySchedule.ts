@@ -21,6 +21,7 @@ export interface CurrentWeekRepositories {
   weeklySchedules: {
     findByStudentAndWeek(studentId: string, weekStartDate: string): Promise<PersistedWeeklySchedule | null>;
     listBeforeWeek(studentId: string, weekStartDate: string): Promise<PersistedWeeklySchedule[]>;
+    /** Inserts once per student and week, returning the saved record on a conflict. */
     create(schedule: PersistedWeeklySchedule): Promise<PersistedWeeklySchedule>;
   };
   activityCheckIns: {

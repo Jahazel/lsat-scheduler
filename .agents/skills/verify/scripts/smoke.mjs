@@ -26,6 +26,9 @@ const email = "verify-smoke@example.test";
 const password = randomBytes(18).toString("base64url") + "Aa1";
 const save = (name, value) => writeFileSync(resolve(run, name), JSON.stringify(value, null, 2) + "\n");
 const records = (name) => { const value = check("inspect"); save(name, value); return value; };
+const dailyCapacities = (student) => Object.entries(student)
+  .filter(([key]) => key.endsWith("_capacity_minutes"))
+  .map(([, value]) => Number(value));
 const log = (action) => actions.push({ at: new Date().toISOString(), action, url: page.url() });
 const heading = (name) => page.getByRole("heading", { name, exact: true }).waitFor();
 const goto = async (path) => { log(`Navigate to ${path}`); await page.goto(healthy.url + path); };
@@ -89,7 +92,7 @@ try {
   assert.equal(onboarded.students[0].goal_score, 165);
   assert.equal(onboarded.students[0].preferred_practice_test_day, "SATURDAY");
   assert.equal(onboarded.students[0].goal_test_date, "2027-06-01");
-  assert.deepEqual(Object.entries(onboarded.students[0]).filter(([key]) => key.endsWith("_capacity_minutes")).map(([, value]) => Number(value)), Array(7).fill(90));
+  assert.deepEqual(dailyCapacities(onboarded.students[0]), Array(7).fill(90));
   assert.equal(onboarded.weekly_schedules.length, 0);
   log("Open Study settings through navigation");
   await page.getByRole("link", { name: "Study settings", exact: true }).click();
@@ -110,7 +113,7 @@ try {
   }
   const updated = records("records-settings.json");
   assert.equal(updated.students[0].goal_score, 168);
-  assert.deepEqual(Object.entries(updated.students[0]).filter(([key]) => key.endsWith("_capacity_minutes")).map(([, value]) => Number(value)), Array(7).fill(30));
+  assert.deepEqual(dailyCapacities(updated.students[0]), Array(7).fill(30));
   await capture("settings-reopened");
   log("Open Account through its menu");
   await page.getByRole("button", { name: `Account menu for ${email}`, exact: true }).click();
