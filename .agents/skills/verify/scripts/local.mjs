@@ -141,7 +141,7 @@ async function launch() {
     const appEnv = { ...process.env, NODE_ENV: "development", MONGODB_URI: uri,
       AUTH_SECRET: randomBytes(32).toString("base64"), AUTH_URL: url, NEXTAUTH_URL: url, AUTH_TRUST_HOST: "true",
       AUTH_GOOGLE_ID: "", AUTH_GOOGLE_SECRET: "", GOOGLE_CLIENT_ID: "", GOOGLE_CLIENT_SECRET: "",
-      ANTHROPIC_API_KEY: "", VERCEL_ENV: "development", NEXT_TELEMETRY_DISABLED: "1" };
+      ANTHROPIC_API_KEY: "", SCREENSHOT_EXTRACTOR: process.env.VERIFY_SCREENSHOT_EXTRACTOR ?? "fake", VERCEL_ENV: "development", NEXT_TELEMETRY_DISABLED: "1" };
     const app = start(process.execPath, [resolve(root, "node_modules/next/dist/bin/next"), "dev", "--hostname", "127.0.0.1", "--port", "3100"], "app.log", appEnv);
     state = { root, run, url, uri, supervisorPid: process.pid, databasePid: mongo.pid, appPid: app.pid, revision: revision(), status: "starting" };
     save("instance.json", state);
