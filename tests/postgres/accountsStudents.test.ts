@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { renderToStaticMarkup } from "react-dom/server";
 import { sql } from "drizzle-orm";
+import { z } from "zod";
 import type { Session } from "next-auth";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppTestDatabase } from "./appTestDatabase";
@@ -66,6 +67,14 @@ afterAll(async () => {
   process.env.DATABASE_URL = originalSetting;
   await database?.cleanup();
 });
+
+async function onboard() {
+  await expect(createStudentProfile(profileInput)).rejects.toThrow("redirect:/dashboard");
+}
+
+async function studentRows() {
+  return (await getPostgresDatabase().execute(sql`select * from students`)).rows;
+}
 
 function makeAdmin(email: string) {
   return promisify(execFile)("npm", ["run", "make-admin", "--", email], {
@@ -169,8 +178,8 @@ describe.each(["student-a", "student-b", "admin", "no-session"] as const)("%s ca
     }
     const owner = actors[actor];
     session(owner);
-    await expect(createStudentProfile(profileInput)).rejects.toThrow("redirect:/dashboard");
-    await expect(createStudentProfile(profileInput)).rejects.toThrow("redirect:/dashboard");
+    await onboard();
+    await onboard();
     expect(await findStudentByAccountId(owner.id)).toMatchObject(profile);
     expect((await getPostgresDatabase().execute(sql`select account_id from students`)).rows).toEqual([{ account_id: owner.id }]);
     await expect(updateStudentProfile({ ...profileInput, goalScore: 170 })).rejects.toThrow("redirect:/dashboard");
@@ -186,7 +195,7 @@ it("Study settings keep another student's profile and the saved Weekly schedule 
   const b = await account("b@example.test");
   for (const owner of [a, b]) {
     session(owner);
-    await expect(createStudentProfile(profileInput)).rejects.toThrow("redirect:/dashboard");
+    await onboard();
   }
   const student = await findStudentByAccountId(a.id);
   if (!student) throw new Error("Onboarding did not create a student.");
@@ -280,26 +289,26 @@ describe.each([
     const owner = await account("validation@example.test");
     session(owner);
     if (existingProfile) {
-      await expect(createStudentProfile(profileInput)).rejects.toThrow("redirect:/dashboard");
+      await onboard();
     }
   });
 
   it.each([0, 100, 495])("rejects daily capacity %i without changing stored data", async (minutes) => {
-    const before = await getPostgresDatabase().execute(sql`select * from students`);
+    const before = await studentRows();
     const input = {
       ...profileInput,
       dailyCapacityMinutes: { ...profile.dailyCapacityMinutes, TUESDAY: minutes },
     };
-    await expect(save(input)).rejects.toThrow();
-    expect((await getPostgresDatabase().execute(sql`select * from students`)).rows).toEqual(before.rows);
+    await expect(save(input)).rejects.toBeInstanceOf(z.ZodError);
+    expect(await studentRows()).toEqual(before);
   });
 
   it("rejects a missing preferred practice-test day without changing stored data", async () => {
-    const before = await getPostgresDatabase().execute(sql`select * from students`);
+    const before = await studentRows();
     const input = { ...profileInput };
     Reflect.set(input, "preferredPracticeTestDay", "");
-    await expect(save(input)).rejects.toThrow();
-    expect((await getPostgresDatabase().execute(sql`select * from students`)).rows).toEqual(before.rows);
+    await expect(save(input)).rejects.toBeInstanceOf(z.ZodError);
+    expect(await studentRows()).toEqual(before);
   });
 });
 
@@ -316,7 +325,7 @@ it("onboarding stores each day's capacity and a Sunday practice-test day", async
 it.each(["student", "admin"] as const)("Study settings store the %s's Wednesday capacity and practice-test day", async (role) => {
   const owner = await account("wednesday@example.test", role);
   session(owner);
-  await expect(createStudentProfile(profileInput)).rejects.toThrow("redirect:/dashboard");
+  await onboard();
   const dailyCapacityMinutes = { ...profile.dailyCapacityMinutes, WEDNESDAY: 480 };
   await expect(updateStudentProfile({
     ...profile, dailyCapacityMinutes, preferredPracticeTestDay: "WEDNESDAY",
@@ -345,7 +354,7 @@ it("login propagates an unexpected authentication failure", async () => {
 it.each(["student", "admin"] as const)("Account shows the %s's email and offers deletion only to students", async (role) => {
   const owner = await account("owner@example.test", role);
   session(owner);
-  await expect(createStudentProfile(profileInput)).rejects.toThrow("redirect:/dashboard");
+  await onboard();
   const markup = renderToStaticMarkup(await AccountPage());
   expect(markup).toContain("owner@example.test");
   expect(markup.includes("Delete account")).toBe(role === "student");

@@ -11,22 +11,22 @@ try {
   }
 
   const host = requirePostgresScriptTarget();
-  const normalizedEmail = email.trim().toLowerCase();
+  const displayEmail = email.trim().toLowerCase();
   const status = await getPostgresDatabase().transaction(async (transaction) => {
     const [account] = await transaction.select({ id: accounts.id, role: accounts.role })
       .from(accounts).where(eq(accounts.email, sql`normalized_email(${email})`)).for("update");
-    if (!account) throw new UserRefusalError(`No account found for ${normalizedEmail} on ${host}`);
+    if (!account) throw new UserRefusalError(`No account found for ${displayEmail} on ${host}`);
     if (account.role === "admin") return "already-admin";
 
     const [updated] = await transaction.update(accounts).set({ role: "admin" })
       .where(eq(accounts.id, account.id)).returning({ id: accounts.id });
-    if (!updated) throw new UserRefusalError(`No account updated for ${normalizedEmail} on ${host}`);
+    if (!updated) throw new UserRefusalError(`No account updated for ${displayEmail} on ${host}`);
     return "promoted";
   });
 
   process.stdout.write(status === "already-admin"
-    ? `${normalizedEmail} is already an admin on ${host}.\n`
-    : `Made ${normalizedEmail} an admin on ${host}.\n`);
+    ? `${displayEmail} is already an admin on ${host}.\n`
+    : `Made ${displayEmail} an admin on ${host}.\n`);
   process.stdout.write("Sign out and back in before the admin controls appear.\n");
 } catch (error) {
   const message = error instanceof UserRefusalError
