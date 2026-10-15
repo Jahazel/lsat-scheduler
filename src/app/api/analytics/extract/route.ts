@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { extractAnalyticsRowsFromImage } from "@/lib/claudeExtract";
+import { extractAnalyticsRows } from "@/lib/screenshotExtractor";
 import { mockRules } from "@/lib/mockData";
 
 // The uploaded image is only ever used here, in memory, to send to Claude —
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   const buffer = Buffer.from(await file.arrayBuffer());
 
   try {
-    const rows = await extractAnalyticsRowsFromImage(buffer, file.type, mockRules);
+    const rows = await extractAnalyticsRows(buffer, file.type, mockRules);
     return NextResponse.json({ rows });
   } catch {
     return NextResponse.json({ error: "Couldn't read that screenshot" }, { status: 502 });

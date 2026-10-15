@@ -139,11 +139,14 @@ This setup is temporary. Stage 2 replaces MongoDB with Postgres.
    Google sends the browser after sign-in. Put this local client's ID and secret
    in `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`.
 
-   Leave `ANTHROPIC_API_KEY` unset, including in your terminal environment. Local
-   screenshot upload shows "Couldn't read that screenshot" without a key.
-   Admins use Sample analytics snapshots for their student side instead. An
-   Admin reviews and approves each Sample analytics snapshot like an uploaded
-   snapshot.
+   Leave `ANTHROPIC_API_KEY` unset, including in your terminal environment. Keep
+   `SCREENSHOT_EXTRACTOR=fake`. The fake extractor returns fixed rows for any
+   uploaded screenshot and never calls Anthropic. Set it to `fake-failure` to see
+   the "Couldn't read that screenshot" message. Without this setting, the app
+   calls Anthropic when a key is set and shows that message when no key is set.
+   Never set `SCREENSHOT_EXTRACTOR` on the real site. Admins can also use Sample
+   analytics snapshots for their student side. An Admin reviews and approves
+   each Sample analytics snapshot like an uploaded snapshot.
 
 5. Start the app from the repository folder:
 

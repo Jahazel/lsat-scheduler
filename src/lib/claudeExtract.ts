@@ -10,10 +10,7 @@ function isSupportedMediaType(mediaType: string): mediaType is SupportedMediaTyp
   return (SUPPORTED_MEDIA_TYPES as readonly string[]).includes(mediaType);
 }
 
-// Category is a deterministic lookup off the rules config, not something the
-// model should guess — a type is either a Question Stem type, a Stimulus
-// Logic exception, or a restricted Stimulus Logic type.
-function categoryFor(type: LRType, rules: RulesConfig): "regular" | "restricted" {
+export function categoryFor(type: LRType, rules: RulesConfig): "regular" | "restricted" {
   if (!rules.lrLogicTypes.includes(type as LRLogicType)) return "regular";
   return rules.lrLogicExceptions.includes(type as LRLogicType) ? "regular" : "restricted";
 }
