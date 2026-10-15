@@ -1,5 +1,5 @@
-import { date, integer, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import type { DayOfWeek, Student } from "./types";
+import { boolean, jsonb, date, integer, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import type { AnalyticsSnapshot, DayOfWeek, Student } from "./types";
 
 export const accounts = pgTable("accounts", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -35,4 +35,18 @@ export const leads = pgTable("leads", {
   email: text("email").notNull().unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const analyticsSnapshots = pgTable("analytics_snapshots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  studentId: uuid("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
+  weekOf: date("week_of", { mode: "string" }).notNull(),
+  lrAccuracyByType: jsonb("lr_accuracy_by_type").$type<AnalyticsSnapshot["lrAccuracyByType"]>().notNull(),
+  lrTopPriorityLogicTypes: text("lr_top_priority_logic_types").array().$type<AnalyticsSnapshot["lrTopPriorityLogicTypes"]>().notNull(),
+  approvedAt: timestamp("approved_at", { withTimezone: true }).notNull(),
+  extractionSource: text("extraction_source", { enum: ["7sage_screenshot", "admin_sample"] }).notNull(),
+  extractedAt: timestamp("extracted_at", { withTimezone: true }).notNull(),
+  extractedValuesMatch: boolean("extracted_values_match").notNull(),
+  isLatestAnalytics: boolean("is_latest_analytics").notNull(),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }).notNull(),
 });

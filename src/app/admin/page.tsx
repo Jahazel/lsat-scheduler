@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
-import { AnalyticsSnapshotModel } from "@/models/AnalyticsSnapshot";
+import { listStudentIdsWithApprovedAnalytics } from "@/lib/analyticsSnapshotRepository";
 import { formatDuration } from "@/lib/formatDuration";
 import { listStudentsWithOwners } from "@/lib/students";
 
@@ -15,9 +15,9 @@ export default async function AdminPage() {
   await connectDB();
   const [students, snapshots] = await Promise.all([
     listStudentsWithOwners(),
-    AnalyticsSnapshotModel.find({ status: "approved" }, { studentId: 1 }).lean(),
+    listStudentIdsWithApprovedAnalytics(),
   ]);
-  const studentIdsWithAnalytics = new Set(snapshots.map((s) => String(s.studentId)));
+  const studentIdsWithAnalytics = new Set(snapshots);
 
   return (
     <div className="min-h-screen px-6 py-12">

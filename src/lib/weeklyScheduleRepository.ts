@@ -2,7 +2,7 @@ import { listApprovedAnalyticsSnapshots } from "./analyticsSnapshotRepository";
 import type { CurrentWeekRepositories } from "./currentWeeklySchedule";
 import { WeeklyScheduleModel } from "@/models/WeeklySchedule";
 import { mongooseActivityCheckIns } from "./activityCheckInRepository";
-import type { ApprovedAnalyticsSnapshot, PersistedWeeklySchedule } from "./types";
+import type { PersistedWeeklySchedule } from "./types";
 
 interface StoredWeeklySchedule {
   _id: unknown;
@@ -30,19 +30,7 @@ export function persistedWeeklySchedule(record: StoredWeeklySchedule): Persisted
 
 export const mongooseCurrentWeekRepositories: CurrentWeekRepositories = {
   snapshots: {
-    async listEligibleForStudent(studentId) {
-      const snapshots = await listApprovedAnalyticsSnapshots(studentId);
-      return snapshots.flatMap((snapshot): ApprovedAnalyticsSnapshot[] => {
-        if (!snapshot.approvedAt) return [];
-        return [{
-          id: String(snapshot._id),
-          weekOf: snapshot.weekOf,
-          approvedAt: snapshot.approvedAt.toISOString(),
-          lrAccuracyByType: snapshot.lrAccuracyByType,
-          lrTopPriorityLogicTypes: snapshot.lrTopPriorityLogicTypes,
-        }];
-      });
-    },
+    listEligibleForStudent: listApprovedAnalyticsSnapshots,
   },
   weeklySchedules: {
     async findByStudentAndWeek(studentId, weekStartDate) {

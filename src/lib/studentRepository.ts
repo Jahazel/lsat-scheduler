@@ -1,8 +1,9 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
+import { approvedSnapshotColumns } from "./analyticsSnapshotRepository";
 import type { prepareApprovedSnapshot } from "./analyticsSnapshots";
 import { isAccountId } from "./accountRepository";
 import { getPostgresDatabase } from "./postgres";
-import { students } from "./postgresSchema";
+import { analyticsSnapshots, students } from "./postgresSchema";
 import type { Student } from "./types";
 
 export type PersistedStudent = Student & { id: string };
@@ -67,23 +68,7 @@ export async function createStudent(
       .returning();
     if (!row) return null;
     if (snapshot) {
-      await transaction.execute(sql`
-        insert into analytics_snapshots (
-          student_id, week_of, lr_accuracy_by_type, lr_top_priority_logic_types,
-          approved_at, extraction_source, extracted_at, extracted_values_match,
-          is_latest_analytics, confirmed_at
-        ) values (
-          ${row.id}::uuid, ${snapshot.weekOf}::date,
-          ${JSON.stringify(snapshot.lrAccuracyByType)}::jsonb,
-          ${sql.param(snapshot.lrTopPriorityLogicTypes)}::text[],
-          ${snapshot.approvedAt.toISOString()}::timestamptz,
-          ${snapshot.extraction.source},
-          ${snapshot.extraction.extractedAt.toISOString()}::timestamptz,
-          ${snapshot.confirmation.extractedValuesMatch},
-          ${snapshot.confirmation.isLatestAnalytics},
-          ${snapshot.confirmation.confirmedAt.toISOString()}::timestamptz
-        )
-      `);
+      await transaction.insert(analyticsSnapshots).values(approvedSnapshotColumns(row.id, snapshot));
     }
     return persistedStudent(row);
   });
