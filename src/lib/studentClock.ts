@@ -1,23 +1,27 @@
-import { connectDB } from "./db";
-import { UserModel } from "@/models/User";
+import { and, eq, sql } from "drizzle-orm";
+import { findAccountById, isAccountId } from "./accountRepository";
+import { getPostgresDatabase } from "./postgres";
+import { accounts } from "./postgresSchema";
 import {
   resolveStudentClock,
   resolveStudentTime,
   type AdminClockRepository,
 } from "./adminTestWorkspace";
 
-export const mongooseAdminClock: AdminClockRepository = {
-  async findUser(userId) {
-    await connectDB();
-    return UserModel.findById(userId).lean();
-  },
+export const postgresAdminClock: AdminClockRepository = {
+  findUser: findAccountById,
   async moveDate(userId, expected, next) {
-    const result = await UserModel.updateOne(
-      { _id: userId, role: "admin", simulatedDate: expected },
-      { $set: { simulatedDate: next } },
-      { runValidators: true },
-    );
-    return result.modifiedCount === 1;
+    if (!isAccountId(userId)) return false;
+    const moved = await getPostgresDatabase()
+      .update(accounts)
+      .set({ simulatedDate: next })
+      .where(and(
+        eq(accounts.id, userId),
+        eq(accounts.role, "admin"),
+        sql`${accounts.simulatedDate} is not distinct from ${expected}::date`,
+      ))
+      .returning({ id: accounts.id });
+    return moved.length === 1;
   },
 };
 
@@ -25,12 +29,12 @@ export function studentSideNow(
   user: { id?: string; role?: string },
   real = new Date(),
 ) {
-  return resolveStudentTime(user, real, mongooseAdminClock);
+  return resolveStudentTime(user, real, postgresAdminClock);
 }
 
 export function studentSideClock(
   user: { id?: string; role?: string },
   real = new Date(),
 ) {
-  return resolveStudentClock(user, real, mongooseAdminClock);
+  return resolveStudentClock(user, real, postgresAdminClock);
 }

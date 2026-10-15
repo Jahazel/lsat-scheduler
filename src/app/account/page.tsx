@@ -1,8 +1,7 @@
 import { isAdminUser } from "@/lib/accessControl";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { connectDB } from "@/lib/db";
-import { StudentModel } from "@/models/Student";
+import { findStudentByAccountId } from "@/lib/studentRepository";
 import { deleteAccount } from "./actions";
 
 export default async function AccountPage() {
@@ -11,8 +10,7 @@ export default async function AccountPage() {
     redirect("/login");
   }
 
-  await connectDB();
-  const doc = await StudentModel.findOne({ userId: session.user.id }).lean();
+  const doc = await findStudentByAccountId(session.user.id);
   if (!doc) {
     redirect("/onboarding");
   }

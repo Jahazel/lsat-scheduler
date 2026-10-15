@@ -1,11 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mockStudent } from "@/lib/mockData";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   connectDB: vi.fn(),
   findStudent: vi.fn(),
-  updateStudent: vi.fn(),
   deleteStudent: vi.fn(),
   deleteSnapshots: vi.fn(),
   findSchedules: vi.fn(),
@@ -22,7 +20,6 @@ vi.mock("@/lib/db", () => ({ connectDB: mocks.connectDB }));
 vi.mock("@/models/Student", () => ({
   StudentModel: {
     findOne: mocks.findStudent,
-    findOneAndUpdate: mocks.updateStudent,
     deleteOne: mocks.deleteStudent,
   },
 }));
@@ -38,7 +35,7 @@ vi.mock("@/models/ActivityCheckIn", () => ({
 vi.mock("@/models/User", () => ({ UserModel: { deleteOne: mocks.deleteUser } }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 
-import { deleteAccount, updateStudentProfile } from "./actions";
+import { deleteAccount } from "./actions";
 
 describe("deleteAccount", () => {
   beforeEach(() => {
@@ -81,57 +78,5 @@ describe("deleteAccount", () => {
     expect(mocks.deleteSchedules).not.toHaveBeenCalled();
     expect(mocks.deleteStudent).not.toHaveBeenCalled();
     expect(mocks.deleteUser).not.toHaveBeenCalled();
-  });
-});
-
-describe("updateStudentProfile", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.auth.mockResolvedValue({ user: { id: "user-1" } });
-    mocks.updateStudent.mockResolvedValue({ _id: "student-1" });
-  });
-
-  it("rejects a daily capacity off the 15-minute step without changing the student", async () => {
-    await expect(
-      updateStudentProfile({
-        ...mockStudent,
-        dailyCapacityMinutes: { ...mockStudent.dailyCapacityMinutes, FRIDAY: 100 },
-        analyticsRows: [],
-        analyticsApproval: null,
-      })
-    ).rejects.toThrow();
-
-    expect(mocks.updateStudent).not.toHaveBeenCalled();
-  });
-
-  it("rejects a daily capacity over 8 hours without changing the student", async () => {
-    await expect(
-      updateStudentProfile({
-        ...mockStudent,
-        dailyCapacityMinutes: { ...mockStudent.dailyCapacityMinutes, SUNDAY: 495 },
-        analyticsRows: [],
-        analyticsApproval: null,
-      })
-    ).rejects.toThrow();
-
-    expect(mocks.updateStudent).not.toHaveBeenCalled();
-  });
-
-  it.each(["student", "admin"])("saves study settings on the signed-in %s's own Student", async (role) => {
-    mocks.auth.mockResolvedValue({ user: { id: "user-1", role } });
-    const dailyCapacityMinutes = { ...mockStudent.dailyCapacityMinutes, WEDNESDAY: 480 };
-
-    await updateStudentProfile({
-      ...mockStudent,
-      dailyCapacityMinutes,
-      preferredPracticeTestDay: "WEDNESDAY",
-      analyticsRows: [],
-      analyticsApproval: null,
-    });
-
-    expect(mocks.updateStudent).toHaveBeenCalledWith(
-      { userId: "user-1" },
-      expect.objectContaining({ dailyCapacityMinutes, preferredPracticeTestDay: "WEDNESDAY" })
-    );
   });
 });

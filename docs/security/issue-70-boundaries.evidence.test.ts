@@ -4,13 +4,13 @@ import { mockStudent, mockRules } from "@/lib/mockData";
 import { studentProfileSchema } from "@/lib/studentProfile";
 
 const mocks = vi.hoisted(() => ({
-  auth: vi.fn(), connectDB: vi.fn(), findUser: vi.fn(), findStudent: vi.fn(),
+  auth: vi.fn(), connectDB: vi.fn(), findAccountById: vi.fn(), findStudent: vi.fn(),
   createSnapshot: vi.fn(), listStudents: vi.fn(), getStudent: vi.fn(),
   messages: vi.fn(), findSchedule: vi.fn(), saveCheckIn: vi.fn(),
 }));
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
 vi.mock("@/lib/db", () => ({ connectDB: mocks.connectDB }));
-vi.mock("@/models/User", () => ({ UserModel: { findById: mocks.findUser } }));
+vi.mock("@/lib/accountRepository", () => ({ findAccountById: mocks.findAccountById }));
 vi.mock("@/models/Student", () => ({ StudentModel: { findOne: mocks.findStudent } }));
 vi.mock("@/models/AnalyticsSnapshot", () => ({ AnalyticsSnapshotModel: { create: mocks.createSnapshot } }));
 vi.mock("@/models/WeeklySchedule", () => ({ WeeklyScheduleModel: { findOne: mocks.findSchedule } }));
@@ -59,7 +59,7 @@ describe("issue 70 request boundary evidence", () => {
     mocks.messages.mockResolvedValue({ content: [{ type: "tool_use", input: { rows: [] } }] });
     mocks.listStudents.mockResolvedValue([{ email: "student@example.invalid" }]);
     mocks.getStudent.mockResolvedValue({ email: "student@example.invalid" });
-    mocks.findUser.mockReturnValue({ lean: async () => ({ role: "student" }) });
+    mocks.findAccountById.mockResolvedValue({ role: "student" });
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -77,9 +77,9 @@ describe("issue 70 request boundary evidence", () => {
     mocks.auth.mockResolvedValue({ user: { id: "synthetic-demoted-admin", role: "admin" } });
     expect((await roster()).status).toBe(200);
     expect((await student(new Request("http://localhost/api/students/synthetic-student"), { params: Promise.resolve({ id: "synthetic-student" }) })).status).toBe(200);
-    expect(mocks.findUser).not.toHaveBeenCalled();
+    expect(mocks.findAccountById).not.toHaveBeenCalled();
     await expect(requireCurrentAdmin()).rejects.toThrow("Admin access required");
-    expect(mocks.findUser).toHaveBeenCalledWith("synthetic-demoted-admin");
+    expect(mocks.findAccountById).toHaveBeenCalledWith("synthetic-demoted-admin");
   });
 
   it("the extraction handler itself calls Anthropic without authentication", async () => {

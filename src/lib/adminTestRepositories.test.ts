@@ -23,7 +23,7 @@ vi.mock("@/models/AnalyticsSnapshot", () => ({ AnalyticsSnapshotModel: { deleteM
 vi.mock("@/models/Student", () => ({ StudentModel: { deleteOne: mocks.deleteStudent } }));
 vi.mock("@/models/User", () => ({ UserModel: { updateOne: mocks.updateUser } }));
 vi.mock("./analyticsSnapshotRepository", () => ({ listApprovedAnalyticsSnapshots: vi.fn() }));
-vi.mock("./studentClock", () => ({ mongooseAdminClock: {} }));
+vi.mock("./studentClock", () => ({ postgresAdminClock: {} }));
 
 import { mongooseAdminTestRepositories } from "./adminTestRepositories";
 
