@@ -1,5 +1,3 @@
--- Run as the database owner after applying the migrations.
--- The optional setting lets tests use a separate role on the same server.
 DO $$
 DECLARE
   app_role text := coalesce(nullif(current_setting('drillmap.app_role', true), ''), 'drillmap_app');
@@ -8,7 +6,6 @@ BEGIN
     EXECUTE format('CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS', app_role);
   END IF;
   -- NOINHERIT alone does not prevent SET ROLE through a membership.
-  -- Refuse an unsafe existing role instead of repurposing an owner/console role.
   IF EXISTS (
     SELECT FROM pg_roles r WHERE r.rolname = app_role AND (
       r.rolsuper OR r.rolcreatedb OR r.rolcreaterole OR r.rolreplication OR r.rolbypassrls

@@ -25,12 +25,10 @@ function connectApp() {
 beforeAll(async () => {
   database = await createPostgresTestDatabase();
   owner = createPostgresConnection({ database: database.name });
-  // Also cover databases whose shared grants are broader than the PG17 defaults.
   await owner.db.execute(sql`grant create on schema public to public`);
   await owner.db.execute(sql`grant update on weekly_schedules to public`);
   roleSql = await readFile("sql/app-role.sql", "utf8");
   await applyAppRoleSql();
-  // The generated password stays in memory. The repository SQL never sets one.
   const password = randomBytes(32).toString("hex");
   await owner.db.transaction(async (tx) => {
     await tx.execute(sql`select set_config('drillmap.app_role', ${role}, true)`);
@@ -75,7 +73,6 @@ function ownerDb() {
 }
 
 async function applyAppRoleSql() {
-  // Pin the setting and SQL to one connection, including after a refused query.
   await ownerDb().transaction(async (tx) => {
     await tx.execute(sql`select set_config('drillmap.app_role', ${role}, true)`);
     await tx.execute(sql.raw(roleSql));
@@ -272,7 +269,6 @@ it("runs the role SQL twice without changing grants, data, or the working login"
     select relname, relacl::text from pg_class
       where relnamespace = 'public'::regnamespace and relkind = 'r' order by relname
   `)).rows).toEqual(before.rows);
-  // A fresh pool must still authenticate after the SQL runs again.
   await app?.close();
   app = connectApp();
   expect((await appDb().execute(sql`select id from accounts`)).rows).toEqual([{ id: records.account_id }]);
