@@ -1,7 +1,10 @@
 # Postgres foundation
 
-Issue #95 adds the Postgres connection and migration tools. The current app
-still uses MongoDB. Later Stage 2 tickets move its data access to Postgres.
+Stage 2 moves the app to Postgres on the `stage2-postgres` integration branch.
+Accounts, students, leads, and Analytics snapshots now use Postgres there.
+Weekly schedule and Activity check-in storage, plus the remaining Admin reads,
+still await their Stage 2 tickets. This intermediate branch must not reach
+`main` until the remaining storage paths move together.
 
 ## Start local Postgres
 
@@ -92,7 +95,10 @@ Admin rebuild behavior in ADR 0003. A second trigger refuses changes to an
 Activity check-in's Weekly schedule or Schedule activity, while allowing
 status and actual-minutes corrections.
 
-Later tickets add the typed queries and move the app to these tables.
+Typed queries now serve Accounts, students, leads, and Analytics snapshots.
+Snapshot-dependent Account deletion and Admin resets also use Postgres, so
+they remove related records in one atomic operation or transaction. Later
+tickets move the remaining schedule, check-in, and Admin read paths.
 
 ## Create the limited app role
 

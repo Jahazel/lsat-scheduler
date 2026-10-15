@@ -17,7 +17,7 @@
     "migrate:activity-check-ins": "node scripts/migrate-activity-check-ins.mjs",
     "verify:adaptive-schedule-rollout": "node scripts/verify-adaptive-schedule-rollout.mjs",
     "reset:dev-data": "node --env-file=.env.local scripts/reset-dev-data.mjs",
-    "make-admin": "node scripts/make-admin.mjs",
+    "make-admin": "node --import tsx scripts/make-admin.mts",
     "create-test-user": "node --env-file=.env.local scripts/create-test-user.mjs"
   },
   "dependencies": {

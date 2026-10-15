@@ -6,7 +6,6 @@ const stoppedConnection = "Test stopped before database connection.";
 const fixture = fileURLToPath(new URL("./test-fixtures/stop-database-connection.mjs", import.meta.url));
 const commands = [
   ["reset-dev-data", ["--yes"]],
-  ["make-admin", ["student@example.com"]],
   ["migrate-analytics-snapshots", []],
   ["migrate-weekly-schedules", []],
   ["migrate-activity-check-ins", []],
@@ -15,7 +14,6 @@ const commands = [
 function runScript(name, args, uri, extraEnv = {}) {
   return new Promise((resolve, reject) => {
     const env = { NODE_ENV: "test", ...extraEnv };
-    // No inherited secrets, env files, NODE_OPTIONS, or database settings.
     if (uri !== undefined) env.MONGODB_URI = uri;
     execFile(process.execPath, ["--import", fixture, fileURLToPath(new URL(`./${name}.mjs`, import.meta.url)), ...args], {
       env,
@@ -113,4 +111,47 @@ it.each(["mongodb", "postgres", "postgresql"])("reset confirmation does not bypa
   expect(result.code).toBe(1);
   expect(result.output).toContain("Refusing database host remote.example.net");
   expect(result.output).not.toContain(stoppedConnection);
+});
+
+async function runMakeAdmin(uri) {
+  return new Promise((resolve, reject) => {
+    const env = { NODE_ENV: "test" };
+    if (uri !== undefined) env.DATABASE_URL = uri;
+    execFile(process.execPath, ["--import", "tsx", fileURLToPath(new URL("./make-admin.mts", import.meta.url)), "student@example.com"], {
+      env, timeout: 10000,
+    }, (error, stdout, stderr) => {
+      if (error?.killed || error?.signal) {
+        reject(new Error("make-admin did not stop before the connection timeout."));
+        return;
+      }
+      resolve({ code: error?.code ?? 0, output: stdout + stderr });
+    });
+  });
+}
+
+describe("make-admin Postgres protection", () => {
+  it.each([
+    [undefined, "[unknown]"],
+    ["postgres://guard-user:guard-password@ep-other.example.neon.tech/db", "ep-other.example.neon.tech"],
+    ["postgresql://guard-user:guard-password@remote.example.net/db", "remote.example.net"],
+    ["postgresql://guard-user:guard-password@localhost:5432,remote.example.net:5432/db", "localhost:5432,remote.example.net:5432"],
+    ["postgres://guard-user:guard-password@localhost/db?host=remote.example.net", "localhost,remote.example.net"],
+    ["postgresql:///db?host=localhost,remote.example.net&password=guard-password", "localhost,remote.example.net"],
+    ["not-a-connection-string-guard-password", "[unknown]"],
+  ])("refuses %s before connecting", async (uri, host) => {
+    const result = await runMakeAdmin(uri);
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(`Refusing database host ${host}`);
+    expect(result.output).not.toContain("guard-user");
+    expect(result.output).not.toContain("guard-password");
+  });
+
+  it("reports a local connection failure without driver details or credentials", async () => {
+    const result = await runMakeAdmin("postgres://guard-user:guard-password@127.0.0.1:1/db");
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("Admin promotion failed. Check the connection setting and database permissions.");
+    expect(result.output).not.toContain("Refusing database host");
+    expect(result.output).not.toContain("guard-user");
+    expect(result.output).not.toContain("guard-password");
+  });
 });

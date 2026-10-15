@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { connectDB } from "@/lib/db";
-import { StudentModel } from "@/models/Student";
+import { findStudentByAccountId } from "@/lib/studentRepository";
 import StudentIntakeForm from "@/components/StudentIntakeForm";
 import type { Student } from "@/lib/types";
 import { updateStudentProfile } from "../account/actions";
@@ -10,8 +9,7 @@ export default async function StudySettingsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  await connectDB();
-  const doc = await StudentModel.findOne({ userId: session.user.id }).lean();
+  const doc = await findStudentByAccountId(session.user.id);
   if (!doc) redirect("/onboarding");
 
   const initialValues: Student = {

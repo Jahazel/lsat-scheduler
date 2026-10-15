@@ -4,9 +4,7 @@ import { studentSideClock } from "@/lib/studentClock";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { connectDB } from "@/lib/db";
-import { StudentModel } from "@/models/Student";
-import { AnalyticsSnapshotModel } from "@/models/AnalyticsSnapshot";
+import { createStudent, findStudentByAccountId } from "@/lib/studentRepository";
 import { summarizeAnalyticsRows } from "@/lib/analytics";
 import { snapshotWeekOptions, prepareApprovedSnapshot, type SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
 import { studentProfileSchema } from "@/lib/studentProfile";
@@ -23,9 +21,7 @@ export async function createStudentProfile(
   const { analyticsRows, analyticsApproval, ...profile } = input;
   const studentFields = studentProfileSchema.parse(profile);
 
-  await connectDB();
-
-  const existing = await StudentModel.findOne({ userId: session.user.id });
+  const existing = await findStudentByAccountId(session.user.id);
   if (existing) {
     redirect("/dashboard");
   }
@@ -35,14 +31,8 @@ export async function createStudentProfile(
     analyticsRows.length > 0 && analyticsApproval
       ? prepareApprovedSnapshot({ ...summarizeAnalyticsRows(analyticsRows), ...analyticsApproval }, clock.now, clock.real, snapshotWeekOptions(clock))
       : null;
-  const student = await StudentModel.create({ userId: session.user.id, ...studentFields });
-
-  if (approvedSnapshot) {
-    await AnalyticsSnapshotModel.create({
-      studentId: student._id,
-      ...approvedSnapshot,
-    });
-  }
+  const student = await createStudent(session.user.id, studentFields, approvedSnapshot);
+  if (!student) redirect("/dashboard");
 
   revalidatePath("/", "layout");
   redirect("/dashboard");

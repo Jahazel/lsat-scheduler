@@ -2,7 +2,7 @@ import { isAdminUser } from "@/lib/accessControl";
 import { dateInScheduleTimezone, timeForVerifiedUser } from "@/lib/adminTestWorkspace";
 import { currentWeekInTimezone } from "@/lib/currentWeeklySchedule";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
-import { mongooseAdminClock, studentSideNow } from "@/lib/studentClock";
+import { postgresAdminClock, studentSideNow } from "@/lib/studentClock";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { initialsFor, loadStudentNavState } from "@/lib/studentNav";
@@ -45,7 +45,7 @@ export default async function SiteHeader() {
 
   if (isAdminUser(user)) {
     const realNow = new Date();
-    const currentUser = user.id ? await mongooseAdminClock.findUser(user.id) : null;
+    const currentUser = user.id ? await postgresAdminClock.findUser(user.id) : null;
     const now = timeForVerifiedUser(currentUser, realNow);
     const state = user.id ? await loadStudentNavState(user.id, now) : null;
     const testState = isAdminUser(currentUser) ? {
