@@ -1,7 +1,7 @@
 import { categoryFor, extractAnalyticsRowsFromImage } from "./claudeExtract";
-import type { AnalyticsExtractedRow, LRType, RulesConfig } from "./types";
+import type { AnalyticsExtractedRow, RulesConfig } from "./types";
 
-const FAKE_ROWS: { type: LRType; accuracy?: number; isTopPriority?: boolean }[] = [
+const FAKE_ROWS: Omit<AnalyticsExtractedRow, "category">[] = [
   { type: "Strengthen", accuracy: 68 },
   { type: "Necessary assumption", accuracy: 74 },
   { type: "Causal reasoning", isTopPriority: true },

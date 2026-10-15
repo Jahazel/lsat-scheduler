@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractAnalyticsRows } from "@/lib/screenshotExtractor";
 import { mockRules } from "@/lib/mockData";
 
-// The uploaded image is only ever used here, in memory, to send to Claude —
+// The uploaded image is only ever used here, in memory, for extraction —
 // it's never written to disk or a database. Not scoped to a student:
 // extraction doesn't touch any student data, so this also works during
 // intake, before a student record exists yet.
