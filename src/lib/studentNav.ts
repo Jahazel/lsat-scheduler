@@ -19,7 +19,7 @@ export function initialsFor(name: string | null | undefined, email: string | nul
   return (email?.[0] ?? "?").toUpperCase();
 }
 
-/** Returns null when the Account has no student profile. */
+/** Returns null when the Account has no student record. */
 export async function loadStudentNavState(userId: string, now = new Date()): Promise<StudentNavState | null> {
   const student = await findStudentByAccountId(userId);
   if (!student) return null;

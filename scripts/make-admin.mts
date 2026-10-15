@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { closePostgresDatabase, getPostgresDatabase, requirePostgresScriptTarget } from "../src/lib/postgres";
 import { accounts } from "../src/lib/postgresSchema";
 
@@ -14,7 +14,7 @@ try {
   const normalizedEmail = email.trim().toLowerCase();
   const status = await getPostgresDatabase().transaction(async (transaction) => {
     const [account] = await transaction.select({ id: accounts.id, role: accounts.role })
-      .from(accounts).where(eq(accounts.email, normalizedEmail)).for("update");
+      .from(accounts).where(eq(accounts.email, sql`normalized_email(${email})`)).for("update");
     if (!account) throw new UserRefusalError(`No account found for ${normalizedEmail} on ${host}`);
     if (account.role === "admin") return "already-admin";
 

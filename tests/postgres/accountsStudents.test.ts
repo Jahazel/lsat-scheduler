@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { renderToStaticMarkup } from "react-dom/server";
 import { sql } from "drizzle-orm";
 import type { Session } from "next-auth";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,10 +11,20 @@ import { authorizeCredentials, createGoogleAccountOnSignIn, accountToken } from 
 import { findStudentByAccountId } from "../../src/lib/studentRepository";
 import type { Student } from "../../src/lib/types";
 
-const request = vi.hoisted(() => ({ session: null as Session | null }));
+interface RequestState {
+  session: Session | null;
+  signInError: Error | null;
+  signIn: ReturnType<typeof vi.fn<(provider: string, values: Record<string, unknown>) => Promise<void>>>;
+}
+const request = vi.hoisted((): RequestState => ({
+  session: null,
+  signInError: null,
+  signIn: vi.fn(),
+}));
 vi.mock("@/auth", () => ({
   auth: async () => request.session,
-  signIn: async (provider: string, values: Record<string, unknown>) => {
+  signIn: request.signIn.mockImplementation(async (provider, values) => {
+    if (request.signInError) throw request.signInError;
     if (provider !== "credentials") return;
     const { authorizeCredentials } = await import("../../src/lib/authAccounts");
     const user = await authorizeCredentials(values);
@@ -22,15 +33,16 @@ vi.mock("@/auth", () => ({
       throw new CredentialsSignin();
     }
     request.session = { user, expires: "2099-01-01T00:00:00.000Z" };
-  },
+  }),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
 
 import { signup } from "../../src/app/signup/actions";
-import { login } from "../../src/app/login/actions";
+import { login, signInWithGoogle } from "../../src/app/login/actions";
 import { createStudentProfile } from "../../src/app/onboarding/actions";
 import { updateStudentProfile } from "../../src/app/account/actions";
+import AccountPage from "../../src/app/account/page";
 import { captureLead } from "../../src/app/actions";
 import { requireCurrentAdmin } from "../../src/lib/requireAdmin";
 import { postgresAdminClock, studentSideClock } from "../../src/lib/studentClock";
@@ -45,6 +57,8 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   request.session = null;
+  request.signInError = null;
+  request.signIn.mockClear();
   await database.owner.execute(sql`truncate accounts, leads cascade`);
 });
 afterAll(async () => {
@@ -52,6 +66,12 @@ afterAll(async () => {
   process.env.DATABASE_URL = originalSetting;
   await database?.cleanup();
 });
+
+function makeAdmin(email: string) {
+  return promisify(execFile)("npm", ["run", "make-admin", "--", email], {
+    env: { ...process.env, DATABASE_URL: database.setting }, timeout: 15000,
+  });
+}
 
 function signupForm(email = "Student@Example.test") {
   const form = new FormData();
@@ -124,16 +144,12 @@ it("Google first sign-in creates one Account and retains an existing Admin role"
 
 it("login sends students and promoted Admins to their existing destinations", async () => {
   await signup({}, signupForm());
-  const loginForm = signupForm();
+  const loginForm = signupForm(" STUDENT@example.test ");
   await expect(login({}, loginForm)).rejects.toThrow("redirect:/dashboard");
-  const { stdout } = await promisify(execFile)("npm", ["run", "make-admin", "--", " STUDENT@example.test "], {
-    env: { ...process.env, DATABASE_URL: database.setting }, timeout: 15000,
-  });
+  const { stdout } = await makeAdmin(" STUDENT@example.test ");
   expect(stdout).toContain("Made student@example.test an admin");
   await expect(login({}, loginForm)).rejects.toThrow("redirect:/admin");
-  const again = await promisify(execFile)("npm", ["run", "make-admin", "--", "student@example.test"], {
-    env: { ...process.env, DATABASE_URL: database.setting }, timeout: 15000,
-  });
+  const again = await makeAdmin("student@example.test");
   expect(again.stdout).toContain("already an admin");
   loginForm.set("password", "badPassword123");
   expect(await login({}, loginForm)).toEqual({ error: "Invalid email or password." });
@@ -251,9 +267,86 @@ it("onboarding saves approved analytics with its student and refuses a partial w
 
 it("make-admin refuses a missing Account and leaves existing Accounts unchanged", async () => {
   await account("student@example.test");
-  const result = await promisify(execFile)("npm", ["run", "make-admin", "--", "missing@example.test"], {
-    env: { ...process.env, DATABASE_URL: database.setting }, timeout: 15000,
-  }).then(() => null, (error: unknown) => error);
+  const result = await makeAdmin("missing@example.test").then(() => null, (error: unknown) => error);
   expect(result).toMatchObject({ code: 1, stderr: expect.stringContaining("No account found for missing@example.test") });
   expect(await findAccountByEmail("student@example.test")).toMatchObject({ role: "student" });
+});
+
+describe.each([
+  { name: "onboarding", save: createStudentProfile, existingProfile: false },
+  { name: "Study settings", save: updateStudentProfile, existingProfile: true },
+])("$name input validation", ({ save, existingProfile }) => {
+  beforeEach(async () => {
+    const owner = await account("validation@example.test");
+    session(owner);
+    if (existingProfile) {
+      await expect(createStudentProfile(profileInput)).rejects.toThrow("redirect:/dashboard");
+    }
+  });
+
+  it.each([0, 100, 495])("rejects daily capacity %i without changing stored data", async (minutes) => {
+    const before = await getPostgresDatabase().execute(sql`select * from students`);
+    const input = {
+      ...profileInput,
+      dailyCapacityMinutes: { ...profile.dailyCapacityMinutes, TUESDAY: minutes },
+    };
+    await expect(save(input)).rejects.toThrow();
+    expect((await getPostgresDatabase().execute(sql`select * from students`)).rows).toEqual(before.rows);
+  });
+
+  it("rejects a missing preferred practice-test day without changing stored data", async () => {
+    const before = await getPostgresDatabase().execute(sql`select * from students`);
+    const input = { ...profileInput };
+    Reflect.set(input, "preferredPracticeTestDay", "");
+    await expect(save(input)).rejects.toThrow();
+    expect((await getPostgresDatabase().execute(sql`select * from students`)).rows).toEqual(before.rows);
+  });
+});
+
+it("onboarding stores each day's capacity and a Sunday practice-test day", async () => {
+  const owner = await account("sunday@example.test");
+  session(owner);
+  const dailyCapacityMinutes = { ...profile.dailyCapacityMinutes, MONDAY: 30, SATURDAY: 225 };
+  await expect(createStudentProfile({
+    ...profileInput, dailyCapacityMinutes, preferredPracticeTestDay: "SUNDAY",
+  })).rejects.toThrow("redirect:/dashboard");
+  expect(await findStudentByAccountId(owner.id)).toMatchObject({ dailyCapacityMinutes, preferredPracticeTestDay: "SUNDAY" });
+});
+
+it.each(["student", "admin"] as const)("Study settings store the %s's Wednesday capacity and practice-test day", async (role) => {
+  const owner = await account("wednesday@example.test", role);
+  session(owner);
+  await expect(createStudentProfile(profileInput)).rejects.toThrow("redirect:/dashboard");
+  const dailyCapacityMinutes = { ...profile.dailyCapacityMinutes, WEDNESDAY: 480 };
+  await expect(updateStudentProfile({
+    ...profile, dailyCapacityMinutes, preferredPracticeTestDay: "WEDNESDAY",
+  })).rejects.toThrow("redirect:/dashboard");
+  expect(await findStudentByAccountId(owner.id)).toMatchObject({ dailyCapacityMinutes, preferredPracticeTestDay: "WEDNESDAY" });
+});
+
+it("Study settings send an Account without a Student to onboarding", async () => {
+  const owner = await account("new@example.test");
+  session(owner);
+  await expect(updateStudentProfile(profile)).rejects.toThrow("redirect:/onboarding");
+  expect(await findStudentByAccountId(owner.id)).toBeNull();
+});
+
+it("Google sign-in returns through the role-aware login route", async () => {
+  await signInWithGoogle();
+  expect(request.signIn).toHaveBeenCalledWith("google", { redirectTo: "/login" });
+});
+
+it("login propagates an unexpected authentication failure", async () => {
+  request.signInError = new Error("Authentication unavailable");
+  await expect(login({}, signupForm())).rejects.toThrow("Authentication unavailable");
+  expect(request.session).toBeNull();
+});
+
+it.each(["student", "admin"] as const)("Account shows the %s's email and offers deletion only to students", async (role) => {
+  const owner = await account("owner@example.test", role);
+  session(owner);
+  await expect(createStudentProfile(profileInput)).rejects.toThrow("redirect:/dashboard");
+  const markup = renderToStaticMarkup(await AccountPage());
+  expect(markup).toContain("owner@example.test");
+  expect(markup.includes("Delete account")).toBe(role === "student");
 });
