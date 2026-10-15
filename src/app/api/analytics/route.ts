@@ -3,9 +3,8 @@ import { requireCurrentAdmin } from "@/lib/requireAdmin";
 import { NextRequest, NextResponse } from "next/server";
 import { studentSideClock } from "@/lib/studentClock";
 import { auth } from "@/auth";
-import { connectDB } from "@/lib/db";
-import { StudentModel } from "@/models/Student";
-import { AnalyticsSnapshotModel } from "@/models/AnalyticsSnapshot";
+import { findStudentByAccountId } from "@/lib/studentRepository";
+import { createApprovedAnalyticsSnapshot } from "@/lib/analyticsSnapshotRepository";
 import { snapshotWeekOptions, prepareApprovedSnapshot, SnapshotApprovalError } from "@/lib/analyticsSnapshots";
 
 // Always writes the logged-in student's own snapshot — no id in the URL.
@@ -29,18 +28,16 @@ export async function POST(request: NextRequest) {
     catch { return NextResponse.json({ error: "Admin access required for sample analytics." }, { status: 403 }); }
   }
 
-  await connectDB();
-  const student = await StudentModel.findOne({ userId: session.user.id });
+  const student = await findStudentByAccountId(session.user.id);
   if (!student) {
     return NextResponse.json({ error: "Complete onboarding first" }, { status: 404 });
   }
 
   const clock = await studentSideClock(session.user);
   try {
-    await AnalyticsSnapshotModel.create({
-      studentId: student._id,
-      ...prepareApprovedSnapshot(body, clock.now, clock.real, { allowAdminSample: isSample, ...snapshotWeekOptions(clock) }),
-    });
+    await createApprovedAnalyticsSnapshot(student.id,
+      prepareApprovedSnapshot(body, clock.now, clock.real, { allowAdminSample: isSample, ...snapshotWeekOptions(clock) }),
+    );
   } catch (error) {
     if (error instanceof SnapshotApprovalError) {
       return NextResponse.json({ error: error.message }, { status: 422 });

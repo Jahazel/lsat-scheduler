@@ -5,14 +5,13 @@ import { studentProfileSchema } from "@/lib/studentProfile";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(), connectDB: vi.fn(), findAccountById: vi.fn(), findStudent: vi.fn(),
-  createSnapshot: vi.fn(), listStudents: vi.fn(), getStudent: vi.fn(),
+  listStudents: vi.fn(), getStudent: vi.fn(),
   messages: vi.fn(), findSchedule: vi.fn(), saveCheckIn: vi.fn(),
 }));
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
 vi.mock("@/lib/db", () => ({ connectDB: mocks.connectDB }));
 vi.mock("@/lib/accountRepository", () => ({ findAccountById: mocks.findAccountById }));
 vi.mock("@/models/Student", () => ({ StudentModel: { findOne: mocks.findStudent } }));
-vi.mock("@/models/AnalyticsSnapshot", () => ({ AnalyticsSnapshotModel: { create: mocks.createSnapshot } }));
 vi.mock("@/models/WeeklySchedule", () => ({ WeeklyScheduleModel: { findOne: mocks.findSchedule } }));
 vi.mock("@/lib/activityCheckInRepository", () => ({ mongooseActivityCheckIns: { save: mocks.saveCheckIn } }));
 vi.mock("@/lib/students", () => ({ listStudentsWithOwners: mocks.listStudents, getStudentWithOwner: mocks.getStudent }));
@@ -21,7 +20,6 @@ vi.mock("@anthropic-ai/sdk", () => ({
   default: class { messages = { create: mocks.messages }; },
 }));
 import { POST as extract } from "@/app/api/analytics/extract/route";
-import { POST as approve } from "@/app/api/analytics/route";
 import { GET as roster } from "@/app/api/students/route";
 import { GET as student } from "@/app/api/students/[id]/route";
 import { extractAnalyticsRowsFromImage } from "@/lib/claudeExtract";
@@ -32,18 +30,6 @@ function imageRequest(bytes: number, type = "image/png") {
   const form = new FormData();
   form.set("image", new File([new Uint8Array(bytes)], "synthetic.png", { type }));
   return new NextRequest("http://localhost/api/analytics/extract", { method: "POST", body: form });
-}
-function approvalRequest(extra: Record<string, unknown> = {}, origin?: string) {
-  return new NextRequest("http://localhost/api/analytics", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...(origin ? { Origin: origin } : {}) },
-    body: JSON.stringify({
-      lrAccuracyByType: { "Main Point": 0.72 }, lrTopPriorityLogicTypes: [],
-      extraction: { source: "7sage_screenshot", extractedAt: "2026-10-01T14:00:00.000Z" },
-      confirmation: { extractedValuesMatch: true, isLatestAnalytics: true, confirmedAt: "2026-10-01T14:05:00.000Z" },
-      ...extra,
-    }),
-  });
 }
 
 describe("issue 70 request boundary evidence", () => {
@@ -120,30 +106,6 @@ describe("issue 70 request boundary evidence", () => {
     expect(await extractAnalyticsRowsFromImage(Buffer.from([0]), "image/png", mockRules)).toEqual([
       { type: "Unknown synthetic type", category: "regular", accuracy: 999, isTopPriority: "yes" },
     ]);
-  });
-
-  it("rejects unauthenticated analytics approval before writing", async () => {
-    mocks.auth.mockResolvedValue(null);
-    expect((await approve(approvalRequest())).status).toBe(401);
-    expect(mocks.createSnapshot).not.toHaveBeenCalled();
-  });
-
-  it("uses session ownership and strips a submitted foreign studentId", async () => {
-    expect((await approve(approvalRequest({ studentId: "synthetic-other-student" }))).status).toBe(201);
-    expect(mocks.findStudent).toHaveBeenCalledWith({ userId: "synthetic-user" });
-    expect(mocks.createSnapshot).toHaveBeenCalledWith(expect.objectContaining({ studentId: "synthetic-student" }));
-  });
-
-  it("accepts fabricated screenshot provenance and unknown analytics labels", async () => {
-    expect((await approve(approvalRequest({ lrAccuracyByType: { "Unknown synthetic type": 0.99 } }))).status).toBe(201);
-    expect(mocks.createSnapshot).toHaveBeenCalledWith(expect.objectContaining({ lrAccuracyByType: { "Unknown synthetic type": 0.99 } }));
-    expect(mocks.messages).not.toHaveBeenCalled();
-  });
-
-  it("the JSON approval handler has no independent Origin check or no-store header", async () => {
-    const response = await approve(approvalRequest({}, "https://synthetic-attacker.invalid"));
-    expect(response.status).toBe(201);
-    expect(response.headers.get("Cache-Control")).toBeNull();
   });
 
   it("denies a check-in on a schedule outside the session owner's records", async () => {

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireCurrentAdmin } from "@/lib/requireAdmin";
-import { mongooseAdminTestRepositories as repositories } from "@/lib/adminTestRepositories";
+import { postgresAdminTestRepositories as repositories } from "@/lib/adminTestRepositories";
 import {
   generateTestAnalytics,
   moveSimulatedDate,
