@@ -21,7 +21,9 @@ public local example. Never use it on a hosted database.
 
 Stop the container with `docker compose stop postgres`. If you already have
 Postgres 17 installed, start it at a loopback address and create a `drillmap`
-database instead. The tests need a local role that can create databases.
+database instead. The tests need a local superuser, a login with full database
+administration rights. They create and drop test databases and roles, and
+test refusal of role membership. Docker and GitHub tests use `postgres`.
 
 ## Apply migrations
 
@@ -90,8 +92,59 @@ Admin rebuild behavior in ADR 0003. A second trigger refuses changes to an
 Activity check-in's Weekly schedule or Schedule activity, while allowing
 status and actual-minutes corrections.
 
-Issue #97 adds the limited app role and its permission tests. Later tickets
-add the typed queries and move the app to these tables.
+Later tickets add the typed queries and move the app to these tables.
+
+## Create the limited app role
+
+After applying the migrations, run [the app role SQL](../sql/app-role.sql)
+as the database owner. It selects the connected database, so it works with
+any database name. For a local database, use `psql`, Postgres's command-line
+client, with the owner's connection setting:
+
+```sh
+psql "$DATABASE_URL" --set ON_ERROR_STOP=1 --file=sql/app-role.sql
+```
+
+On the Neon copy, the owner can paste the same file into Neon's SQL editor
+while connected as the database owner. Create the app role through this SQL.
+Neon grants its administration role, `neon_superuser`, to roles created
+through its console, API, or CLI. See [Neon's role documentation](https://neon.com/docs/manage/roles).
+
+The file creates `drillmap_app` with login permission and no password.
+Set its password separately through `psql`'s interactive command:
+
+```text
+\password drillmap_app
+```
+
+The owner enters the password at the hidden prompt. For the Neon copy, use
+a random password of at least 32 characters. Never put it in this SQL file,
+another repository file, an issue, or a chat. The SQL keeps an existing
+password when it runs again. Neon setup and checks belong to the later
+Stage 2 copy-database ticket.
+
+The role can connect, use the `public` schema, and select, insert, and delete
+rows in all six domain tables. It can update every domain table except
+`weekly_schedules`. The Weekly schedule trigger stays in place as a second
+protection for the database owner. The app role cannot create roles,
+databases, schemas, tables, temporary tables, or other schema objects.
+It cannot alter, drop, truncate, or disable triggers on the domain tables.
+This file grants no access to the migration bookkeeping or other tables.
+UUID ids need no sequences, so this file grants no sequence permissions.
+Future migrations must grant any new app-table permissions explicitly.
+
+`PUBLIC` is Postgres's group of every role. Its permissions also apply to
+the app role. The SQL removes `PUBLIC`'s database creation and temporary-table
+permissions, schema creation permission, and permissions on the six domain
+tables. Other logins that need those rights must receive explicit grants.
+The database owner keeps its ownership rights. See [Postgres's grant rules](https://www.postgresql.org/docs/17/sql-grant.html).
+
+The SQL rejects an existing role with administration rights, memberships in
+other roles, or ownership of objects. A role with membership can switch to
+another role even when automatic permission inheritance is off. Use a
+separate SQL-created app role instead of an existing owner or console role.
+The optional `drillmap.app_role` session setting changes the role name.
+Tests use it to create a unique role and remove only their own role afterward.
 
 ## Use the shared connection
 
@@ -134,3 +187,11 @@ the existing tests without needing Postgres.
 
 GitHub runs the same Postgres command in its own job on every push and pull
 request. That job starts a throwaway Postgres 17 container.
+
+The app-role tests execute the repository SQL in a separate throwaway
+database and open a real connection as that role. They generate its password
+in memory. They test allowed writes, refused structure changes, orphan
+inserts, Account deletion, and a second SQL run with a fresh login.
+They disable the Weekly schedule trigger in their own database to prove
+that missing update permission independently refuses updates. Owner-role
+tests still prove that the trigger refuses updates too.
