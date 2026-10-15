@@ -80,11 +80,12 @@ it("uploads with the fake extractor, reviews corrected values, and appends appro
   const { rows } = await extracted.json();
   const reviewed = summarizeAnalyticsRows(rows);
   reviewed.lrAccuracyByType.Strengthen = 0.82;
-  expect((await approval(confirmed(reviewed))).status).toBe(201);
-  expect((await approval(confirmed(reviewed))).status).toBe(201);
+  const approved = confirmed(reviewed);
+  expect((await approval(approved)).status).toBe(201);
+  expect((await approval(approved)).status).toBe(201);
   const snapshots = await listApprovedAnalyticsSnapshots(saved.id);
   expect(snapshots).toHaveLength(2);
-  expect(snapshots[0]).toMatchObject({ studentId: saved.id, lrAccuracyByType: { Strengthen: 0.82 }, extraction: { source: "7sage_screenshot" } });
+  expect(snapshots[0]).toMatchObject({ studentId: saved.id, lrAccuracyByType: { Strengthen: 0.82 }, extraction: approved.extraction, confirmation: approved.confirmation });
 });
 it("returns the plain extraction failure without saving a snapshot", async () => {
   const { saved } = await student("failure@example.test");
@@ -169,12 +170,16 @@ it("resets only the admin's test snapshots and keeps the other student's approve
   const other = await student("other@example.test");
   await approval(confirmed());
   const admin = await student("admin@example.test", "admin");
+  await database.owner.execute(sql`update accounts set simulated_date = '2027-03-08' where id = ${admin.account.id}`);
   await approval(confirmed());
   await resetTestData();
+  expect(await findAccountById(admin.account.id)).toMatchObject({ role: "admin", simulatedDate: null });
   expect(await listApprovedAnalyticsSnapshots(admin.saved.id)).toEqual([]);
   expect(await listApprovedAnalyticsSnapshots(other.saved.id)).toHaveLength(1);
   expect(await createStudent(admin.account.id, profile)).toBeNull();
+  await database.owner.execute(sql`update accounts set simulated_date = '2027-03-15' where id = ${admin.account.id}`);
   await resetEverything();
+  expect(await findAccountById(admin.account.id)).toMatchObject({ role: "admin", simulatedDate: null });
   expect(await createStudent(admin.account.id, profile)).not.toBeNull();
   expect(await listApprovedAnalyticsSnapshots(other.saved.id)).toHaveLength(1);
 });
