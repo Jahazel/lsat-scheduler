@@ -10,15 +10,16 @@ import { z } from "zod";
 import { tsImport } from "tsx/esm/api";
 
 const { createPostgresTestDatabase } = await tsImport("../../../../tests/postgres/testDatabase.ts", import.meta.url);
-const { createPostgresConnection, requirePostgresTestTarget } = await tsImport("../../../../src/lib/postgres.ts", import.meta.url);
+const { closePostgresDatabase, createPostgresConnection, postgresSettingForDatabase, requirePostgresTestTarget } = await tsImport("../../../../src/lib/postgres.ts", import.meta.url);
 const { sql } = await import("drizzle-orm");
 requirePostgresTestTarget();
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const [command, directory] = process.argv.slice(2);
+const [command, directory, ...extra] = process.argv.slice(2);
 const base = resolve(root, ".verification/evidence");
-if (!directory || process.argv.length !== 4 || !["launch", "doctor", "inspect", "cleanup"].includes(command)) {
-  throw new Error("Usage: local.mjs launch|doctor|inspect|cleanup .verification/evidence/<run-name>");
+const validSeed = command === "seed" && extra.length === 2 && ["student", "admin"].includes(extra[0]);
+if (!directory || !(["launch", "doctor", "inspect", "cleanup"].includes(command) && extra.length === 0 || validSeed)) {
+  throw new Error("Usage: local.mjs launch|doctor|inspect|cleanup .verification/evidence/<run-name>\n       local.mjs seed .verification/evidence/<run-name> student|admin <email>");
 }
 const run = resolve(root, directory);
 if (!relative(base, run) || relative(base, run).startsWith("..")) {
@@ -164,6 +165,28 @@ if (command === "inspect") {
     return result;
   });
   console.log(JSON.stringify(records, null, 2));
+}
+if (command === "seed") {
+  await doctor();
+  const [role, email] = extra;
+  process.env.DATABASE_URL = postgresSettingForDatabase(loadState().postgresDatabase);
+  const { createAccount } = await tsImport("../../../../src/lib/accountRepository.ts", import.meta.url);
+  const { createStudent } = await tsImport("../../../../src/lib/studentRepository.ts", import.meta.url);
+  const { studentProfileSchema } = await tsImport("../../../../src/lib/studentProfile.ts", import.meta.url);
+  const { default: bcrypt } = await import("bcryptjs");
+  const password = randomBytes(12).toString("base64url") + "Aa1";
+  // The feature map's baseline onboarding answers.
+  const profile = studentProfileSchema.parse({
+    platform: "7Sage", currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01", preferredPracticeTestDay: "SATURDAY",
+    accommodationMultiplier: 1,
+    dailyCapacityMinutes: Object.fromEntries(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"].map((day) => [day, 90])),
+  });
+  try {
+    const account = await createAccount({ name: email.split("@")[0], email, passwordHash: await bcrypt.hash(password, 10), role });
+    if (!account) throw new Error(`An Account already exists for ${email}. Choose another email.`);
+    if (!(await createStudent(account.id, profile))) throw new Error(`No student saved for ${email}.`);
+    console.log(JSON.stringify({ email, password, role, accountId: account.id, onboarded: true }, null, 2));
+  } finally { await closePostgresDatabase(); }
 }
 if (command === "cleanup") {
   const state = loadState();
