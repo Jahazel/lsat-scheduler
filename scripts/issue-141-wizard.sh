@@ -251,8 +251,8 @@ fingerprint() {
   local key="$1" prompt="$2"
   while true; do
     ask "$key" "$prompt"
-    [[ "${!key}" =~ ^[0-9a-f]{32}$ ]] && break
-    warn "Paste the 32-character fingerprint the query returned."
+    [[ "${!key}" =~ ^([0-9a-f]{32}|blocker)$ ]] && break
+    warn "Paste the 32-character fingerprint, or enter 'blocker' if the query failed."
   done
   write_env "$key" "${!key}"
 }
@@ -496,9 +496,9 @@ fingerprint FINGERPRINT_BEFORE_ADMIN_VIEW "Fingerprint before the Admin view:"
 walk WALK_ADMIN_READ "As an Admin, open the student's page under /admin. You can see their schedule?"
 say "Run the fingerprint query again. It must match: viewing writes nothing."
 fingerprint FINGERPRINT_AFTER_ADMIN_VIEW "Fingerprint after the Admin view:"
-if [[ "$FINGERPRINT_AFTER_ADMIN_VIEW" != "$FINGERPRINT_BEFORE_ADMIN_VIEW" ]]; then
+if [[ "$FINGERPRINT_BEFORE_ADMIN_VIEW" == blocker || "$FINGERPRINT_AFTER_ADMIN_VIEW" != "$FINGERPRINT_BEFORE_ADMIN_VIEW" ]]; then
   INCOMPLETE=1
-  warn "The fingerprint changed. An Admin view must write nothing. Recorded as a blocker."
+  warn "No matching fingerprints. An Admin view must provably write nothing. Recorded as a blocker."
   write_env ADMIN_VIEW_NO_WRITE "blocker"
 else
   write_env ADMIN_VIEW_NO_WRITE "passed"
