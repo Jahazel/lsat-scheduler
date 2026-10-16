@@ -57,7 +57,7 @@ async function studentWithRecords(email: string) {
     `);
     await db.execute(sql`
       insert into activity_check_ins (schedule_id, activity_id, status)
-      values (${inserted.rows[0].id as string}::uuid, 'MONDAY:0', 'completed')
+      values (${inserted.rows[0].id}::uuid, 'MONDAY:0', 'completed')
     `);
   }
   state.session = { user: { ...account, email, name: email }, expires: "2099-01-01" };
@@ -90,6 +90,13 @@ it("removes the Account, student, Analytics snapshots, Weekly schedules, and Act
   await deleteAccount(confirmedDeletion());
   expect(await ownedRecords(owner.account.id, owner.student.id))
     .toEqual({ accounts: 0, students: 0, analytics_snapshots: 0, weekly_schedules: 0, activity_check_ins: 0 });
+});
+
+it("refuses deletion without the typed confirmation and keeps every record", async () => {
+  const owner = await studentWithRecords("owner@example.test");
+  await expect(deleteAccount(new FormData())).rejects.toThrow("Type DELETE");
+  expect(await ownedRecords(owner.account.id, owner.student.id))
+    .toEqual({ accounts: 1, students: 1, analytics_snapshots: 1, weekly_schedules: 2, activity_check_ins: 2 });
 });
 
 it("leaves another student's records untouched", async () => {
