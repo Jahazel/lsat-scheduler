@@ -99,7 +99,7 @@ function connectionConfig() {
 // Dedicated connections are for setup/cleanup scripts that must select another
 // database on the same server. App requests use the cached database below.
 export function createPostgresConnection({ database }: { database?: string } = {}) {
-  const { config } = connectionConfig();
+  const { config, local } = connectionConfig();
   const pool = new Pool({ ...config, database: database ?? config.database });
   pool.on("error", (error: Error) => {
     const code = "code" in error && typeof error.code === "string"
@@ -109,7 +109,7 @@ export function createPostgresConnection({ database }: { database?: string } = {
       connections: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount,
     }));
   });
-  return { db: drizzle(pool), close: () => pool.end() };
+  return { db: drizzle(pool), requiresEncryption: !local, close: () => pool.end() };
 }
 
 type PostgresConnection = ReturnType<typeof createPostgresConnection>;
