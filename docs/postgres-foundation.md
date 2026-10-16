@@ -127,7 +127,7 @@ The owner enters the password at the hidden prompt. For the Neon copy, use
 a random password of at least 32 characters. Never put it in this SQL file,
 another repository file, an issue, or a chat. The SQL keeps an existing
 password when it runs again. Neon setup and checks belong to the later
-Stage 2 copy-database ticket.
+Stage 2 copy-database setup ticket.
 
 The role can connect, use the `public` schema, and select, insert, and delete
 rows in all six domain tables. It can update every domain table except
@@ -201,3 +201,37 @@ inserts, Account deletion, and a second SQL run with a fresh login.
 They disable the Weekly schedule trigger in their own database to prove
 that missing update permission independently refuses updates. Owner-role
 tests still prove that the trigger refuses updates too.
+
+## Check the Neon copy
+
+After migrations and app-role setup, run the check with the app login:
+
+```sh
+npm run db:check-copy
+```
+
+Supply `DATABASE_URL` through the shell session. The command does not read an
+environment file. The owner must enter the Neon credential outside agent chat
+and evidence files. Never paste it into an issue or commit it.
+
+The script runs the host guard before it connects. Loopback and exact copy-site
+hosts in `scripts/copyDatabaseHosts.json` are the only allowed targets. The list
+is empty until the owner approves the copy host. It has no bypass setting.
+
+The check uses the shared app driver. A remote connection must use encryption
+with certificate and host-name checks. It also checks the server's encryption
+status. Local runs explicitly report that remote encryption remains untested.
+
+The command checks app reads and writes on all six tables, refused role,
+database, and table creation, immutable Weekly schedules, owner links,
+uniqueness, invalid values, fixed Activity check-in ownership, and Account
+deletion. Each run uses randomly named throwaway records. Every record change
+runs in one transaction that rolls back on success or failure. Existing records
+stay unchanged. The database-creation refusal runs outside that transaction
+because Postgres requires it. The script checks for administration rights first.
+
+Success prints fixed `PASS` messages and exits with code 0. A failed check exits
+with code 1. It prints no raw database errors, password, or connection string.
+The local Postgres tests run this same command and check successful repeats,
+broken permissions, a broken deletion rule, and secret-bearing database errors.
+Record the date and safe output when the owner runs it on the Neon copy.
