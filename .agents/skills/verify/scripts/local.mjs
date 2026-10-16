@@ -6,7 +6,6 @@ import { createServer } from "node:net";
 import { resolve, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
-import mongoose from "mongoose";
 import { z } from "zod";
 import { tsImport } from "tsx/esm/api";
 
@@ -27,13 +26,12 @@ if (!relative(base, run) || relative(base, run).startsWith("..")) {
   throw new Error("The run directory must be below .verification/evidence/.");
 }
 const url = "http://127.0.0.1:3100";
-const uri = "mongodb://127.0.0.1:27117/lsat-scheduler?replicaSet=drillmap_verify";
 const statePath = resolve(run, "instance.json");
 const revision = () => execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
 const save = (name, value) => writeFileSync(resolve(run, name), JSON.stringify(value, null, 2) + "\n");
 const stateSchema = z.object({
-  root: z.literal(root), run: z.literal(run), url: z.literal(url), uri: z.literal(uri),
-  supervisorPid: z.number().int().positive(), databasePid: z.number().int().positive(),
+  root: z.literal(root), run: z.literal(run), url: z.literal(url),
+  supervisorPid: z.number().int().positive(),
   appPid: z.number().int().positive(), revision: z.string(), status: z.enum(["starting", "ready", "stopped"]),
   postgresDatabase: z.string().regex(/^drillmap_test_[a-f0-9]+$/),
 });
@@ -51,10 +49,6 @@ async function freePort(port) {
     server.listen(port, "127.0.0.1", done);
   });
   await new Promise((done) => server.close(done));
-}
-async function database(work) {
-  const connection = await mongoose.createConnection(uri, { serverSelectionTimeoutMS: 3000 }).asPromise();
-  try { return await work(connection); } finally { await connection.close(); }
 }
 async function postgres(work) {
   const connection = createPostgresConnection({ database: loadState().postgresDatabase });
@@ -75,16 +69,13 @@ async function doctor() {
   const state = loadState();
   assertSupervisor(state);
   if (state.status !== "ready" || state.revision !== revision()) throw new Error("Instance is not ready or HEAD changed. Restart it.");
-  if (!listener(27117).every((pid) => pid === state.databasePid) ||
-      !listener(3100).every((pid) => belongsTo(pid, state.appPid))) {
-    throw new Error("A listening port belongs to another process.");
+  if (!listener(3100).every((pid) => belongsTo(pid, state.appPid))) {
+    throw new Error("The app port belongs to another process.");
   }
   const response = await fetch(`${url}/login`, { signal: AbortSignal.timeout(15000), redirect: "manual" });
   if (response.status !== 200 || !(await response.text()).includes("Log in")) throw new Error("Login page is not healthy.");
-  const primary = await database(async (connection) => (await connection.db.admin().command({ hello: 1 })).isWritablePrimary);
-  if (!primary) throw new Error("The disposable database is not the writable replica-set primary.");
   await postgres((db) => db.execute(sql`select 1 from weekly_schedules limit 0`));
-  return { healthy: true, url, uri, postgresDatabase: state.postgresDatabase, revision: state.revision, next: JSON.parse(readFileSync(resolve(root, "node_modules/next/package.json"))).version, databasePrimary: primary };
+  return { healthy: true, url, postgresDatabase: state.postgresDatabase, revision: state.revision, next: JSON.parse(readFileSync(resolve(root, "node_modules/next/package.json"))).version };
 }
 
 async function launch() {
@@ -98,10 +89,7 @@ async function launch() {
     // Leave stale-lock recovery to Next itself. Never delete another run's lock.
   }
   await freePort(3100);
-  await freePort(27117);
   mkdirSync(run, { recursive: true });
-  const data = resolve(run, "scratch/database");
-  mkdirSync(data, { recursive: true });
   const children = [];
   let stopping = false;
   let state;
@@ -133,7 +121,7 @@ async function launch() {
     if (postgresDatabase) await postgresDatabase.cleanup();
     rmSync(resolve(run, "scratch"), { recursive: true, force: true });
     if (state) save("instance.json", { ...state, status: "stopped" });
-    save("cleanup.json", { stoppedPids: stopped, scratchRemoved: !existsSync(data), finishedAt: new Date().toISOString() });
+    save("cleanup.json", { stoppedPids: stopped, scratchRemoved: !existsSync(resolve(run, "scratch")), finishedAt: new Date().toISOString() });
     console.log(`Stopped this run. Evidence remains at ${run}`);
     process.exit(code);
   }
@@ -141,25 +129,12 @@ async function launch() {
   process.on("SIGTERM", () => void stop(0));
   try {
     postgresDatabase = await createPostgresTestDatabase();
-    const mongo = start("mongod", ["--dbpath", data, "--bind_ip", "127.0.0.1", "--port", "27117", "--replSet", "drillmap_verify"], "database.log", process.env);
-    // Replica-set initialization is infrastructure setup, not an app fixture or user action.
-    let initialized = false;
-    for (let attempt = 0; attempt < 30 && !initialized; attempt++) {
-      let connection;
-      try {
-        connection = await mongoose.createConnection("mongodb://127.0.0.1:27117/lsat-scheduler?directConnection=true", { serverSelectionTimeoutMS: 500 }).asPromise();
-        await connection.db.admin().command({ replSetInitiate: { _id: "drillmap_verify", members: [{ _id: 0, host: "127.0.0.1:27117" }] } });
-        initialized = true;
-      } catch { await delay(250); } finally { if (connection) await connection.close(); }
-    }
-    if (!initialized) throw new Error("MongoDB did not start. Read database.log.");
-    await database(async (connection) => connection.db.admin().command({ ping: 1 }));
-    const appEnv = { ...process.env, NODE_ENV: "development", MONGODB_URI: uri, DATABASE_URL: postgresDatabase.setting,
+    const appEnv = { ...process.env, NODE_ENV: "development", DATABASE_URL: postgresDatabase.setting,
       AUTH_SECRET: randomBytes(32).toString("base64"), AUTH_URL: url, NEXTAUTH_URL: url, AUTH_TRUST_HOST: "true",
       AUTH_GOOGLE_ID: "", AUTH_GOOGLE_SECRET: "", GOOGLE_CLIENT_ID: "", GOOGLE_CLIENT_SECRET: "",
       ANTHROPIC_API_KEY: "", SCREENSHOT_EXTRACTOR: process.env.VERIFY_SCREENSHOT_EXTRACTOR ?? "fake", VERCEL_ENV: "development", NEXT_TELEMETRY_DISABLED: "1" };
     const app = start(process.execPath, [resolve(root, "node_modules/next/dist/bin/next"), "dev", "--hostname", "127.0.0.1", "--port", "3100"], "app.log", appEnv);
-    state = { root, run, url, uri, postgresDatabase: postgresDatabase.name, supervisorPid: process.pid, databasePid: mongo.pid, appPid: app.pid, revision: revision(), status: "starting" };
+    state = { root, run, url, postgresDatabase: postgresDatabase.name, supervisorPid: process.pid, appPid: app.pid, revision: revision(), status: "starting" };
     save("instance.json", state);
     for (let attempt = 0; attempt < 60; attempt++) {
       try {

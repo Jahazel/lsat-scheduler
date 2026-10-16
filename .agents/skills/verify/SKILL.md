@@ -13,7 +13,7 @@ A full run is needed once per behavior change. Before a new launch, compare the 
 
 ## Launch
 
-Run from the repository root. Prerequisites are installed npm dependencies, Node.js, a loopback Postgres 17 server, MongoDB Community Server `mongod`, and the macOS `lsof` and `ps` commands. Use the README's local setup if a prerequisite is missing. All app paths use Postgres. The helper still starts MongoDB until issue 104 removes it. There is no existing end-to-end browser suite. Vitest tests cover components and scheduling rules, and do not replace this browser proof.
+Run from the repository root. Prerequisites are installed npm dependencies, Node.js, a loopback Postgres 17 server, and the macOS `lsof` and `ps` commands. Use the README's local setup if a prerequisite is missing. All app paths use Postgres. There is no existing end-to-end browser suite. Vitest tests cover components and scheduling rules, and do not replace this browser proof.
 
 Set `DATABASE_URL` to a loopback Postgres owner connection in the shell. The helper refuses remote hosts, creates a random database, applies migrations, and drops only that database on cleanup. It overrides the app connection before Next loads `.env.local`. No connection setting is written into evidence. Use the same shell setting for launch, Doctor, inspect, and cleanup.
 
@@ -24,11 +24,11 @@ VERIFY_RUN_DIR=".verification/evidence/$(date -u +%Y%m%dT%H%M%SZ)"
 ./.agents/skills/verify/scripts/local.mjs launch "$VERIFY_RUN_DIR"
 ```
 
-Retain the printed absolute run directory across terminal calls. Readiness is the `Ready: http://127.0.0.1:3100` line. It requires `/login` to return HTTP 200 with `Log in`. The helper runs the repo's `next dev` command with `--hostname 127.0.0.1 --port 3100`. It starts an empty, disposable database on port 27117 with a private data directory. It initializes a single-member MongoDB replica set, a database mode that supports the transactions used by Admin resets. This is database infrastructure setup. It creates no app records.
+Retain the printed absolute run directory across terminal calls. Readiness is the `Ready: http://127.0.0.1:3100` line. It requires `/login` to return HTTP 200 with `Log in`. The helper runs the repo's `next dev` command with `--hostname 127.0.0.1 --port 3100`.
 
 The helper sets a fresh in-memory Auth.js secret and local callback URLs. It overrides Google credentials and `ANTHROPIC_API_KEY` with empty values and sets `SCREENSHOT_EXTRACTOR=fake` before Next loads `.env.local`. It does not edit local environment files. Use email/password sign-in. Google sign-in is outside this baseline. Screenshot upload uses the fake extractor: any uploaded image returns fixed rows and makes no Anthropic call. Admin Sample analytics snapshots use the app's real review and approval path.
 
-The fixed ports prevent two helper runs at once. A normal local MongoDB on 27017 can remain running. Two Next dev servers cannot share `.next/dev` in one checkout. The helper refuses an occupied port or a live owner of the Next dev lock. Next handles stale locks itself. Use a separate checkout to run alongside another dev server. A second browser tab shares cookies, so it is not a separate signed-in profile. Do not drive the user's signed-in tab or shared local database.
+The fixed app port prevents two helper runs at once. Two Next dev servers cannot share `.next/dev` in one checkout. The helper refuses an occupied port or a live owner of the Next dev lock. Next handles stale locks itself. Use a separate checkout to run alongside another dev server. A second browser tab shares cookies, so it is not a separate signed-in profile. Do not drive the user's signed-in tab or shared local database.
 
 Teardown is `Ctrl+C` in the launch terminal, or the cleanup command below. Run cleanup after a failed attempt before starting a new run.
 
@@ -40,7 +40,7 @@ Run this read-only check before driving, and whenever navigation, authentication
 ./.agents/skills/verify/scripts/local.mjs doctor "$VERIFY_RUN_DIR"
 ```
 
-Require exit code 0 and `healthy: true`. It checks the recorded supervisor, port ownership, the Git revision, the installed Next version, the login response, and the disposable MongoDB writable primary and the migrated Postgres tables. It performs no database writes. Do not drive another process that happens to answer on port 3100. A changed Git commit requires a restart. Uncommitted source changes use normal Next hot reload. Save the command output as `doctor.json` in the run directory.
+Require exit code 0 and `healthy: true`. It checks the recorded supervisor, port ownership, the Git revision, the installed Next version, the login response, and the migrated Postgres tables. It performs no database writes. Do not drive another process that happens to answer on port 3100. A changed Git commit requires a restart. Uncommitted source changes use normal Next hot reload. Save the command output as `doctor.json` in the run directory.
 
 ## Drive
 
@@ -102,12 +102,12 @@ test -f "$VERIFY_RUN_DIR/cleanup.json"
 test ! -d "$VERIFY_RUN_DIR/scratch"
 ```
 
-Require `Cleanup complete` or `Already stopped`. Confirm both ports are free with `lsof -nP -iTCP:3100 -iTCP:27117 -sTCP:LISTEN`. No output is the expected result. Confirm the screenshot, recording, snapshots, and stored-record evidence still exist. The supervisor stops only the child process groups it started and removes only this run's scratch MongoDB database and random Postgres database. It never kills by process name. It retains evidence and leaves `.env.local`, the user's database, and the Next cache alone. Never run `reset:dev-data` against the user's database as verification cleanup.
+Require `Cleanup complete` or `Already stopped`. Confirm the app port is free with `lsof -nP -iTCP:3100 -sTCP:LISTEN`. No output is the expected result. Confirm the screenshot, recording, snapshots, and stored-record evidence still exist. The supervisor stops only the child process groups it started and removes only this run's scratch folder and random Postgres database. It never kills by process name. It retains evidence and leaves `.env.local`, the user's database, and the Next cache alone. Never run `reset:dev-data` against the user's database as verification cleanup.
 
 If launch fails before it creates `instance.json`, it started no app process or has already run its failure cleanup. Inspect the error and logs. If the supervisor no longer matches the recorded command, cleanup refuses to signal that PID. Identify the recorded children from their log paths and process ownership before any manual recovery.
 
 ## Helpers
 
-The executable [scripts/local.mjs](scripts/local.mjs) supports five commands, all shown above: `launch`, `doctor`, `seed`, `inspect`, and `cleanup`. Each requires a run directory below `.verification/evidence/`. Evidence directories cannot be reused. Its process and database operations target only the local verification instance. The helper runs Postgres for the app and a disposable MongoDB replica set that no app path reads. Remove that MongoDB setup with the rest of the MongoDB code in issue 104. The executable [scripts/smoke.mjs](scripts/smoke.mjs) runs the browser baseline with the invocation shown in Drive. Both helpers run from the repository root.
+The executable [scripts/local.mjs](scripts/local.mjs) supports five commands, all shown above: `launch`, `doctor`, `seed`, `inspect`, and `cleanup`. Each requires a run directory below `.verification/evidence/`. Evidence directories cannot be reused. Its process and database operations target only the local verification instance. The executable [scripts/smoke.mjs](scripts/smoke.mjs) runs the browser baseline with the invocation shown in Drive. Both helpers run from the repository root.
 
 Use `/maintain-verification-skill` when app changes make these recipes or the feature map stale.

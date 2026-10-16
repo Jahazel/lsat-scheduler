@@ -85,7 +85,7 @@ Deleting a source Analytics snapshot leaves that saved history intact.
 
 Analytics snapshots retain their approval, extraction, and confirmation facts.
 Every snapshot in Postgres is approved, so there is no status or legacy column.
-Legacy records remain a concern of the old MongoDB database only.
+Legacy records stayed in the old MongoDB database, which the app no longer reads.
 
 A trigger, database code that runs when a command reaches a table, refuses
 every Weekly schedule update. It also refuses no-op and zero-row updates and

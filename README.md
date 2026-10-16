@@ -11,8 +11,7 @@ snapshot.
 
 ## Current state
 
-Stage 2 adds a Postgres foundation alongside the current MongoDB app.
-See [Postgres setup and tests](docs/postgres-foundation.md) for the local
+The app stores its records in Postgres. See [Postgres setup and tests](docs/postgres-foundation.md) for the local
 startup command, migrations, and database tests.
 
 The core student workflow is implemented:
@@ -65,7 +64,7 @@ references for the scheduling model:
 ## Stack
 
 - Next.js, TypeScript, React, and Tailwind CSS
-- MongoDB Atlas with Mongoose
+- Postgres with Drizzle ORM
 - Auth.js / NextAuth with credential and Google sign-in
 - Anthropic API for screenshot analytics extraction
 - Vercel for deployment
@@ -83,12 +82,9 @@ evidence exception for unavailable old credentials. See
 remains in force. This does not approve launch.
 
 The steps below describe setup for a new copy of the repository. Local work uses
-MongoDB Community Server on your Mac with test data
-only. A loopback address accepts connections from this computer only. Never keep
-real-site credentials in local files. A credential is a secret that gives access,
-such as a password or an API key.
-
-This setup is temporary. Stage 2 replaces MongoDB with Postgres.
+Postgres on your Mac with test data only. A loopback address accepts connections
+from this computer only. Never keep real-site credentials in local files. A
+credential is a secret that gives access, such as a password or an API key.
 
 1. Install the app dependencies from the repository folder:
 
@@ -96,42 +92,20 @@ This setup is temporary. Stage 2 replaces MongoDB with Postgres.
    npm install
    ```
 
-2. Install MongoDB Community Server 8.0 with Homebrew, the Mac package installer.
-   This version requires macOS 14 or later. Docker is not needed. Follow the
-   [MongoDB macOS installation guide](https://www.mongodb.com/docs/v8.0/tutorial/install-mongodb-on-os-x/):
+2. Start local Postgres and apply the migrations. Follow
+   [Postgres setup and tests](docs/postgres-foundation.md). It covers the Docker
+   container and an existing Postgres 17 install.
 
-   ```bash
-   brew tap mongodb/brew
-   brew trust mongodb/brew
-   brew update
-   brew install mongodb-community@8.0
-   mkdir -p "$HOME/.local/share/drillmap/mongodb"
-   ```
-
-3. Start the local database with this command each time you work:
-
-   ```bash
-   mongod --dbpath "$HOME/.local/share/drillmap/mongodb" --bind_ip 127.0.0.1 --port 27017
-   ```
-
-   `mongod` is the MongoDB server. `--dbpath` selects the folder that keeps its
-   data between runs. `--bind_ip 127.0.0.1` makes it listen only on the loopback
-   address. Keep this terminal open. Press `Ctrl+C` to stop the database. It runs
-   as one plain server. DrillMap does not use MongoDB transactions, which group
-   changes into one operation. It needs no replica set, a group of database
-   servers that keep copies of the same data.
-
-4. In a second terminal, open the repository folder. Copy `.env.example` to
-   `.env.local` for this new local setup:
+3. Copy `.env.example` to `.env.local` for this new local setup:
 
    ```bash
    cp .env.example .env.local
    ```
 
-   Keep `MONGODB_URI=mongodb://127.0.0.1:27017/lsat-scheduler`. This connection
-   string tells the app where to find the local database. Generate a new local
-   Auth.js secret with the command in `.env.example`. Auth.js uses this secret
-   to protect sign-in sessions. Put it in `AUTH_SECRET`.
+   Keep `DATABASE_URL` at a loopback address. This connection string tells the
+   app where to find the local database. Generate a new local Auth.js secret
+   with the command in `.env.example`. Auth.js uses this secret to protect
+   sign-in sessions. Put it in `AUTH_SECRET`.
 
    For Google sign-in, create a separate Google client for local work. Set its
    authorized origin to `http://localhost:3000` and its only authorized redirect
@@ -148,7 +122,7 @@ This setup is temporary. Stage 2 replaces MongoDB with Postgres.
    analytics snapshots for their student side. An Admin reviews and approves
    each Sample analytics snapshot like an uploaded snapshot.
 
-5. Start the app from the repository folder:
+4. Start the app from the repository folder:
 
    ```bash
    npm run dev
@@ -157,11 +131,11 @@ This setup is temporary. Stage 2 replaces MongoDB with Postgres.
    Open `http://localhost:3000`. The local database starts empty. Sign up locally
    to create your Account. Do not copy real students' records into it.
 
-6. In another terminal, make that local Account an Admin. `make-admin` reads
-   `MONGODB_URI` from the terminal environment, so pass the local value explicitly:
+5. In another terminal, make that local Account an Admin. `make-admin` reads
+   `DATABASE_URL` from the terminal environment, so pass the local value explicitly:
 
    ```bash
-   MONGODB_URI=mongodb://127.0.0.1:27017/lsat-scheduler npm run make-admin -- your-local-email@example.test
+   DATABASE_URL=postgresql://postgres:local-only@127.0.0.1:5432/drillmap npm run make-admin -- your-local-email@example.test
    ```
 
    Replace `your-local-email@example.test` with the email you used to sign up
@@ -177,10 +151,6 @@ npm run build   # create a production build
 npm run start   # run a production build
 ```
 
-For an existing local database, run the adaptive-schedule migrations before
-testing persisted weekly schedules. See
-[the rollout runbook](docs/runbooks/adaptive-weekly-schedules-rollout.md).
-
 Create a local test Account for email-and-password sign-in:
 
 ```bash
@@ -195,28 +165,35 @@ role. Sign in at `/login`. A new student reaches onboarding. An Admin reaches
 `/admin`. Each run resets the Account's password and role. Existing Accounts
 keep their names, Study settings, and Weekly schedules. The command creates
 only an Account, with no Study settings or Weekly schedules. Use a separate
-`--email` for each parallel test run. It supports MongoDB only and refuses
-`NODE_ENV=production` before connecting.
+`--email` for each parallel test run. It refuses `NODE_ENV=production` before
+connecting.
 
-The reset, `make-admin`, `create-test-user`, and migration commands only allow database hosts
-`localhost`, `127.0.0.1`, and `::1`. Every host in a seed list must be local.
-They refuse remote hosts, all `mongodb+srv` strings, and missing or unreadable
-connection strings before connecting. No flag or environment setting bypasses
-this check. The read-only rollout check does not use this restriction.
+Delete every student from the local database:
 
-The shared guard also reads `postgres://` and `postgresql://` strings for the
-Postgres move. It checks every host in the address and in the `host` and
-`hostaddr` query settings, even when the address has no host. Postgres can also
-use exact copy-site hosts committed in [scripts/copyDatabaseHosts.json](scripts/copyDatabaseHosts.json).
+```bash
+npm run reset:dev-data -- --yes
+```
+
+The reset removes all students and their Analytics snapshots, Weekly schedules,
+and Activity check-ins in one transaction. Accounts and leads stay, so each
+person signs in and goes through onboarding again. Without `--yes`, it stops
+and names what it would delete. It refuses `NODE_ENV=production` before connecting.
+
+The reset, `make-admin`, `create-test-user`, and `db:migrate` commands read
+`postgres://` and `postgresql://` strings only. They allow database hosts
+`localhost`, `127.0.0.1`, and `::1`. They check every host in the address and
+in the `host` and `hostaddr` query settings, even when the address has no host.
+They refuse remote hosts, other protocols, and missing or unreadable connection
+strings before connecting. No flag or environment setting bypasses this check.
+
+The guard also allows exact copy-site hosts committed in
+[scripts/copyDatabaseHosts.json](scripts/copyDatabaseHosts.json).
 That list is empty until the owner verifies the copy's hosts. Add only full,
 lowercase host names for the copy, with no ports or credentials. Never add the
-real site's host, a wildcard, or a provider-wide suffix. MongoDB hosts still
-need to be loopback addresses.
+real site's host, a wildcard, or a provider-wide suffix.
 
 The guard refuses Postgres service settings because they can load connection
 settings from a separate file. See the [Postgres connection documentation](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNECT-SERVICE).
-The current commands still read `MONGODB_URI` and use MongoDB. Later Stage 2
-tickets move those commands to Postgres.
 
 The [v2 schedule specification](docs/specs/adaptive-weekly-schedules.md) records
 the current rules.

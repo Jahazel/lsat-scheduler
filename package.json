@@ -12,20 +12,15 @@
     "test:postgres": "vitest run --config vitest.postgres.config.ts",
     "db:migrate": "node --import tsx scripts/migrate-postgres.mts",
     "prepare": "git config core.hooksPath .githooks || true",
-    "migrate:analytics-snapshots": "node scripts/migrate-analytics-snapshots.mjs",
-    "migrate:weekly-schedules": "node scripts/migrate-weekly-schedules.mjs",
-    "migrate:activity-check-ins": "node scripts/migrate-activity-check-ins.mjs",
-    "verify:adaptive-schedule-rollout": "node scripts/verify-adaptive-schedule-rollout.mjs",
-    "reset:dev-data": "node --env-file=.env.local scripts/reset-dev-data.mjs",
+    "reset:dev-data": "node --env-file=.env.local --import tsx scripts/reset-dev-data.mts",
     "make-admin": "node --import tsx scripts/make-admin.mts",
-    "create-test-user": "node --env-file=.env.local scripts/create-test-user.mjs"
+    "create-test-user": "node --env-file=.env.local --import tsx scripts/create-test-user.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",
     "@tanstack/react-form": "^1.33.5",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.4",
-    "mongoose": "^9.9.3",
     "next": "16.4.2",
     "next-auth": "^5.0.0-beta.32",
     "pg": "^8.23.1",
