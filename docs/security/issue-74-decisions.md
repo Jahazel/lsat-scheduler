@@ -2,6 +2,8 @@
 
 Decisions for [issue 74](https://github.com/Jahazel/lsat-scheduler/issues/74), under [issue 69](https://github.com/Jahazel/lsat-scheduler/issues/69). Decided by the owner on October 1 and 2, 2026, America/Chicago, against checkout `c81aa18`.
 
+**Update, October 2026:** Rules 2 to 5 (Google identity) and rules 31 and 32 (Google-only Admins) moved forward from Stage 4 and are built by [issue 140](https://github.com/Jahazel/lsat-scheduler/issues/140). See [issue-140-evidence.md](issue-140-evidence.md). Stage 4 keeps every other rule below and reuses the code from issue 140. The new database starts empty, so rules 39 and 41 (binding a Google ID to an existing Account by email) are not built. Issue 140 refuses every email match instead.
+
 **Status: decided.** These are rules for later work. None of them is built yet. The checks in [release-gate.md](release-gate.md#b-sign-in-and-accounts) still fail until the code passes them.
 
 The evidence comes from [issue 70](issue-70-evidence.md) findings F01 to F04 and the Google client settings in [issue 71](issue-71-evidence.md#google-oauth-and-google-cloud). The protection categories come from [issue 72](issue-72-decisions.md).

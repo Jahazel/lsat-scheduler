@@ -98,7 +98,7 @@ it("reset deletes every student and its records and keeps Accounts and leads", a
   });
 });
 
-it("create-test-user saves a sign-in Account and resets only its password and role on a rerun", async () => {
+it("create-test-user saves a sign-in Account and resets only its password on a rerun", async () => {
   const created = await runScript("create-test-user", ["--email", " Parallel@Test.Local "]);
   expect(created.code).toBe(0);
   expect(created.output).toContain("Email: parallel@test.local\nPassword: DrillMapTest123\nRole: student\n");
@@ -108,23 +108,40 @@ it("create-test-user saves a sign-in Account and resets only its password and ro
     where email = 'parallel@test.local'
   `);
   const [before] = await rows(sql`select id from accounts where email = 'parallel@test.local'`);
-  const rerun = await runScript("create-test-user", ["--admin", "--email", "parallel@test.local"]);
+  const rerun = await runScript("create-test-user", ["--email", "parallel@test.local"]);
   expect(rerun.code).toBe(0);
-  expect(rerun.output).toContain("Role: admin\n");
 
   const accounts = await rows(sql`select id, name, role, simulated_date, password_hash from accounts`);
   expect(accounts).toHaveLength(1);
-  expect(accounts[0]).toMatchObject({ id: before.id, name: "Renamed", role: "admin", simulated_date: "2026-10-15" });
+  expect(accounts[0]).toMatchObject({ id: before.id, name: "Renamed", role: "student", simulated_date: "2026-10-15" });
   expect(await bcrypt.compare("DrillMapTest123", String(accounts[0].password_hash))).toBe(true);
 });
 
-it("make-admin promotes an existing Account", async () => {
+it("create-test-user refuses an Admin because Admins have no password", async () => {
+  const refused = await runScript("create-test-user", ["--admin"]);
+  expect(refused.code).toBe(1);
+  expect(await rows(sql`select id from accounts`)).toEqual([]);
+});
+
+it("make-admin refuses an Account that never signed in with Google", async () => {
+  await runScript("create-test-user", ["--email", "password-only@test.local"]);
+
+  const refused = await runScript("make-admin", ["password-only@test.local"]);
+  expect(refused.code).toBe(1);
+  expect(refused.output).toContain("has not signed in with Google");
+  expect(await rows(sql`select role, password_hash is not null as has_password from accounts`))
+    .toEqual([{ role: "student", has_password: true }]);
+});
+
+it("make-admin promotes a Google Account and clears any password", async () => {
   await runScript("create-test-user", ["--email", "promote@test.local"]);
+  await owner.db.execute(sql`update accounts set google_id = 'throwaway-google' where email = 'promote@test.local'`);
 
   const promoted = await runScript("make-admin", ["Promote@Test.Local"]);
   expect(promoted.code).toBe(0);
   expect(promoted.output).toContain("Made promote@test.local an admin on ");
-  expect(await rows(sql`select role from accounts where email = 'promote@test.local'`)).toEqual([{ role: "admin" }]);
+  expect(await rows(sql`select role, password_hash, google_id from accounts where email = 'promote@test.local'`))
+    .toEqual([{ role: "admin", password_hash: null, google_id: "throwaway-google" }]);
 
   const missing = await runScript("make-admin", ["missing@test.local"]);
   expect(missing.code).toBe(1);

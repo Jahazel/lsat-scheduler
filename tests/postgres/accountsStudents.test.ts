@@ -138,28 +138,135 @@ it("signup refuses missing consent and invalid input before saving an Account", 
   expect((await getPostgresDatabase().execute(sql`select id from accounts`)).rows).toEqual([]);
 });
 
-it("Google first sign-in creates one Account and retains an existing Admin role", async () => {
-  const google = { provider: "google", providerAccountId: "throwaway-google", type: "oauth" as const };
-  const user = { email: "GOOGLE@example.test", name: "Google Student" };
-  expect(await createGoogleAccountOnSignIn({ user, account: google })).toBe(true);
-  expect(await createGoogleAccountOnSignIn({ user, account: google })).toBe(true);
-  const saved = await findAccountByEmail(user.email);
-  expect(saved).toMatchObject({ email: "google@example.test", name: "Google Student", role: "student", passwordHash: null });
-  await getPostgresDatabase().execute(sql`update accounts set role = 'admin' where id = ${saved?.id}`);
-  expect(await createGoogleAccountOnSignIn({ user, account: google })).toBe(true);
-  expect(await accountToken({ token: {}, user, account: google })).toMatchObject({ id: saved?.id, role: "admin" });
-  expect(await createGoogleAccountOnSignIn({ user: {}, account: google })).toBe(false);
+function googleSignIn(id: string, email: string, profile: Record<string, unknown> = { email_verified: true }) {
+  return createGoogleAccountOnSignIn({
+    user: { email, name: "Google Person" },
+    account: { provider: "google", providerAccountId: id, type: "oidc" },
+    profile: { sub: id, email, ...profile },
+  });
+}
+function googleToken(id: string, email: string) {
+  return accountToken({
+    token: {}, user: { email },
+    account: { provider: "google", providerAccountId: id, type: "oidc" },
+  });
+}
+async function accountRows() {
+  return (await database.owner.execute(sql`select email, role, google_id, password_hash is not null as has_password
+    from accounts order by email`)).rows;
+}
+
+it("Google first sign-in creates one student Account with a verified email and keeps it on repeat", async () => {
+  expect(await googleSignIn("google-1", "GOOGLE@example.test")).toBe(true);
+  expect(await googleSignIn("google-1", "GOOGLE@example.test")).toBe(true);
+  expect(await accountRows()).toEqual([{ email: "google@example.test", role: "student", google_id: "google-1", has_password: false }]);
+  const saved = await findAccountByEmail("google@example.test");
+  expect(saved).toMatchObject({ name: "Google Person" });
+  expect(await googleToken("google-1", "google@example.test")).toMatchObject({ id: saved?.id, role: "student" });
 });
 
-it("login sends students and promoted Admins to their existing destinations", async () => {
+it.each([
+  ["an unverified email", { email_verified: false }],
+  ["a missing verification claim", {}],
+  ["a string verification claim", { email_verified: "true" }],
+])("Google sign-in refuses %s and creates no Account", async (_name, profile) => {
+  expect(await googleSignIn("google-1", "google@example.test", profile)).toBe(false);
+  expect(await accountRows()).toEqual([]);
+});
+
+it("Google sign-in refuses a missing email or stable ID", async () => {
+  const account = { provider: "google", providerAccountId: "google-1", type: "oidc" as const };
+  expect(await createGoogleAccountOnSignIn({ user: {}, account, profile: { email_verified: true } })).toBe(false);
+  expect(await createGoogleAccountOnSignIn({
+    user: { email: "google@example.test" }, account: { ...account, providerAccountId: "" }, profile: { email_verified: true },
+  })).toBe(false);
+  expect(await accountRows()).toEqual([]);
+});
+
+it("Google sign-in cannot take over a password Account or another Google Account by email", async () => {
+  await signup({}, signupForm("password@example.test"));
+  expect(await googleSignIn("google-attacker", "Password@example.test")).toBe(false);
+  expect(await googleSignIn("google-1", "owner@example.test")).toBe(true);
+  expect(await googleSignIn("google-2", "OWNER@example.test")).toBe(false);
+  expect(await accountRows()).toEqual([
+    { email: "owner@example.test", role: "student", google_id: "google-1", has_password: false },
+    { email: "password@example.test", role: "student", google_id: null, has_password: true },
+  ]);
+  expect(await authorizeCredentials({ email: "password@example.test", password: "throwawayPassword123" }))
+    .toMatchObject({ email: "password@example.test" });
+});
+
+it("a changed Google email opens the same Account and leaves its DrillMap email alone", async () => {
+  expect(await googleSignIn("google-1", "old@example.test")).toBe(true);
+  const saved = await findAccountByEmail("old@example.test");
+  expect(await googleSignIn("google-1", "new@example.test")).toBe(true);
+  expect(await googleToken("google-1", "new@example.test")).toMatchObject({ id: saved?.id, role: "student" });
+  expect(await accountRows()).toEqual([{ email: "old@example.test", role: "student", google_id: "google-1", has_password: false }]);
+});
+
+it("a changed Google email cannot open a different Account that already has the new email", async () => {
+  expect(await googleSignIn("google-1", "first@example.test")).toBe(true);
+  expect(await googleSignIn("google-2", "second@example.test")).toBe(true);
+  expect(await googleSignIn("google-1", "second@example.test")).toBe(true);
+  const first = await findAccountByEmail("first@example.test");
+  expect(await googleToken("google-1", "second@example.test")).toMatchObject({ id: first?.id });
+});
+
+it("concurrent first Google sign-ins create one Account and never join identities", async () => {
+  expect(await Promise.all([googleSignIn("google-1", "same@example.test"), googleSignIn("google-1", "same@example.test")]))
+    .toEqual([true, true]);
+  const raced = await Promise.all([googleSignIn("google-a", "race@example.test"), googleSignIn("google-b", "race@example.test")]);
+  expect(raced.filter(Boolean)).toHaveLength(1);
+  const rows = await accountRows();
+  expect(rows).toHaveLength(2);
+  expect(rows.filter((row) => row.email === "race@example.test")).toHaveLength(1);
+});
+
+it("the Google callback and signup never grant the Admin role", async () => {
+  const account = { provider: "google", providerAccountId: "google-1", type: "oidc" as const };
+  expect(await createGoogleAccountOnSignIn({
+    user: { email: "claim@example.test", role: "admin" }, account, profile: { email_verified: true, role: "admin" },
+  })).toBe(true);
+  const form = signupForm("signup-admin@example.test");
+  form.set("role", "admin");
+  await signup({}, form);
+  expect((await accountRows()).map((row) => row.role)).toEqual(["student", "student"]);
+});
+
+it("password sign-in refuses every Admin, with a stored hash or none", async () => {
+  await signup({}, signupForm("admin@example.test"));
+  await database.owner.execute(sql`update accounts set role = 'admin' where email = 'admin@example.test'`);
+  expect((await accountRows())[0]).toMatchObject({ role: "admin", has_password: true });
+  expect(await authorizeCredentials({ email: "admin@example.test", password: "throwawayPassword123" })).toBeNull();
+  request.session = null;
+  const form = signupForm("admin@example.test");
+  expect(await login({}, form)).toEqual({ error: "Invalid email or password." });
+  expect(request.session).toBeNull();
+  await database.owner.execute(sql`update accounts set password_hash = null where email = 'admin@example.test'`);
+  expect(await authorizeCredentials({ email: "admin@example.test", password: "throwawayPassword123" })).toBeNull();
+});
+
+it("owner Admin grant needs a Google identity, clears the password, and a fresh Google sign-in opens Admin access", async () => {
+  await signup({}, signupForm("admin@example.test"));
+  const refused = await makeAdmin("admin@example.test").then(() => null, (error: unknown) => error);
+  expect(refused).toMatchObject({ code: 1, stderr: expect.stringContaining("has not signed in with Google") });
+  expect((await accountRows())[0]).toMatchObject({ role: "student", has_password: true });
+
+  await database.owner.execute(sql`update accounts set google_id = 'google-admin' where email = 'admin@example.test'`);
+  const before = await findAccountByEmail("admin@example.test");
+  expect(await googleToken("google-admin", "admin@example.test")).toMatchObject({ id: before?.id, role: "student" });
+  expect((await makeAdmin(" ADMIN@example.test ")).stdout).toContain("Made admin@example.test an admin");
+
+  expect(await googleSignIn("google-admin", "renamed@gmail.test")).toBe(true);
+  expect(await googleToken("google-admin", "renamed@gmail.test")).toMatchObject({ id: before?.id, role: "admin" });
+  expect(await accountRows()).toEqual([{ email: "admin@example.test", role: "admin", google_id: "google-admin", has_password: false }]);
+  expect((await makeAdmin("admin@example.test")).stdout).toContain("already an admin");
+});
+
+it("login sends a student to the dashboard and refuses the password of a promoted Admin", async () => {
   await signup({}, signupForm());
   const loginForm = signupForm(" STUDENT@example.test ");
   await expect(login({}, loginForm)).rejects.toThrow("redirect:/dashboard");
-  const { stdout } = await makeAdmin(" STUDENT@example.test ");
-  expect(stdout).toContain("Made student@example.test an admin");
-  await expect(login({}, loginForm)).rejects.toThrow("redirect:/admin");
-  const again = await makeAdmin("student@example.test");
-  expect(again.stdout).toContain("already an admin");
   loginForm.set("password", "badPassword123");
   expect(await login({}, loginForm)).toEqual({ error: "Invalid email or password." });
 });

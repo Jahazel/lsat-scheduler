@@ -6,6 +6,7 @@ export const accounts = pgTable("accounts", {
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
   passwordHash: text("password_hash"),
+  googleId: text("google_id").unique(),
   role: text("role", { enum: ["student", "admin"] }).notNull().default("student"),
   simulatedDate: date("simulated_date", { mode: "string" }),
 });

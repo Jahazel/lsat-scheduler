@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 const mocks = vi.hoisted(() => ({
   config: null as NextAuthConfig | null,
   findAccount: vi.fn(),
+  findGoogleAccount: vi.fn(),
   createAccount: vi.fn(),
 }));
 vi.mock("next-auth", () => ({
@@ -14,7 +15,7 @@ vi.mock("next-auth", () => ({
   },
 }));
 vi.mock("@/lib/accountRepository", () => ({
-  findAccountByEmail: mocks.findAccount, createAccount: mocks.createAccount,
+  findAccountByEmail: mocks.findAccount, findAccountByGoogleId: mocks.findGoogleAccount, createAccount: mocks.createAccount,
 }));
 import "@/auth";
 
@@ -35,18 +36,20 @@ describe("issue 70 authentication evidence", () => {
     expect(mocks.createAccount).not.toHaveBeenCalled();
   });
 
-  it("links a Google identity to an existing admin by email without checking email_verified", async () => {
-    mocks.findAccount.mockResolvedValue({ id: "synthetic-admin", role: "admin" });
+  it("fixed in issue 140: refuses an unverified Google email and never looks an Account up by email", async () => {
+    mocks.findGoogleAccount.mockResolvedValue(null);
     const account = { provider: "google", providerAccountId: "synthetic-google-sub", type: "oidc" as const };
     const user = { id: "synthetic-google-sub", email: "ADMIN@example.invalid" };
     const signIn = config().callbacks!.signIn!;
-    expect(await signIn({ user, account, profile: { sub: user.id, email_verified: false } })).toBe(true);
+    expect(await signIn({ user, account, profile: { sub: user.id, email_verified: false } })).toBe(false);
+    expect(mocks.createAccount).not.toHaveBeenCalled();
+    mocks.findGoogleAccount.mockResolvedValue({ id: "synthetic-admin", role: "admin" });
     const token = await config().callbacks!.jwt!({
-      token: {}, user, account, trigger: "signIn", profile: { email_verified: false },
+      token: {}, user, account, trigger: "signIn", profile: { email_verified: true },
     });
     expect(token).toMatchObject({ id: "synthetic-admin", role: "admin" });
-    expect(mocks.createAccount).toHaveBeenCalledWith({ email: "admin@example.invalid", name: "admin@example.invalid", role: "student" });
-    expect(mocks.findAccount).toHaveBeenCalledWith("ADMIN@example.invalid");
+    expect(mocks.findGoogleAccount).toHaveBeenCalledWith("synthetic-google-sub");
+    expect(mocks.findAccount).not.toHaveBeenCalled();
   });
 
   it("retains a deleted or demoted user's token claims on subsequent session access", async () => {
