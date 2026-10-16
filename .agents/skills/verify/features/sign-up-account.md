@@ -35,7 +35,7 @@ Preconditions:
 ## Gotchas
 
 - A signed-in student visiting `/signup` or `/login` redirects to `/dashboard`, then onboarding if needed. An Admin lands on `/admin`.
-- Admin Accounts have no deletion form. Verify student deletion before promoting that fixture, or use a second student Account.
+- Admin Accounts have no deletion form. Verify student deletion with a student Account.
 - Google buttons are visible but this baseline supplies no Google client. Record that path as untested. Do not use the user's connected Google account.
 - UI validation alone proves no write only when the read-only database check also shows no new user.
 - The login form clears its inputs after a refused submission. Refill both email and password before retrying. Filling only the password leaves the required email blank.

@@ -7,12 +7,12 @@ Read this index before driving the app. Each linked file defines user entry poin
 - Launch with the parent skill's helper. Require Doctor to pass on ports 3100 and 27117.
 - Start with an empty database and a dedicated browser tab at `http://127.0.0.1:3100`.
 - Use `Verify Student`, `verify-student@example.test`, and a disposable password with at least eight characters, a letter, and a number. Use a different address for each additional Account.
-- Create Accounts through the UI. Complete onboarding with 7Sage, current score 150, goal score 165, 90 minutes for every day, Saturday as the preferred practice-test day, Standard time, and June 2027. Choose a later offered date if June 2027 is no longer future. Do not inject approved analytics or schedules into the database.
-- For an Admin fixture, use the existing `make-admin` command from [Admin](admin.md). Sign out and back in after promotion.
+- Create fixture Accounts with the parent skill's `seed` command. It onboards them with 7Sage, current score 150, goal score 165, 90 minutes for every day, Saturday as the preferred practice-test day, Standard time, and June 2027. When the change touches sign-up or onboarding, enter these answers through the UI instead. Choose a later offered date if June 2027 is no longer future. Do not inject approved analytics or schedules into the database.
+- For an Admin fixture, seed with the `admin` role.
 
 ## Driving conventions
 
-The recipes name logical browser operations. Bind them to the current harness as described in the parent skill. Use accessible roles and names. Inspect a snapshot before interaction. Use the parent skill's tested keyboard recipe for native selects, or Playwright `selectOption` in an isolated context. Wait for visible results, not a fixed delay. At narrow widths the Study settings navigation label is `Settings`. Recheck selectors from the live snapshot.
+The recipes name logical browser operations. Bind them to the current harness as described in the parent skill. Use accessible roles and names. Inspect a text-only snapshot before interaction on a new screen. Use the parent skill's tested keyboard recipe for native selects, or Playwright `selectOption` in an isolated context. Wait for visible results, not a fixed delay. At narrow widths the Study settings navigation label is `Settings`. Recheck selectors from the live snapshot.
 
 ## Proof and skip reporting
 
