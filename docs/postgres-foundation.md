@@ -81,6 +81,9 @@ Keep the old MongoDB data until a separate cleanup task authorizes deletion.
 
 ## Apply migrations
 
+For the later production move, use the [controlled move procedure](runbooks/controlled-neon-move.md).
+It preserves the production script refusal and prepares exact-version owner SQL.
+
 A migration is an ordered SQL file that changes the database structure.
 Use the local example setting for this command:
 
