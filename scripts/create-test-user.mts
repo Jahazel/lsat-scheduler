@@ -1,13 +1,15 @@
 import bcrypt from "bcryptjs";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
-import mongoose from "mongoose";
 import { z } from "zod";
-import { requireLocalDatabase } from "./localDatabaseGuard.mjs";
+import { closePostgresDatabase, getPostgresDatabase, requirePostgresScriptTarget } from "../src/lib/postgres";
+import { accounts } from "../src/lib/postgresSchema";
 
 const TEST_PASSWORD = "DrillMapTest123";
 
-export function parseTestUserArgs(args) {
+type TestAccount = { email: string; role: "student" | "admin" };
+
+export function parseTestUserArgs(args: string[]): TestAccount {
   const { values } = parseArgs({
     args,
     options: { admin: { type: "boolean" }, email: { type: "string" } },
@@ -18,19 +20,12 @@ export function parseTestUserArgs(args) {
   return { email, role };
 }
 
-export async function createTestUser(collection, { email, role }) {
+export async function createTestUser({ email, role }: TestAccount) {
   const passwordHash = await bcrypt.hash(TEST_PASSWORD, 10);
-  const result = await collection.updateOne(
-    { email },
-    {
-      $set: { passwordHash, role },
-      $setOnInsert: { name: role === "admin" ? "Test Admin" : "Test Student" },
-    },
-    { upsert: true },
-  );
-  if (!result.acknowledged || (result.matchedCount !== 1 && result.upsertedCount !== 1)) {
-    throw new Error(`No Account saved for ${email}.`);
-  }
+  await getPostgresDatabase()
+    .insert(accounts)
+    .values({ email, passwordHash, role, name: role === "admin" ? "Test Admin" : "Test Student" })
+    .onConflictDoUpdate({ target: accounts.email, set: { passwordHash, role } });
   return { email, password: TEST_PASSWORD, role };
 }
 
@@ -44,25 +39,23 @@ async function main() {
   } catch {
     throw new Error("Usage: npm run create-test-user -- [--admin] [--email <address>]");
   }
-  const uri = process.env.MONGODB_URI;
-  const host = requireLocalDatabase(uri);
-  if (!/^mongodb:\/\//i.test(uri)) throw new Error("This command only supports MongoDB.");
-
-  await mongoose.connect(uri, { dbName: "lsat-scheduler" });
+  const host = requirePostgresScriptTarget();
   try {
-    const result = await createTestUser(mongoose.connection.collection("users"), account);
+    const result = await createTestUser(account);
     console.log(`Test Account ready on ${host}.`);
     console.log(`Email: ${result.email}`);
     console.log(`Password: ${result.password}`);
     console.log(`Role: ${result.role}`);
-  } finally {
-    await mongoose.disconnect();
+  } catch {
+    throw new Error("Test Account setup failed. Check the connection setting and database permissions.");
   }
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  main().catch((error) => {
-    console.error(error.message);
-    process.exitCode = 1;
-  });
+  main()
+    .catch((error) => {
+      console.error(error.message);
+      process.exitCode = 1;
+    })
+    .finally(closePostgresDatabase);
 }

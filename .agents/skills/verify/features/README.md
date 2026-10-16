@@ -4,7 +4,7 @@ Read this index before driving the app. Each linked file defines user entry poin
 
 ## Baseline preconditions
 
-- Launch with the parent skill's helper. Require Doctor to pass on ports 3100 and 27117.
+- Launch with the parent skill's helper. Require Doctor to pass on port 3100.
 - Start with an empty database and a dedicated browser tab at `http://127.0.0.1:3100`.
 - Use `Verify Student`, `verify-student@example.test`, and a disposable password with at least eight characters, a letter, and a number. Use a different address for each additional Account.
 - Create Accounts through the UI. Complete onboarding with 7Sage, current score 150, goal score 165, 90 minutes for every day, Saturday as the preferred practice-test day, Standard time, and June 2027. Choose a later offered date if June 2027 is no longer future. Do not inject approved analytics or schedules into the database.

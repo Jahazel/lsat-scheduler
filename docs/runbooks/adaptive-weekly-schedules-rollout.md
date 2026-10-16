@@ -1,5 +1,9 @@
 # Adaptive weekly schedules production rollout
 
+> **MongoDB history only.** This runbook records the rollout on the old MongoDB
+> database. Issue #104 deleted the MongoDB code, including every command below.
+> The steps cannot run, and nothing here applies to Postgres.
+
 The migration commands below now refuse every non-local database host. This
 historical production procedure cannot run as written. Use migrations only
 with a local test database after the Stage 1 write freeze (#80) ends. The
