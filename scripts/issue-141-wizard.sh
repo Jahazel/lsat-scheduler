@@ -247,6 +247,16 @@ check() {
   fi
 }
 
+fingerprint() {
+  local key="$1" prompt="$2"
+  while true; do
+    ask "$key" "$prompt"
+    [[ "${!key}" =~ ^[0-9a-f]{32}$ ]] && break
+    warn "Paste the 32-character fingerprint the query returned."
+  done
+  write_env "$key" "${!key}"
+}
+
 sha() { printf '%s' "$1" | shasum -a 256 | cut -d' ' -f1; }
 
 local_value() {
@@ -416,23 +426,8 @@ else
   INCOMPLETE=1
   write_env AUTH_SECRET_DISTINCT "blocker"
 fi
-say "Now compare the real site's AUTH_SECRET with the computer's, without showing it."
-step "Real project > Settings > Environment Variables > AUTH_SECRET. If Vercel shows it, copy it."
-note "A Sensitive value cannot be shown. Then press Enter at the prompt to skip."
-ask_secret REAL_SECRET_INPUT "Real AUTH_SECRET (hidden, compared in memory, never saved), or Enter to skip:"
-if [[ -z "$REAL_SECRET_INPUT" ]]; then
-  write_env REAL_SECRET_DISTINCT "not compared"
-  write_env REAL_SECRET_DISTINCT_NOTE "Vercel did not show the real value. The computer's secret was replaced on 2026-10-08 (issue 84)."
-elif [[ "$(sha "$REAL_SECRET_INPUT")" != "$(sha "$LOCAL_AUTH_SECRET")" && "$(sha "$REAL_SECRET_INPUT")" != "$(sha "$AUTH_SECRET_VALUE")" ]]; then
-  write_env REAL_SECRET_DISTINCT "passed"
-else
-  INCOMPLETE=1
-  write_env REAL_SECRET_DISTINCT "blocker"
-  write_env REAL_SECRET_DISTINCT_NOTE "The real AUTH_SECRET matches another environment. Rotate it."
-fi
-REAL_SECRET_INPUT=""
 LOCAL_AUTH_SECRET=""
-clear_clipboard
+COPY_SECRET_SHA="$(sha "$AUTH_SECRET_VALUE")"
 to_clipboard "$AUTH_SECRET_VALUE" "a new random AUTH_SECRET"
 AUTH_SECRET_VALUE=""
 step "Add AUTH_SECRET, Production only, Sensitive. Paste. Save."
@@ -497,10 +492,10 @@ say "Run the counts query again before the Admin steps."
 required_answer COUNTS_STUDENT "Counts after the student steps:"
 say "Now run this fingerprint query. It summarizes every row, so any change alters it:"
 say "    $FINGERPRINT_SQL"
-required_answer FINGERPRINT_BEFORE_ADMIN_VIEW "Fingerprint before the Admin view:"
+fingerprint FINGERPRINT_BEFORE_ADMIN_VIEW "Fingerprint before the Admin view:"
 walk WALK_ADMIN_READ "As an Admin, open the student's page under /admin. You can see their schedule?"
 say "Run the fingerprint query again. It must match: viewing writes nothing."
-required_answer FINGERPRINT_AFTER_ADMIN_VIEW "Fingerprint after the Admin view:"
+fingerprint FINGERPRINT_AFTER_ADMIN_VIEW "Fingerprint after the Admin view:"
 if [[ "$FINGERPRINT_AFTER_ADMIN_VIEW" != "$FINGERPRINT_BEFORE_ADMIN_VIEW" ]]; then
   INCOMPLETE=1
   warn "The fingerprint changed. An Admin view must write nothing. Recorded as a blocker."
@@ -519,6 +514,24 @@ say "The real site must keep its old build and its previews must hold no credent
 open_url "https://vercel.com/dashboard"
 step "Open the REAL project > Settings > Environment Variables."
 check REAL_PREVIEW_EMPTY "Do Preview and Development in the real project have no credentials?"
+say "Now compare the real site's AUTH_SECRET with the computer's, without showing it."
+step "In the REAL project's Environment Variables, open AUTH_SECRET. If Vercel shows it, copy it."
+note "Change nothing in the real project. Only look."
+note "A Sensitive value cannot be shown. Then press Enter at the prompt to skip."
+ask_secret REAL_SECRET_INPUT "Real AUTH_SECRET (hidden, compared in memory, never saved), or Enter to skip:"
+if [[ -z "$REAL_SECRET_INPUT" ]]; then
+  INCOMPLETE=1
+  write_env REAL_SECRET_DISTINCT "not compared"
+  write_env REAL_SECRET_DISTINCT_NOTE "Vercel did not show the real value. The computer's secret was replaced on 2026-10-08 (issue 84)."
+elif [[ "$(sha "$REAL_SECRET_INPUT")" != "$(sha "$(local_value AUTH_SECRET)")" && "$(sha "$REAL_SECRET_INPUT")" != "${COPY_SECRET_SHA:-}" ]]; then
+  write_env REAL_SECRET_DISTINCT "passed"
+else
+  INCOMPLETE=1
+  write_env REAL_SECRET_DISTINCT "blocker"
+  write_env REAL_SECRET_DISTINCT_NOTE "The real AUTH_SECRET matches another environment. Rotate it."
+fi
+REAL_SECRET_INPUT=""
+clear_clipboard
 step "Real project > Settings > Environments > Production > Branch Tracking."
 check REAL_AUTO_ASSIGN_OFF "Is automatic domain assignment still off on the real project?"
 step "Real project > Deployments: find the build serving the real domain."
