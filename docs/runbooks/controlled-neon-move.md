@@ -33,7 +33,8 @@ production administration credential. Do not use `make-admin` on production.
 
 As of October 16, 2026, the owner confirms that only the copy project exists.
 `ep-restless-tooth-b42czg5d.c-6.us-east-2.aws.neon.tech` is its approved host.
-The exact production-host refusal remains pending until #143 creates that project.
+The owner moved exact production-host refusal proof to #143 on October 16, 2026.
+It remains required after that project exists and before release.
 Do not mark that check passed with a made-up hostname or the copy hostname.
 
 Once the owner identifies the production direct and pooled hosts, test both with
@@ -93,9 +94,11 @@ as the app password. Otherwise use it only to enter an interactive `psql` sessio
 as `drillmap_app`, then change that role's own password with the hidden prompt:
 
 ```sh
-PGSSLMODE=verify-full psql -X -h DIRECT_HOST -U drillmap_app -d DATABASE_NAME -W
+PGSSLMODE=verify-full PGSSLROOTCERT=system psql -X -h DIRECT_HOST -U drillmap_app -d DATABASE_NAME -W
 ```
 
+Use Postgres 17 psql with its system trust store. Do not weaken certificate checks
+if local trust setup fails. See [libpq certificate settings](https://www.postgresql.org/docs/17/libpq-connect.html#LIBPQ-CONNECT-SSLROOTCERT).
 Enter the generated bootstrap password at the hidden login prompt. In `psql`, run
 `\password drillmap_app` and enter a distinct random password of at least 32
 characters from the password manager. Type `\q` to exit, then reconnect with `-W`
@@ -218,7 +221,8 @@ merely because this document exists.
   does not move the real domain on the copy rehearsal and in real-project settings.
 - [ ] Assemble the exact commit and deployment ID, green required checks, hosted
   copy results, fresh inventory, role/identity proof, production backup proof,
-  provider access evidence, disclosure changes, and this recovery plan. Include
+  provider access evidence, exact direct and pooled production-host refusal results
+  from #143 for all five guarded commands, disclosure changes, and this recovery plan. Include
   unresolved launch gaps. The latest actual production snapshot must be at most
   24 hours old. Daily snapshots, retention at most 30 days, the monitor, missed-run
   detection, alert delivery, and the copy restore rehearsal must already work.

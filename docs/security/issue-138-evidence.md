@@ -48,8 +48,8 @@ The Postgres command used only a loopback owner setting supplied to the process.
 Each generated database was removed by test cleanup. No hosted records were read
 or changed. Local raw logs are in `.verification/issue-138/` and are not committed.
 The first SQL-editor test failed because the generator did not exist, then passed
-with the generator. Type checking passed. Commit hooks run lint and the full
-ordinary test suite before the code commit.
+with the generator. Type checking passed. Commit hooks passed lint, type checking, secret scanning,
+and all 486 ordinary tests before commit `97deb72`.
 
 ## Required later observations
 
@@ -58,10 +58,13 @@ The supplied `ep-restless-tooth-b42czg5d.c-6.us-east-2.aws.neon.tech` hostname i
 already the approved copy host. It remains in the copy allowlist. No production
 project was created by this work.
 
-The exact production direct and pooled host refusal is **blocked until #143**.
-Run the procedure's credential-free refusal commands after those hosts exist.
-Keep #138 open until this requirement is proved. Do not replace it with the copy
-hostname or a synthetic hostname. This is a deferred required check, not a pass.
+The owner approved moving exact production direct and pooled host refusal proof
+to #143 on October 16, 2026. Both issue bodies now record that allocation. This
+removes the dependency loop because #143 creates production after #138. Run the
+procedure's credential-free refusal commands in #143 after those hosts exist.
+The pre-release checklist explicitly requires this evidence. Do not replace it
+with the copy hostname or a synthetic hostname. This remains a required check
+before release, not a pass in this ticket.
 
 Neon SQL-editor execution, provider password reset and hidden password entry,
 provider privilege observations, final Atlas inventory, write pause, manual domain
@@ -72,3 +75,14 @@ behavior changed, so a new browser run is not applicable to this ticket's change
 
 The procedure requires separate release and Atlas deletion approvals. Neither
 occurred. The November 1, 2026 backup deadline and Stage 7 recovery work remain.
+
+## Independent review
+
+Two read-only Claude Opus 5.5 reviews at medium effort checked committed changes
+against `origin/main`. Standards review found no hard violations and three low
+duplication concerns. No abstraction was added for those concerns because the
+existing explicit test setup is short and the integration test detects migration
+configuration drift. Spec review found a missing psql certificate-root setting
+and a missing explicit host-proof checklist row. Both were corrected. A follow-up
+review checks these security-related documentation fixes and the owner's approved
+issue allocation. Raw reviews remain in the local evidence directory.
