@@ -1,10 +1,11 @@
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
+import { z } from "zod";
 import { approvedSnapshotColumns } from "./analyticsSnapshotRepository";
 import type { prepareApprovedSnapshot } from "./analyticsSnapshots";
 import { isAccountId } from "./accountRepository";
 import { getPostgresDatabase } from "./postgres";
-import { analyticsSnapshots, students } from "./postgresSchema";
-import type { Student } from "./types";
+import { accounts, analyticsSnapshots, students } from "./postgresSchema";
+import type { Student, StudentRecord } from "./types";
 
 export type PersistedStudent = Student & { id: string };
 
@@ -45,6 +46,31 @@ function persistedStudent(row: typeof students.$inferSelect): PersistedStudent {
       SUNDAY: row.sundayCapacityMinutes,
     },
   };
+}
+
+function studentRecord(row: { student: typeof students.$inferSelect; name: string; email: string }): StudentRecord {
+  return { ...persistedStudent(row.student), userId: row.student.accountId, name: row.name, email: row.email };
+}
+
+function selectStudentsWithOwners() {
+  return getPostgresDatabase()
+    .select({ student: students, name: accounts.name, email: accounts.email })
+    .from(students)
+    .innerJoin(accounts, eq(accounts.id, students.accountId));
+}
+
+/** Admin-only. Excludes Admin-owned students. */
+export async function listStudentsWithOwners() {
+  const rows = await selectStudentsWithOwners().where(ne(accounts.role, "admin"));
+  // Sorted here so the order does not depend on the database's collation.
+  return rows.map(studentRecord).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Admin-only. Returns null for an invalid ID, a missing student, or an Admin-owned student. */
+export async function findStudentWithOwner(id: string) {
+  if (!z.guid().safeParse(id).success) return null;
+  const [row] = await selectStudentsWithOwners().where(and(eq(students.id, id), ne(accounts.role, "admin")));
+  return row ? studentRecord(row) : null;
 }
 
 export async function findStudentByAccountId(accountId: string | undefined) {

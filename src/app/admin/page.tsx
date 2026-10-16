@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { connectDB } from "@/lib/db";
 import { listStudentIdsWithApprovedAnalytics } from "@/lib/analyticsSnapshotRepository";
 import { formatDuration } from "@/lib/formatDuration";
-import { listStudentsWithOwners } from "@/lib/students";
+import { listStudentsWithOwners } from "@/lib/studentRepository";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -12,7 +11,6 @@ export default async function AdminPage() {
     redirect("/dashboard");
   }
 
-  await connectDB();
   const [students, snapshots] = await Promise.all([
     listStudentsWithOwners(),
     listStudentIdsWithApprovedAnalytics(),
