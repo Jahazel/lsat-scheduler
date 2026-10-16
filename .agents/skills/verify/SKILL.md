@@ -9,7 +9,9 @@ Read [the feature index](features/README.md), then the files for the changed beh
 
 ## Reuse a passing run
 
-A full run is needed once per behavior change. Before a new launch, compare the code with the last passing run's revision or working tree. When the difference changes no runtime behavior, reuse that run without a launch. Examples are comments, renames, an inlined constant, and test-only edits. Append a `Reuse` section to that run's `result.md` with the current revision, the changed files, and why no behavior changed. Launch a full run for any change to app code that alters what a user sees, what is saved, or who may do it.
+A full run is needed once per behavior change. Before a new launch, compare the code with the last passing run's revision or working tree. When the difference changes no runtime behavior, reuse that run without a launch. Examples are comments, renames, an inlined constant, and test-only edits. Append a `Reuse` section to that run's `result.md` with the current revision, the changed files, and why no behavior changed. Verify all affected entry points for any change to app code that alters what a user sees, what is saved, or who may do it. Use the healthy existing run when it meets their preconditions; launch a new run when required by Doctor or isolation needs.
+
+Keep a healthy isolated run and suitable fixture Accounts through implementation, review, and required fixes. Reuse existing Accounts and records when they meet the next check's preconditions. Create fresh fixtures for checks that require empty state. Reusing setup does not reuse proof: rerun affected entry points after behavior changes. Respect Doctor's restart rules. Perform final cleanup when the task finishes or stops, and record unfinished checks.
 
 ## Launch
 
@@ -45,6 +47,8 @@ Require exit code 0 and `healthy: true`. It checks the recorded supervisor, port
 ## Drive
 
 Use the browser tools supplied by the current harness. In T3 Code, use `preview_status` first. If unavailable, call `preview_open`, then `preview_navigate` with `url: "http://127.0.0.1:3100"`. Keep this host consistent with the helper. An environment-port target can resolve to `localhost`, which has a different browser cookie scope. Read a new screen with `preview_snapshot` and `includeImage: false`. Take an image only for an evidence screenshot. After an action with a known result, confirm it with `preview_wait_for` on the expected text or URL. Read a few values with a short read-only `preview_evaluate`. Take a new snapshot only when you need locators that you do not have. Use snapshot locators with `preview_click`, `preview_type` with `clear: true`, `preview_press`, and `preview_wait_for`. Keep the returned tab ID when it remains valid. If a tool says the tab is missing, inspect status and reopen before retrying. Do not switch browser systems just because an initial preview is closed.
+
+Return only the status, needed locators, relevant values or error, and artifact paths from browser calls. Save full snapshots and evidence to the run directory without printing them into the conversation. Inspect full artifacts when diagnosing a failure. Stop a dependent action sequence when an action fails; inspect the failed state before continuing. These output rules also apply in other harnesses.
 
 In another harness, use its browser automation with equivalent role selectors. Load its tool documentation first. Never assume T3 tool names exist there. The feature recipes use `click(locator)`, `type(locator, text)`, `press(key)`, and `wait(text)` as shorthand for those browser operations. They are not shell commands.
 
