@@ -9,7 +9,7 @@ Read [the feature index](features/README.md), then the files for the changed beh
 
 ## Launch
 
-Run from the repository root. Prerequisites are installed npm dependencies, Node.js, a loopback Postgres 17 server, MongoDB Community Server `mongod`, and the macOS `lsof` and `ps` commands. Use the README's local setup if a prerequisite is missing. The migrated app paths use Postgres. Remaining Admin list and student-read paths still use MongoDB until issue 103. There is no existing end-to-end browser suite. Vitest tests cover components and scheduling rules, and do not replace this browser proof.
+Run from the repository root. Prerequisites are installed npm dependencies, Node.js, a loopback Postgres 17 server, MongoDB Community Server `mongod`, and the macOS `lsof` and `ps` commands. Use the README's local setup if a prerequisite is missing. All app paths use Postgres. The helper still starts MongoDB until issue 104 removes it. There is no existing end-to-end browser suite. Vitest tests cover components and scheduling rules, and do not replace this browser proof.
 
 Set `DATABASE_URL` to a loopback Postgres owner connection in the shell. The helper refuses remote hosts, creates a random database, applies migrations, and drops only that database on cleanup. It overrides the app connection before Next loads `.env.local`. No connection setting is written into evidence. Use the same shell setting for launch, Doctor, inspect, and cleanup.
 
@@ -93,6 +93,6 @@ If launch fails before it creates `instance.json`, it started no app process or 
 
 ## Helpers
 
-The executable [scripts/local.mjs](scripts/local.mjs) supports four commands, all shown above: `launch`, `doctor`, `inspect`, and `cleanup`. Each requires a run directory below `.verification/evidence/`. Evidence directories cannot be reused. Its process and database operations target only the local verification instance. The helper runs Postgres for migrated paths and a disposable MongoDB replica set for the remaining Admin reads. Remove that MongoDB setup when those reads move to Postgres. The executable [scripts/smoke.mjs](scripts/smoke.mjs) runs the browser baseline with the invocation shown in Drive. Both helpers run from the repository root.
+The executable [scripts/local.mjs](scripts/local.mjs) supports four commands, all shown above: `launch`, `doctor`, `inspect`, and `cleanup`. Each requires a run directory below `.verification/evidence/`. Evidence directories cannot be reused. Its process and database operations target only the local verification instance. The helper runs Postgres for the app and a disposable MongoDB replica set that no app path reads. Remove that MongoDB setup with the rest of the MongoDB code in issue 104. The executable [scripts/smoke.mjs](scripts/smoke.mjs) runs the browser baseline with the invocation shown in Drive. Both helpers run from the repository root.
 
 Use `/maintain-verification-skill` when app changes make these recipes or the feature map stale.

@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { connectDB } from "@/lib/db";
-import { getStudentWithOwner } from "@/lib/students";
+import { findStudentWithOwner } from "@/lib/studentRepository";
 import { adminScheduleStateMessage, loadReadOnlyCurrentWeek } from "@/lib/readOnlyCurrentWeekSchedule";
 import { postgresCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
@@ -17,8 +16,7 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
 
   const { id } = await params;
 
-  await connectDB();
-  const record = await getStudentWithOwner(id);
+  const record = await findStudentWithOwner(id);
   if (!record) {
     notFound();
   }

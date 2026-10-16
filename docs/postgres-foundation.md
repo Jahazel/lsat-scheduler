@@ -2,9 +2,8 @@
 
 Stage 2 moves the app to Postgres on throwaway data.
 Accounts, students, leads, Analytics snapshots, Weekly schedules, and Activity
-check-ins now use Postgres. This week and Progress use these records. Remaining
-Admin list and student-read paths await issue 103. Deployment and the real-site
-database move remain Stage 3 work.
+check-ins now use Postgres. This week, Progress, and the Admin area use these
+records. Deployment and the real-site database move remain Stage 3 work.
 
 ## Start local Postgres
 
@@ -98,8 +97,8 @@ status and actual-minutes corrections.
 Typed queries now serve Accounts, students, leads, Analytics snapshots, Weekly
 schedules, and Activity check-ins.
 Snapshot-dependent Account deletion and Admin resets also use Postgres, so
-they remove related records in one atomic operation or transaction. Issue 103
-moves the remaining Admin read paths.
+they remove related records in one atomic operation or transaction. All
+students reads each student with its Account's name and email in one join.
 
 ## Create the limited app role
 
