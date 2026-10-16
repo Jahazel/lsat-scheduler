@@ -1,5 +1,5 @@
-import { boolean, jsonb, date, integer, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import type { AnalyticsSnapshot, DayOfWeek, Student } from "./types";
+import { boolean, doublePrecision, jsonb, date, integer, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import type { ActivityCheckInStatus, AnalyticsSnapshot, DayOfWeek, PersistedWeeklySchedule, Student } from "./types";
 
 export const accounts = pgTable("accounts", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -49,4 +49,25 @@ export const analyticsSnapshots = pgTable("analytics_snapshots", {
   extractedValuesMatch: boolean("extracted_values_match").notNull(),
   isLatestAnalytics: boolean("is_latest_analytics").notNull(),
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }).notNull(),
+});
+
+export const weeklySchedules = pgTable("weekly_schedules", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  studentId: uuid("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
+  weekStartDate: date("week_start_date", { mode: "string" }).notNull(),
+  generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
+  schedule: jsonb("schedule").$type<PersistedWeeklySchedule["schedule"]>().notNull(),
+  sourceSnapshotIds: uuid("source_snapshot_ids").array().notNull(),
+  generationInputs: jsonb("generation_inputs").$type<PersistedWeeklySchedule["generationInputs"]>().notNull(),
+  policyVersion: text("policy_version").notNull(),
+});
+
+export const activityCheckIns = pgTable("activity_check_ins", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  scheduleId: uuid("schedule_id").notNull().references(() => weeklySchedules.id, { onDelete: "cascade" }),
+  activityId: text("activity_id").notNull(),
+  status: text("status").$type<ActivityCheckInStatus>().notNull(),
+  actualMinutes: doublePrecision("actual_minutes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

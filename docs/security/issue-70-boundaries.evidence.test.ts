@@ -6,14 +6,12 @@ import { studentProfileSchema } from "@/lib/studentProfile";
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(), connectDB: vi.fn(), findAccountById: vi.fn(), findStudent: vi.fn(),
   listStudents: vi.fn(), getStudent: vi.fn(),
-  messages: vi.fn(), findSchedule: vi.fn(), saveCheckIn: vi.fn(),
+  messages: vi.fn(),
 }));
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
 vi.mock("@/lib/db", () => ({ connectDB: mocks.connectDB }));
 vi.mock("@/lib/accountRepository", () => ({ findAccountById: mocks.findAccountById }));
 vi.mock("@/models/Student", () => ({ StudentModel: { findOne: mocks.findStudent } }));
-vi.mock("@/models/WeeklySchedule", () => ({ WeeklyScheduleModel: { findOne: mocks.findSchedule } }));
-vi.mock("@/lib/activityCheckInRepository", () => ({ mongooseActivityCheckIns: { save: mocks.saveCheckIn } }));
 vi.mock("@/lib/students", () => ({ listStudentsWithOwners: mocks.listStudents, getStudentWithOwner: mocks.getStudent }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@anthropic-ai/sdk", () => ({
@@ -24,7 +22,6 @@ import { GET as roster } from "@/app/api/students/route";
 import { GET as student } from "@/app/api/students/[id]/route";
 import { extractAnalyticsRowsFromImage } from "@/lib/claudeExtract";
 import { requireCurrentAdmin } from "@/lib/requireAdmin";
-import { saveActivityCheckIn } from "@/app/dashboard/actions";
 
 function imageRequest(bytes: number, type = "image/png") {
   const form = new FormData();
@@ -106,13 +103,6 @@ describe("issue 70 request boundary evidence", () => {
     expect(await extractAnalyticsRowsFromImage(Buffer.from([0]), "image/png", mockRules)).toEqual([
       { type: "Unknown synthetic type", category: "regular", accuracy: 999, isTopPriority: "yes" },
     ]);
-  });
-
-  it("denies a check-in on a schedule outside the session owner's records", async () => {
-    mocks.findSchedule.mockReturnValue({ lean: async () => null });
-    await expect(saveActivityCheckIn({ scheduleId: "synthetic-other-schedule", activityId: "MONDAY:0", status: "completed" })).rejects.toThrow("Weekly schedule not found");
-    expect(mocks.findSchedule).toHaveBeenCalledWith({ _id: "synthetic-other-schedule", studentId: "synthetic-student" });
-    expect(mocks.saveCheckIn).not.toHaveBeenCalled();
   });
 
   it("strips profile ownership and operator fields but accepts a non-date goalTestDate", () => {

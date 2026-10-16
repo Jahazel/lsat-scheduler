@@ -1,68 +1,52 @@
-import { ActivityCheckInModel } from "@/models/ActivityCheckIn";
-import type { ActivityCheckIn, ActivityCheckInStatus } from "./types";
-import type { PersistedWeeklySchedule } from "./types";
+import { eq, inArray } from "drizzle-orm";
+import { scheduleActivityId } from "./currentWeeklySchedule";
+import { DAY_ORDER } from "./engine";
+import { getPostgresDatabase } from "./postgres";
+import { activityCheckIns } from "./postgresSchema";
+import type { ActivityCheckIn, PersistedWeeklySchedule } from "./types";
 
-interface StoredActivityCheckIn {
-  _id: unknown;
-  scheduleId: unknown;
-  activityId: string;
-  status: ActivityCheckInStatus;
-  actualMinutes?: number;
-}
-
-function activityCheckIn(record: StoredActivityCheckIn): ActivityCheckIn {
+function activityCheckIn(record: typeof activityCheckIns.$inferSelect): ActivityCheckIn {
   return {
-    id: String(record._id),
-    scheduleId: String(record.scheduleId),
+    id: record.id,
+    scheduleId: record.scheduleId,
     activityId: record.activityId,
     status: record.status,
-    ...(record.actualMinutes === undefined ? {} : { actualMinutes: record.actualMinutes }),
+    ...(record.actualMinutes === null ? {} : { actualMinutes: record.actualMinutes }),
   };
 }
 
-export const mongooseActivityCheckIns = {
+export const postgresActivityCheckIns = {
   async listForSchedule(scheduleId: string) {
-    const records = await ActivityCheckInModel.find({ scheduleId }).lean();
+    const records = await getPostgresDatabase().select().from(activityCheckIns)
+      .where(eq(activityCheckIns.scheduleId, scheduleId));
     return records.map(activityCheckIn);
   },
   async listForSchedules(scheduleIds: string[]) {
     if (scheduleIds.length === 0) return [];
-    const records = await ActivityCheckInModel.find({ scheduleId: { $in: scheduleIds } }).lean();
+    const records = await getPostgresDatabase().select().from(activityCheckIns)
+      .where(inArray(activityCheckIns.scheduleId, scheduleIds));
     return records.map(activityCheckIn);
   },
-  async save({
-    scheduleId,
-    activityId,
-    status,
-    actualMinutes,
-  }: Omit<ActivityCheckIn, "id">, now = new Date()): Promise<ActivityCheckIn> {
-    const update =
-      status === "completed" && actualMinutes !== undefined
-        ? { $set: { status, actualMinutes, updatedAt: now }, $setOnInsert: { createdAt: now } }
-        : { $set: { status, updatedAt: now }, $setOnInsert: { createdAt: now }, $unset: { actualMinutes: 1 } };
-    const record = await ActivityCheckInModel.findOneAndUpdate(
-      { scheduleId, activityId },
-      update,
-      { new: true, upsert: true, runValidators: true, timestamps: false }
-    ).lean();
+  async save({ scheduleId, activityId, status, actualMinutes }: Omit<ActivityCheckIn, "id">, now = new Date()) {
+    const values = { status, actualMinutes: status === "completed" ? actualMinutes ?? null : null };
+    const [record] = await getPostgresDatabase().insert(activityCheckIns)
+      .values({ scheduleId, activityId, ...values, createdAt: now, updatedAt: now })
+      .onConflictDoUpdate({
+        target: [activityCheckIns.scheduleId, activityCheckIns.activityId],
+        set: { ...values, updatedAt: now },
+      }).returning();
     if (!record) throw new Error("Activity check-in could not be saved");
     return activityCheckIn(record);
   },
   async ensureForSchedule(schedule: PersistedWeeklySchedule, createdAt = new Date()) {
-    const writes = Object.entries(schedule.schedule.days).flatMap(([day, plan]) =>
-      plan.activities.map((_, index) => ({
-        scheduleId: schedule.id,
-        activityId: `${day}:${index}`,
+    const values = DAY_ORDER.flatMap((day) =>
+      schedule.schedule.days[day].activities.map((_, index) => ({
+        scheduleId: schedule.id, activityId: scheduleActivityId(day, index), status: "not_started" as const,
+        createdAt, updatedAt: createdAt,
       }))
     );
-    await Promise.all(
-      writes.map(({ scheduleId, activityId }) =>
-        ActivityCheckInModel.updateOne(
-          { scheduleId, activityId },
-          { $setOnInsert: { scheduleId, activityId, status: "not_started", createdAt, updatedAt: createdAt } },
-          { upsert: true, timestamps: false }
-        ).exec()
-      )
-    );
+    if (values.length === 0) return;
+    await getPostgresDatabase().insert(activityCheckIns).values(values)
+      .onConflictDoNothing({ target: [activityCheckIns.scheduleId, activityCheckIns.activityId] });
   },
 };

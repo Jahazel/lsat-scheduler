@@ -21,6 +21,7 @@ export interface CurrentWeekRepositories {
   weeklySchedules: {
     findByStudentAndWeek(studentId: string, weekStartDate: string): Promise<PersistedWeeklySchedule | null>;
     listBeforeWeek(studentId: string, weekStartDate: string): Promise<PersistedWeeklySchedule[]>;
+    /** Inserts once per student and week, returning the saved record on a conflict. */
     create(schedule: PersistedWeeklySchedule): Promise<PersistedWeeklySchedule>;
   };
   activityCheckIns: {
@@ -124,10 +125,6 @@ function remainingSchedule(schedule: WeeklySchedule, currentDay: DayOfWeek): Wee
     }
   }
   return { ...schedule, days, reasons };
-}
-
-function duplicateSchedule(error: unknown): boolean {
-  return typeof error === "object" && error !== null && "code" in error && (error as { code?: number }).code === 11000;
 }
 
 function previousWeekStartDate(weekStartDate: string) {
@@ -239,15 +236,7 @@ export async function loadOrGenerateCurrentWeek(
     },
     policyVersion: SCHEDULING_POLICY_VERSION,
   };
-  try {
-    const created = await input.weeklySchedules.create(saved);
-    await input.activityCheckIns.ensureForSchedule(created);
-    return { kind: "schedule", schedule: created };
-  } catch (error) {
-    if (!duplicateSchedule(error)) throw error;
-    const concurrent = await input.weeklySchedules.findByStudentAndWeek(input.studentId, weekStartDate);
-    if (!concurrent) throw error;
-    await input.activityCheckIns.ensureForSchedule(concurrent);
-    return { kind: "schedule", schedule: concurrent };
-  }
+  const created = await input.weeklySchedules.create(saved);
+  await input.activityCheckIns.ensureForSchedule(created);
+  return { kind: "schedule", schedule: created };
 }

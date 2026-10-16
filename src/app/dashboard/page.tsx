@@ -2,12 +2,11 @@ import { isAdminUser } from "@/lib/accessControl";
 import { studentSideClock } from "@/lib/studentClock";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { connectDB } from "@/lib/db";
-import { StudentModel } from "@/models/Student";
+import { findStudentByAccountId } from "@/lib/studentRepository";
 import { currentWeekInTimezone, loadOrGenerateCurrentWeek } from "@/lib/currentWeeklySchedule";
 import { mockRules } from "@/lib/mockData";
-import { mongooseCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
-import { mongooseActivityCheckIns } from "@/lib/activityCheckInRepository";
+import { postgresCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
+import { postgresActivityCheckIns } from "@/lib/activityCheckInRepository";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import type { Student } from "@/lib/types";
 import ScheduleCheckInView from "@/components/ScheduleCheckInView";
@@ -30,8 +29,7 @@ export default async function DashboardPage({
     redirect("/login");
   }
 
-  await connectDB();
-  const doc = await StudentModel.findOne({ userId: session.user.id }).lean();
+  const doc = await findStudentByAccountId(session.user.id);
   if (!doc) {
     redirect("/onboarding");
   }
@@ -49,14 +47,14 @@ export default async function DashboardPage({
   const clock = await studentSideClock(session.user);
   const now = clock.now;
   const currentWeek = await loadOrGenerateCurrentWeek({
-    ...mongooseCurrentWeekRepositories,
+    ...postgresCurrentWeekRepositories,
     activityCheckIns: {
-      ...mongooseActivityCheckIns,
-      ensureForSchedule: (schedule) => mongooseActivityCheckIns.ensureForSchedule(
+      ...postgresActivityCheckIns,
+      ensureForSchedule: (schedule) => postgresActivityCheckIns.ensureForSchedule(
         schedule, clock.simulated ? new Date(schedule.generatedAt) : undefined,
       ),
     },
-    studentId: String(doc._id),
+    studentId: doc.id,
     student,
     studentName: session.user.name ?? "Your",
     rules: mockRules,
@@ -64,7 +62,7 @@ export default async function DashboardPage({
     now: () => now,
   });
   const currentSchedule = currentWeek.kind === "schedule" ? currentWeek.schedule : null;
-  const checkIns = currentSchedule ? await mongooseActivityCheckIns.listForSchedule(currentSchedule.id) : [];
+  const checkIns = currentSchedule ? await postgresActivityCheckIns.listForSchedule(currentSchedule.id) : [];
 
   const dashboardContent = currentSchedule ? (
     <ScheduleCheckInView
