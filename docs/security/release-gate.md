@@ -41,6 +41,14 @@ Signup stays open. The owner does not promote DrillMap. The risk is small becaus
 
 Only screenshot extraction uses this Anthropic organization, so the $20 limit affects nothing else.
 
+On October 16, 2026, Stage 2 verification used main revision `74197aa` on a
+disposable local Postgres database. The integration branch had already merged
+through PR #125, and GitHub Checks passed on the tested revision. The browser
+run and remaining checks are recorded in
+[the issue #109 evidence](issue-109-evidence.md). This is foundation evidence
+only. Every launch checklist check stays `Not tested`, and the no-promotion
+rule remains in force.
+
 On October 16, 2026, the owner ran the Stage 2 database foundation check on the
 separate Neon copy project. It passed at 13:44:00 UTC through the limited app
 role. The check proved encrypted access with certificate and host-name checks,
