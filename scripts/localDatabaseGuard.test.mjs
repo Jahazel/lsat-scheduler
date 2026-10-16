@@ -23,7 +23,6 @@ describe("database host reading", () => {
 
 describe("local database guard", () => {
   it("allows only exact committed copy-site hosts for Postgres", () => {
-    // A separate checkout with a fake approved host. The real list stays empty.
     const directory = mkdtempSync(join(tmpdir(), "drillmap-guard-"));
     try {
       const guard = join(directory, "localDatabaseGuard.mjs");

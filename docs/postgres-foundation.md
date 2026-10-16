@@ -89,8 +89,8 @@ DATABASE_URL=postgresql://postgres:local-only@127.0.0.1:5432/drillmap npm run db
 ```
 
 The command checks the script host guard before it connects. Only loopback
-and exact hosts in `scripts/copyDatabaseHosts.json` pass. That list is empty
-until the owner approves a copy-site host. No setting bypasses this guard.
+and exact hosts in `scripts/copyDatabaseHosts.json` pass. That list contains
+only owner-approved copy-site hosts. No setting bypasses this guard.
 
 Migration files live in `migrations/`. Drizzle reads them in the order in
 `migrations/meta/_journal.json`. Add each new numbered SQL file to that journal
@@ -268,11 +268,14 @@ and evidence files. Never paste it into an issue or commit it.
 
 The script runs the host guard before it connects. Loopback and exact copy-site
 hosts in `scripts/copyDatabaseHosts.json` are the only allowed targets. The list
-is empty until the owner approves the copy host. It has no bypass setting.
+contains only owner-approved copy-site hosts. It has no bypass setting.
 
 The check uses the shared app driver. A remote connection must use encryption
-with certificate and host-name checks. It also checks the server's encryption
-status. Local runs explicitly report that remote encryption remains untested.
+with certificate and host-name checks. The check inspects the driver's live TLS
+socket and its certificate-verification result. Neon's proxy ends the client's
+encrypted connection before forwarding it to Postgres, so `pg_stat_ssl` inside
+Postgres does not prove whether the client connection is encrypted.
+Local runs explicitly report that remote encryption remains untested.
 
 The command checks app reads and writes on all six tables, refused role,
 database, and table creation, immutable Weekly schedules, owner links,

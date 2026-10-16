@@ -1,5 +1,6 @@
-import { deepStrictEqual, rejects } from "node:assert/strict";
+import { deepStrictEqual, ok, rejects } from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { TLSSocket } from "node:tls";
 import { sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import type { createPostgresConnection } from "../src/lib/postgres";
@@ -10,9 +11,14 @@ const ids = z.object({ account_id: z.uuid(), student_id: z.uuid(), snapshot_id: 
 export async function checkPostgresFoundation(connection: Connection) {
   const { db, requiresEncryption } = connection;
   const messages: string[] = [];
-  deepStrictEqual((await db.execute(sql`
-    select ssl from pg_stat_ssl where pid = pg_backend_pid()
-  `)).rows, [{ ssl: requiresEncryption }]);
+  const client = await db.$client.connect();
+  try {
+    const stream = client.connection.stream;
+    deepStrictEqual(stream instanceof TLSSocket, requiresEncryption);
+    if (stream instanceof TLSSocket) ok(stream.encrypted && stream.authorized);
+  } finally {
+    client.release();
+  }
   messages.push(requiresEncryption
     ? "PASS: Encrypted connection with certificate and host-name checks"
     : "PASS: Loopback connection uses no encryption. Remote encryption remains untested.");
