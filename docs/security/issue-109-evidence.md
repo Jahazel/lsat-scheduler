@@ -5,7 +5,7 @@ Issue [#109](https://github.com/Jahazel/lsat-scheduler/issues/109), part of
 Recorded on October 16, 2026, America/Chicago.
 
 The requested local browser and script checks passed.
-Current owner confirmation of the real site's served build remains outstanding.
+The owner confirmed that the real site still serves its earlier build.
 No launch checklist check passes because of this note.
 The no-promotion rule remains in force.
 
@@ -64,7 +64,7 @@ connection string.
 | View a student as Admin | Signed in as the Admin and opened the student's card from All students. The saved schedule showed the student's email and the read-only banner, with no check-in editing controls. Reopened its direct URL. All six app tables stayed equal before and after both views. |
 | Delete a student Account | Signed back in as the student, opened Account through its menu, entered DELETE, and submitted Delete account. The app returned to the landing page. The Account, Student, Analytics snapshot, Weekly schedule, and Activity check-ins were absent from the database. The Admin's records remained. The deleted student's old login returned Invalid email or password. |
 | Run the reset script with `--yes` | Ran `npm run reset:dev-data -- --yes` with an explicit connection to the disposable verification database and development mode. It deleted five check-ins, one schedule, one snapshot, and one Student. A stored-record capture confirmed those tables were empty and the Admin Account remained unchanged. |
-| Confirm the real site still serves MongoDB and Atlas | Current owner confirmation requested. The 2026-10-08 evidence remains the last confirmed live-build record. |
+| Confirm the real site still serves MongoDB and Atlas | On 2026-10-16, the owner's Vercel screenshot showed the highlighted Production build still at `86ee8c3`, matching the pre-Stage 2 MongoDB/Atlas build. The owner also confirmed that Auto-assign Custom Production Domains remains off and the real site loads normally. No new build was promoted. |
 
 ## Evidence and limits
 
@@ -72,6 +72,7 @@ Local evidence is retained under
 `.verification/evidence/issue-109-20261016/` and is excluded from Git.
 It includes Doctor, stored-record captures, screenshots, command output,
 comparison assertions, and `result.md` with the actions and artifact names.
+`vercel-current-20261016.png` retains the owner's Vercel screenshot.
 The recording `browser-run.mp4` covers the owner-assisted upload and subsequent
 student and Admin checks. The first tab's recording was unavailable after that
 tab closed. Earlier checks have stored-record captures and a completion
