@@ -68,6 +68,13 @@ it.each([
     repairRule: (role: string) => sql`revoke select on drillmap_migrations.applied from ${sql.identifier(role)};
       revoke usage on schema drillmap_migrations from ${sql.identifier(role)}`,
   },
+  {
+    name: "extra owner-only migration journal change permission",
+    breakRule: (role: string) => sql`grant usage on schema drillmap_migrations to ${sql.identifier(role)};
+      grant update, delete on drillmap_migrations.applied to ${sql.identifier(role)}`,
+    repairRule: (role: string) => sql`revoke update, delete on drillmap_migrations.applied from ${sql.identifier(role)};
+      revoke usage on schema drillmap_migrations from ${sql.identifier(role)}`,
+  },
 ])("fails for $name without leaving probe records", async ({ breakRule, repairRule }) => {
   const before = (await database.owner.execute(sql`select id from accounts order by id`)).rows;
   await database.owner.execute(breakRule(database.role));

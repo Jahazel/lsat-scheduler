@@ -124,6 +124,8 @@ export async function checkPostgresFoundation(connection: Connection) {
       for (const query of [
         sql`select hash from drillmap_migrations.applied`,
         sql`insert into drillmap_migrations.applied (hash) values ('changed')`,
+        sql`update drillmap_migrations.applied set hash = 'changed'`,
+        sql`delete from drillmap_migrations.applied`,
       ]) await refused(query, "42501");
       messages.push("PASS: Owner-only migration journal refused");
 

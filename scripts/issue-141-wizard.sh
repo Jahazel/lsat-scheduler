@@ -199,6 +199,7 @@ COPY_POOLED_HOST="ep-restless-tooth-b42czg5d-pooler.c-6.us-east-2.aws.neon.tech"
 NEON_CONSOLE="https://console.neon.tech/app/projects"
 OWNER_SQL="${TMPDIR:-/tmp}/drillmap-owner-migrations.sql"
 COUNTS_SQL="select (select count(*) from accounts) as accounts, (select count(*) from students) as students, (select count(*) from analytics_snapshots) as snapshots, (select count(*) from weekly_schedules) as schedules, (select count(*) from activity_check_ins) as check_ins;"
+FINGERPRINT_SQL="select md5(concat_ws('|', (select string_agg(t::text, ',' order by t::text) from accounts t), (select string_agg(t::text, ',' order by t::text) from students t), (select string_agg(t::text, ',' order by t::text) from analytics_snapshots t), (select string_agg(t::text, ',' order by t::text) from weekly_schedules t), (select string_agg(t::text, ',' order by t::text) from activity_check_ins t))) as fingerprint;"
 DATABASE_URL_VALUE=""
 INCOMPLETE=0
 
@@ -250,7 +251,7 @@ sha() { printf '%s' "$1" | shasum -a 256 | cut -d' ' -f1; }
 
 local_value() {
   [[ -f "$REPO_ROOT/.env.local" ]] || return 0
-  grep -E "^$1=" "$REPO_ROOT/.env.local" | tail -n1 | cut -d= -f2- | sed -e "s/^['\"]//" -e "s/['\"]$//"
+  { grep -E "^$1=" "$REPO_ROOT/.env.local" || true; } | tail -n1 | cut -d= -f2- | sed -e "s/^['\"]//" -e "s/['\"]$//"
 }
 
 banner "Issue 141: bring up the hosted copy with separate access"
@@ -266,6 +267,11 @@ stage "Record the version"
 cd "$REPO_ROOT"
 git fetch -q origin
 COMMIT="$(git rev-parse origin/main)"
+if [[ "$(git rev-parse HEAD)" != "$COMMIT" || -n "$(git status --porcelain)" ]]; then
+  warn "This checkout is not a clean copy of GitHub main. The checks would test other code."
+  say "Run: git switch main && git pull --ff-only, with no local changes. Then start again."
+  exit 1
+fi
 write_env COMMIT "$COMMIT"
 write_env STARTED_AT "$(date -u '+%Y-%m-%d %H:%M UTC')"
 say "The copy will deploy GitHub main at commit:"
@@ -321,7 +327,7 @@ while true; do
   APP_PASSWORD_VALUE=""
   DATABASE_URL_VALUE="postgresql://drillmap_app:${ENCODED}@${COPY_POOLED_HOST}/neondb?${CHANNEL}sslmode=verify-full"
   ENCODED=""
-  if CHECK_OUTPUT="$(DATABASE_URL="$DATABASE_URL_VALUE" npm run --silent db:check-copy 2>&1)"; then
+  if CHECK_OUTPUT="$(printf '%s' "$DATABASE_URL_VALUE" | node --import tsx --input-type=module -e 'let s="";for await (const d of process.stdin) s+=d;process.env.DATABASE_URL=s;await import("./scripts/check-neon.mts")' 2>&1)"; then
     printf '%s\n' "$CHECK_OUTPUT" | sed 's/^/  /'
     write_env POOLED_CHECK "passed"
     write_env POOLED_CHECK_OUTPUT "$(printf '%s' "$CHECK_OUTPUT" | grep -E '^(PASS:|Checked at)' | paste -sd'|' -)"
@@ -403,12 +409,30 @@ else
   INCOMPLETE=1
 fi
 AUTH_SECRET_VALUE="$(openssl rand -base64 32)"
-if [[ "$(sha "$AUTH_SECRET_VALUE")" != "$(sha "$(local_value AUTH_SECRET)")" ]]; then
+LOCAL_AUTH_SECRET="$(local_value AUTH_SECRET)"
+if [[ -n "$LOCAL_AUTH_SECRET" && "$(sha "$AUTH_SECRET_VALUE")" != "$(sha "$LOCAL_AUTH_SECRET")" ]]; then
   write_env AUTH_SECRET_DISTINCT "passed"
 else
   INCOMPLETE=1
   write_env AUTH_SECRET_DISTINCT "blocker"
 fi
+say "Now compare the real site's AUTH_SECRET with the computer's, without showing it."
+step "Real project > Settings > Environment Variables > AUTH_SECRET. If Vercel shows it, copy it."
+note "A Sensitive value cannot be shown. Then press Enter at the prompt to skip."
+ask_secret REAL_SECRET_INPUT "Real AUTH_SECRET (hidden, compared in memory, never saved), or Enter to skip:"
+if [[ -z "$REAL_SECRET_INPUT" ]]; then
+  write_env REAL_SECRET_DISTINCT "not compared"
+  write_env REAL_SECRET_DISTINCT_NOTE "Vercel did not show the real value. The computer's secret was replaced on 2026-10-08 (issue 84)."
+elif [[ "$(sha "$REAL_SECRET_INPUT")" != "$(sha "$LOCAL_AUTH_SECRET")" && "$(sha "$REAL_SECRET_INPUT")" != "$(sha "$AUTH_SECRET_VALUE")" ]]; then
+  write_env REAL_SECRET_DISTINCT "passed"
+else
+  INCOMPLETE=1
+  write_env REAL_SECRET_DISTINCT "blocker"
+  write_env REAL_SECRET_DISTINCT_NOTE "The real AUTH_SECRET matches another environment. Rotate it."
+fi
+REAL_SECRET_INPUT=""
+LOCAL_AUTH_SECRET=""
+clear_clipboard
 to_clipboard "$AUTH_SECRET_VALUE" "a new random AUTH_SECRET"
 AUTH_SECRET_VALUE=""
 step "Add AUTH_SECRET, Production only, Sensitive. Paste. Save."
@@ -471,12 +495,15 @@ walk WALK_CHECK_IN "Save an Activity check-in, then correct it. Does the correct
 walk WALK_PROGRESS "Progress (/progress) shows the saved work?"
 say "Run the counts query again before the Admin steps."
 required_answer COUNTS_STUDENT "Counts after the student steps:"
+say "Now run this fingerprint query. It summarizes every row, so any change alters it:"
+say "    $FINGERPRINT_SQL"
+required_answer FINGERPRINT_BEFORE_ADMIN_VIEW "Fingerprint before the Admin view:"
 walk WALK_ADMIN_READ "As an Admin, open the student's page under /admin. You can see their schedule?"
-say "Run the counts query again. It must equal the last result: viewing writes nothing."
-required_answer COUNTS_AFTER_ADMIN_VIEW "Counts after the Admin view:"
-if [[ "$COUNTS_AFTER_ADMIN_VIEW" != "$COUNTS_STUDENT" ]]; then
+say "Run the fingerprint query again. It must match: viewing writes nothing."
+required_answer FINGERPRINT_AFTER_ADMIN_VIEW "Fingerprint after the Admin view:"
+if [[ "$FINGERPRINT_AFTER_ADMIN_VIEW" != "$FINGERPRINT_BEFORE_ADMIN_VIEW" ]]; then
   INCOMPLETE=1
-  warn "The counts changed. An Admin view must write nothing. Recorded as a blocker."
+  warn "The fingerprint changed. An Admin view must write nothing. Recorded as a blocker."
   write_env ADMIN_VIEW_NO_WRITE "blocker"
 else
   write_env ADMIN_VIEW_NO_WRITE "passed"
@@ -530,6 +557,7 @@ row() {
   row "Automatic domain assignment off on the copy" COPY_AUTO_ASSIGN_OFF
   row "Five Production-only settings; fake extraction; no Anthropic or email key" COPY_SETTINGS
   row "Copy AUTH_SECRET differs from the computer's (hash compare)" AUTH_SECRET_DISTINCT
+  row "Real AUTH_SECRET differs from the computer's and the copy's (hash compare)" REAL_SECRET_DISTINCT
   row "Computer, copy, and real Google client IDs all differ" GOOGLE_IDS_DISTINCT
   row "Copy deployment promoted by hand and live" COPY_LIVE
   printf '\n## Admin Accounts\n\n| Check | Admin 1 | Admin 2 |\n| --- | --- | --- |\n'
@@ -548,12 +576,12 @@ row() {
   row "Activity check-in save and correction" WALK_CHECK_IN
   row "Progress" WALK_PROGRESS
   row "Admin read-only student view" WALK_ADMIN_READ
-  row "Admin view wrote nothing (counts equal)" ADMIN_VIEW_NO_WRITE
+  row "Admin view wrote nothing (row fingerprint unchanged)" ADMIN_VIEW_NO_WRITE
   row "Admin test controls" WALK_ADMIN_TEST
   row "Account deletion" WALK_DELETION
   row "Deleted records gone (counts)" DELETION_COUNTS
-  printf '\nRecord counts (accounts/students/snapshots/schedules/check_ins): before `%s`, after student steps `%s`, after Admin view `%s`, after deletion `%s`.\n\n' \
-    "$(v COUNTS_BEFORE)" "$(v COUNTS_STUDENT)" "$(v COUNTS_AFTER_ADMIN_VIEW)" "$(v COUNTS_AFTER_DELETION)"
+  printf '\nRecord counts (accounts/students/snapshots/schedules/check_ins): before `%s`, after student steps `%s`, after deletion `%s`.\n\n' \
+    "$(v COUNTS_BEFORE)" "$(v COUNTS_STUDENT)" "$(v COUNTS_AFTER_DELETION)"
   printf '## Separation and the real site\n\n| Check | State | Note |\n| --- | --- | --- |\n'
   row "Real project Preview and Development hold no credentials" REAL_PREVIEW_EMPTY
   row "Real project automatic domain assignment off" REAL_AUTO_ASSIGN_OFF
