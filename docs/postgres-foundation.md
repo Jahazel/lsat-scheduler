@@ -21,11 +21,63 @@ This loopback address accepts connections from this computer only. Its volume
 keeps local data when the container stops. The password `local-only` is a
 public local example. Never use it on a hosted database.
 
-Stop the container with `docker compose stop postgres`. If you already have
-Postgres 17 installed, start it at a loopback address and create a `drillmap`
-database instead. The tests need a local superuser, a login with full database
+Stop the container with `docker compose stop postgres`.
+
+### Homebrew on macOS
+
+Use this option instead of Docker when
+[Homebrew manages your local Postgres](https://formulae.brew.sh/formula/postgresql@17).
+Install Postgres 17 if needed, then start it:
+
+```sh
+brew install postgresql@17
+brew services start postgresql@17
+```
+
+Homebrew creates a database login with your macOS username. Its default
+connections stay on this computer. Set an explicit IPv4 loopback address,
+then restart the service:
+
+```sh
+"$(brew --prefix postgresql@17)/bin/psql" -d postgres --set ON_ERROR_STOP=1 \
+  -c "ALTER SYSTEM SET listen_addresses = '127.0.0.1'"
+brew services restart postgresql@17
+"$(brew --prefix postgresql@17)/bin/pg_isready" -h 127.0.0.1 -p 5432
+```
+
+If the readiness check reports `no response`, repeat it until it reports
+`accepting connections` before running the next command.
+
+Create the local app database once:
+
+```sh
+"$(brew --prefix postgresql@17)/bin/createdb" -h 127.0.0.1 -p 5432 drillmap
+```
+
+In `.env.local`, replace `MONGODB_URI` with the following setting. Replace
+`YOUR_MACOS_USERNAME` with the output of `whoami`. Remove any other MongoDB
+or Neon connection settings. Keep the existing local Auth.js and Google values.
+
+```dotenv
+DATABASE_URL=postgresql://YOUR_MACOS_USERNAME@127.0.0.1:5432/drillmap
+```
+
+Homebrew's default local login needs no password. Use it only on this computer.
+The tests need a local superuser, a login with full database
 administration rights. They create and drop test databases and roles, and
-test refusal of role membership. Docker and GitHub tests use `postgres`.
+test refusal of role membership. Homebrew uses your macOS login. Docker and
+GitHub tests use `postgres`.
+
+Apply migrations using the rewritten local file, then run the Postgres tests:
+
+```sh
+node --env-file=.env.local --import tsx scripts/migrate-postgres.mts
+DATABASE_URL="postgresql://$(whoami)@127.0.0.1:5432/drillmap" npm run test:postgres
+```
+
+Stop the service with `brew services stop postgresql@17`. Start it again
+with `brew services start postgresql@17`. The service also starts at login.
+Keep the old MongoDB data until a separate cleanup task authorizes deletion.
 
 ## Apply migrations
 
