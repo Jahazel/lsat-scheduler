@@ -7,6 +7,10 @@ description: "Verify DrillMap's web app through a real browser. Use for sign-up,
 
 Read [the feature index](features/README.md), then the files for the changed behavior. Drive every entry point listed for that behavior. Report untested entry points separately. Use the domain terms in `GLOSSARY.md`.
 
+## Reuse a passing run
+
+A full run is needed once per behavior change. Before a new launch, compare the code with the last passing run's revision or working tree. When the difference changes no runtime behavior, reuse that run without a launch. Examples are comments, renames, an inlined constant, and test-only edits. Append a `Reuse` section to that run's `result.md` with the current revision, the changed files, and why no behavior changed. Launch a full run for any change to app code that alters what a user sees, what is saved, or who may do it.
+
 ## Launch
 
 Run from the repository root. Prerequisites are installed npm dependencies, Node.js, a loopback Postgres 17 server, MongoDB Community Server `mongod`, and the macOS `lsof` and `ps` commands. Use the README's local setup if a prerequisite is missing. All app paths use Postgres. The helper still starts MongoDB until issue 104 removes it. There is no existing end-to-end browser suite. Vitest tests cover components and scheduling rules, and do not replace this browser proof.
@@ -40,7 +44,7 @@ Require exit code 0 and `healthy: true`. It checks the recorded supervisor, port
 
 ## Drive
 
-Use the browser tools supplied by the current harness. In T3 Code, use `preview_status` first. If unavailable, call `preview_open`, then `preview_navigate` with `url: "http://127.0.0.1:3100"`. Keep this host consistent with the helper. An environment-port target can resolve to `localhost`, which has a different browser cookie scope. Inspect with `preview_snapshot` before each new screen. Use snapshot locators with `preview_click`, `preview_type` with `clear: true`, `preview_press`, and `preview_wait_for`. Keep the returned tab ID when it remains valid. If a tool says the tab is missing, inspect status and reopen before retrying. Do not switch browser systems just because an initial preview is closed.
+Use the browser tools supplied by the current harness. In T3 Code, use `preview_status` first. If unavailable, call `preview_open`, then `preview_navigate` with `url: "http://127.0.0.1:3100"`. Keep this host consistent with the helper. An environment-port target can resolve to `localhost`, which has a different browser cookie scope. Read a new screen with `preview_snapshot` and `includeImage: false`. Take an image only for an evidence screenshot. After an action with a known result, confirm it with `preview_wait_for` on the expected text or URL. Read a few values with a short read-only `preview_evaluate`. Take a new snapshot only when you need locators that you do not have. Use snapshot locators with `preview_click`, `preview_type` with `clear: true`, `preview_press`, and `preview_wait_for`. Keep the returned tab ID when it remains valid. If a tool says the tab is missing, inspect status and reopen before retrying. Do not switch browser systems just because an initial preview is closed.
 
 In another harness, use its browser automation with equivalent role selectors. Load its tool documentation first. Never assume T3 tool names exist there. The feature recipes use `click(locator)`, `type(locator, text)`, `press(key)`, and `wait(text)` as shorthand for those browser operations. They are not shell commands.
 
@@ -57,7 +61,18 @@ node "$VERIFY_RUN_DIR/scratch/tools/node_modules/playwright/cli.js" install chro
 
 An existing Playwright installation can replace that install. Set `VERIFY_PLAYWRIGHT_MODULE` to its absolute `index.mjs` path. Require an empty disposable database for smoke. It captures screenshots, accessibility snapshots, action descriptions, a video, a Playwright trace, and stored-record inspections. Require `smoke-result.json` to have `passed: true`. Its remaining paths are explicitly listed in that file. Run cleanup even if smoke fails. The script closes only the browser it launched in a `finally` block. Browser downloads use Playwright's shared cache; do not delete that cache during cleanup.
 
-The shortest interactive first proof is [sign-up and Account](features/sign-up-account.md). It needs no paid service or seeded app data. For scheduling and Progress, create an Account through the UI, complete onboarding, and follow [Admin setup](features/admin.md) to approve a Sample analytics snapshot. Admin promotion uses the existing local administration command only as fixture setup. It is not proof of a user feature.
+The shortest interactive first proof is [sign-up and Account](features/sign-up-account.md). It needs no paid service or seeded app data. For scheduling and Progress, seed an Account as described below, then follow [Admin setup](features/admin.md) to approve a Sample analytics snapshot.
+
+### Fixture Accounts
+
+Seed each fixture Account with one command. The Account is onboarded with the feature map's baseline answers:
+
+```bash
+./.agents/skills/verify/scripts/local.mjs seed "$VERIFY_RUN_DIR" student amy@example.test
+./.agents/skills/verify/scripts/local.mjs seed "$VERIFY_RUN_DIR" admin verify-admin@example.test
+```
+
+The command prints the email, a random password, and the Account ID. It uses the app's own Account and student save functions against this run's database. Keep the password out of evidence files. A seeded Account is fixture setup and proves no user feature. Use the browser sign-up and onboarding only when the change touches sign-up, onboarding, or Account creation.
 
 ## Evidence
 
@@ -93,6 +108,6 @@ If launch fails before it creates `instance.json`, it started no app process or 
 
 ## Helpers
 
-The executable [scripts/local.mjs](scripts/local.mjs) supports four commands, all shown above: `launch`, `doctor`, `inspect`, and `cleanup`. Each requires a run directory below `.verification/evidence/`. Evidence directories cannot be reused. Its process and database operations target only the local verification instance. The helper runs Postgres for the app and a disposable MongoDB replica set that no app path reads. Remove that MongoDB setup with the rest of the MongoDB code in issue 104. The executable [scripts/smoke.mjs](scripts/smoke.mjs) runs the browser baseline with the invocation shown in Drive. Both helpers run from the repository root.
+The executable [scripts/local.mjs](scripts/local.mjs) supports five commands, all shown above: `launch`, `doctor`, `seed`, `inspect`, and `cleanup`. Each requires a run directory below `.verification/evidence/`. Evidence directories cannot be reused. Its process and database operations target only the local verification instance. The helper runs Postgres for the app and a disposable MongoDB replica set that no app path reads. Remove that MongoDB setup with the rest of the MongoDB code in issue 104. The executable [scripts/smoke.mjs](scripts/smoke.mjs) runs the browser baseline with the invocation shown in Drive. Both helpers run from the repository root.
 
 Use `/maintain-verification-skill` when app changes make these recipes or the feature map stale.

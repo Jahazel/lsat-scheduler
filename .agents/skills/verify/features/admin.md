@@ -21,13 +21,7 @@ An Admin views students' saved schedules without editing them. Their own student
 
 Preconditions:
 
-- Doctor passes. Create and onboard an Account through the UI. Promote only that disposable Account with the existing local command:
-
-```bash
-DATABASE_URL="$(node --import tsx -e 'const fs = require("node:fs"); const { postgresSettingForDatabase } = require("./src/lib/postgres.ts"); const state = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(postgresSettingForDatabase(state.postgresDatabase));' "$VERIFY_RUN_DIR/instance.json")" npm run make-admin -- verify-student@example.test
-```
-
-- This command derives the random Postgres database from this run's instance file. The connection stays in the command environment. Sign out and back in to refresh the role in the session. For All students and read-only view checks, create and onboard a separate ordinary student Account. The promoted Admin's own profile cannot serve as that fixture.
+- Doctor passes. Seed an onboarded Admin with `local.mjs seed "$VERIFY_RUN_DIR" admin verify-admin@example.test`. For All students and read-only view checks, also seed a separate student with the `student` role. The Admin's own profile cannot serve as that fixture.
 
 - After Admin login, require `/admin`. Click the student's card by its displayed email. Require `Viewing as admin — read only`, the correct email, and the saved schedule or the explicit no-saved-schedule message. Record weekly-schedule counts before and after opening. This view must not create a missing schedule. Require no editable activity-status buttons or actual-minute inputs. Test both the list link and the direct student URL.
 - Open the workspace switcher and select the option whose link `href` is `/dashboard`. Require My student side. Use the same switcher to return to `/admin`. A standard student visiting `/admin` must return to their own workspace.
@@ -39,7 +33,7 @@ DATABASE_URL="$(node --import tsx -e 'const fs = require("node:fs"); const { pos
 
 ## Gotchas
 
-- Role promotion is setup, not proof of authorization. A fresh sign-in is required after promotion.
+- A seeded Admin is setup, not proof of authorization. The `make-admin` command still needs a fresh sign-in after promotion; a seeded Admin signs in with the Admin role from the start.
 - Rebuild and reset use Postgres transactions.
 - Sample generation is unavailable before onboarding. It creates candidate values; approval still requires both statements.
 - Test controls can be collapsed. Use snapshot names rather than coordinates. Resize the browser and exercise the overlay when responsive controls change.
