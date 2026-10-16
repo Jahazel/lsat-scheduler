@@ -19,7 +19,7 @@ The core student workflow is implemented:
 - Email/password and Google sign-in, with separate student and admin roles
 - Student signup, onboarding, profile editing, and a weekly dashboard
 - A deterministic scheduling engine with coverage for its rules
-- Append-only approved analytics snapshots, with legacy analytics retained as history
+- Append-only approved Analytics snapshots in Postgres
 - One immutable adaptive weekly schedule per student/week, with activity check-ins that shape a future unsaved schedule
 - A read-only admin view of each student's saved schedule and check-in state
 - Public landing, legal, login, and signup pages
@@ -74,6 +74,9 @@ by the application.
 
 ## Local setup
 
+Install Node.js 20.9 or later with npm. Local database setup needs either
+Docker with Compose or an existing Postgres 17 installation.
+
 The Stage 1 pause on local data writes ended on October 8, 2026 after the
 separation, real-site, and local validation checks passed under the owner's
 evidence exception for unavailable old credentials. See
@@ -95,6 +98,10 @@ credential is a secret that gives access, such as a password or an API key.
 2. Start local Postgres and apply the migrations. Follow
    [Postgres setup and tests](docs/postgres-foundation.md). It covers the Docker
    container and an existing Postgres 17 install.
+
+   Migrations create the database tables. The migration command reads
+   `DATABASE_URL` from the terminal environment, so use the explicit loopback
+   value shown in that guide. It does not load `.env.local`.
 
 3. Copy `.env.example` to `.env.local` for this new local setup:
 

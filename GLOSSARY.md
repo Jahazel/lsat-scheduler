@@ -38,7 +38,7 @@ A saved code, placement, and short sentence recording why a weekly schedule depa
 _Avoid_: explanation, rationale, note
 
 **Legacy analytics record**:
-An analytics record carried forward from the previous storage model without the approval provenance required for adaptive planning. It may remain visible as history but cannot qualify a student for a new weekly schedule.
+An analytics record in the old database without the approval provenance required for adaptive planning. Legacy analytics records belong only to that database and never exist in the new database.
 
 ### Weekly shape
 

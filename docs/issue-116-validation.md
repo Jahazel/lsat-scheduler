@@ -1,5 +1,8 @@
 # Local test Account validation
 
+> Historical evidence from the old MongoDB version. Issue #104 moved this
+> command to Postgres. Use the [README](../README.md) for current setup and commands.
+
 Validated on October 11, 2026 for [issue 116](https://github.com/Jahazel/lsat-scheduler/issues/116).
 All database writes used `mongodb://127.0.0.1:27017/lsat-scheduler`.
 
