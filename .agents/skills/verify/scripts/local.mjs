@@ -18,8 +18,9 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const [command, directory, ...extra] = process.argv.slice(2);
 const base = resolve(root, ".verification/evidence");
 const validSeed = command === "seed" && extra.length === 2 && ["student", "admin"].includes(extra[0]);
-if (!directory || !(["launch", "doctor", "inspect", "cleanup"].includes(command) && extra.length === 0 || validSeed)) {
-  throw new Error("Usage: local.mjs launch|doctor|inspect|cleanup .verification/evidence/<run-name>\n       local.mjs seed .verification/evidence/<run-name> student|admin <email>");
+const validSession = command === "session" && extra.length === 1;
+if (!directory || !(["launch", "doctor", "inspect", "cleanup"].includes(command) && extra.length === 0 || validSeed || validSession)) {
+  throw new Error("Usage: local.mjs launch|doctor|inspect|cleanup .verification/evidence/<run-name>\n       local.mjs seed .verification/evidence/<run-name> student|admin <email>\n       local.mjs session .verification/evidence/<run-name> <email>");
 }
 const run = resolve(root, directory);
 if (!relative(base, run) || relative(base, run).startsWith("..")) {
@@ -129,8 +130,11 @@ async function launch() {
   process.on("SIGTERM", () => void stop(0));
   try {
     postgresDatabase = await createPostgresTestDatabase();
+    const authSecret = randomBytes(32).toString("base64");
+    mkdirSync(resolve(run, "scratch"), { recursive: true });
+    writeFileSync(resolve(run, "scratch/auth-secret"), authSecret, { mode: 0o600 });
     const appEnv = { ...process.env, NODE_ENV: "development", DATABASE_URL: postgresDatabase.setting,
-      AUTH_SECRET: randomBytes(32).toString("base64"), AUTH_URL: url, NEXTAUTH_URL: url, AUTH_TRUST_HOST: "true",
+      AUTH_SECRET: authSecret, AUTH_URL: url, NEXTAUTH_URL: url, AUTH_TRUST_HOST: "true",
       AUTH_GOOGLE_ID: "", AUTH_GOOGLE_SECRET: "", GOOGLE_CLIENT_ID: "", GOOGLE_CLIENT_SECRET: "",
       ANTHROPIC_API_KEY: "", SCREENSHOT_EXTRACTOR: process.env.VERIFY_SCREENSHOT_EXTRACTOR ?? "fake", VERCEL_ENV: "development", NEXT_TELEMETRY_DISABLED: "1" };
     const app = start(process.execPath, [resolve(root, "node_modules/next/dist/bin/next"), "dev", "--hostname", "127.0.0.1", "--port", "3100"], "app.log", appEnv);
@@ -174,7 +178,8 @@ if (command === "seed") {
   const { createStudent } = await tsImport("../../../../src/lib/studentRepository.ts", import.meta.url);
   const { studentProfileSchema } = await tsImport("../../../../src/lib/studentProfile.ts", import.meta.url);
   const { default: bcrypt } = await import("bcryptjs");
-  const password = randomBytes(12).toString("base64url") + "Aa1";
+  // An Admin has no password and signs in only through a Google identity.
+  const password = role === "admin" ? null : randomBytes(12).toString("base64url") + "Aa1";
   // The feature map's baseline onboarding answers.
   const profile = studentProfileSchema.parse({
     platform: "7Sage", currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01", preferredPracticeTestDay: "SATURDAY",
@@ -182,10 +187,28 @@ if (command === "seed") {
     dailyCapacityMinutes: Object.fromEntries(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"].map((day) => [day, 90])),
   });
   try {
-    const account = await createAccount({ name: email.split("@")[0], email, passwordHash: await bcrypt.hash(password, 10), role });
+    const account = await createAccount({ name: email.split("@")[0], email, passwordHash: password && await bcrypt.hash(password, 10),
+      googleId: role === "admin" ? `verify-google-${randomBytes(12).toString("hex")}` : null, role });
     if (!account) throw new Error(`An Account already exists for ${email}. Choose another email.`);
     if (!(await createStudent(account.id, profile))) throw new Error(`No student saved for ${email}.`);
     console.log(JSON.stringify({ email, password, role, accountId: account.id, onboarded: true }, null, 2));
+  } finally { await closePostgresDatabase(); }
+}
+if (command === "session") {
+  // Mint the session Google sign-in would give a seeded Admin. This run's secret signs it.
+  await doctor();
+  process.env.DATABASE_URL = postgresSettingForDatabase(loadState().postgresDatabase);
+  const { findAccountByEmail } = await tsImport("../../../../src/lib/accountRepository.ts", import.meta.url);
+  const { encode } = await import("next-auth/jwt");
+  try {
+    const account = await findAccountByEmail(extra[0]);
+    if (!account) throw new Error(`No Account exists for ${extra[0]}.`);
+    const name = "authjs.session-token";
+    const value = await encode({
+      token: { id: account.id, role: account.role, email: account.email, name: account.name },
+      secret: readFileSync(resolve(run, "scratch/auth-secret"), "utf8"), salt: name, maxAge: 60 * 60,
+    });
+    console.log(JSON.stringify({ name, value, url }, null, 2));
   } finally { await closePostgresDatabase(); }
 }
 if (command === "cleanup") {

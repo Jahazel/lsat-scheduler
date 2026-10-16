@@ -32,12 +32,17 @@ export async function findAccountByEmail(email: string) {
   return account ?? null;
 }
 
-/** Returns null when another Account already has this email. */
+export async function findAccountByGoogleId(googleId: string) {
+  const [account] = await getPostgresDatabase().select(publicColumns).from(accounts).where(eq(accounts.googleId, googleId));
+  return account ?? null;
+}
+
+/** Returns null when another Account already has this email or Google ID. */
 export async function createAccount(values: typeof accounts.$inferInsert) {
   const [account] = await getPostgresDatabase()
     .insert(accounts)
     .values(values)
-    .onConflictDoNothing({ target: accounts.email })
+    .onConflictDoNothing()
     .returning({ id: accounts.id, role: accounts.role });
   return account ?? null;
 }

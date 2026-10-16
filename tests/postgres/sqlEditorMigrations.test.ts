@@ -17,7 +17,7 @@ it("applies owner SQL twice and the ordinary migration command skips the recorde
     const bundle = await exec(process.execPath, ["scripts/sql-editor-migrations.mjs"]);
     await owner.db.execute(sql.raw(bundle.stdout));
     const applied = await owner.db.execute(sql`select * from drillmap_migrations.applied order by id`);
-    expect(applied.rows).toHaveLength(2);
+    expect(applied.rows).toHaveLength(3);
     await owner.db.execute(sql`insert into accounts (email, name) values ('retained@example.test', 'Retained')`);
     await owner.db.execute(sql.raw(bundle.stdout));
     const result = await exec(process.execPath, ["--import", "tsx", "scripts/migrate-postgres.mts"], {
@@ -49,7 +49,7 @@ it("refuses changed, unknown, duplicate, and incomplete migration history", asyn
       })).rejects.toThrow("Migration history does not match this version. Stop.");
     }
     await owner.db.execute(sql.raw(bundle.stdout));
-    expect((await owner.db.execute(sql`select * from drillmap_migrations.applied`)).rows).toHaveLength(2);
+    expect((await owner.db.execute(sql`select * from drillmap_migrations.applied`)).rows).toHaveLength(3);
   } finally {
     await owner.close();
     await database.cleanup();
@@ -71,7 +71,7 @@ it("rolls back structure and bookkeeping together when migration SQL fails", asy
       .toEqual([{ journal: null, normalizer: null }]);
     await owner.db.execute(sql`drop table accounts`);
     await owner.db.execute(sql.raw(bundle.stdout));
-    expect((await owner.db.execute(sql`select * from drillmap_migrations.applied`)).rows).toHaveLength(2);
+    expect((await owner.db.execute(sql`select * from drillmap_migrations.applied`)).rows).toHaveLength(3);
   } finally {
     await owner.close();
     await database.cleanup();
@@ -84,13 +84,13 @@ it("finishes an already recorded valid migration prefix", async () => {
   try {
     await owner.db.execute(sql`drop schema public cascade`);
     await owner.db.execute(sql`create schema public`);
-    await owner.db.execute(sql`delete from drillmap_migrations.applied where created_at = (select max(created_at) from drillmap_migrations.applied)`);
+    await owner.db.execute(sql`delete from drillmap_migrations.applied where created_at > (select min(created_at) from drillmap_migrations.applied)`);
     const prefix = (await owner.db.execute(sql`select * from drillmap_migrations.applied`)).rows;
     expect(prefix).toHaveLength(1);
     const bundle = await exec(process.execPath, ["scripts/sql-editor-migrations.mjs"]);
     await owner.db.execute(sql.raw(bundle.stdout));
     const applied = (await owner.db.execute(sql`select * from drillmap_migrations.applied order by created_at`)).rows;
-    expect(applied).toHaveLength(2);
+    expect(applied).toHaveLength(3);
     expect(applied[0]).toEqual(prefix[0]);
     expect((await owner.db.execute(sql`select count(*)::integer as count from accounts`)).rows).toEqual([{ count: 0 }]);
   } finally {

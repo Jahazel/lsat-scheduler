@@ -7,26 +7,25 @@ import { accounts } from "../src/lib/postgresSchema";
 
 const TEST_PASSWORD = "DrillMapTest123";
 
-type TestAccount = { email: string; role: "student" | "admin" };
+type TestAccount = { email: string };
 
 export function parseTestUserArgs(args: string[]): TestAccount {
   const { values } = parseArgs({
     args,
-    options: { admin: { type: "boolean" }, email: { type: "string" } },
+    options: { email: { type: "string" } },
   });
-  const role = values.admin ? "admin" : "student";
-  const email = (values.email ?? `${role}@test.local`).trim().toLowerCase();
+  const email = (values.email ?? "student@test.local").trim().toLowerCase();
   if (!z.email().safeParse(email).success) throw new Error("Enter a valid email with --email.");
-  return { email, role };
+  return { email };
 }
 
-export async function createTestUser({ email, role }: TestAccount) {
+export async function createTestUser({ email }: TestAccount) {
   const passwordHash = await bcrypt.hash(TEST_PASSWORD, 10);
   await getPostgresDatabase()
     .insert(accounts)
-    .values({ email, passwordHash, role, name: role === "admin" ? "Test Admin" : "Test Student" })
-    .onConflictDoUpdate({ target: accounts.email, set: { passwordHash, role } });
-  return { email, password: TEST_PASSWORD, role };
+    .values({ email, passwordHash, name: "Test Student" })
+    .onConflictDoUpdate({ target: accounts.email, set: { passwordHash } });
+  return { email, password: TEST_PASSWORD };
 }
 
 async function main() {
@@ -37,7 +36,7 @@ async function main() {
   try {
     account = parseTestUserArgs(process.argv.slice(2));
   } catch {
-    throw new Error("Usage: npm run create-test-user -- [--admin] [--email <address>]");
+    throw new Error("Usage: npm run create-test-user -- [--email <address>]");
   }
   const host = requirePostgresScriptTarget();
   try {
@@ -45,7 +44,7 @@ async function main() {
     console.log(`Test Account ready on ${host}.`);
     console.log(`Email: ${result.email}`);
     console.log(`Password: ${result.password}`);
-    console.log(`Role: ${result.role}`);
+    console.log("Role: student");
   } catch {
     throw new Error("Test Account setup failed. Check the connection setting and database permissions.");
   }

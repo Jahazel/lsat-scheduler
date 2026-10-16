@@ -138,15 +138,18 @@ credential is a secret that gives access, such as a password or an API key.
    Open `http://localhost:3000`. The local database starts empty. Sign up locally
    to create your Account. Do not copy real students' records into it.
 
-5. In another terminal, make that local Account an Admin. `make-admin` reads
+5. Admins sign in only with Google and never with a password. Sign in once with
+   Google locally, which needs a local Google client in `.env.local`. Then, in
+   another terminal, make that local Account an Admin. `make-admin` refuses an
+   Account that has not signed in with Google, and it clears any password. It reads
    `DATABASE_URL` from the terminal environment, so pass the local value explicitly:
 
    ```bash
    DATABASE_URL=postgresql://postgres:local-only@127.0.0.1:5432/drillmap npm run make-admin -- your-local-email@example.test
    ```
 
-   Replace `your-local-email@example.test` with the email you used to sign up
-   locally. Sign out and back in to see the Admin controls.
+   Replace `your-local-email@example.test` with the email of the Google
+   Account you used locally. Sign out and back in to see the Admin controls.
 
 ## Commands
 
@@ -162,14 +165,13 @@ Create a local test Account for email-and-password sign-in:
 
 ```bash
 npm run create-test-user               # student@test.local, role student
-npm run create-test-user -- --admin    # admin@test.local, role admin
 npm run create-test-user -- --email parallel@test.local
-npm run create-test-user -- --admin --email parallel-admin@test.local
 ```
 
 The command reads `.env.local` and prints the email, fixed test password, and
-role. Sign in at `/login`. A new student reaches onboarding. An Admin reaches
-`/admin`. Each run resets the Account's password and role. Existing Accounts
+role. Sign in at `/login`. A new student reaches onboarding. The command makes
+no Admin, because an Admin signs in only with Google. Each run resets the
+Account's password. Existing Accounts
 keep their names, Study settings, and Weekly schedules. The command creates
 only an Account, with no Study settings or Weekly schedules. Use a separate
 `--email` for each parallel test run. It refuses `NODE_ENV=production` before
