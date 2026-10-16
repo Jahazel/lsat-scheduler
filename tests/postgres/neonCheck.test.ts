@@ -36,6 +36,7 @@ it("checks the foundation as the limited login and leaves existing records untou
     const result = await run();
     expect(result.code).toBe(0);
     expect(result.output).toContain("PASS: App reads and writes");
+    expect(result.output).toContain("PASS: Owner-only migration journal refused");
     expect(result.output).toContain("PASS: Database rules");
     expect(result.output).toContain("PASS: Account deletion");
     expect(result.output).toContain("PASS: Throwaway records rolled back");
@@ -59,6 +60,13 @@ it.each([
     name: "extra Weekly schedule update permission",
     breakRule: (role: string) => sql`grant update on weekly_schedules to ${sql.identifier(role)}`,
     repairRule: (role: string) => sql`revoke update on weekly_schedules from ${sql.identifier(role)}`,
+  },
+  {
+    name: "extra owner-only migration journal permission",
+    breakRule: (role: string) => sql`grant usage on schema drillmap_migrations to ${sql.identifier(role)};
+      grant select on drillmap_migrations.applied to ${sql.identifier(role)}`,
+    repairRule: (role: string) => sql`revoke select on drillmap_migrations.applied from ${sql.identifier(role)};
+      revoke usage on schema drillmap_migrations from ${sql.identifier(role)}`,
   },
 ])("fails for $name without leaving probe records", async ({ breakRule, repairRule }) => {
   const before = (await database.owner.execute(sql`select id from accounts order by id`)).rows;
