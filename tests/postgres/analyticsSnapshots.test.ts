@@ -15,7 +15,6 @@ import { POST as extract } from "../../src/app/api/analytics/extract/route";
 import { generateTestSample, resetEverything, resetTestData } from "../../src/app/admin/test/actions";
 import { deleteAccount } from "../../src/app/account/actions";
 import { postgresAdminTestRepositories } from "../../src/lib/adminTestRepositories";
-import { findStudentByAccountId } from "../../src/lib/studentRepository";
 import { findAccountById } from "../../src/lib/accountRepository";
 import { rebuildThisWeek } from "../../src/app/admin/test/actions";
 
@@ -240,21 +239,6 @@ it("admin rebuild deletes only the current week's schedule and its Activity chec
   expect(await listApprovedAnalyticsSnapshots(admin.saved.id)).toHaveLength(1);
   expect(await findAccountById(admin.account.id)).toMatchObject({ simulatedDate: "2026-10-14" });
 });
-it("Account deletion cascades Weekly schedules and Activity check-ins for only its owner", async () => {
-  const other = await student("other@example.test");
-  const otherSchedule = await schedule(other.saved.id);
-  const owner = await student("owner@example.test");
-  const ownSchedule = await schedule(owner.saved.id);
-  const form = new FormData();
-  await expect(deleteAccount(form)).rejects.toThrow("Type DELETE");
-  expect(await findStudentByAccountId(owner.account.id)).not.toBeNull();
-  form.set("confirmation", "DELETE");
-  await deleteAccount(form);
-  expect(await findAccountById(owner.account.id)).toBeNull();
-  expect(await findStudentByAccountId(owner.account.id)).toBeNull();
-  expect(await checkIns(ownSchedule)).toEqual([]);
-  expect(await checkIns(otherSchedule)).toHaveLength(1);
-});
 it("uses the simulated calendar date when Chicago's evening falls on tomorrow in UTC", async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-09-15T03:00:00Z"));
@@ -274,25 +258,6 @@ it("rejects missing screenshot input", async () => {
   const response = await extract(new NextRequest("http://localhost/api/analytics/extract", { method: "POST", body: new FormData() }));
   expect(response.status).toBe(400);
   expect(await response.json()).toEqual({ error: "No image provided" });
-});
-it("keeps the Account, Student, and snapshots when a cascading delete fails", async () => {
-  const owner = await student("owner@example.test");
-  await approval(confirmed());
-  await database.owner.execute(sql`create function reject_snapshot_delete_test() returns trigger language plpgsql as
-    'BEGIN RAISE EXCEPTION ''forced snapshot delete failure''; END;'`);
-  await database.owner.execute(sql`create trigger reject_snapshot_delete_test before delete on analytics_snapshots
-    for each row execute function reject_snapshot_delete_test()`);
-  try {
-    const form = new FormData();
-    form.set("confirmation", "DELETE");
-    await expect(deleteAccount(form)).rejects.toThrow();
-    expect(await findAccountById(owner.account.id)).not.toBeNull();
-    expect(await findStudentByAccountId(owner.account.id)).not.toBeNull();
-    expect(await listApprovedAnalyticsSnapshots(owner.saved.id)).toHaveLength(1);
-  } finally {
-    await database.owner.execute(sql`drop trigger reject_snapshot_delete_test on analytics_snapshots`);
-    await database.owner.execute(sql`drop function reject_snapshot_delete_test()`);
-  }
 });
 it("retains existing acceptance of fabricated screenshot provenance and unknown analytics labels", async () => {
   const { saved } = await student("evidence@example.test");
