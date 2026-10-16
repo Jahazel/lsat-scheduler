@@ -41,6 +41,15 @@ Signup stays open. The owner does not promote DrillMap. The risk is small becaus
 
 Only screenshot extraction uses this Anthropic organization, so the $20 limit affects nothing else.
 
+On October 16, 2026, the owner ran the Stage 2 database foundation check on the
+separate Neon copy project. It passed at 13:44:00 UTC through the limited app
+role. The check proved encrypted access with certificate and host-name checks,
+app reads and writes, role restrictions, Weekly schedule immutability, database
+rules, Account deletion, and rollback of throwaway records. See
+[the issue #108 evidence](issue-108-evidence.md). This is foundation evidence
+only. Every launch checklist check stays `Not tested`, and the no-promotion rule
+remains in force.
+
 On October 6, 2026, the owner confirmed that the computer and the real site used the same database and the same admin password. A local test or script could change or delete real students' records, and no backup existed. The owner completed the separate local setup on October 8, 2026 ([issue #84](https://github.com/Jahazel/lsat-scheduler/issues/84)). The owner also confirmed the real-site credential replacement on October 8, 2026 ([issue #85](https://github.com/Jahazel/lsat-scheduler/issues/85)). The final separation, real-site, and local validation checks completed on October 8, 2026 ([issue #86](https://github.com/Jahazel/lsat-scheduler/issues/86)). The owner approved provider-action records instead of the three unavailable direct refusal tests for Stage 1 only. The second Auth.js secret replacement refused the preserved sign-in session. The pause on normal local writes ended on October 8, 2026 after local validation passed. See [Stage 1 evidence](issue-86-evidence.md). The no-promotion rule remains in force; the full environment-separation and credential replacement drill checks remain Not tested. This work comes before other launch work ([infrastructure rules](issue-77-decisions.md) 18 to 20):
 
 | Step | Required result | Status |
