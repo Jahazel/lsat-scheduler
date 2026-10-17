@@ -524,7 +524,7 @@ row() {
   printf -- '- Tools: Node %s, %s, browser %s\n\n' "$(v NODE_VERSION)" "$(v PSQL_VERSION)" "$(v BROWSER)"
   printf '## Database password and secret\n\n| Check | State | Note |\n| --- | --- | --- |\n'
   row "psql ALTER ROLE accepted" APP_PASSWORD_CHANGED
-  row "App password is 32+ characters ($(v APP_PASSWORD_CHARS) characters), in password manager" APP_PASSWORD
+  row "App password is 32+ characters, in password manager" APP_PASSWORD
   row "db:check-copy through the pooled endpoint with the new password" POOLED_CHECK
   printf '\n```text\n%s\n```\n\n' "$(v POOLED_CHECK_OUTPUT | tr '|' '\n')"
   printf '| Check | State | Note |\n| --- | --- | --- |\n'

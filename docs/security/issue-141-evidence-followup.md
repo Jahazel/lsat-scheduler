@@ -14,7 +14,7 @@ This file holds no password, secret, connection string, or personal email.
 | Check | State | Note |
 | --- | --- | --- |
 | psql ALTER ROLE accepted | not run | - |
-| App password is 32+ characters ( characters), in password manager | blocker | Owner declined the clipboard method. A supported method is still needed. |
+| App password is 32+ characters, in password manager | blocker | Owner declined the clipboard method. A supported method is still needed. |
 | db:check-copy through the pooled endpoint with the new password | not run | - |
 
 ```text
