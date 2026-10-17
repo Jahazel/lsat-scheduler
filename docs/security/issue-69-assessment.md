@@ -16,8 +16,8 @@ The record relationships come from [GLOSSARY.md](../../GLOSSARY.md). A student o
 
 | Evidence | What it establishes | Limit |
 | --- | --- | --- |
-| [Application evidence](issue-70-evidence.md), October 1 | Source findings and 19 synthetic reproduction cases. The recorded full suite passed 416 tests. | Tests mock database and identity state. They do not prove a production attack or satisfy the later launch checklist. |
-| [Provider evidence](issue-71-evidence.md), October 1 | Dated dashboard observations, local secret-equality results, and three public HTTP HEAD responses. | Unknown settings remain unknown. A dashboard observation is not an end-to-end test. |
+| Application evidence (issue #70), October 1 | Source findings and 19 synthetic reproduction cases. The recorded full suite passed 416 tests. | Tests mock database and identity state. They do not prove a production attack or satisfy the later launch checklist. |
+| Provider evidence (issue #71), October 1 | Dated dashboard observations, local secret-equality results, and three public HTTP HEAD responses. | Unknown settings remain unknown. A dashboard observation is not an end-to-end test. |
 | [Required protections](issue-72-decisions.md) and [launch checklist](release-gate.md) | Owner-approved protection categories, release rules, recovery targets, and acceptance checks. | A policy decision is not implementation evidence. |
 | [Account](issue-74-decisions.md), [abuse](issue-75-decisions.md), [browser and data](issue-76-decisions.md), and [infrastructure](issue-77-decisions.md) rules | Detailed owner decisions and their links to launch checks. | Their implementation and deployed behavior still need verification. |
 | [Database research and decision](issue-78-database-research.md#decision), October 6 | Move to Postgres on Neon before launch. The owner confirmed that the database holds only two admin accounts, so no student data transfer is planned. | Published provider capabilities do not prove DrillMap's backups or restore time. Neon access choices are settled below; their implementation remains unverified. |

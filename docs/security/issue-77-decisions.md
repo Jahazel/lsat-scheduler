@@ -4,7 +4,7 @@ Decisions for [issue 77](https://github.com/Jahazel/lsat-scheduler/issues/77), u
 
 **Status: decided.** These are rules for later work. None of them is built yet. The checks in [release-gate.md](release-gate.md#g-dependencies-and-code) still fail until the settings and code pass them.
 
-The evidence comes from [issue 70](issue-70-evidence.md) finding F16 and from [issue 71](issue-71-evidence.md). The copy of the site, the 1-day response time, and the emergency guide come from [the launch checklist](release-gate.md). The email provider comes from [issue 74](issue-74-decisions.md) rule 1.
+The evidence comes from issue 70 finding F16 and from issue 71. The copy of the site, the 1-day response time, and the emergency guide come from [the launch checklist](release-gate.md). The email provider comes from [issue 74](issue-74-decisions.md) rule 1.
 
 ## Words in this file
 

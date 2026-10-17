@@ -4,7 +4,7 @@ Release gate for [issue 73](https://github.com/Jahazel/lsat-scheduler/issues/73)
 
 **Status: draft.** No check on this list passes yet. DrillMap is not ready to launch. This file does not deploy anything or approve a launch.
 
-The evidence comes from [issue 70](issue-70-evidence.md) (app code), [issue 71](issue-71-evidence.md) (provider settings), and [issue 72](issue-72-decisions.md) (the required protections). Finding IDs such as F01 refer to issue 70.
+The evidence comes from issue 70 (app code), issue 71 (provider settings), and [issue 72](issue-72-decisions.md) (the required protections). Finding IDs such as F01 refer to issue 70.
 
 ## Words in this file
 
@@ -45,7 +45,7 @@ On October 16, 2026, Stage 2 verification used main revision `74197aa` on a
 disposable local Postgres database. The integration branch had already merged
 through PR #125, and GitHub Checks passed on the tested revision. The browser
 run and remaining checks are recorded in
-[the issue #109 evidence](issue-109-evidence.md). This is foundation evidence
+the issue #109 evidence. This is foundation evidence
 only. Every launch checklist check stays `Not tested`, and the no-promotion
 rule remains in force.
 
@@ -54,17 +54,17 @@ separate Neon copy project. It passed at 13:44:00 UTC through the limited app
 role. The check proved encrypted access with certificate and host-name checks,
 app reads and writes, role restrictions, Weekly schedule immutability, database
 rules, Account deletion, and rollback of throwaway records. See
-[the issue #108 evidence](issue-108-evidence.md). This is foundation evidence
+the issue #108 evidence. This is foundation evidence
 only. Every launch checklist check stays `Not tested`, and the no-promotion rule
 remains in force.
 
-On October 6, 2026, the owner confirmed that the computer and the real site used the same database and the same admin password. A local test or script could change or delete real students' records, and no backup existed. The owner completed the separate local setup on October 8, 2026 ([issue #84](https://github.com/Jahazel/lsat-scheduler/issues/84)). The owner also confirmed the real-site credential replacement on October 8, 2026 ([issue #85](https://github.com/Jahazel/lsat-scheduler/issues/85)). The final separation, real-site, and local validation checks completed on October 8, 2026 ([issue #86](https://github.com/Jahazel/lsat-scheduler/issues/86)). The owner approved provider-action records instead of the three unavailable direct refusal tests for Stage 1 only. The second Auth.js secret replacement refused the preserved sign-in session. The pause on normal local writes ended on October 8, 2026 after local validation passed. See [Stage 1 evidence](issue-86-evidence.md). The no-promotion rule remains in force; the full environment-separation and credential replacement drill checks remain Not tested. This work comes before other launch work ([infrastructure rules](issue-77-decisions.md) 18 to 20):
+On October 6, 2026, the owner confirmed that the computer and the real site used the same database and the same admin password. A local test or script could change or delete real students' records, and no backup existed. The owner completed the separate local setup on October 8, 2026 ([issue #84](https://github.com/Jahazel/lsat-scheduler/issues/84)). The owner also confirmed the real-site credential replacement on October 8, 2026 ([issue #85](https://github.com/Jahazel/lsat-scheduler/issues/85)). The final separation, real-site, and local validation checks completed on October 8, 2026 ([issue #86](https://github.com/Jahazel/lsat-scheduler/issues/86)). The owner approved provider-action records instead of the three unavailable direct refusal tests for Stage 1 only. The second Auth.js secret replacement refused the preserved sign-in session. The pause on normal local writes ended on October 8, 2026 after local validation passed. See Stage 1 evidence (issue #86). The no-promotion rule remains in force; the full environment-separation and credential replacement drill checks remain Not tested. This work comes before other launch work ([infrastructure rules](issue-77-decisions.md) 18 to 20):
 
 | Step | Required result | Status |
 | --- | --- | --- |
 | Local scripts and tests that save data | None run until the separation is done | Pause ended on 2026-10-08 after issue #86 validation passed under the owner-approved evidence exception. Normal local work may resume only against the separate local database. |
 | Separate database for your computer | `.env.local` holds only local values. `.env.vercel.local` is deleted. | Done on 2026-10-08. Owner ran issue #84 setup. MongoDB listens only on loopback; local credentials are new; both Google redirect settings rechecked. |
-| Replace the four real-site credentials | New database password, Anthropic key, Auth.js secret, and Google client secret. The old ones are refused. | Replaced on 2026-10-08 in issue #85. Issue #86 records owner-approved provider-action evidence for the three unavailable direct refusal tests. AUTH_SECRET was replaced a second time on 2026-10-08; the preserved session was refused and fresh sign-in worked. See [replacement evidence](issue-85-evidence.md) and [final validation](issue-86-evidence.md). |
+| Replace the four real-site credentials | New database password, Anthropic key, Auth.js secret, and Google client secret. The old ones are refused. | Replaced on 2026-10-08 in issue #85. Issue #86 records owner-approved provider-action evidence for the three unavailable direct refusal tests. AUTH_SECRET was replaced a second time on 2026-10-08; the preserved session was refused and fresh sign-in worked. See replacement evidence (issue #85) and final validation (issue #86). |
 
 ## The checks
 

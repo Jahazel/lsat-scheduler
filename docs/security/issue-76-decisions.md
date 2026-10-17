@@ -4,7 +4,7 @@ Decisions for [issue 76](https://github.com/Jahazel/lsat-scheduler/issues/76), u
 
 **Status: decided.** These are rules for later work. None of them is built yet. The checks in [release-gate.md](release-gate.md#e-browser-protections-and-private-responses) still fail until the code passes them.
 
-The evidence comes from [issue 70](issue-70-evidence.md) findings F11, F12, F13, and F15, and from [issue 71](issue-71-evidence.md). Recent sign-in for deletion and sign-out on all devices come from [issue 74](issue-74-decisions.md). The limit refusals that the log records come from [issue 75](issue-75-decisions.md).
+The evidence comes from issue 70 findings F11, F12, F13, and F15, and from issue 71. Recent sign-in for deletion and sign-out on all devices come from [issue 74](issue-74-decisions.md). The limit refusals that the log records come from [issue 75](issue-75-decisions.md).
 
 ## Words in this file
 

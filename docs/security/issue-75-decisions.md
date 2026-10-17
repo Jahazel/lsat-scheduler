@@ -4,7 +4,7 @@ Decisions for [issue 75](https://github.com/Jahazel/lsat-scheduler/issues/75), u
 
 **Status: decided.** These are rules for later work. None of them is built yet. The checks in [release-gate.md](release-gate.md#c-abuse-limits-and-spending) still fail until the code passes them.
 
-The evidence comes from [issue 70](issue-70-evidence.md) findings F05, F07, F08, and F09. The $10 monthly extraction limit and the manual entry fallback come from [issue 72](issue-72-decisions.md). The signup, verification, and reset flows that these limits protect come from [issue 74](issue-74-decisions.md).
+The evidence comes from issue 70 findings F05, F07, F08, and F09. The $10 monthly extraction limit and the manual entry fallback come from [issue 72](issue-72-decisions.md). The signup, verification, and reset flows that these limits protect come from [issue 74](issue-74-decisions.md).
 
 ## Words in this file
 

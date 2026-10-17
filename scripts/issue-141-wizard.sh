@@ -185,9 +185,8 @@ finish() {
 }
 
 # ──────────────────────────────────────────────────────────────────────────
-# STAGES: issue 141, the open work only. Earlier results stay in
-# docs/security/issue-141-evidence.md. This run writes
-# docs/security/issue-141-evidence-followup.md and never edits the first file.
+# STAGES: issue 141, the open work only. This run writes
+# docs/security/issue-141-evidence-followup.md.
 # ──────────────────────────────────────────────────────────────────────────
 
 TOTAL_STAGES=9
@@ -279,7 +278,7 @@ if (( START_STAGE > 1 )); then
   say "Resuming at stage $START_STAGE. Saved answers that passed are kept."
 fi
 banner "Issue 141: finish the open work on the hosted copy"
-say "Earlier results are saved in docs/security/issue-141-evidence.md. This run covers only what is still open."
+say "Earlier results are in the issue 141 description. This run covers only what is still open."
 say "Order matters. The password and the site secret change first. One redeploy follows."
 say "Everything after that tests the final deployment."
 say "This wizard records results only. It never saves a secret."
@@ -516,7 +515,7 @@ row() {
 
 {
   printf '# Issue 141 follow-up evidence\n\n'
-  printf 'Continues [issue-141-evidence.md](issue-141-evidence.md). Recorded with `scripts/issue-141-wizard.sh`, %s to %s.\n' "$(v STARTED_AT)" "$(v FINISHED_AT)"
+  printf 'Continues the first run recorded on issue #141. Recorded with `scripts/issue-141-wizard.sh`, %s to %s.\n' "$(v STARTED_AT)" "$(v FINISHED_AT)"
   printf 'This file holds no password, secret, connection string, or personal email.\n\n'
   printf '## Final version\n\n'
   printf -- '- GitHub main at start: `%s`\n' "$(v MAIN_COMMIT)"
