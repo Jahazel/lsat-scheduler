@@ -1,0 +1,36 @@
+name: Backup checker
+
+on:
+  schedule:
+    - cron: '37 10 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-checker-production
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: github.ref == 'refs/heads/main' && vars.BACKUP_CHECKER_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: backup-checker-production
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Inspect backups and report to external monitor
+        run: node --import tsx scripts/check-backups.mts
+        env:
+          BACKUP_PROJECT_ID: ${{ vars.BACKUP_PROJECT_ID }}
+          BACKUP_BRANCH_ID: ${{ vars.BACKUP_BRANCH_ID }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          HEALTHCHECKS_PING_URL: ${{ secrets.HEALTHCHECKS_PING_URL }}
