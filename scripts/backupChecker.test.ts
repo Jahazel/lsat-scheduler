@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runBackupCheck } from "./backup-checker";
+import { runBackupCheck } from "./backupChecker";
 
 const now = new Date("2026-10-17T12:00:00Z");
 const env = {
@@ -25,6 +25,23 @@ function receiver(pages: unknown[]) {
 }
 
 describe("backup checker entry point", () => {
+  it("retention reporting leaves the main monitor ready to alert on a later stale backup", async () => {
+    const old = { ...snapshot("2026-09-01T00:00:00Z"), id: "retained-latest" };
+    const network = receiver([{ snapshots: [snapshot(), old] }, { snapshots: [old] }]);
+    const fresh = await runBackupCheck({ env, now: () => now, fetcher: network.fetcher });
+    expect(fresh).toMatchObject({ ok: true, status: "fresh", expired: [{ kind: "scheduled" }] });
+    expect(network.requests.at(-1)?.url.pathname.endsWith("/fail")).toBe(false);
+    const stale = await runBackupCheck({ env, now: () => now, fetcher: network.fetcher });
+    expect(stale).toMatchObject({ ok: false, status: "stale" });
+    expect(network.requests.at(-1)?.url.pathname.endsWith("/fail")).toBe(true);
+  });
+
+  it.each([{ next_cursor: "second-page" }, { has_more: true }])("refuses unknown top-level pagination %j", async (pagination) => {
+    const network = receiver([{ snapshots: [snapshot()], ...pagination }]);
+    expect(await runBackupCheck({ env, now: () => now, fetcher: network.fetcher }))
+      .toEqual({ ok: false, status: "checker-failed" });
+  });
+
   it("fails when a fresh backup result cannot reach the monitor", async () => {
     const fetcher: typeof fetch = async (input) => String(input).startsWith("https://hc-ping.com/")
       ? new Response("unavailable", { status: 503 }) : Response.json({ snapshots: [snapshot()] });
@@ -65,7 +82,7 @@ describe("backup checker entry point", () => {
       throw new Error(`Request failed for ${env.NEON_API_KEY} postgresql://private@example.test/db`);
     };
     expect(await runBackupCheck({ env, fetcher })).toEqual({ ok: false, status: "checker-failed" });
-    expect(network.requests[0].body).toBe('{"status":"checker-failed"}');
+    expect(network.requests[0].body).toBe('{"ok":false,"status":"checker-failed"}');
   });
 
   it("rejects malformed JSON and refuses redirects", async () => {
@@ -130,7 +147,7 @@ describe("backup checker entry point", () => {
       { ...snapshot("2026-09-17T12:00:00Z"), id: "exactly-thirty-days" },
     ] }]);
     const result = await runBackupCheck({ env, now: () => now, fetcher: network.fetcher });
-    expect(result).toMatchObject({ status: "retention-overdue", expired: [
+    expect(result).toMatchObject({ status: "fresh", expired: [
       { ageDays: 31, kind: "scheduled" }, { ageDays: 31, kind: "manual" },
     ] });
   });
@@ -151,7 +168,7 @@ describe("backup checker entry point", () => {
       return new Response("postgresql://secret@example.test/db", { status });
     };
     expect(await runBackupCheck({ env, fetcher })).toEqual({ ok: false, status: "checker-failed" });
-    expect(messages).toEqual(['{"status":"checker-failed"}']);
+    expect(messages).toEqual(['{"ok":false,"status":"checker-failed"}']);
   });
 
   it.each(["provider", "alert"])("fails on a %s timeout", async (boundary) => {
@@ -210,7 +227,7 @@ describe("backup checker entry point", () => {
       { snapshots: [{ ...snapshot("2026-09-16T12:00:00Z"), id: "old-manual", manual: true }] },
     ]);
     const result = await runBackupCheck({ env, now: () => now, fetcher: network.fetcher });
-    expect(result).toMatchObject({ ok: false, status: "retention-overdue", expired: [
+    expect(result).toMatchObject({ ok: true, status: "fresh", expired: [
       { ageDays: 31, kind: "manual" },
     ] });
     expect(network.requests[1].url.searchParams.get("cursor")).toBe("page-two");

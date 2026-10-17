@@ -13,7 +13,7 @@ GitHub daily schedule -> checker -> Neon snapshots for the selected project
 
 ## Checked behavior
 
-Run `node --import tsx scripts/check-backups.mts`. Exit code 0 means that the selected branch has a backup no more than 24 hours old, no reported project backup exceeds 30 days, and Healthchecks.io accepted the result. Every other result exits 1. The command reads only these settings:
+Run `node --import tsx scripts/check-backups.mts`. Exit code 0 means that the selected branch has a backup no more than 24 hours old and Healthchecks.io accepted the result. Every other result exits 1. The `expired` list reports retention separately. A fresh result does not pass retention when that list is nonempty. The command reads only these settings:
 
 | Setting | Location | Purpose |
 | --- | --- | --- |
@@ -32,15 +32,14 @@ Neon's published snapshot endpoint currently returns one `snapshots` array witho
 
 | Report status | Meaning and owner action |
 | --- | --- |
-| `fresh` | Backup and retention checks passed. Healthchecks.io accepted the success signal. |
+| `fresh` | Backup freshness passed. Healthchecks.io accepted the success signal. Inspect `expired` for any owner cleanup. |
 | `stale` | The newest matching backup captures data older than 24 hours. Check the Neon schedule and its failed operations. |
 | `no-snapshots` | No backup matches the selected active branch. Confirm the IDs and the backup schedule. |
-| `retention-overdue` | Freshness passed, but an actual backup age exceeds 30 days. Follow cleanup below. |
 | `checker-failed` | Provider access, data, clock, pagination, or request failed. Check access and provider status privately. |
 | `configuration-failed` | Required settings are missing or invalid. A valid monitor URL still receives a failure signal. |
 | `alert-failed` | Healthchecks.io did not accept the result. Treat the run as failed. Check the monitor and owner delivery. |
 
-A valid monitor receives `/fail` for every unsuccessful inspection. A failed alert request never sends a success signal. An unavailable monitor URL or a failure before the command starts leaves no success signal. The separate missing-run monitor must detect this absence. An HTTP acceptance proves receipt by Healthchecks.io. It does not prove receipt by the owner's mailbox. The live proof must check both.
+Retention rows appear in the command output and monitor event body. Review them during the owner backup check. Retention rows do not hold the freshness monitor down, because that would hide a later stale-backup transition. A valid monitor receives `/fail` for every unsuccessful inspection. A failed alert request never sends a success signal. An unavailable monitor URL or a failure before the command starts leaves no success signal. The separate missing-run monitor must detect this absence. An HTTP acceptance proves receipt by Healthchecks.io. It does not prove receipt by the owner's mailbox. The live proof must check both.
 
 ## Owner setup
 
@@ -90,12 +89,12 @@ The checker has no deletion operation. A Viewer must remain read-only. Use the o
 
 ## Local verification and sources
 
-Run `npx vitest run scripts/lib/backup-checker.test.ts scripts/check-backups.test.ts`. Synthetic responses cover branch selection, all-page inspection, exact age boundaries, malformed/future times, provider failures, timeouts, alert failures, and safe output. The command test launches a real child process against a local HTTP provider and alert receiver. It checks process exit status, stdout, stderr, and received requests. It uses no provider credential and cannot prove a hosted schedule or owner mailbox receipt. No web route changes, so the web app's browser recipes do not apply.
+Run `npx vitest run scripts/backupChecker.test.ts scripts/check-backups.test.ts`. Synthetic responses cover branch selection, all-page inspection, exact age boundaries, malformed/future times, provider failures, timeouts, alert failures, and safe output. The command test launches a real child process against a local HTTP provider and alert receiver. It checks process exit status, stdout, stderr, and received requests. It uses no provider credential and cannot prove a hosted schedule or owner mailbox receipt. No web route changes, so the web app's browser recipes do not apply.
 
 Provider references checked October 17, 2026:
 
 - [Neon API schema](https://neon.com/api_spec/release/v2.json), `GET /projects/{project_id}/snapshots` and `Snapshot`.
 - [Neon API key scope](https://neon.com/docs/manage/api-keys) and [current and legacy permissions](https://neon.com/docs/manage/user-permissions).
-- [Neon backups](https://neon.com/docs/postgres/backup-restore/backups) and the approved [Neon monitoring decisions](issue-69-assessment.md#neon-access-and-monitoring-decisions).
+- [Neon backups](https://neon.com/docs/guides/backup-restore) and the approved [Neon monitoring decisions](issue-69-assessment.md#neon-access-and-monitoring-decisions).
 - [GitHub schedule limitations](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
 - [Healthchecks.io schedules](https://healthchecks.io/docs/configuring_checks/), [failure signals](https://healthchecks.io/docs/signaling_failures/), and [plan limits](https://healthchecks.io/pricing/).

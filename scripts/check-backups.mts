@@ -1,5 +1,5 @@
 import { pathToFileURL } from "node:url";
-import { runBackupCheck } from "./lib/backup-checker";
+import { runBackupCheck } from "./backupChecker";
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const result = await runBackupCheck({ env: process.env });

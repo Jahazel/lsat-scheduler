@@ -79,7 +79,7 @@ it("runs the real command against a controlled HTTP provider and alert receiver"
   providerBody = { secret: "postgresql://private:password@example.test/database" };
   const failed = await command();
   expect(failed).toEqual({ code: 1, stdout: '{"ok":false,"status":"checker-failed"}\n', stderr: "" });
-  expect(alerts.at(-1)?.body).toBe('{"status":"checker-failed"}');
+  expect(alerts.at(-1)?.body).toBe('{"ok":false,"status":"checker-failed"}');
 
   alertStatus = 503;
   const undelivered = await command();
