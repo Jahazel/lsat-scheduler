@@ -121,6 +121,14 @@ export async function checkPostgresFoundation(connection: Connection) {
       ]) await refused(query, "42501");
       messages.push("PASS: Limited role and immutable Weekly schedules");
 
+      for (const query of [
+        sql`select hash from drillmap_migrations.applied`,
+        sql`insert into drillmap_migrations.applied (hash) values ('changed')`,
+        sql`update drillmap_migrations.applied set hash = 'changed'`,
+        sql`delete from drillmap_migrations.applied`,
+      ]) await refused(query, "42501");
+      messages.push("PASS: Owner-only migration journal refused");
+
       const missing = randomUUID();
       for (const query of [
         sql`update students set account_id = ${missing} where id = ${records.student_id}`,

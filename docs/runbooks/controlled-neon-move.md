@@ -32,7 +32,9 @@ hosts, including pooled hosts, absent. Add no bypass flag, environment setting, 
 production administration credential. Do not use `make-admin` on production.
 
 As of October 16, 2026, the owner confirms that only the copy project exists.
-`ep-restless-tooth-b42czg5d.c-6.us-east-2.aws.neon.tech` is its approved host.
+`ep-restless-tooth-b42czg5d.c-6.us-east-2.aws.neon.tech` is its approved direct host.
+The owner approved its pooled host, `ep-restless-tooth-b42czg5d-pooler.c-6.us-east-2.aws.neon.tech`,
+on October 16, 2026, so `db:check-copy` can run through the hosted app's endpoint (#141).
 The owner moved exact production-host refusal proof to #143 on October 16, 2026.
 It remains required after that project exists and before release.
 Do not mark that check passed with a made-up hostname or the copy hostname.
