@@ -279,4 +279,4 @@ Record UTC date, candidate commit, generated SQL hash, executor, project/branch,
 command or provider action, expected result, actual result, and remaining work.
 Use counts and classifications. Omit emails, Google IDs, passwords, connection
 strings, cookies, recovery codes, and secret screens. Distinguish local rehearsal,
-copy observations, and production observations. See [issue 138 evidence](../security/issue-138-evidence.md).
+copy observations, and production observations. See issue 138 evidence.

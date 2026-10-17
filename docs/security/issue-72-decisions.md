@@ -4,7 +4,7 @@ Decision discussion for [issue 72](https://github.com/Jahazel/lsat-scheduler/iss
 
 Status: the user accepted the proposed protection baseline and chose to retain both Google and password sign-in on October 1, 2026. The user subsequently accepted a $10 monthly extraction pilot ceiling and a manual-entry fallback if scanning fails or reaches its limit. Retaining Haiku is the current recommendation; no provider switch was selected. Detailed policies, student allowances, and acceptance checks below remain proposals where the discussion has not settled them. No risk exception or public launch has been approved. No application or provider changes have been made.
 
-Evidence comes from [the application assessment](issue-70-evidence.md), [its primary sources](issue-70-primary-sources.md), and [the provider assessment](issue-71-evidence.md). Issue 70 assessed an earlier commit; a read-only review of the current checkout confirms the major ownership, stale-role, linking, session, and extraction findings. Source inspection and synthetic tests do not establish deployed behavior. Unknown provider settings remain unknown.
+Evidence comes from the application assessment (issue #70), [its primary sources](issue-70-primary-sources.md), and the provider assessment (issue #71). Issue 70 assessed an earlier commit; a read-only review of the current checkout confirms the major ownership, stale-role, linking, session, and extraction findings. Source inspection and synthetic tests do not establish deployed behavior. Unknown provider settings remain unknown.
 
 ## Proposed launch blockers and acceptance checks
 

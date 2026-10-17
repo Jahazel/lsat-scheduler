@@ -1,6 +1,6 @@
 # Human evidence checklist for issue 71
 
-Date: October 1, 2026. Read alongside [the provider evidence](issue-71-evidence.md). These steps collect facts only. Do not save changed settings, rotate keys, buy upgrades, publish OAuth configuration, or run a production restore for this ticket.
+Date: October 1, 2026. Read alongside the provider evidence (issue #71). These steps collect facts only. Do not save changed settings, rotate keys, buy upgrades, publish OAuth configuration, or run a production restore for this ticket.
 
 Use `yes`, `no`, `none`, or `unknown` when appropriate. Keep credentials, MFA codes, recovery codes, backup contents, personal contact details, and complete connection strings out of chat, GitHub, and these files. Redacted evidence needs only the setting label, state, provider/project, and date.
 

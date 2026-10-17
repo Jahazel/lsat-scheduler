@@ -19,7 +19,7 @@ Research for [issue 78](https://github.com/Jahazel/lsat-scheduler/issues/78), un
 - A weekly schedule stores `schedule` and `generationInputs` as free-form nested documents. They cannot change after they are saved. An analytics snapshot stores `lrAccuracyByType` the same way.
 - Mongo-specific features in use: one `populate` join in [students.ts](../../src/lib/students.ts), one transaction in [adminTestRepositories.ts](../../src/lib/adminTestRepositories.ts), `$in`/`$unset` operators, and unique indexes. No aggregation pipeline or `$lookup` exists.
 - Sign-in uses JWT sessions with no database adapter ([auth.ts](../../src/auth.ts)). Only `UserModel` calls touch the database there.
-- Production runs on the Atlas Free tier, MongoDB 8.0.32, AWS us-east-1, with backups inactive ([issue 71](issue-71-evidence.md#mongodb-atlas)). The data size was not read.
+- Production runs on the Atlas Free tier, MongoDB 8.0.32, AWS us-east-1, with backups inactive (issue 71). The data size was not read.
 
 ## Comparison
 

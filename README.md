@@ -81,7 +81,7 @@ The Stage 1 pause on local data writes ended on October 8, 2026 after the
 separation, real-site, and local validation checks passed under the owner's
 evidence exception for unavailable old credentials. See
 [issue #86](https://github.com/Jahazel/lsat-scheduler/issues/86) and the
-[validation evidence](docs/security/issue-86-evidence.md). The no-promotion rule
+validation evidence (issue #86). The no-promotion rule
 remains in force. This does not approve launch.
 
 The steps below describe setup for a new copy of the repository. Local work uses
