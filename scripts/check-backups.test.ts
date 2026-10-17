@@ -44,6 +44,7 @@ async function command(overrides: Record<string, string> = {}) {
       BACKUP_BRANCH_ID: "br-production",
       NEON_API_KEY: "synthetic-key-only",
       HEALTHCHECKS_PING_URL: "https://hc-ping.com/00000000-0000-4000-8000-000000000000",
+      HEALTHCHECKS_RETENTION_PING_URL: "https://hc-ping.com/00000000-0000-4000-8000-000000000001",
       ...overrides,
     },
   });
@@ -70,9 +71,9 @@ it("runs the real command against a controlled HTTP provider and alert receiver"
   expect(alerts.at(-1)?.path.endsWith("/fail")).toBe(false);
 
   providerBody = { snapshots: [] };
-  const stale = await command();
-  expect(stale.code).toBe(1);
-  expect(JSON.parse(stale.stdout)).toMatchObject({ ok: false, status: "no-snapshots" });
+  const missing = await command();
+  expect(missing.code).toBe(1);
+  expect(JSON.parse(missing.stdout)).toMatchObject({ ok: false, status: "no-snapshots" });
   expect(alerts.at(-1)?.path.endsWith("/fail")).toBe(true);
 
   providerStatus = 503;
@@ -85,6 +86,7 @@ it("runs the real command against a controlled HTTP provider and alert receiver"
   const undelivered = await command();
   expect(undelivered).toEqual({ code: 1, stdout: '{"ok":false,"status":"alert-failed"}\n', stderr: "" });
 
+  alertStatus = 200;
   const unconfigured = await command({ HEALTHCHECKS_PING_URL: "not-a-secret-destination" });
   expect(unconfigured).toEqual({ code: 1, stdout: '{"ok":false,"status":"configuration-failed"}\n', stderr: "" });
 }, 15_000);

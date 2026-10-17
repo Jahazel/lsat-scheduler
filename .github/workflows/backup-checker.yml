@@ -34,3 +34,4 @@ jobs:
           BACKUP_BRANCH_ID: ${{ vars.BACKUP_BRANCH_ID }}
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           HEALTHCHECKS_PING_URL: ${{ secrets.HEALTHCHECKS_PING_URL }}
+          HEALTHCHECKS_RETENTION_PING_URL: ${{ secrets.HEALTHCHECKS_RETENTION_PING_URL }}

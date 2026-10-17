@@ -6,7 +6,6 @@ const configSchema = z.object({
   BACKUP_PROJECT_ID: z.string().regex(/^[a-z0-9-]{1,60}$/),
   BACKUP_BRANCH_ID: z.string().regex(/^br-[a-z0-9-]{1,57}$/),
   NEON_API_KEY: z.string().min(1).regex(/^\S+$/),
-  HEALTHCHECKS_PING_URL: pingUrlSchema,
 });
 const snapshotSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]{1,60}$/),
@@ -23,7 +22,7 @@ const pageSchema = z.object({
 type ExpiredBackup = { fingerprint: string; ageDays: number; kind: "manual" | "scheduled" };
 type BackupReport =
   | { ok: true; status: "fresh"; newestAgeHours: number; expired: ExpiredBackup[] }
-  | { ok: false; status: "stale"; newestAgeHours: number; expired: ExpiredBackup[] }
+  | { ok: false; status: "stale" | "retention-overdue"; newestAgeHours: number; expired: ExpiredBackup[] }
   | { ok: false; status: "no-snapshots"; newestAgeHours: null; expired: ExpiredBackup[] }
   | { ok: false; status: "checker-failed" | "configuration-failed" | "alert-failed" };
 type Options = {
@@ -59,16 +58,19 @@ function assessBackups({ snapshots, branchId, checkedAt }: {
   const newestAgeHours = Math.min(...matchingAges);
   return newestAgeHours > 24
     ? { ok: false, status: "stale", newestAgeHours, expired }
-    : { ok: true, status: "fresh", newestAgeHours, expired };
+    : expired.length
+      ? { ok: false, status: "retention-overdue", newestAgeHours, expired }
+      : { ok: true, status: "fresh", newestAgeHours, expired };
 }
 
 export async function runBackupCheck({ env, fetcher = fetch, now = () => new Date() }: Options): Promise<BackupReport> {
   const parsed = configSchema.safeParse(env);
   const pingUrl = pingUrlSchema.safeParse(env.HEALTHCHECKS_PING_URL);
-  if (!pingUrl.success) return { ok: false, status: "configuration-failed" };
+  const retentionUrl = pingUrlSchema.safeParse(env.HEALTHCHECKS_RETENTION_PING_URL);
+  const configured = parsed.success && pingUrl.success && retentionUrl.success && pingUrl.data !== retentionUrl.data;
   let outcome: BackupReport;
   try {
-    if (!parsed.success) throw new Error("Invalid configuration");
+    if (!parsed.success || !configured) throw new Error("Invalid configuration");
     const config = parsed.data;
     const snapshots: z.infer<typeof snapshotSchema>[] = [];
     const seenCursors = new Set<string>();
@@ -99,18 +101,42 @@ export async function runBackupCheck({ env, fetcher = fetch, now = () => new Dat
     } while (cursor);
     outcome = assessBackups({ snapshots, branchId: config.BACKUP_BRANCH_ID, checkedAt: now().getTime() });
   } catch {
-    outcome = { ok: false, status: parsed.success ? "checker-failed" : "configuration-failed" };
+    outcome = { ok: false, status: configured ? "checker-failed" : "configuration-failed" };
   }
-  try {
-    const response = await fetcher(pingUrl.data + (outcome.ok ? "" : "/fail"), {
-      method: "POST",
-      body: JSON.stringify(outcome),
-      redirect: "error",
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!response.ok) throw new Error("Alert failed");
-  } catch {
-    return { ok: false, status: "alert-failed" };
+  if (retentionUrl.success) {
+    try {
+      await sendReport({
+        fetcher, url: retentionUrl.data, outcome,
+        failed: !("expired" in outcome) || outcome.expired.length > 0,
+      });
+    } catch {
+      outcome = { ok: false, status: "alert-failed" };
+    }
+  }
+  if (pingUrl.success) {
+    try {
+      await sendReport({
+        fetcher, url: pingUrl.data, outcome,
+        failed: outcome.status !== "fresh" && outcome.status !== "retention-overdue",
+      });
+    } catch {
+      return { ok: false, status: "alert-failed" };
+    }
   }
   return outcome;
+}
+
+async function sendReport({ fetcher, url, outcome, failed }: {
+  fetcher: typeof fetch;
+  url: string;
+  outcome: BackupReport;
+  failed: boolean;
+}) {
+  const response = await fetcher(url + (failed ? "/fail" : ""), {
+    method: "POST",
+    body: JSON.stringify(outcome),
+    redirect: "error",
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) throw new Error("Alert failed");
 }

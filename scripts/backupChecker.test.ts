@@ -7,6 +7,7 @@ const env = {
   BACKUP_BRANCH_ID: "br-production",
   NEON_API_KEY: "synthetic-key-only",
   HEALTHCHECKS_PING_URL: "https://hc-ping.com/00000000-0000-4000-8000-000000000000",
+  HEALTHCHECKS_RETENTION_PING_URL: "https://hc-ping.com/00000000-0000-4000-8000-000000000001",
 };
 
 function snapshot(timestamp = "2026-10-17T11:00:00Z", source_branch_id = "br-production") {
@@ -25,11 +26,38 @@ function receiver(pages: unknown[]) {
 }
 
 describe("backup checker entry point", () => {
+  it("alerts the primary monitor if retention alert delivery fails", async () => {
+    const messages: { url: string; body: string }[] = [];
+    const fetcher: typeof fetch = async (input, init) => {
+      const url = String(input);
+      if (!url.startsWith("https://hc-ping.com/")) return Response.json({ snapshots: [snapshot()] });
+      messages.push({ url, body: String(init?.body) });
+      return new Response("OK", { status: url.startsWith(env.HEALTHCHECKS_RETENTION_PING_URL) ? 503 : 200 });
+    };
+    expect(await runBackupCheck({ env, now: () => now, fetcher })).toEqual({ ok: false, status: "alert-failed" });
+    expect(messages.at(-1)).toEqual({ url: env.HEALTHCHECKS_PING_URL + "/fail", body: '{"ok":false,"status":"alert-failed"}' });
+  });
+
+  it.each([undefined, env.HEALTHCHECKS_PING_URL])("refuses absent or shared retention destinations", async (url) => {
+    const network = receiver([]);
+    expect(await runBackupCheck({ env: { ...env, HEALTHCHECKS_RETENTION_PING_URL: url }, fetcher: network.fetcher }))
+      .toEqual({ ok: false, status: "configuration-failed" });
+    expect(network.requests.every((request) => request.url.hostname === "hc-ping.com" && request.url.pathname.endsWith("/fail"))).toBe(true);
+  });
+
+  it("sends overdue retention to its own failure monitor while keeping freshness healthy", async () => {
+    const network = receiver([{ snapshots: [snapshot(), { ...snapshot("2026-09-01T00:00:00Z"), id: "old" }] }]);
+    const result = await runBackupCheck({ env, now: () => now, fetcher: network.fetcher });
+    expect(result).toMatchObject({ ok: false, status: "retention-overdue" });
+    expect(network.requests.at(-2)?.url.href).toBe(env.HEALTHCHECKS_RETENTION_PING_URL + "/fail");
+    expect(network.requests.at(-1)?.url.href).toBe(env.HEALTHCHECKS_PING_URL);
+  });
+
   it("retention reporting leaves the main monitor ready to alert on a later stale backup", async () => {
     const old = { ...snapshot("2026-09-01T00:00:00Z"), id: "retained-latest" };
     const network = receiver([{ snapshots: [snapshot(), old] }, { snapshots: [old] }]);
     const fresh = await runBackupCheck({ env, now: () => now, fetcher: network.fetcher });
-    expect(fresh).toMatchObject({ ok: true, status: "fresh", expired: [{ kind: "scheduled" }] });
+    expect(fresh).toMatchObject({ ok: false, status: "retention-overdue", expired: [{ kind: "scheduled" }] });
     expect(network.requests.at(-1)?.url.pathname.endsWith("/fail")).toBe(false);
     const stale = await runBackupCheck({ env, now: () => now, fetcher: network.fetcher });
     expect(stale).toMatchObject({ ok: false, status: "stale" });
@@ -104,11 +132,12 @@ describe("backup checker entry point", () => {
       .toMatchObject({ ok: true, status: "fresh", newestAgeHours: 0 });
   });
 
-  it.each(["", "https://other.example.test/private", "https://hc-ping.com/invalid", "http://hc-ping.com/00000000-0000-4000-8000-000000000000"])("refuses an invalid alert destination without making a request", async (url) => {
+  it.each(["", "https://other.example.test/private", "https://hc-ping.com/invalid", "http://hc-ping.com/00000000-0000-4000-8000-000000000000"])("refuses an invalid primary destination and alerts through the valid retention monitor", async (url) => {
     const network = receiver([]);
     expect(await runBackupCheck({ env: { ...env, HEALTHCHECKS_PING_URL: url }, fetcher: network.fetcher }))
       .toEqual({ ok: false, status: "configuration-failed" });
-    expect(network.requests).toEqual([]);
+    expect(network.requests).toHaveLength(1);
+    expect(network.requests[0].url.href).toBe(env.HEALTHCHECKS_RETENTION_PING_URL + "/fail");
   });
 
   it.each([
@@ -147,7 +176,7 @@ describe("backup checker entry point", () => {
       { ...snapshot("2026-09-17T12:00:00Z"), id: "exactly-thirty-days" },
     ] }]);
     const result = await runBackupCheck({ env, now: () => now, fetcher: network.fetcher });
-    expect(result).toMatchObject({ status: "fresh", expired: [
+    expect(result).toMatchObject({ status: "retention-overdue", expired: [
       { ageDays: 31, kind: "scheduled" }, { ageDays: 31, kind: "manual" },
     ] });
   });
@@ -168,7 +197,7 @@ describe("backup checker entry point", () => {
       return new Response("postgresql://secret@example.test/db", { status });
     };
     expect(await runBackupCheck({ env, fetcher })).toEqual({ ok: false, status: "checker-failed" });
-    expect(messages).toEqual(['{"ok":false,"status":"checker-failed"}']);
+    expect(messages).toEqual(['{"ok":false,"status":"checker-failed"}', '{"ok":false,"status":"checker-failed"}']);
   });
 
   it.each(["provider", "alert"])("fails on a %s timeout", async (boundary) => {
@@ -182,7 +211,7 @@ describe("backup checker entry point", () => {
       return isAlert ? new Response("OK") : Response.json({ snapshots: [snapshot()] });
     };
     expect(await runBackupCheck({ env, now: () => now, fetcher })).toEqual({ ok: false, status: boundary === "alert" ? "alert-failed" : "checker-failed" });
-  }, 15_000);
+  }, 25_000);
 
   it("does not mark an undelivered failure alert as success", async () => {
     const fetcher: typeof fetch = async (input) => String(input).startsWith("https://hc-ping.com/")
@@ -200,12 +229,12 @@ describe("backup checker entry point", () => {
   it("never forwards secrets, connection strings, names, or raw identifiers to alerts or output", async () => {
     const network = receiver([{ snapshots: [{
       ...snapshot("2026-09-01T00:00:00Z"), id: env.NEON_API_KEY,
-      name: "postgresql://private:password@example.test/db", extra: env.HEALTHCHECKS_PING_URL,
+      name: "postgresql://private:password@example.test/db", extra: env.HEALTHCHECKS_PING_URL, privateLabel: env.HEALTHCHECKS_RETENTION_PING_URL,
     }] }]);
     const result = await runBackupCheck({ env, now: () => now, fetcher: network.fetcher });
     const output = JSON.stringify(result) + network.requests.at(-1)?.body;
     expect(result).toMatchObject({ ok: false, status: "stale" });
-    for (const secret of [env.NEON_API_KEY, env.HEALTHCHECKS_PING_URL, "postgresql://", "private:password"])
+    for (const secret of [env.NEON_API_KEY, env.HEALTHCHECKS_PING_URL, env.HEALTHCHECKS_RETENTION_PING_URL, "postgresql://", "private:password"])
       expect(output).not.toContain(secret);
   });
 
@@ -227,7 +256,7 @@ describe("backup checker entry point", () => {
       { snapshots: [{ ...snapshot("2026-09-16T12:00:00Z"), id: "old-manual", manual: true }] },
     ]);
     const result = await runBackupCheck({ env, now: () => now, fetcher: network.fetcher });
-    expect(result).toMatchObject({ ok: true, status: "fresh", expired: [
+    expect(result).toMatchObject({ ok: false, status: "retention-overdue", expired: [
       { ageDays: 31, kind: "manual" },
     ] });
     expect(network.requests[1].url.searchParams.get("cursor")).toBe("page-two");
