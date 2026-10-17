@@ -206,6 +206,11 @@ FINGERPRINT_SQL="select md5(concat_ws('|', (select string_agg(t::text, ',' order
 ACCOUNT_SQL="select id, email, google_id is not null as google, role, password_hash is null as no_password from accounts;"
 INCOMPLETE=0
 DATABASE_URL_VALUE=""
+START_STAGE=1
+if [[ "${1:-}" == "--from" ]]; then
+  START_STAGE="${2:?Usage: issue-141-wizard.sh [--from STAGE_NUMBER]}"
+  [[ "$START_STAGE" =~ ^[1-9]$ ]] || { echo "STAGE_NUMBER must be 1 to 9" >&2; exit 1; }
+fi
 
 trap 'DATABASE_URL_VALUE=""; clear_clipboard' EXIT
 
@@ -232,6 +237,10 @@ required_answer() {
 
 check() {
   local key="$1" question="$2"
+  if (( START_STAGE > 1 )) && [[ "$(_existing "$key" || true)" == "passed" ]]; then
+    printf '  %s✓ kept%s %s: already passed\n' "$GREEN" "$RESET" "$key"
+    return
+  fi
   if confirm "$question"; then
     write_env "$key" "passed"
   else
@@ -265,6 +274,10 @@ pooled_check() {
   printf '%s' "$DATABASE_URL_VALUE" | node --import tsx --input-type=module -e 'let s="";for await (const d of process.stdin) s+=d;process.env.DATABASE_URL=s;await import("./scripts/check-neon.mts")' 2>&1
 }
 
+cd "$REPO_ROOT"
+if (( START_STAGE > 1 )); then
+  say "Resuming at stage $START_STAGE. Saved answers that passed are kept."
+fi
 banner "Issue 141: finish the open work on the hosted copy"
 say "Earlier results are saved in docs/security/issue-141-evidence.md. This run covers only what is still open."
 say "Order matters. The password and the site secret change first. One redeploy follows."
@@ -273,200 +286,225 @@ say "This wizard records results only. It never saves a secret."
 warn "Never change the real Vercel project in this wizard. Only look."
 pause "Press Enter to start."
 
-stage "Record the starting point"
-cd "$REPO_ROOT"
-git fetch -q origin
-write_env STARTED_AT "$(date -u '+%Y-%m-%d %H:%M UTC')"
-write_env MAIN_COMMIT "$(git rev-parse origin/main)"
-write_env NODE_VERSION "$(node --version)"
-write_env PSQL_VERSION "$(psql --version)"
-[[ -d node_modules ]] || npm ci --silent
-say "GitHub main is at $(git rev-parse --short origin/main). The copy should deploy this commit."
-pause "Press Enter to continue."
 
-stage "Open item 1: a database password of 32+ characters"
-say "Problem: the app login has a 16-character password. The release rule needs 32 or more."
-say "Neon's console and API only generate short passwords. Only SQL can set your own."
-say "Typing the password into the browser SQL editor is not allowed, because it keeps query history."
-say "Method: the wizard makes a 48-character password and puts it on the clipboard."
-say "psql reads the clipboard through a backtick command, so the password is never typed or shown."
-say "The line you type holds no secret. psql history is turned off for the session."
-warn "This method is new and not yet reviewed. It sends the password to Neon over TLS as plain text, which Neon requires."
-if ! confirm "Do you accept this method for the copy database only?"; then
-  INCOMPLETE=1
-  write_env APP_PASSWORD "blocker"
-  write_env APP_PASSWORD_NOTE "Owner declined the clipboard method. A supported method is still needed."
-else
-  NEW_PASSWORD="$(openssl rand -hex 24)"
-  write_env APP_PASSWORD_LENGTH "${#NEW_PASSWORD}"
-  say "Step A. Copy the OLD app password from Apple Passwords. You need it once, to log in."
-  step "Open a new Terminal tab and run:"
-  say "    PGSSLMODE=verify-full PGSSLROOTCERT=system psql -X -h $COPY_DIRECT_HOST -U drillmap_app -d neondb -W"
-  step "Paste the old password at the hidden prompt."
-  pause "Press Enter when you see the neondb=> prompt."
-  to_clipboard "$NEW_PASSWORD" "the new 48-character password"
-  step "In psql, type these three lines, one at a time:"
-  say "    \\set HISTFILE /dev/null"
-  say "    \\set pw \`pbpaste\`"
-  say "    ALTER ROLE drillmap_app PASSWORD :'pw';"
-  step "Expect: ALTER ROLE. Then type  \\unset pw  and  \\q  to leave."
-  check APP_PASSWORD_CHANGED "Did psql print ALTER ROLE with no error?"
-  step "Open Apple Passwords. Update the drillmap_app entry. Paste from the clipboard."
-  pause "Press Enter after the password manager holds the new value."
-  clear_clipboard
-  say "Now the wizard proves the new password through the pooled endpoint."
-  say "Paste it once more from Apple Passwords (hidden, kept in memory only)."
-  while true; do
-    ask_secret APP_PASSWORD_INPUT "New drillmap_app password:"
-    PW="$APP_PASSWORD_INPUT"; APP_PASSWORD_INPUT=""
-    if (( ${#PW} < 32 )); then
-      warn "That value has ${#PW} characters. The rule needs 32 or more."
-      PW=""
-      confirm "Try again?" && continue
-      INCOMPLETE=1; write_env APP_PASSWORD "blocker"; break
-    fi
-    if OUT="$(pooled_check "$PW")"; then
-      printf '%s\n' "$OUT" | sed 's/^/  /'
-      write_env APP_PASSWORD "passed"
-      write_env APP_PASSWORD_CHARS "${#PW}"
-      write_env POOLED_CHECK "passed"
-      write_env POOLED_CHECK_OUTPUT "$(printf '%s' "$OUT" | grep -E '^(PASS:|Checked at)' | paste -sd'|' -)"
-      PW=""
-      break
-    fi
-    printf '%s\n' "$OUT" | sed 's/^/  /'
-    PW=""; DATABASE_URL_VALUE=""
-    confirm "Try the password again?" && continue
-    INCOMPLETE=1; write_env APP_PASSWORD "blocker"; write_env POOLED_CHECK "blocker"; break
-  done
-  NEW_PASSWORD=""
-  if [[ -n "$DATABASE_URL_VALUE" ]]; then
-    to_clipboard "$DATABASE_URL_VALUE" "the new DATABASE_URL"
-    open_url "$VERCEL"
-    step "Copy project > Settings > Environment Variables > DATABASE_URL > Edit."
-    step "Paste. Keep Production only and Sensitive. Save."
-    pause "Press Enter after saving DATABASE_URL."
+stage_1() {
+  stage "Record the starting point"
+  cd "$REPO_ROOT"
+  git fetch -q origin
+  write_env STARTED_AT "$(date -u '+%Y-%m-%d %H:%M UTC')"
+  write_env MAIN_COMMIT "$(git rev-parse origin/main)"
+  write_env NODE_VERSION "$(node --version)"
+  write_env PSQL_VERSION "$(psql --version)"
+  [[ -d node_modules ]] || npm ci --silent
+  say "GitHub main is at $(git rev-parse --short origin/main). The copy should deploy this commit."
+  pause "Press Enter to continue."
+}
+
+stage_2() {
+  stage "Open item 1: a database password of 32+ characters"
+  say "Problem: the app login has a 16-character password. The release rule needs 32 or more."
+  say "Neon's console and API only generate short passwords. Only SQL can set your own."
+  say "Typing the password into the browser SQL editor is not allowed, because it keeps query history."
+  say "Method: the wizard makes a 48-character password and puts it on the clipboard."
+  say "psql reads the clipboard through a backtick command, so the password is never typed or shown."
+  say "The line you type holds no secret. psql history is turned off for the session."
+  warn "This method is new and not yet reviewed. It sends the password to Neon over TLS as plain text, which Neon requires."
+  if ! confirm "Do you accept this method for the copy database only?"; then
+    INCOMPLETE=1
+    write_env APP_PASSWORD "blocker"
+    write_env APP_PASSWORD_NOTE "Owner declined the clipboard method. A supported method is still needed."
+  else
+    NEW_PASSWORD="$(openssl rand -hex 24)"
+    write_env APP_PASSWORD_LENGTH "${#NEW_PASSWORD}"
+    say "Step A. Copy the OLD app password from Apple Passwords. You need it once, to log in."
+    step "Open a new Terminal tab and run:"
+    say "    PGSSLMODE=verify-full PGSSLROOTCERT=system psql -X -h $COPY_DIRECT_HOST -U drillmap_app -d neondb -W"
+    step "Paste the old password at the hidden prompt."
+    pause "Press Enter when you see the neondb=> prompt."
+    to_clipboard "$NEW_PASSWORD" "the new 48-character password"
+    step "In psql, type these three lines, one at a time:"
+    say "    \\set HISTFILE /dev/null"
+    say "    \\set pw \`pbpaste\`"
+    say "    ALTER ROLE drillmap_app PASSWORD :'pw';"
+    step "Expect: ALTER ROLE. Then type  \\unset pw  and  \\q  to leave."
+    check APP_PASSWORD_CHANGED "Did psql print ALTER ROLE with no error?"
+    step "Open Apple Passwords. Update the drillmap_app entry. Paste from the clipboard."
+    pause "Press Enter after the password manager holds the new value."
     clear_clipboard
-    DATABASE_URL_VALUE=""
-    write_env DATABASE_URL_UPDATED "yes"
+    say "Now the wizard proves the new password through the pooled endpoint."
+    say "Paste it once more from Apple Passwords (hidden, kept in memory only)."
+    while true; do
+      ask_secret APP_PASSWORD_INPUT "New drillmap_app password:"
+      PW="$APP_PASSWORD_INPUT"; APP_PASSWORD_INPUT=""
+      if (( ${#PW} < 32 )); then
+        warn "That value has ${#PW} characters. The rule needs 32 or more."
+        PW=""
+        confirm "Try again?" && continue
+        INCOMPLETE=1; write_env APP_PASSWORD "blocker"; break
+      fi
+      if OUT="$(pooled_check "$PW")"; then
+        printf '%s\n' "$OUT" | sed 's/^/  /'
+        write_env APP_PASSWORD "passed"
+        write_env APP_PASSWORD_CHARS "${#PW}"
+        write_env POOLED_CHECK "passed"
+        write_env POOLED_CHECK_OUTPUT "$(printf '%s' "$OUT" | grep -E '^(PASS:|Checked at)' | paste -sd'|' -)"
+        PW=""
+        break
+      fi
+      printf '%s\n' "$OUT" | sed 's/^/  /'
+      PW=""; DATABASE_URL_VALUE=""
+      confirm "Try the password again?" && continue
+      INCOMPLETE=1; write_env APP_PASSWORD "blocker"; write_env POOLED_CHECK "blocker"; break
+    done
+    NEW_PASSWORD=""
+    if [[ -n "$DATABASE_URL_VALUE" ]]; then
+      to_clipboard "$DATABASE_URL_VALUE" "the new DATABASE_URL"
+      open_url "$VERCEL"
+      step "Copy project > Settings > Environment Variables > DATABASE_URL > Edit."
+      step "Paste. Keep Production only and Sensitive. Save."
+      pause "Press Enter after saving DATABASE_URL."
+      clear_clipboard
+      DATABASE_URL_VALUE=""
+      write_env DATABASE_URL_UPDATED "yes"
+    fi
   fi
-fi
+}
 
-stage "Open item 5: a copy site secret that is known by construction"
-say "Problem: the last site secret was typed by hand, so no check can prove what Vercel holds."
-say "Fix: make a fresh one in memory, check it differs from the computer's, and paste it."
-say "Vercel hides Sensitive values, so this is the only way to know the final value."
-AUTH_SECRET_VALUE="$(openssl rand -base64 32)"
-LOCAL_AUTH_SECRET="$(local_value AUTH_SECRET)"
-if [[ -n "$LOCAL_AUTH_SECRET" && "$(sha "$AUTH_SECRET_VALUE")" != "$(sha "$LOCAL_AUTH_SECRET")" ]]; then
-  write_env AUTH_SECRET_DISTINCT "passed"
-else
-  INCOMPLETE=1
-  write_env AUTH_SECRET_DISTINCT "blocker"
-  write_env AUTH_SECRET_DISTINCT_NOTE "The computer has no AUTH_SECRET, or it matches the new value."
-fi
-LOCAL_AUTH_SECRET=""
-to_clipboard "$AUTH_SECRET_VALUE" "a new random AUTH_SECRET"
-AUTH_SECRET_VALUE=""
-open_url "$VERCEL"
-step "Copy project > Settings > Environment Variables > AUTH_SECRET > Edit. Paste. Save."
-pause "Press Enter after saving AUTH_SECRET."
-clear_clipboard
-say "The real site's secret stays unread. Vercel hides it, and it must not change."
-write_env REAL_SECRET_DISTINCT "not compared"
-write_env REAL_SECRET_DISTINCT_NOTE "Sensitive value cannot be shown. Owner decision needed: accept not comparing, or rotate the real secret in a separate approved task."
+stage_3() {
+  stage "Open item 5: a copy site secret that is known by construction"
+  say "Problem: the last site secret was typed by hand, so no check can prove what Vercel holds."
+  say "Fix: make a fresh one in memory, check it differs from the computer's, and paste it."
+  say "Vercel hides Sensitive values, so this is the only way to know the final value."
+  AUTH_SECRET_VALUE="$(openssl rand -base64 32)"
+  LOCAL_AUTH_SECRET="$(local_value AUTH_SECRET)"
+  if [[ -n "$LOCAL_AUTH_SECRET" && "$(sha "$AUTH_SECRET_VALUE")" != "$(sha "$LOCAL_AUTH_SECRET")" ]]; then
+    write_env AUTH_SECRET_DISTINCT "passed"
+  else
+    INCOMPLETE=1
+    write_env AUTH_SECRET_DISTINCT "blocker"
+    write_env AUTH_SECRET_DISTINCT_NOTE "The computer has no AUTH_SECRET, or it matches the new value."
+  fi
+  LOCAL_AUTH_SECRET=""
+  to_clipboard "$AUTH_SECRET_VALUE" "a new random AUTH_SECRET"
+  AUTH_SECRET_VALUE=""
+  open_url "$VERCEL"
+  step "Copy project > Settings > Environment Variables > AUTH_SECRET > Edit. Paste. Save."
+  pause "Press Enter after saving AUTH_SECRET."
+  clear_clipboard
+  say "The real site's secret stays unread. Vercel hides it, and it must not change."
+  write_env REAL_SECRET_DISTINCT "not compared"
+  write_env REAL_SECRET_DISTINCT_NOTE "Sensitive value cannot be shown. Owner decision needed: accept not comparing, or rotate the real secret in a separate approved task."
+}
 
-stage "Open item 6: redeploy and record the final version"
-say "New settings apply only to new builds. Redeploy once, then promote by hand."
-open_url "$VERCEL"
-step "Copy project > Deployments > latest production build > ⋯ > Redeploy."
-step "When Ready: ⋯ > Promote to Production. Confirm."
-step "Open the deployment page. Read its commit SHA and its dpl_ ID."
-required_answer FINAL_DEPLOYMENT_ID "Promoted deployment ID (dpl_…):"
-required_answer FINAL_DEPLOYMENT_COMMIT "Commit SHA shown on that deployment (full 40 characters):"
-if [[ "$FINAL_DEPLOYMENT_COMMIT" == "$(_existing MAIN_COMMIT)" ]]; then
-  write_env FINAL_COMMIT_IS_MAIN "yes"
-else
-  write_env FINAL_COMMIT_IS_MAIN "no"
-  warn "That commit is not current GitHub main. Record why in the next answer."
-  required_answer FINAL_COMMIT_NOTE "Why does the commit differ from main?"
-fi
-open_url "https://$COPY_HOST"
-check COPY_LIVE "Does https://$COPY_HOST load DrillMap with the new build?"
-say "Open Chrome > Chrome menu > About Google Chrome, or run the next line, for the running version:"
-say "    /Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --version"
-required_answer BROWSER "Browser and exact version:"
+stage_4() {
+  stage "Open item 6: redeploy and record the final version"
+  say "New settings apply only to new builds. Redeploy once, then promote by hand."
+  open_url "$VERCEL"
+  step "Copy project > Deployments > latest production build > ⋯ > Redeploy."
+  step "When Ready: ⋯ > Promote to Production. Confirm."
+  step "Open the deployment page. Read its commit SHA and its dpl_ ID."
+  required_answer FINAL_DEPLOYMENT_ID "Promoted deployment ID (dpl_…):"
+  required_answer FINAL_DEPLOYMENT_COMMIT "Commit SHA shown on that deployment (full 40 characters):"
+  if [[ "$FINAL_DEPLOYMENT_COMMIT" == "$(_existing MAIN_COMMIT)" ]]; then
+    write_env FINAL_COMMIT_IS_MAIN "yes"
+  else
+    write_env FINAL_COMMIT_IS_MAIN "no"
+    warn "That commit is not current GitHub main. Record why in the next answer."
+    required_answer FINAL_COMMIT_NOTE "Why does the commit differ from main?"
+  fi
+  open_url "https://$COPY_HOST"
+  check COPY_LIVE "Does https://$COPY_HOST load DrillMap with the new build?"
+  say "Open Chrome > Chrome menu > About Google Chrome, or run the next line, for the running version:"
+  say "    /Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --version"
+  required_answer BROWSER "Browser and exact version:"
+}
 
-stage "Open item 2: the second Admin"
-say "An Admin signs in only through Google and has no DrillMap password."
-say "Only the database owner grants the Admin role."
-step "In a private window, open https://$COPY_HOST/login and choose Google."
-step "The address must go to accounts.google.com, then back to $COPY_HOST."
-check ADMIN2_REDIRECT "Did Google sign-in return to the copy and open the site?"
-open_url "$NEON_CONSOLE"
-step "In the copy SQL Editor, owner role, run (this query has no created_at column):"
-say "    $ACCOUNT_SQL"
-step "Find the row for the second Admin: their email, google = true."
-step "Run the grant transaction in 'Grant Admin access as owner' in docs/runbooks/controlled-neon-move.md, with that id."
-step "Rerun the select. Require role admin and no_password true."
-check ADMIN2_GRANT "Did exactly one row become admin, with no password?"
-step "Sign out. Sign in again with Google. Open https://$COPY_HOST/admin."
-check ADMIN2_FRESH "Does a fresh Google sign-in open the Admin pages?"
-step "Sign out. On /login, enter this Admin's email and any password."
-check ADMIN2_PASSWORD_REFUSED "Was the password sign-in refused?"
+stage_5() {
+  stage "Open item 2: the second Admin"
+  say "An Admin signs in only through Google and has no DrillMap password."
+  say "Only the database owner grants the Admin role."
+  step "In a private window, open https://$COPY_HOST/login and choose Google."
+  step "The address must go to accounts.google.com, then back to $COPY_HOST."
+  check ADMIN2_REDIRECT "Did Google sign-in return to the copy and open the site?"
+  open_url "$NEON_CONSOLE"
+  step "In the copy SQL Editor, owner role, run (this query has no created_at column):"
+  say "    $ACCOUNT_SQL"
+  step "Find the row for the second Admin: their email, google = true."
+  step "Run the grant transaction in 'Grant Admin access as owner' in docs/runbooks/controlled-neon-move.md, with that id."
+  step "Rerun the select. Require role admin and no_password true."
+  check ADMIN2_GRANT "Did exactly one row become admin, with no password?"
+  step "Sign out. Sign in again with Google. Open https://$COPY_HOST/admin."
+  check ADMIN2_FRESH "Does a fresh Google sign-in open the Admin pages?"
+  step "Sign out. On /login, enter this Admin's email and any password."
+  check ADMIN2_PASSWORD_REFUSED "Was the password sign-in refused?"
+}
 
-stage "Open item 3a: the student walkthrough"
-say "Use a test student: a Google test user, or a password signup on the copy."
-say "Run in the SQL Editor and enter the result:"
-say "    $COUNTS_SQL"
-required_answer COUNTS_BEFORE "Counts before (accounts/students/snapshots/schedules/check_ins):"
-check WALK_ONBOARDING "Student: signed up and finished onboarding?"
-check WALK_EXTRACTION "Uploaded a screenshot: fake rows appeared (Strengthen 68%, Necessary assumption 74%, ...) and you approved them?"
-check WALK_THIS_WEEK "This week (/dashboard) shows a Weekly schedule?"
-check WALK_CHECK_IN "Saved an Activity check-in, corrected it, and the correction shows after a reload?"
-check WALK_PROGRESS "Progress (/progress) shows the saved work?"
-say "Run the counts query again."
-required_answer COUNTS_STUDENT "Counts after the student steps:"
-say "Describe the saved state you saw (schedule week, check-in values). No personal data."
-required_answer STUDENT_STATE "Resulting state:"
+stage_6() {
+  stage "Open item 3a: the student walkthrough"
+  say "Use a test student: a Google test user, or a password signup on the copy."
+  say "Run in the SQL Editor and enter the result:"
+  say "    $COUNTS_SQL"
+  required_answer COUNTS_BEFORE "Counts before (accounts/students/snapshots/schedules/check_ins):"
+  check WALK_ONBOARDING "Student: signed up and finished onboarding?"
+  check WALK_EXTRACTION "Uploaded a screenshot: fake rows appeared (Strengthen 68%, Necessary assumption 74%, ...) and you approved them?"
+  check WALK_THIS_WEEK "This week (/dashboard) shows a Weekly schedule?"
+  check WALK_CHECK_IN "Saved an Activity check-in, corrected it, and the correction shows after a reload?"
+  check WALK_PROGRESS "Progress (/progress) shows the saved work?"
+  say "Run the counts query again."
+  required_answer COUNTS_STUDENT "Counts after the student steps:"
+  say "Describe the saved state you saw (schedule week, check-in values). No personal data."
+  required_answer STUDENT_STATE "Resulting state:"
+}
 
-stage "Open items 3b and 4: Admin views and the no-write proof"
-say "Problem: a matching fingerprint only proves viewing wrote nothing if the view happened between the two reads."
-say "Run this query. It summarizes every row, so any change alters it:"
-say "    $FINGERPRINT_SQL"
-fingerprint FINGERPRINT_BEFORE_ADMIN_VIEW "Fingerprint BEFORE the Admin view:"
-step "Sign in as an Admin. Open the test student's page under /admin. Look at the schedule and check-ins."
-check WALK_ADMIN_READ "Did you see the student's schedule and check-ins, read-only?"
-say "Run the fingerprint query again now."
-fingerprint FINGERPRINT_AFTER_ADMIN_VIEW "Fingerprint AFTER the Admin view:"
-if [[ "$(_existing WALK_ADMIN_READ)" == "passed" && "$FINGERPRINT_AFTER_ADMIN_VIEW" == "$FINGERPRINT_BEFORE_ADMIN_VIEW" ]]; then
-  write_env ADMIN_VIEW_NO_WRITE "passed"
-else
-  INCOMPLETE=1
-  write_env ADMIN_VIEW_NO_WRITE "blocker"
-  warn "Either the view did not happen or the fingerprints differ. Recorded as a blocker."
-fi
-step "Use the Admin test controls (simulated date or test workspace) on the copy."
-check WALK_ADMIN_TEST "Did the Admin test controls work, and did the change show in the app?"
+stage_7() {
+  stage "Open items 3b and 4: Admin views and the no-write proof"
+  say "Problem: a matching fingerprint only proves viewing wrote nothing if the view happened between the two reads."
+  say "Run this query. It summarizes every row, so any change alters it:"
+  say "    $FINGERPRINT_SQL"
+  fingerprint FINGERPRINT_BEFORE_ADMIN_VIEW "Fingerprint BEFORE the Admin view:"
+  step "Sign in as an Admin. Open the test student's page under /admin. Look at the schedule and check-ins."
+  check WALK_ADMIN_READ "Did you see the student's schedule and check-ins, read-only?"
+  say "Run the fingerprint query again now."
+  fingerprint FINGERPRINT_AFTER_ADMIN_VIEW "Fingerprint AFTER the Admin view:"
+  if [[ "$(_existing WALK_ADMIN_READ)" == "passed" && "$FINGERPRINT_AFTER_ADMIN_VIEW" == "$FINGERPRINT_BEFORE_ADMIN_VIEW" ]]; then
+    write_env ADMIN_VIEW_NO_WRITE "passed"
+  else
+    INCOMPLETE=1
+    write_env ADMIN_VIEW_NO_WRITE "blocker"
+    warn "Either the view did not happen or the fingerprints differ. Recorded as a blocker."
+  fi
+  step "Use the Admin test controls (simulated date or test workspace) on the copy."
+  check WALK_ADMIN_TEST "Did the Admin test controls work, and did the change show in the app?"
+}
 
-stage "Open item 3c: Account deletion"
-step "Sign in as the test student. Open /account. Delete the Account."
-check WALK_DELETION "Were you signed out after deletion?"
-say "Run the counts query again."
-required_answer COUNTS_AFTER_DELETION "Counts after deletion:"
-check DELETION_COUNTS "Are the student's Account, Student, snapshots, schedules, and check-ins gone (counts back to the Admin-only baseline)?"
+stage_8() {
+  stage "Open item 3c: Account deletion"
+  step "Sign in as the test student. Open /account. Delete the Account."
+  check WALK_DELETION "Were you signed out after deletion?"
+  say "Run the counts query again."
+  required_answer COUNTS_AFTER_DELETION "Counts after deletion:"
+  check DELETION_COUNTS "Are the student's Account, Student, snapshots, schedules, and check-ins gone (counts back to the Admin-only baseline)?"
+}
 
-stage "Recheck separation on the final deployment"
-open_url "$VERCEL"
-step "REAL project > Settings > Environment Variables. Look only."
-check REAL_PREVIEW_EMPTY "Do Preview and Development in the real project hold no credentials?"
-step "REAL project > Settings > Environments > Production > Branch Tracking."
-check REAL_AUTO_ASSIGN_OFF "Is automatic domain assignment still off on the real project?"
-step "REAL project > Deployments: find the build serving the real domain."
-check REAL_OLD_BUILD "Does the real domain still serve the old MongoDB build, commit 86ee8c3?"
-step "Copy project > Settings > Environment Variables."
-check COPY_PREVIEW_EMPTY "Do the copy's Preview and Development hold no values, and is automatic domain assignment still off?"
-check COPY_FIVE_SETTINGS "Are only the five Production settings present, with fake extraction and no Anthropic or email key?"
+stage_9() {
+  stage "Recheck separation on the final deployment"
+  open_url "$VERCEL"
+  step "REAL project > Settings > Environment Variables. Look only."
+  check REAL_PREVIEW_EMPTY "Do Preview and Development in the real project hold no credentials?"
+  step "REAL project > Settings > Environments > Production > Branch Tracking."
+  check REAL_AUTO_ASSIGN_OFF "Is automatic domain assignment still off on the real project?"
+  step "REAL project > Deployments: find the build serving the real domain."
+  check REAL_OLD_BUILD "Does the real domain still serve the old MongoDB build, commit 86ee8c3?"
+  step "Copy project > Settings > Environment Variables."
+  check COPY_PREVIEW_EMPTY "Do the copy's Preview and Development hold no values, and is automatic domain assignment still off?"
+  check COPY_FIVE_SETTINGS "Are only the five Production settings present, with fake extraction and no Anthropic or email key?"
+}
+
+for n in $(seq 1 "$TOTAL_STAGES"); do
+  if (( n < START_STAGE )); then _STAGE_INDEX=$n; continue; fi
+  "stage_$n"
+done
+
 write_env FINISHED_AT "$(date -u '+%Y-%m-%d %H:%M UTC')"
 
 v() { local key="$1"; printf '%s' "${!key:-$(_existing "$key" || true)}"; }
