@@ -76,7 +76,7 @@ Seed each fixture Account with one command. The Account is onboarded with the fe
 ./.agents/skills/verify/scripts/local.mjs seed "$VERIFY_RUN_DIR" admin verify-admin@example.test
 ```
 
-The command prints the email, a random password, and the Account ID. An Admin fixture has no password and a made-up Google ID. Sign in as that Admin with `local.mjs session "$VERIFY_RUN_DIR" verify-admin@example.test`. It prints a session cookie `name`, `value`, and `url`. Set that cookie in the browser, then open `/admin`. The cookie is signed with this run's secret and expires in one hour. It uses the app's own Account and student save functions against this run's database. Keep the password out of evidence files. A seeded Account is fixture setup and proves no user feature. Use the browser sign-up and onboarding only when the change touches sign-up, onboarding, or Account creation.
+The command prints the email, a random password, and the Account ID. An Admin fixture has no password and a made-up Google ID. Sign in as that Admin with `local.mjs session "$VERIFY_RUN_DIR" verify-admin@example.test`. It prints a session cookie `name`, `value`, and `url`. Set that cookie in the browser, then open `/admin`. In T3, sign out first and wait for the public landing page. Then set it with `preview_evaluate` and `document.cookie = "<name>=<value>; path=/; SameSite=Lax"`. A signed-in student's HttpOnly session cookie blocks that overwrite. The cookie is signed with this run's secret and expires in one hour. It uses the app's own Account and student save functions against this run's database. Keep the password out of evidence files. A seeded Account is fixture setup and proves no user feature. Use the browser sign-up and onboarding only when the change touches sign-up, onboarding, or Account creation.
 
 ## Evidence
 
@@ -97,7 +97,7 @@ The helper also retains `app.log`, `database.log`, `instance.json`, and `cleanup
 
 ## Cleanup
 
-Stop a browser recording before teardown. Navigate the dedicated verification tab to `about:blank` or close it using the harness's own tab command. Do not close a user tab.
+Stop a browser recording before teardown. Navigate the dedicated verification tab to `about:blank` or close it using the harness's own tab command. T3 refuses `about:blank` and has no tab close command; leave its dedicated tab on the stopped app. Do not close a user tab.
 
 ```bash
 ./.agents/skills/verify/scripts/local.mjs cleanup "$VERIFY_RUN_DIR"
@@ -112,6 +112,6 @@ If launch fails before it creates `instance.json`, it started no app process or 
 
 ## Helpers
 
-The executable [scripts/local.mjs](scripts/local.mjs) supports five commands, all shown above: `launch`, `doctor`, `seed`, `inspect`, and `cleanup`. Each requires a run directory below `.verification/evidence/`. Evidence directories cannot be reused. Its process and database operations target only the local verification instance. The executable [scripts/smoke.mjs](scripts/smoke.mjs) runs the browser baseline with the invocation shown in Drive. Both helpers run from the repository root.
+The executable [scripts/local.mjs](scripts/local.mjs) supports six commands, all shown above: `launch`, `doctor`, `seed`, `session`, `inspect`, and `cleanup`. Each requires a run directory below `.verification/evidence/`. Evidence directories cannot be reused. Its process and database operations target only the local verification instance. The executable [scripts/smoke.mjs](scripts/smoke.mjs) runs the browser baseline with the invocation shown in Drive. Both helpers run from the repository root.
 
 Use `/maintain-verification-skill` when app changes make these recipes or the feature map stale.
