@@ -3,6 +3,13 @@ import { promisify } from "node:util";
 import { expect, it } from "vitest";
 
 const exec = promisify(execFile);
+// The production Neon hosts recorded in #143, plus invented production-shaped hosts.
+const hosts = [
+  "ep-gentle-band-b5curwyd.c-7.us-east-2.aws.neon.tech",
+  "ep-gentle-band-b5curwyd-pooler.c-7.us-east-2.aws.neon.tech",
+  "ep-production-guard.us-east-2.aws.neon.tech",
+  "ep-production-guard-pooler.us-east-2.aws.neon.tech",
+];
 const commands = [
   ["migrate-postgres", []],
   ["make-admin", ["admin@example.test"]],
@@ -11,8 +18,8 @@ const commands = [
   ["check-neon", []],
 ];
 
-it.each(commands)("%s refuses an unapproved production-shaped host before connecting", async (name, args) => {
-  for (const host of ["ep-production-guard.us-east-2.aws.neon.tech", "ep-production-guard-pooler.us-east-2.aws.neon.tech"]) {
+it.each(commands)("%s refuses the production hosts before connecting", async (name, args) => {
+  for (const host of hosts) {
     const result = await exec(process.execPath, [
       "--import", "tsx", "--import", "./scripts/test-fixtures/stop-postgres-connection.mjs",
       `scripts/${name}.mts`, ...args,
