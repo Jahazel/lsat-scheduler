@@ -36,7 +36,10 @@ As of October 16, 2026, the owner confirms that only the copy project exists.
 The owner approved its pooled host, `ep-restless-tooth-b42czg5d-pooler.c-6.us-east-2.aws.neon.tech`,
 on October 16, 2026, so `db:check-copy` can run through the hosted app's endpoint (#141).
 The owner moved exact production-host refusal proof to #143 on October 16, 2026.
-It remains required after that project exists and before release.
+On October 18, 2026, all five commands refused the production direct host
+`ep-gentle-band-b5curwyd.c-7.us-east-2.aws.neon.tech` and its pooled host
+`ep-gentle-band-b5curwyd-pooler.c-7.us-east-2.aws.neon.tech` (#143).
+`scripts/productionHostRefusal.test.mjs` repeats that proof on every test run.
 Do not mark that check passed with a made-up hostname or the copy hostname.
 
 Once the owner identifies the production direct and pooled hosts, test both with
@@ -87,47 +90,58 @@ Neon grants administration membership to roles created through its role-creation
 console, API, or CLI. Create the limited role with SQL instead.
 See [Neon role rules](https://neon.com/docs/manage/roles).
 
-### Enter the app password without SQL text
+### Set the app password
 
-Use Neon's **Reset password** action for the SQL-created `drillmap_app` role.
-This changes the password of the existing role. Do not use **Add role**.
-The console generates the value. If it has at least 32 random characters, use it
-as the app password. Otherwise use it only to enter an interactive `psql` session
-as `drillmap_app`, then change that role's own password with the hidden prompt:
+Observed on production on October 18, 2026 (#143). Neon's **Reset password** refuses
+a role that has no password yet: "cannot update password for role without password".
+`sql/app-role.sql` creates `drillmap_app` without one, so the console cannot set the
+first password. Neon documents that it requires plain-text passwords and does not support hashed
+ones, so psql's `\password` command does not apply. See [Neon role rules](https://neon.com/docs/manage/roles).
 
-```sh
-PGSSLMODE=verify-full PGSSLROOTCERT=system psql -X -h DIRECT_HOST -U drillmap_app -d DATABASE_NAME -W
-```
+The owner approved this two-step method on October 18, 2026:
 
-Use Postgres 17 psql with its system trust store. Do not weaken certificate checks
-if local trust setup fails. See [libpq certificate settings](https://www.postgresql.org/docs/17/libpq-connect.html#LIBPQ-CONNECT-SSLROOTCERT).
-Enter the generated bootstrap password at the hidden login prompt. In `psql`, run
-`\password drillmap_app` and enter a distinct random password of at least 32
-characters from the password manager. Type `\q` to exit, then reconnect with `-W`
-to prove the final password. This uses the limited app role, never the owner role.
-It changes only that role's password. It does not run a repository script or allow
-production migrations. If the provider refuses self-service password change, stop.
-Do not weaken the script guard or enter the owner password locally.
+1. **Starter password.** Copy a fresh password-manager suggestion without saving it.
+   In the browser SQL editor, as owner, run
+   `ALTER ROLE drillmap_app PASSWORD 'STARTER';` with that value. The editor history
+   keeps this statement, so the starter value must stop working minutes later.
+   Neon may end open `drillmap_app` sessions when it applies the change. That is expected.
+2. **Final password.** Log in as the app role with certificate checks, and enter the
+   starter value at the hidden prompt:
 
-Do not type `ALTER ROLE ... PASSWORD` in the browser SQL editor because its query
-history can retain the secret. Do not save screenshots of secret screens. Keep
-both passwords out of command arguments, environment variables, history, files,
-and evidence. Remove the bootstrap value from the clipboard after replacement.
-Store the final value only in the password manager and the matching project's
-approved secret settings. On a local throwaway database, use the same hidden
-`\password` prompt. Postgres documents its hidden prompt and safe password command
-in the [psql manual](https://www.postgresql.org/docs/17/app-psql.html).
+   ```sh
+   PSQL_HISTORY=/dev/null PGSSLMODE=verify-full PGSSLROOTCERT=system PGCHANNELBINDING=require \
+     psql -X -h DIRECT_HOST -U drillmap_app -d DATABASE_NAME -W
+   ```
+
+   In `psql`, run these lines. `\prompt` shows the typed value on screen, so check that
+   nobody can see it. Write `:'pw'` with no space after the colon. With a space, psql
+   sends the literal text and the password does not change.
+
+   ```text
+   \prompt 'Long password: ' pw
+   ALTER ROLE drillmap_app PASSWORD :'pw';
+   \unset pw
+   \q
+   ```
+
+   Require `ALTER ROLE`. Use a distinct random value of at least 32 characters with
+   only letters, digits, and hyphens, so it fits in `DATABASE_URL` without encoding.
+3. **Prove and clean up.** Log in again through the direct and the pooled host with the
+   final value. A pooled login can fail briefly after the change; repeat it once.
+   Delete the starter statement from the SQL editor history. Clear the terminal
+   scrollback and the clipboard.
+
+Never paste a password into chat, an issue, or evidence. A value that appears there is
+spent: replace it before use. Keep the owner password out of local files and sessions.
+This method runs no repository script and does not weaken the script guard. Store the
+final value only in the password manager and the matching project's Production
+`DATABASE_URL`.
 
 Reconnect as the app role and repeat the permission checks after password setup.
 Require no administration flags, memberships, owned objects, or access to the
 migration journal and other owner-only tables. Require no Weekly schedule update
 permission and the immutable trigger. Run `db:check-copy` on the approved copy only.
 Do not run it against production. #143 records equivalent owner observations there.
-
-Neon documents console password reset separately from role creation in its
-[role management guide](https://neon.com/docs/manage/roles#reset-a-password).
-Actual password length, self-service password change, and unchanged memberships need
-owner observation on Neon.
 
 ## Grant Admin access as owner
 
