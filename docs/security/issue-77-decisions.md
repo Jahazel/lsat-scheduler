@@ -110,6 +110,9 @@ The evidence comes from issue 70 finding F16 and from issue 71. The copy of the 
 27. Every login method on each account needs the second step, or the owner removes that method. Examples are Vercel's email, Google, and GitHub logins, and the Atlas password.
 28. Recovery codes go in the owner's password manager and on one printed copy.
 29. The monthly settings review records the method and the date for each account.
+30. The Anthropic Console is the one exception to rules 26 to 28. Its own settings cannot meet them. The owner chose this rule on October 18, 2026 (issue #151). The Console passes when each account that can sign in to it meets rules 26 and 28. Those accounts are the mailbox that receives the Console sign-in link and the Google account used for Continue with Google. If the Console later offers its own second step, rules 26 to 28 apply to it again.
+
+**Why rule 30:** On October 18, 2026, Anthropic's help pages showed that the Console has no password, no setting for a second step, and no recovery codes. A person signs in with Google or with a link that Anthropic emails. The email link cannot be turned off. So anyone who controls the mailbox or the Google account can sign in to the Console. SSO (sign-in through a company identity system) needs a business plan, and the owner does not buy another plan for this check.
 
 **Why:** A thief with a password on one of these accounts can change the site or read its credentials. A phone number can be moved to another SIM card, so text-message codes can be stolen.
 
@@ -156,7 +159,7 @@ The owner made each decision in the issue 77 discussion.
 | Real credentials after the move | Rotate all four and turn off the old ones. |
 | Package security bugs | Deadlines by severity, as in rule 22. Unreachable notes are rechecked within 90 days. |
 | Advisories found before these rules | The clock starts on October 6, 2026. |
-| Two-step sign-in | Passkey or authenticator app on every provider account and every login method. No text messages. |
+| Two-step sign-in | Passkey or authenticator app on every provider account and every login method. No text messages. The Anthropic Console uses the protection of its sign-in accounts (rule 30). |
 | Dependabot and secret scanning | Dependabot alerts and security updates on. gitleaks on every push, plus one full-history scan before launch. |
 
 ## Neon replacement rules
