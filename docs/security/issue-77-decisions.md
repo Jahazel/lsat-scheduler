@@ -106,7 +106,7 @@ The evidence comes from issue 70 finding F16 and from issue 71. The copy of the 
 ### Two-step sign-in on provider accounts
 
 25. These accounts need two-step sign-in: Vercel, GitHub, MongoDB Atlas, the Google account that owns Google Cloud, the Anthropic Console, and the email provider when it is added.
-26. The second step is a passkey or an authenticator app. Text-message codes are not allowed.
+26. The second step is a passkey or an authenticator app. Text-message codes are not allowed. On a Google account, Google prompt on the owner's own signed-in devices is also allowed. The owner chose this on October 18, 2026 (issue #151). A phone number is never a second step.
 27. Every login method on each account needs the second step, or the owner removes that method. Examples are Vercel's email, Google, and GitHub logins, and the Atlas password.
 28. Recovery codes go in the owner's password manager and on one printed copy.
 29. The monthly settings review records the method and the date for each account.
@@ -159,7 +159,7 @@ The owner made each decision in the issue 77 discussion.
 | Real credentials after the move | Rotate all four and turn off the old ones. |
 | Package security bugs | Deadlines by severity, as in rule 22. Unreachable notes are rechecked within 90 days. |
 | Advisories found before these rules | The clock starts on October 6, 2026. |
-| Two-step sign-in | Passkey or authenticator app on every provider account and every login method. No text messages. The Anthropic Console uses the protection of its sign-in accounts (rule 30). |
+| Two-step sign-in | Passkey or authenticator app on every provider account and every login method. Google prompt is also allowed on Google accounts. No text messages. The Anthropic Console uses the protection of its sign-in accounts (rule 30). |
 | Dependabot and secret scanning | Dependabot alerts and security updates on. gitleaks on every push, plus one full-history scan before launch. |
 
 ## Neon replacement rules
