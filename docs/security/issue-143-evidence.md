@@ -114,7 +114,7 @@ Production setting names: DATABASE_URL, AUTH_SECRET, AUTH_GOOGLE_SECRET, AUTH_GO
 | Home, privacy, and terms links | passed | First seen empty. The owner added the three links in Branding on 2026-10-18. |
 | No logo | passed | Owner correction: no logo is set; the first answer was a mistake. |
 | Only openid, email, profile scopes | passed | First seen empty. The owner added only these three non-sensitive scopes on 2026-10-18. |
-| In production | blocker | Publishing status is Testing |
+| In production | passed | First seen as Testing. The owner published the client on 2026-10-18 (user type External). |
 
 ## Anthropic interim controls (owner)
 
