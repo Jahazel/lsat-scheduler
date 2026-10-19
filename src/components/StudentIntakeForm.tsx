@@ -4,7 +4,7 @@ import { useForm, useStore } from "@tanstack/react-form";
 import { useState } from "react";
 import DailyCapacityFieldset from "@/components/DailyCapacityFieldset";
 import { DAY_ORDER } from "@/lib/engine";
-import { practiceTestHint } from "@/lib/onboardingWizard";
+import { TEST_TIME_LABEL, practiceTestHint } from "@/lib/onboardingWizard";
 import { DAY_LABEL, dailyCapacityError, goalScoreError, type StudentProfileInput, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { DayOfWeek } from "@/lib/types";
 
@@ -142,9 +142,11 @@ export default function StudentIntakeForm({
               }
               className="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900"
             >
-              <option value={1}>Standard time</option>
-              <option value={1.5}>150% extra time</option>
-              <option value={2}>200% extra time</option>
+              {([1, 1.5, 2] as const).map((multiplier) => (
+                <option key={multiplier} value={multiplier}>
+                  {TEST_TIME_LABEL[multiplier]}
+                </option>
+              ))}
             </select>
           </label>
         )}

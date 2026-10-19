@@ -30,7 +30,7 @@ The first visit that creates a week's schedule fixes it. Reloading, approving mo
 | Schedule first created after the preferred test day | No practice test is added that week. Creating it on the preferred day keeps the test. A near-test week's second test is omitted if its day has passed. |
 | Schedule first created midweek | Earlier non-rest days say unscheduled and get no retroactive activities. The computed rest day remains rest, even if it has passed. Missed weeks are not created later. |
 
-A practice test takes 150 planned minutes at standard time. Its review gets the same duration and no other activity. The accommodation choices displayed as 150% and 200% extra time use scheduling factors of **1.25** and **1.5**, respectively, so practice test and review durations are 187.5 or 225 minutes. Practice tests and review can exceed the student's daily capacity; the affected day shows the overage.
+A practice test takes 150 planned minutes at standard time. Its review gets the same duration and no other activity. The accommodation choices displayed as 1.5× time and 2× time use scheduling factors of **1.25** and **1.5**, respectively, so practice test and review durations are 187.5 or 225 minutes. Practice tests and review can exceed the student's daily capacity; the affected day shows the overage.
 
 ## What goes on a drilling day
 

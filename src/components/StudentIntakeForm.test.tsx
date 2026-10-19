@@ -50,5 +50,6 @@ describe("StudentIntakeForm", () => {
       "A full practice test takes 3 h 8 min with 1.5× time. Pick a day with that much time."
     );
     expect(settingsMarkup()).not.toContain("about 3 hours");
+    expect(settingsMarkup()).toContain('<option value="1.5">1.5× time</option>');
   });
 });
