@@ -43,6 +43,8 @@ export default function AnalyticsReview({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setError(null);
+    setSignedOut(false);
     const rejection = checkScreenshot(file);
     if (rejection) {
       setError(rejection.message);
@@ -50,8 +52,6 @@ export default function AnalyticsReview({
     }
 
     setExtracting(true);
-    setError(null);
-    setSignedOut(false);
     const reply = await extractScreenshot(file);
     setExtracting(false);
 

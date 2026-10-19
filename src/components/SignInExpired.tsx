@@ -15,7 +15,10 @@ export function SignInAgainLink({ className, ref }: { className: string; ref?: R
 
 export default function SignInExpired() {
   const link = useRef<HTMLAnchorElement>(null);
-  useEffect(() => link.current?.focus(), []);
+  useEffect(() => {
+    const focus = document.activeElement;
+    if (focus === document.body || link.current?.closest("section")?.contains(focus)) link.current?.focus();
+  }, []);
 
   return (
     <p role="alert" className="text-sm text-red-600">

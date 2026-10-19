@@ -84,6 +84,36 @@ describe("AnalyticsUploader", () => {
     expect(screen.queryByText(/Couldn't read that screenshot/)).toBeNull();
   });
 
+  it("replaces the sign-in message with the file problem when the next file is rejected", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(Response.json({ error: "Not signed in" }, { status: 401 })));
+    const user = userEvent.setup();
+    render(<AnalyticsUploader />);
+    const picker = screen.getByLabelText(/Choose a 7Sage analytics screenshot/);
+    await user.upload(picker, new File(["image"], "analytics.png", { type: "image/png" }));
+    await screen.findByRole("link", { name: "Sign in again" });
+
+    await user.upload(picker, new File([new Uint8Array(5 * 1024 * 1024)], "huge.png", { type: "image/png" }));
+
+    expect(screen.getByText(/That file is 5\.0 MB/)).toBeDefined();
+    expect(screen.queryByRole("link", { name: "Sign in again" })).toBeNull();
+  });
+
+  it("leaves focus where the student moved it while the save was running", async () => {
+    let reply!: (response: Response) => void;
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(Response.json({ rows: [{ type: "Strengthen", category: "regular", accuracy: 70 }] }))
+      .mockReturnValueOnce(new Promise<Response>((resolve) => { reply = resolve; })));
+    const outside = document.body.appendChild(document.createElement("button"));
+    await reviewScreenshot();
+    outside.focus();
+
+    reply(Response.json({ error: "Not signed in" }, { status: 401 }));
+
+    await screen.findByRole("link", { name: "Sign in again" });
+    expect(document.activeElement).toBe(outside);
+    outside.remove();
+  });
+
   it("says the sign-in expired when the save runs signed out", async () => {
     vi.stubGlobal("fetch", vi.fn()
       .mockResolvedValueOnce(Response.json({ rows: [{ type: "Strengthen", category: "regular", accuracy: 70 }] }))
