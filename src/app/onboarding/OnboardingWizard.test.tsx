@@ -202,6 +202,16 @@ describe("OnboardingWizard", () => {
       expect(extract.mock.calls[1][0]).toBe(screenshot);
     });
 
+    it("says the sign-in expired and links to sign in, with no Try again", async () => {
+      const { user } = await fillGoalAndWeek(undefined, vi.fn(async (): Promise<ExtractReply> => ({ kind: "signed-out" })));
+
+      await upload(user);
+
+      expect(await screen.findByText("Your sign-in expired. Sign in again, then upload your screenshot again.")).toBeDefined();
+      expect(screen.getByRole("link", { name: "Sign in again" }).getAttribute("href")).toBe("/login");
+      expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    });
+
     it("asks for a sharper screenshot when the server cannot read it", async () => {
       const { user } = await fillGoalAndWeek(undefined, vi.fn(async (): Promise<ExtractReply> => ({ kind: "cannot-read" })));
 

@@ -39,6 +39,7 @@ import {
   type WizardAction,
   type WizardState,
 } from "@/lib/onboardingWizard";
+import { SIGN_IN_EXPIRED, SignInAgainLink } from "@/components/SignInExpired";
 import { SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, checkScreenshot, extractScreenshot } from "@/lib/screenshotUpload";
 import type { AnalyticsExtractedRow, LRType, PriorityTier } from "@/lib/types";
 import { DAY_LABEL, type upcomingTestMonths } from "@/lib/studentProfile";
@@ -570,6 +571,7 @@ const FILE_STATUS: Record<Exclude<Screenshot["status"], "none">, { text: string;
   read: { text: "Done reading.", problem: false },
   "connection-lost": { text: "Connection lost. Your file is still here.", problem: false },
   "cannot-read": { text: "We couldn't read the rows in it.", problem: true },
+  "signed-out": { text: SIGN_IN_EXPIRED, problem: true },
   "no-rows": { text: "No question types in this one.", problem: true },
 };
 
@@ -630,6 +632,7 @@ function FileRow({
             Choose a sharper screenshot
           </button>
         )}
+        {status === "signed-out" && <SignInAgainLink className={`inline-flex items-center ${SMALL_BUTTON}`} />}
         {status === "no-rows" && (
           <>
             <RightPartExample />

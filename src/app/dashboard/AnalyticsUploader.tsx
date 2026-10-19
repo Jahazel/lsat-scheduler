@@ -4,6 +4,7 @@ import type { SampleDraft } from "@/components/AdminTestContext";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AnalyticsReview from "@/components/AnalyticsReview";
+import SignInExpired from "@/components/SignInExpired";
 import { summarizeAnalyticsRows } from "@/lib/analytics";
 import { hasInvalidAccuracy, reviewedRows, snapshotApproval, startReview, type SnapshotReview } from "@/lib/analyticsReview";
 
@@ -17,6 +18,7 @@ export default function AnalyticsUploader({ sample, onSampleDone }: { sample?: S
   const [reviewKey, setReviewKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [signedOut, setSignedOut] = useState(false);
   const hasExtracted = review !== null;
   const approval = review && snapshotApproval(review);
   const saveHint = approval
@@ -29,6 +31,7 @@ export default function AnalyticsUploader({ sample, onSampleDone }: { sample?: S
     if (!review || !approval) return;
     setSaving(true);
     setError(null);
+    setSignedOut(false);
 
     try {
       const res = await fetch("/api/analytics", {
@@ -36,6 +39,10 @@ export default function AnalyticsUploader({ sample, onSampleDone }: { sample?: S
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...summarizeAnalyticsRows(reviewedRows(review)), ...approval }),
       });
+      if (res.status === 401) {
+        setSignedOut(true);
+        return;
+      }
       if (!res.ok) {
         const result = sample ? await res.json().catch(() => null) : null;
         setError(
@@ -94,6 +101,7 @@ export default function AnalyticsUploader({ sample, onSampleDone }: { sample?: S
               <>
                 {sample && <button type="button" onClick={onSampleDone} className="self-start rounded-md px-3 py-2 text-sm text-ink-700 underline focus-visible:outline-2 focus-visible:outline-accent-600">Cancel sample</button>}
                 {error && <p className="text-sm text-red-600">{error}</p>}
+                {signedOut && <SignInExpired />}
                 <div className="flex flex-col gap-3 border-t border-ink-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-ink-500">{saveHint}</p>
                   <button

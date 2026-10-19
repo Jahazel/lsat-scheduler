@@ -64,6 +64,7 @@ export type ExtractReply =
   | { kind: "rows"; rows: AnalyticsExtractedRow[] }
   | { kind: "rejected"; message: string }
   | { kind: "cannot-read" }
+  | { kind: "signed-out" }
   | { kind: "connection-lost" };
 
 export async function extractScreenshot(file: File): Promise<ExtractReply> {
@@ -72,6 +73,7 @@ export async function extractScreenshot(file: File): Promise<ExtractReply> {
   try {
     const res = await fetch("/api/analytics/extract", { method: "POST", body: formData });
     if (res.status === 413 || res.status === 415) return { kind: "rejected", message: (await res.json()).error };
+    if (res.status === 401) return { kind: "signed-out" };
     if (res.status === 502) return { kind: "cannot-read" };
     if (!res.ok) return { kind: "connection-lost" };
     return { kind: "rows", rows: (await res.json()).rows };

@@ -73,6 +73,29 @@ describe("AnalyticsUploader", () => {
     expect(screen.getByText("Fix the accuracy values above. Each one must be 0 to 100.")).toBeDefined();
   });
 
+  it("says the sign-in expired when the upload runs signed out", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(Response.json({ error: "Not signed in" }, { status: 401 })));
+    const user = userEvent.setup();
+    render(<AnalyticsUploader />);
+    await user.upload(screen.getByLabelText(/Choose a 7Sage analytics screenshot/), new File(["image"], "analytics.png", { type: "image/png" }));
+
+    expect(await screen.findByText(/Your sign-in expired\. Sign in again, then upload your screenshot again\./)).toBeDefined();
+    expect(screen.getByRole("link", { name: "Sign in again" }).getAttribute("href")).toBe("/login");
+    expect(screen.queryByText(/Couldn't read that screenshot/)).toBeNull();
+  });
+
+  it("says the sign-in expired when the save runs signed out", async () => {
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(Response.json({ rows: [{ type: "Strengthen", category: "regular", accuracy: 70 }] }))
+      .mockResolvedValueOnce(Response.json({ error: "Not signed in" }, { status: 401 })));
+    await reviewScreenshot();
+
+    expect(await screen.findByText(/Your sign-in expired\. Sign in again, then upload your screenshot again\./)).toBeDefined();
+    expect(screen.getByRole("link", { name: "Sign in again" }).getAttribute("href")).toBe("/login");
+    expect(screen.queryByText("Couldn't save. Try again.")).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("link", { name: "Sign in again" }));
+  });
+
   it("keeps the retry message when the network request fails", async () => {
     vi.stubGlobal("fetch", vi.fn()
       .mockResolvedValueOnce(Response.json({ rows: [{ type: "Strengthen", category: "regular", accuracy: 70 }] }))
