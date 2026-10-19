@@ -8,11 +8,10 @@ import { getPostgresDatabase } from "@/lib/postgres";
 import { accounts } from "@/lib/postgresSchema";
 import { isAccountId } from "@/lib/accountRepository";
 import { updateStudentByAccountId } from "@/lib/studentRepository";
-import { studentProfileSchema } from "@/lib/studentProfile";
-import type { Student } from "@/lib/types";
+import { studentProfileSchema, type StudentProfileInput } from "@/lib/studentProfile";
 import { ADMIN_RESTRICTED_ACTION_MESSAGE, isAdminUser } from "@/lib/accessControl";
 
-export async function updateStudentProfile(input: Student) {
+export async function updateStudentProfile(input: StudentProfileInput) {
   const session = await auth();
   if (!session?.user) {
     throw new Error("Not authenticated");

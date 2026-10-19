@@ -7,11 +7,11 @@ import { auth } from "@/auth";
 import { createStudent, findStudentByAccountId } from "@/lib/studentRepository";
 import { summarizeAnalyticsRows } from "@/lib/analytics";
 import { snapshotWeekOptions, prepareApprovedSnapshot, type SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
-import { studentProfileSchema } from "@/lib/studentProfile";
-import type { AnalyticsExtractedRow, Student } from "@/lib/types";
+import { studentProfileSchema, type StudentProfileInput } from "@/lib/studentProfile";
+import type { AnalyticsExtractedRow } from "@/lib/types";
 
 export async function createStudentProfile(
-  input: Student & { analyticsRows: AnalyticsExtractedRow[]; analyticsApproval: SnapshotApprovalMetadata | null }
+  input: StudentProfileInput & { analyticsRows: AnalyticsExtractedRow[]; analyticsApproval: SnapshotApprovalMetadata | null }
 ) {
   const session = await auth();
   if (!session?.user) {

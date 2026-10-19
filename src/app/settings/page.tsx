@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { dateInScheduleTimezone } from "@/lib/adminTestWorkspace";
+import { studentSideNow } from "@/lib/studentClock";
+import { upcomingTestMonths, type StudentProfileInput } from "@/lib/studentProfile";
 import { findStudentByAccountId } from "@/lib/studentRepository";
 import StudentIntakeForm from "@/components/StudentIntakeForm";
-import type { Student } from "@/lib/types";
 import { updateStudentProfile } from "../account/actions";
 
 export default async function StudySettingsPage() {
@@ -12,8 +14,7 @@ export default async function StudySettingsPage() {
   const doc = await findStudentByAccountId(session.user.id);
   if (!doc) redirect("/onboarding");
 
-  const initialValues: Student = {
-    platform: doc.platform,
+  const initialValues: StudentProfileInput = {
     currentScore: doc.currentScore,
     goalScore: doc.goalScore,
     dailyCapacityMinutes: doc.dailyCapacityMinutes,
@@ -30,6 +31,7 @@ export default async function StudySettingsPage() {
           <StudentIntakeForm
             mode="edit"
             initialValues={initialValues}
+            goalTestDateOptions={upcomingTestMonths(dateInScheduleTimezone(await studentSideNow(session.user)))}
             submitLabel="Save changes"
             onSubmit={updateStudentProfile}
           />

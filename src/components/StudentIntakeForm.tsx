@@ -1,33 +1,21 @@
 "use client";
 
-import { useForm } from "@tanstack/react-form";
+import { useForm, useStore } from "@tanstack/react-form";
 import { useState } from "react";
 import AnalyticsReview from "@/components/AnalyticsReview";
 import DailyCapacityFieldset, { DAY_LABEL, everyDay } from "@/components/DailyCapacityFieldset";
 import { reviewedRows, snapshotApproval, type SnapshotReview } from "@/lib/analyticsReview";
 import type { SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
 import { DAY_ORDER } from "@/lib/engine";
-import { dailyCapacityError } from "@/lib/studentProfile";
-import type { AnalyticsExtractedRow, DayOfWeek, Student } from "@/lib/types";
-
-// Actual administered LSAT test months — stored as the 1st of that month so
-// the "weeks until test" countdown elsewhere has a real date to work with.
-const GOAL_TEST_DATE_OPTIONS = [
-  { label: "October 2026", value: "2026-10-01" },
-  { label: "November 2026", value: "2026-11-01" },
-  { label: "January 2027", value: "2027-01-01" },
-  { label: "February 2027", value: "2027-02-01" },
-  { label: "April 2027", value: "2027-04-01" },
-  { label: "June 2027", value: "2027-06-01" },
-];
+import { dailyCapacityError, goalScoreError, type StudentProfileInput, type upcomingTestMonths } from "@/lib/studentProfile";
+import type { AnalyticsExtractedRow, DayOfWeek } from "@/lib/types";
 
 // A new student has no preferred practice-test day until they choose one.
-type StudentFormValues = Omit<Student, "preferredPracticeTestDay"> & {
+type StudentFormValues = Omit<StudentProfileInput, "preferredPracticeTestDay"> & {
   preferredPracticeTestDay: DayOfWeek | "";
 };
 
 const DEFAULT_VALUES: StudentFormValues = {
-  platform: "7Sage",
   currentScore: 150,
   goalScore: 165,
   dailyCapacityMinutes: everyDay(90),
@@ -37,15 +25,15 @@ const DEFAULT_VALUES: StudentFormValues = {
 };
 
 interface StudentIntakeFormProps {
-  // "create" (onboarding) shows the analytics screenshot section, gated to
-  // platform === "7Sage" — that's the only platform with OCR extraction
-  // today. "edit" (account settings) is intake fields only; weekly
-  // re-upload happens on the dashboard, not here.
+  // "create" (onboarding) shows the analytics screenshot section. "edit"
+  // (account settings) is intake fields only; weekly re-upload happens on
+  // the dashboard, not here.
   mode: "create" | "edit";
-  initialValues?: Student;
+  initialValues?: StudentProfileInput;
+  goalTestDateOptions: ReturnType<typeof upcomingTestMonths>;
   submitLabel: string;
   onSubmit: (
-    input: Student & {
+    input: StudentProfileInput & {
       analyticsRows: AnalyticsExtractedRow[];
       analyticsApproval: SnapshotApprovalMetadata | null;
     }
@@ -55,6 +43,7 @@ interface StudentIntakeFormProps {
 export default function StudentIntakeForm({
   mode,
   initialValues,
+  goalTestDateOptions,
   submitLabel,
   onSubmit,
 }: StudentIntakeFormProps) {
@@ -63,10 +52,14 @@ export default function StudentIntakeForm({
   const [practiceTestDayError, setPracticeTestDayError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const savedTestMonthIsOffered = goalTestDateOptions.some((option) => option.value === initialValues?.goalTestDate);
   const form = useForm({
-    defaultValues: (initialValues ?? DEFAULT_VALUES) as StudentFormValues,
+    defaultValues: initialValues
+      ? { ...initialValues, goalTestDate: savedTestMonthIsOffered ? initialValues.goalTestDate : "" }
+      : DEFAULT_VALUES,
     onSubmit: async ({ value }) => {
       setSubmitError(null);
+      if (goalScoreError(value.currentScore, value.goalScore)) return;
       if (DAY_ORDER.some((day) => dailyCapacityError(value.dailyCapacityMinutes[day]))) {
         setSubmitError("Fix the daily capacity above.");
         return;
@@ -90,6 +83,8 @@ export default function StudentIntakeForm({
     },
   });
 
+  const goalError = useStore(form.store, (state) => goalScoreError(state.values.currentScore, state.values.goalScore));
+
   return (
     <form
       onSubmit={(e) => {
@@ -99,22 +94,6 @@ export default function StudentIntakeForm({
       }}
       className="flex flex-col gap-5"
     >
-      <form.Field name="platform">
-        {(field) => (
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink-700">Platform</span>
-            <select
-              value={field.state.value}
-              onChange={(e) => field.handleChange(e.target.value as Student["platform"])}
-              className="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900"
-            >
-              <option value="7Sage">7Sage</option>
-              <option value="LSAT Demon">LSAT Demon</option>
-            </select>
-          </label>
-        )}
-      </form.Field>
-
       <form.Field name="currentScore">
         {(field) => (
           <label className="flex flex-col gap-1.5">
@@ -141,10 +120,19 @@ export default function StudentIntakeForm({
               min={120}
               max={180}
               required
+              aria-invalid={goalError ? true : undefined}
+              aria-describedby={goalError ? "goal-score-error" : undefined}
               value={field.state.value}
               onChange={(e) => field.handleChange(Number(e.target.value))}
-              className="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900"
+              className={`rounded-md border bg-white px-3 py-2 text-sm text-ink-900 ${
+                goalError ? "border-red-500" : "border-ink-200"
+              }`}
             />
+            {goalError && (
+              <span id="goal-score-error" className="text-sm text-red-600">
+                {goalError}
+              </span>
+            )}
           </label>
         )}
       </form.Field>
@@ -209,7 +197,7 @@ export default function StudentIntakeForm({
             <select
               value={field.state.value}
               onChange={(e) =>
-                field.handleChange(Number(e.target.value) as Student["accommodationMultiplier"])
+                field.handleChange(Number(e.target.value) as StudentProfileInput["accommodationMultiplier"])
               }
               className="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900"
             >
@@ -234,7 +222,7 @@ export default function StudentIntakeForm({
               <option value="" disabled>
                 Select a test date
               </option>
-              {GOAL_TEST_DATE_OPTIONS.map((option) => (
+              {goalTestDateOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -245,19 +233,10 @@ export default function StudentIntakeForm({
       </form.Field>
 
       {mode === "create" && (
-        <form.Subscribe selector={(state) => state.values.platform}>
-          {(platform) =>
-            platform === "7Sage" ? (
-              <div className="flex flex-col gap-1.5">
-                <span className="text-sm font-medium text-ink-700">Analytics screenshot (optional)</span>
-                <AnalyticsReview
-                  review={analyticsReview}
-                  onReviewChange={setAnalyticsReview}
-                />
-              </div>
-            ) : null
-          }
-        </form.Subscribe>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-ink-700">Analytics screenshot (optional)</span>
+          <AnalyticsReview review={analyticsReview} onReviewChange={setAnalyticsReview} />
+        </div>
       )}
 
       {submitError && <p className="text-sm text-red-600">{submitError}</p>}
