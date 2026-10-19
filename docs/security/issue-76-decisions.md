@@ -144,6 +144,8 @@ The evidence comes from issue 70 findings F11, F12, F13, and F15, and from issue
 
 ## Approved privacy page text
 
+Updated on October 19, 2026 (#145) for the move to Neon ([issue 78](issue-78-database-research.md#decision)): the database line names Neon, and the backup period is the 14 days set in #144. Until Stage 6 builds deletion replay, the live page leaves out the sentence about deleting Accounts again after a restore (rule 36).
+
 > **Privacy Policy**
 > Last updated: [release date]
 >
@@ -162,7 +164,7 @@ The evidence comes from issue 70 findings F11, F12, F13, and F15, and from issue
 >
 > **Companies that handle your data for us**
 > - Vercel runs the website.
-> - MongoDB Atlas stores the database.
+> - Neon stores the database.
 > - Google handles sign-in if you choose "Sign in with Google."
 > - Anthropic reads screenshots, as described above.
 > - [Email provider] sends verification, password reset, and account notices.
@@ -180,7 +182,7 @@ The evidence comes from issue 70 findings F11, F12, F13, and F15, and from issue
 >
 > **Backups**
 > [Before issue 78 is done:] DrillMap does not keep backups of the database at this time. If the database fails, data can be lost.
-> [After backups start:] We keep daily database backups for [8] days. We use them only to recover the service after a failure. After a restore, we delete again every Account that was deleted before.
+> [After backups start:] We keep daily database backups for [14] days. We use them only to recover the service after a failure. After a restore, we delete again every Account that was deleted before.
 >
 > **Contact**
 > For questions about your data, or to ask us to delete your Account when you cannot sign in, email [DrillMap privacy address].
