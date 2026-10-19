@@ -237,13 +237,26 @@ describe("OnboardingWizard", () => {
       const extract = vi.fn(() => new Promise<ExtractReply>((resolve) => { reject = resolve; }));
       const { user } = await fillGoalAndWeek(undefined, extract);
 
-      await user.click(screen.getByRole("button", { name: /Drop your screenshot here/ }));
       await upload(user);
-      (document.activeElement as HTMLElement).blur();
+      screen.getByRole("button", { name: "Replace" }).focus();
       reject({ kind: "rejected", message });
 
       expect((await screen.findByRole("alert")).textContent).toBe(message);
       expect(document.activeElement).toBe(screen.getByRole("button", { name: /Drop your screenshot here/ }));
+    });
+
+    it("leaves focus where the student moved it when the server rejects the file", async () => {
+      let reject: (reply: ExtractReply) => void = () => {};
+      const extract = vi.fn(() => new Promise<ExtractReply>((resolve) => { reject = resolve; }));
+      const { user } = await fillGoalAndWeek(undefined, extract);
+
+      await upload(user);
+      const skip = screen.getByRole("button", { name: "Skip for now" });
+      skip.focus();
+      reject({ kind: "rejected", message: "That file is 4.2 MB. Choose one that is 4 MB or less." });
+
+      await screen.findByRole("alert");
+      expect(document.activeElement).toBe(skip);
     });
 
     it("shows Drop to add it while a file is dragged over the zone", async () => {
