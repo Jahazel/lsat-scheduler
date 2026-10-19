@@ -45,7 +45,8 @@ function assessBackups({ snapshots, branchId, checkedAt }: {
     const createdAt = Date.parse(snapshot.created_at);
     if (capturedAt > checkedAt || createdAt > checkedAt) throw new Error("Future snapshot");
     const capturedAge = (checkedAt - capturedAt) / 3_600_000;
-    if (snapshot.source_branch_id === branchId) matchingAges.push(capturedAge);
+    const knownCapture = snapshot.timestamp !== undefined || !snapshot.manual;
+    if (snapshot.source_branch_id === branchId && knownCapture) matchingAges.push(capturedAge);
     const ageDays = (checkedAt - Math.min(capturedAt, createdAt)) / 86_400_000;
     if (ageDays > 30) {
       expired.push({

@@ -159,16 +159,40 @@ describe("backup checker entry point", () => {
     expect(network.requests.at(-1)?.url.pathname.endsWith("/fail")).toBe(true);
   });
 
-  it("ages a backup without a captured point from its creation time, as Neon lists current-state backups", async () => {
-    const listed = (created_at: string) => ({
-      id: "current-state", name: "production", source_branch_id: "br-production",
-      created_at, expires_at: "2026-11-01T00:00:00Z", manual: false, full_size: 1,
+  describe("backups Neon lists without a captured point", () => {
+    const listed = (created_at: string, manual = false) => ({
+      id: `listed-${created_at.replace(/\D/g, "")}-${manual}`, name: "production", source_branch_id: "br-production",
+      created_at, expires_at: "2026-11-01T00:00:00Z", manual,
     });
-    const network = receiver([{ snapshots: [listed("2026-10-17T00:00:17Z")] }, { snapshots: [listed("2026-10-16T11:59:59Z")] }]);
-    expect(await runBackupCheck({ env, now: () => now, fetcher: network.fetcher }))
-      .toMatchObject({ ok: true, status: "fresh", newestAgeHours: 12 - 17 / 3600 });
-    expect(await runBackupCheck({ env, now: () => now, fetcher: network.fetcher }))
-      .toMatchObject({ ok: false, status: "stale" });
+
+    it.each([
+      ["2026-10-17T00:00:17Z", "fresh"],
+      ["2026-10-16T12:00:00Z", "fresh"],
+      ["2026-10-16T11:59:59Z", "stale"],
+    ])("ages a scheduled backup created at %s from its creation time", async (createdAt, status) => {
+      const network = receiver([{ snapshots: [listed(createdAt)] }]);
+      expect(await runBackupCheck({ env, now: () => now, fetcher: network.fetcher })).toMatchObject({ status });
+    });
+
+    it("does not count a new manual backup, which can capture an earlier point, as fresh", async () => {
+      const network = receiver([
+        { snapshots: [listed("2026-10-17T11:59:00Z", true), listed("2026-10-16T06:00:00Z")] },
+        { snapshots: [listed("2026-10-17T11:59:00Z", true)] },
+      ]);
+      expect(await runBackupCheck({ env, now: () => now, fetcher: network.fetcher }))
+        .toMatchObject({ ok: false, status: "stale", newestAgeHours: 30 });
+      expect(await runBackupCheck({ env, now: () => now, fetcher: network.fetcher }))
+        .toMatchObject({ ok: false, status: "no-snapshots" });
+    });
+
+    it.each([
+      ["2026-09-17T12:00:00Z", 0],
+      ["2026-09-17T11:59:59Z", 1],
+    ])("reports a manual backup created at %s by its creation age for retention", async (createdAt, overdue) => {
+      const network = receiver([{ snapshots: [listed("2026-10-17T00:00:00Z"), listed(createdAt, true)] }]);
+      const result = await runBackupCheck({ env, now: () => now, fetcher: network.fetcher });
+      expect(result).toMatchObject({ expired: overdue ? [{ kind: "manual" }] : [] });
+    });
   });
 
   it("fails a repeated pagination cursor instead of reporting partial success", async () => {
