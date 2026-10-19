@@ -17,6 +17,7 @@ const commands = [
   ["create-test-user", []],
   ["check-neon", []],
 ];
+const commandTimeout = 10000;
 
 it.each(commands)("%s refuses the production hosts before connecting", async (name, args) => {
   for (const host of hosts) {
@@ -25,7 +26,7 @@ it.each(commands)("%s refuses the production hosts before connecting", async (na
       `scripts/${name}.mts`, ...args,
     ], {
       env: { NODE_ENV: "test", DATABASE_URL: `postgresql://guard-user:guard-password@${host}/drillmap` },
-      timeout: 10000,
+      timeout: commandTimeout,
     }).then(
       ({ stdout, stderr }) => ({ code: 0, output: stdout + stderr }),
       (error) => {
@@ -39,4 +40,4 @@ it.each(commands)("%s refuses the production hosts before connecting", async (na
     expect(result.output).not.toContain("guard-password");
     expect(result.output).not.toContain("guard-user");
   }
-});
+}, hosts.length * commandTimeout);
