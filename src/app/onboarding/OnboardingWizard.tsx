@@ -433,6 +433,10 @@ function UploadIcon() {
 // The file type is checked on drop, not on drag over, because some browsers hide it during a drag.
 function DropZone({ rejection, onChoose, onFile }: { rejection: string | null; onChoose: () => void; onFile: (file: File) => void }) {
   const [dragging, setDragging] = useState(false);
+  const zone = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (document.activeElement === document.body) zone.current?.focus();
+  }, [rejection]);
   const border = dragging
     ? "border-accent-600 bg-accent-100/40"
     : rejection
@@ -449,6 +453,7 @@ function DropZone({ rejection, onChoose, onFile }: { rejection: string | null; o
   return (
     <div className="flex flex-col gap-3">
       <button
+        ref={zone}
         type="button"
         onClick={onChoose}
         onDragOver={(event) => {
@@ -561,7 +566,7 @@ function FileRow({
         </div>
         {status === "reading" && (
           <div role="progressbar" aria-label="Reading your screenshot" className="h-1 overflow-hidden rounded-sm bg-ink-50">
-            <div className="h-1 w-3/5 rounded-sm bg-accent-600 motion-safe:animate-pulse" />
+            <div className="h-1 w-3/5 rounded-sm bg-accent-600" />
           </div>
         )}
         {status === "connection-lost" && (

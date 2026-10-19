@@ -231,6 +231,21 @@ describe("OnboardingWizard", () => {
       expect(extract).not.toHaveBeenCalled();
     });
 
+    it("returns focus to the drop zone when the server rejects the file", async () => {
+      const message = "huge.png is not a PNG, JPG, or WEBP image. Choose a PNG, JPG, or WEBP screenshot.";
+      let reject: (reply: ExtractReply) => void = () => {};
+      const extract = vi.fn(() => new Promise<ExtractReply>((resolve) => { reject = resolve; }));
+      const { user } = await fillGoalAndWeek(undefined, extract);
+
+      await user.click(screen.getByRole("button", { name: /Drop your screenshot here/ }));
+      await upload(user);
+      (document.activeElement as HTMLElement).blur();
+      reject({ kind: "rejected", message });
+
+      expect((await screen.findByRole("alert")).textContent).toBe(message);
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: /Drop your screenshot here/ }));
+    });
+
     it("shows Drop to add it while a file is dragged over the zone", async () => {
       await fillGoalAndWeek();
       const zone = screen.getByRole("button", { name: /Drop your screenshot here/ });
