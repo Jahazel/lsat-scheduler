@@ -36,6 +36,6 @@ Preconditions:
 - A seeded Admin is setup, not proof of authorization. The `make-admin` command still needs a fresh sign-in after promotion; a seeded Admin signs in with the Admin role from the start.
 - Rebuild and reset use Postgres transactions.
 - Sample generation is unavailable before onboarding. It creates candidate values; approval still requires both statements.
-- Test controls can be collapsed. Use snapshot names rather than coordinates. Resize the browser and exercise the overlay when responsive controls change.
+- Test controls can be collapsed. On desktop, `Generate sample` collapses the dock. Expand it again before the next control. Use snapshot names rather than coordinates. Resize the browser and exercise the overlay when responsive controls change.
 - Direct Admin views of students use the real date. Simulated date affects only the Admin's own student side.
 - Account deletion is unavailable for Admins. Use the disposable student fixture for that separate path. After `Reset everything`, the Admin's `/account` redirects to `/onboarding` until they onboard again.
