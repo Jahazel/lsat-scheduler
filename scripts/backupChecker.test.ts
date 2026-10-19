@@ -144,7 +144,7 @@ describe("backup checker entry point", () => {
     { snapshots: [snapshot("2026-10-17T12:00:01Z")] },
     { snapshots: [snapshot("2026-02-30T00:00:00Z")] },
     { snapshots: [snapshot("not-a-date")] },
-    { snapshots: [{ ...snapshot(), timestamp: undefined }] },
+    { snapshots: [{ ...snapshot(), timestamp: undefined, lsn: "0/3000000" }] },
     { snapshots: [{ ...snapshot(), source_branch_id: undefined }] },
     { snapshots: [{ ...snapshot(), created_at: "tomorrow" }] },
     { snapshots: [{ ...snapshot(), created_at: "2026-10-18T00:00:00Z" }] },
@@ -157,6 +157,50 @@ describe("backup checker entry point", () => {
     expect(await runBackupCheck({ env, now: () => now, fetcher: network.fetcher }))
       .toEqual({ ok: false, status: "checker-failed" });
     expect(network.requests.at(-1)?.url.pathname.endsWith("/fail")).toBe(true);
+  });
+
+  describe("backups Neon lists without a captured point", () => {
+    const oneDayHistory = { project: { history_retention_seconds: 86_400 } };
+    const listed = (created_at: string, manual = false) => ({
+      id: `listed-${created_at.replace(/\D/g, "")}-${manual}`, name: "production", source_branch_id: "br-production",
+      created_at, expires_at: "2026-11-01T00:00:00Z", manual,
+    });
+
+    it.each([
+      ["2026-10-17T00:00:17Z", "fresh"],
+      ["2026-10-16T12:00:00Z", "fresh"],
+      ["2026-10-16T11:59:59Z", "stale"],
+    ])("ages a scheduled backup created at %s from its creation time", async (createdAt, status) => {
+      const network = receiver([{ snapshots: [listed(createdAt)] }]);
+      expect(await runBackupCheck({ env, now: () => now, fetcher: network.fetcher })).toMatchObject({ status });
+    });
+
+    it("does not count a new manual backup, which can capture an earlier point, as fresh", async () => {
+      const network = receiver([
+        { snapshots: [listed("2026-10-17T11:59:00Z", true), listed("2026-10-16T06:00:00Z")] }, oneDayHistory,
+        { snapshots: [listed("2026-10-17T11:59:00Z", true)] }, oneDayHistory,
+      ]);
+      expect(await runBackupCheck({ env, now: () => now, fetcher: network.fetcher }))
+        .toMatchObject({ ok: false, status: "stale", newestAgeHours: 30 });
+      expect(await runBackupCheck({ env, now: () => now, fetcher: network.fetcher }))
+        .toMatchObject({ ok: false, status: "no-snapshots" });
+    });
+
+    it.each([
+      ["2026-09-18T12:00:00Z", 0],
+      ["2026-09-18T11:59:59Z", 1],
+    ])("ages a manual backup created at %s from the earliest point the history window allows", async (createdAt, overdue) => {
+      const network = receiver([{ snapshots: [listed("2026-10-17T00:00:00Z"), listed(createdAt, true)] }, oneDayHistory]);
+      const result = await runBackupCheck({ env, now: () => now, fetcher: network.fetcher });
+      expect(result).toMatchObject({ expired: overdue ? [{ kind: "manual" }] : [] });
+      expect(network.requests[1].url.pathname).toBe("/api/v2/projects/production-project");
+    });
+
+    it.each([{ project: {} }, { project: { history_retention_seconds: -1 } }])("fails when the history window is unreadable %j", async (project) => {
+      const network = receiver([{ snapshots: [listed("2026-10-17T00:00:00Z"), listed("2026-10-17T00:00:00Z", true)] }, project]);
+      expect(await runBackupCheck({ env, now: () => now, fetcher: network.fetcher }))
+        .toEqual({ ok: false, status: "checker-failed" });
+    });
   });
 
   it("fails a repeated pagination cursor instead of reporting partial success", async () => {
