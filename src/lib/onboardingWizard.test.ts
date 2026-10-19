@@ -209,11 +209,14 @@ describe("onboarding wizard", () => {
       expect(accuracyMessage(cleared, "Diagram")).toBe("Enter the percentage, or remove this row with ×.");
     });
 
-    it("keeps what the student typed and locks Confirm until it is a whole number", () => {
-      for (const text of ["9.5", "-5", "7a"]) {
+    it("keeps what the student typed and saves a decimal as typed", () => {
+      const decimal = onReview(readRows, { type: "editAccuracy", rowType: "Diagram", text: "9.5" }, ...tickBoth);
+      expect(confirmSnapshotInput(decimal)?.analyticsRows[0]).toEqual({ type: "Diagram", category: "regular", accuracy: 9.5 });
+
+      for (const text of ["9.", "-5", "7a"]) {
         const state = onReview(readRows, ...tickBoth, { type: "editAccuracy", rowType: "Diagram", text }, { type: "leaveAccuracyBox", rowType: "Diagram" }, ...tickBoth);
         expect(boxText(state, "Diagram")).toBe(text);
-        expect(accuracyMessage(state, "Diagram")).toBe("Enter a whole percentage from 0 to 100.");
+        expect(accuracyMessage(state, "Diagram")).toBe("Enter a percentage from 0 to 100.");
         expect(blockedReason(state)).toBe("Fix Diagram above to confirm.");
         expect(confirmSnapshotInput(state)).toBeNull();
       }

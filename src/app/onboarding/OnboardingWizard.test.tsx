@@ -362,19 +362,20 @@ describe("OnboardingWizard", () => {
       expect(document.activeElement).toBe(box("Strengthen"));
       expect(screen.getByText("Enter the percentage, or remove this row with ×.")).toBeDefined();
       expect(box("Strengthen").getAttribute("aria-invalid")).toBe("true");
-      await user.type(box("Strengthen"), "9.5");
+      await user.type(box("Strengthen"), "-5");
       await user.tab();
-      expect(box("Strengthen").value).toBe("9.5");
-      expect(screen.getByText("Enter a whole percentage from 0 to 100.")).toBeDefined();
+      expect(box("Strengthen").value).toBe("-5");
+      const message = document.getElementById(box("Strengthen").getAttribute("aria-describedby") ?? "");
+      expect(message?.textContent).toBe("Enter a percentage from 0 to 100.");
       await user.clear(box("Strengthen"));
-      await user.type(box("Strengthen"), "70");
+      await user.type(box("Strengthen"), "9.5");
       await user.clear(box("Necessary assumption"));
       await user.type(box("Necessary assumption"), "76");
       for (const statement of statements) await user.click(screen.getByLabelText(statement));
       await user.click(confirmButton());
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
         analyticsRows: expect.arrayContaining([
-          { type: "Strengthen", category: "regular", accuracy: 70 },
+          { type: "Strengthen", category: "regular", accuracy: 9.5 },
           { type: "Necessary assumption", category: "regular", accuracy: 76 },
         ]),
       }));

@@ -241,7 +241,7 @@ const ACCURACY_MESSAGE = {
   "out-of-range": "Enter a percentage from 0 to 100.",
 } as const;
 
-const WHOLE_NUMBER = /^\d*$/;
+const PERCENTAGE = /^\d+(\.\d+)?$/;
 
 export function boxText(state: WizardState, type: LRType): string {
   const { screenshot } = state;
@@ -254,7 +254,6 @@ export function boxText(state: WizardState, type: LRType): string {
 export function accuracyMessage(state: WizardState, type: LRType): string | null {
   const { screenshot } = state;
   if (screenshot.status !== "read" || !screenshot.revealedBoxes.includes(type)) return null;
-  if (!WHOLE_NUMBER.test(boxText(state, type))) return "Enter a whole percentage from 0 to 100.";
   const entry = screenshot.review.rows.find(({ row }) => row.type === type);
   const error = entry && accuracyError(entry.row);
   return error ? ACCURACY_MESSAGE[error] : null;
@@ -377,7 +376,7 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       return readEnded(state, action.attempt, action.reply, action.at);
     case "editAccuracy": {
       const { rowType, text } = action;
-      const accuracy = text === "" ? undefined : WHOLE_NUMBER.test(text) ? Number(text) : NaN;
+      const accuracy = text === "" ? undefined : PERCENTAGE.test(text) ? Number(text) : NaN;
       const edited = updateReview(state, (review) => editAccuracy(review, rowIndex(review, rowType), accuracy));
       if (edited.screenshot.status !== "read") return edited;
       return { ...edited, screenshot: { ...edited.screenshot, typedText: { ...edited.screenshot.typedText, [rowType]: text } } };
