@@ -394,6 +394,20 @@ describe("OnboardingWizard", () => {
       expect(document.activeElement).toBe(link());
     });
 
+    it("locks Confirm when nothing would count and moves focus to the add-type link on a press", async () => {
+      const { user, onSave } = await openReview();
+
+      await user.click(screen.getByRole("button", { name: "Remove Strengthen" }));
+      await user.click(screen.getByRole("button", { name: "Remove Necessary assumption" }));
+      await user.click(screen.getByLabelText("Causal reasoning"));
+      for (const statement of statements) await user.click(screen.getByLabelText(statement));
+      expect(screen.getByText("Add an accuracy value or tick a flag to confirm.")).toBeDefined();
+
+      await user.click(confirmButton());
+      expect(onSave).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Add a type the screenshot missed" }));
+    });
+
     it("says so in one line when the read found no priority flags", async () => {
       await openReview(undefined, { kind: "rows", rows: [{ type: "Strengthen", category: "regular", accuracy: 68 }] });
 

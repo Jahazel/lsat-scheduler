@@ -208,9 +208,26 @@ describe("onboarding wizard", () => {
       expect(accuracyMessage(cleared, "Diagram")).toBe("Enter the percentage, or remove this row with ×.");
     });
 
-    it("keeps only digits in a box", () => {
-      const state = onReview(readRows, { type: "editAccuracy", rowType: "Diagram", text: "7a5%" }, ...tickBoth);
-      expect(confirmSnapshotInput(state)?.analyticsRows[0]).toEqual({ type: "Diagram", category: "regular", accuracy: 75 });
+    it("ignores a box edit that is not a whole number, and flags one over 100", () => {
+      const accuracy = (state: WizardState) =>
+        state.screenshot.status === "read" ? state.screenshot.review.rows[0].row.accuracy : null;
+      for (const text of ["9.5", "-5", "7a"]) {
+        expect(accuracy(onReview(readRows, { type: "editAccuracy", rowType: "Diagram", text }))).toBe(64);
+      }
+      const over = onReview(readRows, { type: "editAccuracy", rowType: "Diagram", text: "1000" }, { type: "leaveAccuracyBox", rowType: "Diagram" });
+      expect(accuracyMessage(over, "Diagram")).toBe("Enter a percentage from 0 to 100.");
+    });
+
+    it("locks Confirm when no accuracy value or ticked flag is left", () => {
+      const state = onReview(
+        readRows,
+        { type: "removeRow", rowType: "Diagram" },
+        { type: "removeRow", rowType: "Necessary assumption" },
+        { type: "toggleFlag", rowType: "Causal reasoning" },
+        ...tickBoth,
+      );
+      expect(blockedReason(state)).toBe("Add an accuracy value or tick a flag to confirm.");
+      expect(confirmSnapshotInput(state)).toBeNull();
     });
 
     it("counts every wrong value in the lock reason, even with both statements ticked", () => {

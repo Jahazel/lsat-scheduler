@@ -13,7 +13,7 @@ import {
 } from "react";
 import { DurationSelect } from "@/components/DailyCapacityFieldset";
 import { DAY_ORDER } from "@/lib/engine";
-import { accuracyError, type ReviewRow, type Statement } from "@/lib/analyticsReview";
+import type { ReviewRow, Statement } from "@/lib/analyticsReview";
 import { formatDuration } from "@/lib/formatDuration";
 import {
   DAY_SHORT_LABEL,
@@ -21,6 +21,7 @@ import {
   accuracyMessage,
   addTypeOptions,
   blockedReason,
+  confirmLock,
   confirmSnapshotInput,
   emptyListNote,
   initialWizardState,
@@ -801,10 +802,12 @@ function ReviewStep({
   const flagRows = review.rows.filter(({ row }) => row.category === "restricted");
 
   function confirm() {
-    if (onConfirm() === "sent") return;
-    const wrong = review.rows.find(({ row }) => accuracyError(row));
-    const unticked = STATEMENTS.findIndex(({ statement }) => !review.confirmation[statement]);
-    requestFocus(wrong ? boxId(wrong.row.type) : `statement-${unticked}`);
+    const lock = confirmLock(review);
+    if (onConfirm() === "sent" || !lock) return;
+    const { fix } = lock;
+    if (fix.at === "box") requestFocus(boxId(fix.type));
+    else if (fix.at === "add-type") requestFocus("add-type-link");
+    else requestFocus(`statement-${STATEMENTS.findIndex(({ statement }) => !review.confirmation[statement])}`);
   }
 
   const note = saving
@@ -925,7 +928,7 @@ function AccuracyRow({
   onLeave: () => void;
 }) {
   const { row, original } = entry;
-  const edited = original?.accuracy !== row.accuracy;
+  const edited = original === null || original.accuracy !== row.accuracy;
   const was = edited && original?.accuracy !== undefined ? `was ${original.accuracy}%` : null;
   const id = boxId(row.type);
   const box = message
@@ -1060,6 +1063,9 @@ function AddType({
   const [active, setActive] = useState(0);
   const options = addTypeOptions(state, query);
   const flat = ADD_TYPE_GROUPS.flatMap(({ list }) => options[list].map((type) => ({ type, list })));
+  useEffect(() => {
+    document.getElementById(`add-type-option-${active}`)?.scrollIntoView?.({ block: "nearest" });
+  }, [active]);
 
   function close(focusLink = true) {
     setOpen(false);

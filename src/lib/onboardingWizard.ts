@@ -9,6 +9,7 @@ import {
   snapshotApproval,
   startReview,
   toggleTopPriority,
+  type ReviewRow,
   type SnapshotReview,
   type Statement,
 } from "./analyticsReview";
@@ -195,7 +196,7 @@ export function blockedReason(state: WizardState): string | null {
     case "analytics":
       return state.screenshot.status === "read" ? null : "Add a screenshot to check the values.";
     case "review":
-      return state.screenshot.status === "read" ? confirmBlockedReason(state.screenshot.review) : null;
+      return state.screenshot.status === "read" ? (confirmLock(state.screenshot.review)?.reason ?? null) : null;
     default: {
       const _exhaustive: never = state.step;
       return _exhaustive;
@@ -220,11 +221,18 @@ export function toProfileInput(values: WizardValues): StudentProfileInput | null
   };
 }
 
-function confirmBlockedReason(review: SnapshotReview): string | null {
+export type ConfirmLock = { reason: string; fix: { at: "box"; type: LRType } | { at: "add-type" } | { at: "statements" } };
+
+export function confirmLock(review: SnapshotReview): ConfirmLock | null {
   const wrong = review.rows.filter(({ row }) => accuracyError(row));
-  if (wrong.length === 1) return `Fix ${wrong[0].row.type} above to confirm.`;
-  if (wrong.length > 1) return `Fix ${wrong.length} values above to confirm.`;
-  return review.confirmation.confirmedAt ? null : "Tick both statements to confirm.";
+  if (wrong.length > 0) {
+    const reason = wrong.length === 1 ? `Fix ${wrong[0].row.type} above to confirm.` : `Fix ${wrong.length} values above to confirm.`;
+    return { reason, fix: { at: "box", type: wrong[0].row.type } };
+  }
+  const counts = ({ row }: ReviewRow) => (row.category === "regular" ? row.accuracy !== undefined : row.isTopPriority);
+  if (!review.rows.some(counts)) return { reason: "Add an accuracy value or tick a flag to confirm.", fix: { at: "add-type" } };
+  if (!review.confirmation.confirmedAt) return { reason: "Tick both statements to confirm.", fix: { at: "statements" } };
+  return null;
 }
 
 const ACCURACY_MESSAGE = {
@@ -277,7 +285,7 @@ export function confirmSnapshotInput(state: WizardState): ConfirmSnapshotInput |
   if (!profile || state.screenshot.status !== "read") return null;
   const { review } = state.screenshot;
   const analyticsApproval = snapshotApproval(review);
-  return analyticsApproval ? { ...profile, analyticsRows: reviewedRows(review), analyticsApproval } : null;
+  return analyticsApproval && !confirmLock(review) ? { ...profile, analyticsRows: reviewedRows(review), analyticsApproval } : null;
 }
 
 function readEnded(state: WizardState, attempt: number, reply: ExtractReply, at: Date): WizardState {
@@ -325,10 +333,6 @@ function revealBoxes(state: WizardState, types: LRType[]): WizardState {
   return { ...state, screenshot: { ...screenshot, revealedBoxes: [...new Set([...screenshot.revealedBoxes, ...types])] } };
 }
 
-function parseAccuracy(text: string): number | undefined {
-  const digits = text.replace(/\D/g, "").slice(0, 3);
-  return digits === "" ? undefined : Number(digits);
-}
 
 export function wizardReducer(state: WizardState, action: WizardAction): WizardState {
   if (state.save === "saving" && action.type !== "saveFailed" && action.type !== "readEnded") return state;
@@ -358,8 +362,11 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       };
     case "readEnded":
       return readEnded(state, action.attempt, action.reply, action.at);
-    case "editAccuracy":
-      return updateReview(state, (review) => editAccuracy(review, rowIndex(review, action.rowType), parseAccuracy(action.text)));
+    case "editAccuracy": {
+      if (!/^\d*$/.test(action.text)) return state;
+      const accuracy = action.text === "" ? undefined : Number(action.text);
+      return updateReview(state, (review) => editAccuracy(review, rowIndex(review, action.rowType), accuracy));
+    }
     case "leaveAccuracyBox":
       return revealBoxes(state, [action.rowType]);
     case "removeRow":
