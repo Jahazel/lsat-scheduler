@@ -1,28 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { mockRules } from "@/lib/mockData";
-import type { SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
-import type { AnalyticsExtractedRow, LRType } from "@/lib/types";
-
-// Every type the review screen might need to offer for manual add — tagged
-// with the same "regular" / "restricted" split the engine uses.
-const ALL_TYPES: { type: LRType; category: "regular" | "restricted" }[] = [
-  ...mockRules.lrStemTypes.map((type) => ({ type, category: "regular" as const })),
-  ...mockRules.lrLogicTypes.map((type) => ({
-    type,
-    category: mockRules.lrLogicExceptions.includes(type)
-      ? ("regular" as const)
-      : ("restricted" as const),
-  })),
-];
+import {
+  addRow,
+  editAccuracy,
+  missingTypes,
+  removeRow,
+  reviewedRows,
+  setStatement,
+  startReview,
+  toggleTopPriority,
+  type SnapshotReview,
+} from "@/lib/analyticsReview";
 
 interface AnalyticsReviewProps {
-  initialExtraction?: SnapshotApprovalMetadata["extraction"];
-  rows: AnalyticsExtractedRow[];
-  onRowsChange: (rows: AnalyticsExtractedRow[]) => void;
-  onExtractedChange?: (extracted: boolean) => void;
-  onApprovalChange?: (approval: SnapshotApprovalMetadata | null) => void;
+  review: SnapshotReview | null;
+  onReviewChange: (review: SnapshotReview) => void;
   uploadPresentation?: "default" | "guided";
   reviewPresentation?: "default" | "full-width";
 }
@@ -32,51 +25,14 @@ interface AnalyticsReviewProps {
 // screenshot missed. Used both on student intake (optional, before the
 // student exists) and on the per-student page (weekly re-upload).
 export default function AnalyticsReview({
-  initialExtraction,
-  rows,
-  onRowsChange,
-  onExtractedChange,
-  onApprovalChange,
+  review,
+  onReviewChange,
   uploadPresentation = "default",
   reviewPresentation = "default",
 }: AnalyticsReviewProps) {
   const [typeToAdd, setTypeToAdd] = useState("");
   const [extracting, setExtracting] = useState(false);
-  const [hasExtracted, setHasExtracted] = useState(!!initialExtraction);
   const [error, setError] = useState<string | null>(null);
-  const [extractedAt, setExtractedAt] = useState<string | null>(initialExtraction?.extractedAt ?? null);
-  const [extractedValuesMatch, setExtractedValuesMatch] = useState(false);
-  const [isLatestAnalytics, setIsLatestAnalytics] = useState(false);
-
-  function setHasExtractedAndNotify(value: boolean) {
-    setHasExtracted(value);
-    onExtractedChange?.(value);
-    if (!value) onApprovalChange?.(null);
-  }
-
-  function updateApproval(nextValuesMatch: boolean, nextIsLatest: boolean) {
-    setExtractedValuesMatch(nextValuesMatch);
-    setIsLatestAnalytics(nextIsLatest);
-
-    if (!nextValuesMatch || !nextIsLatest || !extractedAt) {
-      onApprovalChange?.(null);
-      return;
-    }
-
-    onApprovalChange?.({
-      extraction: { source: initialExtraction?.source ?? "7sage_screenshot", extractedAt },
-      confirmation: {
-        extractedValuesMatch: true,
-        isLatestAnalytics: true,
-        confirmedAt: new Date().toISOString(),
-      },
-    });
-  }
-
-  function replaceRows(nextRows: AnalyticsExtractedRow[]) {
-    onRowsChange(nextRows);
-    updateApproval(false, false);
-  }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -94,9 +50,7 @@ export default function AnalyticsReview({
       });
       if (!res.ok) throw new Error();
       const { rows: extracted } = await res.json();
-      replaceRows(extracted);
-      setExtractedAt(new Date().toISOString());
-      setHasExtractedAndNotify(true);
+      onReviewChange(startReview(extracted, { source: "7sage_screenshot", extractedAt: new Date().toISOString() }));
     } catch {
       setError("Couldn't read that screenshot. Try again or a clearer image.");
     } finally {
@@ -104,28 +58,7 @@ export default function AnalyticsReview({
     }
   }
 
-  function updateAccuracy(index: number, value: string) {
-    replaceRows(
-      rows.map((r, i) => (i === index ? { ...r, accuracy: value === "" ? undefined : Number(value) } : r))
-    );
-  }
-
-  function toggleTopPriority(index: number) {
-    replaceRows(rows.map((r, i) => (i === index ? { ...r, isTopPriority: !r.isTopPriority } : r)));
-  }
-
-  function removeRow(index: number) {
-    replaceRows(rows.filter((_, i) => i !== index));
-  }
-
-  function addRow() {
-    const match = ALL_TYPES.find((t) => t.type === typeToAdd);
-    if (!match) return;
-    replaceRows([...rows, { type: match.type, category: match.category }]);
-    setTypeToAdd("");
-  }
-
-  if (!hasExtracted) {
+  if (!review) {
     if (uploadPresentation === "guided") {
       return (
         <div>
@@ -160,26 +93,46 @@ export default function AnalyticsReview({
     );
   }
 
-  const indexed = rows.map((row, i) => ({ row, i }));
+  const updateAccuracy = (index: number, value: string) => {
+    onReviewChange(editAccuracy(review, index, value === "" ? undefined : Number(value)));
+  };
+
+  const toggleRowPriority = (index: number) => {
+    onReviewChange(toggleTopPriority(review, index));
+  };
+
+  const removeReviewRow = (index: number) => {
+    onReviewChange(removeRow(review, index));
+  };
+
+  const addReviewRow = () => {
+    const type = missingTypes(review).find((missing) => missing === typeToAdd);
+    if (!type) return;
+    onReviewChange(addRow(review, type));
+    setTypeToAdd("");
+  };
+
+  const isSample = review.extraction.source === "admin_sample";
+  const indexed = reviewedRows(review).map((row, i) => ({ row, i }));
   const accuracyRows = indexed.filter(({ row }) => row.category === "regular");
   const priorityRows = indexed.filter(({ row }) => row.category === "restricted");
   const errorMessage = error && <p className="text-sm text-red-600">{error}</p>;
 
-  function priorityItems() {
+  const priorityItems = () => {
     return priorityRows.map(({ row, i }) => {
       const inputId = `priority-${i}`;
-      return <li key={`${row.type}-${i}`} className="flex items-center gap-2"><input id={inputId} type="checkbox" checked={row.isTopPriority ?? false} onChange={() => toggleTopPriority(i)} className="size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" /><label htmlFor={inputId} className="flex-1 text-sm text-ink-900">{row.type}</label><button type="button" onClick={() => removeRow(i)} className="rounded p-1 text-ink-700 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" aria-label={`Remove ${row.type}`}>✕</button></li>;
+      return <li key={`${row.type}-${i}`} className="flex items-center gap-2"><input id={inputId} type="checkbox" checked={row.isTopPriority ?? false} onChange={() => toggleRowPriority(i)} className="size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" /><label htmlFor={inputId} className="flex-1 text-sm text-ink-900">{row.type}</label><button type="button" onClick={() => removeReviewRow(i)} className="rounded p-1 text-ink-700 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" aria-label={`Remove ${row.type}`}>✕</button></li>;
     });
-  }
+  };
 
-  function addTypeControl(className: string) {
-    const label = initialExtraction?.source === "admin_sample" ? "Add a question type" : "Add a type the screenshot missed";
-    return <div className={className}><select value={typeToAdd} onChange={(e) => setTypeToAdd(e.target.value)} aria-label={label} className="flex-1 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"><option value="">{label}…</option>{ALL_TYPES.filter((t) => !rows.some((r) => r.type === t.type)).map((t) => <option key={t.type} value={t.type}>{t.type}</option>)}</select><button type="button" onClick={addRow} disabled={!typeToAdd} className="rounded-md border border-ink-200 px-3 py-2 text-sm font-medium text-ink-900 hover:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 disabled:cursor-not-allowed disabled:opacity-50">Add</button></div>;
-  }
+  const addTypeControl = (className: string) => {
+    const label = isSample ? "Add a question type" : "Add a type the screenshot missed";
+    return <div className={className}><select value={typeToAdd} onChange={(e) => setTypeToAdd(e.target.value)} aria-label={label} className="flex-1 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"><option value="">{label}…</option>{missingTypes(review).map((type) => <option key={type} value={type}>{type}</option>)}</select><button type="button" onClick={addReviewRow} disabled={!typeToAdd} className="rounded-md border border-ink-200 px-3 py-2 text-sm font-medium text-ink-900 hover:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 disabled:cursor-not-allowed disabled:opacity-50">Add</button></div>;
+  };
 
-  function approvalControls(fieldsetClassName: string, legendClassName: string, wrapperClassName = "") {
-    return <div className={wrapperClassName}><fieldset className={fieldsetClassName}><legend className={legendClassName}>Confirm this snapshot</legend><div className="mt-3 space-y-3"><label className="flex items-start gap-2 text-sm text-ink-700"><input type="checkbox" checked={extractedValuesMatch} onChange={(event) => updateApproval(event.target.checked, isLatestAnalytics)} className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" /><span>{initialExtraction?.source === "admin_sample" ? "I reviewed and approved these sample values." : "I reviewed these values and they match my screenshot."}</span></label><label className="flex items-start gap-2 text-sm text-ink-700"><input type="checkbox" checked={isLatestAnalytics} onChange={(event) => updateApproval(extractedValuesMatch, event.target.checked)} className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" /><span>{initialExtraction?.source === "admin_sample" ? "Use this sample as my latest analytics." : "This screenshot contains my latest 7Sage analytics."}</span></label></div></fieldset></div>;
-  }
+  const approvalControls = (fieldsetClassName: string, legendClassName: string, wrapperClassName = "") => {
+    return <div className={wrapperClassName}><fieldset className={fieldsetClassName}><legend className={legendClassName}>Confirm this snapshot</legend><div className="mt-3 space-y-3"><label className="flex items-start gap-2 text-sm text-ink-700"><input type="checkbox" checked={review.confirmation.extractedValuesMatch} onChange={(event) => onReviewChange(setStatement(review, "extractedValuesMatch", event.target.checked))} className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" /><span>{isSample ? "I reviewed and approved these sample values." : "I reviewed these values and they match my screenshot."}</span></label><label className="flex items-start gap-2 text-sm text-ink-700"><input type="checkbox" checked={review.confirmation.isLatestAnalytics} onChange={(event) => onReviewChange(setStatement(review, "isLatestAnalytics", event.target.checked))} className="mt-0.5 size-4 accent-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" /><span>{isSample ? "Use this sample as my latest analytics." : "This screenshot contains my latest 7Sage analytics."}</span></label></div></fieldset></div>;
+  };
 
   if (reviewPresentation === "full-width") {
     return (
@@ -215,7 +168,7 @@ export default function AnalyticsReview({
                         </div>
                       </td>
                       <td className="py-4 text-right">
-                        <button type="button" onClick={() => removeRow(i)} className="rounded p-1 text-ink-700 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" aria-label={`Remove ${row.type}`}>✕</button>
+                        <button type="button" onClick={() => removeReviewRow(i)} className="rounded p-1 text-ink-700 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" aria-label={`Remove ${row.type}`}>✕</button>
                       </td>
                     </tr>
                   );
@@ -291,7 +244,7 @@ export default function AnalyticsReview({
                       </div>
                       <button
                         type="button"
-                        onClick={() => removeRow(i)}
+                        onClick={() => removeReviewRow(i)}
                         className="rounded p-1 text-ink-700 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
                         aria-label={`Remove ${row.type}`}
                       >

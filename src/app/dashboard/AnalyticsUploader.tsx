@@ -5,21 +5,28 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AnalyticsReview from "@/components/AnalyticsReview";
 import { summarizeAnalyticsRows } from "@/lib/analytics";
-import type { SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
-import type { AnalyticsExtractedRow } from "@/lib/types";
+import { hasInvalidAccuracy, reviewedRows, snapshotApproval, startReview, type SnapshotReview } from "@/lib/analyticsReview";
 
 // Always writes to the logged-in student's own snapshot via /api/analytics
 // — no studentId prop needed, unlike the old tutor-driven version.
 export default function AnalyticsUploader({ sample, onSampleDone }: { sample?: SampleDraft; onSampleDone?: () => void }) {
   const router = useRouter();
-  const [rows, setRows] = useState<AnalyticsExtractedRow[]>(sample?.rows ?? []);
-  const [hasExtracted, setHasExtracted] = useState(!!sample);
-  const [approval, setApproval] = useState<SnapshotApprovalMetadata | null>(null);
+  const [review, setReview] = useState<SnapshotReview | null>(
+    sample ? startReview(sample.rows, { source: "admin_sample", extractedAt: sample.extractedAt }) : null,
+  );
   const [reviewKey, setReviewKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasExtracted = review !== null;
+  const approval = review && snapshotApproval(review);
+  const saveHint = approval
+    ? "Ready to create your schedule."
+    : review && hasInvalidAccuracy(review)
+      ? "Fix the accuracy values above. Each one must be 0 to 100."
+      : "Confirm both statements before saving this snapshot.";
 
   async function handleSave() {
+    if (!review || !approval) return;
     setSaving(true);
     setError(null);
 
@@ -27,7 +34,7 @@ export default function AnalyticsUploader({ sample, onSampleDone }: { sample?: S
       const res = await fetch("/api/analytics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...summarizeAnalyticsRows(rows), ...approval }),
+        body: JSON.stringify({ ...summarizeAnalyticsRows(reviewedRows(review)), ...approval }),
       });
       if (!res.ok) {
         const result = sample ? await res.json().catch(() => null) : null;
@@ -38,9 +45,7 @@ export default function AnalyticsUploader({ sample, onSampleDone }: { sample?: S
         );
         return;
       }
-      setHasExtracted(false);
-      setApproval(null);
-      setRows([]);
+      setReview(null);
       setReviewKey((key) => key + 1);
       onSampleDone?.();
       router.refresh();
@@ -80,11 +85,8 @@ export default function AnalyticsUploader({ sample, onSampleDone }: { sample?: S
           <div className="mt-5 flex flex-col gap-4">
             <AnalyticsReview
               key={reviewKey}
-              initialExtraction={sample ? { source: "admin_sample", extractedAt: sample.extractedAt } : undefined}
-              rows={rows}
-              onRowsChange={setRows}
-              onExtractedChange={setHasExtracted}
-              onApprovalChange={setApproval}
+              review={review}
+              onReviewChange={setReview}
               uploadPresentation="guided"
               reviewPresentation={hasExtracted ? "full-width" : "default"}
             />
@@ -93,7 +95,7 @@ export default function AnalyticsUploader({ sample, onSampleDone }: { sample?: S
                 {sample && <button type="button" onClick={onSampleDone} className="self-start rounded-md px-3 py-2 text-sm text-ink-700 underline focus-visible:outline-2 focus-visible:outline-accent-600">Cancel sample</button>}
                 {error && <p className="text-sm text-red-600">{error}</p>}
                 <div className="flex flex-col gap-3 border-t border-ink-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-ink-500">{approval ? "Ready to create your schedule." : "Confirm both statements before saving this snapshot."}</p>
+                  <p className="text-sm text-ink-500">{saveHint}</p>
                   <button
                     type="button"
                     onClick={handleSave}

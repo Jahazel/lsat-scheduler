@@ -59,6 +59,20 @@ describe("AnalyticsUploader", () => {
     expect(await screen.findByText("Admin access required for sample analytics.")).toBeDefined();
   });
 
+  it("keeps Confirm snapshot disabled and names the fix while an accuracy is over 100", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(Response.json({ rows: [{ type: "Strengthen", category: "regular", accuracy: 70 }] })));
+    const user = userEvent.setup();
+    render(<AnalyticsUploader />);
+    await user.upload(screen.getByLabelText(/Choose a 7Sage analytics screenshot/), new File(["image"], "analytics.png", { type: "image/png" }));
+    const accuracy = await screen.findByLabelText("Strengthen accuracy");
+    await user.clear(accuracy);
+    await user.type(accuracy, "120");
+    await user.click(screen.getByLabelText("I reviewed these values and they match my screenshot."));
+    await user.click(screen.getByLabelText("This screenshot contains my latest 7Sage analytics."));
+    expect((screen.getByRole("button", { name: "Confirm snapshot" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText("Fix the accuracy values above. Each one must be 0 to 100.")).toBeDefined();
+  });
+
   it("keeps the retry message when the network request fails", async () => {
     vi.stubGlobal("fetch", vi.fn()
       .mockResolvedValueOnce(Response.json({ rows: [{ type: "Strengthen", category: "regular", accuracy: 70 }] }))
