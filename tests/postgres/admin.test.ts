@@ -52,7 +52,7 @@ afterAll(async () => {
 });
 
 const profile: Student = {
-  platform: "7Sage", currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01",
+  currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01",
   preferredPracticeTestDay: "SATURDAY", accommodationMultiplier: 1,
   dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 90, SUNDAY: 90 },
 };
@@ -80,9 +80,10 @@ async function everyRow() {
   return rows[0];
 }
 
-it("All students lists non-Admin students by name with their email and writes nothing", async () => {
+it("All students lists non-Admin students by name with their email, marks who needs analytics, and writes nothing", async () => {
   await student("zed");
-  await student("Bea");
+  const bea = await student("Bea");
+  await approve(bea.saved.id);
   const admin = await student("Admin", "admin");
   await student("amy");
   signIn(admin.account);
@@ -91,7 +92,10 @@ it("All students lists non-Admin students by name with their email and writes no
   expect(await everyRow()).toEqual(before);
   const names = [...markup.matchAll(/<span class="font-medium text-ink-900">([^<]+)<\/span>/g)].map((match) => match[1]);
   expect(names).toEqual(["amy", "Bea", "zed"]);
-  expect(markup).toContain("bea@example.test · 7Sage");
+  expect(markup).toContain("bea@example.test");
+  const marked = [...markup.matchAll(/<span class="font-medium text-ink-900">([^<]+)<\/span>(<span[^>]*>Needs analytics)?/g)]
+    .filter((match) => match[2]).map((match) => match[1]);
+  expect(marked).toEqual(["amy", "zed"]);
   expect(markup).not.toContain("admin@example.test");
 });
 

@@ -20,14 +20,14 @@ vi.mock("./postgres", () => ({ getPostgresDatabase: () => ({ execute: mocks.exec
 
 describe("loadStudentNavState", () => {
   beforeEach(() => vi.clearAllMocks());
-  it.each(["LSAT Demon", "7Sage"])("reports an existing weekly schedule for %s", async (platform) => {
-    mocks.findStudent.mockResolvedValue({ id: "student-1", platform, goalTestDate: "2027-01-01" });
+  it("reports an existing weekly schedule", async () => {
+    mocks.findStudent.mockResolvedValue({ id: "student-1", goalTestDate: "2027-01-01" });
     mocks.execute.mockResolvedValue({ rowCount: 1 });
     expect(await loadStudentNavState("user-1", new Date("2026-09-30T12:00:00Z"))).toMatchObject({ hasCurrentWeek: true, uploadNeeded: false });
   });
-  it.each([["LSAT Demon", false], ["7Sage", true]])("only requests an upload for 7Sage when %s has no schedule", async (platform, uploadNeeded) => {
-    mocks.findStudent.mockResolvedValue({ id: "student-1", platform, goalTestDate: "2027-01-01" });
+  it("requests an upload when there is no schedule", async () => {
+    mocks.findStudent.mockResolvedValue({ id: "student-1", goalTestDate: "2027-01-01" });
     mocks.execute.mockResolvedValue({ rowCount: 0 });
-    expect(await loadStudentNavState("user-1")).toMatchObject({ hasCurrentWeek: false, uploadNeeded });
+    expect(await loadStudentNavState("user-1")).toMatchObject({ hasCurrentWeek: false, uploadNeeded: true });
   });
 });

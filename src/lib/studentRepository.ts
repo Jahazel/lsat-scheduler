@@ -11,7 +11,7 @@ export type PersistedStudent = Student & { id: string };
 
 function studentColumns(student: Student) {
   return {
-    platform: student.platform,
+    platform: "7Sage" as const,
     currentScore: student.currentScore,
     goalScore: student.goalScore,
     goalTestDate: student.goalTestDate,
@@ -30,7 +30,6 @@ function studentColumns(student: Student) {
 function persistedStudent(row: typeof students.$inferSelect): PersistedStudent {
   return {
     id: row.id,
-    platform: row.platform,
     currentScore: row.currentScore,
     goalScore: row.goalScore,
     goalTestDate: row.goalTestDate,

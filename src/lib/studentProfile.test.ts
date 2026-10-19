@@ -63,10 +63,7 @@ describe("studentProfileSchema", () => {
   });
 
   it("saves 7Sage when the input has no platform", () => {
-    const { platform, ...withoutPlatform } = mockStudent;
-    void platform;
-
-    expect(studentProfileSchema.parse(withoutPlatform).platform).toBe("7Sage");
+    expect(studentProfileSchema.parse(mockStudent).platform).toBe("7Sage");
   });
 
   it.each(["LSAT Demon", "Other"])("rejects the %s platform", (platform) => {

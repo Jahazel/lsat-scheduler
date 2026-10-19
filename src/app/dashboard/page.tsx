@@ -35,7 +35,6 @@ export default async function DashboardPage({
   }
 
   const student: Student = {
-    platform: doc.platform,
     currentScore: doc.currentScore,
     goalScore: doc.goalScore,
     dailyCapacityMinutes: doc.dailyCapacityMinutes,
@@ -72,13 +71,8 @@ export default async function DashboardPage({
       checkIns={checkIns}
       statusFirst
     />
-  ) : student.platform === "7Sage" ? (
-    <AnalyticsUploader />
   ) : (
-    <div className="rounded-lg border border-ink-100 bg-white p-6">
-      <h1 className="text-xl font-semibold tracking-tight text-ink-900">Upload approved analytics to begin</h1>
-      <p className="mt-2 text-sm text-ink-500">Confirm a fresh 7Sage analytics extraction to create this week&apos;s schedule.</p>
-    </div>
+    <AnalyticsUploader />
   );
 
   return (

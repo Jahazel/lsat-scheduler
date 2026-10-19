@@ -96,7 +96,6 @@ export const mockRules: RulesConfig = {
 export const mockStudentName = "Jordan Rivera";
 
 export const mockStudent: Student = {
-  platform: "7Sage",
   currentScore: 160,
   goalScore: 170,
   dailyCapacityMinutes: {

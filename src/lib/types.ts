@@ -73,7 +73,6 @@ export type DayOfWeek =
   | "SUNDAY";
 
 export interface Student {
-  platform: "7Sage" | "LSAT Demon";
   currentScore: number;
   goalScore: number;
   // Minutes the student can study on each day of the week: 30 to 480, in
