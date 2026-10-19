@@ -23,6 +23,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 Read `docs/agents/issue-tracker.md` before issue or pull-request work.
 Read `docs/agents/triage-labels.md` before sorting or labeling issues.
 Read `docs/agents/domain.md` before exploring domain concepts.
+Build screens from the `docs/design/` files that the ticket links. Open Paper only when the ticket links none.
 
 ## Owner decisions
 
