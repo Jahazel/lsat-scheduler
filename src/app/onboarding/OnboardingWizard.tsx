@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useReducer, useRef, type FormEvent, type ReactNode } from "react";
+import { useEffect, useReducer, useRef, useState, type DragEvent, type FormEvent, type ReactNode } from "react";
 import { DurationSelect } from "@/components/DailyCapacityFieldset";
 import { DAY_ORDER } from "@/lib/engine";
 import { formatDuration } from "@/lib/formatDuration";
@@ -17,9 +17,12 @@ import {
   weeklyTotalMinutes,
   wizardReducer,
   type Accommodation,
+  type Screenshot,
   type WizardAction,
   type WizardState,
 } from "@/lib/onboardingWizard";
+import { SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, checkScreenshot, extractScreenshot } from "@/lib/screenshotUpload";
+import type { AnalyticsExtractedRow } from "@/lib/types";
 import { DAY_LABEL, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { createStudentProfile } from "./actions";
 
@@ -28,17 +31,31 @@ const FIELD = `h-11 w-full rounded-md border bg-white px-3 text-base text-ink-90
 const SELECT = `h-[34px] min-w-0 flex-1 rounded-md border border-ink-200 bg-white px-2 text-sm text-ink-900 ${FOCUS}`;
 const PRIMARY = `h-11 flex-1 rounded-md bg-ink-900 text-base font-medium text-white transition-colors duration-150 ease-out hover:bg-ink-700 disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-500 ${FOCUS}`;
 const SECONDARY = `h-11 w-28 shrink-0 rounded-md border border-ink-200 bg-white text-base font-medium text-ink-900 transition-colors duration-150 ease-out hover:bg-ink-50 disabled:cursor-not-allowed disabled:text-ink-400 ${FOCUS}`;
+const SMALL_BUTTON = `h-10 self-start rounded-md border border-ink-200 bg-white px-[18px] text-sm font-medium text-ink-900 transition-colors duration-150 ease-out hover:bg-ink-50 ${FOCUS}`;
+const LINK_BUTTON = `font-medium text-ink-900 underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline ${FOCUS}`;
 const CHANGE_LATER = "You can change these any time in Study settings.";
 
 interface OnboardingWizardProps {
   goalTestDateOptions: ReturnType<typeof upcomingTestMonths>;
   onSave: typeof createStudentProfile;
+  extract?: typeof extractScreenshot;
 }
 
 type Dispatch = (action: WizardAction) => void;
 
-export default function OnboardingWizard({ goalTestDateOptions, onSave }: OnboardingWizardProps) {
+export default function OnboardingWizard({ goalTestDateOptions, onSave, extract = extractScreenshot }: OnboardingWizardProps) {
   const [state, dispatch] = useReducer(wizardReducer, undefined, initialWizardState);
+
+  async function readScreenshot(file: File) {
+    const rejection = checkScreenshot(file);
+    if (rejection) {
+      dispatch({ type: "screenshotRejected", message: rejection.message });
+      return;
+    }
+    const attempt = state.readAttempts + 1;
+    dispatch({ type: "readStarted", file });
+    dispatch({ type: "readEnded", attempt, reply: await extract(file) });
+  }
 
   async function skipForNow() {
     const profile = toProfileInput(state.values);
@@ -57,7 +74,10 @@ export default function OnboardingWizard({ goalTestDateOptions, onSave }: Onboar
         <div className="w-full lg:max-w-[440px]">
           {state.step === "goal" && <GoalStep state={state} dispatch={dispatch} goalTestDateOptions={goalTestDateOptions} />}
           {state.step === "week" && <WeekStep state={state} dispatch={dispatch} />}
-          {state.step === "analytics" && <AnalyticsStep state={state} dispatch={dispatch} onSkip={skipForNow} />}
+          {state.step === "analytics" && (
+            <AnalyticsStep state={state} dispatch={dispatch} onSkip={skipForNow} onFile={readScreenshot} />
+          )}
+          {state.step === "review" && <ReviewStep state={state} dispatch={dispatch} />}
         </div>
       </div>
       <div aria-hidden className="hidden bg-ink-50 lg:block" />
@@ -320,8 +340,22 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
   );
 }
 
-function AnalyticsStep({ state, dispatch, onSkip }: { state: WizardState; dispatch: Dispatch; onSkip: () => void }) {
+function AnalyticsStep({
+  state,
+  dispatch,
+  onSkip,
+  onFile,
+}: {
+  state: WizardState;
+  dispatch: Dispatch;
+  onSkip: () => void;
+  onFile: (file: File) => void;
+}) {
   const saving = state.save === "saving";
+  const { screenshot } = state;
+  const picker = useRef<HTMLInputElement>(null);
+  const choose = () => picker.current?.click();
+
   return (
     <div className="flex flex-col gap-8">
       <StepHeading
@@ -329,25 +363,335 @@ function AnalyticsStep({ state, dispatch, onSkip }: { state: WizardState; dispat
         title="Add your 7Sage analytics"
         lede="One screenshot shows us which question types to drill first."
       />
+      <input
+        ref={picker}
+        type="file"
+        hidden
+        aria-label="Screenshot file"
+        accept={SCREENSHOT_MEDIA_TYPES.join(",")}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) onFile(file);
+        }}
+      />
+      {screenshot.status === "none" ? (
+        <div className="flex flex-col gap-6">
+          <DropZone rejection={state.screenshotRejection} onChoose={choose} onFile={onFile} />
+          <WhereToFindIt />
+        </div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          <FileRow
+            screenshot={screenshot}
+            rejection={state.screenshotRejection}
+            onChoose={choose}
+            onTryAgain={() => onFile(screenshot.file)}
+          />
+          {screenshot.status === "read" && <RowsFound rows={screenshot.rows} />}
+        </div>
+      )}
       <div className="flex flex-col gap-4">
-        <button type="button" disabled={saving} onClick={() => dispatch({ type: "back" })} className={SECONDARY}>
-          Back
-        </button>
-        <p className="text-sm text-ink-500">
+        <div className="flex gap-3">
+          <button type="button" disabled={saving} onClick={() => dispatch({ type: "back" })} className={SECONDARY}>
+            Back
+          </button>
           <button
             type="button"
-            disabled={saving}
-            onClick={onSkip}
-            className={`font-medium text-ink-900 underline underline-offset-4 disabled:cursor-not-allowed disabled:no-underline ${FOCUS}`}
+            disabled={saving || Boolean(blockedReason(state))}
+            onClick={() => dispatch({ type: "continue" })}
+            className={PRIMARY}
           >
+            {screenshot.status === "none" ? "Continue" : "Check the values"}
+          </button>
+        </div>
+        {screenshot.status !== "none" && (
+          <p className="text-center text-sm text-ink-500">You can replace the screenshot before you confirm.</p>
+        )}
+        <p className="text-center text-sm text-ink-500">
+          <button type="button" disabled={saving} onClick={onSkip} className={LINK_BUTTON}>
             {saving ? "Saving…" : "Skip for now"}
           </button>
           {" · Your schedule starts after you add one."}
         </p>
-        <p role="status" className="text-sm text-ink-700">
+        <p role="status" className="text-center text-sm text-ink-700">
           {state.save === "failed" && "We couldn't save your plan. Check your connection and press Skip for now again."}
         </p>
       </div>
+    </div>
+  );
+}
+
+function UploadIcon() {
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" className="size-[22px]" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M12 16V4m0 0-4 4m4-4 4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// The file type is checked on drop, not on drag over, because some browsers hide it during a drag.
+function DropZone({ rejection, onChoose, onFile }: { rejection: string | null; onChoose: () => void; onFile: (file: File) => void }) {
+  const [dragging, setDragging] = useState(false);
+  const border = dragging
+    ? "border-accent-600 bg-accent-100/40"
+    : rejection
+      ? "border-red-700 bg-ink-50"
+      : "border-ink-400 bg-ink-50 hover:border-ink-900";
+
+  function drop(event: DragEvent) {
+    event.preventDefault();
+    setDragging(false);
+    const file = event.dataTransfer.files[0];
+    if (file) onFile(file);
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <button
+        type="button"
+        onClick={onChoose}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={(event) => {
+          const into = event.relatedTarget;
+          if (!(into instanceof Node && event.currentTarget.contains(into))) setDragging(false);
+        }}
+        onDrop={drop}
+        aria-describedby={rejection ? "screenshot-rejection" : undefined}
+        className={`flex h-[248px] flex-col items-center justify-center gap-4 rounded-md border-[1.5px] border-dashed p-8 transition-colors duration-150 ease-out ${border} ${FOCUS}`}
+      >
+        <span
+          className={`grid size-12 place-items-center rounded-full border ${dragging ? "border-accent-600 bg-white text-accent-600" : "border-ink-200 bg-white text-ink-900"}`}
+        >
+          <UploadIcon />
+        </span>
+        {dragging ? (
+          <span className="flex flex-col items-center gap-1">
+            <span className="text-base font-semibold text-accent-600">Drop to add it</span>
+            <span className="text-sm text-ink-500">{SCREENSHOT_LIMITS}</span>
+          </span>
+        ) : (
+          <span className="flex flex-col items-center gap-1">
+            <span className="text-base font-semibold text-ink-900">Drop your screenshot here</span>
+            <span className="text-sm text-ink-500">
+              or <span className="font-medium text-accent-600 underline underline-offset-[3px]">choose a file</span> · {SCREENSHOT_LIMITS}
+            </span>
+          </span>
+        )}
+      </button>
+      {rejection && (
+        <p id="screenshot-rejection" role="alert" className="text-sm text-red-700">
+          {rejection}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function WhereToFindIt() {
+  const steps = [
+    "In 7Sage, open the Analytics page you checked most recently.",
+    "Find the Logical Reasoning question types list.",
+    "Take one screenshot that shows every row, with its percentage or priority tier.",
+  ];
+  return (
+    <div className="flex flex-col gap-3">
+      <h2 className="text-sm font-semibold text-ink-900">Where to find it</h2>
+      <ol className="flex flex-col gap-3">
+        {steps.map((step, index) => (
+          <li key={step} className="flex items-baseline gap-3 text-sm text-ink-900">
+            <span aria-hidden className="w-4 shrink-0 font-mono text-xs text-ink-500">
+              {index + 1}
+            </span>
+            {step}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+const FILE_STATUS: Record<Exclude<Screenshot["status"], "none">, { text: string; problem: boolean }> = {
+  reading: { text: "Reading your screenshot…", problem: false },
+  read: { text: "Done reading.", problem: false },
+  "connection-lost": { text: "Connection lost. Your file is still here.", problem: false },
+  "cannot-read": { text: "We couldn't read the rows in it.", problem: true },
+  "no-rows": { text: "No question types in this one.", problem: true },
+};
+
+function FileRow({
+  screenshot,
+  rejection,
+  onChoose,
+  onTryAgain,
+}: {
+  screenshot: Exclude<Screenshot, { status: "none" }>;
+  rejection: string | null;
+  onChoose: () => void;
+  onTryAgain: () => void;
+}) {
+  const { status } = screenshot;
+  const row = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (document.activeElement === document.body) row.current?.focus();
+  }, [status]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div ref={row} tabIndex={-1} className="flex flex-col gap-4 rounded-md border border-ink-200 p-4 outline-none">
+        <div className="flex items-center gap-4">
+          <span aria-hidden className="flex h-12 w-16 shrink-0 flex-col justify-center gap-1 rounded border border-ink-200 bg-ink-50 p-2">
+            <span className="h-[3px] w-9 rounded-sm bg-ink-900/30" />
+            <span className="h-[3px] w-11 rounded-sm bg-ink-900/20" />
+            <span className="h-[3px] w-7 rounded-sm bg-ink-900/20" />
+            <span className="h-[3px] w-10 rounded-sm bg-ink-900/20" />
+          </span>
+          <div className="flex min-w-0 grow flex-col gap-0.5 text-sm">
+            <span className="truncate font-medium text-ink-900">{screenshot.file.name}</span>
+            <span aria-live="polite" className={FILE_STATUS[status].problem ? "text-red-700" : "text-ink-500"}>
+              {FILE_STATUS[status].text}
+            </span>
+          </div>
+          <button type="button" onClick={onChoose} className={`shrink-0 text-sm ${LINK_BUTTON}`}>
+            Replace
+          </button>
+        </div>
+        {status === "reading" && (
+          <div role="progressbar" aria-label="Reading your screenshot" className="h-1 overflow-hidden rounded-sm bg-ink-50">
+            <div className="h-1 w-3/5 rounded-sm bg-accent-600 motion-safe:animate-pulse" />
+          </div>
+        )}
+        {status === "connection-lost" && (
+          <>
+            <div aria-hidden className="h-1 overflow-hidden rounded-sm bg-ink-50">
+              <div className="h-1 w-3/5 rounded-sm bg-ink-400" />
+            </div>
+            <button type="button" onClick={onTryAgain} className={SMALL_BUTTON}>
+              Try again
+            </button>
+          </>
+        )}
+        {status === "cannot-read" && (
+          <button type="button" onClick={onChoose} className={SMALL_BUTTON}>
+            Choose a sharper screenshot
+          </button>
+        )}
+        {status === "no-rows" && (
+          <>
+            <RightPartExample />
+            <button type="button" onClick={onChoose} className={SMALL_BUTTON}>
+              Choose another screenshot
+            </button>
+          </>
+        )}
+      </div>
+      {rejection && (
+        <p role="alert" className="text-sm text-red-700">
+          {rejection}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function RightPartExample() {
+  const rows: { type: string; value: string; bar?: number }[] = [
+    { type: "Diagram", value: "64%", bar: 64 },
+    { type: "Conditional reasoning", value: "68%", bar: 68 },
+    { type: "Necessary assumption", value: "71%", bar: 71 },
+    { type: "Phenomenon-hypothesis", value: "HIGHEST" },
+    { type: "Causal reasoning", value: "MEDIUM" },
+  ];
+  return (
+    <figure className="flex flex-col gap-3">
+      <figcaption className="flex items-baseline justify-between">
+        <span className="text-sm font-semibold text-ink-900">Capture this part of 7Sage Analytics</span>
+        <span className="text-xs text-ink-500">Example</span>
+      </figcaption>
+      <div className="flex flex-col gap-3 rounded-md bg-ink-50 p-4">
+        <div aria-hidden className="flex items-center gap-3 opacity-55">
+          <span className="h-2 w-11 rounded bg-ink-900/35" />
+          <span className="h-2 w-16 rounded bg-ink-900/15" />
+          <span className="h-2 w-[52px] rounded bg-ink-900/15" />
+        </div>
+        <div aria-hidden className="flex h-11 items-end gap-1.5 rounded-md bg-white p-2 opacity-55">
+          {[14, 20, 18, 26, 24, 28].map((height, index) => (
+            <span key={index} className="w-3.5 rounded-sm bg-ink-900/15" style={{ height }} />
+          ))}
+        </div>
+        <div className="flex flex-col gap-2 rounded-md border-2 border-accent-600 bg-white p-3 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-ink-900">Logical Reasoning question types</span>
+            <span className="shrink-0 whitespace-nowrap rounded-full bg-accent-600 px-2 py-0.5 font-medium text-white">This part</span>
+          </div>
+          {rows.map((row) => (
+            <div key={row.type} className="flex items-center gap-2">
+              <span className="w-[148px] shrink-0 text-ink-500">{row.type}</span>
+              <span aria-hidden className="flex h-1.5 grow rounded-full bg-ink-50">
+                {row.bar !== undefined && <span className="h-1.5 rounded-full bg-ink-900/30" style={{ width: `${row.bar}%` }} />}
+              </span>
+              <span className="shrink-0 text-right font-mono text-ink-500">{row.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </figure>
+  );
+}
+
+function RowsFound({ rows }: { rows: AnalyticsExtractedRow[] }) {
+  return (
+    <div className="flex flex-col gap-6">
+      <table className="w-full border-collapse text-sm">
+        <thead>
+          <tr className="h-7 border-b border-ink-200 text-xs text-ink-500">
+            <th scope="col" className="px-3 text-left font-normal">
+              Found · {rows.length} {rows.length === 1 ? "row" : "rows"}
+            </th>
+            <th scope="col" className="px-3 text-right font-normal">Accuracy or priority</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.type} className="h-[38px] border-b border-ink-200">
+              <th scope="row" className="px-3 text-left font-normal text-ink-900">{row.type}</th>
+              <td className="px-3 text-right">
+                <RowValue row={row} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="px-3 text-sm text-ink-500">
+        Next, you check each value and confirm this is your latest 7Sage analytics. Nothing counts until you confirm.
+      </p>
+    </div>
+  );
+}
+
+function RowValue({ row }: { row: AnalyticsExtractedRow }) {
+  if (row.accuracy !== undefined) return <span className="font-mono text-[13px] text-ink-900">{row.accuracy}%</span>;
+  if (!row.isTopPriority) return <span className="text-ink-500">—</span>;
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-100 px-2 py-0.5 text-xs font-medium text-accent-700">
+      <svg aria-hidden viewBox="0 0 10 10" className="size-2.5" fill="currentColor" stroke="currentColor" strokeLinejoin="round">
+        <path d="M2 9V1.5h5.5L6.5 3.5l1 2H2" />
+      </svg>
+      Highest priority
+    </span>
+  );
+}
+
+function ReviewStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch }) {
+  return (
+    <div className="flex flex-col gap-8">
+      <StepHeading state={state} title="Check what we read" lede="Compare each value with your screenshot." />
+      <button type="button" onClick={() => dispatch({ type: "back" })} className={SECONDARY}>
+        Back
+      </button>
     </div>
   );
 }

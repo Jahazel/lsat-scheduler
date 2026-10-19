@@ -134,4 +134,27 @@ describe("onboarding wizard", () => {
       preferredPracticeTestDay: "SATURDAY",
     });
   });
+
+  it("returns to the drop zone with the server's message when it rejects the file", () => {
+    const file = new File(["png"], "huge.png", { type: "image/png" });
+    const reading = run({ type: "readStarted", file });
+    const message = "That file is 4.2 MB. Choose one that is 4 MB or less.";
+
+    const rejected = wizardReducer(reading, { type: "readEnded", attempt: 1, reply: { kind: "rejected", message } });
+
+    expect(rejected.screenshot).toEqual({ status: "none" });
+    expect(rejected.screenshotRejection).toBe(message);
+    expect(wizardReducer(rejected, { type: "readStarted", file }).screenshotRejection).toBeNull();
+  });
+
+  it("keeps a read that ends while Skip for now is saving", () => {
+    const ready = run(validGoal, { type: "continue" }, { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } }, { type: "continue" });
+    const reading = wizardReducer(ready, { type: "readStarted", file: new File(["png"], "a.png", { type: "image/png" }) });
+    const saving = wizardReducer(reading, { type: "saveStarted" });
+
+    const ended = wizardReducer(saving, { type: "readEnded", attempt: 1, reply: { kind: "connection-lost" } });
+
+    expect(ended.screenshot.status).toBe("connection-lost");
+  });
 });
+

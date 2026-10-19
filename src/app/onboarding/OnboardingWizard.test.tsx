@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ExtractReply } from "@/lib/screenshotUpload";
 import { upcomingTestMonths } from "@/lib/studentProfile";
 import OnboardingWizard from "./OnboardingWizard";
 
@@ -11,9 +12,18 @@ function continueButton() {
   return screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement;
 }
 
-async function fillGoalAndWeek(onSave = vi.fn(async () => {})) {
+const screenshot = new File(["png"], "7sage-analytics.png", { type: "image/png" });
+const rows: ExtractReply = {
+  kind: "rows",
+  rows: [
+    { type: "Strengthen", category: "regular", accuracy: 68 },
+    { type: "Causal reasoning", category: "restricted", isTopPriority: true },
+  ],
+};
+
+async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract = vi.fn(async (): Promise<ExtractReply> => rows)) {
   const user = userEvent.setup();
-  render(<OnboardingWizard goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={onSave} />);
+  render(<OnboardingWizard goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={onSave} extract={extract} />);
 
   expect(screen.getByText("Step 1 of 4 · Goal")).toBeDefined();
   expect(continueButton().disabled).toBe(true);
@@ -39,7 +49,15 @@ async function fillGoalAndWeek(onSave = vi.fn(async () => {})) {
   await user.click(continueButton());
 
   expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();
-  return { user, onSave };
+  return { user, onSave, extract };
+}
+
+function checkTheValues() {
+  return screen.getByRole("button", { name: "Check the values" }) as HTMLButtonElement;
+}
+
+async function upload(user: ReturnType<typeof userEvent.setup>, file = screenshot) {
+  await user.upload(screen.getByLabelText("Screenshot file"), file);
 }
 
 describe("OnboardingWizard", () => {
@@ -111,5 +129,130 @@ describe("OnboardingWizard", () => {
     await user.click(screen.getByRole("button", { name: "Back" }));
     await user.click(screen.getByRole("button", { name: "Back" }));
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Set your target" }));
+  });
+
+  describe("Step 3 · Analytics", () => {
+    it("opens the file picker from the drop zone with Enter or Space", async () => {
+      const { user } = await fillGoalAndWeek();
+      const picker = screen.getByLabelText("Screenshot file") as HTMLInputElement;
+      const openPicker = vi.spyOn(picker, "click");
+
+      const zone = screen.getByRole("button", { name: /Drop your screenshot here/ });
+      zone.focus();
+      await user.keyboard("{Enter}");
+      await user.keyboard(" ");
+
+      expect(openPicker).toHaveBeenCalledTimes(2);
+    });
+
+    it("reads the rows and moves to Step 4 with Check the values", async () => {
+      let finishRead: (reply: ExtractReply) => void = () => {};
+      const extract = vi.fn(() => new Promise<ExtractReply>((resolve) => { finishRead = resolve; }));
+      const { user } = await fillGoalAndWeek(undefined, extract);
+      expect((screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement).disabled).toBe(true);
+
+      await upload(user);
+      expect(screen.getByText("7sage-analytics.png")).toBeDefined();
+      expect(screen.getByText("Reading your screenshot…")).toBeDefined();
+      expect(screen.getByRole("progressbar", { name: "Reading your screenshot" })).toBeDefined();
+      expect(checkTheValues().disabled).toBe(true);
+      expect(screen.getByRole("button", { name: "Skip for now" })).toBeDefined();
+
+      finishRead(rows);
+      expect(await screen.findByText("Found · 2 rows")).toBeDefined();
+      expect(screen.getByRole("rowheader", { name: "Strengthen" })).toBeDefined();
+      expect(screen.getByText("68%")).toBeDefined();
+      expect(screen.getByText("Highest priority")).toBeDefined();
+      await user.click(checkTheValues());
+
+      expect(screen.getByText("Step 4 of 4 · Review")).toBeDefined();
+      await user.click(screen.getByRole("button", { name: "Back" }));
+      expect(screen.getByText("Found · 2 rows")).toBeDefined();
+      expect(extract).toHaveBeenCalledWith(screenshot);
+    });
+
+    it("keeps the file on a lost connection and resends it with Try again", async () => {
+      const extract = vi.fn<(file: File) => Promise<ExtractReply>>()
+        .mockResolvedValueOnce({ kind: "connection-lost" })
+        .mockResolvedValueOnce(rows);
+      const { user } = await fillGoalAndWeek(undefined, extract);
+
+      await upload(user);
+      const status = await screen.findByText("Connection lost. Your file is still here.");
+      expect(status.className).not.toContain("red");
+      await user.click(screen.getByRole("button", { name: "Try again" }));
+
+      expect(await screen.findByText("Found · 2 rows")).toBeDefined();
+      expect(extract).toHaveBeenCalledTimes(2);
+      expect(extract.mock.calls[1][0]).toBe(screenshot);
+    });
+
+    it("asks for a sharper screenshot when the server cannot read it", async () => {
+      const { user } = await fillGoalAndWeek(undefined, vi.fn(async (): Promise<ExtractReply> => ({ kind: "cannot-read" })));
+
+      await upload(user);
+
+      expect(await screen.findByText("We couldn't read the rows in it.")).toBeDefined();
+      expect(screen.getByRole("button", { name: "Choose a sharper screenshot" })).toBeDefined();
+      expect(checkTheValues().disabled).toBe(true);
+    });
+
+    it("shows the right part of 7Sage when a read finds zero rows, and never reaches Review", async () => {
+      const extract = vi.fn<(file: File) => Promise<ExtractReply>>()
+        .mockResolvedValueOnce({ kind: "rows", rows: [] })
+        .mockResolvedValueOnce(rows);
+      const { user } = await fillGoalAndWeek(undefined, extract);
+
+      await upload(user, new File(["png"], "progress-chart.png", { type: "image/png" }));
+
+      expect(await screen.findByText("No question types in this one.")).toBeDefined();
+      expect(screen.getByText("Capture this part of 7Sage Analytics")).toBeDefined();
+      expect(checkTheValues().disabled).toBe(true);
+      await user.click(checkTheValues());
+      expect(screen.queryByText("Step 4 of 4 · Review")).toBeNull();
+
+      await upload(user);
+      expect(await screen.findByText("Found · 2 rows")).toBeDefined();
+      expect(screen.getByText("7sage-analytics.png")).toBeDefined();
+    });
+
+    it("rejects a wrong type or a file over 4 MB before any upload", async () => {
+      const { user, extract } = await fillGoalAndWeek();
+
+      fireEvent.drop(screen.getByRole("button", { name: /Drop your screenshot here/ }), {
+        dataTransfer: { files: [new File(["%PDF"], "study-notes.pdf", { type: "application/pdf" })] },
+      });
+      expect(screen.getByRole("alert").textContent).toBe("study-notes.pdf is a PDF. Choose a PNG, JPG, or WEBP screenshot.");
+
+      const big = new File(["png"], "huge.png", { type: "image/png" });
+      Object.defineProperty(big, "size", { value: 12.4 * 1024 * 1024 });
+      await upload(user, big);
+      expect(screen.getByRole("alert").textContent).toBe("That file is 12.4 MB. Choose one that is 4 MB or less.");
+      expect(extract).not.toHaveBeenCalled();
+    });
+
+    it("shows Drop to add it while a file is dragged over the zone", async () => {
+      await fillGoalAndWeek();
+      const zone = screen.getByRole("button", { name: /Drop your screenshot here/ });
+
+      fireEvent.dragOver(zone);
+      expect(zone.textContent).toContain("Drop to add it");
+      fireEvent.dragLeave(zone);
+      expect(zone.textContent).toContain("Drop your screenshot here");
+    });
+
+    it("drops a late reply for a screenshot that was replaced", async () => {
+      const replies: ((reply: ExtractReply) => void)[] = [];
+      const extract = vi.fn(() => new Promise<ExtractReply>((resolve) => { replies.push(resolve); }));
+      const { user } = await fillGoalAndWeek(undefined, extract);
+
+      await upload(user, new File(["png"], "first.png", { type: "image/png" }));
+      await upload(user);
+      replies[0]({ kind: "cannot-read" });
+      replies[1](rows);
+
+      expect(await screen.findByText("Found · 2 rows")).toBeDefined();
+      expect(screen.queryByText("We couldn't read the rows in it.")).toBeNull();
+    });
   });
 });
