@@ -231,6 +231,13 @@ describe("onboarding wizard", () => {
       expect(accuracyMessage(over, "Diagram")).toBe("Enter a percentage from 0 to 100.");
     });
 
+    it("accepts a decimal read from the screenshot after focus leaves its box", () => {
+      const decimalRead = [{ ...readRows[0], accuracy: 9.5 }, ...readRows.slice(1)];
+      const state = onReview(decimalRead, { type: "leaveAccuracyBox", rowType: "Diagram" }, ...tickBoth);
+      expect(accuracyMessage(state, "Diagram")).toBeNull();
+      expect(confirmSnapshotInput(state)?.analyticsRows[0].accuracy).toBe(9.5);
+    });
+
     it("locks Confirm when no accuracy value or ticked flag is left", () => {
       const state = onReview(
         readRows,
