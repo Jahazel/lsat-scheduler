@@ -23,9 +23,13 @@ import { GET as student } from "@/app/api/students/[id]/route";
 import { extractAnalyticsRowsFromImage } from "@/lib/claudeExtract";
 import { requireCurrentAdmin } from "@/lib/requireAdmin";
 
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
 function imageRequest(bytes: number, type = "image/png") {
+  const content = new Uint8Array(Math.max(bytes, PNG_SIGNATURE.length));
+  content.set(PNG_SIGNATURE);
   const form = new FormData();
-  form.set("image", new File([new Uint8Array(bytes)], "synthetic.png", { type }));
+  form.set("image", new File([content], "synthetic.png", { type }));
   return new NextRequest("http://localhost/api/analytics/extract", { method: "POST", body: form });
 }
 
@@ -72,16 +76,20 @@ describe("issue 70 request boundary evidence", () => {
     expect(mocks.messages).toHaveBeenCalledOnce();
   });
 
-  it("passes a 6 MiB file of invalid PNG bytes to Anthropic without size or signature checks", async () => {
-    expect((await extract(imageRequest(6 * 1024 * 1024))).status).toBe(200);
-    expect(mocks.messages).toHaveBeenCalledOnce();
-    const image = mocks.messages.mock.calls[0][0].messages[0].content[0];
-    expect(image.source.media_type).toBe("image/png");
-    expect(image.source.data.length).toBe(8 * 1024 * 1024);
+  it("refuses a 6 MiB PNG before calling Anthropic", async () => {
+    expect((await extract(imageRequest(6 * 1024 * 1024))).status).toBe(413);
+    expect(mocks.messages).not.toHaveBeenCalled();
+  });
+
+  it("refuses a claimed PNG whose first bytes are not an image before calling Anthropic", async () => {
+    const form = new FormData();
+    form.set("image", new File([new Uint8Array(8)], "synthetic.png", { type: "image/png" }));
+    expect((await extract(new NextRequest("http://localhost/api/analytics/extract", { method: "POST", body: form }))).status).toBe(415);
+    expect(mocks.messages).not.toHaveBeenCalled();
   });
 
   it("rejects an unsupported claimed MIME type before calling Anthropic", async () => {
-    expect((await extract(imageRequest(8, "text/plain"))).status).toBe(502);
+    expect((await extract(imageRequest(8, "text/plain"))).status).toBe(415);
     expect(mocks.messages).not.toHaveBeenCalled();
   });
 

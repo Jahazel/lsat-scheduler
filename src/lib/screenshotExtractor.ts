@@ -1,4 +1,5 @@
 import { categoryFor, extractAnalyticsRowsFromImage } from "./claudeExtract";
+import type { ScreenshotMediaType } from "./screenshotUpload";
 import type { AnalyticsExtractedRow, RulesConfig } from "./types";
 
 const FAKE_ROWS: Omit<AnalyticsExtractedRow, "category">[] = [
@@ -10,7 +11,7 @@ const FAKE_ROWS: Omit<AnalyticsExtractedRow, "category">[] = [
 
 export async function extractAnalyticsRows(
   imageBuffer: Buffer,
-  mediaType: string,
+  mediaType: ScreenshotMediaType,
   rules: RulesConfig
 ): Promise<AnalyticsExtractedRow[]> {
   const setting = process.env.SCREENSHOT_EXTRACTOR;

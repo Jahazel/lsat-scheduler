@@ -12,6 +12,9 @@ import {
   toggleTopPriority,
   type SnapshotReview,
 } from "@/lib/analyticsReview";
+import { checkScreenshot, SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES } from "@/lib/screenshotUpload";
+
+const SCREENSHOT_ACCEPT = SCREENSHOT_MEDIA_TYPES.join(",");
 
 interface AnalyticsReviewProps {
   review: SnapshotReview | null;
@@ -38,6 +41,12 @@ export default function AnalyticsReview({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const rejection = checkScreenshot(file);
+    if (rejection) {
+      setError(rejection.message);
+      return;
+    }
+
     setExtracting(true);
     setError(null);
 
@@ -48,6 +57,10 @@ export default function AnalyticsReview({
         method: "POST",
         body: formData,
       });
+      if (res.status === 413 || res.status === 415) {
+        setError((await res.json()).error);
+        return;
+      }
       if (!res.ok) throw new Error();
       const { rows: extracted } = await res.json();
       onReviewChange(startReview(extracted, { source: "7sage_screenshot", extractedAt: new Date().toISOString() }));
@@ -71,10 +84,10 @@ export default function AnalyticsReview({
               </span>
               <span>
                 <span className="block font-semibold text-ink-900">Choose a 7Sage analytics screenshot</span>
-                <span className="mt-1 block text-sm text-ink-700">PNG, JPG, or WEBP · one image</span>
+                <span className="mt-1 block text-sm text-ink-700">{SCREENSHOT_LIMITS}</span>
               </span>
             </span>
-            <input className="sr-only" type="file" accept="image/*" onChange={handleFileChange} disabled={extracting} />
+            <input className="sr-only" type="file" accept={SCREENSHOT_ACCEPT} onChange={handleFileChange} disabled={extracting} />
           </label>
           {extracting && <p className="mt-3 text-sm text-ink-700">Reading your screenshot…</p>}
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
@@ -84,7 +97,7 @@ export default function AnalyticsReview({
 
     return (
       <div>
-        <input type="file" accept="image/*" onChange={handleFileChange} disabled={extracting} />
+        <input type="file" accept={SCREENSHOT_ACCEPT} onChange={handleFileChange} disabled={extracting} />
         {extracting && (
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-500">Reading screenshot…</p>
         )}
