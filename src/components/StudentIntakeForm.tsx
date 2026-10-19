@@ -4,6 +4,7 @@ import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import AnalyticsReview from "@/components/AnalyticsReview";
 import DailyCapacityFieldset, { DAY_LABEL, everyDay } from "@/components/DailyCapacityFieldset";
+import { reviewedRows, snapshotApproval, type SnapshotReview } from "@/lib/analyticsReview";
 import type { SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
 import { DAY_ORDER } from "@/lib/engine";
 import { dailyCapacityError } from "@/lib/studentProfile";
@@ -57,8 +58,7 @@ export default function StudentIntakeForm({
   submitLabel,
   onSubmit,
 }: StudentIntakeFormProps) {
-  const [analyticsRows, setAnalyticsRows] = useState<AnalyticsExtractedRow[]>([]);
-  const [analyticsApproval, setAnalyticsApproval] = useState<SnapshotApprovalMetadata | null>(null);
+  const [analyticsReview, setAnalyticsReview] = useState<SnapshotReview | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [practiceTestDayError, setPracticeTestDayError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -80,8 +80,8 @@ export default function StudentIntakeForm({
         await onSubmit({
           ...value,
           preferredPracticeTestDay: value.preferredPracticeTestDay,
-          analyticsRows,
-          analyticsApproval,
+          analyticsRows: analyticsReview ? reviewedRows(analyticsReview) : [],
+          analyticsApproval: analyticsReview && snapshotApproval(analyticsReview),
         });
       } catch {
         setSubmitError("Couldn't save. Try again.");
@@ -251,9 +251,8 @@ export default function StudentIntakeForm({
               <div className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium text-ink-700">Analytics screenshot (optional)</span>
                 <AnalyticsReview
-                  rows={analyticsRows}
-                  onRowsChange={setAnalyticsRows}
-                  onApprovalChange={setAnalyticsApproval}
+                  review={analyticsReview}
+                  onReviewChange={setAnalyticsReview}
                 />
               </div>
             ) : null
