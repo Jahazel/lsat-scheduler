@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   accuracyError,
+  hasInvalidAccuracy,
   addRow,
   editAccuracy,
   missingTypes,
@@ -78,7 +79,9 @@ describe("analytics review", () => {
   });
 
   it.each([101, undefined])("returns no approval while a value is invalid (%s)", (accuracy) => {
-    expect(snapshotApproval(confirm(editAccuracy(extracted(), 0, accuracy)))).toBeNull();
+    const review = confirm(editAccuracy(extracted(), 0, accuracy));
+    expect(hasInvalidAccuracy(review)).toBe(true);
+    expect(snapshotApproval(review)).toBeNull();
   });
 
   it("clears both statements when a value changes", () => {

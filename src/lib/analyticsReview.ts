@@ -91,7 +91,11 @@ export function reviewedRows(review: SnapshotReview): AnalyticsExtractedRow[] {
   return review.rows.map(({ row }) => row);
 }
 
+export function hasInvalidAccuracy(review: SnapshotReview) {
+  return review.rows.some(({ row }) => accuracyError(row));
+}
+
 export function snapshotApproval(review: SnapshotReview): SnapshotApprovalMetadata | null {
-  if (review.confirmation.confirmedAt === null || review.rows.some(({ row }) => accuracyError(row))) return null;
+  if (review.confirmation.confirmedAt === null || hasInvalidAccuracy(review)) return null;
   return { extraction: review.extraction, confirmation: review.confirmation };
 }

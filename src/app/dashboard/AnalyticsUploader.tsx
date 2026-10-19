@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AnalyticsReview from "@/components/AnalyticsReview";
 import { summarizeAnalyticsRows } from "@/lib/analytics";
-import { reviewedRows, snapshotApproval, startReview, type SnapshotReview } from "@/lib/analyticsReview";
+import { hasInvalidAccuracy, reviewedRows, snapshotApproval, startReview, type SnapshotReview } from "@/lib/analyticsReview";
 
 // Always writes to the logged-in student's own snapshot via /api/analytics
 // — no studentId prop needed, unlike the old tutor-driven version.
@@ -19,6 +19,11 @@ export default function AnalyticsUploader({ sample, onSampleDone }: { sample?: S
   const [error, setError] = useState<string | null>(null);
   const hasExtracted = review !== null;
   const approval = review && snapshotApproval(review);
+  const saveHint = approval
+    ? "Ready to create your schedule."
+    : review && hasInvalidAccuracy(review)
+      ? "Fix the accuracy values above. Each one must be 0 to 100."
+      : "Confirm both statements before saving this snapshot.";
 
   async function handleSave() {
     if (!review || !approval) return;
@@ -90,7 +95,7 @@ export default function AnalyticsUploader({ sample, onSampleDone }: { sample?: S
                 {sample && <button type="button" onClick={onSampleDone} className="self-start rounded-md px-3 py-2 text-sm text-ink-700 underline focus-visible:outline-2 focus-visible:outline-accent-600">Cancel sample</button>}
                 {error && <p className="text-sm text-red-600">{error}</p>}
                 <div className="flex flex-col gap-3 border-t border-ink-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-ink-500">{approval ? "Ready to create your schedule." : "Confirm both statements before saving this snapshot."}</p>
+                  <p className="text-sm text-ink-500">{saveHint}</p>
                   <button
                     type="button"
                     onClick={handleSave}
