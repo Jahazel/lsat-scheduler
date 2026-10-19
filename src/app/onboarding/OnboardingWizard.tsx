@@ -113,7 +113,7 @@ export default function OnboardingWizard({
   }
 
   return (
-    <div className="lg:grid lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-[minmax(0,680px)_1fr]">
+    <div className="lg:grid lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-[520px_minmax(0,1fr)] xl:grid-cols-[680px_minmax(0,1fr)]">
       <div className="flex justify-center px-5 py-8 lg:items-center lg:px-10 lg:py-16">
         <div className="w-full lg:max-w-[440px]">
           {state.step === "goal" && <GoalStep state={state} dispatch={dispatch} goalTestDateOptions={goalTestDateOptions} />}

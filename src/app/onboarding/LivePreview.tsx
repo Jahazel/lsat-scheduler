@@ -19,7 +19,7 @@ export default function LivePreview({ state, firstName, initials, today }: LiveP
 
   if (state.step === "review" && state.screenshot.status === "read") {
     return (
-      <aside aria-label="Preview of This week" className="hidden flex-col gap-4 bg-ink-50 px-18 pb-12 pt-32 lg:flex">
+      <aside aria-label="Preview of This week" className="hidden flex-col gap-4 bg-ink-50 px-8 pb-12 pt-32 lg:flex xl:px-18">
         <ScreenshotCard file={state.screenshot.file} />
         <div className="flex flex-col gap-2.5 rounded-md border border-ink-100 bg-white p-4">
           {drills ? (
@@ -34,14 +34,14 @@ export default function LivePreview({ state, firstName, initials, today }: LiveP
 
   const header = previewHeader(state.values, firstName, today);
   return (
-    <aside aria-label="Preview of This week" className="hidden overflow-hidden bg-ink-50 pl-18 pt-30 lg:flex">
-      <div className="flex w-[880px] shrink-0 flex-col rounded-tl-md bg-white shadow-[0_24px_64px_rgb(10_10_10/0.06)]">
-        <div className="flex h-14 shrink-0 items-center justify-between border-b border-ink-100 px-7">
+    <aside aria-label="Preview of This week" className="hidden overflow-hidden bg-ink-50 pl-8 pt-30 lg:flex xl:pl-18">
+      <div className="flex w-full max-w-[880px] flex-col rounded-tl-md bg-white shadow-[0_24px_64px_rgb(10_10_10/0.06)]">
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-ink-100 px-5 xl:px-7">
           <div className="flex items-center gap-5">
             <span className="text-base font-semibold tracking-[-0.02em] text-ink-900">DrillMap</span>
             <span className="flex h-7 items-center rounded-full bg-ink-50 px-3 text-sm font-medium text-ink-900">This week</span>
-            <span aria-hidden className={`w-14 ${SKELETON}`} />
-            <span aria-hidden className={`w-20 ${SKELETON}`} />
+            <span aria-hidden className={`hidden w-14 xl:block ${SKELETON}`} />
+            <span aria-hidden className={`hidden w-20 xl:block ${SKELETON}`} />
           </div>
           <div className="flex items-center gap-4">
             {header.countdown && (
@@ -52,27 +52,27 @@ export default function LivePreview({ state, firstName, initials, today }: LiveP
             <span className="grid size-[30px] place-items-center rounded-full bg-ink-50 text-xs font-medium text-ink-900">{initials}</span>
           </div>
         </div>
-        <div className="flex flex-col gap-2.5 px-7 pb-6 pt-8">
+        <div className="flex flex-col gap-2.5 px-5 pb-6 pt-8 xl:px-7">
           <p className="text-sm text-ink-500">{header.greeting}</p>
-          <p className="flex items-baseline gap-3.5">
+          <p className="flex flex-wrap items-baseline gap-x-3.5">
             <span className="text-[40px] font-semibold leading-[44px] tracking-[-0.035em] text-ink-900">{header.scores}</span>
             {header.target && <span className="text-base font-medium text-accent-600">{header.target}</span>}
           </p>
         </div>
-        <div className="flex grow flex-col gap-3 border-t border-ink-100 bg-ink-50 px-7 py-6">
+        <div className="flex grow flex-col gap-3 border-t border-ink-100 bg-ink-50 px-5 py-6 xl:px-7">
           {state.step === "goal" ? <SkeletonDays /> : <Week state={state} drillDay={drills?.day ?? null} />}
           {state.step !== "goal" &&
             (drills ? (
-              <div className="flex w-[824px] flex-col gap-2.5 rounded-md border border-ink-100 bg-white p-5">
+              <div className="flex flex-col gap-2.5 rounded-md border border-ink-100 bg-white p-5">
                 <DrillList title={`${DAY_LABEL[drills.day]}'s drills`} tag="Extracted · not confirmed" items={drills.items} />
               </div>
             ) : (
-              <div className="flex w-[824px] flex-col gap-3 rounded-md border border-dashed border-ink-200 p-5">
+              <div className="flex flex-col gap-3 rounded-md border border-dashed border-ink-200 p-5">
                 <p className="text-sm text-ink-500">
                   {state.screenshot.status === "read" ? "No drilling days left this week." : "Your drills fill in after you upload analytics."}
                 </p>
-                <span aria-hidden className={`w-[260px] ${SKELETON} bg-ink-100`} />
-                <span aria-hidden className={`w-[200px] ${SKELETON} bg-ink-100`} />
+                <span aria-hidden className={`w-3/5 max-w-[260px] ${SKELETON} bg-ink-100`} />
+                <span aria-hidden className={`w-2/5 max-w-[200px] ${SKELETON} bg-ink-100`} />
               </div>
             ))}
         </div>
@@ -83,7 +83,7 @@ export default function LivePreview({ state, firstName, initials, today }: LiveP
 
 function SkeletonDays() {
   return (
-    <div aria-hidden className="flex w-[824px] flex-col gap-3">
+    <div aria-hidden className="flex flex-col gap-3">
       {[[120, 260, 200], [96, 300], [136, 240, 180]].map((bars, index) => (
         <div key={index} className="flex flex-col gap-3 rounded-md border border-ink-100 bg-white p-5">
           {bars.map((width, bar) => (
@@ -105,17 +105,17 @@ function Week({ state, drillDay }: { state: WizardState; drillDay: DayOfWeek | n
         <span className="text-base font-semibold text-ink-900">Your week</span>
         <span className="text-sm text-ink-500">{week.summary}</span>
       </p>
-      <ol className="flex gap-2">
+      <ol className="flex max-w-[636px] gap-1 min-[1440px]:gap-2">
         {week.days.map(({ day, label, time, practiceTest, barShare }) => (
           <li
             key={day}
-            className={`flex h-[200px] w-[84px] shrink-0 flex-col justify-between rounded-md border bg-white p-3 ${
+            className={`flex h-[200px] min-w-0 max-w-[84px] flex-1 flex-col justify-between rounded-md border bg-white p-2 min-[1440px]:p-3 ${
               practiceTest ? "border-accent-600" : day === drillDay ? "border-ink-900" : "border-ink-100"
             }`}
           >
             <span className="flex flex-col gap-0.5">
               <span className={`text-xs ${practiceTest ? "text-accent-600" : "text-ink-500"}`}>{label}</span>
-              <span className="text-base font-semibold text-ink-900">{time}</span>
+              <span className="whitespace-nowrap text-sm font-semibold text-ink-900 min-[1440px]:text-base">{time}</span>
             </span>
             <span
               className={`flex w-full items-end rounded ${practiceTest ? "bg-accent-600 p-2 text-xs font-medium leading-[14px] text-white" : "bg-accent-600/14"}`}

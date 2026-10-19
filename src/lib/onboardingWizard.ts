@@ -16,11 +16,13 @@ import {
 import { activityLabel } from "./activityLabel";
 import { summarizeAnalyticsRows } from "./analytics";
 import type { SnapshotApprovalMetadata } from "./analyticsSnapshots";
+import { currentWeekInTimezone } from "./currentWeeklySchedule";
 import { DAY_ORDER, generateWeek } from "./engine";
 import { formatDuration } from "./formatDuration";
 import { mockRules } from "./mockData";
 import type { ExtractReply } from "./screenshotUpload";
 import { DAY_LABEL, everyDay, goalScoreError, type StudentProfileInput } from "./studentProfile";
+import { testCountdown, testCountdownLabel } from "./testCountdown";
 import type { Activity, AnalyticsExtractedRow, DayOfWeek, LRType } from "./types";
 
 const STEP_NAMES = ["Goal", "Week", "Analytics", "Review"] as const;
@@ -170,8 +172,7 @@ export function practiceTestHint(accommodation: Accommodation): string {
   return `A full practice test takes ${length} with ${testTime}. Pick a day with that much time.`;
 }
 
-const DAY_MS = 86_400_000;
-const utcDay = (isoDate: string) => Date.parse(`${isoDate}T00:00:00.000Z`);
+const utcDay = (isoDate: string) => new Date(`${isoDate}T00:00:00.000Z`);
 
 export function previewHeader(values: WizardValues, firstName: string, today: string) {
   const testTime = values.accommodationMultiplier === 1 ? "standard time" : TEST_TIME_LABEL[values.accommodationMultiplier];
@@ -179,10 +180,15 @@ export function previewHeader(values: WizardValues, firstName: string, today: st
   const greeting = `Hi ${firstName} · 7Sage · ${testTime}`;
   const scores = `${score(values.currentScore)} → ${score(values.goalScore)}`;
   if (!values.goalTestDate) return { greeting, scores, target: null, countdown: null };
-  const date = new Date(utcDay(values.goalTestDate)).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-  const days = Math.round((utcDay(values.goalTestDate) - utcDay(today)) / DAY_MS);
-  const count = `${days} ${days === 1 ? "day" : "days"}`;
-  return { greeting, scores, target: `by ${date} · ${count} away`, countdown: `${count} to test` };
+  const date = utcDay(values.goalTestDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const countdown = testCountdown(values.goalTestDate, utcDay(today), "UTC");
+  const days = countdown?.kind === "days" ? countdown.days : 0;
+  return {
+    greeting,
+    scores,
+    target: `by ${date} · ${days} ${days === 1 ? "day" : "days"} away`,
+    countdown: testCountdownLabel(countdown),
+  };
 }
 
 export function previewWeek(values: WizardValues) {
@@ -215,8 +221,8 @@ export function previewDrills(state: WizardState, today: string): { day: DayOfWe
   const { screenshot } = state;
   if (!profile || screenshot.status !== "read") return null;
   const rows = screenshot.review.rows.map(({ row }) => row).filter((row) => !accuracyError(row));
-  const todayIndex = (new Date(utcDay(today)).getUTCDay() + 6) % 7;
-  const weekOf = new Date(utcDay(today) - todayIndex * DAY_MS).toISOString().slice(0, 10);
+  const todayIndex = (utcDay(today).getUTCDay() + 6) % 7;
+  const weekOf = currentWeekInTimezone(utcDay(today), "UTC");
   const week = generateWeek(
     { ...profile, platform: "7Sage" },
     { weekOf, ...summarizeAnalyticsRows(rows) },

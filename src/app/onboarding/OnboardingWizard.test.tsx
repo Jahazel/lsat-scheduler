@@ -7,7 +7,13 @@ import { upcomingTestMonths } from "@/lib/studentProfile";
 import OnboardingWizard from "./OnboardingWizard";
 
 beforeEach(() => {
-  vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: vi.fn(() => "blob:screenshot"), revokeObjectURL: vi.fn() }));
+  vi.stubGlobal(
+    "URL",
+    class extends URL {
+      static createObjectURL = vi.fn(() => "blob:screenshot");
+      static revokeObjectURL = vi.fn();
+    },
+  );
 });
 afterEach(() => {
   cleanup();
@@ -461,9 +467,6 @@ describe("OnboardingWizard", () => {
     });
 
     it("expands the uploaded screenshot inline with Show your screenshot", async () => {
-      const createObjectURL = vi.fn(() => "blob:screenshot");
-      const revokeObjectURL = vi.fn();
-      vi.stubGlobal("URL", Object.assign(URL, { createObjectURL, revokeObjectURL }));
       const { user } = await openReview();
 
       const toggle = screen.getByRole("button", { name: /Show your screenshot/ });
@@ -472,11 +475,10 @@ describe("OnboardingWizard", () => {
       expect(toggle.getAttribute("aria-expanded")).toBe("true");
       const inline = within(toggle.parentElement!);
       expect(inline.getByRole("img", { name: "Your 7Sage screenshot" }).getAttribute("src")).toBe("blob:screenshot");
-      expect(createObjectURL).toHaveBeenCalledWith(screenshot);
+      expect(URL.createObjectURL).toHaveBeenCalledWith(screenshot);
       await user.click(toggle);
       expect(inline.queryByRole("img", { name: "Your 7Sage screenshot" })).toBeNull();
-      expect(revokeObjectURL).toHaveBeenCalledWith("blob:screenshot");
-      vi.unstubAllGlobals();
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:screenshot");
     });
   });
 
@@ -514,4 +516,9 @@ describe("OnboardingWizard", () => {
     expect(preview().getByRole("img", { name: "Your 7Sage screenshot" }).getAttribute("src")).toBe("blob:screenshot");
     expect(URL.createObjectURL).toHaveBeenCalledWith(screenshot);
   });
+});
+
+it("leaves the real URL in place after a test", () => {
+  vi.unstubAllGlobals();
+  expect("createObjectURL" in URL && vi.isMockFunction(URL.createObjectURL)).toBe(false);
 });
