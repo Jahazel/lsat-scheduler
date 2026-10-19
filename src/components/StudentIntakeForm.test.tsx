@@ -7,7 +7,6 @@ import StudentIntakeForm from "./StudentIntakeForm";
 function settingsMarkup(initialValues = mockStudent, today = "2026-10-18") {
   return renderToStaticMarkup(
     <StudentIntakeForm
-      mode="edit"
       initialValues={initialValues}
       goalTestDateOptions={upcomingTestMonths(today)}
       submitLabel="Save changes"
@@ -23,15 +22,8 @@ describe("StudentIntakeForm", () => {
     );
   });
 
-  it.each(["create", "edit"] as const)("has no platform field in %s mode", (mode) => {
-    const markup = renderToStaticMarkup(
-      <StudentIntakeForm
-        mode={mode}
-        goalTestDateOptions={upcomingTestMonths("2026-10-18")}
-        submitLabel="Save"
-        onSubmit={async () => {}}
-      />
-    );
+  it("has no platform field", () => {
+    const markup = settingsMarkup();
 
     expect(markup).not.toContain("Platform");
     expect(markup).not.toContain("LSAT Demon");
@@ -51,5 +43,13 @@ describe("StudentIntakeForm", () => {
     expect(markup).not.toContain("November 2026");
     expect(markup).toContain('<option value="2027-01-01">January 2027</option>');
     expect(markup).toContain('<option value="" disabled="" selected="">Select a test date</option>');
+  });
+
+  it("states the practice-test length for the saved Accommodation", () => {
+    expect(settingsMarkup({ ...mockStudent, accommodationMultiplier: 1.5 })).toContain(
+      "A full practice test takes 3 h 8 min with 1.5× time. Pick a day with that much time."
+    );
+    expect(settingsMarkup()).not.toContain("about 3 hours");
+    expect(settingsMarkup()).toContain('<option value="1.5">1.5× time</option>');
   });
 });

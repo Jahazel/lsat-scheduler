@@ -28,7 +28,6 @@ export default async function StudySettingsPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Study settings</h1>
         <div className="mt-8">
           <StudentIntakeForm
-            mode="edit"
             initialValues={initialValues}
             goalTestDateOptions={upcomingTestMonths(await studentSideToday(session.user))}
             submitLabel="Save changes"

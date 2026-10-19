@@ -2,6 +2,20 @@ import { z } from "zod";
 import { DAY_ORDER } from "./engine";
 import type { DayOfWeek } from "./types";
 
+export const DAY_LABEL: Record<DayOfWeek, string> = {
+  MONDAY: "Monday",
+  TUESDAY: "Tuesday",
+  WEDNESDAY: "Wednesday",
+  THURSDAY: "Thursday",
+  FRIDAY: "Friday",
+  SATURDAY: "Saturday",
+  SUNDAY: "Sunday",
+};
+
+export function everyDay(minutes: number): Record<DayOfWeek, number> {
+  return Object.fromEntries(DAY_ORDER.map((day) => [day, minutes])) as Record<DayOfWeek, number>;
+}
+
 // Daily capacity bounds, shared by the intake form and the server so both
 // enforce the same range and step.
 export const MIN_DAILY_CAPACITY_MINUTES = 30;
