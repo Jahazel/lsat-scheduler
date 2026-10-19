@@ -2,7 +2,7 @@
 
 This checker is separate from DrillMap. It reads Neon backup metadata through the provider API. An API is a provider's program interface. It does not connect to Postgres or use the app's database login. It cannot create, restore, or delete a backup.
 
-Issue #142 remains open until the live proof below is complete. The implementation alone does not pass the production backup requirement in #137.
+Issue #144 recorded the live proof below. Issue #148 holds the checks that need calendar time. The implementation alone does not pass the production backup requirement in #137.
 
 ```text
 GitHub daily schedule -> checker -> Neon snapshots for the selected project
@@ -80,7 +80,7 @@ Use only the separate Neon copy project, its monitoring key, and its two Healthc
 
 Return the monitor to healthy before each separate failure demonstration. A monitor already down might not send a second transition alert. If a notification does not arrive, stop and repair delivery before continuing. Restore copy settings after each case. Once copy proof ends, disable its switch and pause its two test monitors unless continued monitoring is wanted. Do not pause the production monitor to hide a failure.
 
-Record revision, workflow run URLs, event types, safe command reports, monitor event times, owner receipt times, observed permissions, schedule/grace settings, and cleanup results. Keep issue #142 open until every required live observation exists. Local tests cover a rejected or timed-out alert receiver; the invalid-URL copy exercise covers a missing signal, not a live provider delivery failure.
+Record revision, workflow run URLs, event types, safe command reports, monitor event times, owner receipt times, observed permissions, schedule/grace settings, and cleanup results. Issue #144 closed with the checks that need calendar time moved to #148; each must still pass there. Local tests cover a rejected or timed-out alert receiver; the invalid-URL copy exercise covers a missing signal, not a live provider delivery failure.
 
 ## Owner retention cleanup
 
