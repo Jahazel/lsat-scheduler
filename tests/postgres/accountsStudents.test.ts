@@ -426,6 +426,12 @@ describe.each([
     expect(await studentRows()).toEqual(before);
   });
 
+  it("rejects a goal test date that has passed without changing stored data", async () => {
+    const before = await studentRows();
+    await expect(save({ ...profileInput, goalTestDate: "2026-10-01" })).rejects.toThrow("Choose an upcoming LSAT test month.");
+    expect(await studentRows()).toEqual(before);
+  });
+
   it("rejects a platform other than 7Sage without changing stored data", async () => {
     const before = await studentRows();
     const input = { ...profileInput };

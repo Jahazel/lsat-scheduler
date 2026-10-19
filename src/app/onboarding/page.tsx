@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { dateInScheduleTimezone } from "@/lib/adminTestWorkspace";
-import { studentSideNow } from "@/lib/studentClock";
+import { studentSideToday } from "@/lib/studentClock";
 import { upcomingTestMonths } from "@/lib/studentProfile";
 import { findStudentByAccountId } from "@/lib/studentRepository";
 import StudentIntakeForm from "@/components/StudentIntakeForm";
@@ -28,7 +27,7 @@ export default async function OnboardingPage() {
         <div className="mt-8">
           <StudentIntakeForm
             mode="create"
-            goalTestDateOptions={upcomingTestMonths(dateInScheduleTimezone(await studentSideNow(session.user)))}
+            goalTestDateOptions={upcomingTestMonths(await studentSideToday(session.user))}
             submitLabel="Generate my schedule"
             onSubmit={createStudentProfile}
           />

@@ -26,8 +26,8 @@ const DEFAULT_VALUES: StudentFormValues = {
 
 interface StudentIntakeFormProps {
   // "create" (onboarding) shows the analytics screenshot section. "edit"
-  // (account settings) is intake fields only; weekly re-upload happens on
-  // the dashboard, not here.
+  // (Study settings) is intake fields only; a later analytics snapshot is
+  // uploaded on This week, not here.
   mode: "create" | "edit";
   initialValues?: StudentProfileInput;
   goalTestDateOptions: ReturnType<typeof upcomingTestMonths>;

@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { dateInScheduleTimezone } from "@/lib/adminTestWorkspace";
-import { studentSideNow } from "@/lib/studentClock";
+import { studentSideToday } from "@/lib/studentClock";
 import { upcomingTestMonths, type StudentProfileInput } from "@/lib/studentProfile";
 import { findStudentByAccountId } from "@/lib/studentRepository";
 import StudentIntakeForm from "@/components/StudentIntakeForm";
@@ -31,7 +30,7 @@ export default async function StudySettingsPage() {
           <StudentIntakeForm
             mode="edit"
             initialValues={initialValues}
-            goalTestDateOptions={upcomingTestMonths(dateInScheduleTimezone(await studentSideNow(session.user)))}
+            goalTestDateOptions={upcomingTestMonths(await studentSideToday(session.user))}
             submitLabel="Save changes"
             onSubmit={updateStudentProfile}
           />

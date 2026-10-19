@@ -8,7 +8,8 @@ import { getPostgresDatabase } from "@/lib/postgres";
 import { accounts } from "@/lib/postgresSchema";
 import { isAccountId } from "@/lib/accountRepository";
 import { updateStudentByAccountId } from "@/lib/studentRepository";
-import { studentProfileSchema, type StudentProfileInput } from "@/lib/studentProfile";
+import { studentSideToday } from "@/lib/studentClock";
+import { parseStudentProfile, type StudentProfileInput } from "@/lib/studentProfile";
 import { ADMIN_RESTRICTED_ACTION_MESSAGE, isAdminUser } from "@/lib/accessControl";
 
 export async function updateStudentProfile(input: StudentProfileInput) {
@@ -17,7 +18,7 @@ export async function updateStudentProfile(input: StudentProfileInput) {
     throw new Error("Not authenticated");
   }
 
-  const studentFields = studentProfileSchema.parse(input);
+  const studentFields = parseStudentProfile(input, await studentSideToday(session.user));
 
   const updated = await updateStudentByAccountId(session.user.id, studentFields);
 

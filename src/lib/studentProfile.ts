@@ -71,6 +71,17 @@ export const studentProfileSchema = z.object({
   if (message) context.addIssue({ code: "custom", path: ["goalScore"], message });
 });
 
+// The server-side parse: the goal test date must also be one the form offers
+// today, so a form left open past a test month cannot save it.
+export function parseStudentProfile(input: unknown, today: string) {
+  return studentProfileSchema
+    .refine((profile) => upcomingTestMonths(today).some((month) => month.value === profile.goalTestDate), {
+      path: ["goalTestDate"],
+      message: "Choose an upcoming LSAT test month.",
+    })
+    .parse(input);
+}
+
 // What the onboarding form and Study settings send: every profile field but
 // the platform, which the schema fills in.
 export type StudentProfileInput = Omit<z.input<typeof studentProfileSchema>, "platform">;

@@ -3,6 +3,7 @@ import {
   dailyCapacityError,
   goalScoreError,
   minuteOptionsForHour,
+  parseStudentProfile,
   studentProfileSchema,
   upcomingTestMonths,
 } from "./studentProfile";
@@ -116,6 +117,19 @@ describe("upcomingTestMonths", () => {
 
   it("offers nothing after the last known test month", () => {
     expect(upcomingTestMonths("2027-06-01")).toEqual([]);
+  });
+});
+
+describe("parseStudentProfile", () => {
+  it("accepts a goal test date the form offers on that day", () => {
+    expect(parseStudentProfile({ ...mockStudent, goalTestDate: "2026-11-01" }, "2026-10-31").goalTestDate).toBe("2026-11-01");
+  });
+
+  it.each([
+    ["has started", "2026-11-01", "2026-11-02"],
+    ["is not a test month", "2026-12-01", "2026-10-18"],
+  ])("rejects a goal test date that %s", (_, goalTestDate, today) => {
+    expect(() => parseStudentProfile({ ...mockStudent, goalTestDate }, today)).toThrow("Choose an upcoming LSAT test month.");
   });
 });
 
