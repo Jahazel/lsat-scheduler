@@ -68,7 +68,8 @@ function confirmed(values: { lrAccuracyByType: Record<string, number>; lrTopPrio
 }
 function upload() {
   const form = new FormData();
-  form.set("image", new File(["throwaway screenshot"], "analytics.png", { type: "image/png" }));
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=", "base64");
+  form.set("image", new File([png], "analytics.png", { type: "image/png" }));
   return extract(new NextRequest("http://localhost/api/analytics/extract", { method: "POST", body: form }));
 }
 it("uploads with the fake extractor, reviews corrected values, and appends approved snapshots as the app role", async () => {

@@ -1,14 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { ScreenshotMediaType } from "./screenshotUpload";
 import type { AnalyticsExtractedRow, LRLogicType, LRType, RulesConfig } from "./types";
 
 const TOOL_NAME = "record_analytics_rows";
-
-const SUPPORTED_MEDIA_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
-type SupportedMediaType = (typeof SUPPORTED_MEDIA_TYPES)[number];
-
-function isSupportedMediaType(mediaType: string): mediaType is SupportedMediaType {
-  return (SUPPORTED_MEDIA_TYPES as readonly string[]).includes(mediaType);
-}
 
 export function categoryFor(type: LRType, rules: RulesConfig): "regular" | "restricted" {
   if (!rules.lrLogicTypes.includes(type as LRLogicType)) return "regular";
@@ -23,13 +17,9 @@ interface ExtractedRow {
 
 export async function extractAnalyticsRowsFromImage(
   imageBuffer: Buffer,
-  mediaType: string,
+  mediaType: ScreenshotMediaType,
   rules: RulesConfig
 ): Promise<AnalyticsExtractedRow[]> {
-  if (!isSupportedMediaType(mediaType)) {
-    throw new Error(`Unsupported image type: ${mediaType}`);
-  }
-
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error("Anthropic API key is not configured");

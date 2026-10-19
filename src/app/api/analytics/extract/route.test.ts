@@ -16,13 +16,14 @@ vi.mock("@anthropic-ai/sdk", () => ({
   },
 }));
 
-function imageRequest() {
-  const png = Buffer.from(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=",
-    "base64",
-  );
+const png = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=",
+  "base64",
+);
+
+function imageRequest(file = new File([png], "analytics.png", { type: "image/png" })) {
   const form = new FormData();
-  form.set("image", new File([png], "analytics.png", { type: "image/png" }));
+  form.set("image", file);
   return new NextRequest("http://localhost/api/analytics/extract", {
     method: "POST",
     body: form,
@@ -136,5 +137,53 @@ describe("POST /api/analytics/extract", () => {
     expect(response.status).toBe(502);
     expect(await response.json()).toEqual({ error: "Couldn't read that screenshot" });
     expect(mocks.createMessage).not.toHaveBeenCalled();
+  });
+
+  describe("rejects a file outside the screenshot limits before calling Anthropic", () => {
+    beforeEach(() => {
+      vi.stubEnv("ANTHROPIC_API_KEY", "synthetic-anthropic-key");
+    });
+
+    it.each([
+      ["a PDF", new File(["%PDF-1.7"], "study-notes.pdf", { type: "application/pdf" }), "study-notes.pdf is a PDF. Choose a PNG, JPG, or WEBP screenshot."],
+      ["a GIF the model could read", new File(["GIF89a"], "loop.gif", { type: "image/gif" }), "loop.gif is a GIF. Choose a PNG, JPG, or WEBP screenshot."],
+      ["a PDF labelled as a PNG", new File(["%PDF-1.7"], "renamed.png", { type: "image/png" }), "renamed.png is not a PNG, JPG, or WEBP image. Choose a PNG, JPG, or WEBP screenshot."],
+    ])("returns the wrong-type error for %s", async (_label, file, error) => {
+      const { POST } = await import("./route");
+      const response = await POST(imageRequest(file));
+
+      expect(response.status).toBe(415);
+      expect(await response.json()).toEqual({ error, reason: "wrong-type" });
+      expect(mocks.constructClient).not.toHaveBeenCalled();
+      expect(mocks.createMessage).not.toHaveBeenCalled();
+    });
+
+    it("returns the too-large error for a PNG over 4 MB", async () => {
+      const oversized = Buffer.concat([png, Buffer.alloc(4 * 1024 * 1024)]);
+      const { POST } = await import("./route");
+      const response = await POST(imageRequest(new File([oversized], "analytics.png", { type: "image/png" })));
+
+      expect(response.status).toBe(413);
+      expect(await response.json()).toEqual({ error: "That file is 4.1 MB. Choose one that is 4 MB or less.", reason: "too-large" });
+      expect(mocks.constructClient).not.toHaveBeenCalled();
+      expect(mocks.createMessage).not.toHaveBeenCalled();
+    });
+
+    it("accepts PNG bytes whatever type the browser claims", async () => {
+      const { POST } = await import("./route");
+      const response = await POST(imageRequest(new File([png], "analytics", { type: "" })));
+
+      expect(response.status).toBe(200);
+      expect(mocks.createMessage.mock.calls[0][0].messages[0].content[0].source.media_type).toBe("image/png");
+    });
+
+    it("accepts a PNG of exactly 4 MB", async () => {
+      const atLimit = Buffer.concat([png, Buffer.alloc(4 * 1024 * 1024 - png.length)]);
+      const { POST } = await import("./route");
+      const response = await POST(imageRequest(new File([atLimit], "analytics.png", { type: "image/png" })));
+
+      expect(response.status).toBe(200);
+      expect(mocks.createMessage).toHaveBeenCalledOnce();
+    });
   });
 });
