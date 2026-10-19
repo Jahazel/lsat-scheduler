@@ -5,7 +5,8 @@ import type { AnalyticsExtractedRow, RulesConfig } from "./types";
 const FAKE_ROWS: Omit<AnalyticsExtractedRow, "category">[] = [
   { type: "Strengthen", accuracy: 68 },
   { type: "Necessary assumption", accuracy: 74 },
-  { type: "Causal reasoning", isTopPriority: true },
+  { type: "Causal reasoning", isTopPriority: true, priorityTier: "highest" },
+  { type: "Link assumption", isTopPriority: false, priorityTier: "medium" },
   { type: "Conditional reasoning", accuracy: 81 },
 ];
 

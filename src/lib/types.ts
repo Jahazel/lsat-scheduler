@@ -132,11 +132,15 @@ export interface AnalyticsSnapshotRecord extends AnalyticsSnapshot {
 // One row of OCR-extracted analytics data, before it's been reviewed and
 // saved. "regular" rows carry an accuracy read off the screenshot;
 // "restricted" rows carry whether that row was flagged HIGHEST priority.
+export type PriorityTier = "highest" | "medium" | "low";
+
 export interface AnalyticsExtractedRow {
   type: LRType;
   category: "regular" | "restricted";
   accuracy?: number;
   isTopPriority?: boolean;
+  /** The tier 7Sage showed; the student's tick in isTopPriority is what counts. */
+  priorityTier?: PriorityTier;
 }
 
 export interface RulesConfig {
