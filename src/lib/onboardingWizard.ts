@@ -27,7 +27,6 @@ export type Screenshot =
   | { status: "reading" | "connection-lost" | "cannot-read" | "no-rows"; file: File }
   | { status: "read"; file: File; rows: AnalyticsExtractedRow[] };
 
-
 export interface WizardState {
   step: WizardStep;
   changedStep: boolean;

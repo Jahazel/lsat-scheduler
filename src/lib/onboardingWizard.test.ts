@@ -157,4 +157,3 @@ describe("onboarding wizard", () => {
     expect(ended.screenshot.status).toBe("connection-lost");
   });
 });
-
