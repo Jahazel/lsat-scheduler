@@ -283,4 +283,159 @@ describe("OnboardingWizard", () => {
       expect(screen.queryByText("We couldn't read the rows in it.")).toBeNull();
     });
   });
+
+  describe("Step 4 · Review", () => {
+    const read: ExtractReply = {
+      kind: "rows",
+      rows: [
+        { type: "Strengthen", category: "regular", accuracy: 68 },
+        { type: "Necessary assumption", category: "regular", accuracy: 71 },
+        { type: "Causal reasoning", category: "restricted", isTopPriority: true, priorityTier: "highest" },
+        { type: "Link assumption", category: "restricted", isTopPriority: false, priorityTier: "medium" },
+      ],
+    };
+
+    async function openReview(onSave = vi.fn(async () => {}), reply = read) {
+      const steps = await fillGoalAndWeek(onSave, vi.fn(async (): Promise<ExtractReply> => reply));
+      await upload(steps.user);
+      await steps.user.click(await screen.findByRole("button", { name: "Check the values" }));
+      expect(screen.getByText("Step 4 of 4 · Review")).toBeDefined();
+      return steps;
+    }
+
+    const box = (type: string) => screen.getByLabelText(`${type} accuracy`) as HTMLInputElement;
+    const confirmButton = () => screen.getByRole("button", { name: "Confirm snapshot" });
+    const statements = ["I reviewed these values and they match my screenshot.", "This screenshot contains my latest 7Sage analytics."];
+
+    it("walks Goal → Week → Analytics → Review → Confirm and sends the edited values and ticked flags", async () => {
+      const { user, onSave } = await openReview();
+
+      expect(screen.getByText("Accuracy · 2 types")).toBeDefined();
+      expect(box("Strengthen").value).toBe("68");
+      expect((screen.getByLabelText("Causal reasoning") as HTMLInputElement).checked).toBe(true);
+      expect(screen.getByText("Highest on 7Sage")).toBeDefined();
+      expect((screen.getByLabelText("Link assumption") as HTMLInputElement).checked).toBe(false);
+      expect(screen.getByText("Medium on 7Sage")).toBeDefined();
+      expect(confirmButton().getAttribute("aria-disabled")).toBe("true");
+      expect(screen.getByText("Tick both statements to confirm.")).toBeDefined();
+
+      await user.clear(box("Necessary assumption"));
+      await user.type(box("Necessary assumption"), "76");
+      expect(screen.getByText("was 71%")).toBeDefined();
+      await user.click(screen.getByLabelText("Causal reasoning"));
+      await user.click(screen.getByLabelText("Link assumption"));
+      await user.click(screen.getByRole("button", { name: "Remove Strengthen" }));
+      for (const statement of statements) await user.click(screen.getByLabelText(statement));
+      expect(confirmButton().getAttribute("aria-disabled")).toBeNull();
+      await user.click(confirmButton());
+
+      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+        currentScore: 150,
+        goalScore: 165,
+        preferredPracticeTestDay: "FRIDAY",
+        analyticsRows: [
+          { type: "Necessary assumption", category: "regular", accuracy: 76 },
+          { type: "Causal reasoning", category: "restricted", isTopPriority: false, priorityTier: "highest" },
+          { type: "Link assumption", category: "restricted", isTopPriority: true, priorityTier: "medium" },
+        ],
+        analyticsApproval: {
+          extraction: { source: "7sage_screenshot", extractedAt: expect.any(String) },
+          confirmation: { extractedValuesMatch: true, isLatestAnalytics: true, confirmedAt: expect.any(String) },
+        },
+      }));
+    });
+
+    it("locks Confirm on a wrong value and moves focus to that box on a press", async () => {
+      const { user, onSave } = await openReview();
+
+      await user.clear(box("Necessary assumption"));
+      await user.type(box("Necessary assumption"), "104");
+      await user.tab();
+      expect(screen.getByText("Enter a percentage from 0 to 100.")).toBeDefined();
+      await user.clear(box("Strengthen"));
+      for (const statement of statements) await user.click(screen.getByLabelText(statement));
+      expect(screen.getByText("Fix 2 values above to confirm.")).toBeDefined();
+
+      await user.click(confirmButton());
+      expect(onSave).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(box("Strengthen"));
+      expect(screen.getByText("Enter the percentage, or remove this row with ×.")).toBeDefined();
+      expect(box("Strengthen").getAttribute("aria-invalid")).toBe("true");
+    });
+
+    it("adds a missed type from the search with the keyboard", async () => {
+      const { user } = await openReview();
+      const link = () => screen.getByRole("button", { name: "Add a type the screenshot missed" });
+
+      await user.click(link());
+      const search = screen.getByRole("combobox");
+      expect(document.activeElement).toBe(search);
+      await user.type(search, "su");
+      expect(screen.getByRole("option", { name: /Most strongly supported/ }).getAttribute("aria-selected")).toBe("true");
+      await user.keyboard("{ArrowDown}{Enter}");
+      expect(box("Sufficient assumption").value).toBe("");
+      expect(document.activeElement).toBe(box("Sufficient assumption"));
+      expect(screen.getByText("Fix Sufficient assumption above to confirm.")).toBeDefined();
+
+      await user.click(link());
+      await user.type(screen.getByRole("combobox"), "link");
+      expect(screen.getByText('No accuracy types match "link"')).toBeDefined();
+      expect(screen.getByText('No priority flags match "link"')).toBeDefined();
+      await user.clear(screen.getByRole("combobox"));
+      await user.type(screen.getByRole("combobox"), "causal ch");
+      await user.keyboard("{Enter}");
+      expect((screen.getByLabelText("Causal chain") as HTMLInputElement).checked).toBe(false);
+      expect(document.activeElement).toBe(link());
+
+      await user.click(link());
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("combobox")).toBeNull();
+      expect(document.activeElement).toBe(link());
+    });
+
+    it("says so in one line when the read found no priority flags", async () => {
+      await openReview(undefined, { kind: "rows", rows: [{ type: "Strengthen", category: "regular", accuracy: 68 }] });
+
+      expect(screen.getByText("We didn't find priority flags in your screenshot. If 7Sage shows any, add them with the link below.")).toBeDefined();
+    });
+
+    it("shows Saving, then keeps every value and tick when the save fails", async () => {
+      let failSave: (error: Error) => void = () => {};
+      const onSave = vi.fn()
+        .mockImplementationOnce(() => new Promise<void>((_, reject) => { failSave = reject; }))
+        .mockResolvedValueOnce(undefined);
+      const { user } = await openReview(onSave);
+      for (const statement of statements) await user.click(screen.getByLabelText(statement));
+
+      await user.click(confirmButton());
+      expect(screen.getByRole("button", { name: "Saving…" })).toBeDefined();
+      expect((screen.getByRole("button", { name: "Back" }) as HTMLButtonElement).disabled).toBe(true);
+      expect(screen.getByText("Saving your plan. This takes a few seconds.")).toBeDefined();
+
+      failSave(new Error("offline"));
+      expect(await screen.findByText("We couldn't save your plan. Check your connection and press Confirm snapshot again.")).toBeDefined();
+      expect((screen.getByLabelText(statements[1]) as HTMLInputElement).checked).toBe(true);
+      await user.click(confirmButton());
+      expect(onSave).toHaveBeenCalledTimes(2);
+    });
+
+    it("expands the uploaded screenshot inline with Show your screenshot", async () => {
+      const createObjectURL = vi.fn(() => "blob:screenshot");
+      const revokeObjectURL = vi.fn();
+      vi.stubGlobal("URL", Object.assign(URL, { createObjectURL, revokeObjectURL }));
+      const { user } = await openReview();
+
+      const toggle = screen.getByRole("button", { name: /Show your screenshot/ });
+      expect(toggle.getAttribute("aria-expanded")).toBe("false");
+      await user.click(toggle);
+      expect(toggle.getAttribute("aria-expanded")).toBe("true");
+      expect(screen.getByRole("img", { name: "Your 7Sage screenshot" }).getAttribute("src")).toBe("blob:screenshot");
+      expect(createObjectURL).toHaveBeenCalledWith(screenshot);
+      await user.click(toggle);
+      expect(screen.queryByRole("img", { name: "Your 7Sage screenshot" })).toBeNull();
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:screenshot");
+      vi.unstubAllGlobals();
+    });
+  });
 });

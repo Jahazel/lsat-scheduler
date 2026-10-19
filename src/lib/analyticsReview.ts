@@ -4,7 +4,9 @@ import type { AnalyticsExtractedRow, LRType } from "@/lib/types";
 
 // Every type a reviewer can add by hand, tagged with the same "regular" /
 // "restricted" split the engine uses.
-const REVIEW_TYPES: { type: LRType; category: AnalyticsExtractedRow["category"] }[] = [
+export type ReviewType = Pick<AnalyticsExtractedRow, "type" | "category">;
+
+const REVIEW_TYPES: ReviewType[] = [
   ...mockRules.lrStemTypes.map((type) => ({ type, category: "regular" as const })),
   ...mockRules.lrLogicTypes.map((type) => ({
     type,
@@ -62,14 +64,14 @@ export function removeRow(review: SnapshotReview, index: number) {
   return withRowsUnconfirmed(review, review.rows.filter((_, i) => i !== index));
 }
 
-export function missingTypes(review: SnapshotReview): LRType[] {
-  return REVIEW_TYPES.filter((t) => !review.rows.some(({ row }) => row.type === t.type)).map((t) => t.type);
+export function missingTypes(review: SnapshotReview): ReviewType[] {
+  return REVIEW_TYPES.filter((t) => !review.rows.some(({ row }) => row.type === t.type));
 }
 
 export function addRow(review: SnapshotReview, type: LRType) {
-  const match = REVIEW_TYPES.find((t) => t.type === type);
-  if (!match || !missingTypes(review).includes(type)) return review;
-  return withRowsUnconfirmed(review, [...review.rows, { row: { type: match.type, category: match.category }, original: null }]);
+  const match = missingTypes(review).find((t) => t.type === type);
+  if (!match) return review;
+  return withRowsUnconfirmed(review, [...review.rows, { row: { ...match }, original: null }]);
 }
 
 export function setStatement(review: SnapshotReview, statement: Statement, checked: boolean, now = new Date()): SnapshotReview {
