@@ -1,3 +1,5 @@
+import type { AnalyticsExtractedRow } from "./types";
+
 export const SCREENSHOT_MEDIA_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 export type ScreenshotMediaType = (typeof SCREENSHOT_MEDIA_TYPES)[number];
 
@@ -56,4 +58,24 @@ function sniffScreenshotType(bytes: Uint8Array): ScreenshotMediaType | null {
   if (startsWith([0xff, 0xd8, 0xff])) return "image/jpeg";
   if (startsWith([0x52, 0x49, 0x46, 0x46]) && startsWith([0x57, 0x45, 0x42, 0x50], 8)) return "image/webp";
   return null;
+}
+
+export type ExtractReply =
+  | { kind: "rows"; rows: AnalyticsExtractedRow[] }
+  | { kind: "rejected"; message: string }
+  | { kind: "cannot-read" }
+  | { kind: "connection-lost" };
+
+export async function extractScreenshot(file: File): Promise<ExtractReply> {
+  const formData = new FormData();
+  formData.append("image", file);
+  try {
+    const res = await fetch("/api/analytics/extract", { method: "POST", body: formData });
+    if (res.status === 413 || res.status === 415) return { kind: "rejected", message: (await res.json()).error };
+    if (res.status === 502) return { kind: "cannot-read" };
+    if (!res.ok) return { kind: "connection-lost" };
+    return { kind: "rows", rows: (await res.json()).rows };
+  } catch {
+    return { kind: "connection-lost" };
+  }
 }

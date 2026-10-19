@@ -1,12 +1,13 @@
 import { DAY_ORDER } from "./engine";
 import { formatDuration } from "./formatDuration";
 import { mockRules } from "./mockData";
+import type { ExtractReply } from "./screenshotUpload";
 import { DAY_LABEL, everyDay, goalScoreError, type StudentProfileInput } from "./studentProfile";
-import type { DayOfWeek } from "./types";
+import type { AnalyticsExtractedRow, DayOfWeek } from "./types";
 
 const STEP_NAMES = ["Goal", "Week", "Analytics", "Review"] as const;
-export type WizardStep = "goal" | "week" | "analytics";
-const BUILT_STEPS: WizardStep[] = ["goal", "week", "analytics"];
+export type WizardStep = "goal" | "week" | "analytics" | "review";
+const STEPS: WizardStep[] = ["goal", "week", "analytics", "review"];
 
 export type Accommodation = StudentProfileInput["accommodationMultiplier"];
 type ScoreBox = "currentScore" | "goalScore";
@@ -21,11 +22,19 @@ export interface WizardValues {
   preferredPracticeTestDay: DayOfWeek | null;
 }
 
+export type Screenshot =
+  | { status: "none" }
+  | { status: "reading" | "connection-lost" | "cannot-read" | "no-rows"; file: File }
+  | { status: "read"; file: File; rows: AnalyticsExtractedRow[] };
+
 export interface WizardState {
   step: WizardStep;
   changedStep: boolean;
   values: WizardValues;
   leftScoreBoxes: Record<ScoreBox, boolean>;
+  screenshot: Screenshot;
+  screenshotRejection: string | null;
+  readAttempts: number;
   save: "idle" | "saving" | "failed";
 }
 
@@ -35,6 +44,9 @@ export type WizardAction =
   | { type: "applyAllDays" }
   | { type: "continue" }
   | { type: "back" }
+  | { type: "screenshotRejected"; message: string }
+  | { type: "readStarted"; file: File }
+  | { type: "readEnded"; attempt: number; reply: ExtractReply }
   | { type: "saveStarted" }
   | { type: "saveFailed" };
 
@@ -70,12 +82,15 @@ export function initialWizardState(): WizardState {
       preferredPracticeTestDay: null,
     },
     leftScoreBoxes: { currentScore: false, goalScore: false },
+    screenshot: { status: "none" },
+    screenshotRejection: null,
+    readAttempts: 0,
     save: "idle",
   };
 }
 
 export function stepLabel(step: WizardStep): string {
-  const index = BUILT_STEPS.indexOf(step);
+  const index = STEPS.indexOf(step);
   return `Step ${index + 1} of ${STEP_NAMES.length} · ${STEP_NAMES[index]}`;
 }
 
@@ -150,6 +165,8 @@ export function blockedReason(state: WizardState): string | null {
     case "week":
       return values.preferredPracticeTestDay ? null : "Pick a practice-test day to continue.";
     case "analytics":
+      return state.screenshot.status === "read" ? null : "Add a screenshot to check the values.";
+    case "review":
       return null;
     default: {
       const _exhaustive: never = state.step;
@@ -175,8 +192,30 @@ export function toProfileInput(values: WizardValues): StudentProfileInput | null
   };
 }
 
+function readEnded(state: WizardState, attempt: number, reply: ExtractReply): WizardState {
+  const { screenshot } = state;
+  if (screenshot.status !== "reading" || attempt !== state.readAttempts) return state;
+  const { file } = screenshot;
+  switch (reply.kind) {
+    case "rows":
+      return {
+        ...state,
+        screenshot: reply.rows.length > 0 ? { status: "read", file, rows: reply.rows } : { status: "no-rows", file },
+      };
+    case "rejected":
+      return { ...state, screenshot: { status: "none" }, screenshotRejection: reply.message };
+    case "connection-lost":
+    case "cannot-read":
+      return { ...state, screenshot: { status: reply.kind, file } };
+    default: {
+      const _exhaustive: never = reply;
+      return _exhaustive;
+    }
+  }
+}
+
 export function wizardReducer(state: WizardState, action: WizardAction): WizardState {
-  if (state.save === "saving" && action.type !== "saveFailed") return state;
+  if (state.save === "saving" && action.type !== "saveFailed" && action.type !== "readEnded") return state;
   switch (action.type) {
     case "edit":
       return { ...state, values: { ...state.values, ...action.values } };
@@ -185,13 +224,24 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
     case "applyAllDays":
       return { ...state, values: { ...state.values, dailyCapacityMinutes: everyDay(state.values.allDaysMinutes) } };
     case "continue": {
-      const next = BUILT_STEPS[BUILT_STEPS.indexOf(state.step) + 1];
+      const next = STEPS[STEPS.indexOf(state.step) + 1];
       return blockedReason(state) || !next ? state : { ...state, step: next, changedStep: true };
     }
     case "back": {
-      const previous = BUILT_STEPS[BUILT_STEPS.indexOf(state.step) - 1];
+      const previous = STEPS[STEPS.indexOf(state.step) - 1];
       return previous ? { ...state, step: previous, changedStep: true, save: "idle" } : state;
     }
+    case "screenshotRejected":
+      return { ...state, screenshotRejection: action.message };
+    case "readStarted":
+      return {
+        ...state,
+        screenshot: { status: "reading", file: action.file },
+        screenshotRejection: null,
+        readAttempts: state.readAttempts + 1,
+      };
+    case "readEnded":
+      return readEnded(state, action.attempt, action.reply);
     case "saveStarted":
       return toProfileInput(state.values) ? { ...state, save: "saving" } : state;
     case "saveFailed":
