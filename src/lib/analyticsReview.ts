@@ -20,12 +20,17 @@ export interface ReviewRow {
   original: AnalyticsExtractedRow | null;
 }
 
+export type ReviewConfirmation =
+  | (Record<Statement, boolean> & { confirmedAt: null })
+  | SnapshotApprovalMetadata["confirmation"];
+
 export interface SnapshotReview {
   extraction: SnapshotApprovalMetadata["extraction"];
   rows: ReviewRow[];
-  statements: Record<Statement, boolean>;
-  confirmedAt: string | null;
+  confirmation: ReviewConfirmation;
 }
+
+const UNCONFIRMED: ReviewConfirmation = { extractedValuesMatch: false, isLatestAnalytics: false, confirmedAt: null };
 
 export type AccuracyError = "empty" | "out-of-range";
 
@@ -33,13 +38,12 @@ export function startReview(rows: AnalyticsExtractedRow[], extraction: SnapshotR
   return {
     extraction,
     rows: rows.map((row) => ({ row, original: row })),
-    statements: { extractedValuesMatch: false, isLatestAnalytics: false },
-    confirmedAt: null,
+    confirmation: UNCONFIRMED,
   };
 }
 
 function withRowsUnconfirmed(review: SnapshotReview, rows: ReviewRow[]): SnapshotReview {
-  return { ...review, rows, statements: { extractedValuesMatch: false, isLatestAnalytics: false }, confirmedAt: null };
+  return { ...review, rows, confirmation: UNCONFIRMED };
 }
 
 function updateRow(review: SnapshotReview, index: number, update: (row: AnalyticsExtractedRow) => AnalyticsExtractedRow) {
@@ -69,9 +73,11 @@ export function addRow(review: SnapshotReview, type: LRType) {
 }
 
 export function setStatement(review: SnapshotReview, statement: Statement, checked: boolean, now = new Date()): SnapshotReview {
-  const statements = { ...review.statements, [statement]: checked };
-  const confirmed = statements.extractedValuesMatch && statements.isLatestAnalytics;
-  return { ...review, statements, confirmedAt: confirmed ? now.toISOString() : null };
+  const { extractedValuesMatch, isLatestAnalytics }: Record<Statement, boolean> = { ...review.confirmation, [statement]: checked };
+  const confirmation: ReviewConfirmation = extractedValuesMatch && isLatestAnalytics
+    ? { extractedValuesMatch, isLatestAnalytics, confirmedAt: now.toISOString() }
+    : { extractedValuesMatch, isLatestAnalytics, confirmedAt: null };
+  return { ...review, confirmation };
 }
 
 export function accuracyError(row: AnalyticsExtractedRow): AccuracyError | null {
@@ -86,9 +92,6 @@ export function reviewedRows(review: SnapshotReview): AnalyticsExtractedRow[] {
 }
 
 export function snapshotApproval(review: SnapshotReview): SnapshotApprovalMetadata | null {
-  if (!review.confirmedAt || review.rows.some(({ row }) => accuracyError(row))) return null;
-  return {
-    extraction: review.extraction,
-    confirmation: { extractedValuesMatch: true, isLatestAnalytics: true, confirmedAt: review.confirmedAt },
-  };
+  if (review.confirmation.confirmedAt === null || review.rows.some(({ row }) => accuracyError(row))) return null;
+  return { extraction: review.extraction, confirmation: review.confirmation };
 }

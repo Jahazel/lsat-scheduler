@@ -83,7 +83,7 @@ describe("analytics review", () => {
 
   it("clears both statements when a value changes", () => {
     const review = toggleTopPriority(confirm(extracted()), 1);
-    expect(review.statements).toEqual({ extractedValuesMatch: false, isLatestAnalytics: false });
+    expect(review.confirmation).toEqual({ extractedValuesMatch: false, isLatestAnalytics: false, confirmedAt: null });
     expect(snapshotApproval(review)).toBeNull();
   });
 
