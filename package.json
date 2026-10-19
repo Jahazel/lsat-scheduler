@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:local": "node --env-file=.env.local --import tsx scripts/migrate-postgres.mts && SCREENSHOT_EXTRACTOR=fake next dev --hostname localhost",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

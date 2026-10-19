@@ -132,8 +132,13 @@ credential is a secret that gives access, such as a password or an API key.
 4. Start the app from the repository folder:
 
    ```bash
-   npm run dev
+   npm run dev:local
    ```
+
+   This command applies the database migrations with the values in `.env.local`,
+   then starts the app on `localhost` with the fake screenshot reader. Google
+   sign-in works only at `http://localhost:3000`, not at `127.0.0.1`. Use
+   `npm run dev` when you set `SCREENSHOT_EXTRACTOR` yourself.
 
    Open `http://localhost:3000`. The local database starts empty. Sign up locally
    to create your Account. Do not copy real students' records into it.
@@ -155,6 +160,7 @@ credential is a secret that gives access, such as a password or an API key.
 
 ```bash
 npm run dev     # start the development server at http://localhost:3000
+npm run dev:local  # apply migrations, then start at http://localhost:3000 with the fake screenshot reader
 npm test        # run the scheduling-engine test suite
 npm run lint    # run ESLint
 npm run build   # create a production build
