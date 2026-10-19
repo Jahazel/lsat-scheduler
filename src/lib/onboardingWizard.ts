@@ -46,6 +46,7 @@ export type Screenshot =
       file: File;
       rows: AnalyticsExtractedRow[];
       review: SnapshotReview;
+      typedText: Partial<Record<LRType, string>>;
       revealedBoxes: LRType[];
     };
 
@@ -240,9 +241,20 @@ const ACCURACY_MESSAGE = {
   "out-of-range": "Enter a percentage from 0 to 100.",
 } as const;
 
+const WHOLE_NUMBER = /^\d*$/;
+
+export function boxText(state: WizardState, type: LRType): string {
+  const { screenshot } = state;
+  if (screenshot.status !== "read") return "";
+  const typed = screenshot.typedText[type];
+  if (typed !== undefined) return typed;
+  return String(screenshot.review.rows.find(({ row }) => row.type === type)?.row.accuracy ?? "");
+}
+
 export function accuracyMessage(state: WizardState, type: LRType): string | null {
   const { screenshot } = state;
   if (screenshot.status !== "read" || !screenshot.revealedBoxes.includes(type)) return null;
+  if (!WHOLE_NUMBER.test(boxText(state, type))) return "Enter a whole percentage from 0 to 100.";
   const entry = screenshot.review.rows.find(({ row }) => row.type === type);
   const error = entry && accuracyError(entry.row);
   return error ? ACCURACY_MESSAGE[error] : null;
@@ -303,6 +315,7 @@ function readEnded(state: WizardState, attempt: number, reply: ExtractReply, at:
                 file,
                 rows: reply.rows,
                 review: startReview(reply.rows, { source: "7sage_screenshot", extractedAt: at.toISOString() }),
+                typedText: {},
                 revealedBoxes: [],
               }
             : { status: "no-rows", file },
@@ -363,14 +376,21 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
     case "readEnded":
       return readEnded(state, action.attempt, action.reply, action.at);
     case "editAccuracy": {
-      if (!/^\d*$/.test(action.text)) return state;
-      const accuracy = action.text === "" ? undefined : Number(action.text);
-      return updateReview(state, (review) => editAccuracy(review, rowIndex(review, action.rowType), accuracy));
+      const { rowType, text } = action;
+      const accuracy = text === "" ? undefined : WHOLE_NUMBER.test(text) ? Number(text) : NaN;
+      const edited = updateReview(state, (review) => editAccuracy(review, rowIndex(review, rowType), accuracy));
+      if (edited.screenshot.status !== "read") return edited;
+      return { ...edited, screenshot: { ...edited.screenshot, typedText: { ...edited.screenshot.typedText, [rowType]: text } } };
     }
     case "leaveAccuracyBox":
       return revealBoxes(state, [action.rowType]);
-    case "removeRow":
-      return updateReview(state, (review) => removeRow(review, rowIndex(review, action.rowType)));
+    case "removeRow": {
+      const removed = updateReview(state, (review) => removeRow(review, rowIndex(review, action.rowType)));
+      if (removed.screenshot.status !== "read") return removed;
+      const typedText = { ...removed.screenshot.typedText };
+      delete typedText[action.rowType];
+      return { ...removed, screenshot: { ...removed.screenshot, typedText } };
+    }
     case "toggleFlag":
       return updateReview(state, (review) => toggleTopPriority(review, rowIndex(review, action.rowType)));
     case "addType":

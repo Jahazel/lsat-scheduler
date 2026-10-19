@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   accuracyMessage,
   addTypeOptions,
+  boxText,
   blockedReason,
   confirmSnapshotInput,
   emptyListNote,
@@ -208,12 +209,21 @@ describe("onboarding wizard", () => {
       expect(accuracyMessage(cleared, "Diagram")).toBe("Enter the percentage, or remove this row with ×.");
     });
 
-    it("ignores a box edit that is not a whole number, and flags one over 100", () => {
-      const accuracy = (state: WizardState) =>
-        state.screenshot.status === "read" ? state.screenshot.review.rows[0].row.accuracy : null;
+    it("keeps what the student typed and locks Confirm until it is a whole number", () => {
       for (const text of ["9.5", "-5", "7a"]) {
-        expect(accuracy(onReview(readRows, { type: "editAccuracy", rowType: "Diagram", text }))).toBe(64);
+        const state = onReview(readRows, ...tickBoth, { type: "editAccuracy", rowType: "Diagram", text }, { type: "leaveAccuracyBox", rowType: "Diagram" }, ...tickBoth);
+        expect(boxText(state, "Diagram")).toBe(text);
+        expect(accuracyMessage(state, "Diagram")).toBe("Enter a whole percentage from 0 to 100.");
+        expect(blockedReason(state)).toBe("Fix Diagram above to confirm.");
+        expect(confirmSnapshotInput(state)).toBeNull();
       }
+      const readded = onReview(
+        readRows,
+        { type: "editAccuracy", rowType: "Diagram", text: "9.5" },
+        { type: "removeRow", rowType: "Diagram" },
+        { type: "addType", rowType: "Diagram" },
+      );
+      expect(boxText(readded, "Diagram")).toBe("");
       const over = onReview(readRows, { type: "editAccuracy", rowType: "Diagram", text: "1000" }, { type: "leaveAccuracyBox", rowType: "Diagram" });
       expect(accuracyMessage(over, "Diagram")).toBe("Enter a percentage from 0 to 100.");
     });

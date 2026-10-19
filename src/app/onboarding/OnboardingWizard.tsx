@@ -21,6 +21,7 @@ import {
   accuracyMessage,
   addTypeOptions,
   blockedReason,
+  boxText,
   confirmLock,
   confirmSnapshotInput,
   emptyListNote,
@@ -744,9 +745,7 @@ function useAfterPress() {
       pressing.current = true;
     };
     const up = () => {
-      setTimeout(() => {
-        pressing.current = false;
-      });
+      pressing.current = false;
     };
     document.addEventListener("pointerdown", down, true);
     document.addEventListener("pointerup", up, true);
@@ -841,6 +840,7 @@ function ReviewStep({
             <AccuracyRow
               key={entry.row.type}
               entry={entry}
+              text={boxText(state, entry.row.type)}
               message={accuracyMessage(state, entry.row.type)}
               dispatch={dispatch}
               onLeave={() => afterPress(() => dispatch({ type: "leaveAccuracyBox", rowType: entry.row.type }))}
@@ -918,11 +918,13 @@ function ReviewStep({
 
 function AccuracyRow({
   entry,
+  text,
   message,
   dispatch,
   onLeave,
 }: {
   entry: ReviewRow;
+  text: string;
   message: string | null;
   dispatch: Dispatch;
   onLeave: () => void;
@@ -950,7 +952,7 @@ function AccuracyRow({
             inputMode="numeric"
             autoComplete="off"
             aria-label={`${row.type} accuracy`}
-            value={row.accuracy ?? ""}
+            value={text}
             onChange={(e) => dispatch({ type: "editAccuracy", rowType: row.type, text: e.target.value })}
             onBlur={onLeave}
             aria-invalid={message ? true : undefined}
