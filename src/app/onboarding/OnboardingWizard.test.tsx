@@ -89,4 +89,27 @@ describe("OnboardingWizard", () => {
     await user.click(screen.getByRole("button", { name: "Skip for now" }));
     expect(onSave).toHaveBeenCalledTimes(2);
   });
+
+  it("ties each out-of-range score box to its own message", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingWizard goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={vi.fn()} />);
+
+    await user.type(screen.getByLabelText("Current PT score"), "15");
+    await user.type(screen.getByLabelText("Goal score"), "19");
+    await user.tab();
+
+    expect(screen.getByLabelText("Current PT score").getAttribute("aria-describedby")).toBe("current-score-message");
+    expect(document.getElementById("current-score-message")?.textContent).toBe("LSAT scores go from 120 to 180. Check your current score.");
+    expect(screen.getByLabelText("Goal score").getAttribute("aria-describedby")).toBe("goal-score-message");
+    expect(document.getElementById("goal-score-message")?.textContent).toBe("LSAT scores go from 120 to 180. Check your goal score.");
+  });
+
+  it("moves focus to the step heading on Continue and on Back", async () => {
+    const { user } = await fillGoalAndWeek();
+
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Add your 7Sage analytics" }));
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Set your target" }));
+  });
 });

@@ -19,7 +19,6 @@ import {
   type Accommodation,
   type WizardAction,
   type WizardState,
-  type WizardStep,
 } from "@/lib/onboardingWizard";
 import { DAY_LABEL, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { createStudentProfile } from "./actions";
@@ -55,7 +54,7 @@ export default function OnboardingWizard({ goalTestDateOptions, onSave }: Onboar
   return (
     <div className="lg:grid lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-[minmax(0,680px)_1fr]">
       <div className="flex justify-center px-5 py-8 lg:items-center lg:px-10 lg:py-16">
-        <div className="w-full max-w-[440px]">
+        <div className="w-full lg:max-w-[440px]">
           {state.step === "goal" && <GoalStep state={state} dispatch={dispatch} goalTestDateOptions={goalTestDateOptions} />}
           {state.step === "week" && <WeekStep state={state} dispatch={dispatch} />}
           {state.step === "analytics" && <AnalyticsStep state={state} dispatch={dispatch} onSkip={skipForNow} />}
@@ -66,14 +65,15 @@ export default function OnboardingWizard({ goalTestDateOptions, onSave }: Onboar
   );
 }
 
-function StepHeading({ step, title, lede }: { step: WizardStep; title: string; lede: string }) {
+function StepHeading({ state, title, lede }: { state: WizardState; title: string; lede: string }) {
   const heading = useRef<HTMLHeadingElement>(null);
+  const { changedStep } = state;
   useEffect(() => {
-    if (step !== "goal") heading.current?.focus();
-  }, [step]);
+    if (changedStep) heading.current?.focus();
+  }, [changedStep]);
   return (
     <div className="flex flex-col gap-2">
-      <p className="font-mono text-xs uppercase tracking-[0.08em] text-ink-500">{stepLabel(step)}</p>
+      <p className="font-mono text-xs uppercase tracking-[0.08em] text-ink-500">{stepLabel(state.step)}</p>
       <h1 ref={heading} tabIndex={-1} className="text-[28px] font-semibold leading-[34px] tracking-[-0.02em] text-ink-900 outline-none">
         {title}
       </h1>
@@ -120,14 +120,12 @@ function GoalStep({
   goalTestDateOptions: OnboardingWizardProps["goalTestDateOptions"];
 }) {
   const messages = scoreMessages(state);
-  const scoreMessage = messages.currentScore ?? messages.goalScore ?? messages.goalNotAbove;
-  const currentInvalid = Boolean(messages.currentScore);
-  const goalInvalid = Boolean(messages.goalScore ?? messages.goalNotAbove);
+  const goalMessage = messages.goalScore ?? messages.goalNotAbove;
   const scoreBox = (invalid: boolean) => `${FIELD} ${invalid ? "border-red-700" : "border-ink-200"}`;
 
   return (
     <StepForm state={state} dispatch={dispatch}>
-      <StepHeading step="goal" title="Set your target" lede="Where you are now, where you want to be, and when." />
+      <StepHeading state={state} title="Set your target" lede="Where you are now, where you want to be, and when." />
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
           <div className="flex gap-3">
@@ -139,9 +137,9 @@ function GoalStep({
                 value={state.values.currentScore}
                 onChange={(e) => dispatch({ type: "edit", values: { currentScore: e.target.value } })}
                 onBlur={() => dispatch({ type: "leaveScoreBox", box: "currentScore" })}
-                aria-invalid={currentInvalid || undefined}
-                aria-describedby={currentInvalid ? "score-message" : undefined}
-                className={scoreBox(currentInvalid)}
+                aria-invalid={messages.currentScore ? true : undefined}
+                aria-describedby={messages.currentScore ? "current-score-message" : undefined}
+                className={scoreBox(Boolean(messages.currentScore))}
               />
             </label>
             <label className="flex flex-1 flex-col gap-2">
@@ -152,15 +150,20 @@ function GoalStep({
                 value={state.values.goalScore}
                 onChange={(e) => dispatch({ type: "edit", values: { goalScore: e.target.value } })}
                 onBlur={() => dispatch({ type: "leaveScoreBox", box: "goalScore" })}
-                aria-invalid={goalInvalid || undefined}
-                aria-describedby={goalInvalid ? "score-message" : undefined}
-                className={scoreBox(goalInvalid)}
+                aria-invalid={goalMessage ? true : undefined}
+                aria-describedby={goalMessage ? "goal-score-message" : undefined}
+                className={scoreBox(Boolean(goalMessage))}
               />
             </label>
           </div>
-          {scoreMessage && (
-            <p id="score-message" className="text-sm text-red-700">
-              {scoreMessage}
+          {messages.currentScore && (
+            <p id="current-score-message" className="text-sm text-red-700">
+              {messages.currentScore}
+            </p>
+          )}
+          {goalMessage && (
+            <p id="goal-score-message" className="text-sm text-red-700">
+              {goalMessage}
             </p>
           )}
         </div>
@@ -218,7 +221,7 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
   return (
     <StepForm state={state} dispatch={dispatch}>
       <StepHeading
-        step="week"
+        state={state}
         title="Plan your week"
         lede="How much time you can study each day. Each day needs at least 30 min. We choose your rest day."
       />
@@ -322,7 +325,7 @@ function AnalyticsStep({ state, dispatch, onSkip }: { state: WizardState; dispat
   return (
     <div className="flex flex-col gap-8">
       <StepHeading
-        step="analytics"
+        state={state}
         title="Add your 7Sage analytics"
         lede="One screenshot shows us which question types to drill first."
       />

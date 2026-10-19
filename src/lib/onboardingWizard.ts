@@ -23,6 +23,7 @@ export interface WizardValues {
 
 export interface WizardState {
   step: WizardStep;
+  changedStep: boolean;
   values: WizardValues;
   leftScoreBoxes: Record<ScoreBox, boolean>;
   save: "idle" | "saving" | "failed";
@@ -58,6 +59,7 @@ export const TEST_TIME_LABEL: Record<Accommodation, string> = {
 export function initialWizardState(): WizardState {
   return {
     step: "goal",
+    changedStep: false,
     values: {
       currentScore: "",
       goalScore: "",
@@ -184,11 +186,11 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       return { ...state, values: { ...state.values, dailyCapacityMinutes: everyDay(state.values.allDaysMinutes) } };
     case "continue": {
       const next = BUILT_STEPS[BUILT_STEPS.indexOf(state.step) + 1];
-      return blockedReason(state) || !next ? state : { ...state, step: next };
+      return blockedReason(state) || !next ? state : { ...state, step: next, changedStep: true };
     }
     case "back": {
       const previous = BUILT_STEPS[BUILT_STEPS.indexOf(state.step) - 1];
-      return previous ? { ...state, step: previous, save: "idle" } : state;
+      return previous ? { ...state, step: previous, changedStep: true, save: "idle" } : state;
     }
     case "saveStarted":
       return toProfileInput(state.values) ? { ...state, save: "saving" } : state;
