@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ScreenshotMediaType } from "./screenshotUpload";
-import type { AnalyticsExtractedRow, LRLogicType, LRType, RulesConfig } from "./types";
+import type { AnalyticsExtractedRow, LRLogicType, LRType, PriorityTier, RulesConfig } from "./types";
 
 const TOOL_NAME = "record_analytics_rows";
 
@@ -9,10 +9,12 @@ export function categoryFor(type: LRType, rules: RulesConfig): "regular" | "rest
   return rules.lrLogicExceptions.includes(type as LRLogicType) ? "regular" : "restricted";
 }
 
+const PRIORITY_TIER: Record<"HIGHEST" | "MEDIUM" | "LOW", PriorityTier> = { HIGHEST: "highest", MEDIUM: "medium", LOW: "low" };
+
 interface ExtractedRow {
   type: LRType;
   accuracy?: number;
-  isTopPriority?: boolean;
+  priority?: keyof typeof PRIORITY_TIER;
 }
 
 export async function extractAnalyticsRowsFromImage(
@@ -53,9 +55,10 @@ export async function extractAnalyticsRowsFromImage(
                     type: "number",
                     description: "Accuracy percentage (0-100) shown for this row, if present.",
                   },
-                  isTopPriority: {
-                    type: "boolean",
-                    description: "True only if this row is explicitly flagged HIGHEST priority.",
+                  priority: {
+                    type: "string",
+                    enum: Object.keys(PRIORITY_TIER),
+                    description: "The priority tier shown for this row, if present.",
                   },
                 },
                 required: ["type"],
@@ -78,7 +81,7 @@ export async function extractAnalyticsRowsFromImage(
             type: "text",
             text: `This is a screenshot of a 7Sage LSAT analytics dashboard listing Logical Reasoning question types. Each row shows either an accuracy percentage or a priority tier (HIGHEST, MEDIUM, or LOW).
 
-For every row visible in the image, call ${TOOL_NAME} with one entry per row. Use the exact type name from the allowed list — match it to the closest valid name even if the screenshot's rendering is imperfect. Only report accuracy for rows that show a percentage. Only set isTopPriority to true for rows explicitly marked HIGHEST — never for MEDIUM or LOW. Do not include rows that aren't visible in the image.`,
+For every row visible in the image, call ${TOOL_NAME} with one entry per row. Use the exact type name from the allowed list — match it to the closest valid name even if the screenshot's rendering is imperfect. Only report accuracy for rows that show a percentage. Only report priority for rows that show a tier. Do not include rows that aren't visible in the image.`,
           },
         ],
       },
@@ -90,10 +93,10 @@ For every row visible in the image, call ${TOOL_NAME} with one entry per row. Us
 
   const { rows } = toolUse.input as { rows: ExtractedRow[] };
 
-  return rows.map((row) => ({
-    type: row.type,
-    category: categoryFor(row.type, rules),
-    accuracy: row.accuracy,
-    isTopPriority: row.isTopPriority,
-  }));
+  return rows.map(({ type, accuracy, priority }) => {
+    const row: AnalyticsExtractedRow = { type, category: categoryFor(type, rules), accuracy };
+    const priorityTier = priority && PRIORITY_TIER[priority];
+    if (!priorityTier) return row;
+    return { ...row, isTopPriority: priorityTier === "highest", priorityTier };
+  });
 }

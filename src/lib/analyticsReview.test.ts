@@ -60,7 +60,7 @@ describe("analytics review", () => {
   it("adds a missing type with its category and no original value", () => {
     const review = addRow(extracted(), "Weaken");
     expect(review.rows.at(-1)).toEqual({ row: { type: "Weaken", category: "regular" }, original: null });
-    expect(missingTypes(review)).not.toContain("Weaken");
+    expect(missingTypes(review).map((t) => t.type)).not.toContain("Weaken");
   });
 
   it("does not add a type that is already listed", () => {

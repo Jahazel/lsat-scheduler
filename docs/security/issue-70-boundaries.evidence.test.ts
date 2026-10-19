@@ -107,9 +107,9 @@ describe("issue 70 request boundary evidence", () => {
   });
 
   it("trusts out-of-schema model tool output at runtime", async () => {
-    mocks.messages.mockResolvedValue({ content: [{ type: "tool_use", input: { rows: [{ type: "Unknown synthetic type", accuracy: 999, isTopPriority: "yes" }] } }] });
-    expect(await extractAnalyticsRowsFromImage(Buffer.from([0]), "image/png", mockRules)).toEqual([
-      { type: "Unknown synthetic type", category: "regular", accuracy: 999, isTopPriority: "yes" },
+    mocks.messages.mockResolvedValue({ content: [{ type: "tool_use", input: { rows: [{ type: "Unknown synthetic type", accuracy: 999, priority: "SOMETIMES" }] } }] });
+    expect(await extractAnalyticsRowsFromImage(Buffer.from([0]), "image/png", mockRules)).toStrictEqual([
+      { type: "Unknown synthetic type", category: "regular", accuracy: 999 },
     ]);
   });
 

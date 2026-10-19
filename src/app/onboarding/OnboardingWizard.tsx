@@ -1,13 +1,30 @@
 "use client";
 
-import { useEffect, useReducer, useRef, useState, type DragEvent, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useReducer,
+  useRef,
+  useState,
+  type DragEvent,
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { DurationSelect } from "@/components/DailyCapacityFieldset";
 import { DAY_ORDER } from "@/lib/engine";
+import type { ReviewRow, Statement } from "@/lib/analyticsReview";
 import { formatDuration } from "@/lib/formatDuration";
 import {
   DAY_SHORT_LABEL,
   TEST_TIME_LABEL,
+  accuracyMessage,
+  addTypeOptions,
   blockedReason,
+  boxText,
+  confirmLock,
+  confirmSnapshotInput,
+  emptyListNote,
   initialWizardState,
   practiceTestHint,
   scoreMessages,
@@ -17,12 +34,13 @@ import {
   weeklyTotalMinutes,
   wizardReducer,
   type Accommodation,
+  type ReviewList,
   type Screenshot,
   type WizardAction,
   type WizardState,
 } from "@/lib/onboardingWizard";
 import { SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, checkScreenshot, extractScreenshot } from "@/lib/screenshotUpload";
-import type { AnalyticsExtractedRow } from "@/lib/types";
+import type { AnalyticsExtractedRow, LRType, PriorityTier } from "@/lib/types";
 import { DAY_LABEL, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { createStudentProfile } from "./actions";
 
@@ -54,18 +72,33 @@ export default function OnboardingWizard({ goalTestDateOptions, onSave, extract 
     }
     const attempt = state.readAttempts + 1;
     dispatch({ type: "readStarted", file });
-    dispatch({ type: "readEnded", attempt, reply: await extract(file) });
+    const reply = await extract(file);
+    dispatch({ type: "readEnded", attempt, reply, at: new Date() });
   }
 
-  async function skipForNow() {
-    const profile = toProfileInput(state.values);
-    if (!profile || state.save === "saving") return;
+  async function save(input: Parameters<typeof onSave>[0]) {
     dispatch({ type: "saveStarted" });
     try {
-      await onSave({ ...profile, analyticsRows: [], analyticsApproval: null });
+      await onSave(input);
     } catch {
       dispatch({ type: "saveFailed" });
     }
+  }
+
+  function skipForNow() {
+    const profile = toProfileInput(state.values);
+    if (profile && state.save !== "saving") void save({ ...profile, analyticsRows: [], analyticsApproval: null });
+  }
+
+  function confirmSnapshot(): "locked" | "sent" {
+    if (state.save === "saving") return "sent";
+    const input = confirmSnapshotInput(state);
+    if (!input) {
+      dispatch({ type: "confirmBlocked" });
+      return "locked";
+    }
+    void save(input);
+    return "sent";
   }
 
   return (
@@ -77,7 +110,9 @@ export default function OnboardingWizard({ goalTestDateOptions, onSave, extract 
           {state.step === "analytics" && (
             <AnalyticsStep state={state} dispatch={dispatch} onSkip={skipForNow} onFile={readScreenshot} />
           )}
-          {state.step === "review" && <ReviewStep state={state} dispatch={dispatch} />}
+          {state.step === "review" && state.screenshot.status === "read" && (
+            <ReviewStep state={state} screenshot={state.screenshot} dispatch={dispatch} onConfirm={confirmSnapshot} />
+          )}
         </div>
       </div>
       <div aria-hidden className="hidden bg-ink-50 lg:block" />
@@ -690,13 +725,497 @@ function RowValue({ row }: { row: AnalyticsExtractedRow }) {
   );
 }
 
-function ReviewStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch }) {
+
+type ReadScreenshot = Extract<Screenshot, { status: "read" }>;
+
+const STATEMENTS: { statement: Statement; text: string }[] = [
+  { statement: "extractedValuesMatch", text: "I reviewed these values and they match my screenshot." },
+  { statement: "isLatestAnalytics", text: "This screenshot contains my latest 7Sage analytics." },
+];
+
+const boxId = (type: LRType) => `accuracy-${type.replace(/\W+/g, "-")}`;
+
+// A row message pushes everything below it down. When a press moves focus out of a
+// box, the message waits for the press to end, so the pressed button is still under
+// the pointer when the click lands.
+function useAfterPress() {
+  const pressing = useRef(false);
+  useEffect(() => {
+    const down = () => {
+      pressing.current = true;
+    };
+    const up = () => {
+      pressing.current = false;
+    };
+    document.addEventListener("pointerdown", down, true);
+    document.addEventListener("pointerup", up, true);
+    document.addEventListener("pointercancel", up, true);
+    return () => {
+      document.removeEventListener("pointerdown", down, true);
+      document.removeEventListener("pointerup", up, true);
+      document.removeEventListener("pointercancel", up, true);
+    };
+  }, []);
+  return (run: () => void) => {
+    if (!pressing.current) return run();
+    const ended = new AbortController();
+    const finish = () => {
+      ended.abort();
+      setTimeout(run);
+    };
+    document.addEventListener("pointerup", finish, { capture: true, signal: ended.signal });
+    document.addEventListener("pointercancel", finish, { capture: true, signal: ended.signal });
+  };
+}
+
+function useFocusAfterRender() {
+  const pending = useRef<string | null>(null);
+  useEffect(() => {
+    if (!pending.current) return;
+    document.getElementById(pending.current)?.focus();
+    pending.current = null;
+  });
+  return (id: string) => {
+    pending.current = id;
+  };
+}
+
+function ReviewStep({
+  state,
+  screenshot,
+  dispatch,
+  onConfirm,
+}: {
+  state: WizardState;
+  screenshot: ReadScreenshot;
+  dispatch: Dispatch;
+  onConfirm: () => "locked" | "sent";
+}) {
+  const { review } = screenshot;
+  const saving = state.save === "saving";
+  const reason = blockedReason(state);
+  const requestFocus = useFocusAfterRender();
+  const afterPress = useAfterPress();
+
+  const accuracyRows = review.rows.filter(({ row }) => row.category === "regular");
+  const flagRows = review.rows.filter(({ row }) => row.category === "restricted");
+
+  function confirm() {
+    const lock = confirmLock(review);
+    if (onConfirm() === "sent" || !lock) return;
+    const { fix } = lock;
+    if (fix.at === "box") requestFocus(boxId(fix.type));
+    else if (fix.at === "add-type") requestFocus("add-type-link");
+    else requestFocus(`statement-${STATEMENTS.findIndex(({ statement }) => !review.confirmation[statement])}`);
+  }
+
+  const note = saving
+    ? "Saving your plan. This takes a few seconds."
+    : state.save === "failed"
+      ? "We couldn't save your plan. Check your connection and press Confirm snapshot again."
+      : reason;
+
   return (
     <div className="flex flex-col gap-8">
       <StepHeading state={state} title="Check what we read" lede="Compare each value with your screenshot." />
-      <button type="button" onClick={() => dispatch({ type: "back" })} className={SECONDARY}>
-        Back
+      <div className="flex flex-col gap-5">
+        <ScreenshotToggle file={screenshot.file} />
+        <div className="flex flex-col">
+          <div className="flex min-h-7 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-ink-100 px-3 py-1.5 text-xs text-ink-500">
+            <span>
+              Accuracy · {accuracyRows.length} {accuracyRows.length === 1 ? "type" : "types"}
+            </span>
+            <span className="flex items-center gap-3">
+              <span className="flex items-center gap-1.5">
+                <span aria-hidden className="h-2.5 w-3.5 rounded-[3px] border border-dashed border-accent-600" />
+                Read from screenshot
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span aria-hidden className="h-2.5 w-3.5 rounded-[3px] border border-ink-900" />
+                Edited by you
+              </span>
+            </span>
+          </div>
+          {accuracyRows.map((entry) => (
+            <AccuracyRow
+              key={entry.row.type}
+              entry={entry}
+              text={boxText(state, entry.row.type)}
+              message={accuracyMessage(state, entry.row.type)}
+              dispatch={dispatch}
+              onLeave={() => afterPress(() => dispatch({ type: "leaveAccuracyBox", rowType: entry.row.type }))}
+            />
+          ))}
+          <EmptyListNote state={state} list="accuracy" />
+        </div>
+        <div className="flex flex-col">
+          <div className="flex min-h-7 items-center border-b border-ink-100 px-3 py-1.5 text-xs text-ink-500">
+            Priority flags · ticked flags go first in your plan
+          </div>
+          {flagRows.map(({ row }) => (
+            <Checkbox
+              key={row.type}
+              checked={row.isTopPriority ?? false}
+              onChange={() => dispatch({ type: "toggleFlag", rowType: row.type })}
+              detail={row.priorityTier && <TierPill tier={row.priorityTier} />}
+              className="min-h-9 items-center border-b border-ink-100 px-3 py-1.5"
+            >
+              {row.type}
+            </Checkbox>
+          ))}
+          <EmptyListNote state={state} list="flags" />
+        </div>
+        <AddType
+          state={state}
+          onAdd={(type, list) => {
+            dispatch({ type: "addType", rowType: type });
+            if (list === "accuracy") requestFocus(boxId(type));
+          }}
+        />
+        <div className="flex flex-col gap-2.5 rounded-md bg-ink-50 px-4 py-3.5">
+          {STATEMENTS.map(({ statement, text }, index) => (
+            <Checkbox
+              key={statement}
+              id={`statement-${index}`}
+              checked={review.confirmation[statement]}
+              onChange={(checked) => dispatch({ type: "setStatement", statement, checked, at: new Date() })}
+              className="items-start"
+            >
+              {text}
+            </Checkbox>
+          ))}
+        </div>
+      </div>
+      <div className="flex flex-col gap-4">
+        <div className="flex gap-3">
+          <button type="button" disabled={saving} onClick={() => dispatch({ type: "back" })} className={SECONDARY}>
+            Back
+          </button>
+          <button
+            type="button"
+            aria-disabled={reason && !saving ? true : undefined}
+            disabled={saving}
+            onClick={confirm}
+            aria-describedby="confirm-note"
+            className={`h-11 flex-1 rounded-md text-base font-medium transition-colors duration-150 ease-out ${FOCUS} ${
+              saving
+                ? "cursor-wait bg-ink-700 text-white"
+                : reason
+                  ? "cursor-not-allowed bg-ink-200 text-ink-500"
+                  : "bg-ink-900 text-white hover:bg-ink-700"
+            }`}
+          >
+            {saving ? "Saving…" : "Confirm snapshot"}
+          </button>
+        </div>
+        <p id="confirm-note" role="status" className={`text-center text-sm ${state.save === "failed" ? "text-ink-700" : "text-ink-500"}`}>
+          {note}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function AccuracyRow({
+  entry,
+  text,
+  message,
+  dispatch,
+  onLeave,
+}: {
+  entry: ReviewRow;
+  text: string;
+  message: string | null;
+  dispatch: Dispatch;
+  onLeave: () => void;
+}) {
+  const { row, original } = entry;
+  const edited = original === null || original.accuracy !== row.accuracy;
+  const was = edited && original?.accuracy !== undefined ? `was ${original.accuracy}%` : null;
+  const id = boxId(row.type);
+  const box = message
+    ? "border-red-700 bg-white"
+    : edited
+      ? "border-ink-900 bg-white"
+      : "border-dashed border-accent-600 bg-accent-100/30";
+
+  return (
+    <div className="flex flex-col border-b border-ink-100 focus-within:rounded-sm focus-within:border-transparent focus-within:bg-accent-100/40 focus-within:outline-[1.5px] focus-within:outline-accent-600 focus-within:outline-solid">
+      <div className="flex min-h-[38px] items-center gap-3 py-1 pl-3 pr-1">
+        <label htmlFor={id} className="grow text-sm text-ink-900">
+          {row.type}
+        </label>
+        <span className="w-[72px] shrink-0 text-right font-mono text-xs text-ink-500">{was}</span>
+        <span className={`flex h-[30px] w-16 shrink-0 items-center rounded-md border px-2 ${box}`}>
+          <input
+            id={id}
+            inputMode="numeric"
+            autoComplete="off"
+            aria-label={`${row.type} accuracy`}
+            value={text}
+            onChange={(e) => dispatch({ type: "editAccuracy", rowType: row.type, text: e.target.value })}
+            onBlur={onLeave}
+            aria-invalid={message ? true : undefined}
+            aria-describedby={message ? `${id}-message` : undefined}
+            className="w-full min-w-0 bg-transparent text-right font-mono text-[13px] text-ink-900 outline-none"
+          />
+          <span aria-hidden className="pl-0.5 font-mono text-[13px] text-ink-500">%</span>
+        </span>
+        <button
+          type="button"
+          aria-label={`Remove ${row.type}`}
+          onClick={() => dispatch({ type: "removeRow", rowType: row.type })}
+          className={`grid size-7 shrink-0 place-items-center rounded text-ink-400 hover:text-ink-900 ${FOCUS}`}
+        >
+          <svg aria-hidden viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+            <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" />
+          </svg>
+        </button>
+      </div>
+      {message && (
+        <p id={`${id}-message`} className="px-3 pb-2 text-sm text-red-700">
+          {message}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function EmptyListNote({ state, list }: { state: WizardState; list: ReviewList }) {
+  const note = emptyListNote(state, list);
+  return note && <p className="border-b border-ink-100 px-3 py-3.5 text-sm text-ink-900">{note}</p>;
+}
+
+const TIER_LABEL: Record<PriorityTier, string> = { highest: "Highest", medium: "Medium", low: "Low" };
+
+function TierPill({ tier }: { tier: PriorityTier }) {
+  const highest = tier === "highest";
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border border-dashed px-2 py-0.5 text-xs font-medium ${
+        highest ? "border-accent-600 text-accent-700" : "border-ink-400 text-ink-500"
+      }`}
+    >
+      {highest && (
+        <svg aria-hidden viewBox="0 0 10 10" className="size-2.5" fill="currentColor" stroke="currentColor" strokeLinejoin="round">
+          <path d="M2 9V1.5h5.5L6.5 3.5l1 2H2" />
+        </svg>
+      )}
+      {TIER_LABEL[tier]} on 7Sage
+    </span>
+  );
+}
+
+function Checkbox({
+  id,
+  checked,
+  onChange,
+  detail,
+  className,
+  children,
+}: {
+  id?: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  detail?: ReactNode;
+  className: string;
+  children: ReactNode;
+}) {
+  const labelId = useId();
+  const detailId = useId();
+  return (
+    <label className={`group flex cursor-pointer gap-3 text-sm text-ink-900 ${className}`}>
+      <span className="relative mt-px grid size-4 shrink-0">
+        <input
+          id={id}
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+          aria-labelledby={labelId}
+          aria-describedby={detail ? detailId : undefined}
+          className={`peer size-4 appearance-none rounded-[4px] border border-ink-500 bg-white transition-colors duration-150 ease-out checked:border-ink-900 checked:bg-ink-900 not-checked:group-hover:border-ink-900 not-checked:group-hover:bg-ink-50 ${FOCUS}`}
+        />
+        <svg aria-hidden viewBox="0 0 10 10" className="pointer-events-none absolute inset-0 m-auto size-2.5 opacity-0 peer-checked:opacity-100" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 5.2l2 2L8 3" />
+        </svg>
+      </span>
+      <span id={labelId} className="grow">
+        {children}
+      </span>
+      {detail && <span id={detailId}>{detail}</span>}
+    </label>
+  );
+}
+
+const ADD_TYPE_GROUPS: { list: ReviewList; label: string; none: string }[] = [
+  { list: "accuracy", label: "Accuracy · you type the percentage", none: "No accuracy types match" },
+  { list: "flags", label: "Priority flags · added unticked", none: "No priority flags match" },
+];
+
+function AddType({
+  state,
+  onAdd,
+}: {
+  state: WizardState;
+  onAdd: (type: LRType, list: ReviewList) => void;
+}) {
+  const requestFocus = useFocusAfterRender();
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [active, setActive] = useState(0);
+  const options = addTypeOptions(state, query);
+  const flat = ADD_TYPE_GROUPS.flatMap(({ list }) => options[list].map((type) => ({ type, list })));
+  useEffect(() => {
+    document.getElementById(`add-type-option-${active}`)?.scrollIntoView?.({ block: "nearest" });
+  }, [active]);
+
+  function close(focusLink = true) {
+    setOpen(false);
+    setQuery("");
+    setActive(0);
+    if (focusLink) requestFocus("add-type-link");
+  }
+
+  function add(index: number) {
+    const option = flat[index];
+    if (!option) return;
+    onAdd(option.type, option.list);
+    close(option.list === "flags");
+  }
+
+  function keyDown(event: KeyboardEvent) {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (flat.length === 0) return;
+      setActive((active + (event.key === "ArrowDown" ? 1 : -1) + flat.length) % flat.length);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      add(active);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      close();
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        id="add-type-link"
+        type="button"
+        onClick={() => {
+          setOpen(true);
+          requestFocus("add-type-search");
+        }}
+        className={`flex items-center gap-2 self-start px-3 text-sm ${LINK_BUTTON}`}
+      >
+        <svg aria-hidden viewBox="0 0 14 14" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+          <path d="M7 2v10M2 7h10" />
+        </svg>
+        Add a type the screenshot missed
       </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <input
+          id="add-type-search"
+          role="combobox"
+          aria-label="Search question types"
+          aria-expanded
+          aria-controls="add-type-options"
+          aria-autocomplete="list"
+          aria-activedescendant={flat[active] ? `add-type-option-${active}` : undefined}
+          autoComplete="off"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setActive(0);
+          }}
+          onKeyDown={keyDown}
+          className="h-9 min-w-0 grow rounded-md border-2 border-accent-600 bg-white px-3 text-sm text-ink-900 outline-none"
+        />
+        <button type="button" onClick={() => close()} className={`h-9 px-3 text-sm ${LINK_BUTTON}`}>
+          Cancel
+        </button>
+      </div>
+      <div id="add-type-options" role="listbox" aria-label="Question types" className="flex max-h-72 flex-col overflow-y-auto rounded-md border border-ink-200 bg-white py-1.5">
+        {ADD_TYPE_GROUPS.map(({ list, label, none }, groupIndex) => (
+          <div
+            key={list}
+            role="group"
+            aria-labelledby={`add-type-group-${list}`}
+            className={groupIndex > 0 ? "mt-1 border-t border-ink-100 pt-1" : undefined}
+          >
+            <div id={`add-type-group-${list}`} role="presentation" className="px-3 py-1.5 text-xs text-ink-500">
+              {label}
+            </div>
+            {options[list].length === 0 && <div className="flex h-9 items-center px-3 text-sm text-ink-500">{`${none} "${query.trim()}"`}</div>}
+            {options[list].map((type) => {
+              const optionIndex = flat.findIndex((option) => option.type === type);
+              const selected = optionIndex === active;
+              return (
+                <div
+                  key={type}
+                  id={`add-type-option-${optionIndex}`}
+                  role="option"
+                  aria-selected={selected}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseEnter={() => setActive(optionIndex)}
+                  onClick={() => add(optionIndex)}
+                  className={`flex min-h-9 cursor-pointer items-center justify-between px-3 text-sm text-ink-900 ${selected ? "bg-ink-50" : ""}`}
+                >
+                  {type}
+                  {selected && <span className="font-mono text-xs text-ink-500">Enter</span>}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ScreenshotToggle({ file }: { file: File }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const shown = useRef<string | null>(null);
+  useEffect(() => () => {
+    if (shown.current) URL.revokeObjectURL(shown.current);
+  }, []);
+
+  function toggle() {
+    if (shown.current) URL.revokeObjectURL(shown.current);
+    shown.current = url ? null : URL.createObjectURL(file);
+    setUrl(shown.current);
+  }
+
+  return (
+    <div className="flex flex-col gap-3 lg:hidden">
+      <button
+        type="button"
+        aria-expanded={url !== null}
+        onClick={toggle}
+        className={`flex items-center gap-3 rounded-md border border-ink-200 bg-white p-3 text-left ${FOCUS}`}
+      >
+        <span aria-hidden className="flex h-9 w-11 shrink-0 flex-col justify-center gap-1 rounded bg-ink-50 px-2">
+          <span className="h-0.5 w-6 bg-ink-400" />
+          <span className="h-0.5 w-5 bg-ink-400" />
+          <span className="h-0.5 w-6 bg-ink-400" />
+        </span>
+        <span className="flex min-w-0 grow flex-col gap-0.5">
+          <span className="text-sm font-medium text-ink-900">{url ? "Hide your screenshot" : "Show your screenshot"}</span>
+          <span className="truncate font-mono text-xs text-ink-500">{file.name}</span>
+        </span>
+        <svg aria-hidden viewBox="0 0 16 16" className={`size-4 shrink-0 transition-transform duration-150 ${url ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 6l4 4 4-4" />
+        </svg>
+      </button>
+      {url && (
+        // eslint-disable-next-line @next/next/no-img-element -- a local object URL; next/image cannot load it
+        <img src={url} alt="Your 7Sage screenshot" className="w-full rounded-md border border-ink-200" />
+      )}
     </div>
   );
 }

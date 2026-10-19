@@ -57,7 +57,8 @@ describe("POST /api/analytics/extract", () => {
       rows: [
         { type: "Strengthen", category: "regular", accuracy: 68 },
         { type: "Necessary assumption", category: "regular", accuracy: 74 },
-        { type: "Causal reasoning", category: "restricted", isTopPriority: true },
+        { type: "Causal reasoning", category: "restricted", isTopPriority: true, priorityTier: "highest" },
+        { type: "Link assumption", category: "restricted", isTopPriority: false, priorityTier: "medium" },
         { type: "Conditional reasoning", category: "regular", accuracy: 81 },
       ],
     });
@@ -101,7 +102,9 @@ describe("POST /api/analytics/extract", () => {
         input: {
           rows: [
             { type: "Strengthen", accuracy: 72 },
-            { type: "Causal reasoning", isTopPriority: true },
+            { type: "Causal reasoning", priority: "HIGHEST" },
+            { type: "Link assumption", priority: "MEDIUM" },
+            { type: "Phenomenon-hypothesis (LR)", priority: "LOW" },
             { type: "Conditional reasoning", accuracy: 85 },
           ],
         },
@@ -117,7 +120,9 @@ describe("POST /api/analytics/extract", () => {
     expect(await response.json()).toEqual({
       rows: [
         { type: "Strengthen", category: "regular", accuracy: 72 },
-        { type: "Causal reasoning", category: "restricted", isTopPriority: true },
+        { type: "Causal reasoning", category: "restricted", isTopPriority: true, priorityTier: "highest" },
+        { type: "Link assumption", category: "restricted", isTopPriority: false, priorityTier: "medium" },
+        { type: "Phenomenon-hypothesis (LR)", category: "restricted", isTopPriority: false, priorityTier: "low" },
         { type: "Conditional reasoning", category: "regular", accuracy: 85 },
       ],
     });

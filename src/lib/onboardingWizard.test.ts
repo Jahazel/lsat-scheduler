@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  accuracyMessage,
+  addTypeOptions,
+  boxText,
   blockedReason,
+  confirmSnapshotInput,
+  emptyListNote,
   initialWizardState,
   practiceTestHint,
   practiceTestMinutes,
@@ -12,10 +17,13 @@ import {
   type WizardAction,
   type WizardState,
 } from "./onboardingWizard";
+import type { AnalyticsExtractedRow } from "./types";
 
 function run(...actions: WizardAction[]): WizardState {
   return actions.reduce(wizardReducer, initialWizardState());
 }
+
+const READ_AT = new Date("2026-10-19T15:00:00.000Z");
 
 const validGoal: WizardAction = {
   type: "edit",
@@ -140,7 +148,7 @@ describe("onboarding wizard", () => {
     const reading = run({ type: "readStarted", file });
     const message = "That file is 4.2 MB. Choose one that is 4 MB or less.";
 
-    const rejected = wizardReducer(reading, { type: "readEnded", attempt: 1, reply: { kind: "rejected", message } });
+    const rejected = wizardReducer(reading, { type: "readEnded", attempt: 1, reply: { kind: "rejected", message }, at: READ_AT });
 
     expect(rejected.screenshot).toEqual({ status: "none" });
     expect(rejected.screenshotRejection).toBe(message);
@@ -152,8 +160,170 @@ describe("onboarding wizard", () => {
     const reading = wizardReducer(ready, { type: "readStarted", file: new File(["png"], "a.png", { type: "image/png" }) });
     const saving = wizardReducer(reading, { type: "saveStarted" });
 
-    const ended = wizardReducer(saving, { type: "readEnded", attempt: 1, reply: { kind: "connection-lost" } });
+    const ended = wizardReducer(saving, { type: "readEnded", attempt: 1, reply: { kind: "connection-lost" }, at: READ_AT });
 
     expect(ended.screenshot.status).toBe("connection-lost");
+  });
+
+  describe("Step 4 · Review", () => {
+    const readRows: AnalyticsExtractedRow[] = [
+      { type: "Diagram", category: "regular", accuracy: 64 },
+      { type: "Necessary assumption", category: "regular", accuracy: 71 },
+      { type: "Causal reasoning", category: "restricted", isTopPriority: true, priorityTier: "highest" },
+      { type: "Link assumption", category: "restricted", isTopPriority: false, priorityTier: "medium" },
+    ];
+
+    function onReview(rows = readRows, ...actions: WizardAction[]): WizardState {
+      return run(
+        validGoal,
+        { type: "continue" },
+        { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
+        { type: "continue" },
+        { type: "readStarted", file: new File(["png"], "7sage-analytics.png", { type: "image/png" }) },
+        { type: "readEnded", attempt: 1, reply: { kind: "rows", rows }, at: READ_AT },
+        { type: "continue" },
+        ...actions,
+      );
+    }
+
+    const tickBoth: WizardAction[] = [
+      { type: "setStatement", statement: "extractedValuesMatch", checked: true, at: READ_AT },
+      { type: "setStatement", statement: "isLatestAnalytics", checked: true, at: READ_AT },
+    ];
+
+    it("asks for both statements before Confirm snapshot works", () => {
+      expect(blockedReason(onReview())).toBe("Tick both statements to confirm.");
+      expect(confirmSnapshotInput(onReview())).toBeNull();
+      expect(blockedReason(onReview(readRows, ...tickBoth))).toBeNull();
+    });
+
+    it("shows a box's message only after focus leaves it", () => {
+      const typing = onReview(readRows, { type: "editAccuracy", rowType: "Diagram", text: "104" });
+      expect(accuracyMessage(typing, "Diagram")).toBeNull();
+      expect(blockedReason(typing)).toBe("Fix Diagram above to confirm.");
+
+      const left = wizardReducer(typing, { type: "leaveAccuracyBox", rowType: "Diagram" });
+      expect(accuracyMessage(left, "Diagram")).toBe("Enter a percentage from 0 to 100.");
+
+      const cleared = wizardReducer(left, { type: "editAccuracy", rowType: "Diagram", text: "" });
+      expect(accuracyMessage(cleared, "Diagram")).toBe("Enter the percentage, or remove this row with ×.");
+    });
+
+    it("keeps what the student typed and saves a decimal as typed", () => {
+      const decimal = onReview(readRows, { type: "editAccuracy", rowType: "Diagram", text: "9.5" }, ...tickBoth);
+      expect(confirmSnapshotInput(decimal)?.analyticsRows[0]).toEqual({ type: "Diagram", category: "regular", accuracy: 9.5 });
+
+      for (const text of ["9.", "-5", "7a"]) {
+        const state = onReview(readRows, ...tickBoth, { type: "editAccuracy", rowType: "Diagram", text }, { type: "leaveAccuracyBox", rowType: "Diagram" }, ...tickBoth);
+        expect(boxText(state, "Diagram")).toBe(text);
+        expect(accuracyMessage(state, "Diagram")).toBe("Enter a percentage from 0 to 100.");
+        expect(blockedReason(state)).toBe("Fix Diagram above to confirm.");
+        expect(confirmSnapshotInput(state)).toBeNull();
+      }
+      const readded = onReview(
+        readRows,
+        { type: "editAccuracy", rowType: "Diagram", text: "9.5" },
+        { type: "removeRow", rowType: "Diagram" },
+        { type: "addType", rowType: "Diagram" },
+      );
+      expect(boxText(readded, "Diagram")).toBe("");
+      const over = onReview(readRows, { type: "editAccuracy", rowType: "Diagram", text: "1000" }, { type: "leaveAccuracyBox", rowType: "Diagram" });
+      expect(accuracyMessage(over, "Diagram")).toBe("Enter a percentage from 0 to 100.");
+    });
+
+    it("accepts a decimal read from the screenshot after focus leaves its box", () => {
+      const decimalRead = [{ ...readRows[0], accuracy: 9.5 }, ...readRows.slice(1)];
+      const state = onReview(decimalRead, { type: "leaveAccuracyBox", rowType: "Diagram" }, ...tickBoth);
+      expect(accuracyMessage(state, "Diagram")).toBeNull();
+      expect(confirmSnapshotInput(state)?.analyticsRows[0].accuracy).toBe(9.5);
+    });
+
+    it("locks Confirm when no accuracy value or ticked flag is left", () => {
+      const state = onReview(
+        readRows,
+        { type: "removeRow", rowType: "Diagram" },
+        { type: "removeRow", rowType: "Necessary assumption" },
+        { type: "toggleFlag", rowType: "Causal reasoning" },
+        ...tickBoth,
+      );
+      expect(blockedReason(state)).toBe("Add an accuracy value or tick a flag to confirm.");
+      expect(confirmSnapshotInput(state)).toBeNull();
+    });
+
+    it("counts every wrong value in the lock reason, even with both statements ticked", () => {
+      const state = onReview(
+        readRows,
+        ...tickBoth,
+        { type: "editAccuracy", rowType: "Diagram", text: "" },
+        { type: "addType", rowType: "Strengthen" },
+      );
+      expect(blockedReason(state)).toBe("Fix 2 values above to confirm.");
+    });
+
+    it("shows every wrong value's message after a press on the locked Confirm", () => {
+      const state = onReview(readRows, { type: "addType", rowType: "Strengthen" }, { type: "confirmBlocked" });
+      expect(accuracyMessage(state, "Strengthen")).toBe("Enter the percentage, or remove this row with ×.");
+    });
+
+    it("lists only types not shown, by group, matching the search", () => {
+      const options = addTypeOptions(onReview(), "su");
+      expect(options.accuracy).toEqual(["Most strongly supported", "Sufficient assumption"]);
+      expect(options.flags).toEqual(["Confusing sufficiency and necessity", "Lack of support v. false conclusion"]);
+      expect(addTypeOptions(onReview(), "zz")).toEqual({ accuracy: [], flags: [] });
+      expect(addTypeOptions(onReview(), "").accuracy).not.toContain("Diagram");
+      expect(addTypeOptions(onReview(), "").flags).not.toContain("Link assumption");
+      expect(addTypeOptions(onReview(), "causal").flags).toEqual(["Causal chain"]);
+    });
+
+    it("adds a flag unticked", () => {
+      const state = onReview(readRows, { type: "addType", rowType: "Causal chain" }, ...tickBoth);
+      expect(confirmSnapshotInput(state)?.analyticsRows.at(-1)).toEqual({ type: "Causal chain", category: "restricted" });
+    });
+
+    it("says so in one line when one list is empty after the read", () => {
+      const accuracyOnly = readRows.filter((row) => row.category === "regular");
+      expect(emptyListNote(onReview(accuracyOnly), "flags")).toBe(
+        "We didn't find priority flags in your screenshot. If 7Sage shows any, add them with the link below.",
+      );
+      expect(emptyListNote(onReview(accuracyOnly), "accuracy")).toBeNull();
+      const flagsOnly = readRows.filter((row) => row.category === "restricted");
+      expect(emptyListNote(onReview(flagsOnly), "accuracy")).toBe(
+        "We didn't find accuracy values in your screenshot. If 7Sage shows any, add them with the link below.",
+      );
+    });
+
+    it("sends the profile, the reviewed rows, and the approval in the current shape", () => {
+      const state = onReview(
+        readRows,
+        { type: "editAccuracy", rowType: "Necessary assumption", text: "76" },
+        { type: "toggleFlag", rowType: "Causal reasoning" },
+        { type: "toggleFlag", rowType: "Link assumption" },
+        { type: "removeRow", rowType: "Diagram" },
+        ...tickBoth,
+      );
+
+      expect(confirmSnapshotInput(state)).toEqual({
+        currentScore: 150,
+        goalScore: 165,
+        goalTestDate: "2026-11-01",
+        accommodationMultiplier: 1,
+        dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 90, SUNDAY: 90 },
+        preferredPracticeTestDay: "SATURDAY",
+        analyticsRows: [
+          { type: "Necessary assumption", category: "regular", accuracy: 76 },
+          { type: "Causal reasoning", category: "restricted", isTopPriority: false, priorityTier: "highest" },
+          { type: "Link assumption", category: "restricted", isTopPriority: true, priorityTier: "medium" },
+        ],
+        analyticsApproval: {
+          extraction: { source: "7sage_screenshot", extractedAt: "2026-10-19T15:00:00.000Z" },
+          confirmation: { extractedValuesMatch: true, isLatestAnalytics: true, confirmedAt: "2026-10-19T15:00:00.000Z" },
+        },
+      });
+    });
+
+    it("drops the review when the student replaces the screenshot", () => {
+      const state = onReview(readRows, { type: "back" }, { type: "readStarted", file: new File(["png"], "b.png", { type: "image/png" }) });
+      expect(state.screenshot.status).toBe("reading");
+    });
   });
 });

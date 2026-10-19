@@ -119,7 +119,7 @@ export default function AnalyticsReview({
   };
 
   const addReviewRow = () => {
-    const type = missingTypes(review).find((missing) => missing === typeToAdd);
+    const type = missingTypes(review).find((missing) => missing.type === typeToAdd)?.type;
     if (!type) return;
     onReviewChange(addRow(review, type));
     setTypeToAdd("");
@@ -140,7 +140,7 @@ export default function AnalyticsReview({
 
   const addTypeControl = (className: string) => {
     const label = isSample ? "Add a question type" : "Add a type the screenshot missed";
-    return <div className={className}><select value={typeToAdd} onChange={(e) => setTypeToAdd(e.target.value)} aria-label={label} className="flex-1 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"><option value="">{label}…</option>{missingTypes(review).map((type) => <option key={type} value={type}>{type}</option>)}</select><button type="button" onClick={addReviewRow} disabled={!typeToAdd} className="rounded-md border border-ink-200 px-3 py-2 text-sm font-medium text-ink-900 hover:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 disabled:cursor-not-allowed disabled:opacity-50">Add</button></div>;
+    return <div className={className}><select value={typeToAdd} onChange={(e) => setTypeToAdd(e.target.value)} aria-label={label} className="flex-1 rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 focus-visible:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"><option value="">{label}…</option>{missingTypes(review).map(({ type }) => <option key={type} value={type}>{type}</option>)}</select><button type="button" onClick={addReviewRow} disabled={!typeToAdd} className="rounded-md border border-ink-200 px-3 py-2 text-sm font-medium text-ink-900 hover:border-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 disabled:cursor-not-allowed disabled:opacity-50">Add</button></div>;
   };
 
   const approvalControls = (fieldsetClassName: string, legendClassName: string, wrapperClassName = "") => {
