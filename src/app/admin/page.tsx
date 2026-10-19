@@ -29,7 +29,7 @@ export default async function AdminPage() {
         ) : (
           <ul className="mt-8 divide-y divide-ink-100 border-y border-ink-100">
             {students.map((student) => {
-              const needsAnalytics = student.platform === "7Sage" && !studentIdsWithAnalytics.has(student.id);
+              const needsAnalytics = !studentIdsWithAnalytics.has(student.id);
               return (
                 <li key={student.id}>
                   <Link
@@ -46,7 +46,7 @@ export default async function AdminPage() {
                         )}
                       </div>
                       <p className="mt-1 truncate text-sm text-ink-500">
-                        {student.email} · {student.platform} ·{" "}
+                        {student.email} ·{" "}
                         {formatDuration(
                           Object.values(student.dailyCapacityMinutes).reduce((sum, minutes) => sum + minutes, 0)
                         )}{" "}

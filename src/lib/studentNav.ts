@@ -37,6 +37,6 @@ export async function loadStudentNavState(userId: string, now = new Date()): Pro
     countdownLabel: testCountdownLabel(countdown),
     isTestDay: countdown?.kind === "today",
     hasCurrentWeek,
-    uploadNeeded: student.platform === "7Sage" && !hasCurrentWeek,
+    uploadNeeded: !hasCurrentWeek,
   };
 }

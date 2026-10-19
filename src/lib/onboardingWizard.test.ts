@@ -412,7 +412,6 @@ describe("onboarding wizard", () => {
       const drills = previewDrills(read(), TODAY);
       const week = generateWeek(
         {
-          platform: "7Sage",
           currentScore: 150,
           goalScore: 165,
           goalTestDate: "2026-11-01",

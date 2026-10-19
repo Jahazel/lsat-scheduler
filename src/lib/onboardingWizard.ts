@@ -224,7 +224,7 @@ export function previewDrills(state: WizardState, today: string): { day: DayOfWe
   const todayIndex = (utcDay(today).getUTCDay() + 6) % 7;
   const weekOf = currentWeekInTimezone(utcDay(today), "UTC");
   const week = generateWeek(
-    { ...profile, platform: "7Sage" },
+    profile,
     { weekOf, ...summarizeAnalyticsRows(rows) },
     mockRules,
     "",

@@ -91,7 +91,7 @@ function signupForm(email = "Student@Example.test") {
   return form;
 }
 const profile: Student = {
-  platform: "7Sage", currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01",
+  currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01",
   preferredPracticeTestDay: "SATURDAY", accommodationMultiplier: 1,
   dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 105, WEDNESDAY: 120, THURSDAY: 135, FRIDAY: 150, SATURDAY: 165, SUNDAY: 180 },
 };
@@ -444,10 +444,8 @@ describe.each([
 it("onboarding saves 7Sage for a profile sent without a platform", async () => {
   const owner = await account("no-platform@example.test");
   session(owner);
-  const { platform, ...withoutPlatform } = profileInput;
-  void platform;
-  await expect(createStudentProfile(withoutPlatform)).rejects.toThrow("redirect:/dashboard");
-  expect(await findStudentByAccountId(owner.id)).toMatchObject({ platform: "7Sage" });
+  await expect(createStudentProfile(profileInput)).rejects.toThrow("redirect:/dashboard");
+  expect(await studentRows()).toMatchObject([{ platform: "7Sage" }]);
 });
 
 it("onboarding stores each day's capacity and a Sunday practice-test day", async () => {
