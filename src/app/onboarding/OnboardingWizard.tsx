@@ -43,6 +43,7 @@ import { SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, checkScreenshot, extractScre
 import type { AnalyticsExtractedRow, LRType, PriorityTier } from "@/lib/types";
 import { DAY_LABEL, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { createStudentProfile } from "./actions";
+import LivePreview from "./LivePreview";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600";
 const FIELD = `h-11 w-full rounded-md border bg-white px-3 text-base text-ink-900 ${FOCUS}`;
@@ -54,6 +55,9 @@ const LINK_BUTTON = `font-medium text-ink-900 underline underline-offset-[3px] d
 const CHANGE_LATER = "You can change these any time in Study settings.";
 
 interface OnboardingWizardProps {
+  firstName: string;
+  initials: string;
+  today: string;
   goalTestDateOptions: ReturnType<typeof upcomingTestMonths>;
   onSave: typeof createStudentProfile;
   extract?: typeof extractScreenshot;
@@ -61,7 +65,14 @@ interface OnboardingWizardProps {
 
 type Dispatch = (action: WizardAction) => void;
 
-export default function OnboardingWizard({ goalTestDateOptions, onSave, extract = extractScreenshot }: OnboardingWizardProps) {
+export default function OnboardingWizard({
+  firstName,
+  initials,
+  today,
+  goalTestDateOptions,
+  onSave,
+  extract = extractScreenshot,
+}: OnboardingWizardProps) {
   const [state, dispatch] = useReducer(wizardReducer, undefined, initialWizardState);
 
   async function readScreenshot(file: File) {
@@ -115,7 +126,7 @@ export default function OnboardingWizard({ goalTestDateOptions, onSave, extract 
           )}
         </div>
       </div>
-      <div aria-hidden className="hidden bg-ink-50 lg:block" />
+      <LivePreview state={state} firstName={firstName} initials={initials} today={today} />
     </div>
   );
 }

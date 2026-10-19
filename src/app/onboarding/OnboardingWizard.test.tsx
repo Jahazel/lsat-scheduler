@@ -1,16 +1,25 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ExtractReply } from "@/lib/screenshotUpload";
 import { upcomingTestMonths } from "@/lib/studentProfile";
 import OnboardingWizard from "./OnboardingWizard";
 
-afterEach(cleanup);
+beforeEach(() => {
+  vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: vi.fn(() => "blob:screenshot"), revokeObjectURL: vi.fn() }));
+});
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 function continueButton() {
   return screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement;
 }
+
+const student = { firstName: "Dana", initials: "DR", today: "2026-10-19" };
+const preview = () => within(screen.getByRole("complementary", { name: "Preview of This week" }));
 
 const screenshot = new File(["png"], "7sage-analytics.png", { type: "image/png" });
 const rows: ExtractReply = {
@@ -23,7 +32,7 @@ const rows: ExtractReply = {
 
 async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract = vi.fn(async (): Promise<ExtractReply> => rows)) {
   const user = userEvent.setup();
-  render(<OnboardingWizard goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={onSave} extract={extract} />);
+  render(<OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={onSave} extract={extract} />);
 
   expect(screen.getByText("Step 1 of 4 · Goal")).toBeDefined();
   expect(continueButton().disabled).toBe(true);
@@ -110,7 +119,7 @@ describe("OnboardingWizard", () => {
 
   it("ties each out-of-range score box to its own message", async () => {
     const user = userEvent.setup();
-    render(<OnboardingWizard goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={vi.fn()} />);
+    render(<OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={vi.fn()} />);
 
     await user.type(screen.getByLabelText("Current PT score"), "15");
     await user.type(screen.getByLabelText("Goal score"), "19");
@@ -161,7 +170,7 @@ describe("OnboardingWizard", () => {
       finishRead(rows);
       expect(await screen.findByText("Found · 2 rows")).toBeDefined();
       expect(screen.getByRole("rowheader", { name: "Strengthen" })).toBeDefined();
-      expect(screen.getByText("68%")).toBeDefined();
+      expect(within(screen.getByRole("table")).getByText("68%")).toBeDefined();
       expect(screen.getByText("Highest priority")).toBeDefined();
       await user.click(checkTheValues());
 
@@ -461,12 +470,48 @@ describe("OnboardingWizard", () => {
       expect(toggle.getAttribute("aria-expanded")).toBe("false");
       await user.click(toggle);
       expect(toggle.getAttribute("aria-expanded")).toBe("true");
-      expect(screen.getByRole("img", { name: "Your 7Sage screenshot" }).getAttribute("src")).toBe("blob:screenshot");
+      const inline = within(toggle.parentElement!);
+      expect(inline.getByRole("img", { name: "Your 7Sage screenshot" }).getAttribute("src")).toBe("blob:screenshot");
       expect(createObjectURL).toHaveBeenCalledWith(screenshot);
       await user.click(toggle);
-      expect(screen.queryByRole("img", { name: "Your 7Sage screenshot" })).toBeNull();
+      expect(inline.queryByRole("img", { name: "Your 7Sage screenshot" })).toBeNull();
       expect(revokeObjectURL).toHaveBeenCalledWith("blob:screenshot");
       vi.unstubAllGlobals();
     });
+  });
+
+  it("mirrors each step in the This week preview", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={vi.fn()} extract={async () => rows} />);
+
+    expect(preview().getByText("Hi Dana · 7Sage · standard time")).toBeDefined();
+    await user.type(screen.getByLabelText("Current PT score"), "150");
+    await user.type(screen.getByLabelText("Goal score"), "165");
+    await user.selectOptions(screen.getByLabelText("Goal test date"), "November 2026");
+    await user.click(screen.getByLabelText("1.5× time"));
+    expect(preview().getByText("Hi Dana · 7Sage · 1.5× time")).toBeDefined();
+    expect(preview().getByText("150 → 165")).toBeDefined();
+    expect(preview().getByText("by Nov 1 · 13 days away")).toBeDefined();
+    expect(preview().getByText("13 days to test")).toBeDefined();
+    expect(preview().queryByText(/of study/)).toBeNull();
+    await user.click(continueButton());
+
+    expect(preview().getByText("10 h 30 min of study · practice-test day not chosen")).toBeDefined();
+    await user.click(screen.getByLabelText("Practice test on Saturday"));
+    await user.selectOptions(screen.getByLabelText("Saturday hours"), "4");
+    expect(preview().getByText("13 h 30 min of study · practice test on Saturday")).toBeDefined();
+    expect(preview().getByText("4 h 30")).toBeDefined();
+    expect(preview().getByText("Your drills fill in after you upload analytics.")).toBeDefined();
+    await user.click(continueButton());
+
+    await upload(user);
+    expect(await preview().findByText("Extracted · not confirmed")).toBeDefined();
+    expect(preview().getByText("Monday's drills")).toBeDefined();
+    await user.click(checkTheValues());
+
+    expect(preview().getByText("Not confirmed yet")).toBeDefined();
+    expect(preview().getByText("Your Monday from these values")).toBeDefined();
+    expect(preview().getByRole("img", { name: "Your 7Sage screenshot" }).getAttribute("src")).toBe("blob:screenshot");
+    expect(URL.createObjectURL).toHaveBeenCalledWith(screenshot);
   });
 });

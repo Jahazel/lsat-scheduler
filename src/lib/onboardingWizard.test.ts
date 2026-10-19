@@ -9,6 +9,9 @@ import {
   initialWizardState,
   practiceTestHint,
   practiceTestMinutes,
+  previewHeader,
+  previewDrills,
+  previewWeek,
   scoreMessages,
   shortDayWarning,
   toProfileInput,
@@ -17,6 +20,8 @@ import {
   type WizardAction,
   type WizardState,
 } from "./onboardingWizard";
+import { generateWeek } from "./engine";
+import { mockRules } from "./mockData";
 import type { AnalyticsExtractedRow } from "./types";
 
 function run(...actions: WizardAction[]): WizardState {
@@ -324,6 +329,139 @@ describe("onboarding wizard", () => {
     it("drops the review when the student replaces the screenshot", () => {
       const state = onReview(readRows, { type: "back" }, { type: "readStarted", file: new File(["png"], "b.png", { type: "image/png" }) });
       expect(state.screenshot.status).toBe("reading");
+    });
+  });
+
+  describe("live preview", () => {
+    const TODAY = "2026-10-19";
+
+    it("fills the header lines from Step 1 values", () => {
+      const state = run(validGoal, { type: "edit", values: { accommodationMultiplier: 1.5 } });
+
+      expect(previewHeader(state.values, "Dana", TODAY)).toEqual({
+        greeting: "Hi Dana · 7Sage · 1.5× time",
+        scores: "150 → 165",
+        target: "by Nov 1 · 13 days away",
+        countdown: "13 days to test",
+      });
+    });
+
+    it("shows dashes for empty scores and no target before a test date is chosen", () => {
+      const header = previewHeader(initialWizardState().values, "Dana", TODAY);
+
+      expect(header).toEqual({ greeting: "Hi Dana · 7Sage · standard time", scores: "— → —", target: null, countdown: null });
+    });
+
+    const designWeek: WizardAction = {
+      type: "edit",
+      values: {
+        dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 120, THURSDAY: 90, FRIDAY: 60, SATURDAY: 210, SUNDAY: 120 },
+      },
+    };
+
+    it("sums the week and names the chosen practice-test day", () => {
+      const state = run(designWeek, { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } });
+      const week = previewWeek(state.values);
+
+      expect(week.summary).toBe("13 h of study · practice test on Saturday");
+      expect(week.days.map(({ label, time, practiceTest }) => [label, time, practiceTest])).toEqual([
+        ["Mon", "1 h 30", false],
+        ["Tue", "1 h 30", false],
+        ["Wed", "2 h", false],
+        ["Thu", "1 h 30", false],
+        ["Fri", "1 h", false],
+        ["Sat", "3 h 30", true],
+        ["Sun", "2 h", false],
+      ]);
+    });
+
+    it("says so when no practice-test day is chosen", () => {
+      expect(previewWeek(run(designWeek).values).summary).toBe("13 h of study · practice-test day not chosen");
+    });
+
+    it("sizes each day's bar against the longest day", () => {
+      const days = previewWeek(run(designWeek).values).days;
+
+      expect(days.find(({ label }) => label === "Sat")?.barShare).toBe(1);
+      expect(days.find(({ label }) => label === "Fri")?.barShare).toBeCloseTo(60 / 210);
+    });
+
+    const rows: AnalyticsExtractedRow[] = [
+      { type: "Diagram", category: "regular", accuracy: 64 },
+      { type: "Necessary assumption", category: "regular", accuracy: 71 },
+      { type: "Phenomenon-hypothesis (LR)", category: "restricted", isTopPriority: true, priorityTier: "highest" },
+    ];
+
+    function read(...actions: WizardAction[]): WizardState {
+      return run(
+        validGoal,
+        { type: "continue" },
+        { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
+        { type: "continue" },
+        { type: "readStarted", file: new File(["png"], "7sage-analytics.png", { type: "image/png" }) },
+        { type: "readEnded", attempt: 1, reply: { kind: "rows", rows }, at: READ_AT },
+        ...actions,
+      );
+    }
+
+    it("has no drills until a screenshot is read", () => {
+      expect(previewDrills(run(validGoal), TODAY)).toBeNull();
+    });
+
+    it("shows the engine's first drilling day for the unconfirmed values", () => {
+      const drills = previewDrills(read(), TODAY);
+      const week = generateWeek(
+        {
+          platform: "7Sage",
+          currentScore: 150,
+          goalScore: 165,
+          goalTestDate: "2026-11-01",
+          accommodationMultiplier: 1,
+          dailyCapacityMinutes: initialWizardState().values.dailyCapacityMinutes,
+          preferredPracticeTestDay: "SATURDAY",
+        },
+        {
+          weekOf: "2026-10-19",
+          lrAccuracyByType: { Diagram: 0.64, "Necessary assumption": 0.71 },
+          lrTopPriorityLogicTypes: ["Phenomenon-hypothesis (LR)"],
+        },
+        mockRules,
+        "",
+        { createdOn: "MONDAY" },
+      );
+
+      expect(drills?.day).toBe("MONDAY");
+      expect(drills?.items.map(({ activity }) => activity)).toEqual(week.days.MONDAY.activities);
+      expect(drills?.items.map(({ minutes, label, detail }) => [minutes, label, detail])).toEqual([
+        ["1 h", "25 Conditional reasoning (L3-5)", null],
+        ["15 min", "Necessary assumption", { kind: "accuracy", text: "71%" }],
+        ["15 min", "Flaw or descriptive weakening", null],
+      ]);
+    });
+
+    it("starts from today, as This week does", () => {
+      const drills = previewDrills(read(), "2026-10-22");
+
+      expect(drills?.day).toBe("THURSDAY");
+    });
+
+    it("follows edits on Review", () => {
+      const edited = read({ type: "continue" }, { type: "editAccuracy", rowType: "Necessary assumption", text: "20" });
+
+      expect(previewDrills(edited, TODAY)?.items[1]).toMatchObject({
+        label: "Necessary assumption",
+        detail: { kind: "accuracy", text: "20%" },
+      });
+    });
+
+    it("marks a ticked priority flag on its drill", () => {
+      const longMonday: WizardAction = {
+        type: "edit",
+        values: { dailyCapacityMinutes: { ...initialWizardState().values.dailyCapacityMinutes, MONDAY: 480 } },
+      };
+      const flagged = previewDrills(read(longMonday), TODAY)?.items.find(({ label }) => label === "Phenomenon-hypothesis (LR)");
+
+      expect(flagged?.detail).toEqual({ kind: "flag" });
     });
   });
 });
