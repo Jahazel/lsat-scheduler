@@ -25,7 +25,7 @@ Run `node --import tsx scripts/check-backups.mts`. Exit code 0 means that the se
 
 No `.env` file is loaded. Do not put these secrets in local files, repository secrets, app settings, previews, command arguments, or logs. GitHub environment secrets are settings confined to one named job environment. Use separate keys and monitors for `backup-checker-copy` and `backup-checker-production`. The production monitoring key belongs only to the latter environment's secret settings.
 
-The checker uses `source_branch_id`, not the human-readable backup name. Freshness uses `timestamp`, the point in time captured by the backup. A newly created backup of old data cannot hide an old recovery point. Neon's snapshot list omits `timestamp` and `lsn` from every backup observed on October 19, 2026: scheduled, console, and an API backup of an earlier point. A scheduled backup captures the branch at its creation, so the checker ages it from `created_at`. A manual backup without `timestamp` can hold an earlier point, so it never proves freshness. A backup with `lsn` but no `timestamp` fails the check. Retention ages a manual backup without `timestamp` from `created_at`, so its real age can exceed the report by up to the restore window. Missing branch IDs, creation times, or manual/scheduled flags fail the check. Invalid and future dates fail the check. A provider response that omits these fields needs investigation, not a fallback to guessed values.
+The checker uses `source_branch_id`, not the human-readable backup name. Freshness uses `timestamp`, the point in time captured by the backup. A newly created backup of old data cannot hide an old recovery point. Neon's snapshot list omits `timestamp` and `lsn` from every backup observed on October 19, 2026: scheduled, console, and an API backup of an earlier point. A scheduled backup captures the branch at its creation, so the checker ages it from `created_at`. A manual backup without `timestamp` can hold an earlier point, so it never proves freshness. A backup with `lsn` but no `timestamp` fails the check. Neon only accepts an earlier point inside the project's restore history window. When the list holds a manual backup without `timestamp`, the checker reads `history_retention_seconds` from `GET /projects/{project_id}`. Retention then ages that backup from `created_at` minus the current window. A window shortened after the backup was made can still undercount its age. Missing branch IDs, creation times, or manual/scheduled flags fail the check. Invalid and future dates fail the check. A provider response that omits these fields needs investigation, not a fallback to guessed values.
 
 The command examines every returned project snapshot for retention. This includes manual snapshots, other branches, and the retained latest scheduled snapshot. It reports ages strictly over 30 days. Exactly 30 days is allowed. Retention uses the older of the captured and creation times. Each overdue row contains its age, its manual/scheduled kind, and a SHA-256 fingerprint of its ID. A fingerprint is a one-way identifier. Compute the first 12 hexadecimal characters of SHA-256 over the console's snapshot ID to match a row. Names, raw IDs, provider responses, exception text, keys, and connection strings never enter the report.
 
@@ -35,7 +35,7 @@ Neon's published snapshot endpoint currently returns one `snapshots` array witho
 | --- | --- |
 | `fresh` | Freshness and retention passed. Both monitors accepted their results. |
 | `stale` | The newest matching backup captures data older than 24 hours. Check the Neon schedule and its failed operations. |
-| `no-snapshots` | No backup matches the selected active branch. Confirm the IDs and the backup schedule. |
+| `no-snapshots` | No scheduled backup, and no backup with a known captured time, matches the selected active branch. A manual backup without `timestamp` does not count. Confirm the IDs and the backup schedule. |
 | `retention-overdue` | Freshness passed, but a project backup exceeds 30 days. The retention monitor alerts. Follow owner cleanup below. |
 | `checker-failed` | Provider access, data, clock, pagination, or request failed. Check access and provider status privately. |
 | `configuration-failed` | Required settings are missing or invalid. A valid monitor URL still receives a failure signal. |
@@ -98,7 +98,7 @@ Run `npx vitest run scripts/backupChecker.test.ts scripts/check-backups.test.ts`
 
 Provider references checked October 17, 2026:
 
-- [Neon API schema](https://neon.com/api_spec/release/v2.json), `GET /projects/{project_id}/snapshots` and `Snapshot`.
+- [Neon API schema](https://neon.com/api_spec/release/v2.json), `GET /projects/{project_id}/snapshots`, `GET /projects/{project_id}`, `Snapshot`, and `Project.history_retention_seconds`.
 - [Neon API key scope](https://neon.com/docs/manage/api-keys) and [current and legacy permissions](https://neon.com/docs/manage/user-permissions).
 - [Neon backups](https://neon.com/docs/guides/backup-restore) and the approved [Neon monitoring decisions](issue-69-assessment.md#neon-access-and-monitoring-decisions).
 - [GitHub schedule limitations](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).

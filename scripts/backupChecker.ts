@@ -19,6 +19,7 @@ const pageSchema = z.object({
   snapshots: z.array(snapshotSchema),
   pagination: z.object({ cursor: z.string().min(1).nullable().optional() }).strict().optional(),
 }).strict();
+const projectSchema = z.object({ project: z.object({ history_retention_seconds: z.number().int().nonnegative() }) });
 
 type ExpiredBackup = { fingerprint: string; ageDays: number; kind: "manual" | "scheduled" };
 type BackupReport =
@@ -32,22 +33,22 @@ type Options = {
   now?: () => Date;
 };
 
-function assessBackups({ snapshots, branchId, checkedAt }: {
+function assessBackups({ snapshots, branchId, checkedAt, historyMs }: {
   snapshots: z.infer<typeof snapshotSchema>[];
   branchId: string;
   checkedAt: number;
+  historyMs: number;
 }): BackupReport {
   if (!Number.isFinite(checkedAt)) throw new Error("Invalid clock");
   const expired: ExpiredBackup[] = [];
   const matchingAges: number[] = [];
   for (const snapshot of snapshots) {
-    const capturedAt = Date.parse(snapshot.timestamp ?? snapshot.created_at);
     const createdAt = Date.parse(snapshot.created_at);
-    if (capturedAt > checkedAt || createdAt > checkedAt) throw new Error("Future snapshot");
-    const capturedAge = (checkedAt - capturedAt) / 3_600_000;
-    const knownCapture = snapshot.timestamp !== undefined || !snapshot.manual;
-    if (snapshot.source_branch_id === branchId && knownCapture) matchingAges.push(capturedAge);
-    const ageDays = (checkedAt - Math.min(capturedAt, createdAt)) / 86_400_000;
+    const capturedAt = snapshot.timestamp !== undefined ? Date.parse(snapshot.timestamp) : snapshot.manual ? null : createdAt;
+    if ((capturedAt ?? createdAt) > checkedAt || createdAt > checkedAt) throw new Error("Future snapshot");
+    if (snapshot.source_branch_id === branchId && capturedAt !== null) matchingAges.push((checkedAt - capturedAt) / 3_600_000);
+    const earliestCapture = capturedAt ?? createdAt - historyMs;
+    const ageDays = (checkedAt - Math.min(earliestCapture, createdAt)) / 86_400_000;
     if (ageDays > 30) {
       expired.push({
         fingerprint: createHash("sha256").update(snapshot.id).digest("hex").slice(0, 12),
@@ -78,10 +79,8 @@ export async function runBackupCheck({ env, fetcher = fetch, now = () => new Dat
     const seenCursors = new Set<string>();
     const seenIds = new Set<string>();
     const deadline = AbortSignal.timeout(60_000);
-    let cursor: string | null | undefined;
-    do {
-      if (seenCursors.size >= 100) throw new Error("Too many pages");
-      const url = new URL(`https://console.neon.tech/api/v2/projects/${config.BACKUP_PROJECT_ID}/snapshots`);
+    const request = async (path: string, cursor?: string | null) => {
+      const url = new URL(`https://console.neon.tech/api/v2/projects/${config.BACKUP_PROJECT_ID}${path}`);
       if (cursor) url.searchParams.set("cursor", cursor);
       const response = await fetcher(url, {
         headers: { Authorization: `Bearer ${config.NEON_API_KEY}`, Accept: "application/json" },
@@ -89,7 +88,12 @@ export async function runBackupCheck({ env, fetcher = fetch, now = () => new Dat
         signal: AbortSignal.any([deadline, AbortSignal.timeout(10_000)]),
       });
       if (!response.ok) throw new Error("Provider failed");
-      const page = pageSchema.parse(await response.json());
+      return response.json();
+    };
+    let cursor: string | null | undefined;
+    do {
+      if (seenCursors.size >= 100) throw new Error("Too many pages");
+      const page = pageSchema.parse(await request("/snapshots", cursor));
       for (const snapshot of page.snapshots) {
         if (seenIds.has(snapshot.id)) throw new Error("Repeated snapshot");
         seenIds.add(snapshot.id);
@@ -101,7 +105,10 @@ export async function runBackupCheck({ env, fetcher = fetch, now = () => new Dat
         seenCursors.add(cursor);
       }
     } while (cursor);
-    outcome = assessBackups({ snapshots, branchId: config.BACKUP_BRANCH_ID, checkedAt: now().getTime() });
+    const historyMs = snapshots.some((snapshot) => snapshot.manual && snapshot.timestamp === undefined)
+      ? projectSchema.parse(await request("")).project.history_retention_seconds * 1000
+      : 0;
+    outcome = assessBackups({ snapshots, branchId: config.BACKUP_BRANCH_ID, checkedAt: now().getTime(), historyMs });
   } catch {
     outcome = { ok: false, status: configured ? "checker-failed" : "configuration-failed" };
   }

@@ -160,6 +160,7 @@ describe("backup checker entry point", () => {
   });
 
   describe("backups Neon lists without a captured point", () => {
+    const oneDayHistory = { project: { history_retention_seconds: 86_400 } };
     const listed = (created_at: string, manual = false) => ({
       id: `listed-${created_at.replace(/\D/g, "")}-${manual}`, name: "production", source_branch_id: "br-production",
       created_at, expires_at: "2026-11-01T00:00:00Z", manual,
@@ -176,8 +177,8 @@ describe("backup checker entry point", () => {
 
     it("does not count a new manual backup, which can capture an earlier point, as fresh", async () => {
       const network = receiver([
-        { snapshots: [listed("2026-10-17T11:59:00Z", true), listed("2026-10-16T06:00:00Z")] },
-        { snapshots: [listed("2026-10-17T11:59:00Z", true)] },
+        { snapshots: [listed("2026-10-17T11:59:00Z", true), listed("2026-10-16T06:00:00Z")] }, oneDayHistory,
+        { snapshots: [listed("2026-10-17T11:59:00Z", true)] }, oneDayHistory,
       ]);
       expect(await runBackupCheck({ env, now: () => now, fetcher: network.fetcher }))
         .toMatchObject({ ok: false, status: "stale", newestAgeHours: 30 });
@@ -186,12 +187,19 @@ describe("backup checker entry point", () => {
     });
 
     it.each([
-      ["2026-09-17T12:00:00Z", 0],
-      ["2026-09-17T11:59:59Z", 1],
-    ])("reports a manual backup created at %s by its creation age for retention", async (createdAt, overdue) => {
-      const network = receiver([{ snapshots: [listed("2026-10-17T00:00:00Z"), listed(createdAt, true)] }]);
+      ["2026-09-18T12:00:00Z", 0],
+      ["2026-09-18T11:59:59Z", 1],
+    ])("ages a manual backup created at %s from the earliest point the history window allows", async (createdAt, overdue) => {
+      const network = receiver([{ snapshots: [listed("2026-10-17T00:00:00Z"), listed(createdAt, true)] }, oneDayHistory]);
       const result = await runBackupCheck({ env, now: () => now, fetcher: network.fetcher });
       expect(result).toMatchObject({ expired: overdue ? [{ kind: "manual" }] : [] });
+      expect(network.requests[1].url.pathname).toBe("/api/v2/projects/production-project");
+    });
+
+    it.each([{ project: {} }, { project: { history_retention_seconds: -1 } }])("fails when the history window is unreadable %j", async (project) => {
+      const network = receiver([{ snapshots: [listed("2026-10-17T00:00:00Z"), listed("2026-10-17T00:00:00Z", true)] }, project]);
+      expect(await runBackupCheck({ env, now: () => now, fetcher: network.fetcher }))
+        .toEqual({ ok: false, status: "checker-failed" });
     });
   });
 
