@@ -12,7 +12,8 @@ import {
   toggleTopPriority,
   type SnapshotReview,
 } from "@/lib/analyticsReview";
-import { checkScreenshot, SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES } from "@/lib/screenshotUpload";
+import { checkScreenshot, extractScreenshot, SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES } from "@/lib/screenshotUpload";
+import SignInExpired from "./SignInExpired";
 
 const SCREENSHOT_ACCEPT = SCREENSHOT_MEDIA_TYPES.join(",");
 
@@ -36,11 +37,14 @@ export default function AnalyticsReview({
   const [typeToAdd, setTypeToAdd] = useState("");
   const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [signedOut, setSignedOut] = useState(false);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setError(null);
+    setSignedOut(false);
     const rejection = checkScreenshot(file);
     if (rejection) {
       setError(rejection.message);
@@ -48,26 +52,23 @@ export default function AnalyticsReview({
     }
 
     setExtracting(true);
-    setError(null);
+    const reply = await extractScreenshot(file);
+    setExtracting(false);
 
-    try {
-      const formData = new FormData();
-      formData.append("image", file);
-      const res = await fetch("/api/analytics/extract", {
-        method: "POST",
-        body: formData,
-      });
-      if (res.status === 413 || res.status === 415) {
-        setError((await res.json()).error);
-        return;
-      }
-      if (!res.ok) throw new Error();
-      const { rows: extracted } = await res.json();
-      onReviewChange(startReview(extracted, { source: "7sage_screenshot", extractedAt: new Date().toISOString() }));
-    } catch {
-      setError("Couldn't read that screenshot. Try again or a clearer image.");
-    } finally {
-      setExtracting(false);
+    switch (reply.kind) {
+      case "rows":
+        onReviewChange(startReview(reply.rows, { source: "7sage_screenshot", extractedAt: new Date().toISOString() }));
+        break;
+      case "rejected":
+        setError(reply.message);
+        break;
+      case "signed-out":
+        setSignedOut(true);
+        break;
+      case "cannot-read":
+      case "connection-lost":
+        setError("Couldn't read that screenshot. Try again or a clearer image.");
+        break;
     }
   }
 
@@ -91,6 +92,7 @@ export default function AnalyticsReview({
           </label>
           {extracting && <p className="mt-3 text-sm text-ink-700">Reading your screenshot…</p>}
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+          {signedOut && <div className="mt-3"><SignInExpired /></div>}
         </div>
       );
     }
@@ -102,6 +104,7 @@ export default function AnalyticsReview({
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-500">Reading screenshot…</p>
         )}
         {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {signedOut && <div className="mt-2"><SignInExpired /></div>}
       </div>
     );
   }

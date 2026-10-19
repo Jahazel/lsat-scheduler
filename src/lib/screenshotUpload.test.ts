@@ -32,6 +32,12 @@ describe("extractScreenshot", () => {
     expect(await extractScreenshot(file)).toEqual({ kind: "cannot-read" });
   });
 
+  it("treats a 401 reply as a signed-out student", async () => {
+    replyWith(401, { error: "Not signed in" });
+
+    expect(await extractScreenshot(file)).toEqual({ kind: "signed-out" });
+  });
+
   it("treats a network failure or another server error as a lost connection", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
     expect(await extractScreenshot(file)).toEqual({ kind: "connection-lost" });

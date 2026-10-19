@@ -44,7 +44,7 @@ export interface WizardValues {
 
 export type Screenshot =
   | { status: "none" }
-  | { status: "reading" | "connection-lost" | "cannot-read" | "no-rows"; file: File }
+  | { status: "reading" | "connection-lost" | "cannot-read" | "signed-out" | "no-rows"; file: File }
   | {
       status: "read";
       file: File;
@@ -399,6 +399,7 @@ function readEnded(state: WizardState, attempt: number, reply: ExtractReply, at:
       return { ...state, screenshot: { status: "none" }, screenshotRejection: reply.message };
     case "connection-lost":
     case "cannot-read":
+    case "signed-out":
       return { ...state, screenshot: { status: reply.kind, file } };
     default: {
       const _exhaustive: never = reply;
