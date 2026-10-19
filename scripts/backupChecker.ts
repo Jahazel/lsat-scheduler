@@ -10,10 +10,11 @@ const configSchema = z.object({
 const snapshotSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]{1,60}$/),
   source_branch_id: z.string().regex(/^br-[a-z0-9-]{1,57}$/),
-  timestamp: z.iso.datetime({ offset: true }),
+  timestamp: z.iso.datetime({ offset: true }).optional(),
+  lsn: z.string().optional(),
   created_at: z.iso.datetime({ offset: true }),
   manual: z.boolean(),
-});
+}).refine((snapshot) => snapshot.timestamp !== undefined || snapshot.lsn === undefined);
 const pageSchema = z.object({
   snapshots: z.array(snapshotSchema),
   pagination: z.object({ cursor: z.string().min(1).nullable().optional() }).strict().optional(),
@@ -40,7 +41,7 @@ function assessBackups({ snapshots, branchId, checkedAt }: {
   const expired: ExpiredBackup[] = [];
   const matchingAges: number[] = [];
   for (const snapshot of snapshots) {
-    const capturedAt = Date.parse(snapshot.timestamp);
+    const capturedAt = Date.parse(snapshot.timestamp ?? snapshot.created_at);
     const createdAt = Date.parse(snapshot.created_at);
     if (capturedAt > checkedAt || createdAt > checkedAt) throw new Error("Future snapshot");
     const capturedAge = (checkedAt - capturedAt) / 3_600_000;

@@ -144,7 +144,7 @@ describe("backup checker entry point", () => {
     { snapshots: [snapshot("2026-10-17T12:00:01Z")] },
     { snapshots: [snapshot("2026-02-30T00:00:00Z")] },
     { snapshots: [snapshot("not-a-date")] },
-    { snapshots: [{ ...snapshot(), timestamp: undefined }] },
+    { snapshots: [{ ...snapshot(), timestamp: undefined, lsn: "0/3000000" }] },
     { snapshots: [{ ...snapshot(), source_branch_id: undefined }] },
     { snapshots: [{ ...snapshot(), created_at: "tomorrow" }] },
     { snapshots: [{ ...snapshot(), created_at: "2026-10-18T00:00:00Z" }] },
@@ -157,6 +157,18 @@ describe("backup checker entry point", () => {
     expect(await runBackupCheck({ env, now: () => now, fetcher: network.fetcher }))
       .toEqual({ ok: false, status: "checker-failed" });
     expect(network.requests.at(-1)?.url.pathname.endsWith("/fail")).toBe(true);
+  });
+
+  it("ages a backup without a captured point from its creation time, as Neon lists current-state backups", async () => {
+    const listed = (created_at: string) => ({
+      id: "current-state", name: "production", source_branch_id: "br-production",
+      created_at, expires_at: "2026-11-01T00:00:00Z", manual: false, full_size: 1,
+    });
+    const network = receiver([{ snapshots: [listed("2026-10-17T00:00:17Z")] }, { snapshots: [listed("2026-10-16T11:59:59Z")] }]);
+    expect(await runBackupCheck({ env, now: () => now, fetcher: network.fetcher }))
+      .toMatchObject({ ok: true, status: "fresh", newestAgeHours: 12 - 17 / 3600 });
+    expect(await runBackupCheck({ env, now: () => now, fetcher: network.fetcher }))
+      .toMatchObject({ ok: false, status: "stale" });
   });
 
   it("fails a repeated pagination cursor instead of reporting partial success", async () => {
