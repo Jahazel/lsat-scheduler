@@ -7,7 +7,6 @@ import StudentIntakeForm from "./StudentIntakeForm";
 function settingsMarkup(initialValues = mockStudent, today = "2026-10-18") {
   return renderToStaticMarkup(
     <StudentIntakeForm
-      mode="edit"
       initialValues={initialValues}
       goalTestDateOptions={upcomingTestMonths(today)}
       submitLabel="Save changes"
@@ -23,15 +22,8 @@ describe("StudentIntakeForm", () => {
     );
   });
 
-  it.each(["create", "edit"] as const)("has no platform field in %s mode", (mode) => {
-    const markup = renderToStaticMarkup(
-      <StudentIntakeForm
-        mode={mode}
-        goalTestDateOptions={upcomingTestMonths("2026-10-18")}
-        submitLabel="Save"
-        onSubmit={async () => {}}
-      />
-    );
+  it("has no platform field", () => {
+    const markup = settingsMarkup();
 
     expect(markup).not.toContain("Platform");
     expect(markup).not.toContain("LSAT Demon");

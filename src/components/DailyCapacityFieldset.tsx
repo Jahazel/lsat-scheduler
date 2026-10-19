@@ -3,49 +3,39 @@
 import { useId, useState } from "react";
 import { DAY_ORDER } from "@/lib/engine";
 import { formatDuration } from "@/lib/formatDuration";
-import { dailyCapacityError, minuteOptionsForHour } from "@/lib/studentProfile";
+import { DAY_LABEL, dailyCapacityError, everyDay, minuteOptionsForHour } from "@/lib/studentProfile";
 import type { DayOfWeek } from "@/lib/types";
-
-export const DAY_LABEL: Record<DayOfWeek, string> = {
-  MONDAY: "Monday",
-  TUESDAY: "Tuesday",
-  WEDNESDAY: "Wednesday",
-  THURSDAY: "Thursday",
-  FRIDAY: "Friday",
-  SATURDAY: "Saturday",
-  SUNDAY: "Sunday",
-};
 
 const HOURS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
 const fieldClass = "rounded-md border border-ink-200 bg-white px-2 py-2 text-sm text-ink-900";
 const invalidFieldClass = "rounded-md border border-red-500 bg-white px-2 py-2 text-sm text-ink-900";
 
-export function everyDay(minutes: number): Record<DayOfWeek, number> {
-  return Object.fromEntries(DAY_ORDER.map((day) => [day, minutes])) as Record<DayOfWeek, number>;
-}
-
 // A daily capacity as an hours select plus a minutes select on the
 // 15-minute step. The minute options are limited to whatever is valid for
 // the selected hour, so the student can never land on a value the daily
 // capacity range then rejects (0 h 00/15 min, or 8 h 15/30/45 min).
-function DurationSelect({
+export function DurationSelect({
   value,
   onChange,
   label,
   errorId,
+  className = "flex items-center gap-1.5",
+  selectClassName,
 }: {
   value: number;
   onChange: (minutes: number) => void;
   label: string;
   errorId?: string;
+  className?: string;
+  selectClassName?: string;
 }) {
   const hours = Math.floor(value / 60);
   const minutes = value % 60;
   const minuteOptions = minuteOptionsForHour(hours);
-  const className = errorId ? invalidFieldClass : fieldClass;
+  const fieldClassName = selectClassName ?? (errorId ? invalidFieldClass : fieldClass);
   return (
-    <span className="flex items-center gap-1.5">
+    <span className={className}>
       <select
         aria-label={`${label} hours`}
         aria-invalid={errorId ? true : undefined}
@@ -61,7 +51,7 @@ function DurationSelect({
               );
           onChange(newHours * 60 + clampedMinutes);
         }}
-        className={className}
+        className={fieldClassName}
       >
         {HOURS.map((h) => (
           <option key={h} value={h}>
@@ -75,7 +65,7 @@ function DurationSelect({
         aria-describedby={errorId}
         value={minutes}
         onChange={(e) => onChange(hours * 60 + Number(e.target.value))}
-        className={className}
+        className={fieldClassName}
       >
         {minuteOptions.map((m) => (
           <option key={m} value={m}>
