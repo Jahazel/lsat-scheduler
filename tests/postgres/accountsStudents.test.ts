@@ -417,6 +417,37 @@ describe.each([
     await expect(save(input)).rejects.toBeInstanceOf(z.ZodError);
     expect(await studentRows()).toEqual(before);
   });
+
+  it.each([165, 160])("rejects goal score %i at or below a current score of 165 without changing stored data", async (goalScore) => {
+    const before = await studentRows();
+    await expect(save({ ...profileInput, currentScore: 165, goalScore })).rejects.toThrow(
+      "Your goal must be higher than your current score, 165."
+    );
+    expect(await studentRows()).toEqual(before);
+  });
+
+  it("rejects a goal test date that has passed without changing stored data", async () => {
+    const before = await studentRows();
+    await expect(save({ ...profileInput, goalTestDate: "2026-10-01" })).rejects.toThrow("Choose an upcoming LSAT test month.");
+    expect(await studentRows()).toEqual(before);
+  });
+
+  it("rejects a platform other than 7Sage without changing stored data", async () => {
+    const before = await studentRows();
+    const input = { ...profileInput };
+    Reflect.set(input, "platform", "LSAT Demon");
+    await expect(save(input)).rejects.toBeInstanceOf(z.ZodError);
+    expect(await studentRows()).toEqual(before);
+  });
+});
+
+it("onboarding saves 7Sage for a profile sent without a platform", async () => {
+  const owner = await account("no-platform@example.test");
+  session(owner);
+  const { platform, ...withoutPlatform } = profileInput;
+  void platform;
+  await expect(createStudentProfile(withoutPlatform)).rejects.toThrow("redirect:/dashboard");
+  expect(await findStudentByAccountId(owner.id)).toMatchObject({ platform: "7Sage" });
 });
 
 it("onboarding stores each day's capacity and a Sunday practice-test day", async () => {

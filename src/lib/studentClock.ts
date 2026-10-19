@@ -3,6 +3,7 @@ import { findAccountById, isAccountId } from "./accountRepository";
 import { getPostgresDatabase } from "./postgres";
 import { accounts } from "./postgresSchema";
 import {
+  dateInScheduleTimezone,
   resolveStudentClock,
   resolveStudentTime,
   type AdminClockRepository,
@@ -37,4 +38,8 @@ export function studentSideClock(
   real = new Date(),
 ) {
   return resolveStudentClock(user, real, postgresAdminClock);
+}
+
+export async function studentSideToday(user: { id?: string; role?: string }) {
+  return dateInScheduleTimezone(await studentSideNow(user));
 }

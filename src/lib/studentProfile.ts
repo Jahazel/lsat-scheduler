@@ -27,6 +27,23 @@ export function minuteOptionsForHour(hour: number): number[] {
   });
 }
 
+export function goalScoreError(currentScore: number, goalScore: number): string | null {
+  return goalScore > currentScore ? null : `Your goal must be higher than your current score, ${currentScore}.`;
+}
+
+const LSAT_TEST_MONTHS = ["2026-10-01", "2026-11-01", "2027-01-01", "2027-02-01", "2027-04-01", "2027-06-01"];
+
+const testMonthLabel = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+
+// `today` is the student-side date (YYYY-MM-DD), so an admin's simulated date
+// changes the list.
+export function upcomingTestMonths(today: string) {
+  return LSAT_TEST_MONTHS.filter((month) => month > today).map((value) => ({
+    value,
+    label: testMonthLabel.format(new Date(`${value}T00:00:00Z`)),
+  }));
+}
+
 const dayOfWeekSchema = z.enum(DAY_ORDER as [DayOfWeek, ...DayOfWeek[]]);
 
 const dailyCapacitySchema = z
@@ -37,7 +54,7 @@ const dailyCapacitySchema = z
   .multipleOf(DAILY_CAPACITY_STEP_MINUTES);
 
 export const studentProfileSchema = z.object({
-  platform: z.enum(["7Sage", "LSAT Demon"]),
+  platform: z.literal("7Sage").default("7Sage"),
   currentScore: z.number().int().min(120).max(180),
   goalScore: z.number().int().min(120).max(180),
   dailyCapacityMinutes: z.object(
@@ -49,4 +66,22 @@ export const studentProfileSchema = z.object({
   preferredPracticeTestDay: dayOfWeekSchema,
   accommodationMultiplier: z.union([z.literal(1), z.literal(1.5), z.literal(2)]),
   goalTestDate: z.string().min(1),
+}).superRefine((profile, context) => {
+  const message = goalScoreError(profile.currentScore, profile.goalScore);
+  if (message) context.addIssue({ code: "custom", path: ["goalScore"], message });
 });
+
+// The server-side parse: the goal test date must also be one the form offers
+// today, so a form left open past a test month cannot save it.
+export function parseStudentProfile(input: unknown, today: string) {
+  return studentProfileSchema
+    .refine((profile) => upcomingTestMonths(today).some((month) => month.value === profile.goalTestDate), {
+      path: ["goalTestDate"],
+      message: "Choose an upcoming LSAT test month.",
+    })
+    .parse(input);
+}
+
+// What the onboarding form and Study settings send: every profile field but
+// the platform, which the schema fills in.
+export type StudentProfileInput = Omit<z.input<typeof studentProfileSchema>, "platform">;
