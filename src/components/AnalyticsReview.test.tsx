@@ -38,6 +38,7 @@ describe("screenshot limits", () => {
 
   it.each([
     ["a wrong file type", new File(["%PDF-1.7"], "study-notes.pdf", { type: "application/pdf" }), "study-notes.pdf is a PDF. Choose a PNG, JPG, or WEBP screenshot."],
+    ["a PDF named like a PNG", new File(["%PDF-1.7"], "scan.png", { type: "application/pdf" }), "scan.png is not a PNG, JPG, or WEBP image. Choose a PNG, JPG, or WEBP screenshot."],
     ["a file over 4 MB", new File([new Uint8Array(13_002_342)], "analytics.png", { type: "image/png" }), "That file is 12.4 MB. Choose one that is 4 MB or less."],
   ])("names %s without uploading", async (_label, file, message) => {
     const fetchSpy = renderGuidedUpload();

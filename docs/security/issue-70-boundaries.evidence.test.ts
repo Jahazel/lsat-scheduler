@@ -88,9 +88,9 @@ describe("issue 70 request boundary evidence", () => {
     expect(mocks.messages).not.toHaveBeenCalled();
   });
 
-  it("rejects an unsupported claimed MIME type before calling Anthropic", async () => {
-    expect((await extract(imageRequest(8, "text/plain"))).status).toBe(415);
-    expect(mocks.messages).not.toHaveBeenCalled();
+  it("ignores the claimed MIME type and sends PNG bytes as image/png", async () => {
+    expect((await extract(imageRequest(8, "text/plain"))).status).toBe(200);
+    expect(mocks.messages.mock.calls[0][0].messages[0].content[0].source.media_type).toBe("image/png");
   });
 
   it("returns a generic extraction error rather than the SDK error message", async () => {

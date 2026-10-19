@@ -169,6 +169,14 @@ describe("POST /api/analytics/extract", () => {
       expect(mocks.createMessage).not.toHaveBeenCalled();
     });
 
+    it("accepts PNG bytes whatever type the browser claims", async () => {
+      const { POST } = await import("./route");
+      const response = await POST(imageRequest(new File([png], "analytics", { type: "" })));
+
+      expect(response.status).toBe(200);
+      expect(mocks.createMessage.mock.calls[0][0].messages[0].content[0].source.media_type).toBe("image/png");
+    });
+
     it("accepts a PNG of exactly 4 MB", async () => {
       const atLimit = Buffer.concat([png, Buffer.alloc(4 * 1024 * 1024 - png.length)]);
       const { POST } = await import("./route");
