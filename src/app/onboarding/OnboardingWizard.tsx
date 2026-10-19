@@ -312,7 +312,7 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
               {warning}
             </p>
           ) : (
-            <p className="text-sm text-ink-500">{practiceTestHint(values)}</p>
+            <p className="text-sm text-ink-500">{practiceTestHint(values.accommodationMultiplier)}</p>
           )}
         </div>
       </div>

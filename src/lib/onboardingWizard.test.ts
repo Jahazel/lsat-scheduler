@@ -95,10 +95,10 @@ describe("onboarding wizard", () => {
 
   it("sizes the practice test by Test time, as the weekly schedule does", () => {
     expect([practiceTestMinutes(1), practiceTestMinutes(1.5), practiceTestMinutes(2)]).toEqual([150, 188, 225]);
-    expect(practiceTestHint(initialWizardState().values)).toBe(
+    expect(practiceTestHint(1)).toBe(
       "A full practice test takes 2 h 30 min with standard time. Pick a day with that much time.",
     );
-    expect(practiceTestHint({ ...initialWizardState().values, accommodationMultiplier: 2 })).toBe(
+    expect(practiceTestHint(2)).toBe(
       "A full practice test takes 3 h 45 min with 2× time. Pick a day with that much time.",
     );
   });

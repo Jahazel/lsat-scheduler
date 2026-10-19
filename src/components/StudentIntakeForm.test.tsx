@@ -44,4 +44,11 @@ describe("StudentIntakeForm", () => {
     expect(markup).toContain('<option value="2027-01-01">January 2027</option>');
     expect(markup).toContain('<option value="" disabled="" selected="">Select a test date</option>');
   });
+
+  it("states the practice-test length for the saved Accommodation", () => {
+    expect(settingsMarkup({ ...mockStudent, accommodationMultiplier: 1.5 })).toContain(
+      "A full practice test takes 3 h 8 min with 1.5× time. Pick a day with that much time."
+    );
+    expect(settingsMarkup()).not.toContain("about 3 hours");
+  });
 });

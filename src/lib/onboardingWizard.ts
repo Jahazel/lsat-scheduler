@@ -117,9 +117,9 @@ export function weeklyTotalMinutes(values: WizardValues): number {
   return DAY_ORDER.reduce((sum, day) => sum + values.dailyCapacityMinutes[day], 0);
 }
 
-export function practiceTestHint(values: WizardValues): string {
-  const testTime = values.accommodationMultiplier === 1 ? "standard time" : TEST_TIME_LABEL[values.accommodationMultiplier];
-  const length = formatDuration(practiceTestMinutes(values.accommodationMultiplier));
+export function practiceTestHint(accommodation: Accommodation): string {
+  const testTime = accommodation === 1 ? "standard time" : TEST_TIME_LABEL[accommodation];
+  const length = formatDuration(practiceTestMinutes(accommodation));
   return `A full practice test takes ${length} with ${testTime}. Pick a day with that much time.`;
 }
 

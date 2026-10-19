@@ -4,6 +4,7 @@ import { useForm, useStore } from "@tanstack/react-form";
 import { useState } from "react";
 import DailyCapacityFieldset from "@/components/DailyCapacityFieldset";
 import { DAY_ORDER } from "@/lib/engine";
+import { practiceTestHint } from "@/lib/onboardingWizard";
 import { DAY_LABEL, dailyCapacityError, goalScoreError, type StudentProfileInput, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { DayOfWeek } from "@/lib/types";
 
@@ -44,6 +45,7 @@ export default function StudentIntakeForm({
   });
 
   const goalError = useStore(form.store, (state) => goalScoreError(state.values.currentScore, state.values.goalScore));
+  const accommodation = useStore(form.store, (state) => state.values.accommodationMultiplier);
 
   return (
     <form
@@ -123,8 +125,7 @@ export default function StudentIntakeForm({
               ))}
             </select>
             <span id="preferred-practice-test-day-hint" className="text-sm text-ink-500">
-              We schedule your full practice test on this day. Pick a day you can give about 3 hours,
-              longer with extra time.
+              We schedule your full practice test on this day. {practiceTestHint(accommodation)}
             </span>
           </label>
         )}
