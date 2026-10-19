@@ -56,15 +56,16 @@ Each row stays unresolved until it passes on the exact candidate. A failed or un
 | Privacy page full text, terms page, and AI disclosure (F3) | Stage 6. The privacy page does not describe Google sign-in data or a privacy contact. The terms page is a placeholder. The AI disclosure placeholder wrongly says AI makes weekly plans. | Stage 6 | Not for the move; yes for launch |
 | Deletion replay after restore (F4, I2), five alerts (I3), emergency guide (I4), rotation drill (H5) | Stages 6 and 7 | Later stages | Not for the move; yes for launch |
 
-The no-backup risk acceptance ends on 2026-11-01, or earlier when daily backups run on the chosen database. Daily Neon backups started on 2026-10-19 (#144). By its own words, the acceptance ended on that day. The real site still uses Atlas, which has no backups. The owner must now record an interim backup decision or a dated renewed acceptance in the launch checklist. This file renews nothing.
+**Owner exceptions, 2026-10-19.** The owner approved two rows in the [launch checklist's accepted risks](release-gate.md#accepted-risks). The first accepts Atlas without backups until the move, or November 1, 2026 at the latest. The second lets the move go ahead without these rows: the full copy walkthrough, the copy domain-assignment proof, the copy password, the `AUTH_SECRET` comparison, `create-test-user`, the stale-backup and scheduled-run alerts, the paid screenshot test, and drag and drop. It ends at the first promotion of DrillMap, or November 30, 2026 at the latest. These rows still block launch. Rows without an exception still block the move: the candidate SHA and GitHub checks, backup freshness on the day, and the final Atlas inventory.
+
+Earlier note: the no-backup risk acceptance ends on 2026-11-01, or earlier when daily backups run on the chosen database. Daily Neon backups started on 2026-10-19 (#144). By its own words, the acceptance ended on that day. The real site still uses Atlas, which has no backups. The owner must now record an interim backup decision or a dated renewed acceptance in the launch checklist. This file renews nothing.
 
 ## Owner action order
 
 1. Merge this pull request. The copy updates. The real site does not.
 2. The agent records the candidate SHA and its GitHub checks in #145.
-3. Record an interim backup decision or a dated renewed acceptance for Atlas. Fix or except each "Yes" row above. Record any exception in the launch checklist.
-4. Run the candidate on the copy. The agent drives the student steps. The owner signs in as each Admin and checks the domain assignment after the new copy build.
-5. Approve and run the paid real-screenshot test, or record an exception.
-6. In #146: pause old writes, take the final Atlas inventory, and check backup freshness. Approve the exact commit, deployment, database, real domain, and recovery limits together.
-7. Release that version by hand, then create and check both Admins on the real site (#146).
-8. Request Atlas deletion separately (#147).
+3. Done on 2026-10-19: the owner recorded the exceptions above.
+4. Later, before the exception ends: run the copy walkthrough, the paid screenshot test, and the other excepted checks.
+5. In #146: pause old writes, take the final Atlas inventory, and check backup freshness. Approve the exact commit, deployment, database, real domain, and recovery limits together.
+6. Release that version by hand, then create and check both Admins on the real site (#146).
+7. Request Atlas deletion separately (#147).
