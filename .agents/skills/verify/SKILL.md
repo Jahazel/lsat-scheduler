@@ -93,7 +93,7 @@ For a browser proof, save a before snapshot, the actions and their locators, an 
 
 Write `result.md` with the feature, entry point, preconditions, exact actions, expected result, observed result, and artifact paths. Include failed actions and skipped paths. Exercise the real user path. Capture the action and its result. Confirm saved changes by reopening the page and reading database records. Weekly schedule documents must remain unchanged when activity check-ins or study settings change. Check relevant side effects alongside the screen. Use mocks only at an existing production service boundary. The scheduling recipe uses the production Admin sample feature and a real local database. It does not mock extraction or prove Google sign-in. If another run uses a dry-run or test mode, observe its actual network, file, and database effects before claiming it skips them.
 
-The helper also retains `app.log`, `database.log`, `instance.json`, and `cleanup.json`. Capture new browser errors from snapshot diagnostics and review `app.log`. Do not commit screenshots, test passwords, cookies, session tokens, or environment values.
+The helper also retains `app.log`, `database.log`, `instance.json`, and `cleanup.json`. Capture new browser errors from snapshot diagnostics and review `app.log`. A session cookie left from an earlier run logs `JWTSessionError` with `no matching decryption secret`. The app treats that browser as signed out, so this error is expected on the first page load. Do not commit screenshots, test passwords, cookies, session tokens, or environment values.
 
 ## Cleanup
 
