@@ -144,7 +144,7 @@ The evidence comes from issue 70 findings F11, F12, F13, and F15, and from issue
 
 ## Approved privacy page text
 
-Updated on October 19, 2026 (#145) for the move to Neon ([issue 78](issue-78-database-research.md#decision)): the database line names Neon, and the backup period is the 14 days set in #144. Until Stage 6 builds deletion replay, the live page leaves out the sentence about deleting Accounts again after a restore (rule 36).
+Updated on October 19, 2026 (#145) for the move to Neon ([issue 78](issue-78-database-research.md#decision)). The database line names Neon. The backup period is 14 days, as set in #144. Stage 6 builds deletion replay. Until then, the live page leaves out the sentence about deleting Accounts again after a restore (rule 36).
 
 > **Privacy Policy**
 > Last updated: [release date]
