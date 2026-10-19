@@ -13,13 +13,17 @@ import {
   type SnapshotReview,
   type Statement,
 } from "./analyticsReview";
+import { activityLabel } from "./activityLabel";
+import { summarizeAnalyticsRows } from "./analytics";
 import type { SnapshotApprovalMetadata } from "./analyticsSnapshots";
-import { DAY_ORDER } from "./engine";
+import { currentWeekInTimezone } from "./currentWeeklySchedule";
+import { DAY_ORDER, generateWeek } from "./engine";
 import { formatDuration } from "./formatDuration";
 import { mockRules } from "./mockData";
 import type { ExtractReply } from "./screenshotUpload";
 import { DAY_LABEL, everyDay, goalScoreError, type StudentProfileInput } from "./studentProfile";
-import type { AnalyticsExtractedRow, DayOfWeek, LRType } from "./types";
+import { testCountdown, testCountdownLabel } from "./testCountdown";
+import type { Activity, AnalyticsExtractedRow, DayOfWeek, LRType } from "./types";
 
 const STEP_NAMES = ["Goal", "Week", "Analytics", "Review"] as const;
 export type WizardStep = "goal" | "week" | "analytics" | "review";
@@ -166,6 +170,78 @@ export function practiceTestHint(accommodation: Accommodation): string {
   const testTime = accommodation === 1 ? "standard time" : TEST_TIME_LABEL[accommodation];
   const length = formatDuration(practiceTestMinutes(accommodation));
   return `A full practice test takes ${length} with ${testTime}. Pick a day with that much time.`;
+}
+
+const utcDay = (isoDate: string) => new Date(`${isoDate}T00:00:00.000Z`);
+
+export function previewHeader(values: WizardValues, firstName: string, today: string) {
+  const testTime = values.accommodationMultiplier === 1 ? "standard time" : TEST_TIME_LABEL[values.accommodationMultiplier];
+  const score = (text: string) => text.trim() || "—";
+  const greeting = `Hi ${firstName} · 7Sage · ${testTime}`;
+  const scores = `${score(values.currentScore)} → ${score(values.goalScore)}`;
+  if (!values.goalTestDate) return { greeting, scores, target: null, countdown: null };
+  const date = utcDay(values.goalTestDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const countdown = testCountdown(values.goalTestDate, utcDay(today), "UTC");
+  const days = countdown?.kind === "days" ? countdown.days : 0;
+  return {
+    greeting,
+    scores,
+    target: `by ${date} · ${days} ${days === 1 ? "day" : "days"} away`,
+    countdown: testCountdownLabel(countdown),
+  };
+}
+
+export function previewWeek(values: WizardValues) {
+  const longest = Math.max(...DAY_ORDER.map((day) => values.dailyCapacityMinutes[day]));
+  const day = values.preferredPracticeTestDay;
+  return {
+    summary: `${formatDuration(weeklyTotalMinutes(values))} of study · ${day ? `practice test on ${DAY_LABEL[day]}` : "practice-test day not chosen"}`,
+    days: DAY_ORDER.map((weekday) => {
+      const minutes = values.dailyCapacityMinutes[weekday];
+      return {
+        day: weekday,
+        label: DAY_SHORT_LABEL[weekday],
+        time: formatDuration(minutes).replace(/(h \d+) min$/, "$1"),
+        practiceTest: weekday === day,
+        barShare: minutes / longest,
+      };
+    }),
+  };
+}
+
+export type PreviewDrill = {
+  activity: Activity;
+  minutes: string;
+  label: string;
+  detail: { kind: "accuracy"; text: string } | { kind: "flag" } | null;
+};
+
+export function previewDrills(state: WizardState, today: string): { day: DayOfWeek; items: PreviewDrill[] } | null {
+  const profile = toProfileInput(state.values);
+  const { screenshot } = state;
+  if (!profile || screenshot.status !== "read") return null;
+  const rows = screenshot.review.rows.map(({ row }) => row).filter((row) => !accuracyError(row));
+  const todayIndex = (utcDay(today).getUTCDay() + 6) % 7;
+  const weekOf = currentWeekInTimezone(utcDay(today), "UTC");
+  const week = generateWeek(
+    { ...profile, platform: "7Sage" },
+    { weekOf, ...summarizeAnalyticsRows(rows) },
+    mockRules,
+    "",
+    { createdOn: DAY_ORDER[todayIndex] },
+  );
+  const day = DAY_ORDER.slice(todayIndex).find((weekday) => week.days[weekday].type === "drill" && week.days[weekday].activities.length > 0);
+  if (!day) return null;
+  const items = week.days[day].activities.map((activity): PreviewDrill => {
+    const minutes = formatDuration(Math.round(activity.kind === "LR" || activity.kind === "RC" ? activity.drillMinutes : activity.minutes));
+    if (activity.kind !== "LR" || activity.isFullSection) return { activity, minutes, label: activityLabel(activity), detail: null };
+    const row = rows.find(({ type }) => type === activity.type);
+    const detail = row?.accuracy !== undefined
+      ? { kind: "accuracy" as const, text: `${row.accuracy}%` }
+      : row?.isTopPriority ? { kind: "flag" as const } : null;
+    return { activity, minutes, label: activity.type, detail };
+  });
+  return { day, items };
 }
 
 // Warns, never blocks: a practice test may run over the day's time (ADR 0002).

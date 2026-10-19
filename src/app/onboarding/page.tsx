@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { studentSideToday } from "@/lib/studentClock";
 import { upcomingTestMonths } from "@/lib/studentProfile";
+import { initialsFor } from "@/lib/studentNav";
 import { findStudentByAccountId } from "@/lib/studentRepository";
 import OnboardingWizard from "./OnboardingWizard";
 import { createStudentProfile } from "./actions";
@@ -17,9 +18,13 @@ export default async function OnboardingPage() {
     redirect("/dashboard");
   }
 
+  const today = await studentSideToday(session.user);
   return (
     <OnboardingWizard
-      goalTestDateOptions={upcomingTestMonths(await studentSideToday(session.user))}
+      firstName={session.user.name?.trim().split(/\s+/)[0] || "there"}
+      initials={initialsFor(session.user.name, session.user.email)}
+      today={today}
+      goalTestDateOptions={upcomingTestMonths(today)}
       onSave={createStudentProfile}
     />
   );
