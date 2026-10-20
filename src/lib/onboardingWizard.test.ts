@@ -433,8 +433,7 @@ describe("onboarding wizard", () => {
       expect(drills?.items.map(({ activity }) => activity)).toEqual(week.days.MONDAY.activities);
       expect(drills?.items.map(({ minutes, label, detail }) => [minutes, label, detail])).toEqual([
         ["1 h", "1 Full LR Section", null],
-        ["15 min", "Necessary assumption", { kind: "accuracy", text: "71%" }],
-        ["15 min", "Flaw or descriptive weakening", null],
+        ["30 min", "Necessary + Sufficient assumption", { kind: "accuracy", text: "71%" }],
       ]);
     });
 
@@ -448,7 +447,7 @@ describe("onboarding wizard", () => {
       const edited = read({ type: "continue" }, { type: "editAccuracy", rowType: "Necessary assumption", text: "20" });
 
       expect(previewDrills(edited, TODAY)?.items[1]).toMatchObject({
-        label: "Necessary assumption",
+        label: "Necessary + Sufficient assumption",
         detail: { kind: "accuracy", text: "20%" },
       });
     });

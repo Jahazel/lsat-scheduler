@@ -1,5 +1,4 @@
-import { formatDuration } from "./formatDuration";
-import type { DayOfWeek, DayPlan, LRType } from "./types";
+import type { DayOfWeek, LRType } from "./types";
 
 export const dayName = (day: DayOfWeek) => day[0] + day.slice(1).toLowerCase();
 
@@ -21,30 +20,14 @@ export function isoDateInWeek(weekOf: string, dayIndex: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-export const duration = (minutes: number) => formatDuration(Math.round(minutes));
-
 export function starredNames(types: LRType[]): string {
   if (types.length === 1) return types[0];
   if (types.length === 2) return `${types[0]} and ${types[1]}`;
   return `${types.slice(0, -1).join(", ")}, and ${types.at(-1)}`;
 }
 
-export function capacityOverageSentence(day: DayOfWeek, plan: DayPlan, capacityMinutes: number): string {
-  const capacity = duration(capacityMinutes);
-  const planned = duration(plan.totalMinutes);
-  const subject = plan.type === "practice_test" ? "The practice test"
-    : plan.type === "review" ? "Practice test review"
-      : plan.activities.some((activity) => (activity.kind === "LR" || activity.kind === "RC") && activity.isFullSection)
-        ? "The full section" : "The daily minimum";
-  return `${subject} takes ${planned}, even though your ${dayName(day)} capacity is ${capacity}.`;
-}
-
-export function skipReductionSentence(skipShare: number, reduction: number): string {
-  const percent = (value: number) => {
-    const whole = Math.round(value * 100);
-    return whole === 0 && value !== 0 ? Number((value * 100).toPrecision(1)) : whole;
-  };
-  return `You skipped ${percent(skipShare)}% last week; skip reduction sets each drilling day's fill limit ${percent(reduction)}% below daily capacity.`;
+export function missedTypePrioritySentence(type: LRType): string {
+  return `${type} comes first this week. You missed it most on your last practice test.`;
 }
 
 export function starredRotationSentence(types: LRType[]): string {

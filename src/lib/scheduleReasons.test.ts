@@ -13,44 +13,8 @@ const reason = (reasons: ScheduleReason[] | undefined, code: ScheduleReason["cod
     : item.placement.scope === "day" && item.placement.day === day));
 
 describe("saved schedule reasons", () => {
-  it("records overages on minimum, full-section, practice-test, and review days", () => {
-    const minimum = week({ ...mockStudent, currentScore: 140, dailyCapacityMinutes: capacities(15) });
-    expect(reason(minimum.reasons, "capacity_overage", "MONDAY")?.sentence)
-      .toBe("The daily minimum takes 30 min, even though your Monday capacity is 15 min.");
-    const full = week({ ...mockStudent, accommodationMultiplier: 2,
-      dailyCapacityMinutes: capacities(60) });
-    expect(reason(full.reasons, "capacity_overage", "MONDAY")?.sentence).toContain("full section");
-    const test = week({ ...mockStudent, dailyCapacityMinutes: capacities(60) });
-    expect(reason(test.reasons, "capacity_overage", "SATURDAY")?.sentence).toContain("practice test takes 2 h 30 min");
-    expect(reason(test.reasons, "capacity_overage", "SUNDAY")?.sentence).toContain("Practice test review takes 2 h 30 min");
-    expect(test.reasons?.filter((item) => item.code === "capacity_overage")
-      .every((item) => item.placement.scope === "day")).toBe(true);
-  });
-
-  it("records skip reduction with the share and reduced daily capacity", () => {
-    const schedule = week(mockStudent, { skipReductionPercent: 0.075, skipShare: 0.3 });
-    expect(reason(schedule.reasons, "skip_reduction")?.sentence)
-      .toBe("You skipped 30% last week; skip reduction sets each drilling day's fill limit 8% below daily capacity.");
-    const rounded = reason(week(mockStudent, { skipReductionPercent: 0.083325, skipShare: 1 / 3 }).reasons,
-      "skip_reduction")?.sentence;
-    expect(rounded).toBe("You skipped 33% last week; skip reduction sets each drilling day's fill limit 8% below daily capacity.");
-    expect(rounded?.split(/\s+/).length).toBeLessThanOrEqual(20);
-    expect(reason(week().reasons, "skip_reduction")).toBeUndefined();
-  });
-
-  it("keeps a small skip reduction visible in its saved sentence", () => {
-    const sentence = reason(week(mockStudent, { skipReductionPercent: 0.003125, skipShare: 0.0125 }).reasons,
-      "skip_reduction")?.sentence;
-    expect(sentence).toBe("You skipped 1% last week; skip reduction sets each drilling day's fill limit 0.3% below daily capacity.");
-    expect(sentence?.split(/\s+/).length).toBeLessThanOrEqual(20);
-    const smaller = reason(week(mockStudent, { skipReductionPercent: 0.001, skipShare: 0.004 }).reasons,
-      "skip_reduction")?.sentence;
-    expect(smaller).toBe("You skipped 0.4% last week; skip reduction sets each drilling day's fill limit 0.1% below daily capacity.");
-    expect(smaller?.split(/\s+/).length).toBeLessThanOrEqual(20);
-  });
-
   it("groups the starred types sitting out into one reason", () => {
-    const schedule = week({ ...mockStudent, currentScore: 140, dailyCapacityMinutes: capacities(15) });
+    const schedule = week({ ...mockStudent, currentScore: 140, dailyCapacityMinutes: capacities(30) });
     const sittingOut = mockRules.lrStarredTypes.filter((type) =>
       !DAY_ORDER.some((day) => schedule.days[day].activities.some((activity) =>
         activity.kind === "LR" && !activity.isFullSection && activity.types.includes(type))));
@@ -67,7 +31,7 @@ describe("saved schedule reasons", () => {
   });
 
   it("does not claim a starred rotation when the only drilling day holds a full section", () => {
-    const schedule = week({ ...mockStudent, preferredPracticeTestDay: "SUNDAY",
+    const schedule = week({ ...mockStudent, preferredPracticeTestDay: "SUNDAY", accommodationMultiplier: 2,
       dailyCapacityMinutes: { ...capacities(90), SATURDAY: 60 } }, { createdOn: "SATURDAY" });
     expect(schedule.days.SATURDAY.activities.some((activity) =>
       (activity.kind === "LR" || activity.kind === "RC") && activity.isFullSection)).toBe(true);
@@ -154,7 +118,7 @@ describe("saved schedule reasons", () => {
   it("does not invent reasons for the drilling ratio or LR focus", () => {
     const allowedCodes = new Set<string>(SCHEDULE_REASON_CODES);
     const schedules = [week(), week({ ...mockStudent, goalTestDate: "2026-10-01" }),
-      week({ ...mockStudent, currentScore: 140, dailyCapacityMinutes: capacities(15) })];
+      week({ ...mockStudent, currentScore: 140, dailyCapacityMinutes: capacities(30) })];
     const codes = schedules.flatMap((schedule) => schedule.reasons?.map((item) => item.code) ?? []);
     expect(codes.length).toBeGreaterThan(0);
     expect(codes.every((code) => allowedCodes.has(code))).toBe(true);

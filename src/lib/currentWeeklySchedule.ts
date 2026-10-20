@@ -3,7 +3,6 @@ import { isoDateInWeek, unscheduledDaySentence } from "./scheduleReasonText";
 import type {
   AnalyticsSnapshot,
   Activity,
-  ActivityCheckIn,
   ApprovedAnalyticsSnapshot,
   DayOfWeek,
   PersistedWeeklySchedule,
@@ -25,7 +24,6 @@ export interface CurrentWeekRepositories {
     create(schedule: PersistedWeeklySchedule): Promise<PersistedWeeklySchedule>;
   };
   activityCheckIns: {
-    listForSchedule(scheduleId: string): Promise<ActivityCheckIn[]>;
     ensureForSchedule(schedule: PersistedWeeklySchedule): Promise<void>;
   };
 }
@@ -36,7 +34,7 @@ export type LoadOrGenerateCurrentWeekResult =
 
 // The scheduling policy version recorded on every newly created weekly
 // schedule. Saved schedules keep the version they were created with.
-export const SCHEDULING_POLICY_VERSION = "adaptive-weekly-schedule-v2";
+export const SCHEDULING_POLICY_VERSION = "adaptive-weekly-schedule-v3";
 
 interface LoadOrGenerateCurrentWeekInput extends CurrentWeekRepositories {
   studentId: string;
@@ -141,45 +139,6 @@ export function plannedActivityMinutes(activity: Activity) {
     : activity.minutes;
 }
 
-async function priorWeekProgress(
-  repositories: CurrentWeekRepositories,
-  priorSchedule: PersistedWeeklySchedule | null
-) {
-  if (!priorSchedule) {
-    return {
-      source: "unavailable" as const,
-      skippedPlannedMinutes: 0,
-      totalPlannedMinutes: 0,
-      skipShare: 0,
-      skipReductionPercent: 0,
-    };
-  }
-
-  const checkIns = repositories.activityCheckIns
-    ? await repositories.activityCheckIns.listForSchedule(priorSchedule.id)
-    : [];
-  const skippedActivityIds = new Set(
-    checkIns.filter((checkIn) => checkIn.status === "skipped").map((checkIn) => checkIn.activityId)
-  );
-  let totalPlannedMinutes = 0;
-  let skippedPlannedMinutes = 0;
-  for (const day of DAY_ORDER) {
-    priorSchedule.schedule.days[day].activities.forEach((activity, index) => {
-      const minutes = plannedActivityMinutes(activity);
-      totalPlannedMinutes += minutes;
-      if (skippedActivityIds.has(scheduleActivityId(day, index))) skippedPlannedMinutes += minutes;
-    });
-  }
-  const skipShare = totalPlannedMinutes === 0 ? 0 : skippedPlannedMinutes / totalPlannedMinutes;
-  return {
-    source: "immediately_preceding_schedule" as const,
-    skippedPlannedMinutes,
-    totalPlannedMinutes,
-    skipShare,
-    skipReductionPercent: Math.min(0.25, 0.25 * skipShare),
-  };
-}
-
 export async function loadOrGenerateCurrentWeek(
   input: LoadOrGenerateCurrentWeekInput
 ): Promise<LoadOrGenerateCurrentWeekResult> {
@@ -201,7 +160,6 @@ export async function loadOrGenerateCurrentWeek(
   const priorSchedule = await input.weeklySchedules.findByStudentAndWeek(
     input.studentId, previousWeekStartDate(weekStartDate)
   );
-  const priorWeekProgressFacts = await priorWeekProgress(input, priorSchedule);
   const history = await input.weeklySchedules.listBeforeWeek(input.studentId, weekStartDate);
   const priorSunday = priorSchedule?.schedule.days.SUNDAY;
   const priorWeekPracticeTestReviewMinutes = priorSunday?.type === "practice_test"
@@ -213,8 +171,6 @@ export async function loadOrGenerateCurrentWeek(
       createdOn: currentDay,
       priorWeekPracticeTestReviewMinutes,
       priorSchedules: history.map((record) => record.schedule),
-      skipReductionPercent: priorWeekProgressFacts.skipReductionPercent,
-      skipShare: priorWeekProgressFacts.skipShare,
     }),
     currentDay
   );
@@ -230,7 +186,6 @@ export async function loadOrGenerateCurrentWeek(
       timezone: input.timezone,
       remainingDays: DAY_ORDER.slice(DAY_ORDER.indexOf(currentDay)),
       analytics,
-      priorWeekProgress: priorWeekProgressFacts,
       priorWeekPracticeTestReviewMinutes,
       priorScheduleIds: history.map((record) => record.id),
     },

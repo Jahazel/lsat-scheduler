@@ -83,7 +83,6 @@ export const mockRules: RulesConfig = {
   ],
   rcTypes: ["Art", "Humanities", "Science", "Law", "Comparative"],
   lrUnitSizes: { small: 5, medium: 10 },
-  rcUnitSizes: { small: 1, medium: 2 },
   rcTwoPassageDifficultyCombos: [
     [2, 4],
     [3, 5],

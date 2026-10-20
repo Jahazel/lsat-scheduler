@@ -7,7 +7,7 @@ import { persistedWeeklySchedule } from "./weeklyScheduleRepository";
 
 describe("saved weekly schedule reads", () => {
   it("returns saved sentences verbatim without consulting current settings", () => {
-    const schedule = generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName);
+    const schedule = generateWeek({ ...mockStudent, currentScore: 149 }, mockAnalytics, mockRules, mockStudentName);
     if (!schedule.reasons?.length) throw new Error("Expected schedule reasons");
     schedule.reasons[0].sentence = "The sentence saved under an older policy.";
     const record = {

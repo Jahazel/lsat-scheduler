@@ -104,6 +104,8 @@ export interface AnalyticsSnapshot {
   // Restricted Stimulus Logic types flagged HIGHEST priority this week —
   // mirrors 7Sage's own priority indicator, not calculated by us.
   lrTopPriorityLogicTypes: LRLogicType[];
+  // Absent until the student uploads RC analytics; the engine then uses rules-list order.
+  rcAccuracyByType?: Partial<Record<RCType, number>>;
 }
 
 // A persisted Analytics Snapshot, as returned by the API — adds the
@@ -162,13 +164,11 @@ export interface RulesConfig {
   lrLogicTypes: LRLogicType[];
   // Stimulus Logic types drilled normally despite being "logic" types.
   lrLogicExceptions: LRLogicType[];
-  // Commonly-paired LR types — when the weakest-first rotation lands a
-  // 10-question drill on one of these, it splits 5+5 across the pair
-  // instead of drilling 10 of just the one type.
+  // The tutor's LR pairs. A paired LR drill is one 10-question line across
+  // the pair that holds the week's top-ranked type.
   lrPairedTypes: [LRType, LRType][];
   rcTypes: RCType[];
   lrUnitSizes: { small: number; medium: number };
-  rcUnitSizes: { small: number; medium: number };
   // Cycled through, in order, every time a 2-passage RC drill comes up —
   // each pair is [lower, higher] and both levels always exclude L1.
   rcTwoPassageDifficultyCombos: [number, number][];
@@ -234,7 +234,7 @@ export interface DayPlan {
 export const SCHEDULE_REASON_CODES = [
   "capacity_overage", "skip_reduction", "starred_rotation", "full_section_dropped",
   "rest_day_moved", "no_practice_test", "near_test_week", "unscheduled_day",
-  "review_carried_over", "practice_test_review_day_next_week",
+  "review_carried_over", "practice_test_review_day_next_week", "missed_type_priority",
 ] as const;
 
 export type ScheduleReasonCode = (typeof SCHEDULE_REASON_CODES)[number];
@@ -292,7 +292,8 @@ export interface PersistedWeeklySchedule {
     timezone: string;
     remainingDays: DayOfWeek[];
     analytics: AnalyticsSnapshot;
-    priorWeekProgress: PriorWeekProgressFacts;
+    // Saved v1 and v2 schedules only: v3 has no skip reduction.
+    priorWeekProgress?: PriorWeekProgressFacts;
     priorWeekPracticeTestReviewMinutes?: number;
     priorScheduleIds?: string[];
   };
