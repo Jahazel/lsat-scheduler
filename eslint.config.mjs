@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Paper design exports: reference markup for building screens, not app code.
+    "docs/design/**",
   ]),
 ]);
 
