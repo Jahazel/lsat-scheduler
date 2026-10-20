@@ -4,7 +4,27 @@ import type { CurrentWeekRepositories } from "./currentWeeklySchedule";
 import { postgresActivityCheckIns } from "./activityCheckInRepository";
 import { getPostgresDatabase } from "./postgres";
 import { weeklySchedules } from "./postgresSchema";
-import type { PersistedWeeklySchedule } from "./types";
+import type { SavedActivity, SavedWeeklySchedule } from "./postgresSchema";
+import type { Activity, DayOfWeek, DayPlan, PersistedWeeklySchedule, WeeklySchedule } from "./types";
+
+function currentActivity(activity: SavedActivity): Activity {
+  if (!("type" in activity)) return activity;
+  const { kind, drillMinutes, reviewMinutes } = activity;
+  if (activity.isFullSection) return { kind, isFullSection: true, drillMinutes, reviewMinutes };
+  if (activity.kind === "LR") {
+    return { kind: "LR", isFullSection: false, types: [activity.type], questionCount: activity.questionCount,
+      difficultyRange: activity.difficultyRange, drillMinutes, reviewMinutes };
+  }
+  if (activity.passageCount !== 1) throw new Error(`A saved RC drill holds ${activity.passageCount} passages`);
+  return { kind: "RC", isFullSection: false,
+    passages: [{ type: activity.type, difficultyLevel: activity.difficultyLevel }], drillMinutes, reviewMinutes };
+}
+
+function currentSchedule(schedule: SavedWeeklySchedule): WeeklySchedule {
+  const days = Object.fromEntries(Object.entries(schedule.days).map(([day, plan]) =>
+    [day, { ...plan, activities: plan.activities.map(currentActivity) }])) as Record<DayOfWeek, DayPlan>;
+  return { ...schedule, days };
+}
 
 export function persistedWeeklySchedule(record: typeof weeklySchedules.$inferSelect): PersistedWeeklySchedule {
   return {
@@ -12,7 +32,7 @@ export function persistedWeeklySchedule(record: typeof weeklySchedules.$inferSel
     studentId: record.studentId,
     weekStartDate: record.weekStartDate,
     generatedAt: record.generatedAt.toISOString(),
-    schedule: record.schedule,
+    schedule: currentSchedule(record.schedule),
     sourceSnapshotIds: record.sourceSnapshotIds,
     generationInputs: record.generationInputs,
     policyVersion: record.policyVersion,

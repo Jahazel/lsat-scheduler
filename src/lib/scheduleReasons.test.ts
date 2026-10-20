@@ -53,7 +53,7 @@ describe("saved schedule reasons", () => {
     const schedule = week({ ...mockStudent, currentScore: 140, dailyCapacityMinutes: capacities(15) });
     const sittingOut = mockRules.lrStarredTypes.filter((type) =>
       !DAY_ORDER.some((day) => schedule.days[day].activities.some((activity) =>
-        activity.kind === "LR" && !activity.isFullSection && activity.type === type)));
+        activity.kind === "LR" && !activity.isFullSection && activity.types.includes(type))));
     const rotations = schedule.reasons?.filter((item) => item.code === "starred_rotation") ?? [];
     expect(rotations).toHaveLength(1);
     expect(rotations[0].placement).toEqual({ scope: "week" });
