@@ -1,0 +1,68 @@
+# Design exports
+
+Boards exported from the Paper file "DrillMap · Design" (file `01M3Q7R5SFFG7M27V23S82A5VD`) on 2026-10-20 for spec #191.
+Each board has a `.png` (Paper `export`, default settings) and a `.jsx` (Paper `get_jsx`, no node ids).
+
+Build screens from these files, not from Paper. The `.jsx` files are reference markup with inline styles that name the
+design tokens (`var(--color-ink)`, `var(--text-small)`, …). Translate them into the app's components and Tailwind
+classes; do not paste them in as-is.
+
+When a board and a Design System board disagree, the screen board wins. Every number and name on a board is sample
+data; the rules in spec #191 decide what the app shows.
+
+## Design system (`design-system/`)
+
+| File | Paper board | Holds |
+| --- | --- | --- |
+| `tokens.css` | File tokens | Colors, type scale, weights, tracking, leading, spacing, radius, opacity, breakpoints, containers (Tailwind v4 `@theme`) |
+| `05-foundations` | Design System · 05 — Foundations II | Color roles, type ramp, spacing, grid, elevation, icons, motion |
+| `06-component-states` | Design System · 06 — Component States | Buttons, text inputs, nav bar, page header band, progress bar, component specs |
+| `07-this-week-patterns` | Design System · 07 — This week patterns | Reminder strip, day card, activity row, status icons, footer, copy rules |
+
+`onboarding/states` also shows three controls not yet on the Design System page: the segmented switch, the checkbox,
+and the drop zone's keyboard focus.
+
+## App shell (`app-shell/`)
+
+| File | Paper board |
+| --- | --- |
+| `nav-bar` | Approved · Nav bar (11a-lite) |
+| `nav-bar-tab-states` | Approved · Nav bar · Tab states (7d) |
+| `footer` | Approved · Footer (11a-lite) |
+
+## This week (`this-week/`)
+
+| File | Paper board |
+| --- | --- |
+| `12a-dashboard` | Dashboard (12a · Check-off, tutor feedback) |
+| `12a-activity-row-states` | Dashboard · Activity row states (12a) |
+| `8f-pace-states` | Dashboard · Pace states (8f) |
+| `13d-upload-reminder` | Dashboard · upload reminder, Sat–Sun (13d) |
+| `13d-upload-reminder-phone` | Phone · Dashboard · upload reminder (13d) |
+
+## Weekly upload (`weekly-upload/`)
+
+| File | Paper board |
+| --- | --- |
+| `13a-empty` | Weekly upload · empty (13a) |
+| `13a-empty-phone` | Phone · Weekly upload · empty (13a) |
+| `13b-reading-done` | Weekly upload · reading done (13b) |
+| `13b-reading-done-phone` | Phone · Weekly upload · reading done (13b) |
+| `13c-error-states` | Weekly upload · error states (13c) |
+| `13e-no-practice-test` | Weekly upload · no practice test (13e) |
+| `13f-check-the-values` | Weekly upload · check the values (13f) |
+
+## Onboarding (`onboarding/`)
+
+| File | Paper board |
+| --- | --- |
+| `step-1-goal` | Step 1 · Goal (1a.3) |
+| `step-2-week` | Step 2 · Week (2a) |
+| `step-2-week-short-pt-day` | Step 2 · Week: short PT day, no notice (2a) |
+| `step-2-week-no-pt-day` | Step 2 · Week: no practice-test day yet (2a) |
+| `step-2-week-phone` | Phone · Step 2 · Week (2a) |
+| `step-3-analytics-empty` | Step 3 · Analytics: empty (3a) |
+| `step-3-analytics-reading` | Step 3 · Analytics: reading (3b) |
+| `step-4-review` | Step 4 · Review (4d) |
+| `step-4-review-phone` | Phone · Step 4 · Review (4d) |
+| `states` | Onboarding · States |
