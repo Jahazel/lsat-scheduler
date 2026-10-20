@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { activityLabel } from "./activityLabel";
 import { generateWeek } from "./engine";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "./mockData";
+import type { SavedWeeklySchedule } from "./postgresSchema";
 import { persistedWeeklySchedule } from "./weeklyScheduleRepository";
 
 describe("saved weekly schedule reads", () => {
@@ -57,5 +59,71 @@ describe("saved weekly schedule reads", () => {
 
     expect(persistedWeeklySchedule(record).schedule).toEqual(schedule);
     expect(persistedWeeklySchedule(record).schedule.reasons).toBeUndefined();
+  });
+
+  it("reads saved v2 activities into the current activity model and labels them", () => {
+    const empty = { activities: [], totalMinutes: 0 };
+    const schedule: SavedWeeklySchedule = {
+      studentName: mockStudentName,
+      weekOf: "2026-09-14",
+      days: {
+        MONDAY: { day: "MONDAY", type: "drill", totalMinutes: 77.5, activities: [
+          { kind: "LR", type: "Conditional reasoning", questionCount: 25, difficultyRange: "L3-5",
+            drillMinutes: 60, isFullSection: true },
+          { kind: "LR", type: "Inference", questionCount: 5, difficultyRange: "L2-4", drillMinutes: 7.5,
+            isFullSection: false },
+          { kind: "RC", type: "Law", passageCount: 1, difficultyLevel: 3, drillMinutes: 10, isFullSection: false },
+        ] },
+        TUESDAY: { day: "TUESDAY", type: "drill", totalMinutes: 60, activities: [
+          { kind: "RC", type: "Art", passageCount: 4, difficultyLevel: 2, drillMinutes: 60, isFullSection: true },
+        ] },
+        WEDNESDAY: { day: "WEDNESDAY", type: "rest", ...empty },
+        THURSDAY: { day: "THURSDAY", type: "drill", ...empty },
+        FRIDAY: { day: "FRIDAY", type: "drill", ...empty },
+        SATURDAY: { day: "SATURDAY", type: "practice_test", totalMinutes: 150,
+          activities: [{ kind: "PT", label: "Practice Test (from PT 101+)", minutes: 150 }] },
+        SUNDAY: { day: "SUNDAY", type: "review", ...empty },
+      },
+      reasons: [],
+    };
+    const record = {
+      id: "schedule-1", studentId: "student-1", weekStartDate: schedule.weekOf,
+      generatedAt: new Date("2026-09-14T14:00:00.000Z"), schedule, sourceSnapshotIds: [],
+      generationInputs: {
+        student: mockStudent, timezone: "America/Chicago", remainingDays: ["MONDAY" as const],
+        analytics: mockAnalytics,
+        priorWeekProgress: { source: "unavailable" as const, skippedPlannedMinutes: 0,
+          totalPlannedMinutes: 0, skipShare: 0, skipReductionPercent: 0 },
+      },
+      policyVersion: "adaptive-weekly-schedule-v2",
+    };
+
+    const { days } = persistedWeeklySchedule(record).schedule;
+
+    expect([...days.MONDAY.activities, ...days.TUESDAY.activities, ...days.SATURDAY.activities].map(activityLabel))
+      .toEqual(["1 Full LR Section", "5 Inference (L2-4)", "1 Law passage (L3)", "1 Full RC Section",
+        "Practice Test (from PT 101+)"]);
+    expect(days.MONDAY.activities[1]).toEqual({ kind: "LR", types: ["Inference"], questionCount: 5,
+      difficultyRange: "L2-4", drillMinutes: 7.5, isFullSection: false });
+    expect(days.MONDAY.activities[2]).toEqual({ kind: "RC", passages: [{ type: "Law", difficultyLevel: 3 }],
+      drillMinutes: 10, isFullSection: false });
+    expect(days.TUESDAY.activities[0]).toEqual({ kind: "RC", drillMinutes: 60, isFullSection: true });
+  });
+
+  it("returns current-model activities unchanged", () => {
+    const schedule = generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName);
+    const record = {
+      id: "schedule-1", studentId: "student-1", weekStartDate: schedule.weekOf,
+      generatedAt: new Date("2026-08-24T14:00:00.000Z"), schedule, sourceSnapshotIds: [],
+      generationInputs: {
+        student: mockStudent, timezone: "America/Chicago", remainingDays: ["MONDAY" as const],
+        analytics: mockAnalytics,
+        priorWeekProgress: { source: "unavailable" as const, skippedPlannedMinutes: 0,
+          totalPlannedMinutes: 0, skipShare: 0, skipReductionPercent: 0 },
+      },
+      policyVersion: "adaptive-weekly-schedule-v2",
+    };
+
+    expect(persistedWeeklySchedule(record).schedule).toEqual(schedule);
   });
 });

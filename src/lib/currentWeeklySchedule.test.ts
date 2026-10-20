@@ -298,7 +298,7 @@ describe("loadOrGenerateCurrentWeek", () => {
     const firstTypes = new Set(skipped.map((checkIn) => {
       const [day, index] = checkIn.activityId.split(":");
       const activity = first.schedule.schedule.days[day as keyof typeof first.schedule.schedule.days].activities[Number(index)];
-      return activity.kind === "LR" ? activity.type : "";
+      return activity.kind === "LR" && !activity.isFullSection ? activity.types[0] : "";
     }));
 
     const second = await loadOrGenerateCurrentWeek({
@@ -306,7 +306,7 @@ describe("loadOrGenerateCurrentWeek", () => {
     });
     if (second.kind !== "schedule") throw new Error("Expected a saved schedule");
     const nextTypes = Object.values(second.schedule.schedule.days).flatMap((day) => day.activities)
-      .flatMap((activity) => activity.kind === "LR" && !activity.isFullSection ? [activity.type] : []);
+      .flatMap((activity) => activity.kind === "LR" && !activity.isFullSection ? activity.types : []);
     expect(skipped).toHaveLength(4);
     expect(nextTypes).toHaveLength(4);
     expect(nextTypes.slice(0, 2).every((type) => !firstTypes.has(type))).toBe(true);

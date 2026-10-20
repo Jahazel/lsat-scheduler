@@ -1,5 +1,17 @@
 import { boolean, doublePrecision, jsonb, date, integer, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import type { ActivityCheckInStatus, AnalyticsSnapshot, DayOfWeek, PersistedWeeklySchedule, Student } from "./types";
+import type {
+  Activity, ActivityCheckInStatus, AnalyticsSnapshot, DayOfWeek, DayPlan, LRType, PersistedWeeklySchedule, RCType, Student,
+  WeeklySchedule,
+} from "./types";
+
+type SavedOneTypeActivity = { drillMinutes: number; reviewMinutes?: number; isFullSection: boolean } & (
+  | { kind: "LR"; type: LRType; questionCount: number; difficultyRange: string }
+  | { kind: "RC"; type: RCType; passageCount: number; difficultyLevel: number }
+);
+export type SavedActivity = Activity | SavedOneTypeActivity;
+export type SavedWeeklySchedule = Omit<WeeklySchedule, "days"> & {
+  days: Record<DayOfWeek, Omit<DayPlan, "activities"> & { activities: SavedActivity[] }>;
+};
 
 export const accounts = pgTable("accounts", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -57,7 +69,7 @@ export const weeklySchedules = pgTable("weekly_schedules", {
   studentId: uuid("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
   weekStartDate: date("week_start_date", { mode: "string" }).notNull(),
   generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
-  schedule: jsonb("schedule").$type<PersistedWeeklySchedule["schedule"]>().notNull(),
+  schedule: jsonb("schedule").$type<SavedWeeklySchedule>().notNull(),
   sourceSnapshotIds: uuid("source_snapshot_ids").array().notNull(),
   generationInputs: jsonb("generation_inputs").$type<PersistedWeeklySchedule["generationInputs"]>().notNull(),
   policyVersion: text("policy_version").notNull(),

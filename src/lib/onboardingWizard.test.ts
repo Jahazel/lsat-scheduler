@@ -432,7 +432,7 @@ describe("onboarding wizard", () => {
       expect(drills?.day).toBe("MONDAY");
       expect(drills?.items.map(({ activity }) => activity)).toEqual(week.days.MONDAY.activities);
       expect(drills?.items.map(({ minutes, label, detail }) => [minutes, label, detail])).toEqual([
-        ["1 h", "25 Conditional reasoning (L3-5)", null],
+        ["1 h", "1 Full LR Section", null],
         ["15 min", "Necessary assumption", { kind: "accuracy", text: "71%" }],
         ["15 min", "Flaw or descriptive weakening", null],
       ]);

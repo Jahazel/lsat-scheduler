@@ -82,8 +82,8 @@ export const mockRules: RulesConfig = {
     ["Sufficient assumption", "Necessary assumption"],
   ],
   rcTypes: ["Art", "Humanities", "Science", "Law", "Comparative"],
-  lrUnitSizes: { small: 5, medium: 10, fullSection: 25 },
-  rcUnitSizes: { small: 1, medium: 2, fullSection: 4 },
+  lrUnitSizes: { small: 5, medium: 10 },
+  rcUnitSizes: { small: 1, medium: 2 },
   rcTwoPassageDifficultyCombos: [
     [2, 4],
     [3, 5],

@@ -13,7 +13,7 @@ import {
   type SnapshotReview,
   type Statement,
 } from "./analyticsReview";
-import { activityLabel } from "./activityLabel";
+import { activityLabel, lrTypesName } from "./activityLabel";
 import { summarizeAnalyticsRows } from "./analytics";
 import type { SnapshotApprovalMetadata } from "./analyticsSnapshots";
 import { currentWeekInTimezone } from "./currentWeeklySchedule";
@@ -235,11 +235,11 @@ export function previewDrills(state: WizardState, today: string): { day: DayOfWe
   const items = week.days[day].activities.map((activity): PreviewDrill => {
     const minutes = formatDuration(Math.round(activity.kind === "LR" || activity.kind === "RC" ? activity.drillMinutes : activity.minutes));
     if (activity.kind !== "LR" || activity.isFullSection) return { activity, minutes, label: activityLabel(activity), detail: null };
-    const row = rows.find(({ type }) => type === activity.type);
+    const row = rows.find(({ type }) => type === activity.types[0]);
     const detail = row?.accuracy !== undefined
       ? { kind: "accuracy" as const, text: `${row.accuracy}%` }
       : row?.isTopPriority ? { kind: "flag" as const } : null;
-    return { activity, minutes, label: activity.type, detail };
+    return { activity, minutes, label: lrTypesName(activity.types), detail };
   });
   return { day, items };
 }

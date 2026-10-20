@@ -1,6 +1,6 @@
 import type {
-  Activity, AnalyticsSnapshot, DayOfWeek, DayPlan, LRActivity, LRType,
-  RCActivity, RCType, RulesConfig, ScheduleReason, Student, WeeklySchedule,
+  Activity, AnalyticsSnapshot, DayOfWeek, DayPlan, LRActivity, LRDrill, LRType,
+  RCActivity, RCDrill, RCType, RulesConfig, ScheduleReason, Student, WeeklySchedule,
 } from "./types";
 import {
   capacityOverageSentence, dateInWeek, fullSectionDroppedSentence, isoDateInWeek, nearTestWeekSentence,
@@ -44,7 +44,7 @@ interface RCCandidate { type: RCType; passageCount: number; difficultyLevel: num
 
 function recentTypeWeek(type: LRType, history: WeeklySchedule[]): string {
   return history.filter((schedule) => DAY_ORDER.some((day) => schedule.days[day].activities.some(
-    (activity) => activity.kind === "LR" && !activity.isFullSection && activity.type === type
+    (activity) => activity.kind === "LR" && !activity.isFullSection && activity.types.includes(type)
   ))).map((schedule) => schedule.weekOf).sort().at(-1) ?? "";
 }
 
@@ -107,12 +107,12 @@ function lrMinutes(c: LRCandidate, rules: RulesConfig, timeMult: number): number
 function rcMinutes(c: RCCandidate, rules: RulesConfig, timeMult: number): number {
   return round2(c.passageCount * rules.rcPassageSeconds * timeMult / 60);
 }
-function lrActivity(c: LRCandidate, minutes: number): LRActivity {
-  return { kind: "LR", type: c.type, questionCount: c.questionCount, difficultyRange: c.difficultyRange,
+function lrActivity(c: LRCandidate, minutes: number): LRDrill {
+  return { kind: "LR", types: [c.type], questionCount: c.questionCount, difficultyRange: c.difficultyRange,
     drillMinutes: round2(minutes), isFullSection: false };
 }
-function rcActivity(c: RCCandidate, minutes: number): RCActivity {
-  return { kind: "RC", type: c.type, passageCount: c.passageCount, difficultyLevel: c.difficultyLevel,
+function rcActivity(c: RCCandidate, minutes: number): RCDrill {
+  return { kind: "RC", passages: [{ type: c.type, difficultyLevel: c.difficultyLevel }],
     drillMinutes: round2(minutes), isFullSection: false };
 }
 
@@ -184,13 +184,7 @@ function latestFullSection(history: WeeklySchedule[]): "LR" | "RC" | undefined {
 }
 
 function fullSectionActivity(subject: "LR" | "RC", rules: RulesConfig, timeMult: number): Activity {
-  const minutes = round2(rules.fullSectionMinutes * timeMult);
-  if (subject === "LR") return {
-    kind: "LR", type: rules.lrStarredTypes[0], questionCount: rules.lrUnitSizes.fullSection,
-    difficultyRange: "L3-5", drillMinutes: minutes, isFullSection: true,
-  };
-  return { kind: "RC", type: rules.rcTypes[0], passageCount: rules.rcUnitSizes.fullSection,
-    difficultyLevel: 2, drillMinutes: minutes, isFullSection: true };
+  return { kind: subject, drillMinutes: round2(rules.fullSectionMinutes * timeMult), isFullSection: true };
 }
 
 export function generateWeek(
@@ -315,8 +309,8 @@ export function generateWeek(
   const filled = firstPass.lrDrills < rules.lrStarredTypes.length ? fillWith(true) : firstPass;
   if (filled !== firstPass && filled.lrDrills > 0) {
     const scheduled = new Set(Object.values(filled.plans).flatMap((plan) => plan?.activities ?? [])
-      .filter((activity): activity is LRActivity => activity.kind === "LR" && !activity.isFullSection)
-      .map((activity) => activity.type));
+      .filter((activity): activity is LRDrill => activity.kind === "LR" && !activity.isFullSection)
+      .flatMap((activity) => activity.types));
     const sittingOut = rules.lrStarredTypes.filter((type) => !scheduled.has(type));
     if (sittingOut.length > 0) weekReason("starred_rotation", starredRotationSentence(sittingOut));
   }

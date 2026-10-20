@@ -167,8 +167,8 @@ export interface RulesConfig {
   // instead of drilling 10 of just the one type.
   lrPairedTypes: [LRType, LRType][];
   rcTypes: RCType[];
-  lrUnitSizes: { small: number; medium: number; fullSection: number };
-  rcUnitSizes: { small: number; medium: number; fullSection: number };
+  lrUnitSizes: { small: number; medium: number };
+  rcUnitSizes: { small: number; medium: number };
   // Cycled through, in order, every time a 2-passage RC drill comes up —
   // each pair is [lower, higher] and both levels always exclude L1.
   rcTwoPassageDifficultyCombos: [number, number][];
@@ -176,30 +176,38 @@ export interface RulesConfig {
   restDay: DayOfWeek;
 }
 
-export interface LRActivity {
+export interface FullSection<Kind extends "LR" | "RC"> {
+  kind: Kind;
+  isFullSection: true;
+  drillMinutes: number;
+  reviewMinutes?: number;
+}
+
+export interface LRDrill {
   kind: "LR";
-  type: LRType;
+  isFullSection: false;
+  types: [LRType] | [LRType, LRType];
   questionCount: number;
   difficultyRange: string;
   drillMinutes: number;
-  // Saved v1 activities can still carry separate review minutes.
   reviewMinutes?: number;
-  // The week's one full section, when this is it — renders as its own
-  // summary line rather than a numbered drill (a real section spans many
-  // types, so type/questionCount here aren't meaningful for display).
-  isFullSection: boolean;
 }
 
-export interface RCActivity {
-  kind: "RC";
+export interface RCPassage {
   type: RCType;
-  passageCount: number;
   difficultyLevel: number;
+}
+
+export interface RCDrill {
+  kind: "RC";
+  isFullSection: false;
+  passages: [RCPassage] | [RCPassage, RCPassage];
   drillMinutes: number;
   reviewMinutes?: number;
-  // See LRActivity.isFullSection.
-  isFullSection: boolean;
 }
+
+export type LRActivity = LRDrill | FullSection<"LR">;
+export type RCActivity = RCDrill | FullSection<"RC">;
 
 export interface PTActivity {
   kind: "PT";
