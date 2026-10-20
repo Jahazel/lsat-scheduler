@@ -221,8 +221,8 @@ describe("adaptive weekly schedule v3", () => {
     for (const accommodationMultiplier of [1, 1.5, 2] as const) {
       for (const currentScore of [149, 160]) {
         for (let capacity = 30; capacity <= 480; capacity += 15) {
-          const uneven = Object.fromEntries(DAY_ORDER.map((day, index) =>
-            [day, 30 + ((capacity - 30 + index * 45) % 465)])) as Record<DayOfWeek, number>;
+          const uneven = everyDay(0);
+          DAY_ORDER.forEach((day, index) => { uneven[day] = 30 + ((capacity - 30 + index * 45) % 465); });
           for (const dailyCapacityMinutes of [everyDay(capacity), uneven]) {
             const schedule = generateWeek({ ...mockStudent, accommodationMultiplier, currentScore, dailyCapacityMinutes },
               mockAnalytics, mockRules, mockStudentName);
@@ -278,6 +278,14 @@ describe("adaptive weekly schedule v3", () => {
     expect(lrDrillsOn(schedule, "FRIDAY").filter(isPaired)).toHaveLength(1);
   });
 
+  it("keeps the paired line on a one-day week with little room by making it the daily minimum", () => {
+    for (const currentScore of [159, 160]) {
+      const schedule = generateWeek({ ...mockStudent, currentScore, accommodationMultiplier: 2, dailyCapacityMinutes: everyDay(30) },
+        mockAnalytics, mockRules, mockStudentName, { createdOn: "FRIDAY" });
+      expect(lrDrillsOn(schedule, "FRIDAY").filter(isPaired), `${currentScore}`).toHaveLength(1);
+    }
+  });
+
   it("pairs RC passages of two types in lowest-accuracy order and keeps a 1-passage daily minimum", () => {
     for (const [analytics, order] of [
       [{ ...mockAnalytics, rcAccuracyByType: rcAccuracy }, ["Law", "Science", "Art", "Humanities", "Comparative"]],
@@ -303,6 +311,9 @@ describe("adaptive weekly schedule v3", () => {
     expect(lrDrillsInDayOrder(missed).filter(isPaired)[0].types).toEqual(["Weaken", "Strengthen"]);
     expect(missed.reasons).toContainEqual({ code: "missed_type_priority", placement: { scope: "week" },
       sentence: "Weaken comes first this week. You missed it most on your last practice test." });
+
+    const unpaired = generated(90, { missedStemTypeCounts: { Evaluate: 4 } });
+    expect(lrDrillsInDayOrder(unpaired)[0].types).toEqual(["Evaluate"]);
 
     const tie = generated(90, { missedStemTypeCounts: { Inference: 2, Evaluate: 2 } });
     expect(firstSingleType(tie)).toEqual(["Evaluate"]);
