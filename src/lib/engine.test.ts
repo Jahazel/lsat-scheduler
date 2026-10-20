@@ -286,6 +286,15 @@ describe("adaptive weekly schedule v3", () => {
     }
   });
 
+  it("places the paired line after an unpaired missed type that reaches capacity", () => {
+    const schedule = generateWeek({ ...mockStudent, dailyCapacityMinutes: everyDay(75) }, mockAnalytics, mockRules,
+      mockStudentName, { createdOn: "FRIDAY", missedStemTypeCounts: { Evaluate: 4 } });
+    expect(lrDrillsOn(schedule, "FRIDAY").map((activity) => activity.types)).toEqual([
+      ["Evaluate"], ["Sufficient assumption", "Necessary assumption"],
+    ]);
+    expect(schedule.days.FRIDAY.totalMinutes).toBe(105);
+  });
+
   it("pairs RC passages of two types in lowest-accuracy order and keeps a 1-passage daily minimum", () => {
     for (const [analytics, order] of [
       [{ ...mockAnalytics, rcAccuracyByType: rcAccuracy }, ["Law", "Science", "Art", "Humanities", "Comparative"]],

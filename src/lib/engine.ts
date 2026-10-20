@@ -152,8 +152,8 @@ function fillDrillDay(stream: DrillStream, capacity: number, score: number, rule
 
   let placedPair = false;
   const pairMinutes = paired ? lrMinutes(paired.questionCount) : 0;
-  const topTypeDrilledFirst = () => stream.lrIndex > 0 || paired?.types[0] === stream.lrOrder[0];
-  const pairReady = () => paired !== undefined && !placedPair && topTypeDrilledFirst();
+  const pairKeepsTopTypeFirst = () => stream.lrIndex > 0 || paired?.types[0] === stream.lrOrder[0];
+  const pairReady = () => paired !== undefined && !placedPair && pairKeepsTopTypeFirst();
   const placePair = () => {
     if (!paired || !pairReady() || !fits(pairMinutes)) return;
     addLR(paired);
@@ -177,7 +177,7 @@ function fillDrillDay(stream: DrillStream, capacity: number, score: number, rule
     else if (rcFits) takeRC(2);
     else if (fits(lrMinutes(rules.lrUnitSizes.small))) takeLR(rules.lrUnitSizes.small);
     else break;
-    if (used < capacity - 1e-8) placePair();
+    placePair();
   }
   const activities = lrFirst ? [...lr, ...rc] : [...rc, ...lr];
   return { activities, totalMinutes: round2(activities.reduce((total, activity) =>
