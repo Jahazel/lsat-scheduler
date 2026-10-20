@@ -3,7 +3,7 @@ import { isIP } from "node:net";
 import { checkServerIdentity } from "node:tls";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool, types, type PoolConfig } from "pg";
-import { getDatabaseHost, requireLocalDatabase } from "../../scripts/localDatabaseGuard.mjs";
+import { getDatabaseHost, requireLocalDatabase, requireLoopbackDatabase } from "../../scripts/localDatabaseGuard.mjs";
 
 // Drizzle supplies query-level parsers, so a Pool-only override does not apply.
 // Current numeric columns hold Daily capacity and Accommodation, which fit exactly
@@ -130,6 +130,10 @@ export async function closePostgresDatabase() {
 
 export function requirePostgresScriptTarget() {
   return requireLocalDatabase(databaseUrl());
+}
+
+export function requirePostgresLocalScriptTarget() {
+  return requireLoopbackDatabase(databaseUrl());
 }
 
 export function requirePostgresTestTarget() {

@@ -1,12 +1,13 @@
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import copyDatabaseHosts from "./copyDatabaseHosts.json" with { type: "json" };
 
 const stoppedConnection = "Test stopped at the Postgres connection boundary.";
 const fixture = fileURLToPath(new URL("./test-fixtures/stop-postgres-connection.mjs", import.meta.url));
 const commands = [
-  ["reset-dev-data", ["--yes"]],
-  ["create-test-user", []],
+  ["reset-dev-data", ["--yes"], "This script only runs against a local database or an approved copy-site host."],
+  ["create-test-user", [], "This command only runs against a local database."],
 ];
 
 function runScript(name, args, uri, extraEnv = {}) {
@@ -26,7 +27,7 @@ function runScript(name, args, uri, extraEnv = {}) {
   });
 }
 
-describe.each(commands)("%s local database protection", (name, args) => {
+describe.each(commands)("%s local database protection", (name, args, targetMessage) => {
   it.each([
     ["mongodb://guard-user:guard-password@localhost:27017/db", "[unknown]"],
     ["mongodb+srv://guard-user:guard-password@localhost/db", "[unknown]"],
@@ -51,7 +52,7 @@ describe.each(commands)("%s local database protection", (name, args) => {
     const result = await runScript(name, args, uri);
     expect(result.code).toBe(1);
     expect(result.output).toContain(`Refusing database host ${host}`);
-    expect(result.output).toContain("This script only runs against a local database or an approved copy-site host.");
+    expect(result.output).toContain(targetMessage);
     expect(result.output).not.toContain("guard-user");
     expect(result.output).not.toContain("guard-password");
     expect(result.output).not.toContain(stoppedConnection);
@@ -98,6 +99,23 @@ it.each(["postgres", "postgresql"])("reset confirmation does not bypass the %s h
   expect(result.code).toBe(1);
   expect(result.output).toContain("Refusing database host remote.example.net");
   expect(result.output).not.toContain(stoppedConnection);
+});
+
+it.each(copyDatabaseHosts)("create-test-user refuses the copy host %s before connecting", async (host) => {
+  const result = await runScript("create-test-user", [], `postgresql://guard-user:guard-password@${host}/db`);
+  expect(result.code).toBe(1);
+  expect(result.output).toContain(`Refusing database host ${host}: not a local host.`);
+  expect(result.output).toContain("This command only runs against a local database.");
+  expect(result.output).not.toContain("guard-user");
+  expect(result.output).not.toContain("guard-password");
+  expect(result.output).not.toContain(stoppedConnection);
+});
+
+it.each(copyDatabaseHosts)("make-admin still accepts the copy host %s", async (host) => {
+  const result = await runScript("make-admin", ["admin@example.test"], `postgresql://guard-user:guard-password@${host}/db`);
+  expect(result.code).toBe(86);
+  expect(result.output).toContain(stoppedConnection);
+  expect(result.output).not.toContain("Refusing database host");
 });
 
 it("refuses invalid create-test-user arguments before connecting", async () => {

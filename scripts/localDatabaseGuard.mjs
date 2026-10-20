@@ -2,6 +2,7 @@ import { isIP } from "node:net";
 import copyDatabaseHosts from "./copyDatabaseHosts.json" with { type: "json" };
 
 const allowedTargetMessage = "This script only runs against a local database or an approved copy-site host.";
+const loopbackTargetMessage = "This command only runs against a local database.";
 
 // Read literal hosts without DNS lookups or URL normalization of IP aliases.
 function readDatabaseHosts(uri) {
@@ -63,6 +64,21 @@ export function requireLocalDatabase(uri) {
   const { hosts, names } = target;
   if (names.some((host) => !["localhost", "127.0.0.1", "::1", ...copyDatabaseHosts].includes(host))) {
     throw new Error(`Refusing database host ${hosts.join(",")}: not an allowed host. ${allowedTargetMessage}`);
+  }
+  return hosts.join(",");
+}
+
+export function requireLoopbackDatabase(uri) {
+  let target;
+  try {
+    target = readDatabaseHosts(uri);
+  } catch {
+    const reason = uri ? "unreadable connection string" : "missing connection string";
+    throw new Error(`Refusing database host [unknown]: ${reason}. ${loopbackTargetMessage}`);
+  }
+  const { hosts, names } = target;
+  if (names.some((host) => !["localhost", "127.0.0.1", "::1"].includes(host))) {
+    throw new Error(`Refusing database host ${hosts.join(",")}: not a local host. ${loopbackTargetMessage}`);
   }
   return hosts.join(",");
 }

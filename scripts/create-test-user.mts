@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
-import { closePostgresDatabase, getPostgresDatabase, requirePostgresScriptTarget } from "../src/lib/postgres";
+import { closePostgresDatabase, getPostgresDatabase, requirePostgresLocalScriptTarget } from "../src/lib/postgres";
 import { accounts } from "../src/lib/postgresSchema";
 
 const TEST_PASSWORD = "DrillMapTest123";
@@ -38,7 +38,7 @@ async function main() {
   } catch {
     throw new Error("Usage: npm run create-test-user -- [--email <address>]");
   }
-  const host = requirePostgresScriptTarget();
+  const host = requirePostgresLocalScriptTarget();
   try {
     const result = await createTestUser(account);
     console.log(`Test Account ready on ${host}.`);
