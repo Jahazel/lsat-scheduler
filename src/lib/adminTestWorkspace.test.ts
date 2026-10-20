@@ -242,7 +242,7 @@ it.each(["test-data", "everything"] as const)(
   },
 );
 
-it("carries performance trend, skip reduction and Sunday practice-test review across three simulated weeks", async () => {
+it("carries performance trend and Sunday practice-test review across three simulated weeks", async () => {
   const { repository } = clock();
   const real = new Date("2026-09-21T18:00:00Z");
   const snapshots: ApprovedAnalyticsSnapshot[] = [];
@@ -273,9 +273,6 @@ it("carries performance trend, skip reduction and Sunday practice-test review ac
       },
     },
     activityCheckIns: {
-      async listForSchedule(id) {
-        return checkIns.filter((c) => c.scheduleId === id);
-      },
       async ensureForSchedule(schedule) {
         Object.entries(schedule.schedule.days).forEach(([day, plan]) =>
           plan.activities.forEach((_, index) => {
@@ -335,19 +332,12 @@ it("carries performance trend, skip reduction and Sunday practice-test review ac
   expect(first.schedule.weekStartDate).toBe("2026-09-21");
   expect(first.schedule.schedule.days.MONDAY.type).toBe("unscheduled");
   expect(first.schedule.schedule.days.TUESDAY.type).toBe("unscheduled");
-  checkIns
-    .filter((c) => c.scheduleId === first.schedule.id)
-    .forEach((c) => {
-      c.status = "skipped";
-    });
   await moveSimulatedDate("admin", "2026-09-28", real, repository);
   expect(await load()).toEqual({ kind: "analytics_required" });
   await approve("second", 0.8);
   const second = await load();
   if (second.kind !== "schedule") throw new Error("Expected a weekly schedule");
-  expect(
-    second.schedule.generationInputs.priorWeekProgress.skipReductionPercent,
-  ).toBe(0.25);
+  expect(second.schedule.generationInputs).not.toHaveProperty("priorWeekProgress");
   expect(second.schedule.schedule.days.MONDAY.type).toBe("review");
   expect(
     second.schedule.generationInputs.analytics.lrAccuracyByType[

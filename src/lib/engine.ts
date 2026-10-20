@@ -1,11 +1,11 @@
 import type {
-  Activity, AnalyticsSnapshot, DayOfWeek, DayPlan, LRActivity, LRDrill, LRType,
+  Activity, AnalyticsSnapshot, DayOfWeek, DayPlan, LRActivity, LRDrill, LRStemType, LRType,
   RCActivity, RCDrill, RCType, RulesConfig, ScheduleReason, Student, WeeklySchedule,
 } from "./types";
 import {
-  capacityOverageSentence, dateInWeek, fullSectionDroppedSentence, isoDateInWeek, nearTestWeekSentence,
+  dateInWeek, fullSectionDroppedSentence, isoDateInWeek, missedTypePrioritySentence, nearTestWeekSentence,
   noPracticeTestSentence, restDayMovedSentence, reviewCarriedOverSentence,
-  skipReductionSentence, starredRotationSentence, practiceTestReviewDayNextWeekSentence,
+  starredRotationSentence, practiceTestReviewDayNextWeekSentence,
 } from "./scheduleReasonText";
 import type { RestDayMoveCase } from "./scheduleReasonText";
 
@@ -25,22 +25,21 @@ function nearTestWeek(weekOf: string, goalTestDate: string): boolean {
   return weekOf >= monthBefore.toISOString().slice(0, 10) && weekOf < goalTestDate;
 }
 
-export type WeekShapeOptions = {
+export interface WeekShapeOptions {
   createdOn?: DayOfWeek;
   priorWeekPracticeTestReviewMinutes?: number;
   priorSchedules?: WeeklySchedule[];
-} & (
-  | { skipReductionPercent?: never; skipShare?: never }
-  | { skipReductionPercent: number; skipShare: number }
-);
+  /** Missed stem-type counts from the practice-test result approved for this week. */
+  missedStemTypeCounts?: Partial<Record<LRStemType, number>>;
+}
+
+const FILL_WINDOW_OVER_MINUTES = 30;
+const PAIRED_LINES_SCORE_CUTOFF = 160;
 
 function round2(n: number): number { return Math.round(n * 100) / 100; }
 function multiplier(rules: RulesConfig, student: Student): number {
   return rules.accommodationTimeMultiplier[student.accommodationMultiplier];
 }
-
-interface LRCandidate { type: LRType; questionCount: number; difficultyRange: string; pairStart?: boolean; }
-interface RCCandidate { type: RCType; passageCount: number; difficultyLevel: number; }
 
 function recentTypeWeek(type: LRType, history: WeeklySchedule[]): string {
   return history.filter((schedule) => DAY_ORDER.some((day) => schedule.days[day].activities.some(
@@ -48,129 +47,141 @@ function recentTypeWeek(type: LRType, history: WeeklySchedule[]): string {
   ))).map((schedule) => schedule.weekOf).sort().at(-1) ?? "";
 }
 
-function lrTypeOrder(analytics: AnalyticsSnapshot, rules: RulesConfig, history: WeeklySchedule[], rotate: boolean): LRType[] {
+function lrWeakness(analytics: AnalyticsSnapshot, rules: RulesConfig) {
   const listOrder = [...rules.lrStemTypes, ...rules.lrLogicTypes];
-  const weakness = (a: LRType, b: LRType) =>
+  return (a: LRType, b: LRType) =>
     (analytics.lrAccuracyByType[a] ?? 1) - (analytics.lrAccuracyByType[b] ?? 1)
     || listOrder.indexOf(a) - listOrder.indexOf(b);
+}
+
+function mostMissedType(counts: WeekShapeOptions["missedStemTypeCounts"], analytics: AnalyticsSnapshot,
+  rules: RulesConfig): LRStemType | undefined {
+  const weakness = lrWeakness(analytics, rules);
+  const count = (type: LRStemType) => counts?.[type] ?? 0;
+  return rules.lrStemTypes.filter((type) => count(type) > 0)
+    .sort((a, b) => count(b) - count(a) || weakness(a, b))[0];
+}
+
+function lrTypeOrder(analytics: AnalyticsSnapshot, rules: RulesConfig, history: WeeklySchedule[], rotate: boolean,
+  missedType: LRStemType | undefined): LRType[] {
+  const weakness = lrWeakness(analytics, rules);
   const starred = [...rules.lrStarredTypes].sort((a, b) =>
     rotate ? recentTypeWeek(a, history).localeCompare(recentTypeWeek(b, history)) || weakness(a, b) : weakness(a, b));
-  if (rotate) return starred;
-  const regular = [...rules.lrStemTypes, ...rules.lrLogicExceptions]
+  const regular = rotate ? [] : [...rules.lrStemTypes, ...rules.lrLogicExceptions]
     .filter((type) => analytics.lrAccuracyByType[type] !== undefined && !starred.includes(type))
     .sort(weakness);
-  return [...starred, ...analytics.lrTopPriorityLogicTypes.filter((type) => !starred.includes(type)), ...regular];
+  const topPriority = rotate ? [] : analytics.lrTopPriorityLogicTypes.filter((type) => !starred.includes(type));
+  const order = [...starred, ...topPriority, ...regular];
+  return missedType ? [missedType, ...order.filter((type) => type !== missedType)] : order;
 }
 
-function buildLRList(order: LRType[], score: number, rules: RulesConfig): LRCandidate[] {
-  const seen = new Set<LRType>();
-  const list: LRCandidate[] = [];
-  function add(type: LRType, questionCount: number) {
-    list.push({ type, questionCount, difficultyRange: score >= rules.lrDifficultyCutoffScore || seen.has(type) ? "L3-5" : "L2-4" });
-    seen.add(type);
+function rcTypeOrder(analytics: AnalyticsSnapshot, rules: RulesConfig): RCType[] {
+  return [...rules.rcTypes].sort((a, b) =>
+    (analytics.rcAccuracyByType?.[a] ?? 1) - (analytics.rcAccuracyByType?.[b] ?? 1)
+    || rules.rcTypes.indexOf(a) - rules.rcTypes.indexOf(b));
+}
+
+type LRUnit = Pick<LRDrill, "types" | "questionCount" | "difficultyRange">;
+
+function pairedUnit(order: LRType[], score: number, rules: RulesConfig): LRUnit | undefined {
+  for (const type of order) {
+    const pair = rules.lrPairedTypes.find((candidate) => candidate.includes(type));
+    if (pair) return { types: [type, pair[0] === type ? pair[1] : pair[0]], questionCount: rules.lrUnitSizes.medium,
+      difficultyRange: score >= rules.lrDifficultyCutoffScore ? "L3-5" : "L2-4" };
   }
-  order.forEach((type) => add(type, rules.lrUnitSizes.small));
-  for (let lap = 0; lap < 8; lap++) {
-    for (const type of order) {
-      const pair = rules.lrPairedTypes.find(([a, b]) => a === type || b === type);
-      if (pair) {
-        add(type, rules.lrUnitSizes.small);
-        list[list.length - 1].pairStart = true;
-        add(pair[0] === type ? pair[1] : pair[0], rules.lrUnitSizes.small);
-      } else add(type, rules.lrUnitSizes.medium);
-    }
+}
+
+interface DrillStream {
+  lrOrder: LRType[];
+  rcOrder: RCType[];
+  lrIndex: number;
+  rcIndex: number;
+  rcComboIndex: number;
+  lrQuestions: number;
+  rcPassages: number;
+}
+
+function nextLRUnit(stream: DrillStream, score: number, rules: RulesConfig): LRUnit {
+  const firstPass = stream.lrIndex < stream.lrOrder.length;
+  return { types: [stream.lrOrder[stream.lrIndex % stream.lrOrder.length]],
+    questionCount: firstPass ? rules.lrUnitSizes.small : rules.lrUnitSizes.medium,
+    difficultyRange: score >= rules.lrDifficultyCutoffScore || !firstPass ? "L3-5" : "L2-4" };
+}
+
+function takeRCPassages(stream: DrillStream, count: 1 | 2, rules: RulesConfig): RCDrill["passages"] {
+  const typeAt = (offset: number) => stream.rcOrder[(stream.rcIndex + offset) % stream.rcOrder.length];
+  let passages: RCDrill["passages"];
+  if (count === 1) {
+    passages = [{ type: typeAt(0), difficultyLevel: stream.rcIndex % 4 + 2 }];
+  } else {
+    const [lower, higher] = rules.rcTwoPassageDifficultyCombos[
+      stream.rcComboIndex++ % rules.rcTwoPassageDifficultyCombos.length];
+    passages = [{ type: typeAt(0), difficultyLevel: lower }, { type: typeAt(1), difficultyLevel: higher }];
   }
-  return list;
+  stream.rcIndex += count;
+  stream.rcPassages += count;
+  return passages;
 }
 
-function buildRCList(rules: RulesConfig): RCCandidate[] {
-  const list: RCCandidate[] = [];
-  let cursor = 0;
-  let comboIndex = 0;
-  for (let lap = 0; lap < 8; lap++) {
-    for (let i = 0; i < rules.rcTypes.length; i++) {
-      const count = lap === 0 ? rules.rcUnitSizes.small : rules.rcUnitSizes.medium;
-      const combo = count === 2 ? rules.rcTwoPassageDifficultyCombos[comboIndex++ % rules.rcTwoPassageDifficultyCombos.length] : undefined;
-      for (let j = 0; j < count; j++) {
-        list.push({ type: rules.rcTypes[cursor % rules.rcTypes.length], passageCount: 1,
-          difficultyLevel: combo ? combo[j] : cursor % 4 + 2 });
-        cursor++;
-      }
-    }
-  }
-  return list;
-}
-
-function lrMinutes(c: LRCandidate, rules: RulesConfig, timeMult: number): number {
-  return round2(c.questionCount * rules.lrQuestionSeconds * timeMult / 60);
-}
-function rcMinutes(c: RCCandidate, rules: RulesConfig, timeMult: number): number {
-  return round2(c.passageCount * rules.rcPassageSeconds * timeMult / 60);
-}
-function lrActivity(c: LRCandidate, minutes: number): LRDrill {
-  return { kind: "LR", types: [c.type], questionCount: c.questionCount, difficultyRange: c.difficultyRange,
-    drillMinutes: round2(minutes), isFullSection: false };
-}
-function rcActivity(c: RCCandidate, minutes: number): RCDrill {
-  return { kind: "RC", passages: [{ type: c.type, difficultyLevel: c.difficultyLevel }],
-    drillMinutes: round2(minutes), isFullSection: false };
-}
-
-interface FillState { lrIndex: number; rcIndex: number; lrQuestions: number; rcPassages: number; }
-function fillDrillDay(lrList: LRCandidate[], rcList: RCCandidate[], state: FillState,
-  limit: number, rules: RulesConfig, timeMult: number, lrFirst: boolean, fullSection?: Activity
-): { activities: Activity[]; totalMinutes: number; lrDrills: number } {
+function fillDrillDay(stream: DrillStream, capacity: number, score: number, rules: RulesConfig, timeMult: number,
+  lrFirst: boolean, fullSection: Activity | undefined, paired: LRUnit | undefined
+): { activities: Activity[]; totalMinutes: number; placedPair: boolean } {
   const lr: LRActivity[] = [];
   const rc: RCActivity[] = [];
-  let used = fullSection?.kind === "LR" || fullSection?.kind === "RC" ? fullSection.drillMinutes : 0;
-  let lrDrills = 0;
-  const takeLR = () => {
-    const c = lrList[state.lrIndex++];
-    const minutes = lrMinutes(c, rules, timeMult);
-    lr.push(lrActivity(c, minutes));
+  const lrMinutes = (questions: number) => round2(questions * rules.lrQuestionSeconds * timeMult / 60);
+  const rcMinutes = (passages: number) => round2(passages * rules.rcPassageSeconds * timeMult / 60);
+  let used = 0;
+  const fits = (minutes: number) => used + minutes <= capacity + FILL_WINDOW_OVER_MINUTES + 1e-8;
+  const addLR = (unit: LRUnit) => {
+    const minutes = lrMinutes(unit.questionCount);
+    lr.push({ kind: "LR", ...unit, drillMinutes: minutes, isFullSection: false });
     used += minutes;
-    state.lrQuestions += c.questionCount;
-    lrDrills++;
+    stream.lrQuestions += unit.questionCount;
   };
-  const takeLRUnit = () => {
-    const paired = lrList[state.lrIndex].pairStart;
-    takeLR();
-    if (paired) takeLR();
+  const takeLR = (questionCount?: number) => {
+    const unit = nextLRUnit(stream, score, rules);
+    stream.lrIndex++;
+    addLR(questionCount ? { ...unit, questionCount } : unit);
   };
-  const takeRC = () => {
-    const c = rcList[state.rcIndex++];
-    const minutes = rcMinutes(c, rules, timeMult);
-    rc.push(rcActivity(c, minutes));
-    used += minutes;
-    state.rcPassages += c.passageCount;
+  const takeRC = (count: 1 | 2) => {
+    rc.push({ kind: "RC", passages: takeRCPassages(stream, count, rules), drillMinutes: rcMinutes(count),
+      isFullSection: false });
+    used += rcMinutes(count);
   };
-  if (!fullSection) {
-    if (state.lrQuestions <= state.rcPassages * 10) {
-      const next = lrList[state.lrIndex];
-      // A first-pass drill is followed by the next complete unit: another first-pass drill,
-      // or at the pass boundary a 10-question drill or whole 5+5 pair.
-      if (next.questionCount === rules.lrUnitSizes.small && !next.pairStart) takeLR();
-      takeLRUnit();
-    } else takeRC();
+  const preferLR = () => stream.lrQuestions <= stream.rcPassages * 10;
+
+  let placedPair = false;
+  const pairMinutes = paired ? lrMinutes(paired.questionCount) : 0;
+  const pairKeepsTopTypeFirst = () => stream.lrIndex > 0 || paired?.types[0] === stream.lrOrder[0];
+  const pairReady = () => paired !== undefined && !placedPair && pairKeepsTopTypeFirst();
+  const placePair = () => {
+    if (!paired || !pairReady() || !fits(pairMinutes)) return;
+    addLR(paired);
+    placedPair = true;
+  };
+
+  if (fullSection?.kind === "LR") lr.push(fullSection);
+  if (fullSection?.kind === "RC") rc.push(fullSection);
+  if (fullSection?.kind === "LR" || fullSection?.kind === "RC") used += fullSection.drillMinutes;
+  else {
+    const minimumMinutes = preferLR() ? lrMinutes(nextLRUnit(stream, score, rules).questionCount) : rcMinutes(1);
+    if (pairReady() && !fits(minimumMinutes + pairMinutes)) placePair();
+    if (!placedPair && preferLR()) takeLR();
+    else if (!placedPair) takeRC(1);
   }
-  while (state.lrIndex < lrList.length && state.rcIndex < rcList.length) {
-    const nextLR = lrList[state.lrIndex];
-    const lrUnitMinutes = lrMinutes(nextLR, rules, timeMult) +
-      (nextLR.pairStart ? lrMinutes(lrList[state.lrIndex + 1], rules, timeMult) : 0);
-    const lrFits = used + lrUnitMinutes <= limit + 1e-8;
-    const rcFits = used + rcMinutes(rcList[state.rcIndex], rules, timeMult) <= limit + 1e-8;
-    if (!lrFits && !rcFits) break;
-    const preferLR = state.lrQuestions <= state.rcPassages * 10;
-    if (preferLR ? lrFits : !rcFits) {
-      takeLRUnit();
-    }
-    else takeRC();
+  placePair();
+  while (used < capacity - 1e-8) {
+    const lrFits = fits(lrMinutes(nextLRUnit(stream, score, rules).questionCount));
+    const rcFits = fits(rcMinutes(2));
+    if (lrFits && (preferLR() || !rcFits)) takeLR();
+    else if (rcFits) takeRC(2);
+    else if (fits(lrMinutes(rules.lrUnitSizes.small))) takeLR(rules.lrUnitSizes.small);
+    else break;
+    placePair();
   }
-  if (fullSection?.kind === "LR") lr.unshift(fullSection);
-  if (fullSection?.kind === "RC") rc.unshift(fullSection);
   const activities = lrFirst ? [...lr, ...rc] : [...rc, ...lr];
   return { activities, totalMinutes: round2(activities.reduce((total, activity) =>
-    total + activity.drillMinutes, 0)), lrDrills };
+    total + activity.drillMinutes, 0)), placedPair };
 }
 
 function latestFullSection(history: WeeklySchedule[]): "LR" | "RC" | undefined {
@@ -201,10 +212,6 @@ export function generateWeek(
     reasons.push({ code, placement: { scope: "week" }, sentence });
   const dayReason = (code: ScheduleReason["code"], day: DayOfWeek, sentence: string) =>
     reasons.push({ code, placement: { scope: "day", day }, sentence });
-  const recordOverage = (day: DayOfWeek, plan: DayPlan) => {
-    if (!plan.capacityOverageMinutes || plan.capacityOverageMinutes <= 0) return;
-    dayReason("capacity_overage", day, capacityOverageSentence(day, plan, student.dailyCapacityMinutes[day]));
-  };
 
   const days = {} as Record<DayOfWeek, DayPlan>;
   const preferredPracticeTestDay = student.preferredPracticeTestDay;
@@ -283,39 +290,36 @@ export function generateWeek(
   }
   const history = options.priorSchedules ?? [];
   const fullSubject = latestFullSection(history) === "LR" ? "RC" : "LR";
-  const rcList = buildRCList(rules);
-  const reduction = Math.max(0, Math.min(0.25, options.skipReductionPercent ?? 0));
-  if (reduction > 0) {
-    if (options.skipShare === undefined) throw new Error("Skip reduction requires skipShare");
-    weekReason("skip_reduction", skipReductionSentence(options.skipShare, reduction));
-  }
+  const missedType = mostMissedType(options.missedStemTypeCounts, analytics, rules);
+  if (missedType) weekReason("missed_type_priority", missedTypePrioritySentence(missedType));
+  const pairedQuota = student.currentScore >= PAIRED_LINES_SCORE_CUTOFF ? 2 : 1;
   const fillWith = (rotate: boolean) => {
-    const lrList = buildLRList(lrTypeOrder(analytics, rules, history, rotate), student.currentScore, rules);
-    const state: FillState = { lrIndex: 0, rcIndex: 0, lrQuestions: 0, rcPassages: 0 };
+    const lrOrder = lrTypeOrder(analytics, rules, history, rotate, missedType);
+    const paired = pairedUnit(lrOrder, student.currentScore, rules);
+    const stream: DrillStream = { lrOrder, rcOrder: rcTypeOrder(analytics, rules),
+      lrIndex: 0, rcIndex: 0, rcComboIndex: 0, lrQuestions: 0, rcPassages: 0 };
     const plans = {} as Partial<Record<DayOfWeek, DayPlan>>;
-    let lrDrills = 0;
+    let pairsPlaced = 0;
     activeDrillingDays.forEach((day) => {
       const full = day === fullSectionDay ? fullSectionActivity(fullSubject, rules, timeMult) : undefined;
-      const result = fillDrillDay(lrList, rcList, state, student.dailyCapacityMinutes[day] * (1 - reduction),
-        rules, timeMult, drillingDays.indexOf(day) % 2 === 1, full);
-      lrDrills += result.lrDrills;
+      const result = fillDrillDay(stream, student.dailyCapacityMinutes[day], student.currentScore, rules, timeMult,
+        drillingDays.indexOf(day) % 2 === 1, full, pairsPlaced < pairedQuota ? paired : undefined);
+      if (result.placedPair) pairsPlaced++;
       plans[day] = { day, type: "drill", activities: result.activities,
         totalMinutes: result.totalMinutes,
         capacityOverageMinutes: Math.max(0, round2(result.totalMinutes - student.dailyCapacityMinutes[day])) };
     });
-    return { plans, lrDrills };
+    const drilledTypes = new Set(Object.values(plans).flatMap((plan) => plan?.activities ?? [])
+      .flatMap((activity) => activity.kind === "LR" && !activity.isFullSection ? activity.types : []));
+    return { plans, sittingOut: rules.lrStarredTypes.filter((type) => !drilledTypes.has(type)),
+      drilledAny: drilledTypes.size > 0 };
   };
   const firstPass = fillWith(false);
-  const filled = firstPass.lrDrills < rules.lrStarredTypes.length ? fillWith(true) : firstPass;
-  if (filled !== firstPass && filled.lrDrills > 0) {
-    const scheduled = new Set(Object.values(filled.plans).flatMap((plan) => plan?.activities ?? [])
-      .filter((activity): activity is LRDrill => activity.kind === "LR" && !activity.isFullSection)
-      .flatMap((activity) => activity.types));
-    const sittingOut = rules.lrStarredTypes.filter((type) => !scheduled.has(type));
-    if (sittingOut.length > 0) weekReason("starred_rotation", starredRotationSentence(sittingOut));
+  const filled = firstPass.sittingOut.length > 0 ? fillWith(true) : firstPass;
+  if (filled !== firstPass && filled.drilledAny && filled.sittingOut.length > 0) {
+    weekReason("starred_rotation", starredRotationSentence(filled.sittingOut));
   }
   Object.assign(days, filled.plans);
-  for (const day of activeDrillingDays) recordOverage(day, days[day]);
   for (const day of drillingDays) {
     if (!days[day]) days[day] = { day, type: "drill", activities: [], totalMinutes: 0 };
   }
@@ -337,7 +341,6 @@ export function generateWeek(
       totalMinutes: ptMinutes,
       capacityOverageMinutes: Math.max(0, ptMinutes - student.dailyCapacityMinutes[day]),
     };
-    recordOverage(day, days[day]);
   }
 
   function setPracticeTestReviewDay(day: DayOfWeek, minutes: number) {
@@ -347,7 +350,6 @@ export function generateWeek(
       totalMinutes: minutes,
       capacityOverageMinutes: Math.max(0, minutes - student.dailyCapacityMinutes[day]),
     };
-    recordOverage(day, days[day]);
   }
   for (const day of scheduledPracticeTestReviewDays) setPracticeTestReviewDay(day, ptMinutes);
   if (priorWeekPracticeTestReviewMinutes !== undefined) {

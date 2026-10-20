@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Paper design exports: reference markup for building screens, not app code.
     "docs/design/**",
+    // Agent worktrees are separate checkouts with their own lint runs.
+    ".claude/worktrees/**",
   ]),
 ]);
 

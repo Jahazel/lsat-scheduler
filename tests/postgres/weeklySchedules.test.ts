@@ -10,6 +10,7 @@ import { createApprovedAnalyticsSnapshot } from "../../src/lib/analyticsSnapshot
 import { listWeeklySchedulesForStudent, postgresCurrentWeekRepositories } from "../../src/lib/weeklyScheduleRepository";
 import { saveActivityCheckIn } from "../../src/app/dashboard/actions";
 import { postgresActivityCheckIns } from "../../src/lib/activityCheckInRepository";
+import { SCHEDULING_POLICY_VERSION } from "../../src/lib/currentWeeklySchedule";
 import ProgressPage from "../../src/app/progress/page";
 import DashboardPage from "../../src/app/dashboard/page";
 
@@ -65,7 +66,7 @@ it("two parallel This week visits save one identical Weekly schedule as the app 
   expect(pages.map((page) => renderToStaticMarkup(page)).every((page) => page.includes("Your plan for this week"))).toBe(true);
   const schedules = await listWeeklySchedulesForStudent(saved.id);
   expect(schedules).toHaveLength(1);
-  expect(schedules[0]).toMatchObject({ studentId: saved.id, weekStartDate: "2026-10-12", policyVersion: "adaptive-weekly-schedule-v2" });
+  expect(schedules[0]).toMatchObject({ studentId: saved.id, weekStartDate: "2026-10-12", policyVersion: SCHEDULING_POLICY_VERSION });
   expect(schedules[0].sourceSnapshotIds).toHaveLength(1);
   expect((await getPostgresDatabase().execute(sql`select current_user`)).rows).toEqual([{ current_user: database.role }]);
   await dashboard();

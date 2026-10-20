@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { generateWeek } from "@/lib/engine";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "@/lib/mockData";
+import type { DayOfWeek } from "@/lib/types";
 
 vi.mock("@/app/dashboard/actions", () => ({ saveActivityCheckIn: vi.fn() }));
 
@@ -30,22 +31,19 @@ describe("ScheduleCheckInView", () => {
     }
   });
 
-  it("shows saved overage reasons on review and minimum-held drilling days", () => {
-    const cases = [
-      { day: "MONDAY" as const, student: { ...mockStudent, currentScore: 140,
-        dailyCapacityMinutes: Object.fromEntries(Object.keys(mockStudent.dailyCapacityMinutes).map((day) => [day, 15])) as typeof mockStudent.dailyCapacityMinutes } },
-      { day: "SUNDAY" as const, student: { ...mockStudent, dailyCapacityMinutes: { ...mockStudent.dailyCapacityMinutes, SUNDAY: 120 } } },
+  it("shows saved v2 overage reasons on review and minimum-held drilling days", () => {
+    const schedule = generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName);
+    const saved: [DayOfWeek, string][] = [
+      ["MONDAY", "The daily minimum takes 30 min, even though your Monday capacity is 15 min."],
+      ["SUNDAY", "Practice test review takes 2 h 30 min, even though your Sunday capacity is 2 h."],
     ];
-    for (const { day, student } of cases) {
-      const schedule = generateWeek(student, mockAnalytics, mockRules, mockStudentName);
-      const reason = schedule.reasons?.find((item) => item.code === "capacity_overage"
-        && item.placement.scope === "day" && item.placement.day === day);
-      const markup = renderToStaticMarkup(<ScheduleCheckInView scheduleId="schedule-1"
-        schedule={schedule} student={student} checkIns={[]} />);
+    schedule.reasons = saved.map(([day, sentence]) => ({ code: "capacity_overage", placement: { scope: "day", day }, sentence }));
+    const markup = renderToStaticMarkup(<ScheduleCheckInView scheduleId="schedule-1"
+      schedule={schedule} student={mockStudent} checkIns={[]} />);
+    for (const [day, sentence] of saved) {
       const card = markup.match(/<section[^>]*>[\s\S]*?<\/section>/g)?.find((item) =>
         item.includes(day[0] + day.slice(1).toLowerCase())) ?? "";
-      expect(reason).toBeDefined();
-      expect(card).toContain(reason?.sentence);
+      expect(card).toContain(sentence);
       expect(card).toContain('role="note"');
       expect(card).toContain("border-ink-400");
     }
