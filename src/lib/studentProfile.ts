@@ -99,3 +99,31 @@ export function parseStudentProfile(input: unknown, today: string) {
 // What the onboarding form and Study settings send: every profile field but
 // the platform, which the schema fills in.
 export type StudentProfileInput = Omit<z.input<typeof studentProfileSchema>, "platform">;
+
+export const MAX_OFFICIAL_ATTEMPTS = 10;
+const ATTEMPT_MONTH_COUNT = 60;
+
+const attemptMonthLabel = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+
+export function attemptMonths(today: string) {
+  const [year, month] = today.split("-").map(Number);
+  return Array.from({ length: ATTEMPT_MONTH_COUNT }, (_, back) => {
+    const date = new Date(Date.UTC(year, month - 1 - back, 1));
+    return { value: date.toISOString().slice(0, 7), label: attemptMonthLabel.format(date) };
+  });
+}
+
+const officialAttemptSchema = z.object({
+  score: z.number().int().min(120).max(180),
+  month: z.string(),
+});
+
+export type OfficialAttempt = z.infer<typeof officialAttemptSchema>;
+
+export function parseOfficialAttempts(input: unknown, today: string): OfficialAttempt[] {
+  const offered = new Set(attemptMonths(today).map(({ value }) => value));
+  return z
+    .array(officialAttemptSchema.refine((attempt) => offered.has(attempt.month), { path: ["month"] }))
+    .max(MAX_OFFICIAL_ATTEMPTS)
+    .parse(input);
+}

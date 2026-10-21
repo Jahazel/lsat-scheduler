@@ -95,7 +95,7 @@ const profile: Student = {
   preferredPracticeTestDay: "SATURDAY", accommodationMultiplier: 1,
   dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 105, WEDNESDAY: 120, THURSDAY: 135, FRIDAY: 150, SATURDAY: 165, SUNDAY: 180 },
 };
-const profileInput = { ...profile, analyticsRows: [], analyticsApproval: null };
+const profileInput = { ...profile, officialAttempts: [], analyticsRows: [], analyticsApproval: null };
 async function account(email: string, role: "student" | "admin" = "student") {
   const created = await createAccount({ email, name: email, role });
   if (!created) throw new Error("Fixture Account already exists.");
@@ -351,6 +351,7 @@ it("onboarding saves approved analytics with its student and refuses a partial w
   const now = new Date().toISOString();
   const input = {
     ...profile,
+    officialAttempts: [],
     analyticsRows: [
       { type: "Strengthen" as const, category: "regular" as const, accuracy: 0.6 },
       ...(["Law", "Comparative", "Science", "Humanities", "Art"] as const).map((type) => ({ type, category: "passage" as const, accuracy: 60 })),
@@ -465,6 +466,26 @@ it("onboarding stores each day's capacity and a Sunday practice-test day", async
     ...profileInput, dailyCapacityMinutes, preferredPracticeTestDay: "SUNDAY",
   })).rejects.toThrow("redirect:/dashboard");
   expect(await findStudentByAccountId(owner.id)).toMatchObject({ dailyCapacityMinutes, preferredPracticeTestDay: "SUNDAY" });
+});
+
+it("onboarding stores official attempts, and Study settings keep them", async () => {
+  const owner = await account("attempts@example.test");
+  session(owner);
+  const officialAttempts = [{ score: 152, month: "2025-06" }, { score: 149, month: "2026-01" }];
+  await expect(createStudentProfile({ ...profileInput, officialAttempts })).rejects.toThrow("redirect:/dashboard");
+  await expect(updateStudentProfile({ ...profile, goalScore: 170 })).rejects.toThrow("redirect:/dashboard");
+  expect(await studentRows()).toMatchObject([{ goal_score: 170, official_attempts: officialAttempts }]);
+});
+
+it.each([
+  { score: 181, month: "2025-06" },
+  { score: 152, month: "2099-01" },
+  { score: 152, month: "2000-01" },
+  { score: 152, month: "" },
+])("onboarding rejects official attempt %o without storing a student", async (attempt) => {
+  session(await account("bad-attempt@example.test"));
+  await expect(createStudentProfile({ ...profileInput, officialAttempts: [attempt] })).rejects.toBeInstanceOf(z.ZodError);
+  expect(await studentRows()).toEqual([]);
 });
 
 it.each(["student", "admin"] as const)("Study settings store the %s's Wednesday capacity and practice-test day", async (role) => {

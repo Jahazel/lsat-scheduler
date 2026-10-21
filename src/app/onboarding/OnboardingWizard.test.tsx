@@ -77,7 +77,8 @@ async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract 
   await user.selectOptions(screen.getByLabelText("Friday hours"), "1");
   await user.selectOptions(screen.getByLabelText("Friday minutes"), "0");
   await user.click(screen.getByLabelText("Practice test on Friday"));
-  expect(screen.getByText("Friday has 1 h. A full practice test takes 3 h 8 min. Add time on Friday or pick another day.")).toBeDefined();
+  expect(screen.getByText("A full practice test takes 3 h 8 with 1.5× time.")).toBeDefined();
+  expect(screen.queryByRole("status")).toBeNull();
   await user.click(continueButton());
 
   expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();
@@ -106,8 +107,98 @@ describe("OnboardingWizard", () => {
       accommodationMultiplier: 1.5,
       dailyCapacityMinutes: { MONDAY: 150, TUESDAY: 150, WEDNESDAY: 150, THURSDAY: 150, FRIDAY: 60, SATURDAY: 150, SUNDAY: 150 },
       preferredPracticeTestDay: "FRIDAY",
+      officialAttempts: [],
       analyticsRows: [],
       analyticsApproval: null,
+    });
+  });
+
+  describe("Step 1 · Official LSAT attempts", () => {
+    async function goal(onSave = vi.fn(async () => {})) {
+      const user = userEvent.setup();
+      render(<OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={onSave} extract={bySection()} />);
+      await user.type(screen.getByLabelText("Current PT score"), "150");
+      await user.type(screen.getByLabelText("Goal score"), "165");
+      await user.selectOptions(screen.getByLabelText("Goal test date"), "November 2026");
+      return { user, onSave };
+    }
+
+    it("hides the rows for None yet and shows one row and Add another attempt for I've taken it", async () => {
+      const { user } = await goal();
+
+      expect(screen.getByText("For your record. It does not change your plan.")).toBeDefined();
+      expect((screen.getByLabelText("None yet") as HTMLInputElement).checked).toBe(true);
+      expect(screen.queryByLabelText("Attempt 1 score")).toBeNull();
+      expect(continueButton().disabled).toBe(false);
+
+      await user.click(screen.getByLabelText("I've taken it"));
+      expect(screen.getByLabelText("Attempt 1 score")).toBeDefined();
+      expect(screen.queryByLabelText("Attempt 2 score")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Remove attempt 1" })).toBeNull();
+      expect(screen.getByRole("button", { name: "Add another attempt" })).toBeDefined();
+      expect(continueButton().disabled).toBe(true);
+      expect(screen.getByText("Enter a score and month for each attempt to continue.")).toBeDefined();
+
+      await user.click(screen.getByLabelText("None yet"));
+      expect(screen.queryByLabelText("Attempt 1 score")).toBeNull();
+      expect(continueButton().disabled).toBe(false);
+    });
+
+    it("shows each attempt's error under its row once focus leaves the row, and keeps Continue off", async () => {
+      const { user } = await goal();
+      await user.click(screen.getByLabelText("I've taken it"));
+
+      await user.type(screen.getByLabelText("Attempt 1 score"), "190");
+      expect(screen.queryByText("LSAT scores go from 120 to 180. Check this attempt's score.")).toBeNull();
+      await user.tab();
+
+      const score = screen.getByLabelText("Attempt 1 score");
+      expect(score.getAttribute("aria-invalid")).toBe("true");
+      expect(document.getElementById(score.getAttribute("aria-describedby") ?? "")?.textContent).toBe(
+        "LSAT scores go from 120 to 180. Check this attempt's score.",
+      );
+      expect(continueButton().disabled).toBe(true);
+      expect(screen.getByText("Fix your attempts above to continue.")).toBeDefined();
+
+      await user.selectOptions(screen.getByLabelText("Attempt 1 month and year"), "June 2025");
+      await user.clear(score);
+      await user.type(score, "152");
+      await user.click(screen.getByRole("button", { name: "Add another attempt" }));
+      await user.type(screen.getByLabelText("Attempt 2 score"), "149");
+      await user.tab();
+      expect(screen.queryByText("Pick the month of this attempt.")).toBeNull();
+      await user.click(screen.getByLabelText("Goal score"));
+      const month = screen.getByLabelText("Attempt 2 month and year");
+      expect(month.getAttribute("aria-invalid")).toBe("true");
+      expect(screen.getByText("Pick the month of this attempt.")).toBeDefined();
+      expect(continueButton().disabled).toBe(true);
+    });
+
+    it("removes a row and saves two attempts with the profile", async () => {
+      const { user, onSave } = await goal();
+      await user.click(screen.getByLabelText("I've taken it"));
+      await user.type(screen.getByLabelText("Attempt 1 score"), "152");
+      await user.selectOptions(screen.getByLabelText("Attempt 1 month and year"), "June 2025");
+      await user.click(screen.getByRole("button", { name: "Add another attempt" }));
+      await user.type(screen.getByLabelText("Attempt 2 score"), "140");
+      await user.click(screen.getByRole("button", { name: "Add another attempt" }));
+      await user.type(screen.getByLabelText("Attempt 3 score"), "149");
+      await user.selectOptions(screen.getByLabelText("Attempt 3 month and year"), "January 2026");
+      await user.click(screen.getByRole("button", { name: "Remove attempt 2" }));
+
+      expect((screen.getByLabelText("Attempt 2 score") as HTMLInputElement).value).toBe("149");
+      expect(screen.queryByLabelText("Attempt 3 score")).toBeNull();
+      await user.click(continueButton());
+      await user.click(screen.getByLabelText("Practice test on Saturday"));
+      await user.click(continueButton());
+      await user.click(screen.getByRole("button", { name: "Skip for now" }));
+
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+        officialAttempts: [
+          { score: 152, month: "2025-06" },
+          { score: 149, month: "2026-01" },
+        ],
+      }));
     });
   });
 

@@ -5,6 +5,7 @@ import type { prepareApprovedSnapshot } from "./analyticsSnapshots";
 import { isAccountId } from "./accountRepository";
 import { getPostgresDatabase } from "./postgres";
 import { accounts, analyticsSnapshots, students } from "./postgresSchema";
+import type { OfficialAttempt } from "./studentProfile";
 import type { Student, StudentRecord } from "./types";
 
 export type PersistedStudent = Student & { id: string };
@@ -82,13 +83,16 @@ export async function findStudentByAccountId(accountId: string | undefined) {
 export async function createStudent(
   accountId: string | undefined,
   student: Student,
-  snapshot: ReturnType<typeof prepareApprovedSnapshot> | null = null,
+  {
+    snapshot = null,
+    officialAttempts = [],
+  }: { snapshot?: ReturnType<typeof prepareApprovedSnapshot> | null; officialAttempts?: OfficialAttempt[] } = {},
 ) {
   if (!isAccountId(accountId)) return null;
   return getPostgresDatabase().transaction(async (transaction) => {
     const [row] = await transaction
       .insert(students)
-      .values({ accountId, ...studentColumns(student) })
+      .values({ accountId, ...studentColumns(student), officialAttempts })
       .onConflictDoNothing({ target: students.accountId })
       .returning();
     if (!row) return null;

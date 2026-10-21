@@ -24,7 +24,14 @@ import { DAY_ORDER, generateWeek } from "./engine";
 import { formatDuration } from "./formatDuration";
 import { mockRules } from "./mockData";
 import type { ExtractReply } from "./screenshotUpload";
-import { DAY_LABEL, everyDay, goalScoreError, type StudentProfileInput } from "./studentProfile";
+import {
+  DAY_LABEL,
+  MAX_OFFICIAL_ATTEMPTS,
+  everyDay,
+  goalScoreError,
+  type OfficialAttempt,
+  type StudentProfileInput,
+} from "./studentProfile";
 import { testCountdown, testCountdownLabel } from "./testCountdown";
 import type { Activity, AnalyticsExtractedRow, AnalyticsSection, DayOfWeek, LRType, RCType } from "./types";
 
@@ -45,6 +52,14 @@ export interface WizardValues {
   preferredPracticeTestDay: DayOfWeek | null;
 }
 
+export type AttemptRow = { id: number; score: string; month: string; leftScore: boolean; leftRow: boolean };
+
+export interface AttemptsDraft {
+  taken: boolean;
+  rows: AttemptRow[];
+  nextId: number;
+}
+
 export type AnalyticsType = LRType | RCType;
 
 export type Screenshot =
@@ -62,6 +77,7 @@ export interface WizardState {
   step: WizardStep;
   changedStep: boolean;
   values: WizardValues;
+  attempts: AttemptsDraft;
   leftScoreBoxes: Record<ScoreBox, boolean>;
   screenshots: Record<AnalyticsSection, Screenshot>;
   rejections: Record<AnalyticsSection, string | null>;
@@ -74,6 +90,11 @@ export type WizardAction =
   | { type: "edit"; values: Partial<WizardValues> }
   | { type: "leaveScoreBox"; box: ScoreBox }
   | { type: "applyAllDays" }
+  | { type: "setAttemptsTaken"; taken: boolean }
+  | { type: "addAttempt" }
+  | { type: "removeAttempt"; id: number }
+  | { type: "editAttempt"; id: number; values: Partial<Pick<AttemptRow, "score" | "month">> }
+  | { type: "leaveAttempt"; id: number; part: "score" | "row" }
   | { type: "continue" }
   | { type: "back" }
   | { type: "screenshotRejected"; section: AnalyticsSection; message: string }
@@ -120,6 +141,7 @@ export function initialWizardState(): WizardState {
       allDaysMinutes: DEFAULT_DAILY_MINUTES,
       preferredPracticeTestDay: null,
     },
+    attempts: { taken: false, rows: [], nextId: 0 },
     leftScoreBoxes: { currentScore: false, goalScore: false },
     screenshots: { LR: { status: "none" }, RC: { status: "none" } },
     rejections: { LR: null, RC: null },
@@ -164,6 +186,60 @@ export function scoreMessages(state: WizardState): Record<ScoreBox, string | nul
   return { currentScore, goalScore, goalNotAbove };
 }
 
+type AttemptProblem = "empty-score" | "out-of-range" | "no-month";
+
+function attemptProblem(row: AttemptRow): AttemptProblem | null {
+  if (row.score.trim() === "") return "empty-score";
+  if (!inScoreRange(parseScore(row.score))) return "out-of-range";
+  return row.month === "" ? "no-month" : null;
+}
+
+const ATTEMPT_MESSAGE: Record<AttemptProblem, { box: "score" | "month"; text: string }> = {
+  "empty-score": { box: "score", text: "Enter the score from this attempt." },
+  "out-of-range": { box: "score", text: "LSAT scores go from 120 to 180. Check this attempt's score." },
+  "no-month": { box: "month", text: "Pick the month of this attempt." },
+};
+
+export function attemptMessage(row: AttemptRow) {
+  const problem = attemptProblem(row);
+  const shown = row.leftRow || (row.leftScore && problem === "out-of-range");
+  return problem && shown ? ATTEMPT_MESSAGE[problem] : null;
+}
+
+function attemptsBlockedReason(attempts: AttemptsDraft): string | null {
+  if (!attempts.taken) return null;
+  const problems = attempts.rows.map(attemptProblem);
+  if (problems.includes("out-of-range")) return "Fix your attempts above to continue.";
+  return problems.some(Boolean) ? "Enter a score and month for each attempt to continue." : null;
+}
+
+export function officialAttemptsInput(attempts: AttemptsDraft): OfficialAttempt[] | null {
+  if (attemptsBlockedReason(attempts)) return null;
+  if (!attempts.taken) return [];
+  return attempts.rows.map(({ score, month }) => ({ score: Number(score), month }));
+}
+
+function withAttemptRows(state: WizardState, rows: AttemptRow[]): WizardState {
+  return { ...state, attempts: { ...state.attempts, rows } };
+}
+
+function addAttemptRow(state: WizardState): WizardState {
+  const { attempts } = state;
+  if (attempts.rows.length >= MAX_OFFICIAL_ATTEMPTS) return state;
+  const row = { id: attempts.nextId, score: "", month: "", leftScore: false, leftRow: false };
+  return { ...state, attempts: { ...attempts, rows: [...attempts.rows, row], nextId: attempts.nextId + 1 } };
+}
+
+function updateAttemptRow(state: WizardState, id: number, update: Partial<AttemptRow>): WizardState {
+  return withAttemptRows(state, state.attempts.rows.map((row) => (row.id === id ? { ...row, ...update } : row)));
+}
+
+function testTimeName(accommodation: Accommodation): string {
+  return accommodation === 1 ? "standard time" : TEST_TIME_LABEL[accommodation];
+}
+
+const shortDuration = (minutes: number) => formatDuration(minutes).replace(/(h \d+) min$/, "$1");
+
 export function practiceTestMinutes(accommodation: Accommodation): number {
   return Math.round(mockRules.ptDurationMinutes * mockRules.accommodationTimeMultiplier[accommodation]);
 }
@@ -173,17 +249,19 @@ export function weeklyTotalMinutes(values: WizardValues): number {
 }
 
 export function practiceTestHint(accommodation: Accommodation): string {
-  const testTime = accommodation === 1 ? "standard time" : TEST_TIME_LABEL[accommodation];
   const length = formatDuration(practiceTestMinutes(accommodation));
-  return `A full practice test takes ${length} with ${testTime}. Pick a day with that much time.`;
+  return `A full practice test takes ${length} with ${testTimeName(accommodation)}. Pick a day with that much time.`;
+}
+
+export function practiceTestFact(accommodation: Accommodation): string {
+  return `A full practice test takes ${shortDuration(practiceTestMinutes(accommodation))} with ${testTimeName(accommodation)}.`;
 }
 
 const utcDay = (isoDate: string) => new Date(`${isoDate}T00:00:00.000Z`);
 
 export function previewHeader(values: WizardValues, firstName: string, today: string) {
-  const testTime = values.accommodationMultiplier === 1 ? "standard time" : TEST_TIME_LABEL[values.accommodationMultiplier];
   const score = (text: string) => text.trim() || "—";
-  const greeting = `Hi ${firstName} · 7Sage · ${testTime}`;
+  const greeting = `Hi ${firstName} · 7Sage · ${testTimeName(values.accommodationMultiplier)}`;
   const scores = `${score(values.currentScore)} → ${score(values.goalScore)}`;
   if (!values.goalTestDate) return { greeting, scores, target: null, countdown: null };
   const date = utcDay(values.goalTestDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -207,7 +285,7 @@ export function previewWeek(values: WizardValues) {
       return {
         day: weekday,
         label: DAY_SHORT_LABEL[weekday],
-        time: formatDuration(minutes).replace(/(h \d+) min$/, "$1"),
+        time: shortDuration(minutes),
         practiceTest: weekday === day,
         barShare: minutes / longest,
       };
@@ -254,17 +332,6 @@ export function previewDrills(state: WizardState, today: string): { day: DayOfWe
   return { day, items };
 }
 
-// Warns, never blocks: a practice test may run over the day's time (ADR 0002).
-export function shortDayWarning(values: WizardValues): string | null {
-  const day = values.preferredPracticeTestDay;
-  if (!day) return null;
-  const length = practiceTestMinutes(values.accommodationMultiplier);
-  const minutes = values.dailyCapacityMinutes[day];
-  if (minutes >= length) return null;
-  const name = DAY_LABEL[day];
-  return `${name} has ${formatDuration(minutes)}. A full practice test takes ${formatDuration(length)}. Add time on ${name} or pick another day.`;
-}
-
 export function blockedReason(state: WizardState): string | null {
   const { values } = state;
   switch (state.step) {
@@ -276,7 +343,7 @@ export function blockedReason(state: WizardState): string | null {
         return "Fix your scores above to continue.";
       }
       if (values.goalTestDate === "") return "Pick a goal test date to continue.";
-      return null;
+      return attemptsBlockedReason(state.attempts);
     }
     case "week":
       return values.preferredPracticeTestDay ? null : "Pick a practice-test day to continue.";
@@ -379,13 +446,21 @@ export function addTypeOptions(state: WizardState, query: string): Record<Review
   return options;
 }
 
-export type ConfirmSnapshotInput = StudentProfileInput & {
+export type ProfileWithAttempts = StudentProfileInput & { officialAttempts: OfficialAttempt[] };
+
+export function profileWithAttempts(state: WizardState): ProfileWithAttempts | null {
+  const profile = toProfileInput(state.values);
+  const officialAttempts = officialAttemptsInput(state.attempts);
+  return profile && officialAttempts ? { ...profile, officialAttempts } : null;
+}
+
+export type ConfirmSnapshotInput = ProfileWithAttempts & {
   analyticsRows: AnalyticsExtractedRow[];
   analyticsApproval: SnapshotApprovalMetadata;
 };
 
 export function confirmSnapshotInput(state: WizardState): ConfirmSnapshotInput | null {
-  const profile = toProfileInput(state.values);
+  const profile = profileWithAttempts(state);
   if (!profile || !bothRead(state) || !state.draft) return null;
   const { review } = state.draft;
   const analyticsApproval = snapshotApproval(review);
@@ -461,6 +536,18 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       return { ...state, leftScoreBoxes: { ...state.leftScoreBoxes, [action.box]: true } };
     case "applyAllDays":
       return { ...state, values: { ...state.values, dailyCapacityMinutes: everyDay(state.values.allDaysMinutes) } };
+    case "setAttemptsTaken": {
+      const chosen = { ...state, attempts: { ...state.attempts, taken: action.taken } };
+      return action.taken && chosen.attempts.rows.length === 0 ? addAttemptRow(chosen) : chosen;
+    }
+    case "addAttempt":
+      return addAttemptRow(state);
+    case "removeAttempt":
+      return state.attempts.rows.length > 1 ? withAttemptRows(state, state.attempts.rows.filter((row) => row.id !== action.id)) : state;
+    case "editAttempt":
+      return updateAttemptRow(state, action.id, action.values);
+    case "leaveAttempt":
+      return updateAttemptRow(state, action.id, action.part === "score" ? { leftScore: true } : { leftRow: true });
     case "continue": {
       const next = STEPS[STEPS.indexOf(state.step) + 1];
       return blockedReason(state) || !next ? state : { ...state, step: next, changedStep: true };
@@ -506,7 +593,7 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       return revealBoxes(state, wrong);
     }
     case "saveStarted":
-      return toProfileInput(state.values) ? { ...state, save: "saving" } : state;
+      return profileWithAttempts(state) ? { ...state, save: "saving" } : state;
     case "saveFailed":
       return { ...state, save: "failed" };
     default: {

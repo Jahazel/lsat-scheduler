@@ -3,6 +3,7 @@ import type {
   Activity, ActivityCheckInStatus, AnalyticsSnapshot, DayOfWeek, DayPlan, LRType, PersistedWeeklySchedule, RCType, Student,
   WeeklySchedule,
 } from "./types";
+import type { OfficialAttempt } from "./studentProfile";
 
 type SavedOneTypeActivity = { drillMinutes: number; reviewMinutes?: number; isFullSection: boolean } & (
   | { kind: "LR"; type: LRType; questionCount: number; difficultyRange: string }
@@ -41,6 +42,7 @@ export const students = pgTable("students", {
   fridayCapacityMinutes: dailyCapacity("friday_capacity_minutes"),
   saturdayCapacityMinutes: dailyCapacity("saturday_capacity_minutes"),
   sundayCapacityMinutes: dailyCapacity("sunday_capacity_minutes"),
+  officialAttempts: jsonb("official_attempts").$type<OfficialAttempt[]>().notNull().default([]),
 });
 
 export const leads = pgTable("leads", {
