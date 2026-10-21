@@ -193,9 +193,10 @@ describe("ProgressBar", () => {
     expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe(String(done));
   });
 
-  it("moves the pace status left when today nears the end of the track", () => {
+  it("keeps the pace status right and gives Today its own line near the end of the track", () => {
     render(<ProgressBar done={9} total={11} dueSoFar={11} />);
-    expect(screen.getByText("2 behind").parentElement?.className).toContain("justify-start");
+    expect(screen.getByText("2 behind").parentElement?.className).toContain("items-end");
+    expect(screen.getByText("Today").className).toContain("relative self-start");
   });
 
   it("has no today tick or pace without a due count", () => {

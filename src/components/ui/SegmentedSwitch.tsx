@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent } from "react";
-import { MOTION, cx } from "./classes";
+import { cx } from "./classes";
 
 export type SegmentedOption<V extends string> = { value: V; label: string };
 
@@ -30,7 +30,7 @@ export function SegmentedSwitch<V extends string>({ name, label, options, value,
             "hover:bg-ink/faint hover:text-ink",
             "has-checked:bg-paper has-checked:font-medium has-checked:text-ink has-checked:shadow-control",
             "has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent",
-            MOTION,
+            "transition-colors duration-120 ease-out active:duration-200 has-focus-visible:duration-200 motion-reduce:transition-none",
           )}
         >
           <input
