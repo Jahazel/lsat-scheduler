@@ -29,8 +29,10 @@ const RULES: { name: string; pattern: RegExp }[] = [
   { name: "raw color function", pattern: /(?:rgba?|hsla?|oklch|oklab)\(/g },
 ];
 
+const STRING_OR_COMMENT = /("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g;
+
 function withoutComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|\s)\/\/.*$/gm, "$1");
+  return source.replace(STRING_OR_COMMENT, (_match, literal: string | undefined) => literal ?? "");
 }
 
 function findTokenViolations(source: string): string[] {
@@ -81,6 +83,9 @@ describe("design tokens", () => {
       ),
     ).toEqual([]);
     expect(findTokenViolations("// Fix #202\n/* see #191 */\nconst url = \"https://example.test\";")).toEqual([]);
+    expect(findTokenViolations(`const help = "Use // to continue"; const node = <div className="bg-red-500" />;`)).toEqual([
+      "Tailwind default palette color: bg-red-500",
+    ]);
   });
 
   it("keeps application code on Paper tokens", () => {

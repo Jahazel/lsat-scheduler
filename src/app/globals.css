@@ -121,6 +121,13 @@
   --font-mono: var(--font-geist-mono);
 }
 
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
 body {
   background: var(--color-vellum);
   color: var(--color-ink);
