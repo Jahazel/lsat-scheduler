@@ -5,7 +5,7 @@ import TestControls, {
   displaySimulatedDate,
   type TestControlState,
 } from "./TestControls";
-import { FOCUS, FOCUS_INSET, cx } from "./nav/shared";
+import { FOCUS, FOCUS_INSET, cx } from "./ui/classes";
 
 function panelLabel(state: TestControlState) {
   return state.simulated ? "Simulated" : "Real date";

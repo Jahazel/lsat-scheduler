@@ -3,22 +3,18 @@ import { dateInScheduleTimezone, timeForVerifiedUser } from "@/lib/adminTestWork
 import { currentWeekInTimezone } from "@/lib/currentWeeklySchedule";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { postgresAdminClock, studentSideNow } from "@/lib/studentClock";
-import Link from "next/link";
 import { auth } from "@/auth";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { initialsFor, loadStudentNavState } from "@/lib/studentNav";
 import AdminNav from "./AdminNav";
 import StudentNav, { StudentTabBar } from "./StudentNav";
 import { logOut } from "./actions";
-import { FOCUS, Logo, cx } from "./shared";
-
-const HEADER = "sticky top-0 z-40 border-b border-vellum-line bg-paper";
-const BAR = "flex h-14 items-center justify-between px-4 md:h-16 md:px-8";
-const LINK = cx("rounded-sm px-3 py-2 text-small text-smoke hover:bg-vellum", FOCUS);
+import { BAR, HEADER, Logo } from "./shared";
 
 function LogOutButton() {
   return (
     <form action={logOut}>
-      <button type="submit" className={LINK}>Log out</button>
+      <Button type="submit" variant="text" size="md">Log out</Button>
     </form>
   );
 }
@@ -33,10 +29,8 @@ export default async function SiteHeader() {
         <div className={BAR}>
           <Logo href="/" />
           <nav aria-label="Primary" className="flex items-center gap-1">
-            <Link href="/login" className={LINK}>Log in</Link>
-            <Link href="/signup" className={cx("rounded-sm bg-ink px-3 py-2 text-small font-medium text-chalk hover:bg-graphite-raised", FOCUS)}>
-              Sign up
-            </Link>
+            <ButtonLink href="/login" variant="text" size="md">Log in</ButtonLink>
+            <ButtonLink href="/signup" size="md">Sign up</ButtonLink>
           </nav>
         </div>
       </header>

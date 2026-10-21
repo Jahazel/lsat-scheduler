@@ -8,7 +8,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import StudentNav, { StudentTabBar, type StudentNavProps } from "./StudentNav";
 import { NavIcon } from "./NavIcon";
-import { FOCUS, Logo, TABS, cx, isTabActive } from "./shared";
+import { Button } from "@/components/ui/Button";
+import { FOCUS, cx } from "@/components/ui/classes";
+import { BAR, HEADER, Logo, TABS, isTabActive } from "./shared";
 
 function WorkspaceSwitcher({ studentSide, adminSide }: { studentSide: boolean; adminSide: boolean }) {
   const [open, setOpen] = useState(false);
@@ -101,18 +103,18 @@ export default function AdminNav(props: StudentNavProps & { testState?: TestCont
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-vellum-line bg-paper">
+      <header className={HEADER}>
         {studentSide ? (
           <StudentNav {...props} uploadNeeded={uploadNeeded} workspaceSwitcher={switcher} />
         ) : (
-          <div className="flex min-h-14 items-center justify-between gap-1 px-4 md:h-16 md:px-8">
+          <div className={BAR}>
             <div className="flex items-center gap-1 sm:gap-3">
               <Logo href="/admin" />
               <span className="text-fog" aria-hidden data-workspace-separator="true">/</span>
               {switcher}
             </div>
             <form action={props.logOut}>
-              <button type="submit" className={cx("min-h-11 rounded-sm px-2 text-small text-smoke hover:bg-vellum", FOCUS)}>Log out</button>
+              <Button type="submit" variant="text" size="md">Log out</Button>
             </form>
           </div>
         )}
