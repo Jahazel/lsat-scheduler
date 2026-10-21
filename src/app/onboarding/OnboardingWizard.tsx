@@ -13,6 +13,7 @@ import {
 import { DurationSelect } from "@/components/DailyCapacityFieldset";
 import { Checkbox as SharedCheckbox } from "@/components/ui/Checkbox";
 import { DropZone } from "@/components/ui/DropZone";
+import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
 import { DAY_ORDER } from "@/lib/engine";
 import { SECTION_NAME, SECTIONS, lowestPassageType, type ReviewRow, type SnapshotReview, type Statement } from "@/lib/analyticsReview";
 import { formatDuration } from "@/lib/formatDuration";
@@ -21,21 +22,22 @@ import {
   TEST_TIME_LABEL,
   accuracyMessage,
   addTypeOptions,
+  attemptMessage,
   blockedReason,
   boxText,
   confirmLock,
   confirmSnapshotInput,
   emptyListNote,
   initialWizardState,
-  practiceTestHint,
+  practiceTestFact,
+  profileWithAttempts,
   scoreMessages,
-  shortDayWarning,
   stepLabel,
-  toProfileInput,
   weeklyTotalMinutes,
   wizardReducer,
   type Accommodation,
   type AnalyticsType,
+  type AttemptsDraft,
   type ReviewList,
   type Screenshot,
   type WizardAction,
@@ -44,7 +46,7 @@ import {
 import { SIGN_IN_EXPIRED, SignInAgainLink } from "@/components/SignInExpired";
 import { SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, checkScreenshot, extractScreenshot } from "@/lib/screenshotUpload";
 import type { AnalyticsExtractedRow, AnalyticsSection, LRType, PriorityTier } from "@/lib/types";
-import { DAY_LABEL, type upcomingTestMonths } from "@/lib/studentProfile";
+import { DAY_LABEL, MAX_OFFICIAL_ATTEMPTS, attemptMonths, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { createStudentProfile } from "./actions";
 import LivePreview from "./LivePreview";
 
@@ -100,7 +102,7 @@ export default function OnboardingWizard({
   }
 
   function skipForNow() {
-    const profile = toProfileInput(state.values);
+    const profile = profileWithAttempts(state);
     if (profile && state.save !== "saving") void save({ ...profile, analyticsRows: [], analyticsApproval: null });
   }
 
@@ -119,7 +121,7 @@ export default function OnboardingWizard({
     <div className="lg:grid lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-[520px_minmax(0,1fr)] xl:grid-cols-[680px_minmax(0,1fr)]">
       <div className="flex justify-center px-5 py-8 lg:items-center lg:px-10 lg:py-16">
         <div className="w-full lg:max-w-[440px]">
-          {state.step === "goal" && <GoalStep state={state} dispatch={dispatch} goalTestDateOptions={goalTestDateOptions} />}
+          {state.step === "goal" && <GoalStep state={state} dispatch={dispatch} goalTestDateOptions={goalTestDateOptions} today={today} />}
           {state.step === "week" && <WeekStep state={state} dispatch={dispatch} />}
           {state.step === "analytics" && (
             <AnalyticsStep state={state} dispatch={dispatch} onSkip={skipForNow} onFile={readScreenshot} />
@@ -181,10 +183,12 @@ function GoalStep({
   state,
   dispatch,
   goalTestDateOptions,
+  today,
 }: {
   state: WizardState;
   dispatch: Dispatch;
   goalTestDateOptions: OnboardingWizardProps["goalTestDateOptions"];
+  today: string;
 }) {
   const messages = scoreMessages(state);
   const goalMessage = messages.goalScore ?? messages.goalNotAbove;
@@ -276,14 +280,135 @@ function GoalStep({
             ))}
           </div>
         </fieldset>
+
+        <OfficialAttempts attempts={state.attempts} dispatch={dispatch} today={today} />
       </div>
     </StepForm>
   );
 }
 
+const ATTEMPT_CHOICES = [
+  { value: "none", label: "None yet" },
+  { value: "taken", label: "I've taken it" },
+] as const;
+
+function OfficialAttempts({ attempts, dispatch, today }: { attempts: AttemptsDraft; dispatch: Dispatch; today: string }) {
+  const id = useId();
+  const afterPress = useAfterPress();
+  const months = attemptMonths(today);
+  const box = (invalid: boolean) => `${FIELD} ${invalid ? "border-danger" : "border-vellum-line"}`;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-3">
+        <span id={`${id}-label`} className="text-small font-medium text-ink">
+          Official LSAT attempts
+        </span>
+        <span id={`${id}-note`} className="text-right text-caption text-smoke">
+          For your record. It does not change your plan.
+        </span>
+      </div>
+      <SegmentedSwitch
+        name="officialAttempts"
+        label="Official LSAT attempts"
+        options={ATTEMPT_CHOICES}
+        value={attempts.taken ? "taken" : "none"}
+        onChange={(choice) => dispatch({ type: "setAttemptsTaken", taken: choice === "taken" })}
+      />
+      {attempts.taken && (
+        <div className="flex flex-col gap-2 pt-1">
+          <div aria-hidden className="flex gap-3 text-caption text-smoke">
+            <span className="w-24 shrink-0">Score</span>
+            <span className="flex-1">Month and year</span>
+            <span className="w-8 shrink-0" />
+          </div>
+          {attempts.rows.map((row, index) => {
+            const message = attemptMessage(row);
+            const messageId = `${id}-attempt-${row.id}-message`;
+            const describedBy = (box: "score" | "month") => (message?.box === box ? messageId : undefined);
+            return (
+              <div
+                key={row.id}
+                className="flex flex-col gap-2"
+                onBlur={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget)) afterPress(() => dispatch({ type: "leaveAttempt", id: row.id }));
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-24 shrink-0">
+                    <input
+                      inputMode="numeric"
+                      autoComplete="off"
+                      aria-label={`Attempt ${index + 1} score`}
+                      value={row.score}
+                      onChange={(e) => dispatch({ type: "editAttempt", id: row.id, values: { score: e.target.value } })}
+                      aria-invalid={message?.box === "score" ? true : undefined}
+                      aria-describedby={describedBy("score")}
+                      className={box(message?.box === "score")}
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <select
+                      aria-label={`Attempt ${index + 1} month and year`}
+                      value={row.month}
+                      onChange={(e) => dispatch({ type: "editAttempt", id: row.id, values: { month: e.target.value } })}
+                      aria-invalid={message?.box === "month" ? true : undefined}
+                      aria-describedby={describedBy("month")}
+                      className={box(message?.box === "month")}
+                    >
+                      <option value="" disabled>
+                        Select a month
+                      </option>
+                      {months.map((month) => (
+                        <option key={month.value} value={month.value}>
+                          {month.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {attempts.rows.length > 1 ? (
+                    <button
+                      type="button"
+                      aria-label={`Remove attempt ${index + 1}`}
+                      onClick={() => dispatch({ type: "removeAttempt", id: row.id })}
+                      className={`flex size-8 shrink-0 items-center justify-center rounded-sm text-smoke hover:bg-vellum hover:text-ink ${FOCUS}`}
+                    >
+                      <svg aria-hidden viewBox="0 0 14 14" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                        <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" />
+                      </svg>
+                    </button>
+                  ) : (
+                    <span className="w-8 shrink-0" />
+                  )}
+                </div>
+                {message && (
+                  <p id={messageId} className="text-small text-danger-ink">
+                    {message.text}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+          {attempts.rows.length < MAX_OFFICIAL_ATTEMPTS && (
+            <button
+              type="button"
+              onClick={() => dispatch({ type: "addAttempt" })}
+              className={`flex items-center gap-2 self-start pt-1 text-small ${LINK_BUTTON}`}
+            >
+              <svg aria-hidden viewBox="0 0 14 14" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M7 2.5v9M2.5 7h9" />
+              </svg>
+              Add another attempt
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch }) {
   const { values } = state;
-  const warning = shortDayWarning(values);
 
   return (
     <StepForm state={state} dispatch={dispatch}>
@@ -370,17 +495,7 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
               {formatDuration(weeklyTotalMinutes(values))}
             </span>
           </p>
-          {warning ? (
-            <p role="status" className="flex gap-2 text-small text-warning-ink">
-              <svg aria-hidden viewBox="0 0 16 16" className="mt-0.5 size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M8 2.5 14 13H2L8 2.5Z" strokeLinejoin="round" />
-                <path d="M8 6.5v3M8 11.25v.01" strokeLinecap="round" />
-              </svg>
-              {warning}
-            </p>
-          ) : (
-            <p className="text-small text-smoke">{practiceTestHint(values.accommodationMultiplier)}</p>
-          )}
+          <p className="text-small text-smoke">{practiceTestFact(values.accommodationMultiplier)}</p>
         </div>
       </div>
     </StepForm>

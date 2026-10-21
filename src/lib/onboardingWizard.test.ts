@@ -2,18 +2,20 @@ import { describe, expect, it } from "vitest";
 import {
   accuracyMessage,
   addTypeOptions,
+  attemptMessage,
   boxText,
   blockedReason,
   confirmSnapshotInput,
   emptyListNote,
   initialWizardState,
+  practiceTestFact,
   practiceTestHint,
   practiceTestMinutes,
+  profileWithAttempts,
   previewHeader,
   previewDrills,
   previewWeek,
   scoreMessages,
-  shortDayWarning,
   toProfileInput,
   stepLabel,
   wizardReducer,
@@ -116,18 +118,93 @@ describe("onboarding wizard", () => {
     );
   });
 
-  it("warns, without blocking, when the practice-test day is too short", () => {
+  it("states the practice-test length as a fact and lets a short practice-test day continue", () => {
     const state = run(
       validGoal,
       { type: "continue" },
       { type: "edit", values: { preferredPracticeTestDay: "FRIDAY", dailyCapacityMinutes: { ...initialWizardState().values.dailyCapacityMinutes, FRIDAY: 60 } } },
     );
 
-    expect(shortDayWarning(state.values)).toBe(
-      "Friday has 1 h. A full practice test takes 2 h 30 min. Add time on Friday or pick another day.",
-    );
+    expect(practiceTestFact(1)).toBe("A full practice test takes 2 h 30 with standard time.");
+    expect(practiceTestFact(2)).toBe("A full practice test takes 3 h 45 with 2× time.");
     expect(blockedReason(state)).toBeNull();
-    expect(shortDayWarning({ ...state.values, preferredPracticeTestDay: "MONDAY", dailyCapacityMinutes: { ...state.values.dailyCapacityMinutes, MONDAY: 150 } })).toBeNull();
+  });
+
+  describe("official LSAT attempts", () => {
+    const taken: WizardAction = { type: "setAttemptsTaken", taken: true };
+    const rowIds = (state: WizardState) => state.attempts.rows.map(({ id }) => id);
+
+    it("saves no attempts for None yet, the default", () => {
+      const state = run(validGoal, { type: "continue" }, { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } });
+
+      expect(state.attempts.taken).toBe(false);
+      expect(profileWithAttempts(state)?.officialAttempts).toEqual([]);
+    });
+
+    it("opens one empty row for I've taken it and blocks Continue until it is filled", () => {
+      const state = run(validGoal, taken);
+
+      expect(state.attempts.rows).toHaveLength(1);
+      expect(blockedReason(state)).toBe("Enter a score and month for each attempt to continue.");
+      expect(wizardReducer(state, { type: "continue" }).step).toBe("goal");
+    });
+
+    it("adds and removes rows, and keeps the last row", () => {
+      const three = run(validGoal, taken, { type: "addAttempt" }, { type: "addAttempt" });
+      expect(rowIds(three)).toEqual([0, 1, 2]);
+
+      const removed = wizardReducer(three, { type: "removeAttempt", id: 1 });
+      expect(rowIds(removed)).toEqual([0, 2]);
+
+      const last = run(validGoal, taken);
+      expect(rowIds(wizardReducer(last, { type: "removeAttempt", id: 0 }))).toEqual([0]);
+    });
+
+    it("stops adding rows at 10", () => {
+      const state = run(validGoal, taken, ...Array.from({ length: 12 }, (): WizardAction => ({ type: "addAttempt" })));
+
+      expect(state.attempts.rows).toHaveLength(10);
+    });
+
+    it("shows a row's message only after focus leaves the row", () => {
+      const typing = run(validGoal, taken, { type: "editAttempt", id: 0, values: { score: "190", month: "2025-06" } });
+      expect(attemptMessage(typing.attempts.rows[0])).toBeNull();
+      expect(blockedReason(typing)).toBe("Fix your attempts above to continue.");
+
+      const left = wizardReducer(typing, { type: "leaveAttempt", id: 0 });
+      expect(attemptMessage(left.attempts.rows[0])).toEqual({
+        box: "score",
+        text: "LSAT scores go from 120 to 180. Check this attempt's score.",
+      });
+    });
+
+    it("asks for the month of an attempt with a score", () => {
+      const state = run(validGoal, taken, { type: "editAttempt", id: 0, values: { score: "152" } }, { type: "leaveAttempt", id: 0 });
+
+      expect(attemptMessage(state.attempts.rows[0])).toEqual({ box: "month", text: "Pick the month of this attempt." });
+      expect(blockedReason(state)).toBe("Enter a score and month for each attempt to continue.");
+    });
+
+    it("saves the filled rows, and none after switching back to None yet", () => {
+      const filled = run(
+        validGoal,
+        taken,
+        { type: "editAttempt", id: 0, values: { score: "152", month: "2025-06" } },
+        { type: "addAttempt" },
+        { type: "editAttempt", id: 1, values: { score: "149", month: "2026-01" } },
+        { type: "continue" },
+        { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
+      );
+      expect(filled.step).toBe("week");
+      expect(profileWithAttempts(filled)?.officialAttempts).toEqual([
+        { score: 152, month: "2025-06" },
+        { score: 149, month: "2026-01" },
+      ]);
+
+      const none = wizardReducer(filled, { type: "setAttemptsTaken", taken: false });
+      expect(profileWithAttempts(none)?.officialAttempts).toEqual([]);
+      expect(wizardReducer(none, taken).attempts.rows).toHaveLength(2);
+    });
   });
 
   it("ignores edits and Back while the save runs, and allows a retry after it fails", () => {
@@ -323,6 +400,7 @@ describe("onboarding wizard", () => {
         goalTestDate: "2026-11-01",
         accommodationMultiplier: 1,
         dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 90, SUNDAY: 90 },
+        officialAttempts: [],
         preferredPracticeTestDay: "SATURDAY",
         analyticsRows: [
           { type: "Necessary assumption", category: "regular", accuracy: 76 },
