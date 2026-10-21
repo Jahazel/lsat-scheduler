@@ -370,7 +370,7 @@ function OfficialAttempts({ attempts, dispatch, today }: { attempts: AttemptsDra
                   </div>
                   {attempts.rows.length > 1 ? (
                     <IconButton label={`Remove attempt ${index + 1}`} onClick={() => dispatch({ type: "removeAttempt", id: row.id })}>
-                      <svg aria-hidden viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                      <svg aria-hidden className="text-smoke" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                         <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" />
                       </svg>
                     </IconButton>
