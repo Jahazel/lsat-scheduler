@@ -2,7 +2,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { SECTION_NAME } from "@/lib/analyticsReview";
 import type { ExtractReply } from "@/lib/screenshotUpload";
+import type { AnalyticsSection } from "@/lib/types";
 import { upcomingTestMonths } from "@/lib/studentProfile";
 import OnboardingWizard from "./OnboardingWizard";
 
@@ -27,7 +29,8 @@ function continueButton() {
 const student = { firstName: "Dana", initials: "DR", today: "2026-10-19" };
 const preview = () => within(screen.getByRole("complementary", { name: "Preview of This week" }));
 
-const screenshot = new File(["png"], "7sage-analytics.png", { type: "image/png" });
+const screenshot = new File(["png"], "lr-analytics.png", { type: "image/png" });
+const rcScreenshot = new File(["png"], "rc-analytics.png", { type: "image/png" });
 const rows: ExtractReply = {
   kind: "rows",
   rows: [
@@ -35,8 +38,22 @@ const rows: ExtractReply = {
     { type: "Causal reasoning", category: "restricted", isTopPriority: true },
   ],
 };
+const rcRows: ExtractReply = {
+  kind: "rows",
+  rows: [
+    { type: "Law", category: "passage", accuracy: 58 },
+    { type: "Comparative", category: "passage", accuracy: 70 },
+    { type: "Science", category: "passage", accuracy: 64 },
+    { type: "Humanities", category: "passage", accuracy: 81 },
+    { type: "Art", category: "passage", accuracy: 77 },
+  ],
+};
 
-async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract = vi.fn(async (): Promise<ExtractReply> => rows)) {
+type Extract = (file: File, section: AnalyticsSection) => Promise<ExtractReply>;
+const bySection = (lr: ExtractReply = rows, rc: ExtractReply = rcRows) =>
+  vi.fn<Extract>(async (_file, section) => (section === "LR" ? lr : rc));
+
+async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract = bySection()) {
   const user = userEvent.setup();
   render(<OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={onSave} extract={extract} />);
 
@@ -71,8 +88,8 @@ function checkTheValues() {
   return screen.getByRole("button", { name: "Check the values" }) as HTMLButtonElement;
 }
 
-async function upload(user: ReturnType<typeof userEvent.setup>, file = screenshot) {
-  await user.upload(screen.getByLabelText("Screenshot file"), file);
+async function upload(user: ReturnType<typeof userEvent.setup>, file = screenshot, section: AnalyticsSection = "LR") {
+  await user.upload(screen.getByLabelText(`${SECTION_NAME[section]} screenshot file`), file);
 }
 
 describe("OnboardingWizard", () => {
@@ -149,10 +166,10 @@ describe("OnboardingWizard", () => {
   describe("Step 3 · Analytics", () => {
     it("opens the file picker from the drop zone with Enter or Space", async () => {
       const { user } = await fillGoalAndWeek();
-      const picker = screen.getByLabelText("Screenshot file") as HTMLInputElement;
+      const picker = screen.getByLabelText("Logical Reasoning screenshot file") as HTMLInputElement;
       const openPicker = vi.spyOn(picker, "click");
 
-      const zone = screen.getByRole("button", { name: /Drop your screenshot here/ });
+      const zone = screen.getByRole("button", { name: /Logical Reasoning screenshot/ });
       zone.focus();
       await user.keyboard("{Enter}");
       await user.keyboard(" ");
@@ -160,44 +177,60 @@ describe("OnboardingWizard", () => {
       expect(openPicker).toHaveBeenCalledTimes(2);
     });
 
-    it("reads the rows and moves to Step 4 with Check the values", async () => {
+    it("shows one drop zone per section and the steps to find each screenshot", async () => {
+      await fillGoalAndWeek();
+
+      expect(screen.getByRole("button", { name: /Logical Reasoning screenshot/ })).toBeDefined();
+      expect(screen.getByRole("button", { name: /Reading Comprehension screenshot/ })).toBeDefined();
+      expect(screen.getByText(/Show the passage types: Law, Comparative, Science, Humanities, and Art\./)).toBeDefined();
+      expect(screen.getByText(/Your schedule starts after you add both\./)).toBeDefined();
+    });
+
+    it("reads each screenshot on its own and moves to Step 4 once both are read", async () => {
       let finishRead: (reply: ExtractReply) => void = () => {};
-      const extract = vi.fn(() => new Promise<ExtractReply>((resolve) => { finishRead = resolve; }));
+      const extract = vi.fn<Extract>((_file, section) =>
+        section === "LR" ? new Promise<ExtractReply>((resolve) => { finishRead = resolve; }) : Promise.resolve(rcRows));
       const { user } = await fillGoalAndWeek(undefined, extract);
       expect((screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement).disabled).toBe(true);
 
       await upload(user);
-      expect(screen.getByText("7sage-analytics.png")).toBeDefined();
-      expect(screen.getByText("Reading your screenshot…")).toBeDefined();
-      expect(screen.getByRole("progressbar", { name: "Reading your screenshot" })).toBeDefined();
+      expect(screen.getByText("lr-analytics.png · Reading…")).toBeDefined();
+      expect(screen.getByRole("progressbar", { name: "Reading your Logical Reasoning screenshot" })).toBeDefined();
       expect(checkTheValues().disabled).toBe(true);
       expect(screen.getByRole("button", { name: "Skip for now" })).toBeDefined();
 
       finishRead(rows);
-      expect(await screen.findByText("Found · 2 rows")).toBeDefined();
+      expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
       expect(screen.getByRole("rowheader", { name: "Strengthen" })).toBeDefined();
       expect(within(screen.getByRole("table")).getByText("68%")).toBeDefined();
       expect(screen.getByText("Highest priority")).toBeDefined();
+      expect(checkTheValues().disabled).toBe(true);
+
+      await upload(user, rcScreenshot, "RC");
+      expect(await screen.findByText("rc-analytics.png · 5 passage types")).toBeDefined();
+      expect(screen.getByText("Logical Reasoning · found 2 rows")).toBeDefined();
+      expect(screen.getByText("You can replace either screenshot before you confirm.")).toBeDefined();
       await user.click(checkTheValues());
 
       expect(screen.getByText("Step 4 of 4 · Review")).toBeDefined();
       await user.click(screen.getByRole("button", { name: "Back" }));
-      expect(screen.getByText("Found · 2 rows")).toBeDefined();
-      expect(extract).toHaveBeenCalledWith(screenshot);
+      expect(screen.getByText("Logical Reasoning · found 2 rows")).toBeDefined();
+      expect(extract).toHaveBeenCalledWith(screenshot, "LR");
+      expect(extract).toHaveBeenCalledWith(rcScreenshot, "RC");
     });
 
     it("keeps the file on a lost connection and resends it with Try again", async () => {
-      const extract = vi.fn<(file: File) => Promise<ExtractReply>>()
+      const extract = vi.fn<Extract>()
         .mockResolvedValueOnce({ kind: "connection-lost" })
         .mockResolvedValueOnce(rows);
       const { user } = await fillGoalAndWeek(undefined, extract);
 
       await upload(user);
-      const status = await screen.findByText("Connection lost. Your file is still here.");
-      expect(status.className).not.toContain("red");
+      const status = await screen.findByText(/Connection lost\. Your file is still here\./);
+      expect(status.closest("[aria-live]")?.className).not.toContain("danger");
       await user.click(screen.getByRole("button", { name: "Try again" }));
 
-      expect(await screen.findByText("Found · 2 rows")).toBeDefined();
+      expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
       expect(extract).toHaveBeenCalledTimes(2);
       expect(extract.mock.calls[1][0]).toBe(screenshot);
     });
@@ -207,7 +240,7 @@ describe("OnboardingWizard", () => {
 
       await upload(user);
 
-      expect(await screen.findByText("Your sign-in expired. Sign in again, then upload your screenshot again.")).toBeDefined();
+      expect(await screen.findByText(/Your sign-in expired\. Sign in again, then upload your screenshot again\./)).toBeDefined();
       expect(screen.getByRole("link", { name: "Sign in again" }).getAttribute("href")).toBe("/login");
       expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
     });
@@ -217,34 +250,44 @@ describe("OnboardingWizard", () => {
 
       await upload(user);
 
-      expect(await screen.findByText("We couldn't read the rows in it.")).toBeDefined();
+      expect(await screen.findByText(/We couldn't read the rows in it\./)).toBeDefined();
       expect(screen.getByRole("button", { name: "Choose a sharper screenshot" })).toBeDefined();
       expect(checkTheValues().disabled).toBe(true);
     });
 
     it("shows the right part of 7Sage when a read finds zero rows, and never reaches Review", async () => {
-      const extract = vi.fn<(file: File) => Promise<ExtractReply>>()
+      const extract = vi.fn<Extract>()
         .mockResolvedValueOnce({ kind: "rows", rows: [] })
-        .mockResolvedValueOnce(rows);
+        .mockResolvedValueOnce(rows)
+        .mockResolvedValueOnce(rows)
+        .mockResolvedValueOnce(rcRows);
       const { user } = await fillGoalAndWeek(undefined, extract);
 
       await upload(user, new File(["png"], "progress-chart.png", { type: "image/png" }));
 
-      expect(await screen.findByText("No question types in this one.")).toBeDefined();
+      expect(await screen.findByText(/No question types in this one\./)).toBeDefined();
       expect(screen.getByText("Capture this part of 7Sage Analytics")).toBeDefined();
+      expect(screen.getByText("Logical Reasoning question types")).toBeDefined();
       expect(checkTheValues().disabled).toBe(true);
       await user.click(checkTheValues());
       expect(screen.queryByText("Step 4 of 4 · Review")).toBeNull();
 
       await upload(user);
-      expect(await screen.findByText("Found · 2 rows")).toBeDefined();
-      expect(screen.getByText("7sage-analytics.png")).toBeDefined();
+      expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
+      expect(screen.getByText(/lr-analytics\.png/)).toBeDefined();
+
+      await upload(user, new File(["png"], "swapped.png", { type: "image/png" }), "RC");
+      expect(await screen.findByText(/No passage types in this one\./)).toBeDefined();
+      expect(screen.getByText("Reading Comprehension passage types")).toBeDefined();
+      await upload(user, rcScreenshot, "RC");
+      expect(await screen.findByText("rc-analytics.png · 5 passage types")).toBeDefined();
+      expect(checkTheValues().disabled).toBe(false);
     });
 
     it("rejects a wrong type or a file over 4 MB before any upload", async () => {
       const { user, extract } = await fillGoalAndWeek();
 
-      fireEvent.drop(screen.getByRole("button", { name: /Drop your screenshot here/ }), {
+      fireEvent.drop(screen.getByRole("button", { name: /Logical Reasoning screenshot/ }), {
         dataTransfer: { files: [new File(["%PDF"], "study-notes.pdf", { type: "application/pdf" })] },
       });
       expect(screen.getByRole("alert").textContent).toBe("study-notes.pdf is a PDF. Choose a PNG, JPG, or WEBP screenshot.");
@@ -253,6 +296,12 @@ describe("OnboardingWizard", () => {
       Object.defineProperty(big, "size", { value: 12.4 * 1024 * 1024 });
       await upload(user, big);
       expect(screen.getByRole("alert").textContent).toBe("That file is 12.4 MB. Choose one that is 4 MB or less.");
+
+      await upload(user, big, "RC");
+      expect(screen.getAllByRole("alert").map((alert) => alert.textContent)).toEqual([
+        "That file is 12.4 MB. Choose one that is 4 MB or less.",
+        "That file is 12.4 MB. Choose one that is 4 MB or less.",
+      ]);
       expect(extract).not.toHaveBeenCalled();
     });
 
@@ -267,7 +316,7 @@ describe("OnboardingWizard", () => {
       reject({ kind: "rejected", message });
 
       expect((await screen.findByRole("alert")).textContent).toBe(message);
-      expect(document.activeElement).toBe(screen.getByRole("button", { name: /Drop your screenshot here/ }));
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: /Logical Reasoning screenshot/ }));
     });
 
     it("leaves focus where the student moved it when the server rejects the file", async () => {
@@ -286,12 +335,13 @@ describe("OnboardingWizard", () => {
 
     it("shows Drop to add it while a file is dragged over the zone", async () => {
       await fillGoalAndWeek();
-      const zone = screen.getByRole("button", { name: /Drop your screenshot here/ });
+      const zone = screen.getByRole("button", { name: /Reading Comprehension screenshot/ });
 
       fireEvent.dragOver(zone);
       expect(zone.textContent).toContain("Drop to add it");
+      expect(screen.getByRole("button", { name: /Logical Reasoning screenshot/ }).textContent).not.toContain("Drop to add it");
       fireEvent.dragLeave(zone);
-      expect(zone.textContent).toContain("Drop your screenshot here");
+      expect(zone.textContent).toContain("Drop it here");
     });
 
     it("drops a late reply for a screenshot that was replaced", async () => {
@@ -304,8 +354,8 @@ describe("OnboardingWizard", () => {
       replies[0]({ kind: "cannot-read" });
       replies[1](rows);
 
-      expect(await screen.findByText("Found · 2 rows")).toBeDefined();
-      expect(screen.queryByText("We couldn't read the rows in it.")).toBeNull();
+      expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
+      expect(screen.queryByText(/We couldn't read the rows in it\./)).toBeNull();
     });
   });
 
@@ -320,9 +370,10 @@ describe("OnboardingWizard", () => {
       ],
     };
 
-    async function openReview(onSave = vi.fn(async () => {}), reply = read) {
-      const steps = await fillGoalAndWeek(onSave, vi.fn(async (): Promise<ExtractReply> => reply));
+    async function openReview(onSave = vi.fn(async () => {}), reply = read, rcReply = rcRows) {
+      const steps = await fillGoalAndWeek(onSave, bySection(reply, rcReply));
       await upload(steps.user);
+      await upload(steps.user, rcScreenshot, "RC");
       await steps.user.click(await screen.findByRole("button", { name: "Check the values" }));
       expect(screen.getByText("Step 4 of 4 · Review")).toBeDefined();
       return steps;
@@ -330,7 +381,7 @@ describe("OnboardingWizard", () => {
 
     const box = (type: string) => screen.getByLabelText(`${type} accuracy`) as HTMLInputElement;
     const confirmButton = () => screen.getByRole("button", { name: "Confirm snapshot" });
-    const statements = ["I reviewed these values and they match my screenshot.", "This screenshot contains my latest 7Sage analytics."];
+    const statements = ["I reviewed these values and they match my screenshots.", "These screenshots show my latest 7Sage analytics."];
 
     it("walks Goal → Week → Analytics → Review → Confirm and sends the edited values and ticked flags", async () => {
       const { user, onSave } = await openReview();
@@ -363,6 +414,7 @@ describe("OnboardingWizard", () => {
           { type: "Necessary assumption", category: "regular", accuracy: 76 },
           { type: "Causal reasoning", category: "restricted", isTopPriority: false, priorityTier: "highest" },
           { type: "Link assumption", category: "restricted", isTopPriority: true, priorityTier: "medium" },
+          ...(rcRows.kind === "rows" ? rcRows.rows : []),
         ],
         analyticsApproval: {
           extraction: { source: "7sage_screenshot", extractedAt: expect.any(String) },
@@ -453,7 +505,7 @@ describe("OnboardingWizard", () => {
     it("says so in one line when the read found no priority flags", async () => {
       await openReview(undefined, { kind: "rows", rows: [{ type: "Strengthen", category: "regular", accuracy: 68 }] });
 
-      expect(screen.getByText("We didn't find priority flags in your screenshot. If 7Sage shows any, add them with the link below.")).toBeDefined();
+      expect(screen.getByText("We didn't find priority flags in your LR screenshot. If 7Sage shows any, add them with the link below.")).toBeDefined();
     });
 
     it("shows Saving, then keeps every value and tick when the save fails", async () => {
@@ -476,25 +528,67 @@ describe("OnboardingWizard", () => {
       expect(onSave).toHaveBeenCalledTimes(2);
     });
 
-    it("expands the uploaded screenshot inline with Show your screenshot", async () => {
+    it("expands each uploaded screenshot inline with Show your LR or RC screenshot", async () => {
       const { user } = await openReview();
 
-      const toggle = screen.getByRole("button", { name: /Show your screenshot/ });
+      const toggle = screen.getByRole("button", { name: /Show your LR screenshot/ });
       expect(toggle.getAttribute("aria-expanded")).toBe("false");
       await user.click(toggle);
       expect(toggle.getAttribute("aria-expanded")).toBe("true");
       const inline = within(toggle.parentElement!);
-      expect(inline.getByRole("img", { name: "Your 7Sage screenshot" }).getAttribute("src")).toBe("blob:screenshot");
+      expect(inline.getByRole("img", { name: "Your 7Sage Logical Reasoning screenshot" }).getAttribute("src")).toBe("blob:screenshot");
       expect(URL.createObjectURL).toHaveBeenCalledWith(screenshot);
       await user.click(toggle);
-      expect(inline.queryByRole("img", { name: "Your 7Sage screenshot" })).toBeNull();
+      expect(inline.queryByRole("img", { name: "Your 7Sage Logical Reasoning screenshot" })).toBeNull();
       expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:screenshot");
+
+      await user.click(screen.getByRole("button", { name: /Show your RC screenshot/ }));
+      expect(URL.createObjectURL).toHaveBeenCalledWith(rcScreenshot);
+    });
+
+    it("shows the 5 passage types with the lowest marked Goes first and no remove button", async () => {
+      const { user } = await openReview();
+
+      expect(screen.getByText("Passage types · lowest goes first in your plan")).toBeDefined();
+      for (const type of ["Law", "Comparative", "Science", "Humanities", "Art"]) expect(box(type)).toBeDefined();
+      expect(within(box("Law").closest("div")!.parentElement!).getByText("Goes first")).toBeDefined();
+      expect(screen.queryByRole("button", { name: "Remove Law" })).toBeNull();
+
+      await user.clear(box("Law"));
+      await user.type(box("Law"), "90");
+      expect(within(box("Science").closest("div")!.parentElement!).getByText("Goes first")).toBeDefined();
+      expect(screen.getAllByText("Goes first")).toHaveLength(1);
+
+      await user.clear(box("Science"));
+      await user.type(box("Science"), "40");
+      expect(within(box("Science").closest("div")!.parentElement!).getByText("Goes first")).toBeDefined();
+    });
+
+    it("keeps a missed passage type empty and Confirm locked until the student fills it", async () => {
+      const missingArt: ExtractReply = { kind: "rows", rows: rcRows.kind === "rows" ? rcRows.rows.slice(0, 4) : [] };
+      const { user, onSave } = await openReview(undefined, read, missingArt);
+      expect(box("Art").value).toBe("");
+      expect(screen.getByText("not found")).toBeDefined();
+      for (const statement of statements) await user.click(screen.getByLabelText(statement));
+      expect(screen.getByText("Fix Art above to confirm.")).toBeDefined();
+
+      await user.click(confirmButton());
+      expect(onSave).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(box("Art"));
+      expect(screen.getByText("Enter the percentage from your RC screenshot.")).toBeDefined();
+
+      await user.type(box("Art"), "77");
+      for (const statement of statements) await user.click(screen.getByLabelText(statement));
+      await user.click(confirmButton());
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+        analyticsRows: expect.arrayContaining([{ type: "Art", category: "passage", accuracy: 77 }]),
+      }));
     });
   });
 
   it("mirrors each step in the This week preview", async () => {
     const user = userEvent.setup();
-    render(<OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={vi.fn()} extract={async () => rows} />);
+    render(<OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={vi.fn()} extract={bySection()} />);
 
     expect(preview().getByText("Hi Dana · 7Sage · standard time")).toBeDefined();
     await user.type(screen.getByLabelText("Current PT score"), "150");
@@ -519,12 +613,15 @@ describe("OnboardingWizard", () => {
     await upload(user);
     expect(await preview().findByText("Extracted · not confirmed")).toBeDefined();
     expect(preview().getByText("Monday's drills")).toBeDefined();
-    await user.click(checkTheValues());
+    await upload(user, rcScreenshot, "RC");
+    await user.click(await screen.findByRole("button", { name: "Check the values" }));
 
     expect(preview().getByText("Not confirmed yet")).toBeDefined();
     expect(preview().getByText("Your Monday from these values")).toBeDefined();
-    expect(preview().getByRole("img", { name: "Your 7Sage screenshot" }).getAttribute("src")).toBe("blob:screenshot");
+    expect(preview().getByRole("img", { name: "Your 7Sage Logical Reasoning screenshot" }).getAttribute("src")).toBe("blob:screenshot");
+    expect(preview().getByRole("img", { name: "Your 7Sage Reading Comprehension screenshot" })).toBeDefined();
     expect(URL.createObjectURL).toHaveBeenCalledWith(screenshot);
+    expect(URL.createObjectURL).toHaveBeenCalledWith(rcScreenshot);
   });
 });
 

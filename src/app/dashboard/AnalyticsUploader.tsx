@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import AnalyticsReview from "@/components/AnalyticsReview";
 import SignInExpired from "@/components/SignInExpired";
 import { summarizeAnalyticsRows } from "@/lib/analytics";
-import { hasInvalidAccuracy, reviewedRows, snapshotApproval, startReview, type SnapshotReview } from "@/lib/analyticsReview";
+import { hasInvalidAccuracy, hasSection, reviewedRows, SECTIONS, snapshotApproval, startReview, type SnapshotReview } from "@/lib/analyticsReview";
 
 // Always writes to the logged-in student's own snapshot via /api/analytics
 // — no studentId prop needed, unlike the old tutor-driven version.
@@ -20,12 +20,15 @@ export default function AnalyticsUploader({ sample, onSampleDone }: { sample?: S
   const [error, setError] = useState<string | null>(null);
   const [signedOut, setSignedOut] = useState(false);
   const hasExtracted = review !== null;
-  const approval = review && snapshotApproval(review);
+  const bothAdded = SECTIONS.every((section) => hasSection(review, section));
+  const approval = bothAdded && review && snapshotApproval(review);
   const saveHint = approval
     ? "Ready to create your schedule."
-    : review && hasInvalidAccuracy(review)
-      ? "Fix the accuracy values above. Each one must be 0 to 100."
-      : "Confirm both statements before saving this snapshot.";
+    : !bothAdded
+      ? "Add both screenshots before saving this snapshot."
+      : review && hasInvalidAccuracy(review)
+        ? "Fix the accuracy values above. Each one must be 0 to 100."
+        : "Confirm both statements before saving this snapshot.";
 
   async function handleSave() {
     if (!review || !approval) return;
@@ -86,8 +89,8 @@ export default function AnalyticsUploader({ sample, onSampleDone }: { sample?: S
           </li>
         </ol>
         <div className={hasExtracted ? "" : "p-6 sm:p-8"}>
-          <h2 className={hasExtracted ? "sr-only" : "font-semibold text-ink"}>{hasExtracted ? "Review extracted analytics" : "Upload your dashboard snapshot"}</h2>
-          <p className={hasExtracted ? "hidden" : "mt-1 text-small leading-body text-smoke"}>Use the analytics overview you checked most recently in 7Sage.</p>
+          <h2 className={hasExtracted ? "sr-only" : "font-semibold text-ink"}>{hasExtracted ? "Review extracted analytics" : "Upload your dashboard screenshots"}</h2>
+          <p className={hasExtracted ? "hidden" : "mt-1 text-small leading-body text-smoke"}>Use the analytics page you checked most recently in 7Sage. Add one screenshot of the Logical Reasoning section and one of the Reading Comprehension section.</p>
 
           <div className="mt-5 flex flex-col gap-4">
             <AnalyticsReview

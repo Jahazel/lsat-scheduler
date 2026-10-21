@@ -104,7 +104,6 @@ export interface AnalyticsSnapshot {
   // Restricted Stimulus Logic types flagged HIGHEST priority this week —
   // mirrors 7Sage's own priority indicator, not calculated by us.
   lrTopPriorityLogicTypes: LRLogicType[];
-  // Absent until the student uploads RC analytics; the engine then uses rules-list order.
   rcAccuracyByType?: Partial<Record<RCType, number>>;
 }
 
@@ -130,12 +129,11 @@ export interface AnalyticsSnapshotRecord extends AnalyticsSnapshot {
   };
 }
 
-// One row of OCR-extracted analytics data, before it's been reviewed and
-// saved. "regular" rows carry an accuracy read off the screenshot;
-// "restricted" rows carry whether that row was flagged HIGHEST priority.
 export type PriorityTier = "highest" | "medium" | "low";
 
-export interface AnalyticsExtractedRow {
+export type AnalyticsSection = "LR" | "RC";
+
+export interface LRExtractedRow {
   type: LRType;
   category: "regular" | "restricted";
   accuracy?: number;
@@ -143,6 +141,14 @@ export interface AnalyticsExtractedRow {
   /** The tier 7Sage showed; the student's tick in isTopPriority is what counts. */
   priorityTier?: PriorityTier;
 }
+
+export interface PassageExtractedRow {
+  type: RCType;
+  category: "passage";
+  accuracy?: number;
+}
+
+export type AnalyticsExtractedRow = LRExtractedRow | PassageExtractedRow;
 
 export interface RulesConfig {
   ptSourceCutoff: number;

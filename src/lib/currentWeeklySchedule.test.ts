@@ -165,6 +165,20 @@ describe("loadOrGenerateCurrentWeek", () => {
     expect(trend.lrTopPriorityLogicTypes).toEqual(["Causal reasoning"]);
   });
 
+  it("weights RC passage-type accuracy like LR and skips snapshots approved before RC analytics", () => {
+    const newest = approvedSnapshot("newest", "2026-09-14T13:00:00.000Z");
+    newest.rcAccuracyByType = { Law: 0.8, Art: 0.5 };
+    const previous = approvedSnapshot("previous", "2026-09-14T12:00:00.000Z");
+    previous.rcAccuracyByType = { Law: 0.2 };
+    const oldest = approvedSnapshot("oldest", "2026-09-14T11:00:00.000Z");
+
+    const trend = analyticsTrend([newest, previous, oldest], "2026-09-14");
+
+    expect(trend.rcAccuracyByType?.Law).toBeCloseTo(0.6, 5);
+    expect(trend.rcAccuracyByType?.Art).toBeCloseTo(0.5, 5);
+    expect(analyticsTrend([oldest], "2026-09-14").rcAccuracyByType).toBeUndefined();
+  });
+
   it("orders an unsorted repository result by approval time before weighting and saving source references", async () => {
     const oldest = approvedSnapshot("oldest", "2026-09-14T11:00:00.000Z");
     oldest.lrAccuracyByType = { Evaluate: 0 };

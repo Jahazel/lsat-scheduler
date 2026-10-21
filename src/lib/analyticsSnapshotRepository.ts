@@ -11,6 +11,7 @@ export function approvedSnapshotColumns(studentId: string, snapshot: ApprovedSna
     weekOf: snapshot.weekOf,
     lrAccuracyByType: snapshot.lrAccuracyByType,
     lrTopPriorityLogicTypes: snapshot.lrTopPriorityLogicTypes,
+    rcAccuracyByType: snapshot.rcAccuracyByType,
     approvedAt: snapshot.approvedAt,
     extractionSource: snapshot.extraction.source,
     extractedAt: snapshot.extraction.extractedAt,
@@ -35,6 +36,7 @@ export async function listApprovedAnalyticsSnapshots(studentId: string) {
     weekOf: record.weekOf,
     lrAccuracyByType: record.lrAccuracyByType,
     lrTopPriorityLogicTypes: record.lrTopPriorityLogicTypes,
+    ...(record.rcAccuracyByType && { rcAccuracyByType: record.rcAccuracyByType }),
     approvedAt: record.approvedAt.toISOString(),
     extraction: { source: record.extractionSource, extractedAt: record.extractedAt.toISOString() },
     confirmation: {
