@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const SRC = path.resolve(__dirname, "..");
@@ -29,14 +30,32 @@ const RULES: { name: string; pattern: RegExp }[] = [
   { name: "raw color function", pattern: /(?:rgba?|hsla?|oklch|oklab)\(/g },
 ];
 
-const STRING_OR_COMMENT = /("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g;
-
-function withoutComments(source: string): string {
-  return source.replace(STRING_OR_COMMENT, (_match, literal: string | undefined) => literal ?? "");
+function withoutComments(source: string, fileName: string): string {
+  if (fileName.endsWith(".css")) return source.replace(/\/\*[\s\S]*?\*\//g, "");
+  const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, false, ts.ScriptKind.TSX);
+  const nodes: ts.Node[] = [];
+  const collect = (node: ts.Node) => {
+    nodes.push(node);
+    node.getChildren(file).forEach(collect);
+  };
+  collect(file);
+  const jsxTextStarts = new Set(nodes.filter((node) => node.kind === ts.SyntaxKind.JsxText).map((node) => node.getFullStart()));
+  const comments = new Map<number, number>();
+  for (const node of nodes) {
+    const ranges = [
+      ...(jsxTextStarts.has(node.getFullStart()) ? [] : (ts.getLeadingCommentRanges(source, node.getFullStart()) ?? [])),
+      ...(jsxTextStarts.has(node.getEnd()) ? [] : (ts.getTrailingCommentRanges(source, node.getEnd()) ?? [])),
+    ];
+    for (const { pos, end } of ranges) comments.set(pos, end);
+  }
+  return [...comments]
+    .map(([pos, end]) => ({ pos, end }))
+    .sort((a, b) => b.pos - a.pos)
+    .reduce((code, { pos, end }) => code.slice(0, pos) + code.slice(end), source);
 }
 
-function findTokenViolations(source: string): string[] {
-  const code = withoutComments(source);
+function findTokenViolations(source: string, fileName = "inline.tsx"): string[] {
+  const code = withoutComments(source, fileName);
   return RULES.flatMap(({ name, pattern }) =>
     [...code.matchAll(pattern)].map((match) => `${name}: ${match[0]}`),
   );
@@ -86,13 +105,20 @@ describe("design tokens", () => {
     expect(findTokenViolations(`const help = "Use // to continue"; const node = <div className="bg-red-500" />;`)).toEqual([
       "Tailwind default palette color: bg-red-500",
     ]);
+    expect(findTokenViolations("const classes = `${label(`//`)} bg-red-500`;")).toEqual([
+      "Tailwind default palette color: bg-red-500",
+    ]);
+    expect(findTokenViolations(`const node = <p>// see https://example.test</p>; const c = "text-red-600";`)).toEqual([
+      "Tailwind default palette color: text-red-600",
+    ]);
+    expect(findTokenViolations("const s = `${/* #202 */ value}`;")).toEqual([]);
   });
 
   it("keeps application code on Paper tokens", () => {
     const violations = sourceFiles(SRC)
       .filter((file) => file !== THEME_FILE && file !== __filename)
       .flatMap((file) =>
-        findTokenViolations(readFileSync(file, "utf8")).map(
+        findTokenViolations(readFileSync(file, "utf8"), file).map(
           (violation) => `${path.relative(SRC, file)}: ${violation}`,
         ),
       );
