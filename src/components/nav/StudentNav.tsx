@@ -19,7 +19,7 @@ export interface StudentNavProps {
 function UploadDot({ className }: { className?: string }) {
   return (
     <>
-      <span className={cx("inline-block size-2 rounded-full bg-accent-600", className)} aria-hidden />
+      <span className={cx("inline-block size-2 rounded-full bg-ink", className)} aria-hidden />
       <span className="sr-only"> analytics upload needed</span>
     </>
   );
@@ -48,8 +48,8 @@ function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<S
     };
   }, [open]);
 
-  const initialsCircle = "flex items-center justify-center rounded-full bg-accent-100 font-semibold text-accent-700";
-  const item = cx("block w-full px-4 py-2.5 text-left text-sm text-ink-900 hover:bg-ink-50", FOCUS);
+  const initialsCircle = "flex items-center justify-center rounded-full bg-accent/tint font-semibold text-accent";
+  const item = cx("block w-full px-4 py-2.5 text-left text-sm text-ink hover:bg-vellum", FOCUS);
 
   return (
     <div ref={root} className="relative">
@@ -63,7 +63,7 @@ function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<S
         className={
           compact
             ? cx(initialsCircle, "size-9 text-sm", FOCUS)
-            : cx("flex h-9 items-center gap-2 rounded-full bg-ink-50 pl-1 pr-2.5 text-sm text-ink-900 transition-colors duration-150 ease-out hover:bg-ink-100", FOCUS)
+            : cx("flex h-9 items-center gap-2 rounded-full bg-vellum pl-1 pr-2.5 text-sm text-ink transition-colors duration-150 ease-out hover:bg-vellum-line", FOCUS)
         }
       >
         {compact ? (
@@ -71,18 +71,18 @@ function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<S
         ) : (
           <>
             <span className={cx(initialsCircle, "size-7 text-xs")}>{initials}</span>
-            <NavIcon name="chevron" className="size-4 text-ink-500" />
+            <NavIcon name="chevron" className="size-4 text-smoke" />
           </>
         )}
       </button>
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-11 z-50 w-60 rounded-lg border border-ink-200 bg-white py-1 shadow-[0_8px_24px_oklch(19%_0.013_205/0.12)]"
+          className="absolute right-0 top-11 z-50 w-60 rounded-xs border border-vellum-line bg-paper py-1 shadow-e3"
         >
-          <p className="truncate border-b border-ink-100 px-4 py-2.5 text-xs text-ink-500">{email}</p>
+          <p className="truncate border-b border-vellum-line px-4 py-2.5 text-xs text-smoke">{email}</p>
           {countdownLabel && (
-            <p className={cx("border-b border-ink-100 px-4 py-2.5 text-sm text-ink-700", !compact && "@[900px]:hidden")}>{countdownLabel}</p>
+            <p className={cx("border-b border-vellum-line px-4 py-2.5 text-sm text-smoke", !compact && "@[900px]:hidden")}>{countdownLabel}</p>
           )}
           <Link role="menuitem" href="/account" onClick={() => setOpen(false)} className={item}>
             Account
@@ -100,12 +100,12 @@ function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<S
 
 function Countdown({ label, isTestDay }: { label: string; isTestDay: boolean }) {
   if (isTestDay) {
-    return <span className="rounded-full bg-accent-600 px-3 py-1 text-sm font-semibold text-white">{label}</span>;
+    return <span className="rounded-full bg-ink px-3 py-1 text-sm font-semibold text-chalk">{label}</span>;
   }
   const [count, ...rest] = label.split(" ");
   return (
-    <span className="rounded-full bg-ink-50 px-3 py-1 text-sm text-ink-700">
-      <b className="font-mono font-semibold tabular-nums text-ink-900">{count}</b> {rest.join(" ")}
+    <span className="rounded-full bg-vellum px-3 py-1 text-sm text-smoke">
+      <b className="font-mono font-semibold tabular-nums text-ink">{count}</b> {rest.join(" ")}
     </span>
   );
 }
@@ -120,7 +120,7 @@ export default function StudentNav(props: StudentNavProps & { workspaceSwitcher?
       <div className={cx("flex h-14 items-center justify-between px-4", props.workspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.mobileHeader : "md:hidden")}>
         <div className="flex items-center gap-1 sm:gap-3">
           <Logo href="/dashboard" />
-          {props.workspaceSwitcher && <span className="text-ink-200" aria-hidden data-workspace-separator="true">/</span>}
+          {props.workspaceSwitcher && <span className="text-fog" aria-hidden data-workspace-separator="true">/</span>}
           {props.workspaceSwitcher}
         </div>
         <AvatarMenu {...props} compact />
@@ -131,10 +131,10 @@ export default function StudentNav(props: StudentNavProps & { workspaceSwitcher?
         <div className="grid h-16 grid-cols-[1fr_auto_1fr] items-center gap-6 px-8">
           <div className="flex items-center gap-3">
             <Logo href="/dashboard" />
-            {props.workspaceSwitcher && <span className="text-ink-200" aria-hidden data-workspace-separator="true">/</span>}
+            {props.workspaceSwitcher && <span className="text-fog" aria-hidden data-workspace-separator="true">/</span>}
             {props.workspaceSwitcher}
           </div>
-          <nav aria-label="Primary" className="flex gap-1 rounded-full bg-ink-50 p-1">
+          <nav aria-label="Primary" className="flex gap-1 rounded-full bg-vellum p-1">
             {TABS.map((tab) => {
               const active = isActive(tab.href);
               return (
@@ -145,8 +145,8 @@ export default function StudentNav(props: StudentNavProps & { workspaceSwitcher?
                   className={cx(
                     "flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm transition-colors duration-150 ease-out",
                     active
-                      ? "bg-white font-semibold text-ink-900 shadow-[0_1px_2px_oklch(19%_0.013_205/0.12)]"
-                      : "text-ink-500 hover:text-ink-900",
+                      ? "bg-paper font-semibold text-ink shadow-control"
+                      : "text-smoke hover:text-ink",
                     FOCUS,
                   )}
                 >
@@ -180,7 +180,7 @@ export function StudentTabBar({ uploadNeeded, withWorkspaceSwitcher = false }: {
       aria-label="Primary"
       data-tab-bar
       data-workspace-tabs={withWorkspaceSwitcher || undefined}
-      className={cx("fixed inset-x-3 bottom-3 z-40 grid grid-cols-3 rounded-2xl border border-ink-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_4px_16px_oklch(19%_0.013_205/0.1)]", withWorkspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.mobileTabBar : "md:hidden")}
+      className={cx("fixed inset-x-3 bottom-3 z-40 grid grid-cols-3 rounded-md border border-vellum-line bg-paper pb-[env(safe-area-inset-bottom)] shadow-e1", withWorkspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.mobileTabBar : "md:hidden")}
     >
       {TABS.map((tab) => {
         const active = isActive(tab.href);
@@ -191,13 +191,13 @@ export function StudentTabBar({ uploadNeeded, withWorkspaceSwitcher = false }: {
             aria-current={active ? "page" : undefined}
             className={cx(
               "flex min-h-16 flex-col items-center justify-center gap-1 text-xs",
-              active ? "font-semibold text-accent-700" : "text-ink-500",
+              active ? "font-semibold text-accent" : "text-smoke",
               FOCUS,
             )}
           >
             <span className="relative flex h-7 w-12 items-center justify-center">
               <NavIcon name={tab.icon} />
-              {tab.flagsUpload && uploadNeeded && <UploadDot className="absolute right-2 top-0.5 ring-2 ring-white" />}
+              {tab.flagsUpload && uploadNeeded && <UploadDot className="absolute right-2 top-0.5 ring-2 ring-paper" />}
             </span>
             {tab.short}
           </Link>

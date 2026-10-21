@@ -46,13 +46,13 @@ import { DAY_LABEL, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { createStudentProfile } from "./actions";
 import LivePreview from "./LivePreview";
 
-const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600";
-const FIELD = `h-11 w-full rounded-md border bg-white px-3 text-base text-ink-900 ${FOCUS}`;
-const SELECT = `h-[34px] min-w-0 flex-1 rounded-md border border-ink-200 bg-white px-2 text-sm text-ink-900 ${FOCUS}`;
-const PRIMARY = `h-11 flex-1 rounded-md bg-ink-900 text-base font-medium text-white transition-colors duration-150 ease-out hover:bg-ink-700 disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-500 ${FOCUS}`;
-const SECONDARY = `h-11 w-28 shrink-0 rounded-md border border-ink-200 bg-white text-base font-medium text-ink-900 transition-colors duration-150 ease-out hover:bg-ink-50 disabled:cursor-not-allowed disabled:text-ink-400 ${FOCUS}`;
-const SMALL_BUTTON = `h-10 self-start rounded-md border border-ink-200 bg-white px-[18px] text-sm font-medium text-ink-900 transition-colors duration-150 ease-out hover:bg-ink-50 ${FOCUS}`;
-const LINK_BUTTON = `font-medium text-ink-900 underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline ${FOCUS}`;
+const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+const FIELD = `h-11 w-full rounded-sm border bg-paper px-3 text-base text-ink ${FOCUS}`;
+const SELECT = `h-[34px] min-w-0 flex-1 rounded-sm border border-vellum-line bg-paper px-2 text-sm text-ink ${FOCUS}`;
+const PRIMARY = `h-11 flex-1 rounded-sm bg-ink text-base font-medium text-chalk transition-colors duration-150 ease-out hover:bg-graphite-raised disabled:cursor-not-allowed disabled:bg-vellum-line disabled:text-smoke ${FOCUS}`;
+const SECONDARY = `h-11 w-28 shrink-0 rounded-sm border border-vellum-line bg-paper text-base font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum disabled:cursor-not-allowed disabled:text-fog ${FOCUS}`;
+const SMALL_BUTTON = `h-10 self-start rounded-sm border border-vellum-line bg-paper px-[18px] text-sm font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum ${FOCUS}`;
+const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline ${FOCUS}`;
 const CHANGE_LATER = "You can change these any time in Study settings.";
 
 interface OnboardingWizardProps {
@@ -140,11 +140,11 @@ function StepHeading({ state, title, lede }: { state: WizardState; title: string
   }, [changedStep]);
   return (
     <div className="flex flex-col gap-2">
-      <p className="font-mono text-xs uppercase tracking-[0.08em] text-ink-500">{stepLabel(state.step)}</p>
-      <h1 ref={heading} tabIndex={-1} className="text-[28px] font-semibold leading-[34px] tracking-[-0.02em] text-ink-900 outline-none">
+      <p className="font-mono text-xs uppercase tracking-[0.08em] text-smoke">{stepLabel(state.step)}</p>
+      <h1 ref={heading} tabIndex={-1} className="text-[28px] font-semibold leading-[34px] tracking-[-0.02em] text-ink outline-none">
         {title}
       </h1>
-      <p className="text-base text-ink-500">{lede}</p>
+      <p className="text-base text-smoke">{lede}</p>
     </div>
   );
 }
@@ -169,7 +169,7 @@ function StepForm({ state, dispatch, children }: { state: WizardState; dispatch:
             Continue
           </button>
         </div>
-        <p id="continue-note" className="text-center text-sm text-ink-500">
+        <p id="continue-note" className="text-center text-sm text-smoke">
           {reason ?? CHANGE_LATER}
         </p>
       </div>
@@ -188,7 +188,7 @@ function GoalStep({
 }) {
   const messages = scoreMessages(state);
   const goalMessage = messages.goalScore ?? messages.goalNotAbove;
-  const scoreBox = (invalid: boolean) => `${FIELD} ${invalid ? "border-red-700" : "border-ink-200"}`;
+  const scoreBox = (invalid: boolean) => `${FIELD} ${invalid ? "border-danger" : "border-vellum-line"}`;
 
   return (
     <StepForm state={state} dispatch={dispatch}>
@@ -197,7 +197,7 @@ function GoalStep({
         <div className="flex flex-col gap-2">
           <div className="flex gap-3">
             <label className="flex flex-1 flex-col gap-2">
-              <span className="text-sm font-medium text-ink-900">Current PT score</span>
+              <span className="text-sm font-medium text-ink">Current PT score</span>
               <input
                 inputMode="numeric"
                 autoComplete="off"
@@ -210,7 +210,7 @@ function GoalStep({
               />
             </label>
             <label className="flex flex-1 flex-col gap-2">
-              <span className="text-sm font-medium text-ink-900">Goal score</span>
+              <span className="text-sm font-medium text-ink">Goal score</span>
               <input
                 inputMode="numeric"
                 autoComplete="off"
@@ -224,26 +224,26 @@ function GoalStep({
             </label>
           </div>
           {messages.currentScore && (
-            <p id="current-score-message" className="text-sm text-red-700">
+            <p id="current-score-message" className="text-sm text-danger-ink">
               {messages.currentScore}
             </p>
           )}
           {goalMessage && (
-            <p id="goal-score-message" className="text-sm text-red-700">
+            <p id="goal-score-message" className="text-sm text-danger-ink">
               {goalMessage}
             </p>
           )}
         </div>
 
         <div className="flex flex-col gap-2">
-          <label htmlFor="goal-test-date" className="text-sm font-medium text-ink-900">
+          <label htmlFor="goal-test-date" className="text-sm font-medium text-ink">
             Goal test date
           </label>
           <select
             id="goal-test-date"
             value={state.values.goalTestDate}
             onChange={(e) => dispatch({ type: "edit", values: { goalTestDate: e.target.value } })}
-            className={`${FIELD} border-ink-200`}
+            className={`${FIELD} border-vellum-line`}
           >
             <option value="" disabled>
               Select a test date
@@ -257,12 +257,12 @@ function GoalStep({
         </div>
 
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-sm font-medium text-ink-900">Test time</legend>
-          <div className="flex gap-1 rounded-md bg-ink-50 p-1">
+          <legend className="mb-2 text-sm font-medium text-ink">Test time</legend>
+          <div className="flex gap-1 rounded-sm bg-vellum p-1">
             {([1, 1.5, 2] satisfies Accommodation[]).map((multiplier) => (
               <label
                 key={multiplier}
-                className="flex h-9 flex-1 cursor-pointer items-center justify-center rounded text-sm text-ink-500 transition-colors duration-150 ease-out hover:bg-ink-100 hover:text-ink-900 has-[:checked]:bg-white has-[:checked]:font-medium has-[:checked]:text-ink-900 has-[:checked]:shadow-[0_1px_2px_rgb(0_0_0/0.08)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent-600"
+                className="flex h-9 flex-1 cursor-pointer items-center justify-center rounded text-sm text-smoke transition-colors duration-150 ease-out hover:bg-vellum-line hover:text-ink has-[:checked]:bg-paper has-[:checked]:font-medium has-[:checked]:text-ink has-[:checked]:shadow-control has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent"
               >
                 <input
                   type="radio"
@@ -300,15 +300,15 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
             <col className="w-[60px] lg:w-[100px]" />
           </colgroup>
           <thead>
-            <tr className="text-xs text-ink-500">
+            <tr className="text-xs text-smoke">
               <th scope="col" className="pb-2 pl-2 text-left font-normal lg:pl-3">Day</th>
               <th scope="col" className="pb-2 text-left font-normal">Study time</th>
               <th scope="col" className="pb-2 text-center font-normal">Practice test</th>
             </tr>
           </thead>
           <tbody>
-            <tr className="bg-ink-50">
-              <th scope="row" className="rounded-l-md py-2 pl-2 text-left text-sm font-medium text-ink-900 lg:pl-3">
+            <tr className="bg-vellum">
+              <th scope="row" className="rounded-l-sm py-2 pl-2 text-left text-sm font-medium text-ink lg:pl-3">
                 All<span className="hidden lg:inline"> days</span>
               </th>
               <td className="py-2">
@@ -320,19 +320,19 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
                   selectClassName={SELECT}
                 />
               </td>
-              <td className="rounded-r-md py-2 text-center">
+              <td className="rounded-r-sm py-2 text-center">
                 <button
                   type="button"
                   onClick={() => dispatch({ type: "applyAllDays" })}
-                  className={`h-[34px] rounded-md border border-ink-900 bg-white px-2 text-sm font-medium text-ink-900 lg:px-3 hover:bg-ink-50 ${FOCUS}`}
+                  className={`h-[34px] rounded-sm border border-ink bg-paper px-2 text-sm font-medium text-ink lg:px-3 hover:bg-vellum ${FOCUS}`}
                 >
                   Apply
                 </button>
               </td>
             </tr>
             {DAY_ORDER.map((day) => (
-              <tr key={day} className="border-b border-ink-100">
-                <th scope="row" className="py-1 pl-2 text-left text-sm font-medium text-ink-900 lg:pl-3">
+              <tr key={day} className="border-b border-vellum-line">
+                <th scope="row" className="py-1 pl-2 text-left text-sm font-medium text-ink lg:pl-3">
                   {DAY_SHORT_LABEL[day]}
                 </th>
                 <td className="py-1">
@@ -354,7 +354,7 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
                       aria-label={`Practice test on ${DAY_LABEL[day]}`}
                       checked={values.preferredPracticeTestDay === day}
                       onChange={() => dispatch({ type: "edit", values: { preferredPracticeTestDay: day } })}
-                      className={`size-5 accent-accent-600 ${FOCUS}`}
+                      className={`size-5 accent-accent ${FOCUS}`}
                     />
                   </label>
                 </td>
@@ -365,13 +365,13 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
 
         <div className="flex flex-col gap-1 px-2 pt-5 lg:px-3">
           <p className="flex items-baseline justify-between">
-            <span className="text-sm text-ink-500">Weekly total</span>
-            <span aria-live="polite" className="text-base font-semibold text-ink-900">
+            <span className="text-sm text-smoke">Weekly total</span>
+            <span aria-live="polite" className="text-base font-semibold text-ink">
               {formatDuration(weeklyTotalMinutes(values))}
             </span>
           </p>
           {warning ? (
-            <p role="status" className="flex gap-2 text-sm text-amber-700">
+            <p role="status" className="flex gap-2 text-sm text-warning-ink">
               <svg aria-hidden viewBox="0 0 16 16" className="mt-0.5 size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M8 2.5 14 13H2L8 2.5Z" strokeLinejoin="round" />
                 <path d="M8 6.5v3M8 11.25v.01" strokeLinecap="round" />
@@ -379,7 +379,7 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
               {warning}
             </p>
           ) : (
-            <p className="text-sm text-ink-500">{practiceTestHint(values.accommodationMultiplier)}</p>
+            <p className="text-sm text-smoke">{practiceTestHint(values.accommodationMultiplier)}</p>
           )}
         </div>
       </div>
@@ -453,15 +453,15 @@ function AnalyticsStep({
           </button>
         </div>
         {screenshot.status !== "none" && (
-          <p className="text-center text-sm text-ink-500">You can replace the screenshot before you confirm.</p>
+          <p className="text-center text-sm text-smoke">You can replace the screenshot before you confirm.</p>
         )}
-        <p className="text-center text-sm text-ink-500">
+        <p className="text-center text-sm text-smoke">
           <button type="button" disabled={saving} onClick={onSkip} className={LINK_BUTTON}>
             {saving ? "Saving…" : "Skip for now"}
           </button>
           {" · Your schedule starts after you add one."}
         </p>
-        <p role="status" className="text-center text-sm text-ink-700">
+        <p role="status" className="text-center text-sm text-smoke">
           {state.save === "failed" && "We couldn't save your plan. Check your connection and press Skip for now again."}
         </p>
       </div>
@@ -485,10 +485,10 @@ function DropZone({ rejection, onChoose, onFile }: { rejection: string | null; o
     if (document.activeElement === document.body) zone.current?.focus();
   }, [rejection]);
   const border = dragging
-    ? "border-accent-600 bg-accent-100/40"
+    ? "border-accent bg-accent/faint"
     : rejection
-      ? "border-red-700 bg-ink-50"
-      : "border-ink-400 bg-ink-50 hover:border-ink-900";
+      ? "border-danger bg-vellum"
+      : "border-fog bg-vellum hover:border-ink";
 
   function drop(event: DragEvent) {
     event.preventDefault();
@@ -513,29 +513,29 @@ function DropZone({ rejection, onChoose, onFile }: { rejection: string | null; o
         }}
         onDrop={drop}
         aria-describedby={rejection ? "screenshot-rejection" : undefined}
-        className={`flex h-[248px] flex-col items-center justify-center gap-4 rounded-md border-[1.5px] border-dashed p-8 transition-colors duration-150 ease-out ${border} ${FOCUS}`}
+        className={`flex h-[248px] flex-col items-center justify-center gap-4 rounded-sm border-[1.5px] border-dashed p-8 transition-colors duration-150 ease-out ${border} ${FOCUS}`}
       >
         <span
-          className={`grid size-12 place-items-center rounded-full border ${dragging ? "border-accent-600 bg-white text-accent-600" : "border-ink-200 bg-white text-ink-900"}`}
+          className={`grid size-12 place-items-center rounded-full border ${dragging ? "border-accent bg-paper text-accent" : "border-vellum-line bg-paper text-ink"}`}
         >
           <UploadIcon />
         </span>
         {dragging ? (
           <span className="flex flex-col items-center gap-1">
-            <span className="text-base font-semibold text-accent-600">Drop to add it</span>
-            <span className="text-sm text-ink-500">{SCREENSHOT_LIMITS}</span>
+            <span className="text-base font-semibold text-accent">Drop to add it</span>
+            <span className="text-sm text-smoke">{SCREENSHOT_LIMITS}</span>
           </span>
         ) : (
           <span className="flex flex-col items-center gap-1">
-            <span className="text-base font-semibold text-ink-900">Drop your screenshot here</span>
-            <span className="text-sm text-ink-500">
-              or <span className="font-medium text-accent-600 underline underline-offset-[3px]">choose a file</span> · {SCREENSHOT_LIMITS}
+            <span className="text-base font-semibold text-ink">Drop your screenshot here</span>
+            <span className="text-sm text-smoke">
+              or <span className="font-medium text-accent underline underline-offset-[3px]">choose a file</span> · {SCREENSHOT_LIMITS}
             </span>
           </span>
         )}
       </button>
       {rejection && (
-        <p id="screenshot-rejection" role="alert" className="text-sm text-red-700">
+        <p id="screenshot-rejection" role="alert" className="text-sm text-danger-ink">
           {rejection}
         </p>
       )}
@@ -551,11 +551,11 @@ function WhereToFindIt() {
   ];
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold text-ink-900">Where to find it</h2>
+      <h2 className="text-sm font-semibold text-ink">Where to find it</h2>
       <ol className="flex flex-col gap-3">
         {steps.map((step, index) => (
-          <li key={step} className="flex items-baseline gap-3 text-sm text-ink-900">
-            <span aria-hidden className="w-4 shrink-0 font-mono text-xs text-ink-500">
+          <li key={step} className="flex items-baseline gap-3 text-sm text-ink">
+            <span aria-hidden className="w-4 shrink-0 font-mono text-xs text-smoke">
               {index + 1}
             </span>
             {step}
@@ -594,17 +594,17 @@ function FileRow({
 
   return (
     <div className="flex flex-col gap-3">
-      <div ref={row} tabIndex={-1} className="flex flex-col gap-4 rounded-md border border-ink-200 p-4 outline-none">
+      <div ref={row} tabIndex={-1} className="flex flex-col gap-4 rounded-sm border border-vellum-line p-4 outline-none">
         <div className="flex items-center gap-4">
-          <span aria-hidden className="flex h-12 w-16 shrink-0 flex-col justify-center gap-1 rounded border border-ink-200 bg-ink-50 p-2">
-            <span className="h-[3px] w-9 rounded-sm bg-ink-900/30" />
-            <span className="h-[3px] w-11 rounded-sm bg-ink-900/20" />
-            <span className="h-[3px] w-7 rounded-sm bg-ink-900/20" />
-            <span className="h-[3px] w-10 rounded-sm bg-ink-900/20" />
+          <span aria-hidden className="flex h-12 w-16 shrink-0 flex-col justify-center gap-1 rounded border border-vellum-line bg-vellum p-2">
+            <span className="h-[3px] w-9 rounded-sm bg-ink/30" />
+            <span className="h-[3px] w-11 rounded-sm bg-ink/20" />
+            <span className="h-[3px] w-7 rounded-sm bg-ink/20" />
+            <span className="h-[3px] w-10 rounded-sm bg-ink/20" />
           </span>
           <div className="flex min-w-0 grow flex-col gap-0.5 text-sm">
-            <span className="truncate font-medium text-ink-900">{screenshot.file.name}</span>
-            <span aria-live="polite" className={FILE_STATUS[status].problem ? "text-red-700" : "text-ink-500"}>
+            <span className="truncate font-medium text-ink">{screenshot.file.name}</span>
+            <span aria-live="polite" className={FILE_STATUS[status].problem ? "text-danger-ink" : "text-smoke"}>
               {FILE_STATUS[status].text}
             </span>
           </div>
@@ -613,14 +613,14 @@ function FileRow({
           </button>
         </div>
         {status === "reading" && (
-          <div role="progressbar" aria-label="Reading your screenshot" className="h-1 overflow-hidden rounded-sm bg-ink-50">
-            <div className="h-1 w-3/5 rounded-sm bg-accent-600" />
+          <div role="progressbar" aria-label="Reading your screenshot" className="h-1 overflow-hidden rounded-sm bg-vellum">
+            <div className="h-1 w-3/5 rounded-sm bg-accent" />
           </div>
         )}
         {status === "connection-lost" && (
           <>
-            <div aria-hidden className="h-1 overflow-hidden rounded-sm bg-ink-50">
-              <div className="h-1 w-3/5 rounded-sm bg-ink-400" />
+            <div aria-hidden className="h-1 overflow-hidden rounded-sm bg-vellum">
+              <div className="h-1 w-3/5 rounded-sm bg-fog" />
             </div>
             <button type="button" onClick={onTryAgain} className={SMALL_BUTTON}>
               Try again
@@ -643,7 +643,7 @@ function FileRow({
         )}
       </div>
       {rejection && (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className="text-sm text-danger-ink">
           {rejection}
         </p>
       )}
@@ -662,32 +662,32 @@ function RightPartExample() {
   return (
     <figure className="flex flex-col gap-3">
       <figcaption className="flex items-baseline justify-between">
-        <span className="text-sm font-semibold text-ink-900">Capture this part of 7Sage Analytics</span>
-        <span className="text-xs text-ink-500">Example</span>
+        <span className="text-sm font-semibold text-ink">Capture this part of 7Sage Analytics</span>
+        <span className="text-xs text-smoke">Example</span>
       </figcaption>
-      <div className="flex flex-col gap-3 rounded-md bg-ink-50 p-4">
+      <div className="flex flex-col gap-3 rounded-sm bg-vellum p-4">
         <div aria-hidden className="flex items-center gap-3 opacity-55">
-          <span className="h-2 w-11 rounded bg-ink-900/35" />
-          <span className="h-2 w-16 rounded bg-ink-900/15" />
-          <span className="h-2 w-[52px] rounded bg-ink-900/15" />
+          <span className="h-2 w-11 rounded bg-ink/35" />
+          <span className="h-2 w-16 rounded bg-ink/15" />
+          <span className="h-2 w-[52px] rounded bg-ink/15" />
         </div>
-        <div aria-hidden className="flex h-11 items-end gap-1.5 rounded-md bg-white p-2 opacity-55">
+        <div aria-hidden className="flex h-11 items-end gap-1.5 rounded-sm bg-paper p-2 opacity-55">
           {[14, 20, 18, 26, 24, 28].map((height, index) => (
-            <span key={index} className="w-3.5 rounded-sm bg-ink-900/15" style={{ height }} />
+            <span key={index} className="w-3.5 rounded-sm bg-ink/15" style={{ height }} />
           ))}
         </div>
-        <div className="flex flex-col gap-2 rounded-md border-2 border-accent-600 bg-white p-3 text-xs">
+        <div className="flex flex-col gap-2 rounded-sm border-2 border-accent bg-paper p-3 text-xs">
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-ink-900">Logical Reasoning question types</span>
-            <span className="shrink-0 whitespace-nowrap rounded-full bg-accent-600 px-2 py-0.5 font-medium text-white">This part</span>
+            <span className="font-semibold text-ink">Logical Reasoning question types</span>
+            <span className="shrink-0 whitespace-nowrap rounded-full bg-ink px-2 py-0.5 font-medium text-chalk">This part</span>
           </div>
           {rows.map((row) => (
             <div key={row.type} className="flex items-center gap-2">
-              <span className="w-[148px] shrink-0 text-ink-500">{row.type}</span>
-              <span aria-hidden className="flex h-1.5 grow rounded-full bg-ink-50">
-                {row.bar !== undefined && <span className="h-1.5 rounded-full bg-ink-900/30" style={{ width: `${row.bar}%` }} />}
+              <span className="w-[148px] shrink-0 text-smoke">{row.type}</span>
+              <span aria-hidden className="flex h-1.5 grow rounded-full bg-vellum">
+                {row.bar !== undefined && <span className="h-1.5 rounded-full bg-ink/30" style={{ width: `${row.bar}%` }} />}
               </span>
-              <span className="shrink-0 text-right font-mono text-ink-500">{row.value}</span>
+              <span className="shrink-0 text-right font-mono text-smoke">{row.value}</span>
             </div>
           ))}
         </div>
@@ -701,7 +701,7 @@ function RowsFound({ rows }: { rows: AnalyticsExtractedRow[] }) {
     <div className="flex flex-col gap-6">
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="h-7 border-b border-ink-200 text-xs text-ink-500">
+          <tr className="h-7 border-b border-vellum-line text-xs text-smoke">
             <th scope="col" className="px-3 text-left font-normal">
               Found · {rows.length} {rows.length === 1 ? "row" : "rows"}
             </th>
@@ -710,8 +710,8 @@ function RowsFound({ rows }: { rows: AnalyticsExtractedRow[] }) {
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.type} className="h-[38px] border-b border-ink-200">
-              <th scope="row" className="px-3 text-left font-normal text-ink-900">{row.type}</th>
+            <tr key={row.type} className="h-[38px] border-b border-vellum-line">
+              <th scope="row" className="px-3 text-left font-normal text-ink">{row.type}</th>
               <td className="px-3 text-right">
                 <RowValue row={row} />
               </td>
@@ -719,7 +719,7 @@ function RowsFound({ rows }: { rows: AnalyticsExtractedRow[] }) {
           ))}
         </tbody>
       </table>
-      <p className="px-3 text-sm text-ink-500">
+      <p className="px-3 text-sm text-smoke">
         Next, you check each value and confirm this is your latest 7Sage analytics. Nothing counts until you confirm.
       </p>
     </div>
@@ -727,10 +727,10 @@ function RowsFound({ rows }: { rows: AnalyticsExtractedRow[] }) {
 }
 
 function RowValue({ row }: { row: AnalyticsExtractedRow }) {
-  if (row.accuracy !== undefined) return <span className="font-mono text-[13px] text-ink-900">{row.accuracy}%</span>;
-  if (!row.isTopPriority) return <span className="text-ink-500">—</span>;
+  if (row.accuracy !== undefined) return <span className="font-mono text-[13px] text-ink">{row.accuracy}%</span>;
+  if (!row.isTopPriority) return <span className="text-smoke">—</span>;
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-100 px-2 py-0.5 text-xs font-medium text-accent-700">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/tint px-2 py-0.5 text-xs font-medium text-accent">
       <svg aria-hidden viewBox="0 0 10 10" className="size-2.5" fill="currentColor" stroke="currentColor" strokeLinejoin="round">
         <path d="M2 9V1.5h5.5L6.5 3.5l1 2H2" />
       </svg>
@@ -835,17 +835,17 @@ function ReviewStep({
       <div className="flex flex-col gap-5">
         <ScreenshotToggle file={screenshot.file} />
         <div className="flex flex-col">
-          <div className="flex min-h-7 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-ink-100 px-3 py-1.5 text-xs text-ink-500">
+          <div className="flex min-h-7 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-vellum-line px-3 py-1.5 text-xs text-smoke">
             <span>
               Accuracy · {accuracyRows.length} {accuracyRows.length === 1 ? "type" : "types"}
             </span>
             <span className="flex items-center gap-3">
               <span className="flex items-center gap-1.5">
-                <span aria-hidden className="h-2.5 w-3.5 rounded-[3px] border border-dashed border-accent-600" />
+                <span aria-hidden className="h-2.5 w-3.5 rounded-[3px] border border-dashed border-accent" />
                 Read from screenshot
               </span>
               <span className="flex items-center gap-1.5">
-                <span aria-hidden className="h-2.5 w-3.5 rounded-[3px] border border-ink-900" />
+                <span aria-hidden className="h-2.5 w-3.5 rounded-[3px] border border-ink" />
                 Edited by you
               </span>
             </span>
@@ -863,7 +863,7 @@ function ReviewStep({
           <EmptyListNote state={state} list="accuracy" />
         </div>
         <div className="flex flex-col">
-          <div className="flex min-h-7 items-center border-b border-ink-100 px-3 py-1.5 text-xs text-ink-500">
+          <div className="flex min-h-7 items-center border-b border-vellum-line px-3 py-1.5 text-xs text-smoke">
             Priority flags · ticked flags go first in your plan
           </div>
           {flagRows.map(({ row }) => (
@@ -872,7 +872,7 @@ function ReviewStep({
               checked={row.isTopPriority ?? false}
               onChange={() => dispatch({ type: "toggleFlag", rowType: row.type })}
               detail={row.priorityTier && <TierPill tier={row.priorityTier} />}
-              className="min-h-9 items-center border-b border-ink-100 px-3 py-1.5"
+              className="min-h-9 items-center border-b border-vellum-line px-3 py-1.5"
             >
               {row.type}
             </Checkbox>
@@ -886,7 +886,7 @@ function ReviewStep({
             if (list === "accuracy") requestFocus(boxId(type));
           }}
         />
-        <div className="flex flex-col gap-2.5 rounded-md bg-ink-50 px-4 py-3.5">
+        <div className="flex flex-col gap-2.5 rounded-sm bg-vellum px-4 py-3.5">
           {STATEMENTS.map(({ statement, text }, index) => (
             <Checkbox
               key={statement}
@@ -911,18 +911,18 @@ function ReviewStep({
             disabled={saving}
             onClick={confirm}
             aria-describedby="confirm-note"
-            className={`h-11 flex-1 rounded-md text-base font-medium transition-colors duration-150 ease-out ${FOCUS} ${
+            className={`h-11 flex-1 rounded-sm text-base font-medium transition-colors duration-150 ease-out ${FOCUS} ${
               saving
-                ? "cursor-wait bg-ink-700 text-white"
+                ? "cursor-wait bg-graphite-raised text-chalk"
                 : reason
-                  ? "cursor-not-allowed bg-ink-200 text-ink-500"
-                  : "bg-ink-900 text-white hover:bg-ink-700"
+                  ? "cursor-not-allowed bg-vellum-line text-smoke"
+                  : "bg-ink text-chalk hover:bg-graphite-raised"
             }`}
           >
             {saving ? "Saving…" : "Confirm snapshot"}
           </button>
         </div>
-        <p id="confirm-note" role="status" className={`text-center text-sm ${state.save === "failed" ? "text-ink-700" : "text-ink-500"}`}>
+        <p id="confirm-note" role="status" className={`text-center text-sm ${state.save === "failed" ? "text-smoke" : "text-smoke"}`}>
           {note}
         </p>
       </div>
@@ -948,19 +948,19 @@ function AccuracyRow({
   const was = edited && original?.accuracy !== undefined ? `was ${original.accuracy}%` : null;
   const id = boxId(row.type);
   const box = message
-    ? "border-red-700 bg-white"
+    ? "border-danger bg-paper"
     : edited
-      ? "border-ink-900 bg-white"
-      : "border-dashed border-accent-600 bg-accent-100/30";
+      ? "border-ink bg-paper"
+      : "border-dashed border-accent bg-accent/faint";
 
   return (
-    <div className="flex flex-col border-b border-ink-100 focus-within:rounded-sm focus-within:border-transparent focus-within:bg-accent-100/40 focus-within:outline-[1.5px] focus-within:outline-accent-600 focus-within:outline-solid">
+    <div className="flex flex-col border-b border-vellum-line focus-within:rounded-sm focus-within:border-transparent focus-within:bg-accent/faint focus-within:outline-[1.5px] focus-within:outline-accent focus-within:outline-solid">
       <div className="flex min-h-[38px] items-center gap-3 py-1 pl-3 pr-1">
-        <label htmlFor={id} className="grow text-sm text-ink-900">
+        <label htmlFor={id} className="grow text-sm text-ink">
           {row.type}
         </label>
-        <span className="w-[72px] shrink-0 text-right font-mono text-xs text-ink-500">{was}</span>
-        <span className={`flex h-[30px] w-16 shrink-0 items-center rounded-md border px-2 ${box}`}>
+        <span className="w-[72px] shrink-0 text-right font-mono text-xs text-smoke">{was}</span>
+        <span className={`flex h-[30px] w-16 shrink-0 items-center rounded-sm border px-2 ${box}`}>
           <input
             id={id}
             inputMode="numeric"
@@ -971,15 +971,15 @@ function AccuracyRow({
             onBlur={onLeave}
             aria-invalid={message ? true : undefined}
             aria-describedby={message ? `${id}-message` : undefined}
-            className="w-full min-w-0 bg-transparent text-right font-mono text-[13px] text-ink-900 outline-none"
+            className="w-full min-w-0 bg-transparent text-right font-mono text-[13px] text-ink outline-none"
           />
-          <span aria-hidden className="pl-0.5 font-mono text-[13px] text-ink-500">%</span>
+          <span aria-hidden className="pl-0.5 font-mono text-[13px] text-smoke">%</span>
         </span>
         <button
           type="button"
           aria-label={`Remove ${row.type}`}
           onClick={() => dispatch({ type: "removeRow", rowType: row.type })}
-          className={`grid size-7 shrink-0 place-items-center rounded text-ink-400 hover:text-ink-900 ${FOCUS}`}
+          className={`grid size-7 shrink-0 place-items-center rounded text-smoke hover:text-ink ${FOCUS}`}
         >
           <svg aria-hidden viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
             <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" />
@@ -987,7 +987,7 @@ function AccuracyRow({
         </button>
       </div>
       {message && (
-        <p id={`${id}-message`} className="px-3 pb-2 text-sm text-red-700">
+        <p id={`${id}-message`} className="px-3 pb-2 text-sm text-danger-ink">
           {message}
         </p>
       )}
@@ -997,7 +997,7 @@ function AccuracyRow({
 
 function EmptyListNote({ state, list }: { state: WizardState; list: ReviewList }) {
   const note = emptyListNote(state, list);
-  return note && <p className="border-b border-ink-100 px-3 py-3.5 text-sm text-ink-900">{note}</p>;
+  return note && <p className="border-b border-vellum-line px-3 py-3.5 text-sm text-ink">{note}</p>;
 }
 
 const TIER_LABEL: Record<PriorityTier, string> = { highest: "Highest", medium: "Medium", low: "Low" };
@@ -1007,7 +1007,7 @@ function TierPill({ tier }: { tier: PriorityTier }) {
   return (
     <span
       className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border border-dashed px-2 py-0.5 text-xs font-medium ${
-        highest ? "border-accent-600 text-accent-700" : "border-ink-400 text-ink-500"
+        highest ? "border-accent text-accent" : "border-fog text-smoke"
       }`}
     >
       {highest && (
@@ -1038,7 +1038,7 @@ function Checkbox({
   const labelId = useId();
   const detailId = useId();
   return (
-    <label className={`group flex cursor-pointer gap-3 text-sm text-ink-900 ${className}`}>
+    <label className={`group flex cursor-pointer gap-3 text-sm text-ink ${className}`}>
       <span className="relative mt-px grid size-4 shrink-0">
         <input
           id={id}
@@ -1047,7 +1047,7 @@ function Checkbox({
           onChange={(e) => onChange(e.target.checked)}
           aria-labelledby={labelId}
           aria-describedby={detail ? detailId : undefined}
-          className={`peer size-4 appearance-none rounded-[4px] border border-ink-500 bg-white transition-colors duration-150 ease-out checked:border-ink-900 checked:bg-ink-900 not-checked:group-hover:border-ink-900 not-checked:group-hover:bg-ink-50 ${FOCUS}`}
+          className={`peer size-4 appearance-none rounded-[4px] border border-fog bg-paper transition-colors duration-150 ease-out checked:border-ink checked:bg-ink not-checked:group-hover:border-ink not-checked:group-hover:bg-vellum ${FOCUS}`}
         />
         <svg aria-hidden viewBox="0 0 10 10" className="pointer-events-none absolute inset-0 m-auto size-2.5 opacity-0 peer-checked:opacity-100" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
           <path d="M2 5.2l2 2L8 3" />
@@ -1148,24 +1148,24 @@ function AddType({
             setActive(0);
           }}
           onKeyDown={keyDown}
-          className="h-9 min-w-0 grow rounded-md border-2 border-accent-600 bg-white px-3 text-sm text-ink-900 outline-none"
+          className="h-9 min-w-0 grow rounded-sm border-2 border-accent bg-paper px-3 text-sm text-ink outline-none"
         />
         <button type="button" onClick={() => close()} className={`h-9 px-3 text-sm ${LINK_BUTTON}`}>
           Cancel
         </button>
       </div>
-      <div id="add-type-options" role="listbox" aria-label="Question types" className="flex max-h-72 flex-col overflow-y-auto rounded-md border border-ink-200 bg-white py-1.5">
+      <div id="add-type-options" role="listbox" aria-label="Question types" className="flex max-h-72 flex-col overflow-y-auto rounded-sm border border-vellum-line bg-paper py-1.5">
         {ADD_TYPE_GROUPS.map(({ list, label, none }, groupIndex) => (
           <div
             key={list}
             role="group"
             aria-labelledby={`add-type-group-${list}`}
-            className={groupIndex > 0 ? "mt-1 border-t border-ink-100 pt-1" : undefined}
+            className={groupIndex > 0 ? "mt-1 border-t border-vellum-line pt-1" : undefined}
           >
-            <div id={`add-type-group-${list}`} role="presentation" className="px-3 py-1.5 text-xs text-ink-500">
+            <div id={`add-type-group-${list}`} role="presentation" className="px-3 py-1.5 text-xs text-smoke">
               {label}
             </div>
-            {options[list].length === 0 && <div className="flex h-9 items-center px-3 text-sm text-ink-500">{`${none} "${query.trim()}"`}</div>}
+            {options[list].length === 0 && <div className="flex h-9 items-center px-3 text-sm text-smoke">{`${none} "${query.trim()}"`}</div>}
             {options[list].map((type) => {
               const optionIndex = flat.findIndex((option) => option.type === type);
               const selected = optionIndex === active;
@@ -1178,10 +1178,10 @@ function AddType({
                   onMouseDown={(e) => e.preventDefault()}
                   onMouseEnter={() => setActive(optionIndex)}
                   onClick={() => add(optionIndex)}
-                  className={`flex min-h-9 cursor-pointer items-center justify-between px-3 text-sm text-ink-900 ${selected ? "bg-ink-50" : ""}`}
+                  className={`flex min-h-9 cursor-pointer items-center justify-between px-3 text-sm text-ink ${selected ? "bg-vellum" : ""}`}
                 >
                   {type}
-                  {selected && <span className="font-mono text-xs text-ink-500">Enter</span>}
+                  {selected && <span className="font-mono text-xs text-smoke">Enter</span>}
                 </div>
               );
             })}
@@ -1211,16 +1211,16 @@ function ScreenshotToggle({ file }: { file: File }) {
         type="button"
         aria-expanded={url !== null}
         onClick={toggle}
-        className={`flex items-center gap-3 rounded-md border border-ink-200 bg-white p-3 text-left ${FOCUS}`}
+        className={`flex items-center gap-3 rounded-sm border border-vellum-line bg-paper p-3 text-left ${FOCUS}`}
       >
-        <span aria-hidden className="flex h-9 w-11 shrink-0 flex-col justify-center gap-1 rounded bg-ink-50 px-2">
-          <span className="h-0.5 w-6 bg-ink-400" />
-          <span className="h-0.5 w-5 bg-ink-400" />
-          <span className="h-0.5 w-6 bg-ink-400" />
+        <span aria-hidden className="flex h-9 w-11 shrink-0 flex-col justify-center gap-1 rounded bg-vellum px-2">
+          <span className="h-0.5 w-6 bg-fog" />
+          <span className="h-0.5 w-5 bg-fog" />
+          <span className="h-0.5 w-6 bg-fog" />
         </span>
         <span className="flex min-w-0 grow flex-col gap-0.5">
-          <span className="text-sm font-medium text-ink-900">{url ? "Hide your screenshot" : "Show your screenshot"}</span>
-          <span className="truncate font-mono text-xs text-ink-500">{file.name}</span>
+          <span className="text-sm font-medium text-ink">{url ? "Hide your screenshot" : "Show your screenshot"}</span>
+          <span className="truncate font-mono text-xs text-smoke">{file.name}</span>
         </span>
         <svg aria-hidden viewBox="0 0 16 16" className={`size-4 shrink-0 transition-transform duration-150 ${url ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 6l4 4 4-4" />
@@ -1228,7 +1228,7 @@ function ScreenshotToggle({ file }: { file: File }) {
       </button>
       {url && (
         // eslint-disable-next-line @next/next/no-img-element -- a local object URL; next/image cannot load it
-        <img src={url} alt="Your 7Sage screenshot" className="w-full rounded-md border border-ink-200" />
+        <img src={url} alt="Your 7Sage screenshot" className="w-full rounded-sm border border-vellum-line" />
       )}
     </div>
   );

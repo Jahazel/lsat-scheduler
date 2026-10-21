@@ -44,11 +44,11 @@ export default async function ProgressPage({
     return (
       <div className="min-h-screen px-6 py-12">
         <div className="mx-auto max-w-3xl">
-          <Link href="/progress" className="mb-5 inline-block text-sm font-medium text-accent-700 underline-offset-4 hover:underline">
+          <Link href="/progress" className="mb-5 inline-block text-sm font-medium text-accent underline-offset-4 hover:underline">
             ← All weeks
           </Link>
-          <div className="mb-6 rounded-lg border border-ink-200 bg-ink-50 px-4 py-3 text-sm text-ink-700">
-            <span className="font-semibold text-ink-900">Viewing a past week</span> · {formatScheduleWeekOf(selected.weekStartDate)} · {summary.done} of {summary.total} done
+          <div className="mb-6 rounded-xs border border-vellum-line bg-vellum px-4 py-3 text-sm text-smoke">
+            <span className="font-semibold text-ink">Viewing a past week</span> · {formatScheduleWeekOf(selected.weekStartDate)} · {summary.done} of {summary.total} done
           </div>
           <ScheduleCheckInView
             key={selected.id}
