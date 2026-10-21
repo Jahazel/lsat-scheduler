@@ -12,6 +12,7 @@ import {
 } from "react";
 import { DurationSelect } from "@/components/DailyCapacityFieldset";
 import { Checkbox as SharedCheckbox } from "@/components/ui/Checkbox";
+import { IconButton } from "@/components/ui/Button";
 import { DropZone } from "@/components/ui/DropZone";
 import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
 import { DAY_ORDER } from "@/lib/engine";
@@ -331,7 +332,7 @@ function OfficialAttempts({ attempts, dispatch, today }: { attempts: AttemptsDra
                 key={row.id}
                 className="flex flex-col gap-2"
                 onBlur={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget)) afterPress(() => dispatch({ type: "leaveAttempt", id: row.id }));
+                  if (!e.currentTarget.contains(e.relatedTarget)) afterPress(() => dispatch({ type: "leaveAttempt", id: row.id, part: "row" }));
                 }}
               >
                 <div className="flex items-center gap-3">
@@ -342,6 +343,7 @@ function OfficialAttempts({ attempts, dispatch, today }: { attempts: AttemptsDra
                       aria-label={`Attempt ${index + 1} score`}
                       value={row.score}
                       onChange={(e) => dispatch({ type: "editAttempt", id: row.id, values: { score: e.target.value } })}
+                      onBlur={() => afterPress(() => dispatch({ type: "leaveAttempt", id: row.id, part: "score" }))}
                       aria-invalid={message?.box === "score" ? true : undefined}
                       aria-describedby={describedBy("score")}
                       className={box(message?.box === "score")}
@@ -367,16 +369,11 @@ function OfficialAttempts({ attempts, dispatch, today }: { attempts: AttemptsDra
                     </select>
                   </div>
                   {attempts.rows.length > 1 ? (
-                    <button
-                      type="button"
-                      aria-label={`Remove attempt ${index + 1}`}
-                      onClick={() => dispatch({ type: "removeAttempt", id: row.id })}
-                      className={`flex size-8 shrink-0 items-center justify-center rounded-sm text-smoke hover:bg-vellum hover:text-ink ${FOCUS}`}
-                    >
-                      <svg aria-hidden viewBox="0 0 14 14" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                    <IconButton label={`Remove attempt ${index + 1}`} onClick={() => dispatch({ type: "removeAttempt", id: row.id })}>
+                      <svg aria-hidden viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                         <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" />
                       </svg>
-                    </button>
+                    </IconButton>
                   ) : (
                     <span className="w-8 shrink-0" />
                   )}

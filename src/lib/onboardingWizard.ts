@@ -52,7 +52,7 @@ export interface WizardValues {
   preferredPracticeTestDay: DayOfWeek | null;
 }
 
-export type AttemptRow = { id: number; score: string; month: string; left: boolean };
+export type AttemptRow = { id: number; score: string; month: string; leftScore: boolean; leftRow: boolean };
 
 export interface AttemptsDraft {
   taken: boolean;
@@ -94,7 +94,7 @@ export type WizardAction =
   | { type: "addAttempt" }
   | { type: "removeAttempt"; id: number }
   | { type: "editAttempt"; id: number; values: Partial<Pick<AttemptRow, "score" | "month">> }
-  | { type: "leaveAttempt"; id: number }
+  | { type: "leaveAttempt"; id: number; part: "score" | "row" }
   | { type: "continue" }
   | { type: "back" }
   | { type: "screenshotRejected"; section: AnalyticsSection; message: string }
@@ -201,8 +201,9 @@ const ATTEMPT_MESSAGE: Record<AttemptProblem, { box: "score" | "month"; text: st
 };
 
 export function attemptMessage(row: AttemptRow) {
-  const problem = row.left ? attemptProblem(row) : null;
-  return problem ? ATTEMPT_MESSAGE[problem] : null;
+  const problem = attemptProblem(row);
+  const shown = row.leftRow || (row.leftScore && problem === "out-of-range");
+  return problem && shown ? ATTEMPT_MESSAGE[problem] : null;
 }
 
 function attemptsBlockedReason(attempts: AttemptsDraft): string | null {
@@ -225,7 +226,7 @@ function withAttemptRows(state: WizardState, rows: AttemptRow[]): WizardState {
 function addAttemptRow(state: WizardState): WizardState {
   const { attempts } = state;
   if (attempts.rows.length >= MAX_OFFICIAL_ATTEMPTS) return state;
-  const row = { id: attempts.nextId, score: "", month: "", left: false };
+  const row = { id: attempts.nextId, score: "", month: "", leftScore: false, leftRow: false };
   return { ...state, attempts: { ...attempts, rows: [...attempts.rows, row], nextId: attempts.nextId + 1 } };
 }
 
@@ -546,7 +547,7 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
     case "editAttempt":
       return updateAttemptRow(state, action.id, action.values);
     case "leaveAttempt":
-      return updateAttemptRow(state, action.id, { left: true });
+      return updateAttemptRow(state, action.id, action.part === "score" ? { leftScore: true } : { leftRow: true });
     case "continue": {
       const next = STEPS[STEPS.indexOf(state.step) + 1];
       return blockedReason(state) || !next ? state : { ...state, step: next, changedStep: true };

@@ -166,21 +166,23 @@ describe("onboarding wizard", () => {
       expect(state.attempts.rows).toHaveLength(10);
     });
 
-    it("shows a row's message only after focus leaves the row", () => {
-      const typing = run(validGoal, taken, { type: "editAttempt", id: 0, values: { score: "190", month: "2025-06" } });
+    it("shows an out-of-range score once focus leaves the score box", () => {
+      const typing = run(validGoal, taken, { type: "editAttempt", id: 0, values: { score: "190" } });
       expect(attemptMessage(typing.attempts.rows[0])).toBeNull();
       expect(blockedReason(typing)).toBe("Fix your attempts above to continue.");
 
-      const left = wizardReducer(typing, { type: "leaveAttempt", id: 0 });
+      const left = wizardReducer(typing, { type: "leaveAttempt", id: 0, part: "score" });
       expect(attemptMessage(left.attempts.rows[0])).toEqual({
         box: "score",
         text: "LSAT scores go from 120 to 180. Check this attempt's score.",
       });
     });
 
-    it("asks for the month of an attempt with a score", () => {
-      const state = run(validGoal, taken, { type: "editAttempt", id: 0, values: { score: "152" } }, { type: "leaveAttempt", id: 0 });
+    it("asks for the month only once focus leaves the row", () => {
+      const scored = run(validGoal, taken, { type: "editAttempt", id: 0, values: { score: "152" } }, { type: "leaveAttempt", id: 0, part: "score" });
+      expect(attemptMessage(scored.attempts.rows[0])).toBeNull();
 
+      const state = wizardReducer(scored, { type: "leaveAttempt", id: 0, part: "row" });
       expect(attemptMessage(state.attempts.rows[0])).toEqual({ box: "month", text: "Pick the month of this attempt." });
       expect(blockedReason(state)).toBe("Enter a score and month for each attempt to continue.");
     });

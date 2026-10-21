@@ -149,10 +149,8 @@ describe("OnboardingWizard", () => {
       await user.click(screen.getByLabelText("I've taken it"));
 
       await user.type(screen.getByLabelText("Attempt 1 score"), "190");
-      await user.tab();
       expect(screen.queryByText("LSAT scores go from 120 to 180. Check this attempt's score.")).toBeNull();
-      await user.selectOptions(screen.getByLabelText("Attempt 1 month and year"), "June 2025");
-      await user.click(screen.getByRole("button", { name: "Add another attempt" }));
+      await user.tab();
 
       const score = screen.getByLabelText("Attempt 1 score");
       expect(score.getAttribute("aria-invalid")).toBe("true");
@@ -162,9 +160,13 @@ describe("OnboardingWizard", () => {
       expect(continueButton().disabled).toBe(true);
       expect(screen.getByText("Fix your attempts above to continue.")).toBeDefined();
 
+      await user.selectOptions(screen.getByLabelText("Attempt 1 month and year"), "June 2025");
       await user.clear(score);
       await user.type(score, "152");
+      await user.click(screen.getByRole("button", { name: "Add another attempt" }));
       await user.type(screen.getByLabelText("Attempt 2 score"), "149");
+      await user.tab();
+      expect(screen.queryByText("Pick the month of this attempt.")).toBeNull();
       await user.click(screen.getByLabelText("Goal score"));
       const month = screen.getByLabelText("Attempt 2 month and year");
       expect(month.getAttribute("aria-invalid")).toBe("true");
