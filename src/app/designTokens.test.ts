@@ -31,8 +31,9 @@ const RULES: { name: string; pattern: RegExp }[] = [
 ];
 
 function withoutComments(source: string, fileName: string): string {
-  if (fileName.endsWith(".css")) return source.replace(/\/\*[\s\S]*?\*\//g, "");
-  const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, false, ts.ScriptKind.TSX);
+  if (fileName.endsWith(".css")) return source;
+  const kind = fileName.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, false, kind);
   const nodes: ts.Node[] = [];
   const collect = (node: ts.Node) => {
     nodes.push(node);
@@ -112,6 +113,11 @@ describe("design tokens", () => {
       "Tailwind default palette color: text-red-600",
     ]);
     expect(findTokenViolations("const s = `${/* #202 */ value}`;")).toEqual([]);
+    expect(findTokenViolations("const id = <T,>(x: T) => x; // Fix #202", "generic.tsx")).toEqual([]);
+    expect(findTokenViolations("const id = <T>(x: T) => x; // Fix #202", "generic.ts")).toEqual([]);
+    expect(findTokenViolations(`.a { content: "/*"; color: #123456; }\n.b { content: "*/"; }`, "theme.css")).toEqual([
+      "raw hex color: #123456",
+    ]);
   });
 
   it("keeps application code on Paper tokens", () => {
