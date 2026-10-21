@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import {
   addRow,
   editAccuracy,
@@ -47,7 +47,10 @@ export default function AnalyticsReview({
   const [uploads, setUploads] = useState<Record<AnalyticsSection, UploadStatus>>({ LR: IDLE, RC: IDLE });
   const setUpload = (section: AnalyticsSection, status: UploadStatus) => setUploads((current) => ({ ...current, [section]: status }));
 
+  const latestRead = useRef<Record<AnalyticsSection, number>>({ LR: 0, RC: 0 });
+
   async function readFile(section: AnalyticsSection, file: File) {
+    const attempt = ++latestRead.current[section];
     const rejection = checkScreenshot(file);
     if (rejection) {
       setUpload(section, { ...IDLE, error: rejection.message });
@@ -56,6 +59,7 @@ export default function AnalyticsReview({
 
     setUpload(section, { ...IDLE, extracting: true });
     const reply = await extractScreenshot(file, section);
+    if (attempt !== latestRead.current[section]) return;
 
     switch (reply.kind) {
       case "rows":
@@ -86,11 +90,8 @@ export default function AnalyticsReview({
         const { extracting, error, signedOut } = uploads[section];
         return (
           <div key={section}>
-            {extracting ? (
-              <p className="text-small text-smoke">Reading your {SECTION_NAME[section]} screenshot…</p>
-            ) : (
-              <DropZone label={`${SECTION_NAME[section]} screenshot`} accept={SCREENSHOT_ACCEPT} error={error ?? undefined} onFile={(file) => readFile(section, file)} />
-            )}
+            <DropZone label={`${SECTION_NAME[section]} screenshot`} accept={SCREENSHOT_ACCEPT} error={error ?? undefined} onFile={(file) => readFile(section, file)} />
+            {extracting && <p className="mt-3 text-small text-smoke">Reading your {SECTION_NAME[section]} screenshot…</p>}
             {signedOut && <div className="mt-3"><SignInExpired /></div>}
           </div>
         );

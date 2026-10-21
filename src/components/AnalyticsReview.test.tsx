@@ -103,13 +103,35 @@ describe("RC passage types", () => {
 
     await userEvent.upload(screen.getByLabelText("Logical Reasoning screenshot file"), file);
     await userEvent.upload(screen.getByLabelText("Reading Comprehension screenshot file"), file);
-    expect(screen.queryByLabelText("Logical Reasoning screenshot file")).toBeNull();
     expect(screen.getByText("Reading your Logical Reasoning screenshot…")).toBeDefined();
     replies[1](Response.json({ rows: [{ type: "Law", category: "passage", accuracy: 58 }] }));
     replies[0](Response.json({ rows: [{ type: "Strengthen", category: "regular", accuracy: 68 }] }));
 
     await vi.waitFor(() => expect(onReviewChange).toHaveBeenCalledTimes(2));
     expect(review!.rows.map(({ row }) => row.type)).toEqual(["Strengthen", "Law", "Comparative", "Science", "Humanities", "Art"]);
+  });
+
+  it("ignores an older read of a section once a newer one has started", async () => {
+    const replies: ((response: Response) => void)[] = [];
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => { replies.push(resolve); })));
+    let review: SnapshotReview | null = null;
+    const onReviewChange = vi.fn((update: SnapshotReview | null | ((current: SnapshotReview | null) => SnapshotReview | null)) => {
+      review = typeof update === "function" ? update(review) : update;
+    });
+    render(<AnalyticsReview review={null} onReviewChange={onReviewChange} />);
+    const zone = screen.getByRole("button", { name: /Logical Reasoning screenshot/ });
+    const file = new File(["png"], "a.png", { type: "image/png" });
+
+    await userEvent.upload(screen.getByLabelText("Logical Reasoning screenshot file"), file);
+    await userEvent.upload(screen.getByLabelText("Logical Reasoning screenshot file"), file);
+    expect(screen.getByRole("button", { name: /Logical Reasoning screenshot/ })).toBe(zone);
+    replies[1](Response.json({ rows: [{ type: "Weaken", category: "regular", accuracy: 61 }] }));
+    await vi.waitFor(() => expect(onReviewChange).toHaveBeenCalledTimes(1));
+    replies[0](Response.json({ rows: [{ type: "Strengthen", category: "regular", accuracy: 68 }] }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(onReviewChange).toHaveBeenCalledTimes(1);
+    expect(review!.rows.map(({ row }) => row.type)).toEqual(["Weaken"]);
   });
 });
 
