@@ -5,7 +5,7 @@ import { DAY_ORDER } from "@/lib/engine";
 import { activityLabel } from "@/lib/activityLabel";
 import { formatDuration } from "@/lib/formatDuration";
 import { plannedActivityMinutes, scheduleActivityId } from "@/lib/currentWeeklySchedule";
-import { formatScheduleWeekOf, remainingActivityCount, scheduledActivityCount } from "@/lib/scheduleCheckInSummary";
+import { doneActivityIds, formatScheduleWeekOf, remainingActivityCount, scheduledActivityCount } from "@/lib/scheduleCheckInSummary";
 import { dayName, isoDateInWeek } from "@/lib/scheduleReasonText";
 import type { ActivityCheckIn, DayPlan, Student, WeeklySchedule } from "@/lib/types";
 import { saveActivityCheckIn } from "@/app/dashboard/actions";
@@ -44,12 +44,12 @@ function ActivityRow({ label, done, onToggle }: { label: string; done: boolean; 
   const content = <>
     <span className="flex size-8 shrink-0 items-center justify-center">
       <span className="flex rounded-pill outline-offset-2 group-focus-visible:outline-2 group-focus-visible:outline-accent">
-        <StatusIcon name={done ? "check-disc" : "open-circle"} className={done ? undefined : "group-hover:text-ink"} />
+        <StatusIcon name={done ? "check-disc" : "open-circle"} className={done ? undefined : "group-hover:text-ink group-focus-visible:text-ink"} />
       </span>
     </span>
     <span className={cx("min-w-0 flex-1 text-small", done ? "text-smoke line-through decoration-fog" : "text-ink")}>{label}</span>
   </>;
-  if (!onToggle) return <li className={row}>{content}</li>;
+  if (!onToggle) return <li className={row}>{content}<span className="sr-only">{done ? ", done" : ", not done"}</span></li>;
   return (
     <li>
       <button type="button" role="checkbox" aria-checked={done} onClick={onToggle}
@@ -71,7 +71,7 @@ export default function ScheduleCheckInView({
 }: ScheduleCheckInViewProps) {
   const [savedCheckIns, setSavedCheckIns] = useState(checkIns);
   const [, startTransition] = useTransition();
-  const doneIds = new Set(savedCheckIns.filter(({ status }) => status === "completed").map(({ activityId }) => activityId));
+  const doneIds = doneActivityIds(savedCheckIns);
   const totalActivities = scheduledActivityCount(schedule);
   const doneActivities = totalActivities - remainingActivityCount(schedule, savedCheckIns);
   const isPastPlan = heading === "Your past plan";

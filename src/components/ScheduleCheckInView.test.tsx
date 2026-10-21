@@ -102,6 +102,9 @@ describe("ScheduleCheckInView", () => {
     render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent}
       checkIns={[done("MONDAY:0")]} readOnly />);
     expect(screen.queryByRole("checkbox")).toBeNull();
+    const [doneRow, openRow] = within(dayCard("Monday")).getAllByRole("listitem");
+    expect(doneRow!.textContent).toBe("1 Full LR Section, done");
+    expect(openRow!.textContent).toMatch(/, not done$/);
     expect(within(dayCard("Monday")).getByText("1 Full LR Section").className).toContain("line-through");
     expect(screen.getByText("1 of 18 done")).toBeTruthy();
   });
