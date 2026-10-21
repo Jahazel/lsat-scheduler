@@ -97,7 +97,6 @@ export default function AnalyticsUploader({ sample, onSampleDone }: { sample?: S
               key={reviewKey}
               review={review}
               onReviewChange={setReview}
-              uploadPresentation="guided"
               reviewPresentation={hasExtracted ? "full-width" : "default"}
             />
             {hasExtracted && (

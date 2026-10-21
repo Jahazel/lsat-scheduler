@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import {
   addRow,
   editAccuracy,
@@ -19,13 +19,14 @@ import {
 import type { AnalyticsSection } from "@/lib/types";
 import { checkScreenshot, extractScreenshot, SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES } from "@/lib/screenshotUpload";
 import SignInExpired from "./SignInExpired";
+import { DropZone } from "./ui/DropZone";
 
 const SCREENSHOT_ACCEPT = SCREENSHOT_MEDIA_TYPES.join(",");
+const ACCURACY_INPUT = "w-20 rounded-sm border border-vellum-line bg-paper px-2 py-1.5 text-right text-small font-semibold tabular-nums text-ink placeholder:text-fog focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
 interface AnalyticsReviewProps {
   review: SnapshotReview | null;
-  onReviewChange: (review: SnapshotReview) => void;
-  uploadPresentation?: "default" | "guided";
+  onReviewChange: Dispatch<SetStateAction<SnapshotReview | null>>;
   reviewPresentation?: "default" | "full-width";
 }
 
@@ -40,17 +41,13 @@ const NO_ROWS: Record<AnalyticsSection, string> = {
 export default function AnalyticsReview({
   review,
   onReviewChange,
-  uploadPresentation = "default",
   reviewPresentation = "default",
 }: AnalyticsReviewProps) {
   const [typeToAdd, setTypeToAdd] = useState("");
   const [uploads, setUploads] = useState<Record<AnalyticsSection, UploadStatus>>({ LR: IDLE, RC: IDLE });
   const setUpload = (section: AnalyticsSection, status: UploadStatus) => setUploads((current) => ({ ...current, [section]: status }));
 
-  async function handleFileChange(section: AnalyticsSection, e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  async function readFile(section: AnalyticsSection, file: File) {
     const rejection = checkScreenshot(file);
     if (rejection) {
       setUpload(section, { ...IDLE, error: rejection.message });
@@ -67,7 +64,7 @@ export default function AnalyticsReview({
           break;
         }
         setUpload(section, IDLE);
-        onReviewChange(readSection(review, section, reply.rows, { source: "7sage_screenshot", extractedAt: new Date().toISOString() }));
+        onReviewChange((current) => readSection(current, section, reply.rows, { source: "7sage_screenshot", extractedAt: new Date().toISOString() }));
         break;
       case "rejected":
         setUpload(section, { ...IDLE, error: reply.message });
@@ -85,15 +82,17 @@ export default function AnalyticsReview({
   const missingSections = SECTIONS.filter((section) => !hasSection(review, section));
   const uploadControls = missingSections.length > 0 && (
     <div className="flex flex-col gap-4">
-      {missingSections.map((section) => (
-        <SectionUpload
-          key={section}
-          section={section}
-          status={uploads[section]}
-          presentation={uploadPresentation}
-          onChange={(event) => handleFileChange(section, event)}
-        />
-      ))}
+      {missingSections.map((section) => {
+        const { extracting, error, signedOut } = uploads[section];
+        return (
+          <div key={section}>
+            <DropZone label={`${SECTION_NAME[section]} screenshot`} accept={SCREENSHOT_ACCEPT} error={error ?? undefined} onFile={(file) => readFile(section, file)} />
+            {extracting && <p className="mt-3 text-small text-smoke">Reading your {SECTION_NAME[section]} screenshot…</p>}
+            {signedOut && <div className="mt-3"><SignInExpired /></div>}
+          </div>
+        );
+      })}
+      <p className="text-small text-smoke">{SCREENSHOT_LIMITS} each.</p>
     </div>
   );
 
@@ -146,7 +145,7 @@ export default function AnalyticsReview({
                   onChange={(e) => updateAccuracy(i, e.target.value)}
                   placeholder="—"
                   aria-label={`${row.type} passage accuracy`}
-                  className="w-20 rounded-sm border border-vellum-line bg-paper px-2 py-1.5 text-right text-small font-semibold tabular-nums text-ink placeholder:text-fog focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  className={ACCURACY_INPUT}
                 />
                 <span className="text-small font-medium text-smoke">%</span>
               </span>
@@ -202,7 +201,7 @@ export default function AnalyticsReview({
                             onChange={(e) => updateAccuracy(i, e.target.value)}
                             placeholder="—"
                             aria-label={`${row.type} accuracy`}
-                            className="w-20 rounded-sm border border-vellum-line bg-paper px-2 py-1.5 text-right text-small font-semibold tabular-nums text-ink placeholder:text-fog focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                            className={ACCURACY_INPUT}
                           />
                           <span className="text-small font-medium text-smoke">%</span>
                         </div>
@@ -280,7 +279,7 @@ export default function AnalyticsReview({
                           value={row.accuracy ?? ""}
                           onChange={(e) => updateAccuracy(i, e.target.value)}
                           placeholder="—"
-                          className="w-20 rounded-sm border border-vellum-line bg-paper px-2 py-1.5 text-right text-small font-semibold tabular-nums text-ink placeholder:text-fog focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                          className={ACCURACY_INPUT}
                         />
                         <span className="text-small font-medium text-smoke">%</span>
                       </div>
@@ -323,59 +322,6 @@ export default function AnalyticsReview({
       {uploadControls}
       {passageBlock}
       {approvalControls("rounded-sm border border-vellum-line p-3", "px-1 text-small font-medium text-ink")}
-    </div>
-  );
-}
-
-function SectionUpload({
-  section,
-  status,
-  presentation,
-  onChange,
-}: {
-  section: AnalyticsSection;
-  status: UploadStatus;
-  presentation: "default" | "guided";
-  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-}) {
-  const { extracting, error, signedOut } = status;
-  const feedback = (
-    <>
-      {extracting && <p className="mt-3 text-small text-smoke">Reading your screenshot…</p>}
-      {error && <p className="mt-3 text-small text-danger-ink">{error}</p>}
-      {signedOut && <div className="mt-3"><SignInExpired /></div>}
-    </>
-  );
-
-  if (presentation === "guided") {
-    return (
-      <div>
-        <label className="block cursor-pointer rounded-xs border border-dashed border-accent bg-accent/faint p-5 transition-colors duration-150 ease-out hover:bg-accent/tint focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent has-[input:disabled]:cursor-not-allowed has-[input:disabled]:opacity-50">
-          <span className="flex items-center gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-paper text-accent">
-              <svg aria-hidden="true" className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-                <path d="M12 16V4m0 0-4 4m4-4 4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <span>
-              <span className="block font-semibold text-ink">Choose your 7Sage {SECTION_NAME[section]} screenshot</span>
-              <span className="mt-1 block text-small text-smoke">{SCREENSHOT_LIMITS}</span>
-            </span>
-          </span>
-          <input className="sr-only" type="file" accept={SCREENSHOT_ACCEPT} onChange={onChange} disabled={extracting} />
-        </label>
-        {feedback}
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <label className="flex flex-col gap-1 text-small font-medium text-ink">
-        {SECTION_NAME[section]} screenshot
-        <input type="file" accept={SCREENSHOT_ACCEPT} onChange={onChange} disabled={extracting} />
-      </label>
-      {feedback}
     </div>
   );
 }

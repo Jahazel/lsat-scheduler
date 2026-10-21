@@ -21,12 +21,12 @@ const rcRows = () => Response.json({
   ],
 });
 const screenshot = new File(["image"], "analytics.png", { type: "image/png" });
-const lrPicker = () => screen.getByLabelText(/Choose your 7Sage Logical Reasoning screenshot/);
-const rcPicker = () => screen.getByLabelText(/Choose your 7Sage Reading Comprehension screenshot/);
+const lrPicker = () => screen.getByLabelText("Logical Reasoning screenshot file");
+const rcPicker = () => screen.getByLabelText("Reading Comprehension screenshot file");
 
 async function addBothScreenshots(user: ReturnType<typeof userEvent.setup>) {
   await user.upload(lrPicker(), screenshot);
-  await user.upload(await screen.findByLabelText(/Choose your 7Sage Reading Comprehension screenshot/), screenshot);
+  await user.upload(await screen.findByLabelText("Reading Comprehension screenshot file"), screenshot);
   await screen.findByLabelText("Law passage accuracy");
 }
 
@@ -81,7 +81,7 @@ describe("AnalyticsUploader", () => {
     const user = userEvent.setup();
     render(<AnalyticsUploader />);
     await user.upload(lrPicker(), screenshot);
-    await user.upload(await screen.findByLabelText(/Choose your 7Sage Reading Comprehension screenshot/), screenshot);
+    await user.upload(await screen.findByLabelText("Reading Comprehension screenshot file"), screenshot);
     expect(((await screen.findByLabelText("Art passage accuracy")) as HTMLInputElement).value).toBe("");
     expect(screen.getAllByText("not found")).toHaveLength(4);
     await user.click(screen.getByLabelText("I reviewed these values and they match my screenshots."));
