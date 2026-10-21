@@ -72,9 +72,13 @@ const MIN_LR_QUESTIONS = 24;
 
 const isMissed = (result: QuestionResult) => result === "wrong" || result === "unanswered";
 
-function isCutOff(section: LRSectionReading) {
-  return !section.reachesEnd || section.rows.length < MIN_LR_QUESTIONS
-    || section.rows.some((row, index) => row.question !== index + 1);
+const scoredSections = (files: SectionReading[]) =>
+  files.flatMap((file) => (file.page === "section_review" && SECTIONS.includes(file.section) ? [file] : []));
+
+function isCutOff(section: SectionReview) {
+  if (!section.reachesEnd) return true;
+  return section.kind === "LR" && (section.rows.length < MIN_LR_QUESTIONS
+    || section.rows.some((row, index) => row.question !== index + 1));
 }
 
 function settleHidden(section: LRSectionReading, file: number, picks: HiddenPick[]): HiddenResult[] | PracticeTestProblem {
@@ -122,24 +126,27 @@ export function reviewPracticeTest(files: SectionReading[], picks: HiddenPick[] 
   const problems: PracticeTestProblem[] = [];
   const kept = new Map<number, SectionReview>();
   const hiddenResults: HiddenResult[] = [];
-  const present = new Set(files.flatMap((file) => (file.page === "section_review" ? [file.section] : [])));
+  const present = new Set(scoredSections(files).map((file) => file.section));
   const missing = SECTIONS.filter((section) => !present.has(section));
-  const expected = files.find((file): file is SectionReview => file.page === "section_review")?.prepTest;
+  const expected = scoredSections(files)[0]?.prepTest;
 
   files.forEach((file, index) => {
     if (file.page !== "section_review") {
       problems.push({ problem: "wrong-page", file: index, shows: file.page });
+    } else if (!SECTIONS.includes(file.section)) {
+      problems.push({ problem: "wrong-page", file: index, shows: "other" });
     } else if (file.prepTest !== expected) {
       problems.push({ problem: "different-prep-test", file: index, prepTest: file.prepTest, expected: expected ?? file.prepTest });
     } else if (kept.has(file.section)) {
       problems.push({ problem: "same-section-twice", file: index, section: file.section, missingSection: missing[0] ?? null });
     } else {
       kept.set(file.section, file);
-      if (file.kind !== "LR") return;
       if (isCutOff(file)) {
-        problems.push({ problem: "cut-off", file: index, section: file.section, lastQuestion: file.rows.at(-1)?.question ?? null });
+        const lastQuestion = file.kind === "LR" ? file.rows.at(-1)?.question ?? null : null;
+        problems.push({ problem: "cut-off", file: index, section: file.section, lastQuestion });
         return;
       }
+      if (file.kind !== "LR") return;
       const settled = settleHidden(file, index, picks);
       if (Array.isArray(settled)) hiddenResults.push(...settled);
       else problems.push(settled);

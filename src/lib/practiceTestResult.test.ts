@@ -143,6 +143,17 @@ describe("practice-test result", () => {
     expect(problems(files)).toEqual([{ problem: "cut-off", file: 3, section: 4, lastQuestion }]);
   });
 
+  it("flags a cut-off RC section", () => {
+    const files = readings();
+    files[0] = { ...files[0], reachesEnd: false } as SectionReading;
+    expect(problems(files)).toEqual([{ problem: "cut-off", file: 0, section: 1, lastQuestion: null }]);
+  });
+
+  it("treats a section outside 1 to 4 as a wrong page", () => {
+    const files = [...readings(), { ...readings()[1], section: 5 } as SectionReading];
+    expect(problems(files)).toEqual([{ problem: "wrong-page", file: 4, shows: "other" }]);
+  });
+
   it("flags a section whose missed count does not match its score", () => {
     const files = readings();
     lrRows(files[1])[0].result = "wrong";
