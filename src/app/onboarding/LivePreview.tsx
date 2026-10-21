@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { DAY_LABEL } from "@/lib/studentProfile";
+import { SECTION_NAME, SECTIONS } from "@/lib/analyticsReview";
 import { previewDrills, previewHeader, previewWeek, type PreviewDrill, type WizardState } from "@/lib/onboardingWizard";
-import type { DayOfWeek } from "@/lib/types";
+import type { AnalyticsSection, DayOfWeek } from "@/lib/types";
 
 const SKELETON = "h-2 rounded bg-vellum";
 
@@ -17,10 +18,13 @@ interface LivePreviewProps {
 export default function LivePreview({ state, firstName, initials, today }: LivePreviewProps) {
   const drills = state.step === "analytics" || state.step === "review" ? previewDrills(state, today) : null;
 
-  if (state.step === "review" && state.screenshot.status === "read") {
+  if (state.step === "review" && state.draft) {
     return (
       <aside aria-label="Preview of This week" className="hidden flex-col gap-4 bg-vellum px-8 pb-12 pt-32 lg:flex xl:px-18">
-        <ScreenshotCard file={state.screenshot.file} />
+        {SECTIONS.map((section) => {
+          const screenshot = state.screenshots[section];
+          return screenshot.status === "none" ? null : <ScreenshotCard key={section} section={section} file={screenshot.file} />;
+        })}
         <div className="flex flex-col gap-2.5 rounded-sm border border-vellum-line bg-paper p-4">
           {drills ? (
             <DrillList title={`Your ${DAY_LABEL[drills.day]} from these values`} tag="Not confirmed yet" items={drills.items} />
@@ -69,7 +73,7 @@ export default function LivePreview({ state, firstName, initials, today }: LiveP
             ) : (
               <div className="flex flex-col gap-3 rounded-sm border border-dashed border-vellum-line p-5">
                 <p className="text-small text-smoke">
-                  {state.screenshot.status === "read" ? "No drilling days left this week." : "Your drills fill in after you upload analytics."}
+                  {state.draft ? "No drilling days left this week." : "Your drills fill in after you upload analytics."}
                 </p>
                 <span aria-hidden className={`w-3/5 max-w-[260px] ${SKELETON} bg-vellum-line`} />
                 <span aria-hidden className={`w-2/5 max-w-[200px] ${SKELETON} bg-vellum-line`} />
@@ -167,7 +171,7 @@ function DrillList({ title, tag, items }: { title: string; tag: string; items: P
   );
 }
 
-function ScreenshotCard({ file }: { file: File }) {
+function ScreenshotCard({ section, file }: { section: AnalyticsSection; file: File }) {
   const image = useRef<HTMLImageElement>(null);
   useEffect(() => {
     const url = URL.createObjectURL(file);
@@ -178,12 +182,12 @@ function ScreenshotCard({ file }: { file: File }) {
   return (
     <figure className="flex flex-col gap-2">
       <figcaption className="flex items-baseline justify-between gap-4">
-        <span className="text-small font-semibold text-ink">Your screenshot</span>
+        <span className="text-small font-semibold text-ink">{SECTION_NAME[section]}</span>
         <span className="truncate font-mono text-caption text-smoke">{file.name}</span>
       </figcaption>
       <div className="rounded-sm border border-vellum-line bg-paper p-2 shadow-e1">
         {/* eslint-disable-next-line @next/next/no-img-element -- a local object URL; next/image cannot load it */}
-        <img ref={image} alt="Your 7Sage screenshot" className="max-h-[440px] w-full rounded object-contain object-top" />
+        <img ref={image} alt={`Your 7Sage ${SECTION_NAME[section]} screenshot`} className="max-h-[440px] w-full rounded object-contain object-top" />
       </div>
     </figure>
   );

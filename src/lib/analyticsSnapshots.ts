@@ -1,12 +1,22 @@
 import { dateInScheduleTimezone, type StudentClock } from "./adminTestWorkspace";
 import { z } from "zod";
-import type { LRLogicType } from "@/lib/types";
+import type { LRLogicType, RCType } from "@/lib/types";
 
 const MAX_EXTRACTION_AGE_MS = 24 * 60 * 60 * 1000;
 
+const Accuracy = z.number().finite().min(0).max(1);
+const RCAccuracySchema = z.strictObject({
+  Law: Accuracy,
+  Comparative: Accuracy,
+  Science: Accuracy,
+  Humanities: Accuracy,
+  Art: Accuracy,
+} satisfies Record<RCType, typeof Accuracy>);
+
 const SnapshotApprovalSchema = z.object({
-  lrAccuracyByType: z.record(z.string(), z.number().finite().min(0).max(1)),
+  lrAccuracyByType: z.record(z.string(), Accuracy),
   lrTopPriorityLogicTypes: z.array(z.string()),
+  rcAccuracyByType: z.unknown(),
   extraction: z.object({
     source: z.enum(["7sage_screenshot", "admin_sample"]),
     extractedAt: z.string().datetime(),
@@ -43,6 +53,10 @@ export function prepareApprovedSnapshot(input: unknown, approvedAt = new Date(),
   }
 
   const values = parsed.data;
+  const rcAccuracy = RCAccuracySchema.safeParse(values.rcAccuracyByType);
+  if (!rcAccuracy.success) {
+    throw new SnapshotApprovalError("Add an accuracy from 0 to 100 for all 5 RC passage types.");
+  }
   if (values.extraction.source === "admin_sample" && !options.allowAdminSample) {
     throw new SnapshotApprovalError("Admin access required for sample analytics.");
   }
@@ -73,6 +87,7 @@ export function prepareApprovedSnapshot(input: unknown, approvedAt = new Date(),
     weekOf: options.weekOf ?? approvedAt.toISOString().slice(0, 10),
     lrAccuracyByType: values.lrAccuracyByType,
     lrTopPriorityLogicTypes: values.lrTopPriorityLogicTypes as LRLogicType[],
+    rcAccuracyByType: rcAccuracy.data,
     status: "approved" as const,
     approvedAt,
     extraction: { source: values.extraction.source, extractedAt },

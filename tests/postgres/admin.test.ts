@@ -102,6 +102,7 @@ it("All students lists non-Admin students by name with their email, marks who ne
 async function approve(studentId: string, weekOf = "2026-10-12") {
   await createApprovedAnalyticsSnapshot(studentId, {
     status: "approved", weekOf, lrAccuracyByType: { Strengthen: 0.7 }, lrTopPriorityLogicTypes: [],
+    rcAccuracyByType: { Law: 0.58, Comparative: 0.7, Science: 0.64, Humanities: 0.81, Art: 0.77 },
     approvedAt: new Date(), extraction: { source: "7sage_screenshot", extractedAt: new Date() },
     confirmation: { extractedValuesMatch: true, isLatestAnalytics: true, confirmedAt: new Date() },
   });

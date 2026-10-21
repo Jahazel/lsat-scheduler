@@ -1,4 +1,4 @@
-import type { AnalyticsExtractedRow } from "./types";
+import type { AnalyticsExtractedRow, AnalyticsSection } from "./types";
 
 export const SCREENSHOT_MEDIA_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 export type ScreenshotMediaType = (typeof SCREENSHOT_MEDIA_TYPES)[number];
@@ -67,9 +67,10 @@ export type ExtractReply =
   | { kind: "signed-out" }
   | { kind: "connection-lost" };
 
-export async function extractScreenshot(file: File): Promise<ExtractReply> {
+export async function extractScreenshot(file: File, section: AnalyticsSection): Promise<ExtractReply> {
   const formData = new FormData();
   formData.append("image", file);
+  formData.append("section", section);
   try {
     const res = await fetch("/api/analytics/extract", { method: "POST", body: formData });
     if (res.status === 413 || res.status === 415) return { kind: "rejected", message: (await res.json()).error };

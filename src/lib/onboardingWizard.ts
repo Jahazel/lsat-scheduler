@@ -1,13 +1,16 @@
 import {
   accuracyError,
   addRow,
+  dropSection,
   editAccuracy,
   missingTypes,
+  readSection,
   removeRow,
+  SECTIONS,
   reviewedRows,
+  sectionOf,
   setStatement,
   snapshotApproval,
-  startReview,
   toggleTopPriority,
   type ReviewRow,
   type SnapshotReview,
@@ -23,7 +26,7 @@ import { mockRules } from "./mockData";
 import type { ExtractReply } from "./screenshotUpload";
 import { DAY_LABEL, everyDay, goalScoreError, type StudentProfileInput } from "./studentProfile";
 import { testCountdown, testCountdownLabel } from "./testCountdown";
-import type { Activity, AnalyticsExtractedRow, DayOfWeek, LRType } from "./types";
+import type { Activity, AnalyticsExtractedRow, AnalyticsSection, DayOfWeek, LRType, RCType } from "./types";
 
 const STEP_NAMES = ["Goal", "Week", "Analytics", "Review"] as const;
 export type WizardStep = "goal" | "week" | "analytics" | "review";
@@ -42,26 +45,28 @@ export interface WizardValues {
   preferredPracticeTestDay: DayOfWeek | null;
 }
 
+export type AnalyticsType = LRType | RCType;
+
 export type Screenshot =
   | { status: "none" }
   | { status: "reading" | "connection-lost" | "cannot-read" | "signed-out" | "no-rows"; file: File }
-  | {
-      status: "read";
-      file: File;
-      rows: AnalyticsExtractedRow[];
-      review: SnapshotReview;
-      typedText: Partial<Record<LRType, string>>;
-      revealedBoxes: LRType[];
-    };
+  | { status: "read"; file: File; rows: AnalyticsExtractedRow[] };
+
+export interface ReviewDraft {
+  review: SnapshotReview;
+  typedText: Partial<Record<AnalyticsType, string>>;
+  revealedBoxes: AnalyticsType[];
+}
 
 export interface WizardState {
   step: WizardStep;
   changedStep: boolean;
   values: WizardValues;
   leftScoreBoxes: Record<ScoreBox, boolean>;
-  screenshot: Screenshot;
-  screenshotRejection: string | null;
-  readAttempts: number;
+  screenshots: Record<AnalyticsSection, Screenshot>;
+  rejections: Record<AnalyticsSection, string | null>;
+  readAttempts: Record<AnalyticsSection, number>;
+  draft: ReviewDraft | null;
   save: "idle" | "saving" | "failed";
 }
 
@@ -71,11 +76,11 @@ export type WizardAction =
   | { type: "applyAllDays" }
   | { type: "continue" }
   | { type: "back" }
-  | { type: "screenshotRejected"; message: string }
-  | { type: "readStarted"; file: File }
-  | { type: "readEnded"; attempt: number; reply: ExtractReply; at: Date }
-  | { type: "editAccuracy"; rowType: LRType; text: string }
-  | { type: "leaveAccuracyBox"; rowType: LRType }
+  | { type: "screenshotRejected"; section: AnalyticsSection; message: string }
+  | { type: "readStarted"; section: AnalyticsSection; file: File }
+  | { type: "readEnded"; section: AnalyticsSection; attempt: number; reply: ExtractReply; at: Date }
+  | { type: "editAccuracy"; rowType: AnalyticsType; text: string }
+  | { type: "leaveAccuracyBox"; rowType: AnalyticsType }
   | { type: "removeRow"; rowType: LRType }
   | { type: "toggleFlag"; rowType: LRType }
   | { type: "addType"; rowType: LRType }
@@ -116,9 +121,10 @@ export function initialWizardState(): WizardState {
       preferredPracticeTestDay: null,
     },
     leftScoreBoxes: { currentScore: false, goalScore: false },
-    screenshot: { status: "none" },
-    screenshotRejection: null,
-    readAttempts: 0,
+    screenshots: { LR: { status: "none" }, RC: { status: "none" } },
+    rejections: { LR: null, RC: null },
+    readAttempts: { LR: 0, RC: 0 },
+    draft: null,
     save: "idle",
   };
 }
@@ -218,9 +224,8 @@ export type PreviewDrill = {
 
 export function previewDrills(state: WizardState, today: string): { day: DayOfWeek; items: PreviewDrill[] } | null {
   const profile = toProfileInput(state.values);
-  const { screenshot } = state;
-  if (!profile || screenshot.status !== "read") return null;
-  const rows = screenshot.review.rows.map(({ row }) => row).filter((row) => !accuracyError(row));
+  if (!profile || !state.draft) return null;
+  const rows = state.draft.review.rows.map(({ row }) => row).filter((row) => !accuracyError(row));
   const todayIndex = (utcDay(today).getUTCDay() + 6) % 7;
   const weekOf = currentWeekInTimezone(utcDay(today), "UTC");
   const week = generateWeek(
@@ -234,11 +239,16 @@ export function previewDrills(state: WizardState, today: string): { day: DayOfWe
   if (!day) return null;
   const items = week.days[day].activities.map((activity): PreviewDrill => {
     const minutes = formatDuration(Math.round(activity.kind === "LR" || activity.kind === "RC" ? activity.drillMinutes : activity.minutes));
+    if (activity.kind === "RC" && !activity.isFullSection) {
+      const row = rows.find(({ type }) => type === activity.passages[0].type);
+      const detail = row?.accuracy !== undefined ? { kind: "accuracy" as const, text: `${row.accuracy}%` } : null;
+      return { activity, minutes, label: activityLabel(activity), detail };
+    }
     if (activity.kind !== "LR" || activity.isFullSection) return { activity, minutes, label: activityLabel(activity), detail: null };
     const row = rows.find(({ type }) => type === activity.types[0]);
     const detail = row?.accuracy !== undefined
       ? { kind: "accuracy" as const, text: `${row.accuracy}%` }
-      : row?.isTopPriority ? { kind: "flag" as const } : null;
+      : row?.category === "restricted" && row.isTopPriority ? { kind: "flag" as const } : null;
     return { activity, minutes, label: lrTypesName(activity.types), detail };
   });
   return { day, items };
@@ -271,9 +281,9 @@ export function blockedReason(state: WizardState): string | null {
     case "week":
       return values.preferredPracticeTestDay ? null : "Pick a practice-test day to continue.";
     case "analytics":
-      return state.screenshot.status === "read" ? null : "Add a screenshot to check the values.";
+      return bothRead(state) ? null : "Add both screenshots to check the values.";
     case "review":
-      return state.screenshot.status === "read" ? (confirmLock(state.screenshot.review)?.reason ?? null) : null;
+      return state.draft ? (confirmLock(state.draft.review)?.reason ?? null) : null;
     default: {
       const _exhaustive: never = state.step;
       return _exhaustive;
@@ -298,7 +308,11 @@ export function toProfileInput(values: WizardValues): StudentProfileInput | null
   };
 }
 
-export type ConfirmLock = { reason: string; fix: { at: "box"; type: LRType } | { at: "add-type" } | { at: "statements" } };
+export function bothRead(state: WizardState) {
+  return SECTIONS.every((section) => state.screenshots[section].status === "read");
+}
+
+export type ConfirmLock = { reason: string; fix: { at: "box"; type: AnalyticsType } | { at: "add-type" } | { at: "statements" } };
 
 export function confirmLock(review: SnapshotReview): ConfirmLock | null {
   const wrong = review.rows.filter(({ row }) => accuracyError(row));
@@ -306,7 +320,8 @@ export function confirmLock(review: SnapshotReview): ConfirmLock | null {
     const reason = wrong.length === 1 ? `Fix ${wrong[0].row.type} above to confirm.` : `Fix ${wrong.length} values above to confirm.`;
     return { reason, fix: { at: "box", type: wrong[0].row.type } };
   }
-  const counts = ({ row }: ReviewRow) => (row.category === "regular" ? row.accuracy !== undefined : row.isTopPriority);
+  const counts = ({ row }: ReviewRow) =>
+    row.category === "regular" ? row.accuracy !== undefined : row.category === "restricted" && row.isTopPriority;
   if (!review.rows.some(counts)) return { reason: "Add an accuracy value or tick a flag to confirm.", fix: { at: "add-type" } };
   if (!review.confirmation.confirmedAt) return { reason: "Tick both statements to confirm.", fix: { at: "statements" } };
   return null;
@@ -316,45 +331,47 @@ const ACCURACY_MESSAGE = {
   empty: "Enter the percentage, or remove this row with ×.",
   "out-of-range": "Enter a percentage from 0 to 100.",
 } as const;
+const PASSAGE_EMPTY_MESSAGE = "Enter the percentage from your RC screenshot.";
 
 const PERCENTAGE = /^\d+(\.\d+)?$/;
 
-export function boxText(state: WizardState, type: LRType): string {
-  const { screenshot } = state;
-  if (screenshot.status !== "read") return "";
-  const typed = screenshot.typedText[type];
+export function boxText(state: WizardState, type: AnalyticsType): string {
+  const { draft } = state;
+  if (!draft) return "";
+  const typed = draft.typedText[type];
   if (typed !== undefined) return typed;
-  return String(screenshot.review.rows.find(({ row }) => row.type === type)?.row.accuracy ?? "");
+  return String(draft.review.rows.find(({ row }) => row.type === type)?.row.accuracy ?? "");
 }
 
-export function accuracyMessage(state: WizardState, type: LRType): string | null {
-  const { screenshot } = state;
-  if (screenshot.status !== "read" || !screenshot.revealedBoxes.includes(type)) return null;
-  const entry = screenshot.review.rows.find(({ row }) => row.type === type);
+export function accuracyMessage(state: WizardState, type: AnalyticsType): string | null {
+  const { draft } = state;
+  if (!draft || !draft.revealedBoxes.includes(type)) return null;
+  const entry = draft.review.rows.find(({ row }) => row.type === type);
   const error = entry && accuracyError(entry.row);
-  return error ? ACCURACY_MESSAGE[error] : null;
+  if (!error) return null;
+  return entry.row.category === "passage" && error === "empty" ? PASSAGE_EMPTY_MESSAGE : ACCURACY_MESSAGE[error];
 }
 
 export type ReviewList = "accuracy" | "flags";
 const LIST_CATEGORY = { accuracy: "regular", flags: "restricted" } as const;
 const EMPTY_LIST_NOTE: Record<ReviewList, string> = {
-  accuracy: "We didn't find accuracy values in your screenshot. If 7Sage shows any, add them with the link below.",
-  flags: "We didn't find priority flags in your screenshot. If 7Sage shows any, add them with the link below.",
+  accuracy: "We didn't find accuracy values in your LR screenshot. If 7Sage shows any, add them with the link below.",
+  flags: "We didn't find priority flags in your LR screenshot. If 7Sage shows any, add them with the link below.",
 };
 
 export function emptyListNote(state: WizardState, list: ReviewList): string | null {
-  const { screenshot } = state;
-  if (screenshot.status !== "read") return null;
+  const screenshot = state.screenshots.LR;
+  if (screenshot.status !== "read" || !state.draft) return null;
   const inList = ({ category }: AnalyticsExtractedRow) => category === LIST_CATEGORY[list];
-  if (screenshot.rows.some(inList) || screenshot.review.rows.some(({ row }) => inList(row))) return null;
+  if (screenshot.rows.some(inList) || state.draft.review.rows.some(({ row }) => inList(row))) return null;
   return EMPTY_LIST_NOTE[list];
 }
 
 export function addTypeOptions(state: WizardState, query: string): Record<ReviewList, LRType[]> {
   const options: Record<ReviewList, LRType[]> = { accuracy: [], flags: [] };
-  if (state.screenshot.status !== "read") return options;
+  if (!state.draft) return options;
   const wordStart = new RegExp(`\\b${query.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
-  for (const { type, category } of missingTypes(state.screenshot.review)) {
+  for (const { type, category } of missingTypes(state.draft.review)) {
     if (!wordStart.test(type)) continue;
     options[category === "regular" ? "accuracy" : "flags"].push(type);
   }
@@ -369,38 +386,51 @@ export type ConfirmSnapshotInput = StudentProfileInput & {
 
 export function confirmSnapshotInput(state: WizardState): ConfirmSnapshotInput | null {
   const profile = toProfileInput(state.values);
-  if (!profile || state.screenshot.status !== "read") return null;
-  const { review } = state.screenshot;
+  if (!profile || !bothRead(state) || !state.draft) return null;
+  const { review } = state.draft;
   const analyticsApproval = snapshotApproval(review);
   return analyticsApproval && !confirmLock(review) ? { ...profile, analyticsRows: reviewedRows(review), analyticsApproval } : null;
 }
 
-function readEnded(state: WizardState, attempt: number, reply: ExtractReply, at: Date): WizardState {
-  const { screenshot } = state;
-  if (screenshot.status !== "reading" || attempt !== state.readAttempts) return state;
+function withScreenshot(state: WizardState, section: AnalyticsSection, screenshot: Screenshot): WizardState {
+  return { ...state, screenshots: { ...state.screenshots, [section]: screenshot } };
+}
+
+function withoutSectionDraft(draft: ReviewDraft, review: SnapshotReview | null, section: AnalyticsSection): ReviewDraft | null {
+  if (!review) return null;
+  const inSection = (type: AnalyticsType) => draft.review.rows.some(({ row }) => row.type === type && sectionOf(row) === section);
+  const typedText = Object.fromEntries(Object.entries(draft.typedText).filter(([type]) => !inSection(type as AnalyticsType)));
+  return { review, typedText, revealedBoxes: draft.revealedBoxes.filter((type) => !inSection(type)) };
+}
+
+function readStarted(state: WizardState, section: AnalyticsSection, file: File): WizardState {
+  const { draft } = state;
+  return {
+    ...withScreenshot(state, section, { status: "reading", file }),
+    rejections: { ...state.rejections, [section]: null },
+    readAttempts: { ...state.readAttempts, [section]: state.readAttempts[section] + 1 },
+    draft: draft && withoutSectionDraft(draft, dropSection(draft.review, section), section),
+  };
+}
+
+function readEnded(state: WizardState, section: AnalyticsSection, attempt: number, reply: ExtractReply, at: Date): WizardState {
+  const screenshot = state.screenshots[section];
+  if (screenshot.status !== "reading" || attempt !== state.readAttempts[section]) return state;
   const { file } = screenshot;
   switch (reply.kind) {
-    case "rows":
-      return {
-        ...state,
-        screenshot:
-          reply.rows.length > 0
-            ? {
-                status: "read",
-                file,
-                rows: reply.rows,
-                review: startReview(reply.rows, { source: "7sage_screenshot", extractedAt: at.toISOString() }),
-                typedText: {},
-                revealedBoxes: [],
-              }
-            : { status: "no-rows", file },
-      };
+    case "rows": {
+      const rows = reply.rows.filter((row) => sectionOf(row) === section);
+      if (rows.length === 0) return withScreenshot(state, section, { status: "no-rows", file });
+      const review = readSection(state.draft?.review ?? null, section, rows, { source: "7sage_screenshot", extractedAt: at.toISOString() });
+      const draft = { typedText: {}, revealedBoxes: [], ...state.draft, review };
+      return { ...withScreenshot(state, section, { status: "read", file, rows }), draft };
+    }
     case "rejected":
-      return { ...state, screenshot: { status: "none" }, screenshotRejection: reply.message };
+      return { ...withScreenshot(state, section, { status: "none" }), rejections: { ...state.rejections, [section]: reply.message } };
     case "connection-lost":
     case "cannot-read":
     case "signed-out":
-      return { ...state, screenshot: { status: reply.kind, file } };
+      return withScreenshot(state, section, { status: reply.kind, file });
     default: {
       const _exhaustive: never = reply;
       return _exhaustive;
@@ -408,20 +438,19 @@ function readEnded(state: WizardState, attempt: number, reply: ExtractReply, at:
   }
 }
 
+function updateDraft(state: WizardState, update: (draft: ReviewDraft) => ReviewDraft): WizardState {
+  return state.draft ? { ...state, draft: update(state.draft) } : state;
+}
+
 function updateReview(state: WizardState, update: (review: SnapshotReview) => SnapshotReview): WizardState {
-  const { screenshot } = state;
-  if (screenshot.status !== "read") return state;
-  return { ...state, screenshot: { ...screenshot, review: update(screenshot.review) } };
+  return updateDraft(state, (draft) => ({ ...draft, review: update(draft.review) }));
 }
 
-const rowIndex = (review: SnapshotReview, type: LRType) => review.rows.findIndex(({ row }) => row.type === type);
+const rowIndex = (review: SnapshotReview, type: AnalyticsType) => review.rows.findIndex(({ row }) => row.type === type);
 
-function revealBoxes(state: WizardState, types: LRType[]): WizardState {
-  const { screenshot } = state;
-  if (screenshot.status !== "read") return state;
-  return { ...state, screenshot: { ...screenshot, revealedBoxes: [...new Set([...screenshot.revealedBoxes, ...types])] } };
+function revealBoxes(state: WizardState, types: AnalyticsType[]): WizardState {
+  return updateDraft(state, (draft) => ({ ...draft, revealedBoxes: [...new Set([...draft.revealedBoxes, ...types])] }));
 }
-
 
 export function wizardReducer(state: WizardState, action: WizardAction): WizardState {
   if (state.save === "saving" && action.type !== "saveFailed" && action.type !== "readEnded") return state;
@@ -441,32 +470,30 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       return previous ? { ...state, step: previous, changedStep: true, save: "idle" } : state;
     }
     case "screenshotRejected":
-      return { ...state, screenshotRejection: action.message };
+      return { ...state, rejections: { ...state.rejections, [action.section]: action.message } };
     case "readStarted":
-      return {
-        ...state,
-        screenshot: { status: "reading", file: action.file },
-        screenshotRejection: null,
-        readAttempts: state.readAttempts + 1,
-      };
+      return readStarted(state, action.section, action.file);
     case "readEnded":
-      return readEnded(state, action.attempt, action.reply, action.at);
+      return readEnded(state, action.section, action.attempt, action.reply, action.at);
     case "editAccuracy": {
       const { rowType, text } = action;
       const accuracy = text === "" ? undefined : PERCENTAGE.test(text) ? Number(text) : NaN;
-      const edited = updateReview(state, (review) => editAccuracy(review, rowIndex(review, rowType), accuracy));
-      if (edited.screenshot.status !== "read") return edited;
-      return { ...edited, screenshot: { ...edited.screenshot, typedText: { ...edited.screenshot.typedText, [rowType]: text } } };
+      return updateDraft(state, (draft) => ({
+        ...draft,
+        review: editAccuracy(draft.review, rowIndex(draft.review, rowType), accuracy),
+        typedText: { ...draft.typedText, [rowType]: text },
+      }));
     }
     case "leaveAccuracyBox":
       return revealBoxes(state, [action.rowType]);
-    case "removeRow": {
-      const removed = updateReview(state, (review) => removeRow(review, rowIndex(review, action.rowType)));
-      if (removed.screenshot.status !== "read") return removed;
-      const typedText = { ...removed.screenshot.typedText };
-      delete typedText[action.rowType];
-      return { ...removed, screenshot: { ...removed.screenshot, typedText } };
-    }
+    case "removeRow":
+      return updateDraft(state, (draft) => {
+        const index = rowIndex(draft.review, action.rowType);
+        if (index === -1) return draft;
+        const typedText = { ...draft.typedText };
+        delete typedText[action.rowType];
+        return { ...draft, review: removeRow(draft.review, index), typedText };
+      });
     case "toggleFlag":
       return updateReview(state, (review) => toggleTopPriority(review, rowIndex(review, action.rowType)));
     case "addType":
@@ -474,8 +501,8 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
     case "setStatement":
       return updateReview(state, (review) => setStatement(review, action.statement, action.checked, action.at));
     case "confirmBlocked": {
-      if (state.screenshot.status !== "read") return state;
-      const wrong = state.screenshot.review.rows.filter(({ row }) => accuracyError(row)).map(({ row }) => row.type);
+      if (!state.draft) return state;
+      const wrong = state.draft.review.rows.filter(({ row }) => accuracyError(row)).map(({ row }) => row.type);
       return revealBoxes(state, wrong);
     }
     case "saveStarted":

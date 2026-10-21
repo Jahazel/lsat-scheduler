@@ -1,10 +1,10 @@
 import { mockRules } from "@/lib/mockData";
 import type { SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
-import type { AnalyticsExtractedRow, LRType } from "@/lib/types";
+import type { AnalyticsExtractedRow, AnalyticsSection, LRExtractedRow, LRType, PassageExtractedRow, RCType } from "@/lib/types";
 
 // Every type a reviewer can add by hand, tagged with the same "regular" /
 // "restricted" split the engine uses.
-export type ReviewType = Pick<AnalyticsExtractedRow, "type" | "category">;
+export type ReviewType = Pick<LRExtractedRow, "type" | "category">;
 
 const REVIEW_TYPES: ReviewType[] = [
   ...mockRules.lrStemTypes.map((type) => ({ type, category: "regular" as const })),
@@ -13,6 +13,14 @@ const REVIEW_TYPES: ReviewType[] = [
     category: mockRules.lrLogicExceptions.includes(type) ? ("regular" as const) : ("restricted" as const),
   })),
 ];
+
+// The order 7Sage lists RC passage types, so each row lines up with the screenshot.
+export const PASSAGE_TYPES: RCType[] = ["Law", "Comparative", "Science", "Humanities", "Art"];
+
+export const SECTIONS: AnalyticsSection[] = ["LR", "RC"];
+export const SECTION_NAME: Record<AnalyticsSection, string> = { LR: "Logical Reasoning", RC: "Reading Comprehension" };
+
+export const sectionOf = (row: AnalyticsExtractedRow): AnalyticsSection => (row.category === "passage" ? "RC" : "LR");
 
 export type Statement = keyof Omit<SnapshotApprovalMetadata["confirmation"], "confirmedAt">;
 
@@ -28,6 +36,7 @@ export type ReviewConfirmation =
 
 export interface SnapshotReview {
   extraction: SnapshotApprovalMetadata["extraction"];
+  readAt?: Partial<Record<AnalyticsSection, string>>;
   rows: ReviewRow[];
   confirmation: ReviewConfirmation;
 }
@@ -44,6 +53,50 @@ export function startReview(rows: AnalyticsExtractedRow[], extraction: SnapshotR
   };
 }
 
+export function readSection(
+  review: SnapshotReview | null,
+  section: AnalyticsSection,
+  rows: AnalyticsExtractedRow[],
+  extraction: SnapshotReview["extraction"],
+): SnapshotReview {
+  const read: ReviewRow[] = section === "RC"
+    ? PASSAGE_TYPES.map((type) => {
+        const found = rows.find((row): row is PassageExtractedRow => row.category === "passage" && row.type === type);
+        return found ? { row: found, original: found } : { row: { type, category: "passage" }, original: null };
+      })
+    : rows.filter((row) => sectionOf(row) === "LR").map((row) => ({ row, original: row }));
+  const kept = review?.rows.filter(({ row }) => sectionOf(row) !== section) ?? [];
+  const readAt = { ...review?.readAt, [section]: extraction.extractedAt };
+  const extractedAt = Object.values(readAt).sort()[0];
+  return {
+    extraction: { ...extraction, extractedAt },
+    readAt,
+    rows: section === "LR" ? [...read, ...kept] : [...kept, ...read],
+    confirmation: UNCONFIRMED,
+  };
+}
+
+export function dropSection(review: SnapshotReview, section: AnalyticsSection): SnapshotReview | null {
+  const rows = review.rows.filter(({ row }) => sectionOf(row) !== section);
+  if (rows.length === 0) return null;
+  const readAt = { ...review.readAt };
+  delete readAt[section];
+  const extractedAt = Object.values(readAt).sort()[0] ?? review.extraction.extractedAt;
+  return { extraction: { ...review.extraction, extractedAt }, readAt, rows, confirmation: UNCONFIRMED };
+}
+
+export function lowestPassageType(review: SnapshotReview): RCType | null {
+  const passages = review.rows
+    .map(({ row }) => row)
+    .filter((row): row is PassageExtractedRow & { accuracy: number } => row.category === "passage" && !accuracyError(row));
+  passages.sort((a, b) => a.accuracy - b.accuracy || mockRules.rcTypes.indexOf(a.type) - mockRules.rcTypes.indexOf(b.type));
+  return passages[0]?.type ?? null;
+}
+
+export function hasSection(review: SnapshotReview | null, section: AnalyticsSection) {
+  return review?.rows.some(({ row }) => sectionOf(row) === section) ?? false;
+}
+
 function withRowsUnconfirmed(review: SnapshotReview, rows: ReviewRow[]): SnapshotReview {
   return { ...review, rows, confirmation: UNCONFIRMED };
 }
@@ -57,7 +110,7 @@ export function editAccuracy(review: SnapshotReview, index: number, accuracy: nu
 }
 
 export function toggleTopPriority(review: SnapshotReview, index: number) {
-  return updateRow(review, index, (row) => ({ ...row, isTopPriority: !row.isTopPriority }));
+  return updateRow(review, index, (row) => (row.category === "restricted" ? { ...row, isTopPriority: !row.isTopPriority } : row));
 }
 
 export function removeRow(review: SnapshotReview, index: number) {
@@ -83,7 +136,7 @@ export function setStatement(review: SnapshotReview, statement: Statement, check
 }
 
 export function accuracyError(row: AnalyticsExtractedRow): AccuracyError | null {
-  if (row.category !== "regular") return null;
+  if (row.category === "restricted") return null;
   if (row.accuracy === undefined) return "empty";
   if (!Number.isFinite(row.accuracy) || row.accuracy < 0 || row.accuracy > 100) return "out-of-range";
   return null;
@@ -93,11 +146,15 @@ export function reviewedRows(review: SnapshotReview): AnalyticsExtractedRow[] {
   return review.rows.map(({ row }) => row);
 }
 
+export function hasAllPassageTypes(review: SnapshotReview) {
+  return PASSAGE_TYPES.every((type) => review.rows.some(({ row }) => row.type === type));
+}
+
 export function hasInvalidAccuracy(review: SnapshotReview) {
   return review.rows.some(({ row }) => accuracyError(row));
 }
 
 export function snapshotApproval(review: SnapshotReview): SnapshotApprovalMetadata | null {
-  if (review.confirmation.confirmedAt === null || hasInvalidAccuracy(review)) return null;
+  if (review.confirmation.confirmedAt === null || hasInvalidAccuracy(review) || !hasAllPassageTypes(review)) return null;
   return { extraction: review.extraction, confirmation: review.confirmation };
 }

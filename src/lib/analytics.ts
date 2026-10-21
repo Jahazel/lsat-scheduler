@@ -1,16 +1,15 @@
-import type { AnalyticsExtractedRow, LRLogicType } from "@/lib/types";
+import type { AnalyticsExtractedRow, LRLogicType, RCType } from "@/lib/types";
 
 export interface AnalyticsSummary {
   lrAccuracyByType: Record<string, number>;
   lrTopPriorityLogicTypes: LRLogicType[];
+  rcAccuracyByType: Partial<Record<RCType, number>>;
 }
 
-// Converts reviewed OCR rows into the shape AnalyticsSnapshot stores:
-// "regular" rows contribute an accuracy reading, "restricted" rows flagged
-// top priority contribute to the priority list instead.
 export function summarizeAnalyticsRows(rows: AnalyticsExtractedRow[]): AnalyticsSummary {
   const lrAccuracyByType: Record<string, number> = {};
   const lrTopPriorityLogicTypes: LRLogicType[] = [];
+  const rcAccuracyByType: Partial<Record<RCType, number>> = {};
 
   for (const row of rows) {
     if (row.category === "regular" && row.accuracy !== undefined) {
@@ -19,7 +18,10 @@ export function summarizeAnalyticsRows(rows: AnalyticsExtractedRow[]): Analytics
     if (row.category === "restricted" && row.isTopPriority) {
       lrTopPriorityLogicTypes.push(row.type as LRLogicType);
     }
+    if (row.category === "passage" && row.accuracy !== undefined) {
+      rcAccuracyByType[row.type] = row.accuracy / 100;
+    }
   }
 
-  return { lrAccuracyByType, lrTopPriorityLogicTypes };
+  return { lrAccuracyByType, lrTopPriorityLogicTypes, rcAccuracyByType };
 }

@@ -257,4 +257,23 @@ describe("generateSampleAnalytics", () => {
     for (const type of restrictedTypes) expect(result.lrAccuracyByType).not.toHaveProperty(type);
   });
 
+
+  it("starts RC passage types from the score profile and moves them with the direction", () => {
+    const first = create(3);
+    expect(first.rcAccuracyByType).toEqual({ Law: 0.58, Comparative: 0.7, Science: 0.64, Humanities: 0.81, Art: 0.77 });
+    expect(create(3, { currentScore: 149 }).rcAccuracyByType.Law).toBeCloseTo(0.48);
+
+    const previous = { ...mockAnalytics, rcAccuracyByType: first.rcAccuracyByType };
+    const improving = create(4, { previous, direction: "improving" }).rcAccuracyByType;
+    const slipping = create(4, { previous, direction: "slipping" }).rcAccuracyByType;
+    const steady = create(4, { previous, direction: "steady" }).rcAccuracyByType;
+    for (const type of ["Law", "Comparative", "Science", "Humanities", "Art"] as const) {
+      const before = Math.round(first.rcAccuracyByType[type]! * 100);
+      expect(Math.round(improving[type]! * 100) - before).toBeGreaterThanOrEqual(1);
+      expect(Math.round(improving[type]! * 100) - before).toBeLessThanOrEqual(3);
+      expect(before - Math.round(slipping[type]! * 100)).toBeGreaterThanOrEqual(1);
+      expect(Math.abs(Math.round(steady[type]! * 100) - before)).toBe(1);
+    }
+  });
 });
+

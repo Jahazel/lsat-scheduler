@@ -30,6 +30,7 @@ function imageRequest(bytes: number, type = "image/png") {
   content.set(PNG_SIGNATURE);
   const form = new FormData();
   form.set("image", new File([content], "synthetic.png", { type }));
+  form.set("section", "LR");
   return new NextRequest("http://localhost/api/analytics/extract", { method: "POST", body: form });
 }
 
@@ -84,6 +85,7 @@ describe("issue 70 request boundary evidence", () => {
   it("refuses a claimed PNG whose first bytes are not an image before calling Anthropic", async () => {
     const form = new FormData();
     form.set("image", new File([new Uint8Array(8)], "synthetic.png", { type: "image/png" }));
+    form.set("section", "LR");
     expect((await extract(new NextRequest("http://localhost/api/analytics/extract", { method: "POST", body: form }))).status).toBe(415);
     expect(mocks.messages).not.toHaveBeenCalled();
   });
@@ -108,7 +110,7 @@ describe("issue 70 request boundary evidence", () => {
 
   it("trusts out-of-schema model tool output at runtime", async () => {
     mocks.messages.mockResolvedValue({ content: [{ type: "tool_use", input: { rows: [{ type: "Unknown synthetic type", accuracy: 999, priority: "SOMETIMES" }] } }] });
-    expect(await extractAnalyticsRowsFromImage(Buffer.from([0]), "image/png", mockRules)).toStrictEqual([
+    expect(await extractAnalyticsRowsFromImage(Buffer.from([0]), "image/png", mockRules, "LR")).toStrictEqual([
       { type: "Unknown synthetic type", category: "regular", accuracy: 999 },
     ]);
   });

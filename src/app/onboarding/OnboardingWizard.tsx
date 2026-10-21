@@ -6,14 +6,15 @@ import {
   useReducer,
   useRef,
   useState,
-  type DragEvent,
   type FormEvent,
   type KeyboardEvent,
   type ReactNode,
 } from "react";
 import { DurationSelect } from "@/components/DailyCapacityFieldset";
+import { Checkbox as SharedCheckbox } from "@/components/ui/Checkbox";
+import { DropZone } from "@/components/ui/DropZone";
 import { DAY_ORDER } from "@/lib/engine";
-import type { ReviewRow, Statement } from "@/lib/analyticsReview";
+import { SECTION_NAME, SECTIONS, lowestPassageType, type ReviewRow, type SnapshotReview, type Statement } from "@/lib/analyticsReview";
 import { formatDuration } from "@/lib/formatDuration";
 import {
   DAY_SHORT_LABEL,
@@ -34,6 +35,7 @@ import {
   weeklyTotalMinutes,
   wizardReducer,
   type Accommodation,
+  type AnalyticsType,
   type ReviewList,
   type Screenshot,
   type WizardAction,
@@ -41,7 +43,7 @@ import {
 } from "@/lib/onboardingWizard";
 import { SIGN_IN_EXPIRED, SignInAgainLink } from "@/components/SignInExpired";
 import { SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, checkScreenshot, extractScreenshot } from "@/lib/screenshotUpload";
-import type { AnalyticsExtractedRow, LRType, PriorityTier } from "@/lib/types";
+import type { AnalyticsExtractedRow, AnalyticsSection, LRType, PriorityTier } from "@/lib/types";
 import { DAY_LABEL, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { createStudentProfile } from "./actions";
 import LivePreview from "./LivePreview";
@@ -76,16 +78,16 @@ export default function OnboardingWizard({
 }: OnboardingWizardProps) {
   const [state, dispatch] = useReducer(wizardReducer, undefined, initialWizardState);
 
-  async function readScreenshot(file: File) {
+  async function readScreenshot(section: AnalyticsSection, file: File) {
     const rejection = checkScreenshot(file);
     if (rejection) {
-      dispatch({ type: "screenshotRejected", message: rejection.message });
+      dispatch({ type: "screenshotRejected", section, message: rejection.message });
       return;
     }
-    const attempt = state.readAttempts + 1;
-    dispatch({ type: "readStarted", file });
-    const reply = await extract(file);
-    dispatch({ type: "readEnded", attempt, reply, at: new Date() });
+    const attempt = state.readAttempts[section] + 1;
+    dispatch({ type: "readStarted", section, file });
+    const reply = await extract(file, section);
+    dispatch({ type: "readEnded", section, attempt, reply, at: new Date() });
   }
 
   async function save(input: Parameters<typeof onSave>[0]) {
@@ -122,9 +124,7 @@ export default function OnboardingWizard({
           {state.step === "analytics" && (
             <AnalyticsStep state={state} dispatch={dispatch} onSkip={skipForNow} onFile={readScreenshot} />
           )}
-          {state.step === "review" && state.screenshot.status === "read" && (
-            <ReviewStep state={state} screenshot={state.screenshot} dispatch={dispatch} onConfirm={confirmSnapshot} />
-          )}
+          {state.step === "review" && state.draft && <ReviewStep state={state} review={state.draft.review} dispatch={dispatch} onConfirm={confirmSnapshot} />}
         </div>
       </div>
       <LivePreview state={state} firstName={firstName} initials={initials} today={today} />
@@ -132,7 +132,7 @@ export default function OnboardingWizard({
   );
 }
 
-function StepHeading({ state, title, lede }: { state: WizardState; title: string; lede: string }) {
+function StepHeading({ state, title, lede }: { state: WizardState; title: string; lede: ReactNode }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const { changedStep } = state;
   useEffect(() => {
@@ -396,48 +396,32 @@ function AnalyticsStep({
   state: WizardState;
   dispatch: Dispatch;
   onSkip: () => void;
-  onFile: (file: File) => void;
+  onFile: (section: AnalyticsSection, file: File) => void;
 }) {
   const saving = state.save === "saving";
-  const { screenshot } = state;
-  const picker = useRef<HTMLInputElement>(null);
-  const choose = () => picker.current?.click();
+  const { screenshots } = state;
+  const anyAdded = SECTIONS.some((section) => screenshots[section].status !== "none");
+  const lrRead = screenshots.LR.status === "read" ? screenshots.LR : null;
 
   return (
     <div className="flex flex-col gap-8">
-      <StepHeading
-        state={state}
-        title="Add your 7Sage analytics"
-        lede="One screenshot shows us which question types to drill first."
-      />
-      <input
-        ref={picker}
-        type="file"
-        hidden
-        aria-label="Screenshot file"
-        accept={SCREENSHOT_MEDIA_TYPES.join(",")}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file) onFile(file);
-        }}
-      />
-      {screenshot.status === "none" ? (
-        <div className="flex flex-col gap-6">
-          <DropZone rejection={state.screenshotRejection} onChoose={choose} onFile={onFile} />
-          <WhereToFindIt />
+      <StepHeading state={state} title="Add your 7Sage analytics" lede="Two screenshots tell us what to drill first." />
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-3">
+          {SECTIONS.map((section) => (
+            <SectionUpload
+              key={section}
+              section={section}
+              screenshot={screenshots[section]}
+              rejection={state.rejections[section]}
+              onFile={(file) => onFile(section, file)}
+            />
+          ))}
+          {!anyAdded && <p className="text-small text-smoke">{SCREENSHOT_LIMITS} each.</p>}
         </div>
-      ) : (
-        <div className="flex flex-col gap-6">
-          <FileRow
-            screenshot={screenshot}
-            rejection={state.screenshotRejection}
-            onChoose={choose}
-            onTryAgain={() => onFile(screenshot.file)}
-          />
-          {screenshot.status === "read" && <RowsFound rows={screenshot.rows} />}
-        </div>
-      )}
+        {lrRead && <RowsFound rows={lrRead.rows} complete={screenshots.RC.status === "read"} />}
+        {!anyAdded && <WhereToFindIt />}
+      </div>
       <div className="flex flex-col gap-4">
         <div className="flex gap-3">
           <button type="button" disabled={saving} onClick={() => dispatch({ type: "back" })} className={SECONDARY}>
@@ -449,17 +433,15 @@ function AnalyticsStep({
             onClick={() => dispatch({ type: "continue" })}
             className={PRIMARY}
           >
-            {screenshot.status === "none" ? "Continue" : "Check the values"}
+            {anyAdded ? "Check the values" : "Continue"}
           </button>
         </div>
-        {screenshot.status !== "none" && (
-          <p className="text-center text-small text-smoke">You can replace the screenshot before you confirm.</p>
-        )}
+        {anyAdded && <p className="text-center text-small text-smoke">You can replace either screenshot before you confirm.</p>}
         <p className="text-center text-small text-smoke">
           <button type="button" disabled={saving} onClick={onSkip} className={LINK_BUTTON}>
             {saving ? "Saving…" : "Skip for now"}
           </button>
-          {" · Your schedule starts after you add one."}
+          {" · Your schedule starts after you add both."}
         </p>
         <p role="status" className="text-center text-small text-smoke">
           {state.save === "failed" && "We couldn't save your plan. Check your connection and press Skip for now again."}
@@ -469,85 +451,60 @@ function AnalyticsStep({
   );
 }
 
-function UploadIcon() {
-  return (
-    <svg aria-hidden viewBox="0 0 24 24" className="size-[22px]" fill="none" stroke="currentColor" strokeWidth="1.6">
-      <path d="M12 16V4m0 0-4 4m4-4 4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-// The file type is checked on drop, not on drag over, because some browsers hide it during a drag.
-function DropZone({ rejection, onChoose, onFile }: { rejection: string | null; onChoose: () => void; onFile: (file: File) => void }) {
-  const [dragging, setDragging] = useState(false);
-  const zone = useRef<HTMLButtonElement>(null);
+function SectionUpload({
+  section,
+  screenshot,
+  rejection,
+  onFile,
+}: {
+  section: AnalyticsSection;
+  screenshot: Screenshot;
+  rejection: string | null;
+  onFile: (file: File) => void;
+}) {
+  const picker = useRef<HTMLInputElement>(null);
+  const zone = useRef<HTMLDivElement>(null);
+  const accept = SCREENSHOT_MEDIA_TYPES.join(",");
   useEffect(() => {
-    if (document.activeElement === document.body) zone.current?.focus();
+    if (rejection && document.activeElement === document.body) zone.current?.querySelector("button")?.focus();
   }, [rejection]);
-  const border = dragging
-    ? "border-accent bg-accent/faint"
-    : rejection
-      ? "border-danger bg-vellum"
-      : "border-fog bg-vellum hover:border-ink";
-
-  function drop(event: DragEvent) {
-    event.preventDefault();
-    setDragging(false);
-    const file = event.dataTransfer.files[0];
-    if (file) onFile(file);
+  if (screenshot.status === "none") {
+    return (
+      <div ref={zone}>
+        <DropZone label={`${SECTION_NAME[section]} screenshot`} accept={accept} error={rejection ?? undefined} onFile={onFile} />
+      </div>
+    );
   }
-
   return (
-    <div className="flex flex-col gap-3">
-      <button
-        ref={zone}
-        type="button"
-        onClick={onChoose}
-        onDragOver={(event) => {
-          event.preventDefault();
-          setDragging(true);
+    <>
+      <input
+        ref={picker}
+        type="file"
+        hidden
+        aria-label={`${SECTION_NAME[section]} screenshot file`}
+        accept={accept}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) onFile(file);
         }}
-        onDragLeave={(event) => {
-          const into = event.relatedTarget;
-          if (!(into instanceof Node && event.currentTarget.contains(into))) setDragging(false);
-        }}
-        onDrop={drop}
-        aria-describedby={rejection ? "screenshot-rejection" : undefined}
-        className={`flex h-[248px] flex-col items-center justify-center gap-4 rounded-sm border-[1.5px] border-dashed p-8 transition-colors duration-150 ease-out ${border} ${FOCUS}`}
-      >
-        <span
-          className={`grid size-12 place-items-center rounded-full border ${dragging ? "border-accent bg-paper text-accent" : "border-vellum-line bg-paper text-ink"}`}
-        >
-          <UploadIcon />
-        </span>
-        {dragging ? (
-          <span className="flex flex-col items-center gap-1">
-            <span className="text-body font-semibold text-accent">Drop to add it</span>
-            <span className="text-small text-smoke">{SCREENSHOT_LIMITS}</span>
-          </span>
-        ) : (
-          <span className="flex flex-col items-center gap-1">
-            <span className="text-body font-semibold text-ink">Drop your screenshot here</span>
-            <span className="text-small text-smoke">
-              or <span className="font-medium text-accent underline underline-offset-[3px]">choose a file</span> · {SCREENSHOT_LIMITS}
-            </span>
-          </span>
-        )}
-      </button>
-      {rejection && (
-        <p id="screenshot-rejection" role="alert" className="text-small text-danger-ink">
-          {rejection}
-        </p>
-      )}
-    </div>
+      />
+      <FileRow
+        section={section}
+        screenshot={screenshot}
+        rejection={rejection}
+        onChoose={() => picker.current?.click()}
+        onTryAgain={() => onFile(screenshot.file)}
+      />
+    </>
   );
 }
 
 function WhereToFindIt() {
   const steps = [
     "In 7Sage, open the Analytics page you checked most recently.",
-    "Find the Logical Reasoning question types list.",
-    "Take one screenshot that shows every row, with its percentage or priority tier.",
+    "Screenshot the Logical Reasoning section. Show every question type with its percentage or priority tier.",
+    "Screenshot the Reading Comprehension section. Show the passage types: Law, Comparative, Science, Humanities, and Art.",
   ];
   return (
     <div className="flex flex-col gap-3">
@@ -566,21 +523,32 @@ function WhereToFindIt() {
   );
 }
 
-const FILE_STATUS: Record<Exclude<Screenshot["status"], "none">, { text: string; problem: boolean }> = {
-  reading: { text: "Reading your screenshot…", problem: false },
-  read: { text: "Done reading.", problem: false },
+const FILE_STATUS: Record<Exclude<Screenshot["status"], "none" | "read">, { text: string; problem: boolean }> = {
+  reading: { text: "Reading…", problem: false },
   "connection-lost": { text: "Connection lost. Your file is still here.", problem: false },
   "cannot-read": { text: "We couldn't read the rows in it.", problem: true },
   "signed-out": { text: SIGN_IN_EXPIRED, problem: true },
-  "no-rows": { text: "No question types in this one.", problem: true },
+  "no-rows": { text: "", problem: true },
 };
 
+const NO_ROWS: Record<AnalyticsSection, string> = {
+  LR: "No question types in this one.",
+  RC: "No passage types in this one.",
+};
+
+function readSummary(section: AnalyticsSection, count: number) {
+  const noun = section === "LR" ? "question type" : "passage type";
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
 function FileRow({
+  section,
   screenshot,
   rejection,
   onChoose,
   onTryAgain,
 }: {
+  section: AnalyticsSection;
   screenshot: Exclude<Screenshot, { status: "none" }>;
   rejection: string | null;
   onChoose: () => void;
@@ -591,6 +559,10 @@ function FileRow({
   useEffect(() => {
     if (document.activeElement === document.body) row.current?.focus();
   }, [status]);
+  const problem = status !== "read" && FILE_STATUS[status].problem;
+  const statusText = status === "read"
+    ? readSummary(section, screenshot.rows.length)
+    : status === "no-rows" ? NO_ROWS[section] : FILE_STATUS[status].text;
 
   return (
     <div className="flex flex-col gap-3">
@@ -603,9 +575,16 @@ function FileRow({
             <span className="h-[3px] w-10 rounded-sm bg-ink/20" />
           </span>
           <div className="flex min-w-0 grow flex-col gap-0.5 text-small">
-            <span className="truncate font-medium text-ink">{screenshot.file.name}</span>
-            <span aria-live="polite" className={FILE_STATUS[status].problem ? "text-danger-ink" : "text-smoke"}>
-              {FILE_STATUS[status].text}
+            <span className="font-medium text-ink">{SECTION_NAME[section]}</span>
+            <span aria-live="polite" className={`flex min-w-0 items-center gap-1.5 ${problem ? "text-danger-ink" : "text-smoke"}`}>
+              {status === "read" && (
+                <svg aria-hidden viewBox="0 0 12 12" className="size-3 shrink-0 text-success-ink">
+                  <path d="M2.5 6.2l2.3 2.3 4.7-5" fill="none" className="stroke-current" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+              <span className="truncate">
+                {screenshot.file.name} · {statusText}
+              </span>
             </span>
           </div>
           <button type="button" onClick={onChoose} className={`shrink-0 text-small ${LINK_BUTTON}`}>
@@ -613,7 +592,7 @@ function FileRow({
           </button>
         </div>
         {status === "reading" && (
-          <div role="progressbar" aria-label="Reading your screenshot" className="h-1 overflow-hidden rounded-sm bg-vellum">
+          <div role="progressbar" aria-label={`Reading your ${SECTION_NAME[section]} screenshot`} className="h-1 overflow-hidden rounded-sm bg-vellum">
             <div className="h-1 w-3/5 rounded-sm bg-accent" />
           </div>
         )}
@@ -635,7 +614,7 @@ function FileRow({
         {status === "signed-out" && <SignInAgainLink className={`inline-flex items-center ${SMALL_BUTTON}`} />}
         {status === "no-rows" && (
           <>
-            <RightPartExample />
+            <RightPartExample section={section} />
             <button type="button" onClick={onChoose} className={SMALL_BUTTON}>
               Choose another screenshot
             </button>
@@ -651,14 +630,31 @@ function FileRow({
   );
 }
 
-function RightPartExample() {
-  const rows: { type: string; value: string; bar?: number }[] = [
-    { type: "Diagram", value: "64%", bar: 64 },
-    { type: "Conditional reasoning", value: "68%", bar: 68 },
-    { type: "Necessary assumption", value: "71%", bar: 71 },
-    { type: "Phenomenon-hypothesis", value: "HIGHEST" },
-    { type: "Causal reasoning", value: "MEDIUM" },
-  ];
+const EXAMPLE: Record<AnalyticsSection, { title: string; rows: { type: string; value: string; bar?: number }[] }> = {
+  LR: {
+    title: "Logical Reasoning question types",
+    rows: [
+      { type: "Diagram", value: "64%", bar: 64 },
+      { type: "Conditional reasoning", value: "68%", bar: 68 },
+      { type: "Necessary assumption", value: "71%", bar: 71 },
+      { type: "Phenomenon-hypothesis", value: "HIGHEST" },
+      { type: "Causal reasoning", value: "MEDIUM" },
+    ],
+  },
+  RC: {
+    title: "Reading Comprehension passage types",
+    rows: [
+      { type: "Law", value: "58%", bar: 58 },
+      { type: "Comparative", value: "70%", bar: 70 },
+      { type: "Science", value: "64%", bar: 64 },
+      { type: "Humanities", value: "81%", bar: 81 },
+      { type: "Art", value: "77%", bar: 77 },
+    ],
+  },
+};
+
+function RightPartExample({ section }: { section: AnalyticsSection }) {
+  const { title, rows } = EXAMPLE[section];
   return (
     <figure className="flex flex-col gap-3">
       <figcaption className="flex items-baseline justify-between">
@@ -678,7 +674,7 @@ function RightPartExample() {
         </div>
         <div className="flex flex-col gap-2 rounded-sm border-2 border-accent bg-paper p-3 text-caption">
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-ink">Logical Reasoning question types</span>
+            <span className="font-semibold text-ink">{title}</span>
             <span className="shrink-0 whitespace-nowrap rounded-full bg-ink px-2 py-0.5 font-medium text-chalk">This part</span>
           </div>
           {rows.map((row) => (
@@ -696,14 +692,15 @@ function RightPartExample() {
   );
 }
 
-function RowsFound({ rows }: { rows: AnalyticsExtractedRow[] }) {
+function RowsFound({ rows, complete }: { rows: AnalyticsExtractedRow[]; complete: boolean }) {
+  const count = `${rows.length} ${rows.length === 1 ? "row" : "rows"}`;
   return (
     <div className="flex flex-col gap-6">
       <table className="w-full border-collapse text-small">
         <thead>
           <tr className="h-7 border-b border-vellum-line text-caption text-smoke">
             <th scope="col" className="px-3 text-left font-regular">
-              Found · {rows.length} {rows.length === 1 ? "row" : "rows"}
+              Logical Reasoning · {complete ? `found ${count}` : `found so far, ${count}`}
             </th>
             <th scope="col" className="px-3 text-right font-regular">Accuracy or priority</th>
           </tr>
@@ -728,7 +725,7 @@ function RowsFound({ rows }: { rows: AnalyticsExtractedRow[] }) {
 
 function RowValue({ row }: { row: AnalyticsExtractedRow }) {
   if (row.accuracy !== undefined) return <span className="font-mono text-mono text-ink">{row.accuracy}%</span>;
-  if (!row.isTopPriority) return <span className="text-smoke">—</span>;
+  if (row.category !== "restricted" || !row.isTopPriority) return <span className="text-smoke">—</span>;
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/tint px-2 py-0.5 text-caption font-medium text-accent">
       <svg aria-hidden viewBox="0 0 10 10" className="size-2.5" fill="currentColor" stroke="currentColor" strokeLinejoin="round">
@@ -739,15 +736,12 @@ function RowValue({ row }: { row: AnalyticsExtractedRow }) {
   );
 }
 
-
-type ReadScreenshot = Extract<Screenshot, { status: "read" }>;
-
 const STATEMENTS: { statement: Statement; text: string }[] = [
-  { statement: "extractedValuesMatch", text: "I reviewed these values and they match my screenshot." },
-  { statement: "isLatestAnalytics", text: "This screenshot contains my latest 7Sage analytics." },
+  { statement: "extractedValuesMatch", text: "I reviewed these values and they match my screenshots." },
+  { statement: "isLatestAnalytics", text: "These screenshots show my latest 7Sage analytics." },
 ];
 
-const boxId = (type: LRType) => `accuracy-${type.replace(/\W+/g, "-")}`;
+const boxId = (type: AnalyticsType) => `accuracy-${type.replace(/\W+/g, "-")}`;
 
 // A row message pushes everything below it down. When a press moves focus out of a
 // box, the message waits for the press to end, so the pressed button is still under
@@ -796,16 +790,15 @@ function useFocusAfterRender() {
 
 function ReviewStep({
   state,
-  screenshot,
+  review,
   dispatch,
   onConfirm,
 }: {
   state: WizardState;
-  screenshot: ReadScreenshot;
+  review: SnapshotReview;
   dispatch: Dispatch;
   onConfirm: () => "locked" | "sent";
 }) {
-  const { review } = screenshot;
   const saving = state.save === "saving";
   const reason = blockedReason(state);
   const requestFocus = useFocusAfterRender();
@@ -813,6 +806,8 @@ function ReviewStep({
 
   const accuracyRows = review.rows.filter(({ row }) => row.category === "regular");
   const flagRows = review.rows.filter(({ row }) => row.category === "restricted");
+  const passageRows = review.rows.filter(({ row }) => row.category === "passage");
+  const goesFirst = lowestPassageType(review);
 
   function confirm() {
     const lock = confirmLock(review);
@@ -823,6 +818,18 @@ function ReviewStep({
     else requestFocus(`statement-${STATEMENTS.findIndex(({ statement }) => !review.confirmation[statement])}`);
   }
 
+  const accuracyRow = (entry: ReviewRow, note: ReactNode = null) => (
+    <AccuracyRow
+      key={entry.row.type}
+      entry={entry}
+      text={boxText(state, entry.row.type)}
+      message={accuracyMessage(state, entry.row.type)}
+      note={note}
+      dispatch={dispatch}
+      onLeave={() => afterPress(() => dispatch({ type: "leaveAccuracyBox", rowType: entry.row.type }))}
+    />
+  );
+
   const note = saving
     ? "Saving your plan. This takes a few seconds."
     : state.save === "failed"
@@ -831,9 +838,13 @@ function ReviewStep({
 
   return (
     <div className="flex flex-col gap-8">
-      <StepHeading state={state} title="Check what we read" lede="Compare each value with your screenshot." />
+      <StepHeading
+        state={state}
+        title="Check what we read"
+        lede={<>Compare each value with your screenshots<span className="hidden lg:inline"> on the right</span>.</>}
+      />
       <div className="flex flex-col gap-5">
-        <ScreenshotToggle file={screenshot.file} />
+        <SectionHeading section="LR" file={screenshotFile(state, "LR")} />
         <div className="flex flex-col">
           <div className="flex min-h-7 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-vellum-line px-3 py-1.5 text-caption text-smoke">
             <span>
@@ -850,29 +861,20 @@ function ReviewStep({
               </span>
             </span>
           </div>
-          {accuracyRows.map((entry) => (
-            <AccuracyRow
-              key={entry.row.type}
-              entry={entry}
-              text={boxText(state, entry.row.type)}
-              message={accuracyMessage(state, entry.row.type)}
-              dispatch={dispatch}
-              onLeave={() => afterPress(() => dispatch({ type: "leaveAccuracyBox", rowType: entry.row.type }))}
-            />
-          ))}
+          {accuracyRows.map((entry) => accuracyRow(entry))}
           <EmptyListNote state={state} list="accuracy" />
         </div>
         <div className="flex flex-col">
           <div className="flex min-h-7 items-center border-b border-vellum-line px-3 py-1.5 text-caption text-smoke">
             Priority flags · ticked flags go first in your plan
           </div>
-          {flagRows.map(({ row }) => (
+          {flagRows.map(({ row }) => row.category === "restricted" && (
             <Checkbox
               key={row.type}
               checked={row.isTopPriority ?? false}
               onChange={() => dispatch({ type: "toggleFlag", rowType: row.type })}
               detail={row.priorityTier && <TierPill tier={row.priorityTier} />}
-              className="min-h-9 items-center border-b border-vellum-line px-3 py-1.5"
+              className="min-h-9 border-b border-vellum-line px-3 py-1.5"
             >
               {row.type}
             </Checkbox>
@@ -886,6 +888,22 @@ function ReviewStep({
             if (list === "accuracy") requestFocus(boxId(type));
           }}
         />
+        <SectionHeading section="RC" file={screenshotFile(state, "RC")} />
+        <div className="flex flex-col">
+          <div className="flex min-h-7 items-center border-b border-vellum-line px-3 py-1.5 text-caption text-smoke">
+            Passage types · lowest goes first in your plan
+          </div>
+          {passageRows.map((entry) =>
+            accuracyRow(
+              entry,
+              entry.row.type === goesFirst ? (
+                <span className="font-sans text-small text-accent">Goes first</span>
+              ) : entry.original === null ? (
+                "not found"
+              ) : null,
+            ),
+          )}
+        </div>
         <div className="flex flex-col gap-2.5 rounded-sm bg-vellum px-4 py-3.5">
           {STATEMENTS.map(({ statement, text }, index) => (
             <Checkbox
@@ -893,7 +911,6 @@ function ReviewStep({
               id={`statement-${index}`}
               checked={review.confirmation[statement]}
               onChange={(checked) => dispatch({ type: "setStatement", statement, checked, at: new Date() })}
-              className="items-start"
             >
               {text}
             </Checkbox>
@@ -922,10 +939,24 @@ function ReviewStep({
             {saving ? "Saving…" : "Confirm snapshot"}
           </button>
         </div>
-        <p id="confirm-note" role="status" className={`text-center text-small ${state.save === "failed" ? "text-smoke" : "text-smoke"}`}>
+        <p id="confirm-note" role="status" className="text-center text-small text-smoke">
           {note}
         </p>
       </div>
+    </div>
+  );
+}
+
+function screenshotFile(state: WizardState, section: AnalyticsSection) {
+  const screenshot = state.screenshots[section];
+  return screenshot.status === "none" ? null : screenshot.file;
+}
+
+function SectionHeading({ section, file }: { section: AnalyticsSection; file: File | null }) {
+  return (
+    <div className="flex flex-col gap-3 pt-2">
+      <h2 className="px-3 text-body font-semibold text-ink lg:px-3">{SECTION_NAME[section]}</h2>
+      {file && <ScreenshotToggle section={section} file={file} />}
     </div>
   );
 }
@@ -934,18 +965,21 @@ function AccuracyRow({
   entry,
   text,
   message,
+  note,
   dispatch,
   onLeave,
 }: {
   entry: ReviewRow;
   text: string;
   message: string | null;
+  note: ReactNode;
   dispatch: Dispatch;
   onLeave: () => void;
 }) {
   const { row, original } = entry;
+  const removable = row.category !== "passage";
   const edited = original === null || original.accuracy !== row.accuracy;
-  const was = edited && original?.accuracy !== undefined ? `was ${original.accuracy}%` : null;
+  const was = note ?? (edited && original?.accuracy !== undefined ? `was ${original.accuracy}%` : null);
   const id = boxId(row.type);
   const box = message
     ? "border-danger bg-paper"
@@ -975,16 +1009,20 @@ function AccuracyRow({
           />
           <span aria-hidden className="pl-0.5 font-mono text-mono text-smoke">%</span>
         </span>
-        <button
-          type="button"
-          aria-label={`Remove ${row.type}`}
-          onClick={() => dispatch({ type: "removeRow", rowType: row.type })}
-          className={`grid size-7 shrink-0 place-items-center rounded text-smoke hover:text-ink ${FOCUS}`}
-        >
-          <svg aria-hidden viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-            <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" />
-          </svg>
-        </button>
+        {removable ? (
+          <button
+            type="button"
+            aria-label={`Remove ${row.type}`}
+            onClick={() => dispatch({ type: "removeRow", rowType: row.type })}
+            className={`grid size-7 shrink-0 place-items-center rounded text-smoke hover:text-ink ${FOCUS}`}
+          >
+            <svg aria-hidden viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+              <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" />
+            </svg>
+          </button>
+        ) : (
+          <span aria-hidden className="size-7 shrink-0" />
+        )}
       </div>
       {message && (
         <p id={`${id}-message`} className="px-3 pb-2 text-small text-danger-ink">
@@ -1032,32 +1070,28 @@ function Checkbox({
   checked: boolean;
   onChange: (checked: boolean) => void;
   detail?: ReactNode;
-  className: string;
+  className?: string;
   children: ReactNode;
 }) {
   const labelId = useId();
   const detailId = useId();
   return (
-    <label className={`group flex cursor-pointer gap-3 text-small text-ink ${className}`}>
-      <span className="relative mt-px grid size-4 shrink-0">
-        <input
-          id={id}
-          type="checkbox"
-          checked={checked}
-          onChange={(e) => onChange(e.target.checked)}
-          aria-labelledby={labelId}
-          aria-describedby={detail ? detailId : undefined}
-          className={`peer size-4 appearance-none rounded-[4px] border border-fog bg-paper transition-colors duration-150 ease-out checked:border-ink checked:bg-ink not-checked:group-hover:border-ink not-checked:group-hover:bg-vellum ${FOCUS}`}
-        />
-        <svg aria-hidden viewBox="0 0 10 10" className="pointer-events-none absolute inset-0 m-auto size-2.5 opacity-0 peer-checked:opacity-100" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M2 5.2l2 2L8 3" />
-        </svg>
-      </span>
-      <span id={labelId} className="grow">
-        {children}
-      </span>
-      {detail && <span id={detailId}>{detail}</span>}
-    </label>
+    <SharedCheckbox
+      id={id}
+      checked={checked}
+      onChange={(e) => onChange(e.target.checked)}
+      aria-labelledby={labelId}
+      aria-describedby={detail ? detailId : undefined}
+      className={className}
+      label={
+        <>
+          <span id={labelId} className="grow">
+            {children}
+          </span>
+          {detail && <span id={detailId}>{detail}</span>}
+        </>
+      }
+    />
   );
 }
 
@@ -1192,7 +1226,7 @@ function AddType({
   );
 }
 
-function ScreenshotToggle({ file }: { file: File }) {
+function ScreenshotToggle({ section, file }: { section: AnalyticsSection; file: File }) {
   const [url, setUrl] = useState<string | null>(null);
   const shown = useRef<string | null>(null);
   useEffect(() => () => {
@@ -1219,7 +1253,7 @@ function ScreenshotToggle({ file }: { file: File }) {
           <span className="h-0.5 w-6 bg-fog" />
         </span>
         <span className="flex min-w-0 grow flex-col gap-0.5">
-          <span className="text-small font-medium text-ink">{url ? "Hide your screenshot" : "Show your screenshot"}</span>
+          <span className="text-small font-medium text-ink">{`${url ? "Hide" : "Show"} your ${section} screenshot`}</span>
           <span className="truncate font-mono text-caption text-smoke">{file.name}</span>
         </span>
         <svg aria-hidden viewBox="0 0 16 16" className={`size-4 shrink-0 transition-transform duration-150 ${url ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1228,7 +1262,7 @@ function ScreenshotToggle({ file }: { file: File }) {
       </button>
       {url && (
         // eslint-disable-next-line @next/next/no-img-element -- a local object URL; next/image cannot load it
-        <img src={url} alt="Your 7Sage screenshot" className="w-full rounded-sm border border-vellum-line" />
+        <img src={url} alt={`Your 7Sage ${SECTION_NAME[section]} screenshot`} className="w-full rounded-sm border border-vellum-line" />
       )}
     </div>
   );

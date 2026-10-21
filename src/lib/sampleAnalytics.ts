@@ -1,5 +1,5 @@
 import { mockAnalytics } from "@/lib/mockData";
-import type { AnalyticsSnapshot, LRLogicType, LRType } from "@/lib/types";
+import type { AnalyticsSnapshot, LRLogicType, LRType, RCType } from "@/lib/types";
 
 const MIN_ACCURACY_POINTS = 10;
 const MAX_ACCURACY_POINTS = 95;
@@ -11,6 +11,8 @@ const DIRECTIONAL_TYPE_COUNT = 9;
 const FLAG_SWAP_INTERVAL = 3;
 const MIN_STEADY_TYPE_COUNT = 3;
 const MAX_STEADY_TYPE_COUNT = 5;
+const RC_PROFILE: Record<RCType, number> = { Law: 0.58, Comparative: 0.7, Science: 0.64, Humanities: 0.81, Art: 0.77 };
+const MAX_RC_MOVE_POINTS = 3;
 
 function hasRoom(points: number, sign: number, minimumStep = 1) {
   return sign > 0
@@ -49,8 +51,24 @@ function boundedAccuracy(value: number) {
 
 function profileValue(type: LRType, score: number) {
   const source = mockAnalytics.lrAccuracyByType[type] ?? 0.65;
-  const offset = score < LOW_SCORE_CUTOFF ? -SCORE_OFFSET_POINTS : score >= HIGH_SCORE_CUTOFF ? SCORE_OFFSET_POINTS : 0;
-  return boundedAccuracy(Math.round(source * 100 + offset));
+  return boundedAccuracy(Math.round(source * 100 + scoreOffset(score)));
+}
+
+function scoreOffset(score: number) {
+  return score < LOW_SCORE_CUTOFF ? -SCORE_OFFSET_POINTS : score >= HIGH_SCORE_CUTOFF ? SCORE_OFFSET_POINTS : 0;
+}
+
+function samplePassageAccuracy(input: SampleAnalyticsInput): Record<RCType, number> {
+  const { previous, direction, currentScore, random } = input;
+  const entries = (Object.keys(RC_PROFILE) as RCType[]).map((type) => {
+    const prior = previous?.rcAccuracyByType?.[type];
+    if (prior === undefined) return [type, boundedAccuracy(Math.round(RC_PROFILE[type] * 100 + scoreOffset(currentScore))) / 100];
+    const move = direction === "steady"
+      ? (random() < 0.5 ? -1 : 1)
+      : (direction === "improving" ? 1 : -1) * pickInt(random, 1, MAX_RC_MOVE_POINTS);
+    return [type, boundedAccuracy(Math.round(prior * 100) + move) / 100];
+  });
+  return Object.fromEntries(entries);
 }
 
 function chooseTopPriorityLogicTypes(input: SampleAnalyticsInput) {
@@ -70,7 +88,7 @@ function chooseTopPriorityLogicTypes(input: SampleAnalyticsInput) {
   return next;
 }
 
-export function generateSampleAnalytics(input: SampleAnalyticsInput): Pick<AnalyticsSnapshot, "lrAccuracyByType" | "lrTopPriorityLogicTypes"> {
+export function generateSampleAnalytics(input: SampleAnalyticsInput): Required<Pick<AnalyticsSnapshot, "lrAccuracyByType" | "lrTopPriorityLogicTypes" | "rcAccuracyByType">> {
   const { previous, direction, currentScore, regularTypes, random } = input;
   // Keep a defined point value alongside each regular type. Restricted types
   // never enter this list and therefore cannot leak into the returned accuracy.
@@ -120,8 +138,10 @@ export function generateSampleAnalytics(input: SampleAnalyticsInput): Pick<Analy
     }
   }
 
+  const lrTopPriorityLogicTypes = chooseTopPriorityLogicTypes(input);
   return {
     lrAccuracyByType: Object.fromEntries(accuracies.map(({ type, points }) => [type, points / 100])),
-    lrTopPriorityLogicTypes: chooseTopPriorityLogicTypes(input),
+    lrTopPriorityLogicTypes,
+    rcAccuracyByType: samplePassageAccuracy(input),
   };
 }

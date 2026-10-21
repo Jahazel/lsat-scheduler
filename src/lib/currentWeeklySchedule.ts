@@ -88,28 +88,32 @@ function newestApprovedSnapshots(snapshots: ApprovedAnalyticsSnapshot[]) {
   return [...snapshots].sort((a, b) => b.approvedAt.localeCompare(a.approvedAt) || a.id.localeCompare(b.id));
 }
 
-export function analyticsTrend(snapshots: ApprovedAnalyticsSnapshot[], weekOf: string): AnalyticsSnapshot {
-  const window = newestApprovedSnapshots(snapshots).slice(0, 3);
-  const lrAccuracyByType: AnalyticsSnapshot["lrAccuracyByType"] = {};
-  const types = new Set(window.flatMap((snapshot) => Object.keys(snapshot.lrAccuracyByType)));
+function weightedAccuracy<Type extends string>(maps: (Partial<Record<Type, number>> | undefined)[]) {
+  const trend: Partial<Record<Type, number>> = {};
+  const types = new Set(maps.flatMap((map) => Object.keys(map ?? {}) as Type[]));
   for (const type of types) {
-    let weightedAccuracy = 0;
+    let weightedSum = 0;
     let weightTotal = 0;
-    window.forEach((snapshot, index) => {
-      const accuracy = snapshot.lrAccuracyByType[type as keyof typeof snapshot.lrAccuracyByType];
+    maps.forEach((map, index) => {
+      const accuracy = map?.[type];
       if (accuracy !== undefined) {
-        weightedAccuracy += accuracy * TREND_WEIGHTS[index];
+        weightedSum += accuracy * TREND_WEIGHTS[index];
         weightTotal += TREND_WEIGHTS[index];
       }
     });
-    if (weightTotal > 0) {
-      lrAccuracyByType[type as keyof typeof lrAccuracyByType] = weightedAccuracy / weightTotal;
-    }
+    if (weightTotal > 0) trend[type] = weightedSum / weightTotal;
   }
+  return trend;
+}
+
+export function analyticsTrend(snapshots: ApprovedAnalyticsSnapshot[], weekOf: string): AnalyticsSnapshot {
+  const window = newestApprovedSnapshots(snapshots).slice(0, 3);
+  const rcAccuracyByType = weightedAccuracy(window.map((snapshot) => snapshot.rcAccuracyByType));
   return {
     weekOf,
-    lrAccuracyByType,
+    lrAccuracyByType: weightedAccuracy(window.map((snapshot) => snapshot.lrAccuracyByType)),
     lrTopPriorityLogicTypes: window[0].lrTopPriorityLogicTypes,
+    ...(Object.keys(rcAccuracyByType).length > 0 && { rcAccuracyByType }),
   };
 }
 

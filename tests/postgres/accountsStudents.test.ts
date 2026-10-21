@@ -351,7 +351,10 @@ it("onboarding saves approved analytics with its student and refuses a partial w
   const now = new Date().toISOString();
   const input = {
     ...profile,
-    analyticsRows: [{ type: "Strengthen" as const, category: "regular" as const, accuracy: 0.6 }],
+    analyticsRows: [
+      { type: "Strengthen" as const, category: "regular" as const, accuracy: 0.6 },
+      ...(["Law", "Comparative", "Science", "Humanities", "Art"] as const).map((type) => ({ type, category: "passage" as const, accuracy: 60 })),
+    ],
     analyticsApproval: {
       extraction: { source: "7sage_screenshot" as const, extractedAt: now },
       confirmation: { extractedValuesMatch: true as const, isLatestAnalytics: true as const, confirmedAt: now },
@@ -360,11 +363,17 @@ it("onboarding saves approved analytics with its student and refuses a partial w
   await expect(createStudentProfile(input)).rejects.toThrow("redirect:/dashboard");
   const student = await findStudentByAccountId(a.id);
   expect((await getPostgresDatabase().execute(sql`select student_id, extraction_source,
-    extracted_values_match, is_latest_analytics from analytics_snapshots`)).rows).toEqual([{
+    extracted_values_match, is_latest_analytics, rc_accuracy_by_type from analytics_snapshots`)).rows).toEqual([{
     student_id: student?.id, extraction_source: "7sage_screenshot", extracted_values_match: true, is_latest_analytics: true,
+    rc_accuracy_by_type: { Law: 0.6, Comparative: 0.6, Science: 0.6, Humanities: 0.6, Art: 0.6 },
   }]);
   await expect(createStudentProfile(input)).rejects.toThrow("redirect:/dashboard");
   expect((await getPostgresDatabase().execute(sql`select id from analytics_snapshots`)).rows).toHaveLength(1);
+  const withoutRC = await account("snapshot-no-rc@example.test");
+  session(withoutRC);
+  await expect(createStudentProfile({ ...input, analyticsRows: input.analyticsRows.slice(0, 1) }))
+    .rejects.toThrow("Add an accuracy from 0 to 100 for all 5 RC passage types.");
+  expect(await findStudentByAccountId(withoutRC.id)).toBeNull();
   const b = await account("snapshot-fail@example.test");
   session(b);
   await database.owner.execute(sql`create function reject_snapshot_test() returns trigger language plpgsql as

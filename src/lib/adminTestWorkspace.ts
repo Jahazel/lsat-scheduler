@@ -7,6 +7,7 @@ import {
   type SampleDirection,
 } from "./sampleAnalytics";
 import { mockRules } from "./mockData";
+import { PASSAGE_TYPES } from "./analyticsReview";
 import type { AnalyticsExtractedRow } from "./types";
 
 export interface AdminClockRepository {
@@ -258,6 +259,11 @@ export async function generateTestAnalytics(
       type,
       category: "restricted" as const,
       isTopPriority: values.lrTopPriorityLogicTypes.includes(type),
+    })),
+    ...PASSAGE_TYPES.map((type) => ({
+      type,
+      category: "passage" as const,
+      accuracy: Math.round(values.rcAccuracyByType[type]! * 100),
     })),
   ];
   return rows;

@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
+import type { AnalyticsExtractedRow } from "./types";
 import {
   accuracyError,
   hasInvalidAccuracy,
   addRow,
+  dropSection,
   editAccuracy,
+  lowestPassageType,
   missingTypes,
+  readSection,
   removeRow,
   reviewedRows,
   setStatement,
@@ -17,11 +21,20 @@ import {
 const extraction = { source: "7sage_screenshot", extractedAt: "2026-10-18T12:00:00.000Z" } as const;
 const confirmedAt = new Date("2026-10-18T12:05:00.000Z");
 
+const passages: AnalyticsExtractedRow[] = [
+  { type: "Law", category: "passage", accuracy: 58 },
+  { type: "Comparative", category: "passage", accuracy: 70 },
+  { type: "Science", category: "passage", accuracy: 64 },
+  { type: "Humanities", category: "passage", accuracy: 81 },
+  { type: "Art", category: "passage", accuracy: 77 },
+];
+
 function extracted() {
   return startReview(
     [
       { type: "Strengthen", category: "regular", accuracy: 68 },
       { type: "Conditional reasoning", category: "restricted", isTopPriority: true },
+      ...passages,
     ],
     extraction,
   );
@@ -54,7 +67,7 @@ describe("analytics review", () => {
   });
 
   it("removes a row", () => {
-    expect(reviewedRows(removeRow(extracted(), 0)).map((row) => row.type)).toEqual(["Conditional reasoning"]);
+    expect(reviewedRows(removeRow(extracted(), 0)).map((row) => row.type)).toEqual(["Conditional reasoning", "Law", "Comparative", "Science", "Humanities", "Art"]);
   });
 
   it("adds a missing type with its category and no original value", () => {
@@ -64,7 +77,7 @@ describe("analytics review", () => {
   });
 
   it("does not add a type that is already listed", () => {
-    expect(addRow(extracted(), "Strengthen").rows).toHaveLength(2);
+    expect(addRow(extracted(), "Strengthen").rows).toHaveLength(7);
   });
 
   it("returns approval only after both statements are ticked", () => {
@@ -92,5 +105,59 @@ describe("analytics review", () => {
 
   it("clears approval when a statement is unticked", () => {
     expect(snapshotApproval(setStatement(confirm(extracted()), "isLatestAnalytics", false))).toBeNull();
+  });
+});
+
+describe("RC passage types", () => {
+  const lrRead = { source: "7sage_screenshot", extractedAt: "2026-10-18T12:00:00.000Z" } as const;
+  const rcRead = { source: "7sage_screenshot", extractedAt: "2026-10-18T12:02:00.000Z" } as const;
+  const lrRows: AnalyticsExtractedRow[] = [{ type: "Strengthen", category: "regular", accuracy: 68 }];
+
+  it("lists all 5 passage types in 7Sage order, with an empty row for a type the read missed", () => {
+    const review = readSection(readSection(null, "LR", lrRows, lrRead), "RC", passages.slice(0, 4).reverse(), rcRead);
+    expect(review.rows.map(({ row, original }) => [row.type, row.accuracy, original === null])).toEqual([
+      ["Strengthen", 68, false],
+      ["Law", 58, false],
+      ["Comparative", 70, false],
+      ["Science", 64, false],
+      ["Humanities", 81, false],
+      ["Art", undefined, true],
+    ]);
+    expect(accuracyError(review.rows[5].row)).toBe("empty");
+    expect(snapshotApproval(confirm(review))).toBeNull();
+    expect(snapshotApproval(confirm(editAccuracy(review, 5, 77)))).not.toBeNull();
+  });
+
+  it("keeps the other section's edits when one screenshot is read again", () => {
+    const edited = editAccuracy(readSection(readSection(null, "LR", lrRows, lrRead), "RC", passages, rcRead), 0, 75);
+    const reread = readSection(edited, "RC", passages, { ...rcRead, extractedAt: "2026-10-18T12:09:00.000Z" });
+    expect(reread.rows[0].row.accuracy).toBe(75);
+    expect(reread.extraction.extractedAt).toBe(lrRead.extractedAt);
+  });
+
+  it("dates the approval from the older of the two reads that are still on the review", () => {
+    const both = readSection(readSection(null, "LR", lrRows, lrRead), "RC", passages, rcRead);
+    expect(both.extraction.extractedAt).toBe(lrRead.extractedAt);
+    const rcOnly = dropSection(both, "LR")!;
+    expect(rcOnly.extraction.extractedAt).toBe(rcRead.extractedAt);
+    expect(readSection(rcOnly, "LR", lrRows, { ...lrRead, extractedAt: "2026-10-18T12:30:00.000Z" }).extraction.extractedAt)
+      .toBe(rcRead.extractedAt);
+    expect(dropSection(rcOnly, "RC")).toBeNull();
+  });
+
+  it("validates passage accuracy like LR accuracy", () => {
+    expect(accuracyError({ type: "Law", category: "passage", accuracy: 101 })).toBe("out-of-range");
+    expect(accuracyError({ type: "Law", category: "passage", accuracy: 0 })).toBeNull();
+  });
+
+  it("marks the lowest passage type, with ties in rules-list order", () => {
+    expect(lowestPassageType(extracted())).toBe("Law");
+    const tied = readSection(null, "RC", passages.map((row) => ({ ...row, accuracy: 60 })), rcRead);
+    expect(lowestPassageType(tied)).toBe("Art");
+    expect(lowestPassageType(readSection(null, "RC", [], rcRead))).toBeNull();
+  });
+
+  it("never offers a passage type in the add-a-type list", () => {
+    expect(missingTypes(readSection(null, "RC", [], rcRead)).map(({ type }): string => type)).not.toContain("Law");
   });
 });

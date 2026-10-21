@@ -53,6 +53,7 @@ async function student(email = "student@example.test", role: "student" | "admin"
 async function approve(studentId: string) {
   await createApprovedAnalyticsSnapshot(studentId, {
     status: "approved", weekOf: "2026-10-12", lrAccuracyByType: { Strengthen: 0.7 }, lrTopPriorityLogicTypes: [],
+    rcAccuracyByType: { Law: 0.58, Comparative: 0.7, Science: 0.64, Humanities: 0.81, Art: 0.77 },
     approvedAt: new Date(), extraction: { source: "7sage_screenshot", extractedAt: new Date() },
     confirmation: { extractedValuesMatch: true, isLatestAnalytics: true, confirmedAt: new Date() },
   });
@@ -207,6 +208,7 @@ it.each(["student", "admin"] as const)("retains the %s's clock for newly ensured
   const now = role === "admin" ? new Date("2027-01-04T16:00:00Z") : new Date();
   await createApprovedAnalyticsSnapshot(saved.id, {
     status: "approved", weekOf: now.toISOString().slice(0, 10), lrAccuracyByType: { Strengthen: 0.7 }, lrTopPriorityLogicTypes: [],
+    rcAccuracyByType: { Law: 0.58, Comparative: 0.7, Science: 0.64, Humanities: 0.81, Art: 0.77 },
     approvedAt: now, extraction: { source: "7sage_screenshot", extractedAt: now },
     confirmation: { extractedValuesMatch: true, isLatestAnalytics: true, confirmedAt: now },
   });

@@ -21,9 +21,10 @@ const png = Buffer.from(
   "base64",
 );
 
-function imageRequest(file = new File([png], "analytics.png", { type: "image/png" })) {
+function imageRequest(file = new File([png], "analytics.png", { type: "image/png" }), section: string | null = "LR") {
   const form = new FormData();
   form.set("image", file);
+  if (section !== null) form.set("section", section);
   return new NextRequest("http://localhost/api/analytics/extract", {
     method: "POST",
     body: form,
@@ -65,6 +66,56 @@ describe("POST /api/analytics/extract", () => {
     expect(mocks.constructClient).not.toHaveBeenCalled();
     expect(mocks.createMessage).not.toHaveBeenCalled();
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns the fake extractor's 5 passage types for an RC screenshot", async () => {
+    vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
+
+    const { POST } = await import("./route");
+    const response = await POST(imageRequest(undefined, "RC"));
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).rows.map((row: { type: string; category: string }) => [row.type, row.category])).toEqual([
+      ["Law", "passage"],
+      ["Comparative", "passage"],
+      ["Science", "passage"],
+      ["Humanities", "passage"],
+      ["Art", "passage"],
+    ]);
+    expect(mocks.createMessage).not.toHaveBeenCalled();
+  });
+
+  it.each([null, "Writing"])("refuses a screenshot whose section is %j", async (section) => {
+    vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
+
+    const { POST } = await import("./route");
+    const response = await POST(imageRequest(undefined, section));
+
+    expect(response.status).toBe(400);
+    expect(mocks.createMessage).not.toHaveBeenCalled();
+  });
+
+  it("reads only RC passage types from Anthropic for an RC screenshot", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "synthetic-anthropic-key");
+    mocks.createMessage.mockResolvedValue({
+      content: [{
+        type: "tool_use",
+        input: { rows: [{ type: "Law", accuracy: 58 }, { type: "Strengthen", accuracy: 70 }, { type: "Art", accuracy: 77 }] },
+      }],
+    });
+
+    const { POST } = await import("./route");
+    const response = await POST(imageRequest(undefined, "RC"));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      rows: [
+        { type: "Law", category: "passage", accuracy: 58 },
+        { type: "Art", category: "passage", accuracy: 77 },
+      ],
+    });
+    expect(mocks.createMessage.mock.calls[0][0].tools[0].input_schema.properties.rows.items.properties.type.enum)
+      .toEqual(["Art", "Humanities", "Science", "Law", "Comparative"]);
   });
 
   it.each(["fake-failure", "anthropic"])("returns the plain failure for extractor setting %j without calling Anthropic", async (setting) => {

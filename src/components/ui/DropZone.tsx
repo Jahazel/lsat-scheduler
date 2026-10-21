@@ -83,6 +83,7 @@ export function DropZone({ label, accept, error, onFile, className }: DropZonePr
       <input
         ref={input}
         type="file"
+        aria-label={`${label} file`}
         accept={accept}
         className="hidden"
         onChange={(event) => {
@@ -92,7 +93,7 @@ export function DropZone({ label, accept, error, onFile, className }: DropZonePr
         }}
       />
       {error && (
-        <p id={errorId} className="text-small text-danger-ink">
+        <p id={errorId} role="alert" className="text-small text-danger-ink">
           {error}
         </p>
       )}

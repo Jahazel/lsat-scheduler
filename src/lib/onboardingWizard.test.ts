@@ -150,27 +150,35 @@ describe("onboarding wizard", () => {
 
   it("returns to the drop zone with the server's message when it rejects the file", () => {
     const file = new File(["png"], "huge.png", { type: "image/png" });
-    const reading = run({ type: "readStarted", file });
+    const reading = run({ type: "readStarted", section: "LR", file });
     const message = "That file is 4.2 MB. Choose one that is 4 MB or less.";
 
-    const rejected = wizardReducer(reading, { type: "readEnded", attempt: 1, reply: { kind: "rejected", message }, at: READ_AT });
+    const rejected = wizardReducer(reading, { type: "readEnded", section: "LR", attempt: 1, reply: { kind: "rejected", message }, at: READ_AT });
 
-    expect(rejected.screenshot).toEqual({ status: "none" });
-    expect(rejected.screenshotRejection).toBe(message);
-    expect(wizardReducer(rejected, { type: "readStarted", file }).screenshotRejection).toBeNull();
+    expect(rejected.screenshots.LR).toEqual({ status: "none" });
+    expect(rejected.rejections).toEqual({ LR: message, RC: null });
+    expect(wizardReducer(rejected, { type: "readStarted", section: "LR", file }).rejections.LR).toBeNull();
   });
 
   it("keeps a read that ends while Skip for now is saving", () => {
     const ready = run(validGoal, { type: "continue" }, { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } }, { type: "continue" });
-    const reading = wizardReducer(ready, { type: "readStarted", file: new File(["png"], "a.png", { type: "image/png" }) });
+    const reading = wizardReducer(ready, { type: "readStarted", section: "LR", file: new File(["png"], "a.png", { type: "image/png" }) });
     const saving = wizardReducer(reading, { type: "saveStarted" });
 
-    const ended = wizardReducer(saving, { type: "readEnded", attempt: 1, reply: { kind: "connection-lost" }, at: READ_AT });
+    const ended = wizardReducer(saving, { type: "readEnded", section: "LR", attempt: 1, reply: { kind: "connection-lost" }, at: READ_AT });
 
-    expect(ended.screenshot.status).toBe("connection-lost");
+    expect(ended.screenshots.LR.status).toBe("connection-lost");
   });
 
   describe("Step 4 · Review", () => {
+    const passageRows: AnalyticsExtractedRow[] = [
+      { type: "Law", category: "passage", accuracy: 58 },
+      { type: "Comparative", category: "passage", accuracy: 70 },
+      { type: "Science", category: "passage", accuracy: 64 },
+      { type: "Humanities", category: "passage", accuracy: 81 },
+      { type: "Art", category: "passage", accuracy: 77 },
+    ];
+
     const readRows: AnalyticsExtractedRow[] = [
       { type: "Diagram", category: "regular", accuracy: 64 },
       { type: "Necessary assumption", category: "regular", accuracy: 71 },
@@ -184,8 +192,10 @@ describe("onboarding wizard", () => {
         { type: "continue" },
         { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
         { type: "continue" },
-        { type: "readStarted", file: new File(["png"], "7sage-analytics.png", { type: "image/png" }) },
-        { type: "readEnded", attempt: 1, reply: { kind: "rows", rows }, at: READ_AT },
+        { type: "readStarted", section: "LR", file: new File(["png"], "lr-analytics.png", { type: "image/png" }) },
+        { type: "readEnded", section: "LR", attempt: 1, reply: { kind: "rows", rows }, at: READ_AT },
+        { type: "readStarted", section: "RC", file: new File(["png"], "rc-analytics.png", { type: "image/png" }) },
+        { type: "readEnded", section: "RC", attempt: 1, reply: { kind: "rows", rows: passageRows }, at: READ_AT },
         { type: "continue" },
         ...actions,
       );
@@ -288,12 +298,12 @@ describe("onboarding wizard", () => {
     it("says so in one line when one list is empty after the read", () => {
       const accuracyOnly = readRows.filter((row) => row.category === "regular");
       expect(emptyListNote(onReview(accuracyOnly), "flags")).toBe(
-        "We didn't find priority flags in your screenshot. If 7Sage shows any, add them with the link below.",
+        "We didn't find priority flags in your LR screenshot. If 7Sage shows any, add them with the link below.",
       );
       expect(emptyListNote(onReview(accuracyOnly), "accuracy")).toBeNull();
       const flagsOnly = readRows.filter((row) => row.category === "restricted");
       expect(emptyListNote(onReview(flagsOnly), "accuracy")).toBe(
-        "We didn't find accuracy values in your screenshot. If 7Sage shows any, add them with the link below.",
+        "We didn't find accuracy values in your LR screenshot. If 7Sage shows any, add them with the link below.",
       );
     });
 
@@ -318,6 +328,7 @@ describe("onboarding wizard", () => {
           { type: "Necessary assumption", category: "regular", accuracy: 76 },
           { type: "Causal reasoning", category: "restricted", isTopPriority: false, priorityTier: "highest" },
           { type: "Link assumption", category: "restricted", isTopPriority: true, priorityTier: "medium" },
+          ...passageRows,
         ],
         analyticsApproval: {
           extraction: { source: "7sage_screenshot", extractedAt: "2026-10-19T15:00:00.000Z" },
@@ -326,9 +337,71 @@ describe("onboarding wizard", () => {
       });
     });
 
-    it("drops the review when the student replaces the screenshot", () => {
-      const state = onReview(readRows, { type: "back" }, { type: "readStarted", file: new File(["png"], "b.png", { type: "image/png" }) });
-      expect(state.screenshot.status).toBe("reading");
+    it("drops only the replaced screenshot's rows and keeps the other section's edits", () => {
+      const state = onReview(
+        readRows,
+        { type: "editAccuracy", rowType: "Law", text: "60" },
+        { type: "editAccuracy", rowType: "Diagram", text: "50" },
+        { type: "back" },
+        { type: "readStarted", section: "LR", file: new File(["png"], "b.png", { type: "image/png" }) },
+      );
+      expect(state.screenshots.LR.status).toBe("reading");
+      expect(blockedReason(state)).toBe("Add both screenshots to check the values.");
+      expect(state.draft?.review.rows.map(({ row }) => row.type)).toEqual(["Law", "Comparative", "Science", "Humanities", "Art"]);
+      expect(boxText(state, "Law")).toBe("60");
+      expect(boxText(state, "Diagram")).toBe("");
+    });
+
+    it("asks for both screenshots before Check the values", () => {
+      const lrOnly = run(
+        validGoal,
+        { type: "continue" },
+        { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
+        { type: "continue" },
+        { type: "readStarted", section: "LR", file: new File(["png"], "lr.png", { type: "image/png" }) },
+        { type: "readEnded", section: "LR", attempt: 1, reply: { kind: "rows", rows: readRows }, at: READ_AT },
+        { type: "continue" },
+      );
+      expect(lrOnly.step).toBe("analytics");
+      expect(blockedReason(lrOnly)).toBe("Add both screenshots to check the values.");
+    });
+
+    it("treats an RC read with no passage types as the wrong screenshot", () => {
+      const state = run(
+        { type: "readStarted", section: "RC", file: new File(["png"], "lr.png", { type: "image/png" }) },
+        { type: "readEnded", section: "RC", attempt: 1, reply: { kind: "rows", rows: readRows }, at: READ_AT },
+      );
+      expect(state.screenshots.RC.status).toBe("no-rows");
+      expect(state.draft).toBeNull();
+    });
+
+    it("keeps a passage type the read missed, empty, and locks Confirm until it is filled", () => {
+      const complete = onReview(readRows, ...tickBoth);
+      const withoutArt = run(
+        validGoal,
+        { type: "continue" },
+        { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
+        { type: "continue" },
+        { type: "readStarted", section: "LR", file: new File(["png"], "lr.png", { type: "image/png" }) },
+        { type: "readEnded", section: "LR", attempt: 1, reply: { kind: "rows", rows: readRows }, at: READ_AT },
+        { type: "readStarted", section: "RC", file: new File(["png"], "rc.png", { type: "image/png" }) },
+        { type: "readEnded", section: "RC", attempt: 1, reply: { kind: "rows", rows: passageRows.slice(0, 4) }, at: READ_AT },
+        { type: "continue" },
+        ...tickBoth,
+      );
+      expect(confirmSnapshotInput(complete)).not.toBeNull();
+      expect(boxText(withoutArt, "Art")).toBe("");
+      expect(blockedReason(withoutArt)).toBe("Fix Art above to confirm.");
+      expect(confirmSnapshotInput(withoutArt)).toBeNull();
+
+      const blocked = wizardReducer(withoutArt, { type: "confirmBlocked" });
+      expect(accuracyMessage(blocked, "Art")).toBe("Enter the percentage from your RC screenshot.");
+
+      const filled = wizardReducer(
+        wizardReducer(withoutArt, { type: "editAccuracy", rowType: "Art", text: "77" }),
+        tickBoth[0],
+      );
+      expect(confirmSnapshotInput(wizardReducer(filled, tickBoth[1]))?.analyticsRows.at(-1)).toEqual({ type: "Art", category: "passage", accuracy: 77 });
     });
   });
 
@@ -398,8 +471,8 @@ describe("onboarding wizard", () => {
         { type: "continue" },
         { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
         { type: "continue" },
-        { type: "readStarted", file: new File(["png"], "7sage-analytics.png", { type: "image/png" }) },
-        { type: "readEnded", attempt: 1, reply: { kind: "rows", rows }, at: READ_AT },
+        { type: "readStarted", section: "LR", file: new File(["png"], "7sage-analytics.png", { type: "image/png" }) },
+        { type: "readEnded", section: "LR", attempt: 1, reply: { kind: "rows", rows }, at: READ_AT },
         ...actions,
       );
     }
@@ -450,6 +523,25 @@ describe("onboarding wizard", () => {
         label: "Necessary + Sufficient assumption",
         detail: { kind: "accuracy", text: "20%" },
       });
+    });
+
+    it("shows each RC line with its first passage type's accuracy, lowest first", () => {
+      const passages: AnalyticsExtractedRow[] = [
+        { type: "Law", category: "passage", accuracy: 58 },
+        { type: "Comparative", category: "passage", accuracy: 70 },
+        { type: "Science", category: "passage", accuracy: 64 },
+        { type: "Humanities", category: "passage", accuracy: 81 },
+        { type: "Art", category: "passage", accuracy: 77 },
+      ];
+      const state = read(
+        { type: "edit", values: { dailyCapacityMinutes: { ...initialWizardState().values.dailyCapacityMinutes, MONDAY: 480 } } },
+        { type: "readStarted", section: "RC", file: new File(["png"], "rc.png", { type: "image/png" }) },
+        { type: "readEnded", section: "RC", attempt: 1, reply: { kind: "rows", rows: passages }, at: READ_AT },
+      );
+      const rc = previewDrills(state, TODAY)?.items.find(({ activity }) => activity.kind === "RC" && !activity.isFullSection);
+
+      expect(rc?.label).toMatch(/^1 Law \+ 1 Science passage/);
+      expect(rc?.detail).toEqual({ kind: "accuracy", text: "58%" });
     });
 
     it("marks a ticked priority flag on its drill", () => {

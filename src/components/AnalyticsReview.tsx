@@ -1,113 +1,106 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import {
   addRow,
   editAccuracy,
+  hasSection,
+  lowestPassageType,
   missingTypes,
+  readSection,
   removeRow,
   reviewedRows,
+  SECTION_NAME,
+  SECTIONS,
   setStatement,
-  startReview,
   toggleTopPriority,
   type SnapshotReview,
 } from "@/lib/analyticsReview";
+import type { AnalyticsSection } from "@/lib/types";
 import { checkScreenshot, extractScreenshot, SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES } from "@/lib/screenshotUpload";
 import SignInExpired from "./SignInExpired";
+import { DropZone } from "./ui/DropZone";
 
 const SCREENSHOT_ACCEPT = SCREENSHOT_MEDIA_TYPES.join(",");
+const ACCURACY_INPUT = "w-20 rounded-sm border border-vellum-line bg-paper px-2 py-1.5 text-right text-small font-semibold tabular-nums text-ink placeholder:text-fog focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
 interface AnalyticsReviewProps {
   review: SnapshotReview | null;
-  onReviewChange: (review: SnapshotReview) => void;
-  uploadPresentation?: "default" | "guided";
+  onReviewChange: Dispatch<SetStateAction<SnapshotReview | null>>;
   reviewPresentation?: "default" | "full-width";
 }
 
-// Shared upload + review UI: pick a screenshot, OCR-extract candidate rows,
-// then let the reviewer correct accuracies/priority flags or add a row the
-// screenshot missed. Used both on student intake (optional, before the
-// student exists) and on the per-student page (weekly re-upload).
+type UploadStatus = { extracting: boolean; error: string | null; signedOut: boolean };
+const IDLE: UploadStatus = { extracting: false, error: null, signedOut: false };
+
+const NO_ROWS: Record<AnalyticsSection, string> = {
+  LR: "We found no LR question types in that screenshot. Choose your Logical Reasoning screenshot.",
+  RC: "We found no passage types in that screenshot. Choose your Reading Comprehension screenshot.",
+};
+
 export default function AnalyticsReview({
   review,
   onReviewChange,
-  uploadPresentation = "default",
   reviewPresentation = "default",
 }: AnalyticsReviewProps) {
   const [typeToAdd, setTypeToAdd] = useState("");
-  const [extracting, setExtracting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [signedOut, setSignedOut] = useState(false);
+  const [uploads, setUploads] = useState<Record<AnalyticsSection, UploadStatus>>({ LR: IDLE, RC: IDLE });
+  const setUpload = (section: AnalyticsSection, status: UploadStatus) => setUploads((current) => ({ ...current, [section]: status }));
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const latestRead = useRef<Record<AnalyticsSection, number>>({ LR: 0, RC: 0 });
 
-    setError(null);
-    setSignedOut(false);
+  async function readFile(section: AnalyticsSection, file: File) {
+    const attempt = ++latestRead.current[section];
     const rejection = checkScreenshot(file);
     if (rejection) {
-      setError(rejection.message);
+      setUpload(section, { ...IDLE, error: rejection.message });
       return;
     }
 
-    setExtracting(true);
-    const reply = await extractScreenshot(file);
-    setExtracting(false);
+    setUpload(section, { ...IDLE, extracting: true });
+    const reply = await extractScreenshot(file, section);
+    if (attempt !== latestRead.current[section]) return;
 
     switch (reply.kind) {
       case "rows":
-        onReviewChange(startReview(reply.rows, { source: "7sage_screenshot", extractedAt: new Date().toISOString() }));
+        if (reply.rows.length === 0) {
+          setUpload(section, { ...IDLE, error: NO_ROWS[section] });
+          break;
+        }
+        setUpload(section, IDLE);
+        onReviewChange((current) => readSection(current, section, reply.rows, { source: "7sage_screenshot", extractedAt: new Date().toISOString() }));
         break;
       case "rejected":
-        setError(reply.message);
+        setUpload(section, { ...IDLE, error: reply.message });
         break;
       case "signed-out":
-        setSignedOut(true);
+        setUpload(section, { ...IDLE, signedOut: true });
         break;
       case "cannot-read":
       case "connection-lost":
-        setError("Couldn't read that screenshot. Try again or a clearer image.");
+        setUpload(section, { ...IDLE, error: "Couldn't read that screenshot. Try again or a clearer image." });
         break;
     }
   }
 
-  if (!review) {
-    if (uploadPresentation === "guided") {
-      return (
-        <div>
-          <label className="block cursor-pointer rounded-xs border border-dashed border-accent bg-accent/faint p-5 transition-colors duration-150 ease-out hover:bg-accent/tint focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent has-[input:disabled]:cursor-not-allowed has-[input:disabled]:opacity-50">
-            <span className="flex items-center gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-paper text-accent">
-                <svg aria-hidden="true" className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-                  <path d="M12 16V4m0 0-4 4m4-4 4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
-              <span>
-                <span className="block font-semibold text-ink">Choose a 7Sage analytics screenshot</span>
-                <span className="mt-1 block text-small text-smoke">{SCREENSHOT_LIMITS}</span>
-              </span>
-            </span>
-            <input className="sr-only" type="file" accept={SCREENSHOT_ACCEPT} onChange={handleFileChange} disabled={extracting} />
-          </label>
-          {extracting && <p className="mt-3 text-small text-smoke">Reading your screenshot…</p>}
-          {error && <p className="mt-3 text-small text-danger-ink">{error}</p>}
-          {signedOut && <div className="mt-3"><SignInExpired /></div>}
-        </div>
-      );
-    }
+  const missingSections = SECTIONS.filter((section) => !hasSection(review, section));
+  const uploadControls = missingSections.length > 0 && (
+    <div className="flex flex-col gap-4">
+      {missingSections.map((section) => {
+        const { extracting, error, signedOut } = uploads[section];
+        return (
+          <div key={section}>
+            <DropZone label={`${SECTION_NAME[section]} screenshot`} accept={SCREENSHOT_ACCEPT} error={error ?? undefined} onFile={(file) => readFile(section, file)} />
+            {extracting && <p className="mt-3 text-small text-smoke">Reading your {SECTION_NAME[section]} screenshot…</p>}
+            {signedOut && <div className="mt-3"><SignInExpired /></div>}
+          </div>
+        );
+      })}
+      <p className="text-small text-smoke">{SCREENSHOT_LIMITS} each.</p>
+    </div>
+  );
 
-    return (
-      <div>
-        <input type="file" accept={SCREENSHOT_ACCEPT} onChange={handleFileChange} disabled={extracting} />
-        {extracting && (
-          <p className="mt-2 text-small text-smoke ">Reading screenshot…</p>
-        )}
-        {error && <p className="mt-2 text-small text-danger-ink ">{error}</p>}
-        {signedOut && <div className="mt-2"><SignInExpired /></div>}
-      </div>
-    );
-  }
+  if (!review) return uploadControls;
 
   const updateAccuracy = (index: number, value: string) => {
     onReviewChange(editAccuracy(review, index, value === "" ? undefined : Number(value)));
@@ -132,12 +125,46 @@ export default function AnalyticsReview({
   const indexed = reviewedRows(review).map((row, i) => ({ row, i }));
   const accuracyRows = indexed.filter(({ row }) => row.category === "regular");
   const priorityRows = indexed.filter(({ row }) => row.category === "restricted");
-  const errorMessage = error && <p className="text-small text-danger-ink">{error}</p>;
+  const passageRows = indexed.filter(({ row }) => row.category === "passage");
+  const goesFirst = lowestPassageType(review);
+
+  const passageBlock = passageRows.length > 0 && (
+    <section>
+      <h3 className="text-body font-semibold text-ink">Reading Comprehension</h3>
+      <p className="mt-1 text-small text-smoke">Passage types · lowest goes first in your plan</p>
+      <ul className="mt-3 divide-y divide-vellum-line border-y border-vellum-line">
+        {passageRows.map(({ row, i }) => {
+          const original = review.rows[i].original;
+          return (
+            <li key={row.type} className="flex min-h-11 items-center gap-3 py-1.5">
+              <label htmlFor={`passage-${i}`} className="grow text-small font-medium text-ink">{row.type}</label>
+              <span className="text-caption text-smoke">
+                {row.type === goesFirst ? <span className="text-small text-accent">Goes first</span> : original === null ? "not found" : null}
+              </span>
+              <span className="flex items-center gap-1">
+                <input
+                  id={`passage-${i}`}
+                  type="number"
+                  value={row.accuracy ?? ""}
+                  onChange={(e) => updateAccuracy(i, e.target.value)}
+                  placeholder="—"
+                  aria-label={`${row.type} passage accuracy`}
+                  className={ACCURACY_INPUT}
+                />
+                <span className="text-small font-medium text-smoke">%</span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+
 
   const priorityItems = () => {
     return priorityRows.map(({ row, i }) => {
       const inputId = `priority-${i}`;
-      return <li key={`${row.type}-${i}`} className="flex items-center gap-2"><input id={inputId} type="checkbox" checked={row.isTopPriority ?? false} onChange={() => toggleRowPriority(i)} className="size-4 accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" /><label htmlFor={inputId} className="flex-1 text-small text-ink">{row.type}</label><button type="button" onClick={() => removeReviewRow(i)} className="rounded p-1 text-smoke hover:text-danger-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" aria-label={`Remove ${row.type}`}>✕</button></li>;
+      return <li key={`${row.type}-${i}`} className="flex items-center gap-2"><input id={inputId} type="checkbox" checked={row.category === "restricted" && (row.isTopPriority ?? false)} onChange={() => toggleRowPriority(i)} className="size-4 accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" /><label htmlFor={inputId} className="flex-1 text-small text-ink">{row.type}</label><button type="button" onClick={() => removeReviewRow(i)} className="rounded p-1 text-smoke hover:text-danger-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" aria-label={`Remove ${row.type}`}>✕</button></li>;
     });
   };
 
@@ -147,7 +174,7 @@ export default function AnalyticsReview({
   };
 
   const approvalControls = (fieldsetClassName: string, legendClassName: string, wrapperClassName = "") => {
-    return <div className={wrapperClassName}><fieldset className={fieldsetClassName}><legend className={legendClassName}>Confirm this snapshot</legend><div className="mt-3 space-y-3"><label className="flex items-start gap-2 text-small text-smoke"><input type="checkbox" checked={review.confirmation.extractedValuesMatch} onChange={(event) => onReviewChange(setStatement(review, "extractedValuesMatch", event.target.checked))} className="mt-0.5 size-4 accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" /><span>{isSample ? "I reviewed and approved these sample values." : "I reviewed these values and they match my screenshot."}</span></label><label className="flex items-start gap-2 text-small text-smoke"><input type="checkbox" checked={review.confirmation.isLatestAnalytics} onChange={(event) => onReviewChange(setStatement(review, "isLatestAnalytics", event.target.checked))} className="mt-0.5 size-4 accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" /><span>{isSample ? "Use this sample as my latest analytics." : "This screenshot contains my latest 7Sage analytics."}</span></label></div></fieldset></div>;
+    return <div className={wrapperClassName}><fieldset className={fieldsetClassName}><legend className={legendClassName}>Confirm this snapshot</legend><div className="mt-3 space-y-3"><label className="flex items-start gap-2 text-small text-smoke"><input type="checkbox" checked={review.confirmation.extractedValuesMatch} onChange={(event) => onReviewChange(setStatement(review, "extractedValuesMatch", event.target.checked))} className="mt-0.5 size-4 accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" /><span>{isSample ? "I reviewed and approved these sample values." : "I reviewed these values and they match my screenshots."}</span></label><label className="flex items-start gap-2 text-small text-smoke"><input type="checkbox" checked={review.confirmation.isLatestAnalytics} onChange={(event) => onReviewChange(setStatement(review, "isLatestAnalytics", event.target.checked))} className="mt-0.5 size-4 accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" /><span>{isSample ? "Use this sample as my latest analytics." : "These screenshots show my latest 7Sage analytics."}</span></label></div></fieldset></div>;
   };
 
   if (reviewPresentation === "full-width") {
@@ -178,7 +205,7 @@ export default function AnalyticsReview({
                             onChange={(e) => updateAccuracy(i, e.target.value)}
                             placeholder="—"
                             aria-label={`${row.type} accuracy`}
-                            className="w-20 rounded-sm border border-vellum-line bg-paper px-2 py-1.5 text-right text-small font-semibold tabular-nums text-ink placeholder:text-fog focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                            className={ACCURACY_INPUT}
                           />
                           <span className="text-small font-medium text-smoke">%</span>
                         </div>
@@ -209,8 +236,10 @@ export default function AnalyticsReview({
 
         {addTypeControl("flex max-w-xl items-center gap-2")}
 
+        {uploadControls}
+        {passageBlock && <div className="border-t border-vellum-line pt-6">{passageBlock}</div>}
+
         {approvalControls("", "text-body font-semibold text-ink", "border-t border-vellum-line pt-5")}
-        {errorMessage}
       </div>
     );
   }
@@ -254,7 +283,7 @@ export default function AnalyticsReview({
                           value={row.accuracy ?? ""}
                           onChange={(e) => updateAccuracy(i, e.target.value)}
                           placeholder="—"
-                          className="w-20 rounded-sm border border-vellum-line bg-paper px-2 py-1.5 text-right text-small font-semibold tabular-nums text-ink placeholder:text-fog focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                          className={ACCURACY_INPUT}
                         />
                         <span className="text-small font-medium text-smoke">%</span>
                       </div>
@@ -294,8 +323,9 @@ export default function AnalyticsReview({
       </section>
 
       {addTypeControl("flex items-center gap-2")}
+      {uploadControls}
+      {passageBlock}
       {approvalControls("rounded-sm border border-vellum-line p-3", "px-1 text-small font-medium text-ink")}
-      {errorMessage}
     </div>
   );
 }

@@ -62,14 +62,16 @@ async function student(email: string, role: "student" | "admin" = "student") {
 function approval(body: unknown) {
   return approve(new NextRequest("http://localhost/api/analytics", { method: "POST", body: JSON.stringify(body) }));
 }
-function confirmed(values: { lrAccuracyByType: Record<string, number>; lrTopPriorityLogicTypes: string[] } = { lrAccuracyByType: { Strengthen: 0.7 }, lrTopPriorityLogicTypes: [] }) {
+const rcAccuracyByType = { Law: 0.58, Comparative: 0.7, Science: 0.64, Humanities: 0.81, Art: 0.77 };
+function confirmed(values: { lrAccuracyByType: Record<string, number>; lrTopPriorityLogicTypes: string[]; rcAccuracyByType?: Record<string, number> } = { lrAccuracyByType: { Strengthen: 0.7 }, lrTopPriorityLogicTypes: [] }) {
   const now = new Date().toISOString();
-  return { ...values, extraction: { source: "7sage_screenshot", extractedAt: now }, confirmation: { extractedValuesMatch: true, isLatestAnalytics: true, confirmedAt: now } };
+  return { rcAccuracyByType, ...values, extraction: { source: "7sage_screenshot", extractedAt: now }, confirmation: { extractedValuesMatch: true, isLatestAnalytics: true, confirmedAt: now } };
 }
-function upload() {
+function upload(section: "LR" | "RC" = "LR") {
   const form = new FormData();
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=", "base64");
   form.set("image", new File([png], "analytics.png", { type: "image/png" }));
+  form.set("section", section);
   return extract(new NextRequest("http://localhost/api/analytics/extract", { method: "POST", body: form }));
 }
 it("uploads with the fake extractor, reviews corrected values, and appends approved snapshots as the app role", async () => {
@@ -77,15 +79,16 @@ it("uploads with the fake extractor, reviews corrected values, and appends appro
   expect((await getPostgresDatabase().execute(sql`select current_user`)).rows).toEqual([{ current_user: database.role }]);
   const extracted = await upload();
   expect(extracted.status).toBe(200);
-  const { rows } = await extracted.json();
-  const reviewed = summarizeAnalyticsRows(rows);
+  const passages = await upload("RC");
+  expect(passages.status).toBe(200);
+  const reviewed = summarizeAnalyticsRows([...(await extracted.json()).rows, ...(await passages.json()).rows]);
   reviewed.lrAccuracyByType.Strengthen = 0.82;
   const approved = confirmed(reviewed);
   expect((await approval(approved)).status).toBe(201);
   expect((await approval(approved)).status).toBe(201);
   const snapshots = await listApprovedAnalyticsSnapshots(saved.id);
   expect(snapshots).toHaveLength(2);
-  expect(snapshots[0]).toMatchObject({ studentId: saved.id, lrAccuracyByType: { Strengthen: 0.82 }, extraction: approved.extraction, confirmation: approved.confirmation });
+  expect(snapshots[0]).toMatchObject({ studentId: saved.id, lrAccuracyByType: { Strengthen: 0.82 }, rcAccuracyByType, extraction: approved.extraction, confirmation: approved.confirmation });
 });
 it("returns the plain extraction failure without saving a snapshot", async () => {
   const { saved } = await student("failure@example.test");
@@ -112,6 +115,10 @@ it("keeps approval with the session owner and reads the three newest approved sn
 it.each([
   ["unconfirmed", (body: ReturnType<typeof confirmed>) => ({ ...body, confirmation: { ...body.confirmation, isLatestAnalytics: false } })],
   ["empty", (body: ReturnType<typeof confirmed>) => ({ ...body, lrAccuracyByType: {}, lrTopPriorityLogicTypes: [] })],
+  ["missing RC accuracy", (body: ReturnType<typeof confirmed>) => ({ ...body, rcAccuracyByType: undefined })],
+  ["a missing passage type", (body: ReturnType<typeof confirmed>) => ({ ...body, rcAccuracyByType: { ...rcAccuracyByType, Art: undefined } })],
+  ["an RC accuracy over 100%", (body: ReturnType<typeof confirmed>) => ({ ...body, rcAccuracyByType: { ...rcAccuracyByType, Law: 1.2 } })],
+  ["an unknown passage type", (body: ReturnType<typeof confirmed>) => ({ ...body, rcAccuracyByType: { ...rcAccuracyByType, Poetry: 0.5 } })],
   ["stale", (body: ReturnType<typeof confirmed>) => ({ ...body, extraction: { ...body.extraction, extractedAt: new Date(Date.now() - 86400001).toISOString() } })],
   ["future extraction", (body: ReturnType<typeof confirmed>) => ({ ...body, extraction: { ...body.extraction, extractedAt: new Date(Date.now() + 60000).toISOString() } })],
   ["confirmation before review", (body: ReturnType<typeof confirmed>) => ({ ...body, confirmation: { ...body.confirmation, confirmedAt: new Date(Date.now() - 60000).toISOString() } })],
@@ -120,6 +127,17 @@ it.each([
   expect((await approval(change(confirmed()))).status).toBe(422);
   expect(await listApprovedAnalyticsSnapshots(saved.id)).toEqual([]);
 });
+it("reads a snapshot approved before RC analytics without RC accuracy", async () => {
+  const { saved } = await student("before-rc@example.test");
+  await database.owner.execute(sql`insert into analytics_snapshots
+    (student_id, week_of, lr_accuracy_by_type, lr_top_priority_logic_types, approved_at, extraction_source, extracted_at, extracted_values_match, is_latest_analytics, confirmed_at)
+    values (${saved.id}::uuid, '2026-10-05', '{"Strengthen": 0.7}'::jsonb, '{}', now(), '7sage_screenshot', now(), true, true, now())`);
+  const [snapshot] = await listApprovedAnalyticsSnapshots(saved.id);
+  expect(snapshot.lrAccuracyByType).toEqual({ Strengthen: 0.7 });
+  expect(snapshot).not.toHaveProperty("rcAccuracyByType");
+  expect(analyticsTrend([snapshot], "2026-10-05").rcAccuracyByType).toBeUndefined();
+});
+
 it("requires a session and an onboarded Student, and rejects malformed JSON", async () => {
   expect((await approval(confirmed())).status).toBe(401);
   const owner = await createAccount({ email: "new@example.test", name: "New" });
@@ -136,10 +154,11 @@ it("generates an admin Sample analytics snapshot and approves it on the simulate
   const sample = await generateTestSample("improving");
   expect(sample.rows.length).toBeGreaterThan(0);
   const body = confirmed(summarizeAnalyticsRows(sample.rows));
+  expect(Object.keys(body.rcAccuracyByType).sort()).toEqual(["Art", "Comparative", "Humanities", "Law", "Science"]);
   const response = await approval({ ...body, extraction: { source: "admin_sample", extractedAt: sample.extractedAt } });
   expect(response.status).toBe(201);
   const [snapshot] = await listApprovedAnalyticsSnapshots(saved.id);
-  expect(snapshot).toMatchObject({ weekOf: "2027-03-08", extraction: { source: "admin_sample" } });
+  expect(snapshot).toMatchObject({ weekOf: "2027-03-08", extraction: { source: "admin_sample" }, rcAccuracyByType: body.rcAccuracyByType });
   expect(snapshot.approvedAt.slice(0, 10)).toMatch(/^2027-03-0[89]$/);
   const next = await generateTestSample("steady");
   expect(next.rows.length).toBeGreaterThan(0);
