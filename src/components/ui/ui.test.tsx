@@ -171,6 +171,22 @@ describe("DropZone", () => {
     expect(onFile).toHaveBeenCalledWith(file);
   });
 
+  it("hands over every file chosen or dropped at once when it takes several", async () => {
+    const onFiles = vi.fn();
+    const sections = ["s1", "s2", "s3", "s4"].map((name) => new File(["png"], `${name}.png`, { type: "image/png" }));
+    const { container } = render(<DropZone multiple label="All 4 section screenshots" onFiles={onFiles} />);
+    const zone = screen.getByRole("button", { name: /All 4 section screenshots/ });
+    expect(zone.textContent).toContain("Drop them here together or choose files");
+    const input = container.querySelector<HTMLInputElement>("input[type=file]")!;
+    expect(input.multiple).toBe(true);
+    await userEvent.upload(input, sections);
+    expect(onFiles).toHaveBeenLastCalledWith(sections);
+    fireEvent.dragOver(zone, { dataTransfer: { files: sections } });
+    expect(zone.textContent).toContain("Drop to add them");
+    fireEvent.drop(zone, { dataTransfer: { files: sections.slice(0, 2) } });
+    expect(onFiles).toHaveBeenLastCalledWith(sections.slice(0, 2));
+  });
+
   it("names the error under the zone", () => {
     render(<DropZone label="Reading Comprehension screenshot" error="That file is 12.4 MB. Choose one that is 5 MB or less." onFile={vi.fn()} />);
     const zone = screen.getByRole("button", { name: /Reading Comprehension screenshot/ });

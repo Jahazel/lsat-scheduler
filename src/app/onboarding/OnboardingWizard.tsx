@@ -14,6 +14,7 @@ import { DurationSelect } from "@/components/DailyCapacityFieldset";
 import { Checkbox as SharedCheckbox } from "@/components/ui/Checkbox";
 import { IconButton } from "@/components/ui/Button";
 import { DropZone } from "@/components/ui/DropZone";
+import { FileRow } from "@/components/ui/FileRow";
 import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
 import { DAY_ORDER } from "@/lib/engine";
 import { SECTION_NAME, SECTIONS, lowestPassageType, type ReviewRow, type SnapshotReview, type Statement } from "@/lib/analyticsReview";
@@ -601,7 +602,7 @@ function SectionUpload({
           if (file) onFile(file);
         }}
       />
-      <FileRow
+      <ScreenshotFileRow
         section={section}
         screenshot={screenshot}
         rejection={rejection}
@@ -653,7 +654,7 @@ function readSummary(section: AnalyticsSection, count: number) {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
-function FileRow({
+function ScreenshotFileRow({
   section,
   screenshot,
   rejection,
@@ -678,31 +679,29 @@ function FileRow({
 
   return (
     <div className="flex flex-col gap-3">
-      <div ref={row} tabIndex={-1} className="flex flex-col gap-4 rounded-sm border border-vellum-line p-4 outline-none">
-        <div className="flex items-center gap-4">
-          <span aria-hidden className="flex h-12 w-16 shrink-0 flex-col justify-center gap-1 rounded border border-vellum-line bg-vellum p-2">
-            <span className="h-[3px] w-9 rounded-sm bg-ink/30" />
-            <span className="h-[3px] w-11 rounded-sm bg-ink/20" />
-            <span className="h-[3px] w-7 rounded-sm bg-ink/20" />
-            <span className="h-[3px] w-10 rounded-sm bg-ink/20" />
-          </span>
-          <div className="flex min-w-0 grow flex-col gap-0.5 text-small">
-            <span className="font-medium text-ink">{SECTION_NAME[section]}</span>
-            <span aria-live="polite" className={`flex min-w-0 items-center gap-1.5 ${problem ? "text-danger-ink" : "text-smoke"}`}>
-              {status === "read" && (
-                <svg aria-hidden viewBox="0 0 12 12" className="size-3 shrink-0 text-success-ink">
-                  <path d="M2.5 6.2l2.3 2.3 4.7-5" fill="none" className="stroke-current" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              )}
-              <span className="truncate">
-                {screenshot.file.name} · {statusText}
-              </span>
+      <FileRow
+        ref={row}
+        tabIndex={-1}
+        className="gap-4"
+        title={SECTION_NAME[section]}
+        detail={
+          <span aria-live="polite" className={`flex min-w-0 items-center gap-1.5 ${problem ? "text-danger-ink" : "text-smoke"}`}>
+            {status === "read" && (
+              <svg aria-hidden viewBox="0 0 12 12" className="size-3 shrink-0 text-success-ink">
+                <path d="M2.5 6.2l2.3 2.3 4.7-5" fill="none" className="stroke-current" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+            <span className="truncate">
+              {screenshot.file.name} · {statusText}
             </span>
-          </div>
+          </span>
+        }
+        action={
           <button type="button" onClick={onChoose} className={`shrink-0 text-small ${LINK_BUTTON}`}>
             Replace
           </button>
-        </div>
+        }
+      >
         {status === "reading" && (
           <div role="progressbar" aria-label={`Reading your ${SECTION_NAME[section]} screenshot`} className="h-1 overflow-hidden rounded-sm bg-vellum">
             <div className="h-1 w-3/5 rounded-sm bg-accent" />
@@ -732,7 +731,7 @@ function FileRow({
             </button>
           </>
         )}
-      </div>
+      </FileRow>
       {rejection && (
         <p role="alert" className="text-small text-danger-ink">
           {rejection}

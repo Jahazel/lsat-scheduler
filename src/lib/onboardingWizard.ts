@@ -21,7 +21,7 @@ import { summarizeAnalyticsRows } from "./analytics";
 import type { SnapshotApprovalMetadata } from "./analyticsSnapshots";
 import { currentWeekInTimezone } from "./currentWeeklySchedule";
 import { DAY_ORDER, generateWeek } from "./engine";
-import { formatDuration } from "./formatDuration";
+import { formatDuration, shortDuration } from "./formatDuration";
 import { mockRules } from "./mockData";
 import type { ExtractReply } from "./screenshotUpload";
 import {
@@ -237,8 +237,6 @@ function updateAttemptRow(state: WizardState, id: number, update: Partial<Attemp
 function testTimeName(accommodation: Accommodation): string {
   return accommodation === 1 ? "standard time" : TEST_TIME_LABEL[accommodation];
 }
-
-const shortDuration = (minutes: number) => formatDuration(minutes).replace(/(h \d+) min$/, "$1");
 
 export function practiceTestMinutes(accommodation: Accommodation): number {
   return Math.round(mockRules.ptDurationMinutes * mockRules.accommodationTimeMultiplier[accommodation]);

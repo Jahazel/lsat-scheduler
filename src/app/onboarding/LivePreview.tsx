@@ -5,6 +5,7 @@ import { DAY_LABEL } from "@/lib/studentProfile";
 import { SECTION_NAME, SECTIONS } from "@/lib/analyticsReview";
 import { previewDrills, previewHeader, previewWeek, type PreviewDrill, type WizardState } from "@/lib/onboardingWizard";
 import type { AnalyticsSection, DayOfWeek } from "@/lib/types";
+import { DrillList, WeekTiles, type DrillItem } from "@/components/WeekPreview";
 
 const SKELETON = "h-2 rounded bg-vellum";
 
@@ -27,7 +28,7 @@ export default function LivePreview({ state, firstName, initials, today }: LiveP
         })}
         <div className="flex flex-col gap-2.5 rounded-sm border border-vellum-line bg-paper p-4">
           {drills ? (
-            <DrillList title={`Your ${DAY_LABEL[drills.day]} from these values`} tag="Not confirmed yet" items={drills.items} />
+            <DrillList title={`Your ${DAY_LABEL[drills.day]} from these values`} tag="Not confirmed yet" items={drillItems(drills.items)} />
           ) : (
             <p className="text-small text-smoke">No drilling days left this week.</p>
           )}
@@ -68,7 +69,7 @@ export default function LivePreview({ state, firstName, initials, today }: LiveP
           {state.step !== "goal" &&
             (drills ? (
               <div className="flex flex-col gap-2.5 rounded-sm border border-vellum-line bg-paper p-5">
-                <DrillList title={`${DAY_LABEL[drills.day]}'s drills`} tag="Extracted · not confirmed" items={drills.items} />
+                <DrillList title={`${DAY_LABEL[drills.day]}'s drills`} tag="Extracted · not confirmed" items={drillItems(drills.items)} />
               </div>
             ) : (
               <div className="flex flex-col gap-3 rounded-sm border border-dashed border-vellum-line p-5">
@@ -99,8 +100,6 @@ function SkeletonDays() {
   );
 }
 
-const BAR_MAX_PX = 130;
-
 function Week({ state, drillDay }: { state: WizardState; drillDay: DayOfWeek | null }) {
   const week = previewWeek(state.values);
   return (
@@ -109,66 +108,17 @@ function Week({ state, drillDay }: { state: WizardState; drillDay: DayOfWeek | n
         <span className="text-body font-semibold text-ink">Your week</span>
         <span className="text-small text-smoke">{week.summary}</span>
       </p>
-      <ol className="flex max-w-[636px] gap-1 min-[1440px]:gap-2">
-        {week.days.map(({ day, label, time, practiceTest, barShare }) => (
-          <li
-            key={day}
-            className={`flex h-[200px] min-w-0 max-w-[84px] flex-1 flex-col justify-between rounded-sm border bg-paper p-2 min-[1440px]:p-3 ${
-              practiceTest ? "border-accent" : day === drillDay ? "border-ink" : "border-vellum-line"
-            }`}
-          >
-            <span className="flex flex-col gap-0.5">
-              <span className={`text-caption ${practiceTest ? "text-accent" : "text-smoke"}`}>{label}</span>
-              <span className="whitespace-nowrap text-small font-semibold text-ink min-[1440px]:text-body">{time}</span>
-            </span>
-            <span
-              className={`flex w-full items-end rounded ${practiceTest ? "bg-ink p-2 text-caption font-medium leading-[14px] text-chalk" : "bg-accent/14"}`}
-              style={{ height: Math.round(barShare * BAR_MAX_PX) }}
-            >
-              {practiceTest && "PT"}
-            </span>
-          </li>
-        ))}
-      </ol>
+      <WeekTiles days={week.days} highlight={drillDay} />
     </>
   );
 }
 
-function FlagIcon() {
-  return (
-    <svg aria-hidden viewBox="0 0 10 10" className="size-2.5" fill="currentColor" stroke="currentColor" strokeLinejoin="round">
-      <path d="M2 9V1.5h5.5L6.5 3.5l1 2H2" />
-    </svg>
-  );
-}
-
-function DrillList({ title, tag, items }: { title: string; tag: string; items: PreviewDrill[] }) {
-  return (
-    <>
-      <p className="flex items-center gap-3">
-        <span className="text-small font-semibold text-ink">{title}</span>
-        <span className="flex items-center gap-1.5 rounded-full border border-dashed border-accent px-2 py-0.5 text-caption text-accent">
-          <span aria-hidden className="size-1.5 rounded-full border border-accent" />
-          {tag}
-        </span>
-      </p>
-      <ul className="flex flex-col gap-2.5">
-        {items.map(({ minutes, label, detail }, index) => (
-          <li key={index} className="flex min-h-10 items-center gap-4 rounded-sm border border-dashed border-accent/55 bg-accent/4 px-3">
-            <span className="w-[52px] shrink-0 font-mono text-caption text-smoke">{minutes}</span>
-            <span className="text-small font-medium text-ink">{label}</span>
-            {detail?.kind === "accuracy" && <span className="font-mono text-caption text-accent">{detail.text}</span>}
-            {detail?.kind === "flag" && (
-              <span className="flex items-center gap-[5px] text-caption text-accent">
-                <FlagIcon />
-                Priority flag
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
-    </>
-  );
+function drillItems(drills: PreviewDrill[]): DrillItem[] {
+  return drills.map(({ minutes, label, detail }) => ({
+    minutes,
+    label,
+    detail: detail?.kind === "flag" ? { kind: "flag", text: "Priority flag" } : detail,
+  }));
 }
 
 function ScreenshotCard({ section, file }: { section: AnalyticsSection; file: File }) {
