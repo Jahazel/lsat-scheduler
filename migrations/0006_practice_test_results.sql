@@ -24,3 +24,14 @@ CREATE INDEX practice_test_results_student_approved_at ON practice_test_results 
 CREATE TRIGGER practice_test_results_set_updated_at
 BEFORE UPDATE ON practice_test_results
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+--> statement-breakpoint
+DO $$
+DECLARE
+  app_role text := coalesce(nullif(current_setting('drillmap.app_role', true), ''), 'drillmap_app');
+BEGIN
+  REVOKE ALL PRIVILEGES ON TABLE practice_test_results FROM PUBLIC;
+  IF EXISTS (SELECT FROM pg_roles WHERE rolname = app_role) THEN
+    EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE practice_test_results TO %I', app_role);
+  END IF;
+END;
+$$;
