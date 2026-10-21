@@ -69,7 +69,7 @@ export const PT158_FIXTURES: PracticeTestFixture[] = [
         { question: 15, result: "correct", tags: ["CausR", "LinkA", "NA"] },
         { question: 16, result: "correct", tags: ["CondR", "Diag", "KIU", "MBT", "Quant"] },
         { question: 17, result: "correct", tags: ["CausR", "Exc", "Para", "RuleApp"] },
-        { question: 18, result: "correct", tags: ["AP"] },
+        { question: 18, result: "hidden", tags: ["AP"] },
         { question: 19, result: "correct", tags: ["CondR", "Diag", "LinkA", "SA"] },
         { question: 20, result: "correct", tags: ["CondR", "Diag", "Inf", "Quant"] },
         { question: 21, result: "correct", tags: ["LinkA", "NA"] },

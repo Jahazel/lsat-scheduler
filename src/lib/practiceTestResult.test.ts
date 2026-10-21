@@ -22,7 +22,7 @@ function lrRows(file: SectionReading): LRRow[] {
 }
 
 describe("practice-test result", () => {
-  it("finds 8 missed LR questions in PrepTest 158, with Flaw or descriptive weakening first at 2", () => {
+  it("finds 8 missed LR questions in PrepTest 158, with Flaw or descriptive weakening first at 2 and S3 Q18 settled as right by its -4 score", () => {
     const found = result(readings());
     expect(found.prepTest).toBe(158);
     expect(found.missedQuestions).toBe(8);
@@ -48,22 +48,17 @@ describe("practice-test result", () => {
       { section: 3, kind: "LR", score: -4, missed: 4 },
       { section: 4, kind: "LR", score: -2, missed: 2 },
     ]);
-    expect(found.hiddenResults).toEqual([]);
-  });
-
-  it("settles a hidden S3 Q18 as right when the -4 score already has its 4 misses", () => {
-    const files = readings();
-    lrRows(files[2])[17].result = "hidden";
-    const found = result(files);
     expect(found.hiddenResults).toEqual([{ section: 3, question: 18, result: "correct", settledBy: "score" }]);
-    expect(found.missedQuestions).toBe(8);
   });
 
   it("counts hidden rows as missed when the score needs all of them", () => {
     const files = readings();
     lrRows(files[1])[17].result = "hidden";
     const found = result(files);
-    expect(found.hiddenResults).toEqual([{ section: 2, question: 18, result: "missed", settledBy: "score" }]);
+    expect(found.hiddenResults).toEqual([
+      { section: 2, question: 18, result: "missed", settledBy: "score" },
+      { section: 3, question: 18, result: "correct", settledBy: "score" },
+    ]);
     expect(found.missedStemTypes[0].misses).toEqual([
       { section: 2, question: 18, result: "hidden" }, { section: 4, question: 18, result: "wrong" },
     ]);
