@@ -164,7 +164,10 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   const analyticsRead = SECTIONS.every((section) => analytics[section]?.read.status === "read");
   const allAdded = SECTIONS.every((section) => analytics[section]) && (!needsSections || sections.length >= SECTION_COUNT);
   const anyReading = [...SECTIONS.map((section) => analytics[section]), ...sections].some((upload) => upload?.read.status === "reading");
-  const found = started && analyticsRead && (!needsSections || practiceTest !== null);
+  const found = started && analyticsRead && (!needsSections || (practiceTest !== null && !anyUnreadable));
+  const replacementRejected = SECTIONS.some((section) => rejections[section])
+    || sections.some((upload) => rejections[`file-${upload.id}`]);
+  const summarized = found && !replacementRejected;
   const ready = found && score !== null;
 
   const analyticsRows = SECTIONS.flatMap((section) => {
@@ -232,11 +235,11 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
             : "From your study settings. Type a new score if your latest practice test changed it. We save it there too."}
         />
 
-        {found && (
+        {summarized && (
           <ReadSummary analytics={analytics} sections={sections} onAnalytics={addAnalytics} onReplace={replaceSection} />
         )}
 
-        <UploadGroup title="7Sage analytics" count="2 screenshots" className={found ? "max-md:hidden" : undefined}>
+        <UploadGroup title="7Sage analytics" count="2 screenshots" className={summarized ? "max-md:hidden" : undefined}>
           {SECTIONS.map((section) => (
             <AnalyticsRow
               key={section}
@@ -253,7 +256,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
           <UploadGroup
             title="Practice test review"
             count={<><span className="md:hidden">One per section</span><span className="hidden md:inline">4 screenshots, one per section</span></>}
-            className={found ? "max-md:hidden" : undefined}
+            className={summarized ? "max-md:hidden" : undefined}
           >
             {!started ? (
               <>

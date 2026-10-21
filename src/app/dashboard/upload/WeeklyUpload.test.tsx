@@ -285,6 +285,29 @@ describe("WeeklyUpload", () => {
     expect(button("Check the values").disabled).toBe(true);
   });
 
+  it("keeps the button off while any section file could not be read, even with all 4 sections read", async () => {
+    stubServer({ "unreadable.png": new Response(null, { status: 502 }) });
+    const { user } = setup();
+    await readAll(user, ["pt158-s1.png", "pt158-s2.png", "pt158-s3.png", "wrong.png"]);
+    await user.upload(screen.getByLabelText("Section 4 is missing file"), png("pt158-s4.png"));
+    expect(await screen.findByText("pt158-s4.png · score −2")).toBeDefined();
+
+    await user.upload(screen.getAllByLabelText("Replacement for wrong.png")[0], png("unreadable.png"));
+    expect(await screen.findByText("Couldn't read that screenshot. Try again or a clearer image.")).toBeDefined();
+    expect(button("Check the values").disabled).toBe(true);
+  });
+
+  it("shows a rejected replacement on its full file row, not only in the phone summary", async () => {
+    stubServer();
+    const { user } = setup();
+    await readAll(user);
+    const tooLarge = new File([new Uint8Array(5 * 1024 * 1024)], "huge.png", { type: "image/png" });
+    await user.upload(screen.getAllByLabelText("Replacement for pt158-s2.png")[0], tooLarge);
+    const message = screen.getByText("That file is 5.0 MB. Choose one that is 4 MB or less.");
+    expect(message.closest(".max-md\\:hidden")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Screenshots" })).toBeNull();
+  });
+
   it.each([
     ["a section from another practice test", { ...sample(4), prepTest: 157 }, "This is practice test 157. Your other sections are from practice test 158. Add the 4 sections of one practice test."],
     ["a score that does not match the misses read", { ...sample(4), score: -3 }, "The score of −3 does not match the 2 missed questions we read. Take the screenshot again with every result in view."],
