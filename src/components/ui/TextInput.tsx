@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, type InputHTMLAttributes } from "react";
-import { FOCUS, cx } from "./classes";
+import { FOCUS, MOTION, cx } from "./classes";
 
 export type TextInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "id"> & {
   label: string;
@@ -23,9 +23,10 @@ export function TextInput({ label, helper, error, disabled, className, ...props 
         aria-invalid={error ? true : undefined}
         aria-describedby={note ? `${id}-note` : undefined}
         className={cx(
-          "h-11 w-full rounded-md border bg-paper px-4 text-small text-ink placeholder:text-fog transition-colors duration-150 ease-out",
+          "h-11 w-full rounded-md border bg-paper px-4 text-small text-ink placeholder:text-fog",
           error ? "border-danger-ink" : "border-vellum-line hover:border-fog",
           "disabled:bg-vellum disabled:hover:border-vellum-line",
+          MOTION,
           FOCUS,
         )}
         {...props}

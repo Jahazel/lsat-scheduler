@@ -44,8 +44,8 @@ export function ProgressBar({ done, total, dueSoFar, className }: ProgressBarPro
           )}
         </div>
         {today !== null && (
-          <div className="relative flex h-4.5 items-center justify-end">
-            <span className="absolute -translate-x-1/2 text-caption text-smoke" style={{ left: `${today.at}%` }}>Today</span>
+          <div className={cx("relative flex h-4.5 items-center", today.at > 75 ? "justify-start" : "justify-end")}>
+            <span className="absolute -translate-x-1/2 text-caption text-smoke" style={{ left: `clamp(18px, ${today.at}%, calc(100% - 18px))` }}>Today</span>
             <PaceStatus done={done} dueSoFar={today.dueSoFar} />
           </div>
         )}

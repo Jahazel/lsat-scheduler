@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { FOCUS, cx } from "@/components/ui/classes";
+import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { NavTab } from "@/components/ui/NavTab";
 import { NavIcon } from "./NavIcon";
 import { DESKTOP_BAR, Logo, MOBILE_BAR, TABS, isTabActive } from "./shared";
@@ -62,8 +62,9 @@ function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<S
         aria-label={`Account menu for ${email}`}
         onClick={() => setOpen((wasOpen) => !wasOpen)}
         className={cx(
-          "flex shrink-0 items-center justify-center rounded-pill bg-vellum font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum-line",
+          "flex shrink-0 items-center justify-center rounded-pill bg-vellum font-medium text-ink hover:bg-vellum-line",
           compact ? "size-8 text-caption" : "size-10 text-small",
+          MOTION,
           FOCUS,
         )}
       >

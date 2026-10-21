@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useRef, useState, type DragEvent } from "react";
-import { FOCUS, cx } from "./classes";
+import { FOCUS, MOTION, cx } from "./classes";
 
 export type DropZoneProps = {
   label: string;
@@ -46,12 +46,13 @@ export function DropZone({ label, accept, error, onFile, className }: DropZonePr
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         className={cx(
-          "flex h-[104px] w-full items-center gap-4 rounded-md border-[1.5px] border-dashed px-6 text-left transition-colors duration-150 ease-out",
+          "flex h-[104px] w-full items-center gap-4 rounded-md border-[1.5px] border-dashed px-6 text-left",
           dragging
             ? "border-accent bg-accent/faint"
             : error
               ? "border-danger-ink bg-vellum"
               : "border-ink/muted bg-vellum hover:border-ink",
+          MOTION,
           FOCUS,
         )}
       >

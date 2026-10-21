@@ -1,5 +1,5 @@
 import type { InputHTMLAttributes, ReactNode } from "react";
-import { FOCUS, cx } from "./classes";
+import { FOCUS, MOTION, cx } from "./classes";
 
 export type CheckboxProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { label: ReactNode };
 
@@ -10,8 +10,9 @@ export function Checkbox({ label, className, ...props }: CheckboxProps) {
         <input
           type="checkbox"
           className={cx(
-            "peer size-4 cursor-pointer appearance-none rounded-[4px] border border-smoke bg-paper transition-colors duration-150 ease-out",
-            "group-hover:border-ink group-hover:not-checked:bg-vellum checked:border-ink checked:bg-ink",
+            "peer size-4 cursor-pointer appearance-none rounded-[4px] border border-smoke bg-paper",
+            "group-hover:border-ink group-hover:not-checked:bg-vellum focus-visible:border-ink checked:border-ink checked:bg-ink",
+            MOTION,
             FOCUS,
           )}
           {...props}

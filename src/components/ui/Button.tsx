@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ButtonHTMLAttributes, ComponentProps } from "react";
-import { FOCUS, cx } from "./classes";
+import { FOCUS, MOTION, cx } from "./classes";
 
 export type ButtonVariant = "primary" | "outline" | "text";
 export type ButtonSize = "lg" | "md";
@@ -18,10 +18,11 @@ const SIZES: Record<ButtonSize, string> = {
 
 export function buttonClass({ variant = "primary", size = "lg" }: { variant?: ButtonVariant; size?: ButtonSize } = {}) {
   return cx(
-    "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-pill font-medium transition-colors duration-150 ease-out",
+    "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-pill font-medium",
     "disabled:pointer-events-none disabled:opacity-muted",
     VARIANTS[variant],
     SIZES[size],
+    MOTION,
     FOCUS,
   );
 }
@@ -48,9 +49,10 @@ export function IconButton({
       type={type}
       aria-label={label}
       className={cx(
-        "inline-flex shrink-0 items-center justify-center rounded-pill text-ink transition-colors duration-150 ease-out hover:bg-vellum-line",
+        "inline-flex shrink-0 items-center justify-center rounded-pill text-ink hover:bg-vellum-line",
         "disabled:pointer-events-none disabled:opacity-muted",
         size === "md" ? "size-8 [&_svg]:size-3.5" : "size-7 [&_svg]:size-2.5",
+        MOTION,
         FOCUS,
         className,
       )}

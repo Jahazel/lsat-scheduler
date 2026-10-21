@@ -103,6 +103,7 @@ describe("Checkbox", () => {
     await userEvent.tab();
     expect(box).toBe(document.activeElement);
     expect(box.className).toContain(RING);
+    expect(box.className).toContain("focus-visible:border-ink");
     await userEvent.keyboard(" ");
     expect(isChecked(box)).toBe(true);
     await userEvent.click(screen.getByText("Link assumption"));
@@ -150,6 +151,7 @@ describe("DropZone", () => {
     const zone = screen.getByRole("button", { name: /Logical Reasoning screenshot/ });
     expect(zone).toBe(document.activeElement);
     expect(zone.className).toContain(RING);
+    expect(zone.className).toMatch(/border-ink\/muted.*bg-vellum.*hover:border-ink/);
     await userEvent.keyboard("{Enter}");
     expect(pick).toHaveBeenCalledOnce();
     await userEvent.upload(input, file);
@@ -163,6 +165,7 @@ describe("DropZone", () => {
     fireEvent.dragOver(zone, { dataTransfer: { files: [file] } });
     expect(zone.getAttribute("data-state")).toBe("drag-over");
     expect(zone.textContent).toContain("Drop to add it");
+    expect(zone.className).toMatch(/border-accent bg-accent\/faint/);
     fireEvent.drop(zone, { dataTransfer: { files: [file] } });
     expect(zone.getAttribute("data-state")).toBe("idle");
     expect(onFile).toHaveBeenCalledWith(file);
@@ -172,6 +175,7 @@ describe("DropZone", () => {
     render(<DropZone label="Reading Comprehension screenshot" error="That file is 12.4 MB. Choose one that is 5 MB or less." onFile={vi.fn()} />);
     const zone = screen.getByRole("button", { name: /Reading Comprehension screenshot/ });
     expect(zone.getAttribute("data-state")).toBe("error");
+    expect(zone.className).toMatch(/border-danger-ink bg-vellum/);
     expect(description(zone)).toBe("That file is 12.4 MB. Choose one that is 5 MB or less.");
   });
 });
@@ -187,6 +191,11 @@ describe("ProgressBar", () => {
     expect(screen.getByText(`${done} of 11 done`)).toBeTruthy();
     expect(screen.getByText(pace)).toBeTruthy();
     expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe(String(done));
+  });
+
+  it("moves the pace status left when today nears the end of the track", () => {
+    render(<ProgressBar done={9} total={11} dueSoFar={11} />);
+    expect(screen.getByText("2 behind").parentElement?.className).toContain("justify-start");
   });
 
   it("has no today tick or pace without a due count", () => {
