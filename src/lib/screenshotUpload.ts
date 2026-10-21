@@ -4,7 +4,7 @@ import type { AnalyticsExtractedRow, AnalyticsSection } from "./types";
 export const SCREENSHOT_MEDIA_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 export type ScreenshotMediaType = (typeof SCREENSHOT_MEDIA_TYPES)[number];
 
-const MAX_SCREENSHOT_MB = 4;
+export const MAX_SCREENSHOT_MB = 4;
 const MAX_SCREENSHOT_BYTES = MAX_SCREENSHOT_MB * 1024 * 1024;
 export const SCREENSHOT_LIMITS = `PNG, JPG, or WEBP · ${MAX_SCREENSHOT_MB} MB or less`;
 

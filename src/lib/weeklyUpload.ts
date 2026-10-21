@@ -50,7 +50,7 @@ export function nextWeekBasis({ now, timezone, student, schedules, snapshots }: 
 }
 
 export function nextWeekAnalytics(basis: NextWeekBasis, rows: AnalyticsExtractedRow[]): AnalyticsSnapshot {
-  const read = summarizeAnalyticsRows(rows) as Omit<AnalyticsSnapshot, "weekOf">;
+  const read = summarizeAnalyticsRows(rows);
   return weightedTrend([read, ...basis.priorSnapshots], basis.weekOf);
 }
 
@@ -111,7 +111,7 @@ export function firstDrills(schedule: WeeklySchedule, goesFirst: LRStemType | un
   const day = DAY_ORDER.find((weekday) => schedule.days[weekday].type === "drill" && schedule.days[weekday].activities.length > 0);
   if (!day) return null;
   const activities = schedule.days[day].activities;
-  const flagged = activities.findIndex((activity) => activity.kind === "LR" && !activity.isFullSection && activity.types.includes(goesFirst as LRStemType));
+  const flagged = activities.findIndex((activity) => goesFirst !== undefined && activity.kind === "LR" && !activity.isFullSection && activity.types.includes(goesFirst));
   return {
     day,
     items: activities.map((activity, index) => ({

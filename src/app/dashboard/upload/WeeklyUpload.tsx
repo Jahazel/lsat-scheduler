@@ -14,7 +14,7 @@ import {
   reviewPracticeTest, type HiddenPick, type PracticeTestProblem, type PracticeTestResult, type SectionReading,
 } from "@/lib/practiceTestResult";
 import {
-  CANNOT_READ, SCREENSHOT_MEDIA_TYPES, checkScreenshot, extractPracticeTestScreenshot, readAnalyticsScreenshot,
+  CANNOT_READ, MAX_SCREENSHOT_MB, SCREENSHOT_MEDIA_TYPES, checkScreenshot, extractPracticeTestScreenshot, readAnalyticsScreenshot,
 } from "@/lib/screenshotUpload";
 import { DAY_LABEL } from "@/lib/studentProfile";
 import { mostMissedType } from "@/lib/engine";
@@ -31,7 +31,7 @@ const TOP_TYPES = 3;
 const LINK_BUTTON = cx("shrink-0 text-small font-medium text-ink underline underline-offset-3", MOTION, FOCUS);
 const SCORE_ERROR = `Enter a score from ${MIN_SCORE} to ${MAX_SCORE}.`;
 const SCORE_HINT = `Enter a score from ${MIN_SCORE} to ${MAX_SCORE} to continue.`;
-const LIMITS = "PNG, JPG, or WEBP, 4 MB or less each. Tall screenshots are fine.";
+const LIMITS = `PNG, JPG, or WEBP, ${MAX_SCREENSHOT_MB} MB or less each. Tall screenshots are fine.`;
 
 type Read<T> =
   | { status: "added" }
