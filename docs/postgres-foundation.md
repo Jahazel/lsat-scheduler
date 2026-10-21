@@ -105,7 +105,7 @@ application tables. Issue #96 adds the six domain tables in
 
 ## Domain tables
 
-All six tables create UUID ids with Postgres `gen_random_uuid()`. Accounts
+All seven tables create UUID ids with Postgres `gen_random_uuid()`. Accounts
 keep the current email, name, optional password hash, role, and optional
 Simulated date. Later migrations can add Stage 4 fields with `ALTER TABLE`.
 
@@ -115,12 +115,13 @@ Simulated date. Later migrations can add Stage 4 fields with `ALTER TABLE`.
 | `students` | One student per Account through unique `account_id` |
 | `leads` | Separate from Accounts, with its own unique normalized email |
 | `analytics_snapshots` | Each Analytics snapshot belongs to a student |
+| `practice_test_results` | Each Practice-test result belongs to a student |
 | `weekly_schedules` | One Weekly schedule per student and `week_start_date` |
 | `activity_check_ins` | One Activity check-in per `schedule_id` and `activity_id` |
 
 Every owner link deletes its child records when the owner is deleted.
 Deleting an Account therefore removes its student, Analytics snapshots,
-Weekly schedules, and Activity check-ins. It keeps leads and other Accounts.
+Practice-test results, Weekly schedules, and Activity check-ins. It keeps leads and other Accounts.
 An Account can exist before onboarding creates its student.
 
 Accounts and leads normalize emails on insert and update. Database checks
@@ -185,7 +186,7 @@ password when it runs again. Neon setup and checks belong to the later
 Stage 2 copy-database setup ticket.
 
 The role can connect, use the `public` schema, and select, insert, and delete
-rows in all six domain tables. It can update every domain table except
+rows in all seven domain tables. It can update every domain table except
 `weekly_schedules`. The Weekly schedule trigger stays in place as a second
 protection for the database owner. The app role cannot create roles,
 databases, schemas, tables, temporary tables, or other schema objects.
@@ -196,7 +197,7 @@ Future migrations must grant any new app-table permissions explicitly.
 
 `PUBLIC` is Postgres's group of every role. Its permissions also apply to
 the app role. The SQL removes `PUBLIC`'s database creation and temporary-table
-permissions, schema creation permission, and permissions on the six domain
+permissions, schema creation permission, and permissions on the seven domain
 tables. Other logins that need those rights must receive explicit grants.
 The database owner keeps its ownership rights. See [Postgres's grant rules](https://www.postgresql.org/docs/17/sql-grant.html).
 
@@ -280,7 +281,7 @@ encrypted connection before forwarding it to Postgres, so `pg_stat_ssl` inside
 Postgres does not prove whether the client connection is encrypted.
 Local runs explicitly report that remote encryption remains untested.
 
-The command checks app reads and writes on all six tables, refused role,
+The command checks app reads and writes on all seven tables, refused role,
 database, and table creation, immutable Weekly schedules, owner links,
 uniqueness, invalid values, fixed Activity check-in ownership, and Account
 deletion. Each run uses randomly named throwaway records. Every record change

@@ -44,7 +44,7 @@ it("checks the foundation as the limited login and leaves existing records untou
     expectNoSecret(result.output);
     expect((await database.owner.execute(sql`select * from accounts`)).rows).toEqual(before.rows);
     expect((await database.owner.execute(sql`select email from leads`)).rows).toEqual([{ email: "keep@example.test" }]);
-    for (const table of ["students", "analytics_snapshots", "weekly_schedules", "activity_check_ins"]) {
+    for (const table of ["students", "analytics_snapshots", "practice_test_results", "weekly_schedules", "activity_check_ins"]) {
       expect((await database.owner.execute(sql`select * from ${sql.identifier(table)}`)).rows).toEqual([]);
     }
   }

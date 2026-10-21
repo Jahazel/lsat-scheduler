@@ -3,6 +3,7 @@ import type {
   Activity, ActivityCheckInStatus, AnalyticsSnapshot, DayOfWeek, DayPlan, LRType, PersistedWeeklySchedule, RCType, Student,
   WeeklySchedule,
 } from "./types";
+import type { PracticeTestResult } from "./practiceTestResult";
 import type { OfficialAttempt } from "./studentProfile";
 
 type SavedOneTypeActivity = { drillMinutes: number; reviewMinutes?: number; isFullSection: boolean } & (
@@ -64,6 +65,22 @@ export const analyticsSnapshots = pgTable("analytics_snapshots", {
   extractedAt: timestamp("extracted_at", { withTimezone: true }).notNull(),
   extractedValuesMatch: boolean("extracted_values_match").notNull(),
   isLatestAnalytics: boolean("is_latest_analytics").notNull(),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }).notNull(),
+});
+
+export const practiceTestResults = pgTable("practice_test_results", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  studentId: uuid("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
+  weekOf: date("week_of", { mode: "string" }).notNull(),
+  prepTest: integer("prep_test").notNull(),
+  sections: jsonb("sections").$type<PracticeTestResult["sections"]>().notNull(),
+  hiddenResults: jsonb("hidden_results").$type<PracticeTestResult["hiddenResults"]>().notNull().default([]),
+  missedStemTypeCounts: jsonb("missed_stem_type_counts").$type<PracticeTestResult["missedStemTypeCounts"]>().notNull(),
+  approvedAt: timestamp("approved_at", { withTimezone: true }).notNull(),
+  extractionSource: text("extraction_source", { enum: ["7sage_screenshot", "admin_sample"] }).notNull(),
+  extractedAt: timestamp("extracted_at", { withTimezone: true }).notNull(),
+  extractedValuesMatch: boolean("extracted_values_match").notNull(),
+  isThisWeeksPracticeTest: boolean("is_this_weeks_practice_test").notNull(),
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }).notNull(),
 });
 

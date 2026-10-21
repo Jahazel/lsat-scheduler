@@ -1,4 +1,7 @@
-import { categoryFor, extractAnalyticsRowsFromImage } from "./claudeExtract";
+import { createHash } from "node:crypto";
+import { categoryFor, extractAnalyticsRowsFromImage, readPracticeTestSectionFromImage } from "./claudeExtract";
+import { PT158_FIXTURES } from "./practiceTestFixtures/pt158";
+import type { SectionReading } from "./practiceTestResult";
 import type { ScreenshotMediaType } from "./screenshotUpload";
 import type { AnalyticsExtractedRow, AnalyticsSection, LRExtractedRow, PassageExtractedRow, RulesConfig } from "./types";
 
@@ -32,6 +35,23 @@ export async function extractAnalyticsRows(
     case "fake":
       if (section === "RC") return FAKE_PASSAGE_ROWS;
       return FAKE_ROWS.map((row) => ({ ...row, category: categoryFor(row.type, rules) }));
+    case "fake-failure":
+      throw new Error("Fake screenshot extractor failed on request");
+    default:
+      throw new Error(`Unknown SCREENSHOT_EXTRACTOR value: ${setting}`);
+  }
+}
+
+export async function extractPracticeTestSection(imageBuffer: Buffer, mediaType: ScreenshotMediaType): Promise<SectionReading> {
+  const setting = process.env.SCREENSHOT_EXTRACTOR;
+  switch (setting) {
+    case undefined:
+    case "":
+      return readPracticeTestSectionFromImage(imageBuffer, mediaType);
+    case "fake": {
+      const sha256 = createHash("sha256").update(imageBuffer).digest("hex");
+      return PT158_FIXTURES.find((fixture) => fixture.sha256 === sha256)?.reading ?? { page: "other" };
+    }
     case "fake-failure":
       throw new Error("Fake screenshot extractor failed on request");
     default:
