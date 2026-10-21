@@ -484,7 +484,6 @@ describe("loadOrGenerateCurrentWeek", () => {
 
 
   describe("upload window", () => {
-    // Week of Sep 14: Saturday is Sep 19, next Monday is Sep 21 (Chicago, UTC−5).
     const saturdayNoon = "2026-09-19T17:00:00.000Z";
     const load = (repositories: ReturnType<typeof inMemoryRepositories>, now: string, student = mockStudent) =>
       loadOrGenerateCurrentWeek({

@@ -53,7 +53,6 @@ export type PracticeTestApprovalInput = z.input<typeof PracticeTestApprovalSchem
 export interface WeeklyUploadApprovalOptions {
   allowAdminSample: boolean;
   weekOf?: string;
-  /** Whether the current weekly schedule held a practice test, so the upload must include one. */
   needsPracticeTest: boolean;
 }
 
@@ -72,7 +71,6 @@ function preparePracticeTest(input: unknown, approvedAt: Date, realNow: Date, we
   if ((extraction.source !== "admin_sample" && confirmedAt < extractedAt) || confirmedAt > realNow) {
     throw new SnapshotApprovalError("Confirm the practice test after reviewing it.");
   }
-  // The browser's counts are not trusted: the result is worked out again from the section readings.
   const review = reviewPracticeTest(readings, picks);
   if (!review.ok) throw new SnapshotApprovalError("Fix your practice-test screenshots before you confirm.");
   const { prepTest, sections, hiddenResults, missedStemTypeCounts } = review.result;

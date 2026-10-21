@@ -76,10 +76,10 @@ export function currentWeekInTimezone(now: Date, timezone: string) {
   return mondayOf(localDateInTimezone(now, timezone));
 }
 
-// Students upload on the weekend before a week starts, so an approval from
-// Saturday 00:00 belongs to the next week.
+const SATURDAY_TO_NEXT_MONDAY_DAYS = 2;
+
 export function uploadWeekOf(approvedAt: Date, timezone: string) {
-  return mondayOf(isoDateInWeek(localDateInTimezone(approvedAt, timezone), 2));
+  return mondayOf(isoDateInWeek(localDateInTimezone(approvedAt, timezone), SATURDAY_TO_NEXT_MONDAY_DAYS));
 }
 
 export function approvedForWeek<Approval extends { approvedAt: string }>(

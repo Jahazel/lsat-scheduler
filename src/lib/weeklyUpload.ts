@@ -131,7 +131,6 @@ export function firstDrills(schedule: WeeklySchedule, goesFirst: LRStemType | un
   };
 }
 
-/** The first drilling day of a previewed week, each line tagged the way "Check what we read" explains it. */
 export function checkPreviewDrills(schedule: WeeklySchedule, goesFirst: LRStemType | undefined, analytics: AnalyticsSnapshot) {
   const day = DAY_ORDER.find((weekday) => schedule.days[weekday].type === "drill" && schedule.days[weekday].activities.length > 0);
   if (!day) return null;

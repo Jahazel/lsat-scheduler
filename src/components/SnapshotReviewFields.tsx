@@ -10,7 +10,6 @@ import {
 import type { AnalyticsExtractedRow, AnalyticsSection, LRType, PriorityTier } from "@/lib/types";
 import { FOCUS } from "./ui/classes";
 
-// The Step 4 review (board 4d), shared by onboarding and the weekly upload's "Check what we read".
 
 const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline ${FOCUS}`;
 export const STEP_PRIMARY = `h-11 flex-1 rounded-sm bg-ink text-body font-medium text-chalk transition-colors duration-150 ease-out hover:bg-graphite-raised disabled:cursor-not-allowed disabled:bg-vellum-line disabled:text-smoke ${FOCUS}`;
@@ -19,10 +18,7 @@ export const STEP_SECONDARY = `h-11 w-28 shrink-0 rounded-sm border border-vellu
 export const boxId = (type: AnalyticsType) => `accuracy-${type.replace(/\W+/g, "-")}`;
 export const statementId = (index: number) => `statement-${index}`;
 
-// A row message pushes everything below it down. When a press moves focus out of a
-// box, the message waits for the press to end, so the pressed button is still under
-// the pointer when the click lands.
-export function useAfterPress() {
+export function useDeferWhilePointerDown() {
   const pressing = useRef(false);
   useEffect(() => {
     const down = () => {
@@ -64,7 +60,6 @@ export function useFocusAfterRender() {
   };
 }
 
-/** A list row in the review: a label, a note before the box, and a 64 px value box. */
 export function ReviewLine({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <div className={`flex min-h-[38px] items-center gap-3 border-b border-vellum-line py-1 pl-3 pr-1 ${className}`}>{children}</div>;
 }
@@ -133,7 +128,6 @@ export function ReviewStatements({ draft, statements, dispatch }: {
   );
 }
 
-/** Back plus a confirm button that stays visibly off while `locked`, and explains why in `note`. */
 export function ConfirmBar({ label, saving, locked, note, onBack, onConfirm }: {
   label: string;
   saving: boolean;
@@ -172,16 +166,14 @@ export function ConfirmBar({ label, saving, locked, note, onBack, onConfirm }: {
   );
 }
 
-/** The LR accuracy, priority flags, and RC passage types of the review, editable. */
 export function SnapshotReviewFields({ draft, lrRead, files, dispatch }: {
   draft: ReviewDraft;
-  /** The rows the LR screenshot showed, before any edit. */
   lrRead: AnalyticsExtractedRow[];
   files: Partial<Record<AnalyticsSection, File>>;
   dispatch: (action: ReviewAction) => void;
 }) {
   const requestFocus = useFocusAfterRender();
-  const afterPress = useAfterPress();
+  const deferWhilePointerDown = useDeferWhilePointerDown();
   const { review } = draft;
   const accuracyRows = review.rows.filter(({ row }) => row.category === "regular");
   const flagRows = review.rows.filter(({ row }) => row.category === "restricted");
@@ -196,7 +188,7 @@ export function SnapshotReviewFields({ draft, lrRead, files, dispatch }: {
       message={accuracyMessage(draft, entry.row.type)}
       note={note}
       dispatch={dispatch}
-      onLeave={() => afterPress(() => dispatch({ type: "leaveAccuracyBox", rowType: entry.row.type }))}
+      onLeave={() => deferWhilePointerDown(() => dispatch({ type: "leaveAccuracyBox", rowType: entry.row.type }))}
     />
   );
   const emptyNote = (list: ReviewList) => {

@@ -56,7 +56,6 @@ export interface CheckedPracticeTest {
 export interface WeeklyUploadRead {
   currentScore: number;
   analytics: SnapshotReview;
-  /** The rows the LR screenshot showed, before any edit. */
   lrRead: AnalyticsExtractedRow[];
   files: Partial<Record<AnalyticsSection, File>>;
   practiceTest: CheckedPracticeTest | null;

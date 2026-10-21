@@ -103,7 +103,6 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
   source: CheckSource;
   onBack: () => void;
   onConfirm: typeof confirmWeeklyUpload;
-  /** Runs as the confirmation is sent, before This week opens. */
   onSent?: () => void;
 }) {
   const [draft, dispatch] = useReducer(reviewDraftReducer, read.analytics, startDraft);

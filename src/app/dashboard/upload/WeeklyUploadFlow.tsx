@@ -42,7 +42,6 @@ export default function WeeklyUploadFlow({ basis, initialScore, confirm = confir
 
   return (
     <>
-      {/* Kept mounted behind the check, so Back returns to the same screenshots. */}
       <div hidden={checking !== null}>
         <WeeklyUpload
           basis={basis}

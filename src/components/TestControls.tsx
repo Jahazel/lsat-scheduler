@@ -275,7 +275,6 @@ export default function TestControls({
                 onClick={() =>
                   run(async () => {
                     setSample(await generateTestSample(direction));
-                    // The weekly upload reviews the sample itself; elsewhere This week does.
                     if (pathname !== "/dashboard/upload") router.push("/dashboard");
                     onClose();
                   }, "Sample ready for review.")

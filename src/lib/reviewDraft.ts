@@ -12,8 +12,6 @@ import {
 } from "./analyticsReview";
 import type { AnalyticsExtractedRow, LRType, RCType } from "./types";
 
-// The "Check what we read" review of an analytics snapshot, shared by onboarding Step 4
-// and the weekly upload: the typed text of each accuracy box and which boxes show their message.
 
 export type AnalyticsType = LRType | RCType;
 
@@ -122,7 +120,6 @@ const EMPTY_LIST_NOTE: Record<ReviewList, string> = {
   flags: "We didn't find priority flags in your LR screenshot. If 7Sage shows any, add them with the link below.",
 };
 
-/** `lrRead` is what the LR screenshot showed; a list is empty only if it showed none and none were added. */
 export function emptyListNote(draft: ReviewDraft, lrRead: AnalyticsExtractedRow[], list: ReviewList): string | null {
   const inList = ({ category }: AnalyticsExtractedRow) => category === LIST_CATEGORY[list];
   if (lrRead.some(inList) || draft.review.rows.some(({ row }) => inList(row))) return null;

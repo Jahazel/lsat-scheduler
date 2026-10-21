@@ -13,7 +13,6 @@ import AnalyticsUploader from "@/app/dashboard/AnalyticsUploader";
 
 export interface SampleDraft {
   rows: AnalyticsExtractedRow[];
-  /** Sample practice-test section readings for the weekly upload. */
   sections: SectionReview[];
   extractedAt: string;
 }

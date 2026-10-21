@@ -272,7 +272,6 @@ export async function generateTestAnalytics(
   return rows;
 }
 
-/** The tutor's PrepTest 158 sections, read as a sample practice test for an admin's weekly upload. */
 export function samplePracticeTestSections() {
   return PT158_FIXTURES.flatMap(({ reading }) => (reading.page === "section_review" ? [reading] : []));
 }

@@ -59,7 +59,6 @@ function read(withPracticeTest = true): WeeklyUploadRead {
   };
 }
 
-// A confirmation that never settled would hold React's later transitions, so every double replies.
 const REFUSED: WeeklyUploadConfirmResult = { error: "Not saved in this test." };
 
 function setup({ withPracticeTest = true, reply = REFUSED }: { withPracticeTest?: boolean; reply?: WeeklyUploadConfirmResult } = {}) {

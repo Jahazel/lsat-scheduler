@@ -19,7 +19,7 @@ import { SECTION_NAME, SECTIONS, type Statement } from "@/lib/analyticsReview";
 import { confirmLock, type ReviewDraft } from "@/lib/reviewDraft";
 import {
   ConfirmBar, ReviewStatements, STEP_PRIMARY as PRIMARY, STEP_SECONDARY as SECONDARY, SnapshotReviewFields,
-  boxId, statementId, useAfterPress, useFocusAfterRender,
+  boxId, statementId, useDeferWhilePointerDown, useFocusAfterRender,
 } from "@/components/SnapshotReviewFields";
 import { formatDuration } from "@/lib/formatDuration";
 import {
@@ -290,7 +290,7 @@ const ATTEMPT_CHOICES = [
 
 function OfficialAttempts({ attempts, dispatch, today }: { attempts: AttemptsDraft; dispatch: Dispatch; today: string }) {
   const id = useId();
-  const afterPress = useAfterPress();
+  const deferWhilePointerDown = useDeferWhilePointerDown();
   const months = attemptMonths(today);
   const box = (invalid: boolean) => `${FIELD} ${invalid ? "border-danger" : "border-vellum-line"}`;
 
@@ -327,7 +327,7 @@ function OfficialAttempts({ attempts, dispatch, today }: { attempts: AttemptsDra
                 key={row.id}
                 className="flex flex-col gap-2"
                 onBlur={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget)) afterPress(() => dispatch({ type: "leaveAttempt", id: row.id, part: "row" }));
+                  if (!e.currentTarget.contains(e.relatedTarget)) deferWhilePointerDown(() => dispatch({ type: "leaveAttempt", id: row.id, part: "row" }));
                 }}
               >
                 <div className="flex items-center gap-3">
@@ -338,7 +338,7 @@ function OfficialAttempts({ attempts, dispatch, today }: { attempts: AttemptsDra
                       aria-label={`Attempt ${index + 1} score`}
                       value={row.score}
                       onChange={(e) => dispatch({ type: "editAttempt", id: row.id, values: { score: e.target.value } })}
-                      onBlur={() => afterPress(() => dispatch({ type: "leaveAttempt", id: row.id, part: "score" }))}
+                      onBlur={() => deferWhilePointerDown(() => dispatch({ type: "leaveAttempt", id: row.id, part: "score" }))}
                       aria-invalid={message?.box === "score" ? true : undefined}
                       aria-describedby={describedBy("score")}
                       className={box(message?.box === "score")}
