@@ -233,7 +233,7 @@ export default function TestControls({
               </button>
             </div>
           </form>
-          <p className="mt-3 text-caption  text-smoke">
+          <p className="mt-3 text-caption text-smoke">
             Dates only move forward. Reset test data returns you to the real
             date.
           </p>
@@ -294,13 +294,13 @@ export default function TestControls({
             {RESETS.map((reset) => (
               <li key={reset.key} className="py-4">
                 <p className="text-small font-medium">{reset.label}</p>
-                <p className="mt-1 text-caption  text-smoke">
+                <p className="mt-1 text-caption text-smoke">
                   {reset.requiresSchedule && !canRebuild
                     ? "No weekly schedule this week yet."
                     : reset.detail}
                 </p>
                 {confirmation === reset.key ? (
-                  <div className="mt-3 space-y-2 text-caption  text-smoke">
+                  <div className="mt-3 space-y-2 text-caption text-smoke">
                     <p>Deletes {reset.deletes}.</p>
                     <p>Keeps {reset.keeps}.</p>
                     {reset.returnsToRealDate && (

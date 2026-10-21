@@ -32,8 +32,8 @@ function HistoryStats({ weeks }: { weeks: ScheduleHistoryWeek[] }) {
       {metrics.map((metric) => (
         <div className="rounded-xs border border-vellum-line bg-paper px-3 py-2.5" key={metric.label}>
           <dd className="text-h5 font-semibold tabular-nums text-ink">{metric.value}</dd>
-          <dt className="mt-1 text-caption font-medium  text-smoke">{metric.label}</dt>
-          <dd className="mt-0.5 text-caption font-medium  text-smoke">{metric.note}</dd>
+          <dt className="mt-1 text-caption font-medium text-smoke">{metric.label}</dt>
+          <dd className="mt-0.5 text-caption font-medium text-smoke">{metric.note}</dd>
         </div>
       ))}
     </dl>
