@@ -10,7 +10,7 @@ import {
   resetEverything,
 } from "@/app/admin/test/actions";
 import { useAdminTest } from "./AdminTestContext";
-import { FOCUS, cx } from "./nav/shared";
+import { FOCUS, cx } from "./ui/classes";
 import { isoDateInWeek } from "@/lib/scheduleReasonText";
 import type { SampleDirection } from "@/lib/sampleAnalytics";
 
