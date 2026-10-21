@@ -17,7 +17,7 @@ export const isTabActive = (pathname: string, href: string) => pathname === href
 
 export function Logo({ href }: { href: string }) {
   return (
-    <Link href={href} className={cx("font-semibold tracking-tight text-ink", FOCUS)}>
+    <Link href={href} className={cx("font-semibold tracking-heading text-ink", FOCUS)}>
       DrillMap
     </Link>
   );

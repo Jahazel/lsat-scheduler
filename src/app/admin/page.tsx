@@ -20,11 +20,11 @@ export default async function AdminPage() {
   return (
     <div className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-2xl">
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">All students</h1>
+        <h1 className="text-h3 font-semibold text-ink">All students</h1>
 
         {students.length === 0 ? (
           <div className="mt-8 flex flex-col items-center gap-3 border-y border-vellum-line px-6 py-16 text-center">
-            <p className="text-sm text-smoke">No students have completed onboarding yet.</p>
+            <p className="text-small text-smoke">No students have completed onboarding yet.</p>
           </div>
         ) : (
           <ul className="mt-8 divide-y divide-vellum-line border-y border-vellum-line">
@@ -40,12 +40,12 @@ export default async function AdminPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium text-ink">{student.name}</span>
                         {needsAnalytics && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-accent/tint px-2 py-0.5 text-xs font-medium text-accent">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-accent/tint px-2 py-0.5 text-caption font-medium text-accent">
                             Needs analytics
                           </span>
                         )}
                       </div>
-                      <p className="mt-1 truncate text-sm text-smoke">
+                      <p className="mt-1 truncate text-small text-smoke">
                         {student.email} ·{" "}
                         {formatDuration(
                           Object.values(student.dailyCapacityMinutes).reduce((sum, minutes) => sum + minutes, 0)

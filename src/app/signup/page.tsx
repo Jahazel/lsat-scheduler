@@ -12,19 +12,19 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-sm">
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">Create your account</h1>
-        <p className="mt-1 text-sm text-smoke">Start with your intake, and DrillMap builds your first week.</p>
+        <h1 className="text-h3 font-semibold text-ink">Create your account</h1>
+        <p className="mt-1 text-small text-smoke">Start with your intake, and DrillMap builds your first week.</p>
 
         <form action={signInWithGoogle} className="mt-8">
           <button
             type="submit"
-            className="w-full rounded-sm border border-vellum-line px-4 py-2 text-sm font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum-line"
+            className="w-full rounded-sm border border-vellum-line bg-paper px-4 py-2 text-small font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum-line"
           >
             Continue with Google
           </button>
         </form>
 
-        <div className="my-6 flex items-center gap-3 text-xs text-smoke">
+        <div className="my-6 flex items-center gap-3 text-caption text-smoke">
           <div className="h-px flex-1 bg-vellum-line" />
           or
           <div className="h-px flex-1 bg-vellum-line" />
@@ -32,37 +32,37 @@ export default function SignupPage() {
 
         <form action={formAction} className="flex flex-col gap-5">
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-smoke">Name</span>
+            <span className="text-small font-medium text-smoke">Name</span>
             <input
               type="text"
               name="name"
               required
-              className="rounded-sm border border-vellum-line px-3 py-2 text-sm text-ink"
+              className="rounded-sm border border-vellum-line bg-paper px-3 py-2 text-small text-ink"
             />
-            {state.errors?.name && <p className="text-sm text-danger-ink">{state.errors.name[0]}</p>}
+            {state.errors?.name && <p className="text-small text-danger-ink">{state.errors.name[0]}</p>}
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-smoke">Email</span>
+            <span className="text-small font-medium text-smoke">Email</span>
             <input
               type="email"
               name="email"
               required
-              className="rounded-sm border border-vellum-line px-3 py-2 text-sm text-ink"
+              className="rounded-sm border border-vellum-line bg-paper px-3 py-2 text-small text-ink"
             />
-            {state.errors?.email && <p className="text-sm text-danger-ink">{state.errors.email[0]}</p>}
+            {state.errors?.email && <p className="text-small text-danger-ink">{state.errors.email[0]}</p>}
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-smoke">Password</span>
+            <span className="text-small font-medium text-smoke">Password</span>
             <input
               type="password"
               name="password"
               required
-              className="rounded-sm border border-vellum-line px-3 py-2 text-sm text-ink"
+              className="rounded-sm border border-vellum-line bg-paper px-3 py-2 text-small text-ink"
             />
             {state.errors?.password && (
-              <ul className="text-sm text-danger-ink">
+              <ul className="text-small text-danger-ink">
                 {state.errors.password.map((error) => (
                   <li key={error}>{error}</li>
                 ))}
@@ -70,33 +70,33 @@ export default function SignupPage() {
             )}
           </label>
 
-          <label className="flex items-start gap-2 text-sm text-smoke">
+          <label className="flex items-start gap-2 text-small text-smoke">
             <input type="checkbox" name="agreedToTerms" required className="mt-0.5" />
             <span>
               I agree to the{" "}
-              <Link href="/legal/terms" className="underline">
+              <Link href="/legal/terms" className="text-accent underline">
                 Terms of Service
               </Link>{" "}
               and{" "}
-              <Link href="/legal/privacy" className="underline">
+              <Link href="/legal/privacy" className="text-accent underline">
                 Privacy Policy
               </Link>
               .
             </span>
           </label>
 
-          {state.message && <p className="text-sm text-danger-ink">{state.message}</p>}
+          {state.message && <p className="text-small text-danger-ink">{state.message}</p>}
 
           <button
             type="submit"
             disabled={pending}
-            className="rounded-sm bg-ink px-4 py-2 text-sm font-medium text-chalk transition-colors duration-150 ease-out hover:bg-graphite-raised disabled:opacity-50"
+            className="rounded-sm bg-ink px-4 py-2 text-small font-medium text-chalk transition-colors duration-150 ease-out hover:bg-graphite-raised disabled:opacity-50"
           >
             {pending ? "Creating account…" : "Sign up"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-smoke">
+        <p className="mt-6 text-center text-small text-smoke">
           Already have an account?{" "}
           <Link href="/login" className="font-medium text-accent hover:text-ink">
             Log in

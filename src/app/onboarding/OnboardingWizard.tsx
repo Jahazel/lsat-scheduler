@@ -47,11 +47,11 @@ import type { createStudentProfile } from "./actions";
 import LivePreview from "./LivePreview";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
-const FIELD = `h-11 w-full rounded-sm border bg-paper px-3 text-base text-ink ${FOCUS}`;
-const SELECT = `h-[34px] min-w-0 flex-1 rounded-sm border border-vellum-line bg-paper px-2 text-sm text-ink ${FOCUS}`;
-const PRIMARY = `h-11 flex-1 rounded-sm bg-ink text-base font-medium text-chalk transition-colors duration-150 ease-out hover:bg-graphite-raised disabled:cursor-not-allowed disabled:bg-vellum-line disabled:text-smoke ${FOCUS}`;
-const SECONDARY = `h-11 w-28 shrink-0 rounded-sm border border-vellum-line bg-paper text-base font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum disabled:cursor-not-allowed disabled:text-fog ${FOCUS}`;
-const SMALL_BUTTON = `h-10 self-start rounded-sm border border-vellum-line bg-paper px-[18px] text-sm font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum ${FOCUS}`;
+const FIELD = `h-11 w-full rounded-sm border bg-paper px-3 text-body text-ink ${FOCUS}`;
+const SELECT = `h-[34px] min-w-0 flex-1 rounded-sm border border-vellum-line bg-paper px-2 text-small text-ink ${FOCUS}`;
+const PRIMARY = `h-11 flex-1 rounded-sm bg-ink text-body font-medium text-chalk transition-colors duration-150 ease-out hover:bg-graphite-raised disabled:cursor-not-allowed disabled:bg-vellum-line disabled:text-smoke ${FOCUS}`;
+const SECONDARY = `h-11 w-28 shrink-0 rounded-sm border border-vellum-line bg-paper text-body font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum disabled:cursor-not-allowed disabled:text-fog ${FOCUS}`;
+const SMALL_BUTTON = `h-10 self-start rounded-sm border border-vellum-line bg-paper px-[18px] text-small font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum ${FOCUS}`;
 const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline ${FOCUS}`;
 const CHANGE_LATER = "You can change these any time in Study settings.";
 
@@ -140,11 +140,11 @@ function StepHeading({ state, title, lede }: { state: WizardState; title: string
   }, [changedStep]);
   return (
     <div className="flex flex-col gap-2">
-      <p className="font-mono text-xs uppercase tracking-[0.08em] text-smoke">{stepLabel(state.step)}</p>
-      <h1 ref={heading} tabIndex={-1} className="text-[28px] font-semibold leading-[34px] tracking-[-0.02em] text-ink outline-none">
+      <p className="font-mono text-label uppercase text-smoke">{stepLabel(state.step)}</p>
+      <h1 ref={heading} tabIndex={-1} className="text-h3 font-semibold text-ink outline-none">
         {title}
       </h1>
-      <p className="text-base text-smoke">{lede}</p>
+      <p className="text-body text-smoke">{lede}</p>
     </div>
   );
 }
@@ -169,7 +169,7 @@ function StepForm({ state, dispatch, children }: { state: WizardState; dispatch:
             Continue
           </button>
         </div>
-        <p id="continue-note" className="text-center text-sm text-smoke">
+        <p id="continue-note" className="text-center text-small text-smoke">
           {reason ?? CHANGE_LATER}
         </p>
       </div>
@@ -197,7 +197,7 @@ function GoalStep({
         <div className="flex flex-col gap-2">
           <div className="flex gap-3">
             <label className="flex flex-1 flex-col gap-2">
-              <span className="text-sm font-medium text-ink">Current PT score</span>
+              <span className="text-small font-medium text-ink">Current PT score</span>
               <input
                 inputMode="numeric"
                 autoComplete="off"
@@ -210,7 +210,7 @@ function GoalStep({
               />
             </label>
             <label className="flex flex-1 flex-col gap-2">
-              <span className="text-sm font-medium text-ink">Goal score</span>
+              <span className="text-small font-medium text-ink">Goal score</span>
               <input
                 inputMode="numeric"
                 autoComplete="off"
@@ -224,19 +224,19 @@ function GoalStep({
             </label>
           </div>
           {messages.currentScore && (
-            <p id="current-score-message" className="text-sm text-danger-ink">
+            <p id="current-score-message" className="text-small text-danger-ink">
               {messages.currentScore}
             </p>
           )}
           {goalMessage && (
-            <p id="goal-score-message" className="text-sm text-danger-ink">
+            <p id="goal-score-message" className="text-small text-danger-ink">
               {goalMessage}
             </p>
           )}
         </div>
 
         <div className="flex flex-col gap-2">
-          <label htmlFor="goal-test-date" className="text-sm font-medium text-ink">
+          <label htmlFor="goal-test-date" className="text-small font-medium text-ink">
             Goal test date
           </label>
           <select
@@ -257,12 +257,12 @@ function GoalStep({
         </div>
 
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-sm font-medium text-ink">Test time</legend>
+          <legend className="mb-2 text-small font-medium text-ink">Test time</legend>
           <div className="flex gap-1 rounded-sm bg-vellum p-1">
             {([1, 1.5, 2] satisfies Accommodation[]).map((multiplier) => (
               <label
                 key={multiplier}
-                className="flex h-9 flex-1 cursor-pointer items-center justify-center rounded text-sm text-smoke transition-colors duration-150 ease-out hover:bg-vellum-line hover:text-ink has-[:checked]:bg-paper has-[:checked]:font-medium has-[:checked]:text-ink has-[:checked]:shadow-control has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent"
+                className="flex h-9 flex-1 cursor-pointer items-center justify-center rounded text-small text-smoke transition-colors duration-150 ease-out hover:bg-vellum-line hover:text-ink has-[:checked]:bg-paper has-[:checked]:font-medium has-[:checked]:text-ink has-[:checked]:shadow-control has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent"
               >
                 <input
                   type="radio"
@@ -300,15 +300,15 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
             <col className="w-[60px] lg:w-[100px]" />
           </colgroup>
           <thead>
-            <tr className="text-xs text-smoke">
-              <th scope="col" className="pb-2 pl-2 text-left font-normal lg:pl-3">Day</th>
-              <th scope="col" className="pb-2 text-left font-normal">Study time</th>
-              <th scope="col" className="pb-2 text-center font-normal">Practice test</th>
+            <tr className="text-caption text-smoke">
+              <th scope="col" className="pb-2 pl-2 text-left font-regular lg:pl-3">Day</th>
+              <th scope="col" className="pb-2 text-left font-regular">Study time</th>
+              <th scope="col" className="pb-2 text-center font-regular">Practice test</th>
             </tr>
           </thead>
           <tbody>
             <tr className="bg-vellum">
-              <th scope="row" className="rounded-l-sm py-2 pl-2 text-left text-sm font-medium text-ink lg:pl-3">
+              <th scope="row" className="rounded-l-sm py-2 pl-2 text-left text-small font-medium text-ink lg:pl-3">
                 All<span className="hidden lg:inline"> days</span>
               </th>
               <td className="py-2">
@@ -324,7 +324,7 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
                 <button
                   type="button"
                   onClick={() => dispatch({ type: "applyAllDays" })}
-                  className={`h-[34px] rounded-sm border border-ink bg-paper px-2 text-sm font-medium text-ink lg:px-3 hover:bg-vellum ${FOCUS}`}
+                  className={`h-[34px] rounded-sm border border-ink bg-paper px-2 text-small font-medium text-ink lg:px-3 hover:bg-vellum ${FOCUS}`}
                 >
                   Apply
                 </button>
@@ -332,7 +332,7 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
             </tr>
             {DAY_ORDER.map((day) => (
               <tr key={day} className="border-b border-vellum-line">
-                <th scope="row" className="py-1 pl-2 text-left text-sm font-medium text-ink lg:pl-3">
+                <th scope="row" className="py-1 pl-2 text-left text-small font-medium text-ink lg:pl-3">
                   {DAY_SHORT_LABEL[day]}
                 </th>
                 <td className="py-1">
@@ -365,13 +365,13 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
 
         <div className="flex flex-col gap-1 px-2 pt-5 lg:px-3">
           <p className="flex items-baseline justify-between">
-            <span className="text-sm text-smoke">Weekly total</span>
-            <span aria-live="polite" className="text-base font-semibold text-ink">
+            <span className="text-small text-smoke">Weekly total</span>
+            <span aria-live="polite" className="text-body font-semibold text-ink">
               {formatDuration(weeklyTotalMinutes(values))}
             </span>
           </p>
           {warning ? (
-            <p role="status" className="flex gap-2 text-sm text-warning-ink">
+            <p role="status" className="flex gap-2 text-small text-warning-ink">
               <svg aria-hidden viewBox="0 0 16 16" className="mt-0.5 size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M8 2.5 14 13H2L8 2.5Z" strokeLinejoin="round" />
                 <path d="M8 6.5v3M8 11.25v.01" strokeLinecap="round" />
@@ -379,7 +379,7 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
               {warning}
             </p>
           ) : (
-            <p className="text-sm text-smoke">{practiceTestHint(values.accommodationMultiplier)}</p>
+            <p className="text-small text-smoke">{practiceTestHint(values.accommodationMultiplier)}</p>
           )}
         </div>
       </div>
@@ -453,15 +453,15 @@ function AnalyticsStep({
           </button>
         </div>
         {screenshot.status !== "none" && (
-          <p className="text-center text-sm text-smoke">You can replace the screenshot before you confirm.</p>
+          <p className="text-center text-small text-smoke">You can replace the screenshot before you confirm.</p>
         )}
-        <p className="text-center text-sm text-smoke">
+        <p className="text-center text-small text-smoke">
           <button type="button" disabled={saving} onClick={onSkip} className={LINK_BUTTON}>
             {saving ? "Saving…" : "Skip for now"}
           </button>
           {" · Your schedule starts after you add one."}
         </p>
-        <p role="status" className="text-center text-sm text-smoke">
+        <p role="status" className="text-center text-small text-smoke">
           {state.save === "failed" && "We couldn't save your plan. Check your connection and press Skip for now again."}
         </p>
       </div>
@@ -522,20 +522,20 @@ function DropZone({ rejection, onChoose, onFile }: { rejection: string | null; o
         </span>
         {dragging ? (
           <span className="flex flex-col items-center gap-1">
-            <span className="text-base font-semibold text-accent">Drop to add it</span>
-            <span className="text-sm text-smoke">{SCREENSHOT_LIMITS}</span>
+            <span className="text-body font-semibold text-accent">Drop to add it</span>
+            <span className="text-small text-smoke">{SCREENSHOT_LIMITS}</span>
           </span>
         ) : (
           <span className="flex flex-col items-center gap-1">
-            <span className="text-base font-semibold text-ink">Drop your screenshot here</span>
-            <span className="text-sm text-smoke">
+            <span className="text-body font-semibold text-ink">Drop your screenshot here</span>
+            <span className="text-small text-smoke">
               or <span className="font-medium text-accent underline underline-offset-[3px]">choose a file</span> · {SCREENSHOT_LIMITS}
             </span>
           </span>
         )}
       </button>
       {rejection && (
-        <p id="screenshot-rejection" role="alert" className="text-sm text-danger-ink">
+        <p id="screenshot-rejection" role="alert" className="text-small text-danger-ink">
           {rejection}
         </p>
       )}
@@ -551,11 +551,11 @@ function WhereToFindIt() {
   ];
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold text-ink">Where to find it</h2>
+      <h2 className="text-small font-semibold text-ink">Where to find it</h2>
       <ol className="flex flex-col gap-3">
         {steps.map((step, index) => (
-          <li key={step} className="flex items-baseline gap-3 text-sm text-ink">
-            <span aria-hidden className="w-4 shrink-0 font-mono text-xs text-smoke">
+          <li key={step} className="flex items-baseline gap-3 text-small text-ink">
+            <span aria-hidden className="w-4 shrink-0 font-mono text-caption text-smoke">
               {index + 1}
             </span>
             {step}
@@ -602,13 +602,13 @@ function FileRow({
             <span className="h-[3px] w-7 rounded-sm bg-ink/20" />
             <span className="h-[3px] w-10 rounded-sm bg-ink/20" />
           </span>
-          <div className="flex min-w-0 grow flex-col gap-0.5 text-sm">
+          <div className="flex min-w-0 grow flex-col gap-0.5 text-small">
             <span className="truncate font-medium text-ink">{screenshot.file.name}</span>
             <span aria-live="polite" className={FILE_STATUS[status].problem ? "text-danger-ink" : "text-smoke"}>
               {FILE_STATUS[status].text}
             </span>
           </div>
-          <button type="button" onClick={onChoose} className={`shrink-0 text-sm ${LINK_BUTTON}`}>
+          <button type="button" onClick={onChoose} className={`shrink-0 text-small ${LINK_BUTTON}`}>
             Replace
           </button>
         </div>
@@ -643,7 +643,7 @@ function FileRow({
         )}
       </div>
       {rejection && (
-        <p role="alert" className="text-sm text-danger-ink">
+        <p role="alert" className="text-small text-danger-ink">
           {rejection}
         </p>
       )}
@@ -662,8 +662,8 @@ function RightPartExample() {
   return (
     <figure className="flex flex-col gap-3">
       <figcaption className="flex items-baseline justify-between">
-        <span className="text-sm font-semibold text-ink">Capture this part of 7Sage Analytics</span>
-        <span className="text-xs text-smoke">Example</span>
+        <span className="text-small font-semibold text-ink">Capture this part of 7Sage Analytics</span>
+        <span className="text-caption text-smoke">Example</span>
       </figcaption>
       <div className="flex flex-col gap-3 rounded-sm bg-vellum p-4">
         <div aria-hidden className="flex items-center gap-3 opacity-55">
@@ -676,7 +676,7 @@ function RightPartExample() {
             <span key={index} className="w-3.5 rounded-sm bg-ink/15" style={{ height }} />
           ))}
         </div>
-        <div className="flex flex-col gap-2 rounded-sm border-2 border-accent bg-paper p-3 text-xs">
+        <div className="flex flex-col gap-2 rounded-sm border-2 border-accent bg-paper p-3 text-caption">
           <div className="flex items-center justify-between">
             <span className="font-semibold text-ink">Logical Reasoning question types</span>
             <span className="shrink-0 whitespace-nowrap rounded-full bg-ink px-2 py-0.5 font-medium text-chalk">This part</span>
@@ -699,19 +699,19 @@ function RightPartExample() {
 function RowsFound({ rows }: { rows: AnalyticsExtractedRow[] }) {
   return (
     <div className="flex flex-col gap-6">
-      <table className="w-full border-collapse text-sm">
+      <table className="w-full border-collapse text-small">
         <thead>
-          <tr className="h-7 border-b border-vellum-line text-xs text-smoke">
-            <th scope="col" className="px-3 text-left font-normal">
+          <tr className="h-7 border-b border-vellum-line text-caption text-smoke">
+            <th scope="col" className="px-3 text-left font-regular">
               Found · {rows.length} {rows.length === 1 ? "row" : "rows"}
             </th>
-            <th scope="col" className="px-3 text-right font-normal">Accuracy or priority</th>
+            <th scope="col" className="px-3 text-right font-regular">Accuracy or priority</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.type} className="h-[38px] border-b border-vellum-line">
-              <th scope="row" className="px-3 text-left font-normal text-ink">{row.type}</th>
+              <th scope="row" className="px-3 text-left font-regular text-ink">{row.type}</th>
               <td className="px-3 text-right">
                 <RowValue row={row} />
               </td>
@@ -719,7 +719,7 @@ function RowsFound({ rows }: { rows: AnalyticsExtractedRow[] }) {
           ))}
         </tbody>
       </table>
-      <p className="px-3 text-sm text-smoke">
+      <p className="px-3 text-small text-smoke">
         Next, you check each value and confirm this is your latest 7Sage analytics. Nothing counts until you confirm.
       </p>
     </div>
@@ -727,10 +727,10 @@ function RowsFound({ rows }: { rows: AnalyticsExtractedRow[] }) {
 }
 
 function RowValue({ row }: { row: AnalyticsExtractedRow }) {
-  if (row.accuracy !== undefined) return <span className="font-mono text-[13px] text-ink">{row.accuracy}%</span>;
+  if (row.accuracy !== undefined) return <span className="font-mono text-mono text-ink">{row.accuracy}%</span>;
   if (!row.isTopPriority) return <span className="text-smoke">—</span>;
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/tint px-2 py-0.5 text-xs font-medium text-accent">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/tint px-2 py-0.5 text-caption font-medium text-accent">
       <svg aria-hidden viewBox="0 0 10 10" className="size-2.5" fill="currentColor" stroke="currentColor" strokeLinejoin="round">
         <path d="M2 9V1.5h5.5L6.5 3.5l1 2H2" />
       </svg>
@@ -835,7 +835,7 @@ function ReviewStep({
       <div className="flex flex-col gap-5">
         <ScreenshotToggle file={screenshot.file} />
         <div className="flex flex-col">
-          <div className="flex min-h-7 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-vellum-line px-3 py-1.5 text-xs text-smoke">
+          <div className="flex min-h-7 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-vellum-line px-3 py-1.5 text-caption text-smoke">
             <span>
               Accuracy · {accuracyRows.length} {accuracyRows.length === 1 ? "type" : "types"}
             </span>
@@ -863,7 +863,7 @@ function ReviewStep({
           <EmptyListNote state={state} list="accuracy" />
         </div>
         <div className="flex flex-col">
-          <div className="flex min-h-7 items-center border-b border-vellum-line px-3 py-1.5 text-xs text-smoke">
+          <div className="flex min-h-7 items-center border-b border-vellum-line px-3 py-1.5 text-caption text-smoke">
             Priority flags · ticked flags go first in your plan
           </div>
           {flagRows.map(({ row }) => (
@@ -911,7 +911,7 @@ function ReviewStep({
             disabled={saving}
             onClick={confirm}
             aria-describedby="confirm-note"
-            className={`h-11 flex-1 rounded-sm text-base font-medium transition-colors duration-150 ease-out ${FOCUS} ${
+            className={`h-11 flex-1 rounded-sm text-body font-medium transition-colors duration-150 ease-out ${FOCUS} ${
               saving
                 ? "cursor-wait bg-graphite-raised text-chalk"
                 : reason
@@ -922,7 +922,7 @@ function ReviewStep({
             {saving ? "Saving…" : "Confirm snapshot"}
           </button>
         </div>
-        <p id="confirm-note" role="status" className={`text-center text-sm ${state.save === "failed" ? "text-smoke" : "text-smoke"}`}>
+        <p id="confirm-note" role="status" className={`text-center text-small ${state.save === "failed" ? "text-smoke" : "text-smoke"}`}>
           {note}
         </p>
       </div>
@@ -956,10 +956,10 @@ function AccuracyRow({
   return (
     <div className="flex flex-col border-b border-vellum-line focus-within:rounded-sm focus-within:border-transparent focus-within:bg-accent/faint focus-within:outline-[1.5px] focus-within:outline-accent focus-within:outline-solid">
       <div className="flex min-h-[38px] items-center gap-3 py-1 pl-3 pr-1">
-        <label htmlFor={id} className="grow text-sm text-ink">
+        <label htmlFor={id} className="grow text-small text-ink">
           {row.type}
         </label>
-        <span className="w-[72px] shrink-0 text-right font-mono text-xs text-smoke">{was}</span>
+        <span className="w-[72px] shrink-0 text-right font-mono text-caption text-smoke">{was}</span>
         <span className={`flex h-[30px] w-16 shrink-0 items-center rounded-sm border px-2 ${box}`}>
           <input
             id={id}
@@ -971,9 +971,9 @@ function AccuracyRow({
             onBlur={onLeave}
             aria-invalid={message ? true : undefined}
             aria-describedby={message ? `${id}-message` : undefined}
-            className="w-full min-w-0 bg-transparent text-right font-mono text-[13px] text-ink outline-none"
+            className="w-full min-w-0 bg-transparent text-right font-mono text-mono text-ink outline-none"
           />
-          <span aria-hidden className="pl-0.5 font-mono text-[13px] text-smoke">%</span>
+          <span aria-hidden className="pl-0.5 font-mono text-mono text-smoke">%</span>
         </span>
         <button
           type="button"
@@ -987,7 +987,7 @@ function AccuracyRow({
         </button>
       </div>
       {message && (
-        <p id={`${id}-message`} className="px-3 pb-2 text-sm text-danger-ink">
+        <p id={`${id}-message`} className="px-3 pb-2 text-small text-danger-ink">
           {message}
         </p>
       )}
@@ -997,7 +997,7 @@ function AccuracyRow({
 
 function EmptyListNote({ state, list }: { state: WizardState; list: ReviewList }) {
   const note = emptyListNote(state, list);
-  return note && <p className="border-b border-vellum-line px-3 py-3.5 text-sm text-ink">{note}</p>;
+  return note && <p className="border-b border-vellum-line px-3 py-3.5 text-small text-ink">{note}</p>;
 }
 
 const TIER_LABEL: Record<PriorityTier, string> = { highest: "Highest", medium: "Medium", low: "Low" };
@@ -1006,7 +1006,7 @@ function TierPill({ tier }: { tier: PriorityTier }) {
   const highest = tier === "highest";
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border border-dashed px-2 py-0.5 text-xs font-medium ${
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border border-dashed px-2 py-0.5 text-caption font-medium ${
         highest ? "border-accent text-accent" : "border-fog text-smoke"
       }`}
     >
@@ -1038,7 +1038,7 @@ function Checkbox({
   const labelId = useId();
   const detailId = useId();
   return (
-    <label className={`group flex cursor-pointer gap-3 text-sm text-ink ${className}`}>
+    <label className={`group flex cursor-pointer gap-3 text-small text-ink ${className}`}>
       <span className="relative mt-px grid size-4 shrink-0">
         <input
           id={id}
@@ -1120,7 +1120,7 @@ function AddType({
           setOpen(true);
           requestFocus("add-type-search");
         }}
-        className={`flex items-center gap-2 self-start px-3 text-sm ${LINK_BUTTON}`}
+        className={`flex items-center gap-2 self-start px-3 text-small ${LINK_BUTTON}`}
       >
         <svg aria-hidden viewBox="0 0 14 14" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
           <path d="M7 2v10M2 7h10" />
@@ -1148,9 +1148,9 @@ function AddType({
             setActive(0);
           }}
           onKeyDown={keyDown}
-          className="h-9 min-w-0 grow rounded-sm border-2 border-accent bg-paper px-3 text-sm text-ink outline-none"
+          className="h-9 min-w-0 grow rounded-sm border-2 border-accent bg-paper px-3 text-small text-ink outline-none"
         />
-        <button type="button" onClick={() => close()} className={`h-9 px-3 text-sm ${LINK_BUTTON}`}>
+        <button type="button" onClick={() => close()} className={`h-9 px-3 text-small ${LINK_BUTTON}`}>
           Cancel
         </button>
       </div>
@@ -1162,10 +1162,10 @@ function AddType({
             aria-labelledby={`add-type-group-${list}`}
             className={groupIndex > 0 ? "mt-1 border-t border-vellum-line pt-1" : undefined}
           >
-            <div id={`add-type-group-${list}`} role="presentation" className="px-3 py-1.5 text-xs text-smoke">
+            <div id={`add-type-group-${list}`} role="presentation" className="px-3 py-1.5 text-caption text-smoke">
               {label}
             </div>
-            {options[list].length === 0 && <div className="flex h-9 items-center px-3 text-sm text-smoke">{`${none} "${query.trim()}"`}</div>}
+            {options[list].length === 0 && <div className="flex h-9 items-center px-3 text-small text-smoke">{`${none} "${query.trim()}"`}</div>}
             {options[list].map((type) => {
               const optionIndex = flat.findIndex((option) => option.type === type);
               const selected = optionIndex === active;
@@ -1178,10 +1178,10 @@ function AddType({
                   onMouseDown={(e) => e.preventDefault()}
                   onMouseEnter={() => setActive(optionIndex)}
                   onClick={() => add(optionIndex)}
-                  className={`flex min-h-9 cursor-pointer items-center justify-between px-3 text-sm text-ink ${selected ? "bg-vellum" : ""}`}
+                  className={`flex min-h-9 cursor-pointer items-center justify-between px-3 text-small text-ink ${selected ? "bg-vellum" : ""}`}
                 >
                   {type}
-                  {selected && <span className="font-mono text-xs text-smoke">Enter</span>}
+                  {selected && <span className="font-mono text-caption text-smoke">Enter</span>}
                 </div>
               );
             })}
@@ -1219,8 +1219,8 @@ function ScreenshotToggle({ file }: { file: File }) {
           <span className="h-0.5 w-6 bg-fog" />
         </span>
         <span className="flex min-w-0 grow flex-col gap-0.5">
-          <span className="text-sm font-medium text-ink">{url ? "Hide your screenshot" : "Show your screenshot"}</span>
-          <span className="truncate font-mono text-xs text-smoke">{file.name}</span>
+          <span className="text-small font-medium text-ink">{url ? "Hide your screenshot" : "Show your screenshot"}</span>
+          <span className="truncate font-mono text-caption text-smoke">{file.name}</span>
         </span>
         <svg aria-hidden viewBox="0 0 16 16" className={`size-4 shrink-0 transition-transform duration-150 ${url ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 6l4 4 4-4" />

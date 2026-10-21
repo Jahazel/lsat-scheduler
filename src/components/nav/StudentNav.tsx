@@ -49,7 +49,7 @@ function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<S
   }, [open]);
 
   const initialsCircle = "flex items-center justify-center rounded-full bg-accent/tint font-semibold text-accent";
-  const item = cx("block w-full px-4 py-2.5 text-left text-sm text-ink hover:bg-vellum", FOCUS);
+  const item = cx("block w-full px-4 py-2.5 text-left text-small text-ink hover:bg-vellum", FOCUS);
 
   return (
     <div ref={root} className="relative">
@@ -62,15 +62,15 @@ function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<S
         onClick={() => setOpen((wasOpen) => !wasOpen)}
         className={
           compact
-            ? cx(initialsCircle, "size-9 text-sm", FOCUS)
-            : cx("flex h-9 items-center gap-2 rounded-full bg-vellum pl-1 pr-2.5 text-sm text-ink transition-colors duration-150 ease-out hover:bg-vellum-line", FOCUS)
+            ? cx(initialsCircle, "size-9 text-small", FOCUS)
+            : cx("flex h-9 items-center gap-2 rounded-full bg-vellum pl-1 pr-2.5 text-small text-ink transition-colors duration-150 ease-out hover:bg-vellum-line", FOCUS)
         }
       >
         {compact ? (
           initials
         ) : (
           <>
-            <span className={cx(initialsCircle, "size-7 text-xs")}>{initials}</span>
+            <span className={cx(initialsCircle, "size-7 text-caption")}>{initials}</span>
             <NavIcon name="chevron" className="size-4 text-smoke" />
           </>
         )}
@@ -80,9 +80,9 @@ function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<S
           role="menu"
           className="absolute right-0 top-11 z-50 w-60 rounded-xs border border-vellum-line bg-paper py-1 shadow-e3"
         >
-          <p className="truncate border-b border-vellum-line px-4 py-2.5 text-xs text-smoke">{email}</p>
+          <p className="truncate border-b border-vellum-line px-4 py-2.5 text-caption text-smoke">{email}</p>
           {countdownLabel && (
-            <p className={cx("border-b border-vellum-line px-4 py-2.5 text-sm text-smoke", !compact && "@[900px]:hidden")}>{countdownLabel}</p>
+            <p className={cx("border-b border-vellum-line px-4 py-2.5 text-small text-smoke", !compact && "@[900px]:hidden")}>{countdownLabel}</p>
           )}
           <Link role="menuitem" href="/account" onClick={() => setOpen(false)} className={item}>
             Account
@@ -100,11 +100,11 @@ function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<S
 
 function Countdown({ label, isTestDay }: { label: string; isTestDay: boolean }) {
   if (isTestDay) {
-    return <span className="rounded-full bg-ink px-3 py-1 text-sm font-semibold text-chalk">{label}</span>;
+    return <span className="rounded-full bg-ink px-3 py-1 text-small font-semibold text-chalk">{label}</span>;
   }
   const [count, ...rest] = label.split(" ");
   return (
-    <span className="rounded-full bg-vellum px-3 py-1 text-sm text-smoke">
+    <span className="rounded-full bg-vellum px-3 py-1 text-small text-smoke">
       <b className="font-mono font-semibold tabular-nums text-ink">{count}</b> {rest.join(" ")}
     </span>
   );
@@ -143,7 +143,7 @@ export default function StudentNav(props: StudentNavProps & { workspaceSwitcher?
                   href={tab.href}
                   aria-current={active ? "page" : undefined}
                   className={cx(
-                    "flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm transition-colors duration-150 ease-out",
+                    "flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-small transition-colors duration-150 ease-out",
                     active
                       ? "bg-paper font-semibold text-ink shadow-control"
                       : "text-smoke hover:text-ink",
@@ -190,8 +190,8 @@ export function StudentTabBar({ uploadNeeded, withWorkspaceSwitcher = false }: {
             href={tab.href}
             aria-current={active ? "page" : undefined}
             className={cx(
-              "flex min-h-16 flex-col items-center justify-center gap-1 text-xs",
-              active ? "font-semibold text-accent" : "text-smoke",
+              "flex min-h-16 flex-col items-center justify-center gap-1 text-caption",
+              active ? "font-semibold text-ink" : "text-smoke",
               FOCUS,
             )}
           >

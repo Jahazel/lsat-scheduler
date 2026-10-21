@@ -2,6 +2,9 @@
 
 @theme {
   --color-*: initial;
+  --text-*: initial;
+  --font-weight-*: initial;
+  --tracking-*: initial;
   --color-void: #000000;
   --color-graphite: #141414;
   --color-graphite-raised: #1C1C1C;
@@ -36,6 +39,25 @@
   --text-h6: 16px;
   --text-h5: 18px;
   --text-h4: 22px;
+  --text-caption--line-height: var(--leading-caption);
+  --text-mono--line-height: var(--leading-mono);
+  --text-small--line-height: var(--leading-small);
+  --text-body--line-height: var(--leading-body);
+  --text-lead--line-height: var(--leading-lead);
+  --text-h3--line-height: var(--leading-h3);
+  --text-h2--line-height: var(--leading-h2);
+  --text-h1--line-height: var(--leading-h1);
+  --text-display--line-height: var(--leading-display);
+  --text-label--line-height: var(--leading-label);
+  --text-h6--line-height: var(--leading-h6);
+  --text-h5--line-height: var(--leading-h5);
+  --text-h4--line-height: var(--leading-h4);
+  --text-display--letter-spacing: var(--tracking-display);
+  --text-h1--letter-spacing: var(--tracking-heading);
+  --text-h2--letter-spacing: var(--tracking-heading);
+  --text-h3--letter-spacing: var(--tracking-heading);
+  --text-h4--letter-spacing: var(--tracking-heading);
+  --text-label--letter-spacing: var(--tracking-label);
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
@@ -87,6 +109,7 @@
   --radius-pill: 999px;
   --radius-xs: 8px;
 
+  --shadow-e0: 0 0 #0000;
   --shadow-e1: 0 12px 32px rgb(10 10 10 / 0.06);
   --shadow-e2: 0 24px 60px rgb(10 10 10 / 0.08);
   --shadow-e3: 0 16px 48px rgb(10 10 10 / 0.12);

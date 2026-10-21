@@ -2,8 +2,8 @@ export default function PrivacyPage() {
   return (
     <div className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-2xl">
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">Privacy Policy</h1>
-        <div className="mt-4 space-y-4 text-sm leading-6 text-smoke">
+        <h1 className="text-h3 font-semibold text-ink">Privacy Policy</h1>
+        <div className="mt-4 space-y-4 text-small leading-body text-smoke">
           <p>
             DrillMap stores the account and study information needed to provide your study plan, including your
             profile, approved analytics snapshots, weekly schedules, and activity check-ins. We use this information

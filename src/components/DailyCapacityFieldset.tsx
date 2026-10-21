@@ -8,8 +8,8 @@ import type { DayOfWeek } from "@/lib/types";
 
 const HOURS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
-const fieldClass = "rounded-sm border border-vellum-line bg-paper px-2 py-2 text-sm text-ink";
-const invalidFieldClass = "rounded-sm border border-danger bg-paper px-2 py-2 text-sm text-ink";
+const fieldClass = "rounded-sm border border-vellum-line bg-paper px-2 py-2 text-small text-ink";
+const invalidFieldClass = "rounded-sm border border-danger bg-paper px-2 py-2 text-small text-ink";
 
 // A daily capacity as an hours select plus a minutes select on the
 // 15-minute step. The minute options are limited to whatever is valid for
@@ -90,13 +90,13 @@ export default function DailyCapacityFieldset({ value, onChange }: DailyCapacity
 
   return (
     <fieldset className="flex flex-col gap-3">
-      <legend className="text-sm font-medium text-smoke">Daily capacity</legend>
-      <p className="-mt-1 text-sm text-smoke">How long can you study each day?</p>
-      <p className="-mt-1 text-sm text-smoke">We pick your rest day. Every day needs at least 30 min.</p>
+      <legend className="text-small font-medium text-smoke">Daily capacity</legend>
+      <p className="-mt-1 text-small text-smoke">How long can you study each day?</p>
+      <p className="-mt-1 text-small text-smoke">We pick your rest day. Every day needs at least 30 min.</p>
 
       <div className="rounded-sm bg-vellum p-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-auto text-sm text-smoke">Set all days</span>
+          <span className="mr-auto text-small text-smoke">Set all days</span>
           <DurationSelect
             label="All days"
             value={allDays}
@@ -107,13 +107,13 @@ export default function DailyCapacityFieldset({ value, onChange }: DailyCapacity
             type="button"
             disabled={Boolean(allDaysError)}
             onClick={() => onChange(everyDay(allDays))}
-            className="rounded-sm px-3 py-2 text-sm font-medium text-smoke transition-colors duration-150 ease-out hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-sm px-3 py-2 text-small font-medium text-smoke transition-colors duration-150 ease-out hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
           >
             Apply
           </button>
         </div>
         {allDaysError && (
-          <p id={`${id}-all-error`} className="mt-1 text-right text-sm text-danger-ink">
+          <p id={`${id}-all-error`} className="mt-1 text-right text-small text-danger-ink">
             {allDaysError}
           </p>
         )}
@@ -126,7 +126,7 @@ export default function DailyCapacityFieldset({ value, onChange }: DailyCapacity
           return (
             <li key={day} className="py-2">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-sm text-ink">{DAY_LABEL[day]}</span>
+                <span className="text-small text-ink">{DAY_LABEL[day]}</span>
                 <DurationSelect
                   label={DAY_LABEL[day]}
                   value={value[day]}
@@ -135,7 +135,7 @@ export default function DailyCapacityFieldset({ value, onChange }: DailyCapacity
                 />
               </div>
               {error && (
-                <p id={errorId} className="mt-1 text-right text-sm text-danger-ink">
+                <p id={errorId} className="mt-1 text-right text-small text-danger-ink">
                   {error}
                 </p>
               )}
@@ -144,7 +144,7 @@ export default function DailyCapacityFieldset({ value, onChange }: DailyCapacity
         })}
       </ul>
 
-      <p aria-live="polite" className="text-sm text-smoke">
+      <p aria-live="polite" className="text-small text-smoke">
         Total: {formatDuration(total)} per week
       </p>
     </fieldset>

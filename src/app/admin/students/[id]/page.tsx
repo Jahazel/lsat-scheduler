@@ -33,14 +33,14 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
     <div className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-3xl">
         <div className="flex items-center justify-between gap-4">
-          <Link href="/admin" className="text-sm font-medium text-accent hover:text-ink">
+          <Link href="/admin" className="text-small font-medium text-accent hover:text-ink">
             ← All students
           </Link>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-vellum-line px-2.5 py-1 text-xs font-medium text-smoke">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-vellum-line px-2.5 py-1 text-caption font-medium text-smoke">
             Viewing as admin — read only
           </span>
         </div>
-        <p className="mt-4 text-sm text-smoke">{record.email}</p>
+        <p className="mt-4 text-small text-smoke">{record.email}</p>
         <div className="mt-2">
           {currentWeek.kind === "schedule" ? (
             <ScheduleCheckInView
@@ -51,7 +51,7 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
               readOnly
             />
           ) : (
-            <p className="text-sm text-smoke">{adminScheduleStateMessage(currentWeek)}</p>
+            <p className="text-small text-smoke">{adminScheduleStateMessage(currentWeek)}</p>
           )}
         </div>
       </div>

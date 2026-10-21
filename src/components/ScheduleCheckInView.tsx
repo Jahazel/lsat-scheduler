@@ -16,9 +16,9 @@ const CONTROL_CLASS =
 const FIELD_CLASS =
   "rounded-sm border border-vellum-line bg-paper transition-colors duration-150 ease-out focus:border-accent focus:outline-none";
 const VIEW_CONTROL_CLASS =
-  "flex-1 rounded-sm px-4 py-2 text-sm font-semibold transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1";
+  "flex-1 rounded-sm px-4 py-2 text-small font-semibold transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1";
 const STATUS_CONTROL_CLASS =
-  "rounded-sm px-2.5 py-1 text-xs font-semibold transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-50";
+  "rounded-sm px-2.5 py-1 text-caption font-semibold transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-50";
 
 function WarningIcon() {
   return <svg aria-hidden="true" className="mt-0.5 size-4 shrink-0" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} viewBox="0 0 24 24">
@@ -73,31 +73,31 @@ export default function ScheduleCheckInView({
 
   return (
     <>
-      {!isPastPlan && <p className="text-sm font-medium text-smoke">Week of {formatScheduleWeekOf(schedule.weekOf)}</p>}
+      {!isPastPlan && <p className="text-small font-medium text-smoke">Week of {formatScheduleWeekOf(schedule.weekOf)}</p>}
       <div className="mt-3 flex flex-wrap items-end justify-between gap-5">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink">{heading}</h1>
-          {!isPastPlan && <p className="mt-3 text-xl text-smoke">Your plan is set. Check in as you go.</p>}
+          <h1 className="text-h3 font-semibold text-ink">{heading}</h1>
+          {!isPastPlan && <p className="mt-3 text-lead text-smoke">Your plan is set. Check in as you go.</p>}
         </div>
         {statusFirst ? <div aria-live="polite" className="w-60 rounded-xs border border-vellum-line bg-paper px-4 py-3">
           <div className="flex items-baseline justify-between gap-4">
-            <span className="text-sm font-semibold text-ink">{remainingActivities} remaining</span>
-            <span className="text-xs text-smoke">{checkedInActivities} checked in</span>
+            <span className="text-small font-semibold text-ink">{remainingActivities} remaining</span>
+            <span className="text-caption text-smoke">{checkedInActivities} checked in</span>
           </div>
           <div aria-label={`${checkedInActivities} of ${totalActivities} activities checked in`} aria-valuemax={totalActivities} aria-valuemin={0} aria-valuenow={checkedInActivities} className="mt-2 h-1.5 overflow-hidden rounded-full bg-vellum-line" role="progressbar">
             <div className="h-full rounded-full bg-accent" style={{ width: `${checkedInPercent}%` }} />
           </div>
-        </div> : <p aria-live="polite" className="rounded-full bg-vellum-line px-4 py-2 text-base font-medium text-smoke">
+        </div> : <p aria-live="polite" className="rounded-full bg-vellum-line px-4 py-2 text-body font-medium text-smoke">
           {remainingActivities} of {totalActivities} activities remaining
         </p>}
       </div>
-      {weekReasons.length > 0 && <div className="mt-5 max-w-2xl rounded-xs border border-vellum-line bg-vellum px-4 py-3 text-sm text-smoke">
+      {weekReasons.length > 0 && <div className="mt-5 max-w-2xl rounded-xs border border-vellum-line bg-vellum px-4 py-3 text-small text-smoke">
         {weekReasons.map((reason, index) => <p className={index > 0 ? "mt-2" : ""} key={`${reason.code}-${index}`}>{reason.sentence}</p>)}
       </div>}
       <div className={statusFirst ? "mt-8" : "mt-8 flex flex-wrap gap-2"} aria-label="Schedule view">
         <div className={statusFirst ? "flex items-center justify-between rounded-xs border border-vellum-line bg-paper p-1" : "contents"}>
-          <button aria-pressed={view === "week"} className={statusFirst ? `${VIEW_CONTROL_CLASS} ${view === "week" ? "bg-ink text-chalk hover:bg-graphite-raised focus-visible:bg-graphite-raised" : "text-smoke hover:bg-vellum hover:text-ink focus-visible:bg-vellum"}` : `${view === "week" ? "border-ink bg-ink text-chalk" : CONTROL_CLASS} px-4 py-2 text-sm`} onClick={() => setView("week")} type="button">Whole week</button>
-          <button aria-pressed={view === "day"} className={statusFirst ? `${VIEW_CONTROL_CLASS} ${view === "day" ? "bg-ink text-chalk hover:bg-graphite-raised focus-visible:bg-graphite-raised" : "text-smoke hover:bg-vellum hover:text-ink focus-visible:bg-vellum"}` : `${view === "day" ? "border-ink bg-ink text-chalk" : CONTROL_CLASS} px-4 py-2 text-sm`} onClick={() => setView("day")} type="button">One day</button>
+          <button aria-pressed={view === "week"} className={statusFirst ? `${VIEW_CONTROL_CLASS} ${view === "week" ? "bg-ink text-chalk hover:bg-graphite-raised focus-visible:bg-graphite-raised" : "text-smoke hover:bg-vellum hover:text-ink focus-visible:bg-vellum"}` : `${view === "week" ? "border-ink bg-ink text-chalk" : CONTROL_CLASS} px-4 py-2 text-small`} onClick={() => setView("week")} type="button">Whole week</button>
+          <button aria-pressed={view === "day"} className={statusFirst ? `${VIEW_CONTROL_CLASS} ${view === "day" ? "bg-ink text-chalk hover:bg-graphite-raised focus-visible:bg-graphite-raised" : "text-smoke hover:bg-vellum hover:text-ink focus-visible:bg-vellum"}` : `${view === "day" ? "border-ink bg-ink text-chalk" : CONTROL_CLASS} px-4 py-2 text-small`} onClick={() => setView("day")} type="button">One day</button>
         </div>
         {view === "day" && (
           statusFirst ? <div aria-label="Day to view" className="mt-2 grid grid-cols-2 rounded-xs border border-vellum-line bg-paper p-1 sm:grid-cols-7">
@@ -112,7 +112,7 @@ export default function ScheduleCheckInView({
                 {day.slice(0, 3)}
               </button>
             ))}
-          </div> : <select aria-label="Day to view" className={`${FIELD_CLASS} px-2 text-sm`} value={selectedDay} onChange={(event) => setSelectedDay(event.target.value as DayOfWeek)}>
+          </div> : <select aria-label="Day to view" className={`${FIELD_CLASS} px-2 text-small`} value={selectedDay} onChange={(event) => setSelectedDay(event.target.value as DayOfWeek)}>
             {DAY_ORDER.map((day) => <option key={day}>{day}</option>)}
           </select>
         )}
@@ -130,25 +130,25 @@ export default function ScheduleCheckInView({
           return (
             <section key={day} className={`overflow-hidden rounded-xs border ${isUnscheduled ? "border-dashed border-vellum-line bg-transparent" : warning ? "border-fog bg-paper" : "border-vellum-line bg-paper"}`}>
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-vellum-line px-5 py-4">
-                <h2 className="text-sm font-semibold text-ink">{dayName(day)} <span className="font-normal text-smoke">{dateInWeek(schedule.weekOf, DAY_ORDER.indexOf(day))}</span></h2>
+                <h2 className="text-small font-semibold text-ink">{dayName(day)} <span className="font-regular text-smoke">{dateInWeek(schedule.weekOf, DAY_ORDER.indexOf(day))}</span></h2>
                 {/* `student` is the saved generationInputs snapshot, so a past week
                     keeps the daily capacity it was created with. */}
-                <span className="text-xs text-smoke">
+                <span className="text-caption text-smoke">
                   {isUnscheduled ? "Not scheduled" : plan.type === "rest" ? "Rest day" : plan.type === "practice_test" ? `Practice test${practiceTestDays.length > 1 ? ` ${practiceTestDays.indexOf(day) + 1} of ${practiceTestDays.length}` : ""}` : plan.type === "review" ? "Practice-test review" : "Drilling"} · {formatDuration(plannedMinutes)} of {formatDuration(student.dailyCapacityMinutes[day])}
                 </span>
               </div>
               {warning && <div className="flex gap-3 border-b border-vellum-line bg-vellum px-5 py-3 text-ink" role="note" aria-label={`${dayName(day)} capacity warning`}>
                 <WarningIcon />
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold">{formatDuration(Math.round(overageMinutes))} over your {formatDuration(student.dailyCapacityMinutes[day])} {dayName(day)}</p>
-                  <p className="mt-0.5 text-sm text-smoke">{warning.sentence}</p>
-                  {!readOnly && !isPastPlan && <p className="mt-2 text-sm"><Link className="font-medium text-accent underline underline-offset-4 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" href="/settings">Change daily capacity</Link><span className="text-smoke"> · applies from next week&apos;s plan</span></p>}
+                  <p className="text-small font-semibold">{formatDuration(Math.round(overageMinutes))} over your {formatDuration(student.dailyCapacityMinutes[day])} {dayName(day)}</p>
+                  <p className="mt-0.5 text-small text-smoke">{warning.sentence}</p>
+                  {!readOnly && !isPastPlan && <p className="mt-2 text-small"><Link className="font-medium text-accent underline underline-offset-4 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" href="/settings">Change daily capacity</Link><span className="text-smoke"> · applies from next week&apos;s plan</span></p>}
                 </div>
               </div>}
               {otherDayReasons.length > 0 && <div className={isUnscheduled && plan.activities.length === 0 ? "px-5 py-4" : "px-5 pt-4"}>
-                {otherDayReasons.map((reason, index) => <p className={`${isUnscheduled && plan.activities.length === 0 ? "text-sm text-smoke" : "text-sm font-medium text-smoke"}${index > 0 ? " mt-2" : ""}`} key={`${reason.code}-${index}`}>{reason.sentence}</p>)}
+                {otherDayReasons.map((reason, index) => <p className={`${isUnscheduled && plan.activities.length === 0 ? "text-small text-smoke" : "text-small font-medium text-smoke"}${index > 0 ? " mt-2" : ""}`} key={`${reason.code}-${index}`}>{reason.sentence}</p>)}
               </div>}
-              {plan.activities.length === 0 ? (isUnscheduled && otherDayReasons.length > 0 ? null : <p className="px-5 py-4 text-sm text-smoke">{plan.type === "rest" ? "Rest day. Nothing planned." : isUnscheduled ? "Not scheduled." : "Nothing scheduled."}</p>) : (
+              {plan.activities.length === 0 ? (isUnscheduled && otherDayReasons.length > 0 ? null : <p className="px-5 py-4 text-small text-smoke">{plan.type === "rest" ? "Rest day. Nothing planned." : isUnscheduled ? "Not scheduled." : "Nothing scheduled."}</p>) : (
                 <div className={statusFirst ? "" : "flex flex-col gap-3 px-5 py-4"}>
                   {plan.activities.map((activity, index) => {
                     const activityId = scheduleActivityId(day, index);
@@ -156,14 +156,14 @@ export default function ScheduleCheckInView({
                     const status = checkIn?.status ?? "not_started";
                     return (
                       <article key={activityId} className={statusFirst ? "flex flex-wrap items-center gap-3 border-b border-vellum-line px-5 py-4 last:border-0" : "rounded-xs border border-vellum-line p-5"}>
-                        {statusFirst && <span aria-label={status === "completed" ? `Activity ${index + 1}, completed` : status === "skipped" ? `Activity ${index + 1}, skipped` : `Activity ${index + 1}, not started`} className={`${status === "completed" ? "bg-accent/tint text-accent" : status === "skipped" ? "bg-vellum-line text-smoke" : "bg-vellum-line text-smoke"} grid size-7 shrink-0 place-items-center rounded-full text-xs font-semibold`}>
+                        {statusFirst && <span aria-label={status === "completed" ? `Activity ${index + 1}, completed` : status === "skipped" ? `Activity ${index + 1}, skipped` : `Activity ${index + 1}, not started`} className={`${status === "completed" ? "bg-accent/tint text-accent" : status === "skipped" ? "bg-vellum-line text-smoke" : "bg-vellum-line text-smoke"} grid size-7 shrink-0 place-items-center rounded-full text-caption font-semibold`}>
                           {status === "completed" ? "✓" : index + 1}
                         </span>}
                         <div className={statusFirst ? "min-w-40 flex-1" : ""}>
-                          <p className="text-sm font-medium text-ink">{activityLabel(activity)}</p>
-                          <p className="mt-1 text-xs text-smoke">{formatDuration(activityMinutes[index])} planned</p>
-                          {statusFirst && status === "skipped" && <p className="mt-1 text-xs font-medium text-smoke">Skipped</p>}
-                          {readOnly && <p className="mt-2 text-sm text-smoke">{status.replace("_", " ")}{checkIn?.actualMinutes !== undefined ? ` · ${checkIn.actualMinutes} min actual` : ""}</p>}
+                          <p className="text-small font-medium text-ink">{activityLabel(activity)}</p>
+                          <p className="mt-1 text-caption text-smoke">{formatDuration(activityMinutes[index])} planned</p>
+                          {statusFirst && status === "skipped" && <p className="mt-1 text-caption font-medium text-smoke">Skipped</p>}
+                          {readOnly && <p className="mt-2 text-small text-smoke">{status.replace("_", " ")}{checkIn?.actualMinutes !== undefined ? ` · ${checkIn.actualMinutes} min actual` : ""}</p>}
                         </div>
                         {!readOnly && (statusFirst ? (
                           <div className="flex flex-wrap items-center gap-2">
@@ -172,18 +172,18 @@ export default function ScheduleCheckInView({
                               <button aria-label={status === "skipped" ? `Clear skipped status for ${activityLabel(activity)}` : `Skip ${activityLabel(activity)}`} aria-pressed={status === "skipped"} disabled={pending} className={`${STATUS_CONTROL_CLASS} ${status === "skipped" ? "bg-vellum-line text-ink" : "text-smoke hover:text-ink"}`} onClick={() => saveCheckIn(activityId, status === "skipped" ? "not_started" : "skipped")} type="button">Skip</button>
                             </div>
                             {status === "completed" && (
-                              <label className="text-xs text-smoke">Actual min <input aria-label={`Actual minutes for ${activityLabel(activity)}`} className={`${FIELD_CLASS} ml-1 w-16 px-1 py-0.5`} defaultValue={checkIn?.actualMinutes ?? ""} min="0" onBlur={(event) => saveCheckIn(activityId, "completed", event.currentTarget.value === "" ? undefined : Number(event.currentTarget.value))} type="number" /></label>
+                              <label className="text-caption text-smoke">Actual min <input aria-label={`Actual minutes for ${activityLabel(activity)}`} className={`${FIELD_CLASS} ml-1 w-16 px-1 py-0.5`} defaultValue={checkIn?.actualMinutes ?? ""} min="0" onBlur={(event) => saveCheckIn(activityId, "completed", event.currentTarget.value === "" ? undefined : Number(event.currentTarget.value))} type="number" /></label>
                             )}
                           </div>
                         ) : (
                           <div className="mt-3 flex flex-wrap items-center gap-2">
                             {(["not_started", "completed", "skipped"] as const).map((nextStatus) => (
-                              <button disabled={pending} className={`${CONTROL_CLASS} px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50`} key={nextStatus} onClick={() => saveCheckIn(activityId, nextStatus)} type="button">
+                              <button disabled={pending} className={`${CONTROL_CLASS} px-2 py-1 text-caption disabled:cursor-not-allowed disabled:opacity-50`} key={nextStatus} onClick={() => saveCheckIn(activityId, nextStatus)} type="button">
                                 {nextStatus === "not_started" ? "Not started" : nextStatus === "completed" ? "Completed" : "Skipped"}
                               </button>
                             ))}
                             {status === "completed" && (
-                              <label className="text-xs text-smoke">Actual min <input className={`${FIELD_CLASS} ml-1 w-16 px-1 py-0.5`} defaultValue={checkIn?.actualMinutes ?? ""} min="0" onBlur={(event) => saveCheckIn(activityId, "completed", event.currentTarget.value === "" ? undefined : Number(event.currentTarget.value))} type="number" /></label>
+                              <label className="text-caption text-smoke">Actual min <input className={`${FIELD_CLASS} ml-1 w-16 px-1 py-0.5`} defaultValue={checkIn?.actualMinutes ?? ""} min="0" onBlur={(event) => saveCheckIn(activityId, "completed", event.currentTarget.value === "" ? undefined : Number(event.currentTarget.value))} type="number" /></label>
                             )}
                           </div>
                         ))}
@@ -197,15 +197,15 @@ export default function ScheduleCheckInView({
         })}
       </div>
       <section className="mt-8 border-t border-vellum-line pt-6">
-        <p className="text-sm font-medium text-smoke">Looking ahead</p>
+        <p className="text-small font-medium text-smoke">Looking ahead</p>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="font-semibold text-ink">Prepare next week&apos;s plan</h2>
-            <p className="mt-1 text-sm text-smoke">When you have updated 7Sage analytics, upload them to shape next week&apos;s plan.</p>
+            <p className="mt-1 text-small text-smoke">When you have updated 7Sage analytics, upload them to shape next week&apos;s plan.</p>
           </div>
           <details className="group">
-            <summary className={`${CONTROL_CLASS} cursor-pointer list-none px-4 py-2 text-sm group-open:border-accent group-open:text-accent`}>How this works</summary>
-            <p className="mt-3 w-full max-w-xl rounded-xs border border-dashed border-vellum-line bg-vellum p-4 text-sm text-smoke">Your current plan is saved and will not change. A future analytics upload is used only when a later week&apos;s plan is created.</p>
+            <summary className={`${CONTROL_CLASS} cursor-pointer list-none px-4 py-2 text-small group-open:border-accent group-open:text-accent`}>How this works</summary>
+            <p className="mt-3 w-full max-w-xl rounded-xs border border-dashed border-vellum-line bg-vellum p-4 text-small text-smoke">Your current plan is saved and will not change. A future analytics upload is used only when a later week&apos;s plan is created.</p>
           </details>
         </div>
       </section>

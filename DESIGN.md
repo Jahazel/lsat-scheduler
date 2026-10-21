@@ -12,8 +12,8 @@ are the source. Start at `docs/design/README.md`.
 | `docs/design/<area>/` | Screen boards. A screen board wins over a Design System board. |
 
 `src/app/globals.css` holds the same tokens as the app's Tailwind theme, plus the elevation shadows. Tailwind's default
-color palette is removed, so only Paper colors exist. `src/app/designTokens.test.ts` fails when application code uses an
-old token name, a Tailwind palette color, or a raw hex, rgb, hsl, or oklch value.
+colors, type sizes, weights, and tracking are removed, so only Paper's exist. `src/app/designTokens.test.ts` fails when
+application code uses an old token name, a Tailwind palette color or type class, or a raw hex, rgb, hsl, or oklch value.
 
 ## Color roles
 
@@ -38,9 +38,10 @@ One light ground: Vellum page, Paper cards, Ink text, one Accent blue.
 ## Type
 
 Geist and Geist Mono load through `next/font`; `font-sans` and `font-mono` point at them. Hierarchy comes from size and
-weight in one family. Paper's type ramp exists as `text-caption`, `text-small`, `text-body`, `text-lead`, `text-h6` …
-`text-h1`, `text-display`, with matching `leading-*` and `tracking-*` tokens. New and restyled screens use those names.
-Screens without boards still use Tailwind's size names where the values match Paper's ramp.
+weight in one family. Paper's ramp is `text-caption`, `text-label`, `text-mono`, `text-small`, `text-body`, `text-lead`,
+`text-h6` … `text-h1`, and `text-display`. Each size carries its Paper leading; `text-h1`–`text-h4` and `text-display`
+also carry their tracking, and `text-label` its 0.08em label tracking. Page titles use `text-h3 font-semibold`, as on the
+boards. Weights are `font-regular`, `font-medium`, and `font-semibold`.
 
 ## Spacing, radius, and breakpoints
 
@@ -55,7 +56,7 @@ Flat by default. Depth comes from a 1 px Vellum Line border.
 
 | Level | Class | Use |
 | --- | --- | --- |
-| e0 | border only | Sidebars, inputs, cards in a panel |
+| e0 | `shadow-e0` (none) with a 1 px Vellum Line border | Sidebars, inputs, cards in a panel |
 | e1 | `shadow-e1` | A card that floats over its panel; the phone tab bar |
 | e2 | `shadow-e2` | Hero product panels on Vellum, including the landing page's sample week |
 | e3 | `shadow-e3` | Menus, popovers, the admin workspace dropdown, toasts |

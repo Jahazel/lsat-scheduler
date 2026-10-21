@@ -22,7 +22,7 @@ export function AdminTestOpener({ state, panelId }: { state: TestControlState; p
         aria-haspopup="dialog"
         aria-controls={panelId}
         className={cx(
-          "min-h-11 rounded-sm border border-vellum-line px-3 py-2 text-sm text-ink hover:bg-vellum",
+          "min-h-11 rounded-sm border border-vellum-line px-3 py-2 text-small text-ink hover:bg-vellum",
           FOCUS,
         )}
       >
@@ -80,7 +80,7 @@ export default function AdminTestPanel({ state, panelId }: { state: TestControlS
             onClick={() => toggle(true)}
             aria-expanded={false}
             className={cx(
-              "flex min-h-44 w-full flex-col items-center gap-4 px-2 py-5 text-xs text-smoke hover:bg-vellum",
+              "flex min-h-44 w-full flex-col items-center gap-4 px-2 py-5 text-caption text-smoke hover:bg-vellum",
               FOCUS_INSET,
             )}
           >

@@ -51,7 +51,7 @@ function WorkspaceSwitcher({ studentSide, adminSide }: { studentSide: boolean; a
         aria-expanded={open}
         aria-controls={menuId}
         onClick={() => setOpen((value) => !value)}
-        className={cx("flex min-h-11 items-center gap-1 rounded-sm px-2 text-sm font-medium text-ink hover:bg-vellum", FOCUS)}
+        className={cx("flex min-h-11 items-center gap-1 rounded-sm px-2 text-small font-medium text-ink hover:bg-vellum", FOCUS)}
       >
         {studentSide ? "My student side" : "All students"}
         <NavIcon name="chevron" className="size-4 text-smoke" />
@@ -71,13 +71,13 @@ function WorkspaceSwitcher({ studentSide, adminSide }: { studentSide: boolean; a
               href={option.href}
               aria-current={option.active ? "true" : undefined}
               onClick={() => setOpen(false)}
-              className={cx("flex items-center justify-between gap-3 px-4 py-3 text-sm text-ink hover:bg-vellum", option.active && "bg-vellum font-semibold", FOCUS)}
+              className={cx("flex items-center justify-between gap-3 px-4 py-3 text-small text-ink hover:bg-vellum", option.active && "bg-vellum font-semibold", FOCUS)}
             >
               <span>
                 <span className={cx("block font-medium", option.active && "font-semibold")}>{option.label}</span>
-                <span className="block text-xs font-normal text-smoke">{option.detail}</span>
+                <span className="block text-caption font-regular text-smoke">{option.detail}</span>
               </span>
-              {option.active && <NavIcon name="check" className="size-4 text-accent" />}
+              {option.active && <NavIcon name="check" className="size-4 text-ink" />}
             </Link>
           ))}
         </nav>
@@ -112,7 +112,7 @@ export default function AdminNav(props: StudentNavProps & { testState?: TestCont
               {switcher}
             </div>
             <form action={props.logOut}>
-              <button type="submit" className={cx("min-h-11 rounded-sm px-2 text-sm text-smoke hover:bg-vellum", FOCUS)}>Log out</button>
+              <button type="submit" className={cx("min-h-11 rounded-sm px-2 text-small text-smoke hover:bg-vellum", FOCUS)}>Log out</button>
             </form>
           </div>
         )}

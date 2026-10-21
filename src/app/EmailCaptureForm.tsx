@@ -9,7 +9,7 @@ export default function EmailCaptureForm() {
   const [state, formAction, pending] = useActionState(captureLead, initialState);
 
   if (state.success) {
-    return <p className="text-sm text-smoke">Thanks — we&rsquo;ll be in touch.</p>;
+    return <p className="text-small text-smoke">Thanks — we&rsquo;ll be in touch.</p>;
   }
 
   return (
@@ -19,16 +19,16 @@ export default function EmailCaptureForm() {
         name="email"
         required
         placeholder="you@example.com"
-        className="flex-1 rounded-sm border border-vellum-line bg-paper px-3 py-2 text-sm text-ink"
+        className="flex-1 rounded-sm border border-vellum-line bg-paper px-3 py-2 text-small text-ink"
       />
       <button
         type="submit"
         disabled={pending}
-        className="rounded-sm border border-vellum-line px-4 py-2 text-sm font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum-line disabled:opacity-50"
+        className="rounded-sm border border-vellum-line px-4 py-2 text-small font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum-line disabled:opacity-50"
       >
         {pending ? "Saving…" : "Notify me"}
       </button>
-      {state.error && <p className="text-sm text-danger-ink sm:col-span-2">{state.error}</p>}
+      {state.error && <p className="text-small text-danger-ink sm:col-span-2">{state.error}</p>}
     </form>
   );
 }

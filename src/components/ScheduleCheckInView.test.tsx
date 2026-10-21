@@ -123,7 +123,7 @@ describe("ScheduleCheckInView", () => {
       expect(markup.indexOf(sentence)).toBeLessThan(markup.indexOf("Schedule view"));
     expect(card("Tuesday")).toContain("border-dashed");
     expect(card("Tuesday")).toContain("Saved unscheduled note.");
-    expect(card("Tuesday")).toMatch(/<p class="text-sm text-smoke">Saved unscheduled note\.<\/p>/);
+    expect(card("Tuesday")).toMatch(/<p class="text-small text-smoke">Saved unscheduled note\.<\/p>/);
     expect(card("Wednesday")).toContain("Saved rest move.");
     expect(card("Monday")).toContain("Saved review carryover.");
     expect(card("Sunday")).toContain("Saved next Monday review.");

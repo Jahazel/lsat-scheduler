@@ -26,13 +26,13 @@ export default function Error({
     <div className="min-h-screen px-6 py-12">
       <div className="mx-auto flex max-w-2xl flex-col items-center gap-3 border-y border-vellum-line px-6 py-16 text-center">
         <AlertIcon className="size-6 text-fog" />
-        <p className="text-sm text-smoke">
+        <p className="text-small text-smoke">
           Couldn&rsquo;t load students. Check the connection and try again.
         </p>
         <button
           type="button"
           onClick={() => reset()}
-          className="mt-1 inline-flex items-center rounded-sm bg-ink px-4 py-2 text-sm font-medium text-chalk transition-colors duration-150 ease-out hover:bg-graphite-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-vellum"
+          className="mt-1 inline-flex items-center rounded-sm bg-ink px-4 py-2 text-small font-medium text-chalk transition-colors duration-150 ease-out hover:bg-graphite-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-vellum"
         >
           Try again
         </button>
