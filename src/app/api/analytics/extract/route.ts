@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractAnalyticsRows } from "@/lib/screenshotExtractor";
 import { mockRules } from "@/lib/mockData";
-import { readScreenshot, type ScreenshotRejection } from "@/lib/screenshotUpload";
+import { readScreenshot, rejectionStatus, type ScreenshotRejection } from "@/lib/screenshotUpload";
 
-function rejected({ reason, message }: ScreenshotRejection) {
-  return NextResponse.json({ error: message, reason }, { status: reason === "too-large" ? 413 : 415 });
+function rejected(rejection: ScreenshotRejection) {
+  return NextResponse.json({ error: rejection.message, reason: rejection.reason }, { status: rejectionStatus(rejection) });
 }
 
 // The uploaded image is only ever used here, in memory, for extraction —

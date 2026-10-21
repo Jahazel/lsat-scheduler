@@ -7,9 +7,8 @@ export type DropZoneProps = {
   label: string;
   accept?: string;
   error?: string;
-  onFile: (file: File) => void;
   className?: string;
-};
+} & ({ multiple?: false; onFile: (file: File) => void } | { multiple: true; onFiles: (files: File[]) => void });
 
 function UploadGlyph() {
   return (
@@ -19,7 +18,8 @@ function UploadGlyph() {
   );
 }
 
-export function DropZone({ label, accept, error, onFile, className }: DropZoneProps) {
+export function DropZone(props: DropZoneProps) {
+  const { label, accept, error, className } = props;
   const input = useRef<HTMLInputElement>(null);
   const errorId = useId();
   const [dragging, setDragging] = useState(false);
@@ -31,8 +31,15 @@ export function DropZone({ label, accept, error, onFile, className }: DropZonePr
   const onDrop = (event: DragEvent) => {
     event.preventDefault();
     setDragging(false);
-    const file = event.dataTransfer.files[0];
-    if (file) onFile(file);
+    handOver(event.dataTransfer.files);
+  };
+  const handOver = (list: FileList | null) => {
+    const files = [...(list ?? [])];
+    if (props.multiple) {
+      if (files.length > 0) props.onFiles(files);
+    } else if (files[0]) {
+      props.onFile(files[0]);
+    }
   };
 
   return (
@@ -67,14 +74,15 @@ export function DropZone({ label, accept, error, onFile, className }: DropZonePr
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           {dragging ? (
             <>
-              <span className="text-body font-semibold text-accent">Drop to add it</span>
+              <span className="text-body font-semibold text-accent">{props.multiple ? "Drop to add them" : "Drop to add it"}</span>
               <span className="text-small text-smoke">{label}</span>
             </>
           ) : (
             <>
               <span className="text-body font-semibold text-ink">{label}</span>
               <span className="text-small text-smoke">
-                Drop it here or <span className="font-medium text-accent underline underline-offset-3">choose a file</span>
+                {props.multiple ? "Drop them here together or " : "Drop it here or "}
+                <span className="font-medium text-accent underline underline-offset-3">{props.multiple ? "choose files" : "choose a file"}</span>
               </span>
             </>
           )}
@@ -85,10 +93,10 @@ export function DropZone({ label, accept, error, onFile, className }: DropZonePr
         type="file"
         aria-label={`${label} file`}
         accept={accept}
+        multiple={props.multiple}
         className="hidden"
         onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) onFile(file);
+          handOver(event.target.files);
           event.target.value = "";
         }}
       />

@@ -1,13 +1,16 @@
+import type { SectionReading } from "./practiceTestResult";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "./types";
 
 export const SCREENSHOT_MEDIA_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 export type ScreenshotMediaType = (typeof SCREENSHOT_MEDIA_TYPES)[number];
 
-const MAX_SCREENSHOT_MB = 4;
+export const MAX_SCREENSHOT_MB = 4;
 const MAX_SCREENSHOT_BYTES = MAX_SCREENSHOT_MB * 1024 * 1024;
 export const SCREENSHOT_LIMITS = `PNG, JPG, or WEBP · ${MAX_SCREENSHOT_MB} MB or less`;
 
 export type ScreenshotRejection = { reason: "wrong-type" | "too-large"; message: string };
+
+export const rejectionStatus = ({ reason }: ScreenshotRejection) => (reason === "too-large" ? 413 : 415);
 
 interface ScreenshotFile {
   name: string;
@@ -60,25 +63,68 @@ function sniffScreenshotType(bytes: Uint8Array): ScreenshotMediaType | null {
   return null;
 }
 
-export type ExtractReply =
-  | { kind: "rows"; rows: AnalyticsExtractedRow[] }
+type ScreenshotFailure =
   | { kind: "rejected"; message: string }
   | { kind: "cannot-read" }
   | { kind: "signed-out" }
   | { kind: "connection-lost" };
 
-export async function extractScreenshot(file: File, section: AnalyticsSection): Promise<ExtractReply> {
-  const formData = new FormData();
-  formData.append("image", file);
-  formData.append("section", section);
+export type ExtractReply = { kind: "rows"; rows: AnalyticsExtractedRow[] } | ScreenshotFailure;
+export type SectionReply = { kind: "reading"; reading: SectionReading } | ScreenshotFailure;
+
+async function postScreenshot(url: string, formData: FormData): Promise<{ kind: "ok"; body: unknown } | ScreenshotFailure> {
   try {
-    const res = await fetch("/api/analytics/extract", { method: "POST", body: formData });
+    const res = await fetch(url, { method: "POST", body: formData });
     if (res.status === 413 || res.status === 415) return { kind: "rejected", message: (await res.json()).error };
     if (res.status === 401) return { kind: "signed-out" };
     if (res.status === 502) return { kind: "cannot-read" };
     if (!res.ok) return { kind: "connection-lost" };
-    return { kind: "rows", rows: (await res.json()).rows };
+    return { kind: "ok", body: await res.json() };
   } catch {
     return { kind: "connection-lost" };
+  }
+}
+
+export async function extractScreenshot(file: File, section: AnalyticsSection): Promise<ExtractReply> {
+  const formData = new FormData();
+  formData.append("image", file);
+  formData.append("section", section);
+  const reply = await postScreenshot("/api/analytics/extract", formData);
+  return reply.kind === "ok" ? { kind: "rows", rows: (reply.body as { rows: AnalyticsExtractedRow[] }).rows } : reply;
+}
+
+export async function extractPracticeTestScreenshot(file: File): Promise<SectionReply> {
+  const formData = new FormData();
+  formData.append("image", file);
+  const reply = await postScreenshot("/api/practice-test/extract", formData);
+  return reply.kind === "ok" ? { kind: "reading", reading: (reply.body as { reading: SectionReading }).reading } : reply;
+}
+
+export const CANNOT_READ = "Couldn't read that screenshot. Try again or a clearer image.";
+
+const NO_ROWS: Record<AnalyticsSection, string> = {
+  LR: "We found no LR question types in that screenshot. Choose your Logical Reasoning screenshot.",
+  RC: "We found no passage types in that screenshot. Choose your Reading Comprehension screenshot.",
+};
+
+export type AnalyticsRead =
+  | { kind: "rows"; rows: AnalyticsExtractedRow[] }
+  | { kind: "problem"; message: string }
+  | { kind: "signed-out" };
+
+export async function readAnalyticsScreenshot(file: File, section: AnalyticsSection): Promise<AnalyticsRead> {
+  const rejection = checkScreenshot(file);
+  if (rejection) return { kind: "problem", message: rejection.message };
+  const reply = await extractScreenshot(file, section);
+  switch (reply.kind) {
+    case "rows":
+      return reply.rows.length === 0 ? { kind: "problem", message: NO_ROWS[section] } : reply;
+    case "rejected":
+      return { kind: "problem", message: reply.message };
+    case "signed-out":
+      return reply;
+    case "cannot-read":
+    case "connection-lost":
+      return { kind: "problem", message: CANNOT_READ };
   }
 }

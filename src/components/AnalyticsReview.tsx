@@ -17,7 +17,7 @@ import {
   type SnapshotReview,
 } from "@/lib/analyticsReview";
 import type { AnalyticsSection } from "@/lib/types";
-import { checkScreenshot, extractScreenshot, SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES } from "@/lib/screenshotUpload";
+import { checkScreenshot, readAnalyticsScreenshot, SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES } from "@/lib/screenshotUpload";
 import SignInExpired from "./SignInExpired";
 import { DropZone } from "./ui/DropZone";
 
@@ -33,11 +33,6 @@ interface AnalyticsReviewProps {
 type UploadStatus = { extracting: boolean; error: string | null; signedOut: boolean };
 const IDLE: UploadStatus = { extracting: false, error: null, signedOut: false };
 
-const NO_ROWS: Record<AnalyticsSection, string> = {
-  LR: "We found no LR question types in that screenshot. Choose your Logical Reasoning screenshot.",
-  RC: "We found no passage types in that screenshot. Choose your Reading Comprehension screenshot.",
-};
-
 export default function AnalyticsReview({
   review,
   onReviewChange,
@@ -51,34 +46,20 @@ export default function AnalyticsReview({
 
   async function readFile(section: AnalyticsSection, file: File) {
     const attempt = ++latestRead.current[section];
-    const rejection = checkScreenshot(file);
-    if (rejection) {
-      setUpload(section, { ...IDLE, error: rejection.message });
-      return;
-    }
-
-    setUpload(section, { ...IDLE, extracting: true });
-    const reply = await extractScreenshot(file, section);
+    setUpload(section, { ...IDLE, extracting: checkScreenshot(file) === null });
+    const read = await readAnalyticsScreenshot(file, section);
     if (attempt !== latestRead.current[section]) return;
 
-    switch (reply.kind) {
+    switch (read.kind) {
       case "rows":
-        if (reply.rows.length === 0) {
-          setUpload(section, { ...IDLE, error: NO_ROWS[section] });
-          break;
-        }
         setUpload(section, IDLE);
-        onReviewChange((current) => readSection(current, section, reply.rows, { source: "7sage_screenshot", extractedAt: new Date().toISOString() }));
+        onReviewChange((current) => readSection(current, section, read.rows, { source: "7sage_screenshot", extractedAt: new Date().toISOString() }));
         break;
-      case "rejected":
-        setUpload(section, { ...IDLE, error: reply.message });
+      case "problem":
+        setUpload(section, { ...IDLE, error: read.message });
         break;
       case "signed-out":
         setUpload(section, { ...IDLE, signedOut: true });
-        break;
-      case "cannot-read":
-      case "connection-lost":
-        setUpload(section, { ...IDLE, error: "Couldn't read that screenshot. Try again or a clearer image." });
         break;
     }
   }

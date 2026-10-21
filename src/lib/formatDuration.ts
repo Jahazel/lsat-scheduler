@@ -8,6 +8,8 @@ export function formatDuration(totalMinutes: number): string {
   return `${hours} h ${minutes} min`;
 }
 
+export const shortDuration = (minutes: number) => formatDuration(minutes).replace(/(h \d+) min$/, "$1");
+
 // Rounds each part to whole minutes while keeping the parts' sum equal to the
 // rounded total (largest remainder), so a day's activity rows add up to the
 // time shown in its header.

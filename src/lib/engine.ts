@@ -54,7 +54,7 @@ function lrWeakness(analytics: AnalyticsSnapshot, rules: RulesConfig) {
     || listOrder.indexOf(a) - listOrder.indexOf(b);
 }
 
-function mostMissedType(counts: WeekShapeOptions["missedStemTypeCounts"], analytics: AnalyticsSnapshot,
+export function mostMissedType(counts: WeekShapeOptions["missedStemTypeCounts"], analytics: AnalyticsSnapshot,
   rules: RulesConfig): LRStemType | undefined {
   const weakness = lrWeakness(analytics, rules);
   const count = (type: LRStemType) => counts?.[type] ?? 0;

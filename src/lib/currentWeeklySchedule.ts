@@ -84,7 +84,7 @@ function currentDayInTimezone(now: Date, timezone: string): DayOfWeek {
   return DAY_ORDER[dayOfWeek === 0 ? 6 : dayOfWeek - 1];
 }
 
-function newestApprovedSnapshots(snapshots: ApprovedAnalyticsSnapshot[]) {
+export function newestApprovedSnapshots(snapshots: ApprovedAnalyticsSnapshot[]) {
   return [...snapshots].sort((a, b) => b.approvedAt.localeCompare(a.approvedAt) || a.id.localeCompare(b.id));
 }
 
@@ -107,7 +107,11 @@ function weightedAccuracy<Type extends string>(maps: (Partial<Record<Type, numbe
 }
 
 export function analyticsTrend(snapshots: ApprovedAnalyticsSnapshot[], weekOf: string): AnalyticsSnapshot {
-  const window = newestApprovedSnapshots(snapshots).slice(0, 3);
+  return weightedTrend(newestApprovedSnapshots(snapshots), weekOf);
+}
+
+export function weightedTrend(newestFirst: Omit<AnalyticsSnapshot, "weekOf">[], weekOf: string): AnalyticsSnapshot {
+  const window = newestFirst.slice(0, TREND_WEIGHTS.length);
   const rcAccuracyByType = weightedAccuracy(window.map((snapshot) => snapshot.rcAccuracyByType));
   return {
     weekOf,
