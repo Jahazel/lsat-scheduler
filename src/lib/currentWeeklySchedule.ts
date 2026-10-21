@@ -56,9 +56,13 @@ function localDateParts(date: Date, timezone: string) {
   return { year: Number(value("year")), month: Number(value("month")), day: Number(value("day")) };
 }
 
-export function currentWeekInTimezone(now: Date, timezone: string) {
+export function localDateInTimezone(now: Date, timezone: string) {
   const { year, month, day } = localDateParts(now, timezone);
-  const localDate = new Date(Date.UTC(year, month - 1, day));
+  return new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10);
+}
+
+export function currentWeekInTimezone(now: Date, timezone: string) {
+  const localDate = new Date(`${localDateInTimezone(now, timezone)}T00:00:00.000Z`);
   const weekday = localDate.getUTCDay();
   const mondayOffset = weekday === 0 ? -6 : 1 - weekday;
   localDate.setUTCDate(localDate.getUTCDate() + mondayOffset);

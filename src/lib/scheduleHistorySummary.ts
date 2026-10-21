@@ -7,7 +7,6 @@ export interface ScheduleHistoryWeek {
   weekStartDate: string;
   total: number;
   done: number;
-  skipped: number;
   plannedMinutes: number;
   completionPercent: number;
   isCurrent: boolean;
@@ -54,13 +53,11 @@ export function summarizeScheduleHistoryWeek({
   const relevantCheckIns = checkIns.filter((checkIn) => activityIds.has(checkIn.activityId));
   const total = scheduledActivityCount(schedule);
   const done = relevantCheckIns.filter((checkIn) => checkIn.status === "completed").length;
-  const skipped = relevantCheckIns.filter((checkIn) => checkIn.status === "skipped").length;
 
   return {
     weekStartDate,
     total,
     done,
-    skipped,
     plannedMinutes,
     completionPercent: total === 0 ? 0 : Math.round((done / total) * 100),
     isCurrent,

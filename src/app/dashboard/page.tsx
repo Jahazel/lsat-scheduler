@@ -3,7 +3,7 @@ import { studentSideClock } from "@/lib/studentClock";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { findStudentByAccountId } from "@/lib/studentRepository";
-import { currentWeekInTimezone, loadOrGenerateCurrentWeek } from "@/lib/currentWeeklySchedule";
+import { currentWeekInTimezone, loadOrGenerateCurrentWeek, localDateInTimezone } from "@/lib/currentWeeklySchedule";
 import { mockRules } from "@/lib/mockData";
 import { postgresCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
 import { postgresActivityCheckIns } from "@/lib/activityCheckInRepository";
@@ -11,7 +11,7 @@ import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import type { Student } from "@/lib/types";
 import ScheduleCheckInView from "@/components/ScheduleCheckInView";
 import AnalyticsUploader from "./AnalyticsUploader";
-import { SampleReviewSlot } from "@/components/AdminTestContext";
+import { SampleReviewSlot, UploaderFrame } from "@/components/AdminTestContext";
 
 type DashboardSearchParams = { historyWeek?: string | string[] };
 
@@ -69,24 +69,22 @@ export default async function DashboardPage({
       schedule={currentSchedule.schedule}
       student={currentSchedule.generationInputs.student}
       checkIns={checkIns}
-      statusFirst
+      today={localDateInTimezone(now, SCHEDULE_TIMEZONE)}
     />
   ) : (
-    <AnalyticsUploader />
+    <UploaderFrame><AnalyticsUploader /></UploaderFrame>
   );
 
   return (
-    <div className="min-h-screen px-6 py-12">
-      <div className="mx-auto max-w-3xl">
-        {isAdminUser(session.user) ? (
-          <SampleReviewSlot
-            week={currentWeekInTimezone(now, SCHEDULE_TIMEZONE)}
-            hasSchedule={!!currentSchedule}
-          >
-            {dashboardContent}
-          </SampleReviewSlot>
-        ) : dashboardContent}
-      </div>
+    <div className="min-h-screen">
+      {isAdminUser(session.user) ? (
+        <SampleReviewSlot
+          week={currentWeekInTimezone(now, SCHEDULE_TIMEZONE)}
+          hasSchedule={!!currentSchedule}
+        >
+          {dashboardContent}
+        </SampleReviewSlot>
+      ) : dashboardContent}
     </div>
   );
 }

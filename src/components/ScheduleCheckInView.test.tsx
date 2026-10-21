@@ -1,142 +1,117 @@
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { generateWeek } from "@/lib/engine";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "@/lib/mockData";
-import type { DayOfWeek } from "@/lib/types";
+import type { ActivityCheckIn } from "@/lib/types";
 
-vi.mock("@/app/dashboard/actions", () => ({ saveActivityCheckIn: vi.fn() }));
+const { saveActivityCheckIn } = vi.hoisted(() => ({ saveActivityCheckIn: vi.fn() }));
+vi.mock("@/app/dashboard/actions", () => ({ saveActivityCheckIn }));
 
 import ScheduleCheckInView from "./ScheduleCheckInView";
 
+afterEach(cleanup);
+beforeEach(() => {
+  saveActivityCheckIn.mockReset();
+  saveActivityCheckIn.mockImplementation(async (input: Omit<ActivityCheckIn, "id">) => ({ id: "saved", ...input }));
+});
+
+const week = () => generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName);
+const done = (activityId: string): ActivityCheckIn => ({ scheduleId: "schedule-1", activityId, status: "completed" });
+const dayCard = (day: string) => screen.getByRole("heading", { level: 2, name: new RegExp(`^${day}`) }).closest("section")!;
+
 describe("ScheduleCheckInView", () => {
-  it("keeps capacity warnings in every view but links to Study settings only this week", () => {
-    const student = { ...mockStudent, dailyCapacityMinutes: { ...mockStudent.dailyCapacityMinutes, SATURDAY: 120 } };
-    const schedule = generateWeek(student, mockAnalytics, mockRules, mockStudentName);
-    const savedSentence = "Saved practice-test capacity reason.";
-    schedule.reasons = [{ code: "capacity_overage", placement: { scope: "day", day: "SATURDAY" }, sentence: savedSentence }];
+  it("checks a line off with one press and clears it with the next", async () => {
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />);
+    const row = within(dayCard("Monday")).getByRole("checkbox", { name: "1 Full LR Section" });
+    expect(row.getAttribute("aria-checked")).toBe("false");
 
-    for (const { readOnly, heading, hasCapacityLink } of [
-      { readOnly: false, heading: "Your plan for this week", hasCapacityLink: true },
-      { readOnly: true, heading: "Your plan for this week", hasCapacityLink: false },
-      { readOnly: false, heading: "Your past plan", hasCapacityLink: false },
-    ]) {
-      const markup = renderToStaticMarkup(<ScheduleCheckInView scheduleId="schedule-1" schedule={schedule}
-        student={student} checkIns={[]} readOnly={readOnly} heading={heading} statusFirst={!readOnly} />);
-      const saturday = markup.match(/<section[^>]*>[\s\S]*?<\/section>/g)?.find((card) => card.includes("Saturday")) ?? "";
-      expect(saturday).toContain("30 min over your 2 h Saturday");
-      expect(saturday).toContain(savedSentence);
-      expect(saturday.includes('href="/settings"')).toBe(hasCapacityLink);
-      expect(saturday.includes("applies from next week&#x27;s plan")).toBe(hasCapacityLink);
-      expect(saturday).toContain('role="note"');
-    }
+    await userEvent.click(row);
+    expect(row.getAttribute("aria-checked")).toBe("true");
+    expect(saveActivityCheckIn).toHaveBeenLastCalledWith({ scheduleId: "schedule-1", activityId: "MONDAY:0", status: "completed" });
+    expect(await screen.findByText("17 remaining")).toBeTruthy();
+    expect(screen.getByText("1 of 18 done")).toBeTruthy();
+
+    await userEvent.click(row);
+    expect(row.getAttribute("aria-checked")).toBe("false");
+    expect(saveActivityCheckIn).toHaveBeenLastCalledWith({ scheduleId: "schedule-1", activityId: "MONDAY:0", status: "not_started" });
+    expect(await screen.findByText("18 remaining")).toBeTruthy();
   });
 
-  it("shows saved v2 overage reasons on review and minimum-held drilling days", () => {
-    const schedule = generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName);
-    const saved: [DayOfWeek, string][] = [
-      ["MONDAY", "The daily minimum takes 30 min, even though your Monday capacity is 15 min."],
-      ["SUNDAY", "Practice test review takes 2 h 30 min, even though your Sunday capacity is 2 h."],
+  it("toggles a focused line with Space or Enter and moves on with Tab", async () => {
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />);
+    const [first, second] = within(dayCard("Monday")).getAllByRole("checkbox");
+    first!.focus();
+    await userEvent.keyboard(" ");
+    expect(first!.getAttribute("aria-checked")).toBe("true");
+    await userEvent.keyboard("{Enter}");
+    expect(first!.getAttribute("aria-checked")).toBe("false");
+    await userEvent.tab();
+    expect(document.activeElement).toBe(second);
+  });
+
+  it("shows each line with only its label: no minutes, no Skip, no actual minutes", () => {
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />);
+    const thursday = dayCard("Thursday");
+    for (const row of within(thursday).getAllByRole("checkbox")) expect(row.textContent).not.toMatch(/min|planned/);
+    expect(screen.queryByText(/skip/i)).toBeNull();
+    expect(screen.queryByText(/actual/i)).toBeNull();
+    expect(screen.queryByRole("spinbutton")).toBeNull();
+    expect(within(thursday).getByText(/^Drilling · .+ of 1 h 30 min$/)).toBeTruthy();
+  });
+
+  it("crosses off a done line and ends a finished day with All done", () => {
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent}
+      checkIns={[done("MONDAY:0"), done("MONDAY:1"), done("TUESDAY:0")]} />);
+    expect(within(dayCard("Monday")).getByText("All done")).toBeTruthy();
+    expect(within(dayCard("Tuesday")).queryByText("All done")).toBeNull();
+    const crossed = within(dayCard("Monday")).getByText("1 Full LR Section");
+    expect(crossed.className).toContain("line-through");
+  });
+
+  it("shows week notes in the header and never a capacity notice, even on a saved practice-test day", () => {
+    const schedule = week();
+    schedule.days.SATURDAY.capacityOverageMinutes = 60;
+    schedule.reasons = [
+      { code: "starred_rotation", placement: { scope: "week" }, sentence: "Weaken sits out this week in the starred rotation." },
+      { code: "missed_type_priority", placement: { scope: "week" }, sentence: "Sufficient assumption comes first this week." },
+      { code: "capacity_overage", placement: { scope: "day", day: "SATURDAY" }, sentence: "Saved practice-test capacity reason." },
+      { code: "rest_day_moved", placement: { scope: "day", day: "WEDNESDAY" }, sentence: "Saved rest move." },
     ];
-    schedule.reasons = saved.map(([day, sentence]) => ({ code: "capacity_overage", placement: { scope: "day", day }, sentence }));
-    const markup = renderToStaticMarkup(<ScheduleCheckInView scheduleId="schedule-1"
-      schedule={schedule} student={mockStudent} checkIns={[]} />);
-    for (const [day, sentence] of saved) {
-      const card = markup.match(/<section[^>]*>[\s\S]*?<\/section>/g)?.find((item) =>
-        item.includes(day[0] + day.slice(1).toLowerCase())) ?? "";
-      expect(card).toContain(sentence);
-      expect(card).toContain('role="note"');
-      expect(card).toContain("border-fog");
-    }
-  });
-  it("shows a saved capacity warning when its recorded overage is zero", () => {
-    const schedule = generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName);
-    schedule.days.SATURDAY.capacityOverageMinutes = 0;
-    schedule.reasons = [{ code: "capacity_overage", placement: { scope: "day", day: "SATURDAY" }, sentence: "Saved capacity reason." }];
-    const markup = renderToStaticMarkup(<ScheduleCheckInView scheduleId="schedule-1"
-      schedule={schedule} student={mockStudent} checkIns={[]} />);
-    const saturday = markup.match(/<section[^>]*>[\s\S]*?<\/section>/g)?.find((card) => card.includes("Saturday")) ?? "";
-    expect(saturday).toContain('role="note"');
-    expect(saturday).toContain("Saved capacity reason.");
-  });
-  it("shows the saved daily capacity on the rest day", () => {
-    const schedule = generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName);
-
-    const markup = renderToStaticMarkup(
-      <ScheduleCheckInView
-        scheduleId="schedule-1"
-        schedule={schedule}
-        student={mockStudent}
-        checkIns={[]}
-      />
-    );
-
-    expect(markup).toMatch(/Wednesday <span[^>]*>August 26<\/span><\/h2><span[^>]*>Rest day · 0 min of 1 h 30 min<\/span>/);
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={schedule} student={mockStudent} checkIns={[]} />);
+    const header = screen.getByRole("banner");
+    expect(within(header).getByText("Weaken sits out this week in the starred rotation.")).toBeTruthy();
+    expect(within(header).getByText("Sufficient assumption comes first this week.")).toBeTruthy();
+    expect(within(dayCard("Wednesday")).getByText("Saved rest move.")).toBeTruthy();
+    expect(screen.queryByText("Saved practice-test capacity reason.")).toBeNull();
+    expect(screen.queryByText(/over your/)).toBeNull();
+    expect(screen.queryByRole("note")).toBeNull();
+    expect(screen.queryByRole("link", { name: /daily capacity/i })).toBeNull();
   });
 
-  it("labels passed days separately from the computed rest day", () => {
-    const schedule = generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName);
-    schedule.days.MONDAY = { day: "MONDAY", type: "unscheduled", activities: [], totalMinutes: 0 };
-    const markup = renderToStaticMarkup(
-      <ScheduleCheckInView scheduleId="schedule-1" schedule={schedule} student={mockStudent} checkIns={[]} />
-    );
-    expect(markup).toContain("Not scheduled.");
-    expect(markup).toContain("Rest day.");
+  it("compares done lines with the lines due so far and marks today", () => {
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent}
+      checkIns={[done("MONDAY:0")]} today="2026-08-25" />);
+    expect(screen.getByText("5 behind")).toBeTruthy();
+    expect(within(dayCard("Tuesday")).getByText("Today, Aug 25")).toBeTruthy();
+    expect(within(dayCard("Monday")).getByText("Aug 24")).toBeTruthy();
   });
 
-  it("marks both practice tests in a near-test week", () => {
+  it("shows a read-only plan without check-off controls", () => {
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent}
+      checkIns={[done("MONDAY:0")]} readOnly />);
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(within(dayCard("Monday")).getByText("1 Full LR Section").className).toContain("line-through");
+    expect(screen.getByText("1 of 18 done")).toBeTruthy();
+  });
+
+  it("labels rest, unscheduled, and practice-test days", () => {
     const schedule = generateWeek({ ...mockStudent, goalTestDate: "2026-10-01" },
       { ...mockAnalytics, weekOf: "2026-09-21" }, mockRules, mockStudentName);
-    const markup = renderToStaticMarkup(<ScheduleCheckInView scheduleId="schedule-1"
-      schedule={schedule} student={mockStudent} checkIns={[]} />);
-    expect(markup).toContain("Practice test 1 of 2");
-    expect(markup).toContain("Practice test 2 of 2");
-    expect(markup).toContain("This near-test week has 2 LawHub practice tests");
-
-    delete schedule.reasons;
-    const olderMarkup = renderToStaticMarkup(<ScheduleCheckInView scheduleId="schedule-1"
-      schedule={schedule} student={mockStudent} checkIns={[]} />);
-    expect(olderMarkup).toContain("Practice test 1 of 2");
-    expect(olderMarkup).toContain("Practice test 2 of 2");
-  });
-
-  it("places saved week and day labels without turning them into warnings", () => {
-    const student = { ...mockStudent, preferredPracticeTestDay: "SUNDAY" as const };
-    const schedule = generateWeek(student, mockAnalytics, mockRules, mockStudentName,
-      { priorWeekPracticeTestReviewMinutes: 150 });
-    schedule.days.TUESDAY = { day: "TUESDAY", type: "unscheduled", activities: [], totalMinutes: 0 };
-    schedule.reasons = [
-      { code: "no_practice_test", placement: { scope: "week" }, sentence: "Saved next test date." },
-      { code: "skip_reduction", placement: { scope: "week" }, sentence: "Saved skip reduction." },
-      { code: "starred_rotation", placement: { scope: "week" }, sentence: "Saved starred rotation." },
-      { code: "full_section_dropped", placement: { scope: "week" }, sentence: "Saved full section drop." },
-      { code: "unscheduled_day", placement: { scope: "day", day: "TUESDAY" }, sentence: "Saved unscheduled note." },
-      { code: "rest_day_moved", placement: { scope: "day", day: "WEDNESDAY" }, sentence: "Saved rest move." },
-      { code: "review_carried_over", placement: { scope: "day", day: "MONDAY" }, sentence: "Saved review carryover." },
-      { code: "practice_test_review_day_next_week", placement: { scope: "day", day: "SUNDAY" }, sentence: "Saved next Monday review." },
-    ];
-    const markup = renderToStaticMarkup(<ScheduleCheckInView scheduleId="schedule-1"
-      schedule={schedule} student={student} checkIns={[]} readOnly />);
-    const cards = markup.match(/<section[^>]*>[\s\S]*?<\/section>/g) ?? [];
-    const card = (day: string) => cards.find((item) => item.includes(`<h2`) && item.includes(`>${day} <span`)) ?? "";
-    expect(markup.indexOf("Saved next test date.")).toBeLessThan(markup.indexOf("Schedule view"));
-    for (const sentence of ["Saved skip reduction.", "Saved starred rotation.", "Saved full section drop."])
-      expect(markup.indexOf(sentence)).toBeLessThan(markup.indexOf("Schedule view"));
-    expect(card("Tuesday")).toContain("border-dashed");
-    expect(card("Tuesday")).toContain("Saved unscheduled note.");
-    expect(card("Tuesday")).toMatch(/<p class="text-small text-smoke">Saved unscheduled note\.<\/p>/);
-    expect(card("Wednesday")).toContain("Saved rest move.");
-    expect(card("Monday")).toContain("Saved review carryover.");
-    expect(card("Sunday")).toContain("Saved next Monday review.");
-    expect(markup).not.toContain('role="note"');
-  });
-
-  it("renders an older schedule without saved reasons", () => {
-    const schedule = generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName);
-    delete schedule.reasons;
-    const markup = renderToStaticMarkup(<ScheduleCheckInView scheduleId="schedule-1"
-      schedule={schedule} student={mockStudent} checkIns={[]} />);
-    expect(markup).toContain("Rest day. Nothing planned.");
-    expect(markup).toContain("Practice Test (from PT 130+)");
-    expect(markup).not.toContain('role="note"');
+    schedule.days.MONDAY = { day: "MONDAY", type: "unscheduled", activities: [], totalMinutes: 0 };
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={schedule} student={mockStudent} checkIns={[]} />);
+    expect(within(dayCard("Monday")).getByText("Not scheduled.")).toBeTruthy();
+    expect(screen.getAllByText(/^Practice test [12] of 2 · /)).toHaveLength(2);
   });
 });

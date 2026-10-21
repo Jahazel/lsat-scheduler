@@ -24,21 +24,20 @@ describe("schedule check-in summary", () => {
   it("counts scheduled activities and leaves missing check-ins remaining", () => {
     const checkIns: ActivityCheckIn[] = [
       { scheduleId: "schedule-1", activityId: "MONDAY:0", status: "completed" },
-      { scheduleId: "schedule-1", activityId: "WEDNESDAY:0", status: "skipped" },
     ];
 
     expect(scheduledActivityCount(schedule)).toBe(4);
-    expect(remainingActivityCount(schedule, checkIns)).toBe(2);
+    expect(remainingActivityCount(schedule, checkIns)).toBe(3);
   });
 
-  it("does not count completed or skipped activities as remaining", () => {
+  it("counts only checked-off activities as done", () => {
     const checkIns: ActivityCheckIn[] = [
       { scheduleId: "schedule-1", activityId: "MONDAY:0", status: "completed" },
-      { scheduleId: "schedule-1", activityId: "WEDNESDAY:0", status: "skipped" },
+      { scheduleId: "schedule-1", activityId: "WEDNESDAY:0", status: "not_started" },
       { scheduleId: "schedule-1", activityId: "WEDNESDAY:1", status: "not_started" },
       { scheduleId: "schedule-1", activityId: "FRIDAY:0", status: "completed" },
     ];
 
-    expect(remainingActivityCount(schedule, checkIns)).toBe(1);
+    expect(remainingActivityCount(schedule, checkIns)).toBe(2);
   });
 });

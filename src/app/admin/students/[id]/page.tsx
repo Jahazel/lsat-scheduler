@@ -6,6 +6,7 @@ import { adminScheduleStateMessage, loadReadOnlyCurrentWeek } from "@/lib/readOn
 import { postgresCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { postgresActivityCheckIns } from "@/lib/activityCheckInRepository";
+import { localDateInTimezone } from "@/lib/currentWeeklySchedule";
 import ScheduleCheckInView from "@/components/ScheduleCheckInView";
 
 export default async function AdminStudentPage({ params }: { params: Promise<{ id: string }> }) {
@@ -21,17 +22,18 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
     notFound();
   }
 
+  const now = new Date();
   const currentWeek = await loadReadOnlyCurrentWeek({
     ...postgresCurrentWeekRepositories,
     activityCheckIns: postgresActivityCheckIns,
     studentId: record.id,
     timezone: SCHEDULE_TIMEZONE,
-    now: () => new Date(),
+    now: () => now,
   });
 
   return (
-    <div className="min-h-screen px-6 py-12">
-      <div className="mx-auto max-w-3xl">
+    <div className="min-h-screen">
+      <div className="bg-paper px-5 pt-6 md:px-18">
         <div className="flex items-center justify-between gap-4">
           <Link href="/admin" className="text-small font-medium text-accent hover:text-ink">
             ← All students
@@ -41,20 +43,19 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
           </span>
         </div>
         <p className="mt-4 text-small text-smoke">{record.email}</p>
-        <div className="mt-2">
-          {currentWeek.kind === "schedule" ? (
-            <ScheduleCheckInView
-              scheduleId={currentWeek.schedule.id}
-              schedule={currentWeek.schedule.schedule}
-              student={currentWeek.schedule.generationInputs.student}
-              checkIns={currentWeek.checkIns}
-              readOnly
-            />
-          ) : (
-            <p className="text-small text-smoke">{adminScheduleStateMessage(currentWeek)}</p>
-          )}
-        </div>
       </div>
+      {currentWeek.kind === "schedule" ? (
+        <ScheduleCheckInView
+          scheduleId={currentWeek.schedule.id}
+          schedule={currentWeek.schedule.schedule}
+          student={currentWeek.schedule.generationInputs.student}
+          checkIns={currentWeek.checkIns}
+          readOnly
+          today={localDateInTimezone(now, SCHEDULE_TIMEZONE)}
+        />
+      ) : (
+        <p className="px-5 py-6 text-small text-smoke md:px-18">{adminScheduleStateMessage(currentWeek)}</p>
+      )}
     </div>
   );
 }

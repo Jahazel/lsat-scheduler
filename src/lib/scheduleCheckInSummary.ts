@@ -15,14 +15,10 @@ export function scheduledActivityCount(schedule: WeeklySchedule) {
 }
 
 export function remainingActivityCount(schedule: WeeklySchedule, checkIns: ActivityCheckIn[]) {
-  const resolvedActivityIds = new Set(
-    checkIns
-      .filter(({ status }) => status === "completed" || status === "skipped")
-      .map(({ activityId }) => activityId),
-  );
+  const doneActivityIds = new Set(checkIns.filter(({ status }) => status === "completed").map(({ activityId }) => activityId));
 
   return DAY_ORDER.reduce(
-    (total, day) => total + schedule.days[day].activities.filter((_, index) => !resolvedActivityIds.has(scheduleActivityId(day, index))).length,
+    (total, day) => total + schedule.days[day].activities.filter((_, index) => !doneActivityIds.has(scheduleActivityId(day, index))).length,
     0,
   );
 }

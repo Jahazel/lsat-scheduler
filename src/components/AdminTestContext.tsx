@@ -43,6 +43,10 @@ export function AdminTestProvider({ children }: { children: ReactNode }) {
 
 export const useAdminTest = () => useContext(AdminTestContext);
 
+export function UploaderFrame({ children }: { children: ReactNode }) {
+  return <div className="px-6 py-12"><div className="mx-auto max-w-3xl">{children}</div></div>;
+}
+
 export function SampleReviewSlot({
   children,
   week,
@@ -57,11 +61,13 @@ export function SampleReviewSlot({
     setCurrentWeek({ week, exists: hasSchedule });
   }, [week, hasSchedule, setCurrentWeek]);
   return sample ? (
-    <AnalyticsUploader
-      key={sample.extractedAt}
-      sample={sample}
-      onSampleDone={() => setSample(null)}
-    />
+    <UploaderFrame>
+      <AnalyticsUploader
+        key={sample.extractedAt}
+        sample={sample}
+        onSampleDone={() => setSample(null)}
+      />
+    </UploaderFrame>
   ) : (
     children
   );

@@ -42,24 +42,23 @@ export default async function ProgressPage({
       isCurrent: false,
     });
     return (
-      <div className="min-h-screen px-6 py-12">
-        <div className="mx-auto max-w-3xl">
-          <Link href="/progress" className="mb-5 inline-block text-small font-medium text-accent underline-offset-4 hover:underline">
+      <div className="min-h-screen">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 bg-paper px-5 pt-6 md:px-18">
+          <Link href="/progress" className="text-small font-medium text-accent underline-offset-4 hover:underline">
             ← All weeks
           </Link>
-          <div className="mb-6 rounded-xs border border-vellum-line bg-vellum px-4 py-3 text-small text-smoke">
+          <p className="text-small text-smoke">
             <span className="font-semibold text-ink">Viewing a past week</span> · {formatScheduleWeekOf(selected.weekStartDate)} · {summary.done} of {summary.total} done
-          </div>
-          <ScheduleCheckInView
-            key={selected.id}
-            scheduleId={selected.id}
-            schedule={selected.schedule}
-            student={selected.generationInputs.student}
-            checkIns={checkInsFor(selected.id)}
-            heading="Your past plan"
-            statusFirst
-          />
+          </p>
         </div>
+        <ScheduleCheckInView
+          key={selected.id}
+          scheduleId={selected.id}
+          schedule={selected.schedule}
+          student={selected.generationInputs.student}
+          checkIns={checkInsFor(selected.id)}
+          heading="Your past plan"
+        />
       </div>
     );
   }

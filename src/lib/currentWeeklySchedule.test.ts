@@ -16,7 +16,7 @@ function approvedSnapshot(id: string, approvedAt: string): ApprovedAnalyticsSnap
 
 function inMemoryRepositories(snapshots: ApprovedAnalyticsSnapshot[]) {
   const schedules: PersistedWeeklySchedule[] = [];
-  let checkIns: { scheduleId: string; activityId: string; status: "not_started" | "completed" | "skipped"; actualMinutes?: number }[] = [];
+  let checkIns: { scheduleId: string; activityId: string; status: "not_started" | "completed" }[] = [];
   return {
     schedules,
     checkIns: () => checkIns,
@@ -112,7 +112,7 @@ describe("loadOrGenerateCurrentWeek", () => {
     const first = await loadOrGenerateCurrentWeek(input);
     if (first.kind !== "schedule") throw new Error("Expected a saved schedule");
     repositories.setCheckIns([
-      { scheduleId: first.schedule.id, activityId: "MONDAY:0", status: "completed", actualMinutes: 45 },
+      { scheduleId: first.schedule.id, activityId: "MONDAY:0", status: "completed" },
     ]);
 
     await expect(loadOrGenerateCurrentWeek(input)).resolves.toEqual(first);
@@ -120,7 +120,6 @@ describe("loadOrGenerateCurrentWeek", () => {
       scheduleId: first.schedule.id,
       activityId: "MONDAY:0",
       status: "completed",
-      actualMinutes: 45,
     });
     expect(repositories.checkIns()).toHaveLength(
       Object.values(first.schedule.schedule.days).flatMap((day) => day.activities).length
@@ -270,7 +269,7 @@ describe("loadOrGenerateCurrentWeek", () => {
     expect(result.schedule.schedule.days.FRIDAY.activities.length).toBeGreaterThan(0);
   });
 
-  it("counts skipped drills in saved schedules for starred rotation", async () => {
+  it("counts unchecked drills in saved schedules for starred rotation", async () => {
     const repositories = inMemoryRepositories([
       approvedSnapshot("first", "2026-09-14T13:00:00.000Z"),
       approvedSnapshot("second", "2026-09-21T13:00:00.000Z"),
@@ -285,7 +284,7 @@ describe("loadOrGenerateCurrentWeek", () => {
     if (first.kind !== "schedule") throw new Error("Expected a saved schedule");
     const skipped = Object.entries(first.schedule.schedule.days).flatMap(([day, plan]) =>
       plan.activities.flatMap((activity, index) => activity.kind === "LR"
-        ? [{ scheduleId: first.schedule.id, activityId: `${day}:${index}`, status: "skipped" as const }]
+        ? [{ scheduleId: first.schedule.id, activityId: `${day}:${index}`, status: "not_started" as const }]
         : []));
     repositories.setCheckIns([...skipped]);
     const firstTypes = new Set(skipped.map((checkIn) => {
@@ -430,7 +429,7 @@ describe("loadOrGenerateCurrentWeek", () => {
     ).rejects.toThrow(failure);
   });
 
-  it("fills next week to capacity whatever was skipped in the preceding week", async () => {
+  it("fills next week to capacity whatever was left unchecked in the preceding week", async () => {
     const snapshots = () => [
       approvedSnapshot("snapshot-1", "2026-09-14T13:00:00.000Z"),
       approvedSnapshot("snapshot-2", "2026-09-21T13:00:00.000Z"),
@@ -450,7 +449,7 @@ describe("loadOrGenerateCurrentWeek", () => {
       if (repositories === skippedRepositories) {
         repositories.setCheckIns(Object.entries(prior.schedule.schedule.days).flatMap(([day, plan]) =>
           plan.activities.map((_, index) => ({ scheduleId: prior.schedule.id, activityId: `${day}:${index}`,
-            status: "skipped" as const }))));
+            status: "not_started" as const }))));
       }
     }
     const nextWeek = (repositories: typeof skippedRepositories) => loadOrGenerateCurrentWeek({

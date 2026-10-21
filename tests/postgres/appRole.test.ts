@@ -139,12 +139,12 @@ it("reads, inserts, corrects, and deletes the six app tables with the allowed pe
   await db.execute(sql`update accounts set name = 'Updated' where id = ${records.account_id}`);
   await db.execute(sql`update students set current_score = 155 where id = ${records.student_id}`);
   await db.execute(sql`update analytics_snapshots set lr_accuracy_by_type = '{"Weaken":60}' where id = ${records.snapshot_id}`);
-  await db.execute(sql`update activity_check_ins set status = 'completed', actual_minutes = 45 where id = ${records.check_in_id}`);
+  await db.execute(sql`update activity_check_ins set status = 'completed' where id = ${records.check_in_id}`);
   await db.execute(sql`insert into leads (email) values ('lead@example.test')`);
   await db.execute(sql`update leads set email = 'updated-lead@example.test'`);
   expect((await db.execute(sql`
     select accounts.name, students.current_score, analytics_snapshots.lr_accuracy_by_type,
-      weekly_schedules.policy_version, activity_check_ins.status, activity_check_ins.actual_minutes
+      weekly_schedules.policy_version, activity_check_ins.status
     from accounts join students on students.account_id = accounts.id
       join analytics_snapshots on analytics_snapshots.student_id = students.id
       join weekly_schedules on weekly_schedules.student_id = students.id
@@ -152,7 +152,7 @@ it("reads, inserts, corrects, and deletes the six app tables with the allowed pe
     where accounts.id = ${records.account_id}
   `)).rows).toEqual([{
     name: "Updated", current_score: 155, lr_accuracy_by_type: { Weaken: 60 },
-    policy_version: "adaptive-weekly-schedule-v2", status: "completed", actual_minutes: 45,
+    policy_version: "adaptive-weekly-schedule-v2", status: "completed",
   }]);
   expect((await db.execute(sql`select email from leads`)).rows).toEqual([{ email: "updated-lead@example.test" }]);
   for (const table of ["activity_check_ins", "weekly_schedules", "analytics_snapshots", "students", "accounts", "leads"]) {

@@ -73,24 +73,20 @@ it("two parallel This week visits save one identical Weekly schedule as the app 
   expect(await listWeeklySchedulesForStudent(saved.id)).toEqual(schedules);
 });
 
-it("saves and corrects check-ins across reloads without changing the planned schedule", async () => {
+it("checks off and clears a line across reloads without changing the planned schedule", async () => {
   const { saved } = await student();
   await approve(saved.id);
   await dashboard();
   const [schedule] = await listWeeklySchedulesForStudent(saved.id);
-  const input = { scheduleId: schedule.id, activityId: "MONDAY:0", status: "completed" as const, actualMinutes: 25 };
+  const input = { scheduleId: schedule.id, activityId: "MONDAY:0", status: "completed" as const };
   const checkIn = await saveActivityCheckIn(input);
-  await dashboard();
+  expect(checkIn).toEqual({ id: expect.any(String), ...input });
   expect(await postgresActivityCheckIns.listForSchedule(schedule.id)).toContainEqual(checkIn);
-  expect(renderToStaticMarkup(await dashboard())).toContain('value="25"');
-  const corrected = await saveActivityCheckIn({ ...input, actualMinutes: 35 });
-  expect(corrected).toMatchObject({ id: checkIn.id, actualMinutes: 35 });
-  const skipped = await saveActivityCheckIn({ ...input, status: "skipped" });
-  expect(skipped).not.toHaveProperty("actualMinutes");
+  expect(renderToStaticMarkup(await dashboard())).toContain('aria-valuenow="1"');
   const cleared = await saveActivityCheckIn({ ...input, status: "not_started" });
-  await dashboard();
+  expect(cleared).toEqual({ ...checkIn, status: "not_started" });
   expect(await postgresActivityCheckIns.listForSchedule(schedule.id)).toContainEqual(cleared);
-  expect(cleared).not.toHaveProperty("actualMinutes");
+  expect(renderToStaticMarkup(await dashboard())).toContain('aria-valuenow="0"');
   expect(await listWeeklySchedulesForStudent(saved.id)).toEqual([schedule]);
 });
 
@@ -101,14 +97,14 @@ it("shows finished weeks in Progress and permits corrections without changing pl
   const [schedule] = await listWeeklySchedulesForStudent(saved.id);
   const progress = (week?: string) => ProgressPage({ searchParams: Promise.resolve({ week }) });
   expect(renderToStaticMarkup(await progress())).toContain("No finished weeks yet.");
-  await saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "completed", actualMinutes: 25 });
+  await saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "completed" });
   vi.setSystemTime(new Date("2026-10-19T16:00:00Z"));
   const markup = renderToStaticMarkup(await progress());
   expect(markup).toContain('href="/progress?week=2026-10-12"');
   expect(markup).toContain("Avg. done");
   expect(markup).not.toContain("No finished weeks yet.");
   expect(renderToStaticMarkup(await progress("2026-10-12"))).toContain("Your past plan");
-  await saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "skipped", actualMinutes: 25 });
+  await saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "not_started" });
   expect(renderToStaticMarkup(await progress("2026-10-12"))).toContain("0 of");
   expect(await listWeeklySchedulesForStudent(saved.id)).toEqual([schedule]);
   await expect(DashboardPage({ searchParams: Promise.resolve({ historyWeek: "2026-10-12" }) }))
@@ -145,9 +141,8 @@ it("requires a session and a Student, and rejects malformed or missing activitie
   for (const activityId of ["MONDAY:999", "MONDAY:00", "INVALID:0"]) {
     await expect(saveActivityCheckIn({ ...input, scheduleId: schedule.id, activityId })).rejects.toThrow();
   }
-  for (const actualMinutes of [-1, Infinity, NaN]) {
-    await expect(saveActivityCheckIn({ ...input, scheduleId: schedule.id, actualMinutes })).rejects.toThrow();
-  }
+  // @ts-expect-error A check-in is checked off or not; there is no Skip.
+  await expect(saveActivityCheckIn({ ...input, scheduleId: schedule.id, status: "skipped" })).rejects.toThrow();
   await expect(saveActivityCheckIn({ ...input, scheduleId: "not-a-uuid" })).rejects.toThrow();
 });
 
@@ -157,7 +152,7 @@ it("ensures only missing check-ins under parallel visits and preserves existing 
   await dashboard();
   const [schedule] = await listWeeklySchedulesForStudent(saved.id);
   await getPostgresDatabase().execute(sql`delete from activity_check_ins where schedule_id = ${schedule.id}::uuid`);
-  const first = await saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "completed", actualMinutes: 25 });
+  const first = await saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "completed" });
   await Promise.all([dashboard(), dashboard()]);
   const checkIns = await postgresActivityCheckIns.listForSchedule(schedule.id);
   expect(checkIns).toContainEqual(first);
