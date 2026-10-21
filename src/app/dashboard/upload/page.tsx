@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { listApprovedAnalyticsSnapshots } from "@/lib/analyticsSnapshotRepository";
+import { uploadWeekOf } from "@/lib/currentWeeklySchedule";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { studentSideClock } from "@/lib/studentClock";
 import { findStudentByAccountId } from "@/lib/studentRepository";
@@ -30,6 +31,8 @@ export default async function WeeklyUploadPage() {
     listApprovedAnalyticsSnapshots(doc.id),
   ]);
   const basis = nextWeekBasis({ now: clock.now, timezone: SCHEDULE_TIMEZONE, student, schedules, snapshots });
+
+  if (uploadWeekOf(clock.now, SCHEDULE_TIMEZONE) !== basis.weekOf) redirect("/dashboard");
 
   return <WeeklyUploadFlow basis={basis} initialScore={doc.currentScore} />;
 }

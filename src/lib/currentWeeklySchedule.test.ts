@@ -4,6 +4,7 @@ import {
   currentWeekInTimezone,
   loadOrGenerateCurrentWeek,
   showsUploadReminder,
+  weekWithoutPlan,
 } from "./currentWeeklySchedule";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "./mockData";
 import { generateWeek } from "./engine";
@@ -601,5 +602,19 @@ describe("showsUploadReminder", () => {
     const sunday = new Date("2026-09-20T15:00:00.000Z");
     expect(showsUploadReminder([approvedSnapshot("thursday", "2026-09-17T15:00:00.000Z")], sunday, timezone)).toBe(true);
     expect(showsUploadReminder([approvedSnapshot("saturday", "2026-09-19T17:00:00.000Z")], sunday, timezone)).toBe(false);
+  });
+});
+
+describe("weekWithoutPlan", () => {
+  const timezone = "America/Chicago";
+  const saturday = new Date("2026-09-19T17:00:00.000Z");
+
+  it("asks for this week's upload from Monday to Friday", () => {
+    expect(weekWithoutPlan([], new Date("2026-09-17T15:00:00.000Z"), timezone)).toBe("upload_for_this_week");
+  });
+
+  it("asks for next week's upload on the weekend, then says the plan starts Monday once it is approved", () => {
+    expect(weekWithoutPlan([], saturday, timezone)).toBe("upload_for_next_week");
+    expect(weekWithoutPlan([approvedSnapshot("saturday", "2026-09-19T16:00:00.000Z")], saturday, timezone)).toBe("plan_starts_monday");
   });
 });

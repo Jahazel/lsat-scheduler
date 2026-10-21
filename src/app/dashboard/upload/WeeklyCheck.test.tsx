@@ -157,6 +157,7 @@ describe("Check what we read", () => {
     expect(confirm).toHaveBeenCalledOnce();
     const sent = confirm.mock.calls[0][0] as { practiceTest: { readings: { section: number }[] } };
     expect(sent).toMatchObject({
+      weekOf: "2026-10-19",
       currentScore: 160,
       analytics: {
         lrAccuracyByType: { "Necessary assumption": 0.8, "Flaw or descriptive weakening": 0.74 },

@@ -98,10 +98,22 @@ function approvedUpToWeek<Approval extends { approvedAt: string }>(
   return approvals.filter((approval) => uploadWeekOf(new Date(approval.approvedAt), timezone) <= weekStartDate);
 }
 
+const isUploadWeekend = (now: Date, timezone: string) => uploadWeekOf(now, timezone) !== currentWeekInTimezone(now, timezone);
+
+function nextWeekHasUpload(snapshots: ApprovedAnalyticsSnapshot[], now: Date, timezone: string) {
+  const nextWeek = isoDateInWeek(currentWeekInTimezone(now, timezone), 7);
+  return approvedForWeek(snapshots, nextWeek, timezone).length > 0;
+}
+
 export function showsUploadReminder(snapshots: ApprovedAnalyticsSnapshot[], now: Date, timezone: string) {
-  const weekStartDate = currentWeekInTimezone(now, timezone);
-  const nextWeek = isoDateInWeek(weekStartDate, 7);
-  return uploadWeekOf(now, timezone) === nextWeek && approvedForWeek(snapshots, nextWeek, timezone).length === 0;
+  return isUploadWeekend(now, timezone) && !nextWeekHasUpload(snapshots, now, timezone);
+}
+
+export type WeekWithoutPlan = "upload_for_this_week" | "upload_for_next_week" | "plan_starts_monday";
+
+export function weekWithoutPlan(snapshots: ApprovedAnalyticsSnapshot[], now: Date, timezone: string): WeekWithoutPlan {
+  if (!isUploadWeekend(now, timezone)) return "upload_for_this_week";
+  return nextWeekHasUpload(snapshots, now, timezone) ? "plan_starts_monday" : "upload_for_next_week";
 }
 
 function currentDayInTimezone(now: Date, timezone: string): DayOfWeek {

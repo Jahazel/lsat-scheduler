@@ -23,14 +23,12 @@ export interface NextWeekBasis {
   priorSchedules: WeeklySchedule[];
 }
 
-function currentSchedule(schedules: PersistedWeeklySchedule[], now: Date, timezone: string) {
-  const currentWeek = currentWeekInTimezone(now, timezone);
-  return schedules.find((record) => record.weekStartDate === currentWeek)?.schedule;
-}
+const scheduleForWeek = (schedules: PersistedWeeklySchedule[], weekStartDate: string) =>
+  schedules.find((record) => record.weekStartDate === weekStartDate)?.schedule;
 
-export function currentWeekHadPracticeTest(schedules: PersistedWeeklySchedule[], now: Date, timezone: string) {
-  const current = currentSchedule(schedules, now, timezone);
-  return DAY_ORDER.some((day) => current?.days[day].activities.some((activity) => activity.kind === "PT") ?? false);
+export function weekHadPracticeTest(schedules: PersistedWeeklySchedule[], weekStartDate: string) {
+  const schedule = scheduleForWeek(schedules, weekStartDate);
+  return DAY_ORDER.some((day) => schedule?.days[day].activities.some((activity) => activity.kind === "PT") ?? false);
 }
 
 export function nextWeekBasis({ now, timezone, student, schedules, snapshots }: {
@@ -41,11 +39,11 @@ export function nextWeekBasis({ now, timezone, student, schedules, snapshots }: 
   snapshots: ApprovedAnalyticsSnapshot[];
 }): NextWeekBasis {
   const currentWeek = currentWeekInTimezone(now, timezone);
-  const sunday = currentSchedule(schedules, now, timezone)?.days.SUNDAY;
+  const sunday = scheduleForWeek(schedules, currentWeek)?.days.SUNDAY;
   return {
     weekOf: isoDateInWeek(currentWeek, 7),
     student,
-    hadPracticeTest: currentWeekHadPracticeTest(schedules, now, timezone),
+    hadPracticeTest: weekHadPracticeTest(schedules, currentWeek),
     priorSnapshots: newestApprovedSnapshots(snapshots)
       .slice(0, TREND_WINDOW - 1)
       .map(({ id, approvedAt, weekOf, lrAccuracyByType, lrTopPriorityLogicTypes, rcAccuracyByType }) =>
@@ -115,12 +113,20 @@ export function weekTiles(schedule: WeeklySchedule) {
   });
 }
 
-export function firstDrills(schedule: WeeklySchedule, goesFirst: LRStemType | undefined) {
+function firstDrillDay(schedule: WeeklySchedule, goesFirst: LRStemType | undefined) {
   const day = DAY_ORDER.find((weekday) => schedule.days[weekday].type === "drill" && schedule.days[weekday].activities.length > 0);
   if (!day) return null;
   const activities = schedule.days[day].activities;
+  const goesFirstIndex = activities.findIndex((activity) =>
+    goesFirst !== undefined && activity.kind === "LR" && !activity.isFullSection && activity.types.includes(goesFirst));
+  return { day, activities, goesFirstIndex };
+}
+
+export function firstDrills(schedule: WeeklySchedule, goesFirst: LRStemType | undefined) {
+  const first = firstDrillDay(schedule, goesFirst);
+  if (!first) return null;
+  const { day, activities, goesFirstIndex: flagged } = first;
   const date = isoDateInWeek(schedule.weekOf, DAY_ORDER.indexOf(day));
-  const flagged = activities.findIndex((activity) => goesFirst !== undefined && activity.kind === "LR" && !activity.isFullSection && activity.types.includes(goesFirst));
   return {
     day,
     date: `${monthShort(date)} ${dayOfMonth(date)}`,
@@ -132,11 +138,9 @@ export function firstDrills(schedule: WeeklySchedule, goesFirst: LRStemType | un
 }
 
 export function checkPreviewDrills(schedule: WeeklySchedule, goesFirst: LRStemType | undefined, analytics: AnalyticsSnapshot) {
-  const day = DAY_ORDER.find((weekday) => schedule.days[weekday].type === "drill" && schedule.days[weekday].activities.length > 0);
-  if (!day) return null;
-  const activities = schedule.days[day].activities;
-  const goesFirstIndex = activities.findIndex((activity) =>
-    goesFirst !== undefined && activity.kind === "LR" && !activity.isFullSection && activity.types.includes(goesFirst));
+  const first = firstDrillDay(schedule, goesFirst);
+  if (!first) return null;
+  const { day, activities, goesFirstIndex } = first;
   const rcAccuracy = analytics.rcAccuracyByType ?? {};
   const lowest = mockRules.rcTypes
     .filter((type) => rcAccuracy[type] !== undefined)

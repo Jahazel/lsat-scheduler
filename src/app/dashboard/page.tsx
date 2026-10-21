@@ -3,7 +3,12 @@ import { studentSideClock } from "@/lib/studentClock";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { findStudentByAccountId } from "@/lib/studentRepository";
-import { currentWeekInTimezone, loadOrGenerateCurrentWeek, localDateInTimezone, showsUploadReminder } from "@/lib/currentWeeklySchedule";
+import {
+  currentWeekInTimezone, loadOrGenerateCurrentWeek, localDateInTimezone, showsUploadReminder, weekWithoutPlan,
+} from "@/lib/currentWeeklySchedule";
+import { isoDateInWeek } from "@/lib/scheduleReasonText";
+import { formatScheduleWeekOf } from "@/lib/scheduleCheckInSummary";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { listApprovedAnalyticsSnapshots } from "@/lib/analyticsSnapshotRepository";
 import { mockRules } from "@/lib/mockData";
 import { postgresCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
@@ -62,11 +67,20 @@ export default async function DashboardPage({
     now: () => now,
   });
   const currentSchedule = currentWeek.kind === "schedule" ? currentWeek.schedule : null;
-  const [checkIns, snapshots] = currentSchedule
-    ? await Promise.all([postgresActivityCheckIns.listForSchedule(currentSchedule.id), listApprovedAnalyticsSnapshots(doc.id)])
-    : [[], []];
+  const [checkIns, snapshots] = await Promise.all([
+    currentSchedule ? postgresActivityCheckIns.listForSchedule(currentSchedule.id) : [],
+    listApprovedAnalyticsSnapshots(doc.id),
+  ]);
+  const withoutPlan = currentSchedule ? null : weekWithoutPlan(snapshots, now, SCHEDULE_TIMEZONE);
+  if (withoutPlan === "upload_for_next_week") redirect("/dashboard/upload");
 
-  const dashboardContent = currentSchedule ? (
+  const dashboardContent = withoutPlan === "plan_starts_monday" ? (
+    <PageHeader
+      eyebrow={`Week of ${formatScheduleWeekOf(isoDateInWeek(currentWeekInTimezone(now, SCHEDULE_TIMEZONE), 7))}`}
+      title="Your plan starts Monday"
+      lead="Your upload is saved. Your weekly schedule opens on Monday."
+    />
+  ) : currentSchedule ? (
     <ScheduleCheckInView
       scheduleId={currentSchedule.id}
       schedule={currentSchedule.schedule}

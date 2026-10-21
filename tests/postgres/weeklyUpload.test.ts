@@ -75,10 +75,11 @@ async function studentWithThisWeek(role: "student" | "admin" = "student") {
   return { accountId: account.id, studentId: saved.id };
 }
 
-function upload(at: Date, { currentScore = 160, source = "7sage_screenshot" } = {}) {
+function upload(at: Date, { currentScore = 160, source = "7sage_screenshot", weekOf = "2026-10-19" } = {}) {
   const extractedAt = new Date(at.getTime() - 5 * 60_000).toISOString();
   const confirmedAt = new Date(at.getTime() - 60_000).toISOString();
   return {
+    weekOf,
     currentScore,
     analytics: {
       lrAccuracyByType: { "Flaw or descriptive weakening": 0.74, Weaken: 0.7, "Necessary assumption": 0.76 },
@@ -143,6 +144,50 @@ it("next Monday's weekly schedule uses the Saturday upload: missed type first, i
     .flatMap((activity) => (activity.kind === "LR" && !activity.isFullSection ? [activity] : []))[0];
   expect(firstDrill?.types[0]).toBe("Flaw or descriptive weakening");
   expect(markup).toContain("Flaw or descriptive weakening comes first this week. You missed it most on your last practice test.");
+});
+
+it("refuses a page built for next week once the upload window is over, without saving anything", async () => {
+  const { studentId, accountId } = await studentWithThisWeek();
+  const tuesday = new Date("2026-10-13T16:00:00Z");
+  vi.setSystemTime(tuesday);
+  const before = await saved(studentId, accountId);
+
+  await expect(confirmWeeklyUpload(upload(tuesday))).resolves.toEqual({ error: "This page is out of date. Open This week to continue." });
+
+  expect(await saved(studentId, accountId)).toEqual(before);
+});
+
+it("saves a practice test reviewed on Sunday and confirmed after midnight, and uses it for that Monday's plan", async () => {
+  const { studentId } = await studentWithThisWeek();
+  const justAfterMidnight = new Date("2026-10-19T05:30:00Z");
+  vi.setSystemTime(justAfterMidnight);
+
+  await expect(confirmWeeklyUpload(upload(justAfterMidnight))).rejects.toThrow("redirect:/dashboard");
+  const [practiceTest] = await listApprovedPracticeTestResults(studentId);
+  expect(practiceTest).toBeDefined();
+
+  await dashboard();
+  const next = (await listWeeklySchedulesForStudent(studentId)).find((record) => record.weekStartDate === "2026-10-19");
+  expect(next?.generationInputs.practiceTestResultId).toBe(practiceTest.id);
+});
+
+it("a student who signs up on Saturday plans next week, sees that the plan starts Monday, and gets it on Monday", async () => {
+  vi.setSystemTime(SATURDAY);
+  const account = await createAccount({ email: "weekend@example.test", name: "Sam", role: "student" });
+  if (!account) throw new Error("Account fixture already exists");
+  const student = await createStudent(account.id, profile);
+  if (!student) throw new Error("Student fixture already exists");
+  state.session = { user: { id: account.id, role: "student", email: "weekend@example.test", name: "Sam" }, expires: "2099-01-01" };
+
+  await expect(dashboard()).rejects.toThrow("redirect:/dashboard/upload");
+  await expect(confirmWeeklyUpload({ ...upload(SATURDAY), practiceTest: null })).rejects.toThrow("redirect:/dashboard");
+  const weekend = await dashboard();
+  expect(weekend).toContain("Your plan starts Monday");
+  expect(await listWeeklySchedulesForStudent(student.id)).toEqual([]);
+
+  vi.setSystemTime(NEXT_MONDAY);
+  expect(await dashboard()).toContain("Your plan for this week");
+  expect((await listWeeklySchedulesForStudent(student.id)).map(({ weekStartDate }) => weekStartDate)).toEqual(["2026-10-19"]);
 });
 
 it("rolls back the snapshot and the score when the practice-test insert fails", async () => {

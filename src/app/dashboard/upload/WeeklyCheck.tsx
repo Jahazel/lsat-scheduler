@@ -145,6 +145,7 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
     startSaving(async () => {
       onSent?.();
       setReply(await onConfirm({
+        weekOf: basis.weekOf,
         currentScore: score,
         analytics: { ...summarizeAnalyticsRows(reviewedRows(review)), ...approval },
         practiceTest: practiceTestApproval,

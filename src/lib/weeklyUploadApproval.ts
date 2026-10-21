@@ -1,9 +1,8 @@
 import { z } from "zod";
-import { prepareApprovedSnapshot, SnapshotApprovalError } from "./analyticsSnapshots";
+import { checkApprovalTimes, prepareApprovedSnapshot, SnapshotApprovalError } from "./analyticsSnapshots";
 import { reviewPracticeTest, type SectionReview } from "./practiceTestResult";
 import { MAX_SCORE, MIN_SCORE } from "./weeklyUpload";
 
-const MAX_EXTRACTION_AGE_MS = 24 * 60 * 60 * 1000;
 
 const SectionHeader = {
   page: z.literal("section_review"),
@@ -63,14 +62,10 @@ function preparePracticeTest(input: unknown, approvedAt: Date, realNow: Date, we
   if (extraction.source === "admin_sample" && !allowAdminSample) {
     throw new SnapshotApprovalError("Admin access required for sample analytics.");
   }
-  const extractedAt = new Date(extraction.extractedAt);
-  const confirmedAt = new Date(confirmation.confirmedAt);
-  if (realNow.getTime() - extractedAt.getTime() > MAX_EXTRACTION_AGE_MS || extractedAt > realNow) {
-    throw new SnapshotApprovalError("Upload fresh practice-test screenshots before saving.");
-  }
-  if ((extraction.source !== "admin_sample" && confirmedAt < extractedAt) || confirmedAt > realNow) {
-    throw new SnapshotApprovalError("Confirm the practice test after reviewing it.");
-  }
+  const { extractedAt, confirmedAt } = checkApprovalTimes(extraction.source, extraction.extractedAt, confirmation.confirmedAt, realNow, {
+    stale: "Upload fresh practice-test screenshots before saving.",
+    early: "Confirm the practice test after reviewing it.",
+  });
   const review = reviewPracticeTest(readings, picks);
   if (!review.ok) throw new SnapshotApprovalError("Fix your practice-test screenshots before you confirm.");
   const { prepTest, sections, hiddenResults, missedStemTypeCounts } = review.result;
