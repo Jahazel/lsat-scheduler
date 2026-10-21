@@ -103,6 +103,8 @@ describe("RC passage types", () => {
 
     await userEvent.upload(screen.getByLabelText("Logical Reasoning screenshot file"), file);
     await userEvent.upload(screen.getByLabelText("Reading Comprehension screenshot file"), file);
+    expect(screen.queryByLabelText("Logical Reasoning screenshot file")).toBeNull();
+    expect(screen.getByText("Reading your Logical Reasoning screenshot…")).toBeDefined();
     replies[1](Response.json({ rows: [{ type: "Law", category: "passage", accuracy: 58 }] }));
     replies[0](Response.json({ rows: [{ type: "Strengthen", category: "regular", accuracy: 68 }] }));
 

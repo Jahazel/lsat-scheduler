@@ -163,11 +163,10 @@ describe("AnalyticsUploader", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(Response.json({ error: "Not signed in" }, { status: 401 })));
     const user = userEvent.setup();
     render(<AnalyticsUploader />);
-    const picker = lrPicker();
-    await user.upload(picker, new File(["image"], "analytics.png", { type: "image/png" }));
+    await user.upload(lrPicker(), new File(["image"], "analytics.png", { type: "image/png" }));
     await screen.findByRole("link", { name: "Sign in again" });
 
-    await user.upload(picker, new File([new Uint8Array(5 * 1024 * 1024)], "huge.png", { type: "image/png" }));
+    await user.upload(lrPicker(), new File([new Uint8Array(5 * 1024 * 1024)], "huge.png", { type: "image/png" }));
 
     expect(screen.getByText(/That file is 5\.0 MB/)).toBeDefined();
     expect(screen.queryByRole("link", { name: "Sign in again" })).toBeNull();

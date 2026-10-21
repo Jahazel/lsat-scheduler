@@ -86,8 +86,11 @@ export default function AnalyticsReview({
         const { extracting, error, signedOut } = uploads[section];
         return (
           <div key={section}>
-            <DropZone label={`${SECTION_NAME[section]} screenshot`} accept={SCREENSHOT_ACCEPT} error={error ?? undefined} onFile={(file) => readFile(section, file)} />
-            {extracting && <p className="mt-3 text-small text-smoke">Reading your {SECTION_NAME[section]} screenshot…</p>}
+            {extracting ? (
+              <p className="text-small text-smoke">Reading your {SECTION_NAME[section]} screenshot…</p>
+            ) : (
+              <DropZone label={`${SECTION_NAME[section]} screenshot`} accept={SCREENSHOT_ACCEPT} error={error ?? undefined} onFile={(file) => readFile(section, file)} />
+            )}
             {signedOut && <div className="mt-3"><SignInExpired /></div>}
           </div>
         );
