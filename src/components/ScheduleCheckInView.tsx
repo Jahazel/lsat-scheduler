@@ -11,6 +11,7 @@ import type { ActivityCheckIn, DayPlan, Student, WeeklySchedule } from "@/lib/ty
 import { saveActivityCheckIn } from "@/app/dashboard/actions";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ReminderStrip } from "@/components/ui/ReminderStrip";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StatusIcon } from "@/components/ui/StatusIcon";
 import { MOTION, cx } from "@/components/ui/classes";
@@ -24,6 +25,7 @@ interface ScheduleCheckInViewProps {
   heading?: string;
   /** The student's local date (YYYY-MM-DD). Adds the pace status and the Today label. */
   today?: string;
+  uploadReminder?: boolean;
 }
 
 const shortDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -68,6 +70,7 @@ export default function ScheduleCheckInView({
   readOnly = false,
   heading = "Your plan for this week",
   today,
+  uploadReminder = false,
 }: ScheduleCheckInViewProps) {
   const [savedCheckIns, setSavedCheckIns] = useState(checkIns);
   const [, startTransition] = useTransition();
@@ -91,6 +94,13 @@ export default function ScheduleCheckInView({
 
   return (
     <>
+      {uploadReminder && (
+        <ReminderStrip
+          message="Next week starts Monday. Add your screenshots to build your weekly schedule."
+          href="/dashboard/upload"
+          action="Plan next week"
+        />
+      )}
       <PageHeader
         eyebrow={isPastPlan ? undefined : `Week of ${formatScheduleWeekOf(schedule.weekOf)}`}
         title={heading}

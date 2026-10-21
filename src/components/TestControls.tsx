@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type Ref } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   setSimulatedDate,
   generateTestSample,
@@ -44,7 +44,7 @@ const RESETS = [
     label: "Reset test data",
     detail: "Start again on the real date, keeping study settings.",
     deletes:
-      "all weekly schedules, activity check-ins and analytics snapshots on your student side",
+      "all weekly schedules, activity check-ins, analytics snapshots and practice-test results on your student side",
     keeps: "your study settings and admin account",
     action: resetTestData,
   },
@@ -54,7 +54,7 @@ const RESETS = [
     label: "Reset everything",
     detail: "Return to onboarding on the real date.",
     deletes:
-      "all weekly schedules, activity check-ins, analytics snapshots and study settings on your student side",
+      "all weekly schedules, activity check-ins, analytics snapshots, practice-test results and study settings on your student side",
     keeps: "your admin account",
     action: resetEverything,
   },
@@ -81,6 +81,7 @@ export default function TestControls({
   closeExpanded?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { setSample, currentWeek, setCurrentWeek } = useAdminTest();
   const canRebuild =
     currentWeek?.week === state.weekStartDate
@@ -274,7 +275,8 @@ export default function TestControls({
                 onClick={() =>
                   run(async () => {
                     setSample(await generateTestSample(direction));
-                    router.push("/dashboard");
+                    // The weekly upload reviews the sample itself; elsewhere This week does.
+                    if (pathname !== "/dashboard/upload") router.push("/dashboard");
                     onClose();
                   }, "Sample ready for review.")
                 }

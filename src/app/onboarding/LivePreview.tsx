@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { DAY_LABEL } from "@/lib/studentProfile";
-import { SECTION_NAME, SECTIONS } from "@/lib/analyticsReview";
+import { SECTIONS } from "@/lib/analyticsReview";
 import { previewDrills, previewHeader, previewWeek, type PreviewDrill, type WizardState } from "@/lib/onboardingWizard";
-import type { AnalyticsSection, DayOfWeek } from "@/lib/types";
+import type { DayOfWeek } from "@/lib/types";
 import { DrillList, WeekTiles, type DrillItem } from "@/components/WeekPreview";
+import { ScreenshotCard } from "@/components/SnapshotReviewFields";
 
 const SKELETON = "h-2 rounded bg-vellum";
 
@@ -119,26 +119,4 @@ function drillItems(drills: PreviewDrill[]): DrillItem[] {
     label,
     detail: detail?.kind === "flag" ? { kind: "flag", text: "Priority flag" } : detail,
   }));
-}
-
-function ScreenshotCard({ section, file }: { section: AnalyticsSection; file: File }) {
-  const image = useRef<HTMLImageElement>(null);
-  useEffect(() => {
-    const url = URL.createObjectURL(file);
-    if (image.current) image.current.src = url;
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
-
-  return (
-    <figure className="flex flex-col gap-2">
-      <figcaption className="flex items-baseline justify-between gap-4">
-        <span className="text-small font-semibold text-ink">{SECTION_NAME[section]}</span>
-        <span className="truncate font-mono text-caption text-smoke">{file.name}</span>
-      </figcaption>
-      <div className="rounded-sm border border-vellum-line bg-paper p-2 shadow-e1">
-        {/* eslint-disable-next-line @next/next/no-img-element -- a local object URL; next/image cannot load it */}
-        <img ref={image} alt={`Your 7Sage ${SECTION_NAME[section]} screenshot`} className="max-h-[440px] w-full rounded object-contain object-top" />
-      </div>
-    </figure>
-  );
 }

@@ -3,7 +3,8 @@ import { studentSideClock } from "@/lib/studentClock";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { findStudentByAccountId } from "@/lib/studentRepository";
-import { currentWeekInTimezone, loadOrGenerateCurrentWeek, localDateInTimezone } from "@/lib/currentWeeklySchedule";
+import { currentWeekInTimezone, loadOrGenerateCurrentWeek, localDateInTimezone, showsUploadReminder } from "@/lib/currentWeeklySchedule";
+import { listApprovedAnalyticsSnapshots } from "@/lib/analyticsSnapshotRepository";
 import { mockRules } from "@/lib/mockData";
 import { postgresCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
 import { postgresActivityCheckIns } from "@/lib/activityCheckInRepository";
@@ -61,7 +62,9 @@ export default async function DashboardPage({
     now: () => now,
   });
   const currentSchedule = currentWeek.kind === "schedule" ? currentWeek.schedule : null;
-  const checkIns = currentSchedule ? await postgresActivityCheckIns.listForSchedule(currentSchedule.id) : [];
+  const [checkIns, snapshots] = currentSchedule
+    ? await Promise.all([postgresActivityCheckIns.listForSchedule(currentSchedule.id), listApprovedAnalyticsSnapshots(doc.id)])
+    : [[], []];
 
   const dashboardContent = currentSchedule ? (
     <ScheduleCheckInView
@@ -70,6 +73,7 @@ export default async function DashboardPage({
       student={currentSchedule.generationInputs.student}
       checkIns={checkIns}
       today={localDateInTimezone(now, SCHEDULE_TIMEZONE)}
+      uploadReminder={showsUploadReminder(snapshots, now, SCHEDULE_TIMEZONE)}
     />
   ) : (
     <UploaderFrame><AnalyticsUploader /></UploaderFrame>

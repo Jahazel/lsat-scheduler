@@ -9,6 +9,7 @@ import {
   moveSimulatedDate,
   rebuildTestWeek,
   resetTestWorkspace,
+  samplePracticeTestSections,
 } from "@/lib/adminTestWorkspace";
 import type { SampleDirection } from "@/lib/sampleAnalytics";
 
@@ -30,7 +31,7 @@ export async function generateTestSample(direction: SampleDirection) {
     z.enum(["improving", "steady", "slipping"]).parse(direction),
     repositories,
   );
-  return { rows, extractedAt: new Date().toISOString() };
+  return { rows, sections: samplePracticeTestSections(), extractedAt: new Date().toISOString() };
 }
 
 export async function rebuildThisWeek() {

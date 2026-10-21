@@ -8,7 +8,7 @@ import type { MissedStemType, Miss, PracticeTestProblem } from "./practiceTestRe
 import { isoDateInWeek } from "./scheduleReasonText";
 import { DAY_LABEL } from "./studentProfile";
 import type {
-  AnalyticsExtractedRow, AnalyticsSnapshot, ApprovedAnalyticsSnapshot, DayOfWeek, LRStemType,
+  Activity, AnalyticsExtractedRow, AnalyticsSnapshot, ApprovedAnalyticsSnapshot, DayOfWeek, LRStemType,
   PersistedWeeklySchedule, Student, WeeklySchedule,
 } from "./types";
 
@@ -23,6 +23,16 @@ export interface NextWeekBasis {
   priorSchedules: WeeklySchedule[];
 }
 
+function currentSchedule(schedules: PersistedWeeklySchedule[], now: Date, timezone: string) {
+  const currentWeek = currentWeekInTimezone(now, timezone);
+  return schedules.find((record) => record.weekStartDate === currentWeek)?.schedule;
+}
+
+export function currentWeekHadPracticeTest(schedules: PersistedWeeklySchedule[], now: Date, timezone: string) {
+  const current = currentSchedule(schedules, now, timezone);
+  return DAY_ORDER.some((day) => current?.days[day].activities.some((activity) => activity.kind === "PT") ?? false);
+}
+
 export function nextWeekBasis({ now, timezone, student, schedules, snapshots }: {
   now: Date;
   timezone: string;
@@ -31,12 +41,11 @@ export function nextWeekBasis({ now, timezone, student, schedules, snapshots }: 
   snapshots: ApprovedAnalyticsSnapshot[];
 }): NextWeekBasis {
   const currentWeek = currentWeekInTimezone(now, timezone);
-  const current = schedules.find((record) => record.weekStartDate === currentWeek)?.schedule;
-  const sunday = current?.days.SUNDAY;
+  const sunday = currentSchedule(schedules, now, timezone)?.days.SUNDAY;
   return {
     weekOf: isoDateInWeek(currentWeek, 7),
     student,
-    hadPracticeTest: DAY_ORDER.some((day) => current?.days[day].activities.some((activity) => activity.kind === "PT") ?? false),
+    hadPracticeTest: currentWeekHadPracticeTest(schedules, now, timezone),
     priorSnapshots: newestApprovedSnapshots(snapshots)
       .slice(0, TREND_WINDOW - 1)
       .map(({ id, approvedAt, weekOf, lrAccuracyByType, lrTopPriorityLogicTypes, rcAccuracyByType }) =>
@@ -119,6 +128,34 @@ export function firstDrills(schedule: WeeklySchedule, goesFirst: LRStemType | un
       label: activityLabel(activity),
       detail: index === flagged ? { kind: "flag" as const, text: "Goes first" } : null,
     })),
+  };
+}
+
+/** The first drilling day of a previewed week, each line tagged the way "Check what we read" explains it. */
+export function checkPreviewDrills(schedule: WeeklySchedule, goesFirst: LRStemType | undefined, analytics: AnalyticsSnapshot) {
+  const day = DAY_ORDER.find((weekday) => schedule.days[weekday].type === "drill" && schedule.days[weekday].activities.length > 0);
+  if (!day) return null;
+  const activities = schedule.days[day].activities;
+  const goesFirstIndex = activities.findIndex((activity) =>
+    goesFirst !== undefined && activity.kind === "LR" && !activity.isFullSection && activity.types.includes(goesFirst));
+  const rcAccuracy = analytics.rcAccuracyByType ?? {};
+  const lowest = mockRules.rcTypes
+    .filter((type) => rcAccuracy[type] !== undefined)
+    .sort((a, b) => rcAccuracy[a]! - rcAccuracy[b]!)[0];
+  const detail = (activity: Activity, index: number): string | null => {
+    if (index === goesFirstIndex) return "goes first";
+    if (activity.kind === "LR" && !activity.isFullSection && activity.types.length === 2) return "paired";
+    if (activity.kind === "RC" && !activity.isFullSection && lowest && activity.passages.some(({ type }) => type === lowest)) {
+      return `${Math.round(rcAccuracy[lowest]! * 100)}% · lowest`;
+    }
+    return null;
+  };
+  return {
+    day,
+    items: activities.map((activity, index) => {
+      const text = detail(activity, index);
+      return { label: activityLabel(activity), detail: text ? { kind: "accuracy" as const, text } : null };
+    }),
   };
 }
 

@@ -2,6 +2,7 @@ import { and, desc, eq, lt } from "drizzle-orm";
 import { listApprovedAnalyticsSnapshots } from "./analyticsSnapshotRepository";
 import type { CurrentWeekRepositories } from "./currentWeeklySchedule";
 import { postgresActivityCheckIns } from "./activityCheckInRepository";
+import { listApprovedPracticeTestResults } from "./weeklyUploadRepository";
 import { getPostgresDatabase } from "./postgres";
 import { weeklySchedules } from "./postgresSchema";
 import type { SavedActivity, SavedWeeklySchedule } from "./postgresSchema";
@@ -53,6 +54,7 @@ async function findByStudentAndWeek(studentId: string, weekStartDate: string) {
 
 export const postgresCurrentWeekRepositories: CurrentWeekRepositories = {
   snapshots: { listEligibleForStudent: listApprovedAnalyticsSnapshots },
+  practiceTestResults: { listForStudent: listApprovedPracticeTestResults },
   weeklySchedules: {
     findByStudentAndWeek,
     async listBeforeWeek(studentId, weekStartDate) {

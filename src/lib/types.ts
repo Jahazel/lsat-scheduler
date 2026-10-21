@@ -301,6 +301,7 @@ export interface PersistedWeeklySchedule {
     priorWeekProgress?: PriorWeekProgressFacts;
     priorWeekPracticeTestReviewMinutes?: number;
     priorScheduleIds?: string[];
+    practiceTestResultId?: string;
   };
   policyVersion: string;
 }

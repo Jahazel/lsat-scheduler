@@ -1,12 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  accuracyMessage,
-  addTypeOptions,
   attemptMessage,
-  boxText,
   blockedReason,
   confirmSnapshotInput,
-  emptyListNote,
   initialWizardState,
   practiceTestFact,
   practiceTestHint,
@@ -23,8 +19,16 @@ import {
   type WizardState,
 } from "./onboardingWizard";
 import { generateWeek } from "./engine";
+import { accuracyMessage, addTypeOptions, boxText, emptyListNote } from "./reviewDraft";
 import { mockRules } from "./mockData";
 import type { AnalyticsExtractedRow } from "./types";
+
+function draftOf(state: WizardState) {
+  if (!state.draft) throw new Error("Expected a review draft");
+  return state.draft;
+}
+
+const lrRead = ({ screenshots: { LR } }: WizardState) => (LR.status === "read" ? LR.rows : []);
 
 function run(...actions: WizardAction[]): WizardState {
   return actions.reduce(wizardReducer, initialWizardState());
@@ -293,14 +297,14 @@ describe("onboarding wizard", () => {
 
     it("shows a box's message only after focus leaves it", () => {
       const typing = onReview(readRows, { type: "editAccuracy", rowType: "Diagram", text: "104" });
-      expect(accuracyMessage(typing, "Diagram")).toBeNull();
+      expect(accuracyMessage(draftOf(typing), "Diagram")).toBeNull();
       expect(blockedReason(typing)).toBe("Fix Diagram above to confirm.");
 
       const left = wizardReducer(typing, { type: "leaveAccuracyBox", rowType: "Diagram" });
-      expect(accuracyMessage(left, "Diagram")).toBe("Enter a percentage from 0 to 100.");
+      expect(accuracyMessage(draftOf(left), "Diagram")).toBe("Enter a percentage from 0 to 100.");
 
       const cleared = wizardReducer(left, { type: "editAccuracy", rowType: "Diagram", text: "" });
-      expect(accuracyMessage(cleared, "Diagram")).toBe("Enter the percentage, or remove this row with ×.");
+      expect(accuracyMessage(draftOf(cleared), "Diagram")).toBe("Enter the percentage, or remove this row with ×.");
     });
 
     it("keeps what the student typed and saves a decimal as typed", () => {
@@ -309,8 +313,8 @@ describe("onboarding wizard", () => {
 
       for (const text of ["9.", "-5", "7a"]) {
         const state = onReview(readRows, ...tickBoth, { type: "editAccuracy", rowType: "Diagram", text }, { type: "leaveAccuracyBox", rowType: "Diagram" }, ...tickBoth);
-        expect(boxText(state, "Diagram")).toBe(text);
-        expect(accuracyMessage(state, "Diagram")).toBe("Enter a percentage from 0 to 100.");
+        expect(boxText(draftOf(state), "Diagram")).toBe(text);
+        expect(accuracyMessage(draftOf(state), "Diagram")).toBe("Enter a percentage from 0 to 100.");
         expect(blockedReason(state)).toBe("Fix Diagram above to confirm.");
         expect(confirmSnapshotInput(state)).toBeNull();
       }
@@ -320,15 +324,15 @@ describe("onboarding wizard", () => {
         { type: "removeRow", rowType: "Diagram" },
         { type: "addType", rowType: "Diagram" },
       );
-      expect(boxText(readded, "Diagram")).toBe("");
+      expect(boxText(draftOf(readded), "Diagram")).toBe("");
       const over = onReview(readRows, { type: "editAccuracy", rowType: "Diagram", text: "1000" }, { type: "leaveAccuracyBox", rowType: "Diagram" });
-      expect(accuracyMessage(over, "Diagram")).toBe("Enter a percentage from 0 to 100.");
+      expect(accuracyMessage(draftOf(over), "Diagram")).toBe("Enter a percentage from 0 to 100.");
     });
 
     it("accepts a decimal read from the screenshot after focus leaves its box", () => {
       const decimalRead = [{ ...readRows[0], accuracy: 9.5 }, ...readRows.slice(1)];
       const state = onReview(decimalRead, { type: "leaveAccuracyBox", rowType: "Diagram" }, ...tickBoth);
-      expect(accuracyMessage(state, "Diagram")).toBeNull();
+      expect(accuracyMessage(draftOf(state), "Diagram")).toBeNull();
       expect(confirmSnapshotInput(state)?.analyticsRows[0].accuracy).toBe(9.5);
     });
 
@@ -356,17 +360,17 @@ describe("onboarding wizard", () => {
 
     it("shows every wrong value's message after a press on the locked Confirm", () => {
       const state = onReview(readRows, { type: "addType", rowType: "Strengthen" }, { type: "confirmBlocked" });
-      expect(accuracyMessage(state, "Strengthen")).toBe("Enter the percentage, or remove this row with ×.");
+      expect(accuracyMessage(draftOf(state), "Strengthen")).toBe("Enter the percentage, or remove this row with ×.");
     });
 
     it("lists only types not shown, by group, matching the search", () => {
-      const options = addTypeOptions(onReview(), "su");
+      const options = addTypeOptions(draftOf(onReview()), "su");
       expect(options.accuracy).toEqual(["Most strongly supported", "Sufficient assumption"]);
       expect(options.flags).toEqual(["Confusing sufficiency and necessity", "Lack of support v. false conclusion"]);
-      expect(addTypeOptions(onReview(), "zz")).toEqual({ accuracy: [], flags: [] });
-      expect(addTypeOptions(onReview(), "").accuracy).not.toContain("Diagram");
-      expect(addTypeOptions(onReview(), "").flags).not.toContain("Link assumption");
-      expect(addTypeOptions(onReview(), "causal").flags).toEqual(["Causal chain"]);
+      expect(addTypeOptions(draftOf(onReview()), "zz")).toEqual({ accuracy: [], flags: [] });
+      expect(addTypeOptions(draftOf(onReview()), "").accuracy).not.toContain("Diagram");
+      expect(addTypeOptions(draftOf(onReview()), "").flags).not.toContain("Link assumption");
+      expect(addTypeOptions(draftOf(onReview()), "causal").flags).toEqual(["Causal chain"]);
     });
 
     it("adds a flag unticked", () => {
@@ -376,12 +380,12 @@ describe("onboarding wizard", () => {
 
     it("says so in one line when one list is empty after the read", () => {
       const accuracyOnly = readRows.filter((row) => row.category === "regular");
-      expect(emptyListNote(onReview(accuracyOnly), "flags")).toBe(
+      expect(emptyListNote(draftOf(onReview(accuracyOnly)), lrRead(onReview(accuracyOnly)), "flags")).toBe(
         "We didn't find priority flags in your LR screenshot. If 7Sage shows any, add them with the link below.",
       );
-      expect(emptyListNote(onReview(accuracyOnly), "accuracy")).toBeNull();
+      expect(emptyListNote(draftOf(onReview(accuracyOnly)), lrRead(onReview(accuracyOnly)), "accuracy")).toBeNull();
       const flagsOnly = readRows.filter((row) => row.category === "restricted");
-      expect(emptyListNote(onReview(flagsOnly), "accuracy")).toBe(
+      expect(emptyListNote(draftOf(onReview(flagsOnly)), lrRead(onReview(flagsOnly)), "accuracy")).toBe(
         "We didn't find accuracy values in your LR screenshot. If 7Sage shows any, add them with the link below.",
       );
     });
@@ -428,8 +432,8 @@ describe("onboarding wizard", () => {
       expect(state.screenshots.LR.status).toBe("reading");
       expect(blockedReason(state)).toBe("Add both screenshots to check the values.");
       expect(state.draft?.review.rows.map(({ row }) => row.type)).toEqual(["Law", "Comparative", "Science", "Humanities", "Art"]);
-      expect(boxText(state, "Law")).toBe("60");
-      expect(boxText(state, "Diagram")).toBe("");
+      expect(boxText(draftOf(state), "Law")).toBe("60");
+      expect(boxText(draftOf(state), "Diagram")).toBe("");
     });
 
     it("asks for both screenshots before Check the values", () => {
@@ -470,12 +474,12 @@ describe("onboarding wizard", () => {
         ...tickBoth,
       );
       expect(confirmSnapshotInput(complete)).not.toBeNull();
-      expect(boxText(withoutArt, "Art")).toBe("");
+      expect(boxText(draftOf(withoutArt), "Art")).toBe("");
       expect(blockedReason(withoutArt)).toBe("Fix Art above to confirm.");
       expect(confirmSnapshotInput(withoutArt)).toBeNull();
 
       const blocked = wizardReducer(withoutArt, { type: "confirmBlocked" });
-      expect(accuracyMessage(blocked, "Art")).toBe("Enter the percentage from your RC screenshot.");
+      expect(accuracyMessage(draftOf(blocked), "Art")).toBe("Enter the percentage from your RC screenshot.");
 
       const filled = wizardReducer(
         wizardReducer(withoutArt, { type: "editAccuracy", rowType: "Art", text: "77" }),

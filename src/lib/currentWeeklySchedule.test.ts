@@ -3,9 +3,11 @@ import {
   analyticsTrend,
   currentWeekInTimezone,
   loadOrGenerateCurrentWeek,
+  showsUploadReminder,
 } from "./currentWeeklySchedule";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "./mockData";
 import { generateWeek } from "./engine";
+import type { ApprovedPracticeTestResult } from "./practiceTestResult";
 import type { ApprovedAnalyticsSnapshot, PersistedWeeklySchedule } from "./types";
 
 const monday = new Date("2026-09-14T14:00:00.000Z");
@@ -14,7 +16,7 @@ function approvedSnapshot(id: string, approvedAt: string): ApprovedAnalyticsSnap
   return { ...mockAnalytics, id, approvedAt };
 }
 
-function inMemoryRepositories(snapshots: ApprovedAnalyticsSnapshot[]) {
+function inMemoryRepositories(snapshots: ApprovedAnalyticsSnapshot[], practiceTests: ApprovedPracticeTestResult[] = []) {
   const schedules: PersistedWeeklySchedule[] = [];
   let checkIns: { scheduleId: string; activityId: string; status: "not_started" | "completed" }[] = [];
   return {
@@ -25,6 +27,9 @@ function inMemoryRepositories(snapshots: ApprovedAnalyticsSnapshot[]) {
     },
     snapshots: {
       listEligibleForStudent: async () => snapshots,
+    },
+    practiceTestResults: {
+      listForStudent: async () => practiceTests,
     },
     weeklySchedules: {
       findByStudentAndWeek: async (studentId: string, weekStartDate: string) =>
@@ -244,7 +249,7 @@ describe("loadOrGenerateCurrentWeek", () => {
   });
 
   it("marks past days unscheduled and records the test-day capacity overage", async () => {
-    const repositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-19T13:00:00.000Z")]);
+    const repositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-18T13:00:00.000Z")]);
     const result = await loadOrGenerateCurrentWeek({
       studentId: "student-1",
       student: { ...mockStudent, dailyCapacityMinutes: { ...mockStudent.dailyCapacityMinutes, SATURDAY: 60 } },
@@ -477,4 +482,125 @@ describe("loadOrGenerateCurrentWeek", () => {
       .toBeGreaterThanOrEqual(mockStudent.dailyCapacityMinutes.MONDAY - 10);
   });
 
+
+  describe("upload window", () => {
+    // Week of Sep 14: Saturday is Sep 19, next Monday is Sep 21 (Chicago, UTC−5).
+    const saturdayNoon = "2026-09-19T17:00:00.000Z";
+    const load = (repositories: ReturnType<typeof inMemoryRepositories>, now: string, student = mockStudent) =>
+      loadOrGenerateCurrentWeek({
+        studentId: "student-1",
+        student,
+        studentName: mockStudentName,
+        rules: mockRules,
+        timezone: "America/Chicago",
+        now: () => new Date(now),
+        ...repositories,
+      });
+    const practiceTest = (id: string, approvedAt: string): ApprovedPracticeTestResult => ({
+      id, approvedAt, prepTest: 158, missedStemTypeCounts: { "Flaw or descriptive weakening": 2, "Weaken": 1 },
+    });
+    const weekNotes = (schedule: PersistedWeeklySchedule) =>
+      schedule.schedule.reasons?.filter((reason) => reason.placement.scope === "week").map((reason) => reason.sentence) ?? [];
+
+    it("counts a Saturday upload for next week but not the current one", async () => {
+      const repositories = inMemoryRepositories([approvedSnapshot("saturday", saturdayNoon)]);
+
+      await expect(load(repositories, "2026-09-20T15:00:00.000Z")).resolves.toEqual({ kind: "analytics_required" });
+      const nextWeek = await load(repositories, "2026-09-21T14:00:00.000Z");
+
+      if (nextWeek.kind !== "schedule") throw new Error("Expected a saved schedule");
+      expect(nextWeek.schedule.weekStartDate).toBe("2026-09-21");
+      expect(nextWeek.schedule.sourceSnapshotIds).toEqual(["saturday"]);
+    });
+
+    it("counts an upload from Saturday 00:00 in the schedule timezone, not from UTC midnight", async () => {
+      const lateFriday = inMemoryRepositories([approvedSnapshot("friday-night", "2026-09-19T04:30:00.000Z")]);
+      const earlySaturday = inMemoryRepositories([approvedSnapshot("saturday-early", "2026-09-19T05:30:00.000Z")]);
+
+      await expect(load(lateFriday, "2026-09-21T14:00:00.000Z")).resolves.toEqual({ kind: "analytics_required" });
+      await expect(load(earlySaturday, "2026-09-21T14:00:00.000Z")).resolves.toMatchObject({ kind: "schedule" });
+    });
+
+    it("still counts an upload made Monday or later for the current week", async () => {
+      const repositories = inMemoryRepositories([approvedSnapshot("wednesday", "2026-09-16T15:00:00.000Z")]);
+
+      const result = await load(repositories, "2026-09-16T16:00:00.000Z");
+
+      expect(result).toMatchObject({ kind: "schedule", schedule: { weekStartDate: "2026-09-14", sourceSnapshotIds: ["wednesday"] } });
+    });
+
+    it("leaves a weekend upload meant for next week out of this week's trend", async () => {
+      const monday = approvedSnapshot("monday", "2026-09-14T15:00:00.000Z");
+      const saturday = approvedSnapshot("saturday", saturdayNoon);
+      const repositories = inMemoryRepositories([monday, saturday]);
+
+      const result = await load(repositories, "2026-09-20T15:00:00.000Z");
+
+      expect(result).toMatchObject({ kind: "schedule", schedule: { weekStartDate: "2026-09-14", sourceSnapshotIds: ["monday"] } });
+    });
+
+    it("puts the fresh practice test's most-missed type first, with its week note, and records the result", async () => {
+      const repositories = inMemoryRepositories(
+        [approvedSnapshot("saturday", saturdayNoon)],
+        [practiceTest("pt-158", saturdayNoon)],
+      );
+
+      const result = await load(repositories, "2026-09-21T14:00:00.000Z");
+
+      if (result.kind !== "schedule") throw new Error("Expected a saved schedule");
+      expect(result.schedule.generationInputs.practiceTestResultId).toBe("pt-158");
+      expect(weekNotes(result.schedule)).toContain(
+        "Flaw or descriptive weakening comes first this week. You missed it most on your last practice test.",
+      );
+      const firstDrill = result.schedule.schedule.days.MONDAY.activities
+        .flatMap((activity) => (activity.kind === "LR" && !activity.isFullSection ? [activity] : []))[0];
+      expect(firstDrill?.types[0]).toBe("Flaw or descriptive weakening");
+    });
+
+    it("does not carry a practice test from an earlier week into this one", async () => {
+      const repositories = inMemoryRepositories(
+        [approvedSnapshot("saturday", saturdayNoon)],
+        [practiceTest("last-week", "2026-09-17T15:00:00.000Z")],
+      );
+
+      const result = await load(repositories, "2026-09-21T14:00:00.000Z");
+
+      if (result.kind !== "schedule") throw new Error("Expected a saved schedule");
+      expect(result.schedule.generationInputs).not.toHaveProperty("practiceTestResultId");
+      expect(weekNotes(result.schedule).join(" ")).not.toContain("You missed it most");
+    });
+
+    it("plans two paired drills once the score saved on approval reaches 160", async () => {
+      const pairedLines = async (currentScore: number) => {
+        const result = await load(inMemoryRepositories([approvedSnapshot("saturday", saturdayNoon)]),
+          "2026-09-21T14:00:00.000Z", { ...mockStudent, currentScore });
+        if (result.kind !== "schedule") throw new Error("Expected a saved schedule");
+        return Object.values(result.schedule.schedule.days).flatMap((day) => day.activities)
+          .filter((activity) => activity.kind === "LR" && !activity.isFullSection && activity.types.length === 2).length;
+      };
+
+      expect(await pairedLines(159)).toBe(1);
+      expect(await pairedLines(160)).toBe(2);
+    });
+  });
+});
+
+describe("showsUploadReminder", () => {
+  const timezone = "America/Chicago";
+
+  it("asks on Saturday and Sunday while next week has no upload", () => {
+    expect(showsUploadReminder([], new Date("2026-09-19T05:30:00.000Z"), timezone)).toBe(true);
+    expect(showsUploadReminder([], new Date("2026-09-21T04:30:00.000Z"), timezone)).toBe(true);
+  });
+
+  it("stays away from Monday to Friday", () => {
+    expect(showsUploadReminder([], new Date("2026-09-19T04:30:00.000Z"), timezone)).toBe(false);
+    expect(showsUploadReminder([], new Date("2026-09-21T05:30:00.000Z"), timezone)).toBe(false);
+  });
+
+  it("goes away once next week's upload is approved, but not for an upload earlier in the week", () => {
+    const sunday = new Date("2026-09-20T15:00:00.000Z");
+    expect(showsUploadReminder([approvedSnapshot("thursday", "2026-09-17T15:00:00.000Z")], sunday, timezone)).toBe(true);
+    expect(showsUploadReminder([approvedSnapshot("saturday", "2026-09-19T17:00:00.000Z")], sunday, timezone)).toBe(false);
+  });
 });
