@@ -1,4 +1,4 @@
-import { boolean, doublePrecision, jsonb, date, integer, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, jsonb, date, integer, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import type {
   Activity, ActivityCheckInStatus, AnalyticsSnapshot, DayOfWeek, DayPlan, LRType, PersistedWeeklySchedule, RCType, Student,
   WeeklySchedule,
@@ -80,7 +80,6 @@ export const activityCheckIns = pgTable("activity_check_ins", {
   scheduleId: uuid("schedule_id").notNull().references(() => weeklySchedules.id, { onDelete: "cascade" }),
   activityId: text("activity_id").notNull(),
   status: text("status").$type<ActivityCheckInStatus>().notNull(),
-  actualMinutes: doublePrecision("actual_minutes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

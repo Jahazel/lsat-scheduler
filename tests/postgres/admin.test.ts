@@ -176,7 +176,7 @@ it("Rebuild deletes the current week's schedule and check-ins, and This week rec
   await dashboard();
   const [current, earlier] = await listWeeklySchedulesForStudent(admin.saved.id);
   expect(current.weekStartDate).toBe("2026-10-12");
-  await saveActivityCheckIn({ scheduleId: current.id, activityId: "MONDAY:0", status: "completed", actualMinutes: 25 });
+  await saveActivityCheckIn({ scheduleId: current.id, activityId: "MONDAY:0", status: "completed" });
   const capacity = { ...profile.dailyCapacityMinutes, MONDAY: 120 };
   expect(await updateStudentByAccountId(admin.account.id, { ...profile, dailyCapacityMinutes: capacity })).toBe(true);
 
@@ -203,7 +203,7 @@ async function adminWithTestHistory() {
   signIn(admin.account);
   await dashboard();
   const [schedule] = await listWeeklySchedulesForStudent(admin.saved.id);
-  await saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "completed", actualMinutes: 25 });
+  await saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "completed" });
   await database.owner.execute(sql`update accounts set simulated_date = '2026-10-14' where id = ${admin.account.id}::uuid`);
   return { admin, other };
 }

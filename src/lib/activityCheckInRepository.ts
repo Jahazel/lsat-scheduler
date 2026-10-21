@@ -11,7 +11,6 @@ function activityCheckIn(record: typeof activityCheckIns.$inferSelect): Activity
     scheduleId: record.scheduleId,
     activityId: record.activityId,
     status: record.status,
-    ...(record.actualMinutes === null ? {} : { actualMinutes: record.actualMinutes }),
   };
 }
 
@@ -27,13 +26,12 @@ export const postgresActivityCheckIns = {
       .where(inArray(activityCheckIns.scheduleId, scheduleIds));
     return records.map(activityCheckIn);
   },
-  async save({ scheduleId, activityId, status, actualMinutes }: Omit<ActivityCheckIn, "id">, now = new Date()) {
-    const values = { status, actualMinutes: status === "completed" ? actualMinutes ?? null : null };
+  async save({ scheduleId, activityId, status }: Omit<ActivityCheckIn, "id">, now = new Date()) {
     const [record] = await getPostgresDatabase().insert(activityCheckIns)
-      .values({ scheduleId, activityId, ...values, createdAt: now, updatedAt: now })
+      .values({ scheduleId, activityId, status, createdAt: now, updatedAt: now })
       .onConflictDoUpdate({
         target: [activityCheckIns.scheduleId, activityCheckIns.activityId],
-        set: { ...values, updatedAt: now },
+        set: { status, updatedAt: now },
       }).returning();
     if (!record) throw new Error("Activity check-in could not be saved");
     return activityCheckIn(record);

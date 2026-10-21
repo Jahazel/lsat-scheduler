@@ -270,14 +270,13 @@ export type PriorWeekProgressFacts = {
   | { workloadReductionPercent: number; skipReductionPercent?: never }
 );
 
-export type ActivityCheckInStatus = "not_started" | "completed" | "skipped";
+export type ActivityCheckInStatus = "not_started" | "completed";
 
 export interface ActivityCheckIn {
   id?: string;
   scheduleId: string;
   activityId: string;
   status: ActivityCheckInStatus;
-  actualMinutes?: number;
 }
 
 export interface PersistedWeeklySchedule {

@@ -96,17 +96,17 @@ export async function checkPostgresFoundation(connection: Connection) {
       await tx.execute(sql`update accounts set name = 'Updated' where id = ${records.account_id}`);
       await tx.execute(sql`update students set current_score = 155 where id = ${records.student_id}`);
       await tx.execute(sql`update analytics_snapshots set lr_accuracy_by_type = '{"Weaken":60}' where id = ${records.snapshot_id}`);
-      await tx.execute(sql`update activity_check_ins set status = 'completed', actual_minutes = 45 where id = ${records.check_in_id}`);
+      await tx.execute(sql`update activity_check_ins set status = 'completed' where id = ${records.check_in_id}`);
       deepStrictEqual((await tx.execute(sql`
         select accounts.name, students.current_score, analytics_snapshots.lr_accuracy_by_type,
-          weekly_schedules.policy_version, activity_check_ins.status, activity_check_ins.actual_minutes
+          weekly_schedules.policy_version, activity_check_ins.status
         from accounts join students on students.account_id = accounts.id
           join analytics_snapshots on analytics_snapshots.student_id = students.id
           join weekly_schedules on weekly_schedules.student_id = students.id
           join activity_check_ins on activity_check_ins.schedule_id = weekly_schedules.id
         where accounts.id = ${records.account_id}
       `)).rows, [{ name: "Updated", current_score: 155, lr_accuracy_by_type: { Weaken: 60 },
-        policy_version: "adaptive-weekly-schedule-v2", status: "completed", actual_minutes: 45 }]);
+        policy_version: "adaptive-weekly-schedule-v2", status: "completed" }]);
       messages.push("PASS: App reads and writes");
 
       for (const query of [
@@ -152,7 +152,7 @@ export async function checkPostgresFoundation(connection: Connection) {
         sql`update students set accommodation = 1.25 where id = ${records.student_id}`,
         sql`update students set preferred_practice_test_day = 'FUNDAY' where id = ${records.student_id}`,
         sql`update activity_check_ins set status = 'unknown' where id = ${records.check_in_id}`,
-        sql`update activity_check_ins set actual_minutes = -1 where id = ${records.check_in_id}`,
+        sql`update activity_check_ins set status = 'skipped' where id = ${records.check_in_id}`,
       ]) await refused(query, "23514");
       for (const day of ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]) {
         for (const value of [15, 31, 495, 30.1]) {

@@ -13,8 +13,7 @@ import { findWeeklyScheduleForStudent } from "@/lib/weeklyScheduleRepository";
 const CheckInInput = z.object({
   scheduleId: z.uuid(),
   activityId: z.string().regex(/^(MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY):\d+$/),
-  status: z.enum(["not_started", "completed", "skipped"]),
-  actualMinutes: z.number().finite().nonnegative().optional(),
+  status: z.enum(["not_started", "completed"]),
 });
 
 export async function saveActivityCheckIn(input: z.input<typeof CheckInInput>) {
@@ -40,9 +39,6 @@ export async function saveActivityCheckIn(input: z.input<typeof CheckInInput>) {
     scheduleId: parsed.scheduleId,
     activityId: parsed.activityId,
     status: parsed.status,
-    ...(parsed.status === "completed" && parsed.actualMinutes !== undefined
-      ? { actualMinutes: parsed.actualMinutes }
-      : {}),
   }, now);
   revalidatePath("/dashboard");
   return checkIn;

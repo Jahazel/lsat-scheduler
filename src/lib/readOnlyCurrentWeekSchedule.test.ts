@@ -29,7 +29,7 @@ const savedSchedule: PersistedWeeklySchedule = {
 };
 
 const persistedCheckIns: ActivityCheckIn[] = [
-  { id: "check-in-1", scheduleId: "schedule-1", activityId: "MONDAY:0", status: "completed", actualMinutes: 45 },
+  { id: "check-in-1", scheduleId: "schedule-1", activityId: "MONDAY:0", status: "completed" },
 ];
 
 function repositories({

@@ -228,9 +228,11 @@ describe("app shell pieces", () => {
   });
 
   it("renders the page header band", () => {
-    render(<PageHeader eyebrow="Week of September 28" title="Your plan for this week" lead="Your plan is set." note="Weaken sits out this week." />);
+    render(<PageHeader eyebrow="Week of September 28" title="Your plan for this week" lead="Your plan is set."
+      notes={["Sufficient assumption comes first this week.", "Weaken sits out this week."]} />);
     expect(screen.getByRole("heading", { level: 1, name: "Your plan for this week" })).toBeTruthy();
-    expect(screen.getByText("Weaken sits out this week.")).toBeTruthy();
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent))
+      .toEqual(["Sufficient assumption comes first this week.", "Weaken sits out this week."]);
   });
 
   it("renders the footer's legal links", () => {

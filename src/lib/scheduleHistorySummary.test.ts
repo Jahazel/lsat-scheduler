@@ -34,12 +34,12 @@ describe("schedule history summary", () => {
       schedule: schedule("2026-09-14", 0),
       checkIns: [],
       isCurrent: false,
-    })).toMatchObject({ total: 0, done: 0, skipped: 0, plannedMinutes: 0, completionPercent: 0 });
+    })).toMatchObject({ total: 0, done: 0, plannedMinutes: 0, completionPercent: 0 });
   });
 
   it("counts only a consecutive 80% completion streak from the most recent past week", () => {
     const weeks = [
-      summarizeScheduleHistoryWeek({ weekStartDate: "2026-09-21", schedule: schedule("2026-09-21", 5), checkIns: checkIns("newest", ["completed", "completed", "completed", "completed", "skipped"]), isCurrent: false }),
+      summarizeScheduleHistoryWeek({ weekStartDate: "2026-09-21", schedule: schedule("2026-09-21", 5), checkIns: checkIns("newest", ["completed", "completed", "completed", "completed", "not_started"]), isCurrent: false }),
       summarizeScheduleHistoryWeek({ weekStartDate: "2026-09-14", schedule: schedule("2026-09-14", 5), checkIns: checkIns("middle", ["completed", "completed", "completed"]), isCurrent: false }),
       summarizeScheduleHistoryWeek({ weekStartDate: "2026-09-07", schedule: schedule("2026-09-07", 5), checkIns: checkIns("oldest", ["completed", "completed", "completed", "completed", "completed"]), isCurrent: false }),
     ];
@@ -51,7 +51,7 @@ describe("schedule history summary", () => {
     const newest = summarizeScheduleHistoryWeek({
       weekStartDate: "2026-09-21",
       schedule: schedule("2026-09-21", 250),
-      checkIns: checkIns("newest", [...Array(199).fill("completed"), ...Array(51).fill("skipped")]),
+      checkIns: checkIns("newest", [...Array(199).fill("completed"), ...Array(51).fill("not_started")]),
       isCurrent: false,
     });
 
@@ -117,7 +117,7 @@ describe("schedule history summary", () => {
     const past = summarizeScheduleHistoryWeek({
       weekStartDate: "2026-09-14",
       schedule: schedule("2026-09-14"),
-      checkIns: checkIns("past", ["completed", "skipped"]),
+      checkIns: checkIns("past", ["completed", "not_started"]),
       isCurrent: false,
     });
     const current = summarizeScheduleHistoryWeek({

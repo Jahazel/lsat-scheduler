@@ -182,16 +182,12 @@ it("creates one Activity check-in per Weekly schedule and Schedule activity and 
     .rejects.toMatchObject({ cause: { code: "23505", constraint: "activity_check_ins_schedule_activity_unique" } });
   await createCheckIn({ scheduleId, activityId: "MONDAY:1" });
   await createCheckIn({ scheduleId: await createSchedule({ studentId, week: "2026-10-12" }) });
-  await db.execute(sql`
-    update activity_check_ins set status = 'completed', actual_minutes = 42.5 where id = ${checkInId}
-  `);
-  expect((await db.execute(sql`select status, actual_minutes from activity_check_ins where id = ${checkInId}`)).rows)
-    .toEqual([{ status: "completed", actual_minutes: 42.5 }]);
-  await db.execute(sql`
-    update activity_check_ins set status = 'skipped', actual_minutes = null where id = ${checkInId}
-  `);
-  expect((await db.execute(sql`select status, actual_minutes from activity_check_ins where id = ${checkInId}`)).rows)
-    .toEqual([{ status: "skipped", actual_minutes: null }]);
+  await db.execute(sql`update activity_check_ins set status = 'completed' where id = ${checkInId}`);
+  expect((await db.execute(sql`select status from activity_check_ins where id = ${checkInId}`)).rows)
+    .toEqual([{ status: "completed" }]);
+  await db.execute(sql`update activity_check_ins set status = 'not_started' where id = ${checkInId}`);
+  expect((await db.execute(sql`select status from activity_check_ins where id = ${checkInId}`)).rows)
+    .toEqual([{ status: "not_started" }]);
   await db.execute(sql`delete from weekly_schedules where id = ${scheduleId}`);
   expect((await db.execute(sql`select id from activity_check_ins where schedule_id = ${scheduleId}`)).rows).toEqual([]);
 });
@@ -210,12 +206,12 @@ it("refuses changes to an Activity check-in's Weekly schedule or Schedule activi
     } });
   }
   await db.execute(sql`
-    update activity_check_ins set schedule_id = ${scheduleId}, activity_id = 'MONDAY:0', status = 'completed', actual_minutes = 0
+    update activity_check_ins set schedule_id = ${scheduleId}, activity_id = 'MONDAY:0', status = 'completed'
     where id = ${checkInId}
   `);
   expect((await db.execute(sql`
-    select schedule_id, activity_id, status, actual_minutes from activity_check_ins where id = ${checkInId}
-  `)).rows).toEqual([{ schedule_id: scheduleId, activity_id: "MONDAY:0", status: "completed", actual_minutes: 0 }]);
+    select schedule_id, activity_id, status from activity_check_ins where id = ${checkInId}
+  `)).rows).toEqual([{ schedule_id: scheduleId, activity_id: "MONDAY:0", status: "completed" }]);
 });
 
 it("advances the update time on leads, Analytics snapshots, and Activity check-ins", async () => {
@@ -229,7 +225,7 @@ it("advances the update time on leads, Analytics snapshots, and Activity check-i
   const cases = [
     { table: "leads", id: leadId, update: sql`email = 'changed@example.test'` },
     { table: "analytics_snapshots", id: snapshotId, update: sql`lr_accuracy_by_type = '{"Weaken": 60}'::jsonb` },
-    { table: "activity_check_ins", id: checkInId, update: sql`status = 'completed', actual_minutes = 42.5` },
+    { table: "activity_check_ins", id: checkInId, update: sql`status = 'completed'` },
   ];
   await db.transaction(async (tx) => {
     for (const { table, id, update } of cases) {
@@ -322,29 +318,19 @@ it("allows both platforms, all Accommodations, and all Preferred practice-test d
   }
 });
 
-it("refuses unknown check-in status and invalid actual minutes on insert and update", async () => {
+it("refuses any check-in status but not started and completed on insert and update", async () => {
   const scheduleId = await createSchedule({ studentId: await createStudent({ accountId: await createAccount() }) });
   const checkInId = await createCheckIn({ scheduleId });
-  const cases = [
-    { status: "unknown", minutes: null },
-    { status: "completed", minutes: -1 },
-    { status: "completed", minutes: "NaN" },
-    { status: "completed", minutes: "Infinity" },
-    { status: "not_started", minutes: 0 },
-    { status: "skipped", minutes: 15 },
-  ];
-  for (const { status, minutes } of cases) {
-    const constraint = status === "unknown" ? "activity_check_ins_status_check" : "activity_check_ins_actual_minutes_valid";
+  const constraint = "activity_check_ins_status_check";
+  for (const status of ["unknown", "skipped"]) {
     await expect(db.execute(sql`
-      insert into activity_check_ins (schedule_id, activity_id, status, actual_minutes)
-      values (${scheduleId}, 'MONDAY:1', ${status}, ${minutes})
+      insert into activity_check_ins (schedule_id, activity_id, status) values (${scheduleId}, 'MONDAY:1', ${status})
     `)).rejects.toMatchObject({ cause: { code: "23514", constraint } });
-    await expect(db.execute(sql`
-      update activity_check_ins set status = ${status}, actual_minutes = ${minutes} where id = ${checkInId}
-    `)).rejects.toMatchObject({ cause: { code: "23514", constraint } });
+    await expect(db.execute(sql`update activity_check_ins set status = ${status} where id = ${checkInId}`))
+      .rejects.toMatchObject({ cause: { code: "23514", constraint } });
   }
-  for (const status of ["not_started", "completed", "skipped"]) {
-    await db.execute(sql`update activity_check_ins set status = ${status}, actual_minutes = null where id = ${checkInId}`);
+  for (const status of ["not_started", "completed"]) {
+    await db.execute(sql`update activity_check_ins set status = ${status} where id = ${checkInId}`);
   }
 });
 
