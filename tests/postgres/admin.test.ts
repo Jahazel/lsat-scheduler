@@ -90,10 +90,10 @@ it("All students lists non-Admin students by name with their email, marks who ne
   const before = await everyRow();
   const markup = renderToStaticMarkup(await AdminPage());
   expect(await everyRow()).toEqual(before);
-  const names = [...markup.matchAll(/<span class="font-medium text-ink-900">([^<]+)<\/span>/g)].map((match) => match[1]);
+  const names = [...markup.matchAll(/<span class="font-medium[^"]*">([^<]+)<\/span>/g)].map((match) => match[1]);
   expect(names).toEqual(["amy", "Bea", "zed"]);
   expect(markup).toContain("bea@example.test");
-  const marked = [...markup.matchAll(/<span class="font-medium text-ink-900">([^<]+)<\/span>(<span[^>]*>Needs analytics)?/g)]
+  const marked = [...markup.matchAll(/<span class="font-medium[^"]*">([^<]+)<\/span>(<span[^>]*>Needs analytics)?/g)]
     .filter((match) => match[2]).map((match) => match[1]);
   expect(marked).toEqual(["amy", "zed"]);
   expect(markup).not.toContain("admin@example.test");
