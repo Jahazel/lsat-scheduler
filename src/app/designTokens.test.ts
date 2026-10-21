@@ -1,0 +1,133 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import ts from "typescript";
+import { describe, expect, it } from "vitest";
+
+const SRC = path.resolve(__dirname, "..");
+const THEME_FILE = path.join(SRC, "app", "globals.css");
+
+const TAILWIND_PALETTE =
+  "red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc|neutral|stone|white|black";
+const COLOR_UTILITY =
+  "bg|text|border(?:-[trblxyse])?|divide|ring|ring-offset|outline|fill|stroke|from|via|to|decoration|placeholder|caret|accent|shadow";
+
+const RULES: { name: string; pattern: RegExp }[] = [
+  { name: "old ink or teal accent token", pattern: /\b(?:ink|accent)-\d{2,3}\b/g },
+  { name: "old ambient shadow token", pattern: /proof-ambient/g },
+  {
+    name: "Tailwind default palette color",
+    pattern: new RegExp(
+      `(?:\\b(?:${COLOR_UTILITY})-|--color-)(?:${TAILWIND_PALETTE})(?:-\\d{2,3})?\\b`,
+      "g",
+    ),
+  },
+  {
+    name: "Tailwind default type class",
+    pattern:
+      /(?<![\w-])(?:text-(?:xs|sm|base|lg|[2-9]?xl)|font-(?:thin|extralight|light|normal|bold|extrabold|black)|tracking-(?:tighter|tight|normal|wide|wider|widest))(?![\w-])/g,
+  },
+  { name: "raw hex color", pattern: /#[0-9a-fA-F]{3,8}\b(?![-\w])/g },
+  { name: "raw color function", pattern: /(?:rgba?|hsla?|oklch|oklab)\(/g },
+];
+
+function withoutComments(source: string, fileName: string): string {
+  if (fileName.endsWith(".css")) return source;
+  const kind = fileName.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, false, kind);
+  const nodes: ts.Node[] = [];
+  const collect = (node: ts.Node) => {
+    nodes.push(node);
+    node.getChildren(file).forEach(collect);
+  };
+  collect(file);
+  const jsxTextStarts = new Set(nodes.filter((node) => node.kind === ts.SyntaxKind.JsxText).map((node) => node.getFullStart()));
+  const comments = new Map<number, number>();
+  for (const node of nodes) {
+    const ranges = [
+      ...(jsxTextStarts.has(node.getFullStart()) ? [] : (ts.getLeadingCommentRanges(source, node.getFullStart()) ?? [])),
+      ...(jsxTextStarts.has(node.getEnd()) ? [] : (ts.getTrailingCommentRanges(source, node.getEnd()) ?? [])),
+    ];
+    for (const { pos, end } of ranges) comments.set(pos, end);
+  }
+  return [...comments]
+    .map(([pos, end]) => ({ pos, end }))
+    .sort((a, b) => b.pos - a.pos)
+    .reduce((code, { pos, end }) => code.slice(0, pos) + code.slice(end), source);
+}
+
+function findTokenViolations(source: string, fileName = "inline.tsx"): string[] {
+  const code = withoutComments(source, fileName);
+  return RULES.flatMap(({ name, pattern }) =>
+    [...code.matchAll(pattern)].map((match) => `${name}: ${match[0]}`),
+  );
+}
+
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return sourceFiles(full);
+    return /\.(tsx?|css)$/.test(entry.name) ? [full] : [];
+  });
+}
+
+describe("design tokens", () => {
+  it("flags old tokens and raw colors", () => {
+    expect(findTokenViolations(`className="bg-ink-25 text-accent-600 hover:border-ink-900/30"`)).toEqual([
+      "old ink or teal accent token: ink-25",
+      "old ink or teal accent token: accent-600",
+      "old ink or teal accent token: ink-900",
+    ]);
+    expect(findTokenViolations("shadow-proof-ambient")).toEqual(["old ambient shadow token: proof-ambient"]);
+    expect(findTokenViolations("bg-white text-red-600 border-s-zinc-200 var(--color-red-500)")).toEqual([
+      "Tailwind default palette color: bg-white",
+      "Tailwind default palette color: text-red-600",
+      "Tailwind default palette color: border-s-zinc-200",
+      "Tailwind default palette color: --color-red-500",
+    ]);
+    expect(findTokenViolations("text-sm sm:text-2xl font-normal tracking-tight")).toEqual([
+      "Tailwind default type class: text-sm",
+      "Tailwind default type class: text-2xl",
+      "Tailwind default type class: font-normal",
+      "Tailwind default type class: tracking-tight",
+    ]);
+    expect(findTokenViolations(`style={{ color: "#0A0A0A" }} shadow-[0_8px_24px_oklch(19%_0.013_205/0.12)]`)).toEqual([
+      "raw hex color: #0A0A0A",
+      "raw color function: oklch(",
+    ]);
+  });
+
+  it("allows Paper tokens", () => {
+    expect(
+      findTokenViolations(
+        `className="bg-vellum text-ink border-vellum-line bg-accent/tint text-danger-ink shadow-e2 accent-accent hover:bg-graphite-raised text-chalk text-small sm:text-h2 font-regular tracking-heading"`,
+      ),
+    ).toEqual([]);
+    expect(findTokenViolations("// Fix #202\n/* see #191 */\nconst url = \"https://example.test\";")).toEqual([]);
+    expect(findTokenViolations(`const help = "Use // to continue"; const node = <div className="bg-red-500" />;`)).toEqual([
+      "Tailwind default palette color: bg-red-500",
+    ]);
+    expect(findTokenViolations("const classes = `${label(`//`)} bg-red-500`;")).toEqual([
+      "Tailwind default palette color: bg-red-500",
+    ]);
+    expect(findTokenViolations(`const node = <p>// see https://example.test</p>; const c = "text-red-600";`)).toEqual([
+      "Tailwind default palette color: text-red-600",
+    ]);
+    expect(findTokenViolations("const s = `${/* #202 */ value}`;")).toEqual([]);
+    expect(findTokenViolations("const id = <T,>(x: T) => x; // Fix #202", "generic.tsx")).toEqual([]);
+    expect(findTokenViolations("const id = <T>(x: T) => x; // Fix #202", "generic.ts")).toEqual([]);
+    expect(findTokenViolations(`.a { content: "/*"; color: #123456; }\n.b { content: "*/"; }`, "theme.css")).toEqual([
+      "raw hex color: #123456",
+    ]);
+  });
+
+  it("keeps application code on Paper tokens", () => {
+    const violations = sourceFiles(SRC)
+      .filter((file) => file !== THEME_FILE && file !== __filename)
+      .flatMap((file) =>
+        findTokenViolations(readFileSync(file, "utf8"), file).map(
+          (violation) => `${path.relative(SRC, file)}: ${violation}`,
+        ),
+      );
+    expect(violations).toEqual([]);
+  });
+});

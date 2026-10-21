@@ -15,14 +15,14 @@ function panelLabel(state: TestControlState) {
 // is rendered by AdminTestPanel, outside the header.
 export function AdminTestOpener({ state, panelId }: { state: TestControlState; panelId: string }) {
   return (
-    <div className="border-t border-ink-100 px-4 py-2 lg:hidden">
+    <div className="border-t border-vellum-line px-4 py-2 lg:hidden">
       <button
         type="button"
         onClick={() => (document.getElementById(panelId) as HTMLDialogElement | null)?.showModal()}
         aria-haspopup="dialog"
         aria-controls={panelId}
         className={cx(
-          "min-h-11 rounded-md border border-ink-200 px-3 py-2 text-sm text-ink-900 hover:bg-ink-50",
+          "min-h-11 rounded-sm border border-vellum-line px-3 py-2 text-small text-ink hover:bg-vellum",
           FOCUS,
         )}
       >
@@ -62,7 +62,7 @@ export default function AdminTestPanel({ state, panelId }: { state: TestControlS
         aria-label="Test controls"
         data-test-dock={expanded ? "expanded" : "collapsed"}
         className={cx(
-          "fixed bottom-0 right-0 top-16 z-30 hidden overflow-y-auto border-l border-ink-200 bg-white lg:block",
+          "fixed bottom-0 right-0 top-16 z-30 hidden overflow-y-auto border-l border-vellum-line bg-paper lg:block",
           expanded ? "w-80" : "w-20",
         )}
       >
@@ -80,7 +80,7 @@ export default function AdminTestPanel({ state, panelId }: { state: TestControlS
             onClick={() => toggle(true)}
             aria-expanded={false}
             className={cx(
-              "flex min-h-44 w-full flex-col items-center gap-4 px-2 py-5 text-xs text-ink-700 hover:bg-ink-50",
+              "flex min-h-44 w-full flex-col items-center gap-4 px-2 py-5 text-caption text-smoke hover:bg-vellum",
               FOCUS_INSET,
             )}
           >
@@ -101,7 +101,7 @@ export default function AdminTestPanel({ state, panelId }: { state: TestControlS
         ref={dialog}
         id={panelId}
         aria-label="Test controls"
-        className="fixed inset-y-0 left-auto right-0 m-0 h-dvh max-h-none w-80 max-w-full overflow-y-auto bg-white p-0 backdrop:bg-ink-900/30 lg:hidden"
+        className="fixed inset-y-0 left-auto right-0 m-0 h-dvh max-h-none w-80 max-w-full overflow-y-auto bg-paper p-0 backdrop:bg-ink/30 lg:hidden"
         onClick={(event) => {
           // Only backdrop clicks reach the dialog itself; the inner box covers the panel.
           if (event.target === event.currentTarget) dialog.current?.close();

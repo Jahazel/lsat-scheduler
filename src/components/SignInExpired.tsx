@@ -21,9 +21,9 @@ export default function SignInExpired() {
   }, []);
 
   return (
-    <p role="alert" className="text-sm text-red-600">
+    <p role="alert" className="text-small text-danger-ink">
       {SIGN_IN_EXPIRED}{" "}
-      <SignInAgainLink ref={link} className="font-medium text-ink-900 underline underline-offset-[3px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600" />
+      <SignInAgainLink ref={link} className="font-medium text-ink underline underline-offset-[3px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" />
     </p>
   );
 }

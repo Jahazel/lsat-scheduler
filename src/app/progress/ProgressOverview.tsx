@@ -30,10 +30,10 @@ function HistoryStats({ weeks }: { weeks: ScheduleHistoryWeek[] }) {
   return (
     <dl className="mt-6 grid grid-cols-2 gap-2 md:grid-cols-4">
       {metrics.map((metric) => (
-        <div className="rounded-lg border border-ink-100 bg-white px-3 py-2.5" key={metric.label}>
-          <dd className="text-lg font-semibold tabular-nums text-ink-900">{metric.value}</dd>
-          <dt className="mt-1 text-xs font-medium leading-[1.4] text-ink-500">{metric.label}</dt>
-          <dd className="mt-0.5 text-xs font-medium leading-[1.4] text-ink-500">{metric.note}</dd>
+        <div className="rounded-xs border border-vellum-line bg-paper px-3 py-2.5" key={metric.label}>
+          <dd className="text-h5 font-semibold tabular-nums text-ink">{metric.value}</dd>
+          <dt className="mt-1 text-caption font-medium text-smoke">{metric.label}</dt>
+          <dd className="mt-0.5 text-caption font-medium text-smoke">{metric.note}</dd>
         </div>
       ))}
     </dl>
@@ -49,28 +49,28 @@ export default function ProgressOverview({ weeks }: { weeks: ScheduleHistoryWeek
 
   return (
     <>
-      <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Progress</h1>
+      <h1 className="text-h3 font-semibold text-ink">Progress</h1>
       {pastWeeks.length === 0 ? (
-        <p className="mt-3 max-w-md text-sm text-ink-700">
+        <p className="mt-3 max-w-md text-small text-smoke">
           No finished weeks yet. After your first week, your average, streak, planned hours and past plans show up here.
         </p>
       ) : (
         <>
-          <p className="mt-1 text-sm text-ink-500">How your weeks have gone so far.</p>
+          <p className="mt-1 text-small text-smoke">How your weeks have gone so far.</p>
           <HistoryStats weeks={weeks} />
-          <h2 className="mt-8 text-sm font-semibold text-ink-900">Your weeks</h2>
+          <h2 className="mt-8 text-small font-semibold text-ink">Your weeks</h2>
           <ul className="mt-3 flex flex-col gap-2">
             {pastWeeks.map((week) => (
               <li key={week.weekStartDate}>
                 <Link
                   href={`/progress?week=${week.weekStartDate}`}
-                  className="block rounded-lg border border-ink-100 bg-white px-3 py-3 transition-colors duration-150 ease-out hover:border-ink-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
+                  className="block rounded-xs border border-vellum-line bg-paper px-3 py-3 transition-colors duration-150 ease-out hover:border-fog focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 >
-                  <span className="text-sm font-medium text-ink-700">{formatScheduleWeekOf(week.weekStartDate)}</span>
-                  <span aria-hidden className="mt-2 block h-1 overflow-hidden rounded-full bg-ink-100">
-                    <span className="block h-full rounded-full bg-accent-600" style={{ width: `${week.completionPercent}%` }} />
+                  <span className="text-small font-medium text-smoke">{formatScheduleWeekOf(week.weekStartDate)}</span>
+                  <span aria-hidden className="mt-2 block h-1 overflow-hidden rounded-full bg-vellum-line">
+                    <span className="block h-full rounded-full bg-accent" style={{ width: `${week.completionPercent}%` }} />
                   </span>
-                  <span className="mt-1 block text-xs text-ink-500">
+                  <span className="mt-1 block text-caption text-smoke">
                     {week.done} of {week.total} done · {hours(week.plannedMinutes)} planned
                   </span>
                 </Link>

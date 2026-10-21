@@ -113,7 +113,7 @@ describe("workspace switcher interactions", () => {
     expect(current.getAttribute("aria-current")).toBe("true");
     expect(current.querySelector("svg")).not.toBeNull();
     expect(current.querySelector("span > span")?.className).toContain("font-semibold");
-    expect(other.className).toContain("hover:bg-ink-50");
+    expect(other.className).toContain("hover:bg-vellum");
     expect(other.querySelector("span > span")?.className).not.toContain("font-semibold");
   });
 

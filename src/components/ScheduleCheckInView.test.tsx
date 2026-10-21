@@ -45,7 +45,7 @@ describe("ScheduleCheckInView", () => {
         item.includes(day[0] + day.slice(1).toLowerCase())) ?? "";
       expect(card).toContain(sentence);
       expect(card).toContain('role="note"');
-      expect(card).toContain("border-ink-400");
+      expect(card).toContain("border-fog");
     }
   });
   it("shows a saved capacity warning when its recorded overage is zero", () => {
@@ -123,7 +123,7 @@ describe("ScheduleCheckInView", () => {
       expect(markup.indexOf(sentence)).toBeLessThan(markup.indexOf("Schedule view"));
     expect(card("Tuesday")).toContain("border-dashed");
     expect(card("Tuesday")).toContain("Saved unscheduled note.");
-    expect(card("Tuesday")).toMatch(/<p class="text-sm text-ink-500">Saved unscheduled note\.<\/p>/);
+    expect(card("Tuesday")).toMatch(/<p class="text-small text-smoke">Saved unscheduled note\.<\/p>/);
     expect(card("Wednesday")).toContain("Saved rest move.");
     expect(card("Monday")).toContain("Saved review carryover.");
     expect(card("Sunday")).toContain("Saved next Monday review.");

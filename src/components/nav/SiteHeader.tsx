@@ -11,9 +11,9 @@ import StudentNav, { StudentTabBar } from "./StudentNav";
 import { logOut } from "./actions";
 import { FOCUS, Logo, cx } from "./shared";
 
-const HEADER = "sticky top-0 z-40 border-b border-ink-100 bg-white";
+const HEADER = "sticky top-0 z-40 border-b border-vellum-line bg-paper";
 const BAR = "flex h-14 items-center justify-between px-4 md:h-16 md:px-8";
-const LINK = cx("rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-ink-50", FOCUS);
+const LINK = cx("rounded-sm px-3 py-2 text-small text-smoke hover:bg-vellum", FOCUS);
 
 function LogOutButton() {
   return (
@@ -34,7 +34,7 @@ export default async function SiteHeader() {
           <Logo href="/" />
           <nav aria-label="Primary" className="flex items-center gap-1">
             <Link href="/login" className={LINK}>Log in</Link>
-            <Link href="/signup" className={cx("rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700", FOCUS)}>
+            <Link href="/signup" className={cx("rounded-sm bg-ink px-3 py-2 text-small font-medium text-chalk hover:bg-graphite-raised", FOCUS)}>
               Sign up
             </Link>
           </nav>

@@ -51,16 +51,16 @@ function WorkspaceSwitcher({ studentSide, adminSide }: { studentSide: boolean; a
         aria-expanded={open}
         aria-controls={menuId}
         onClick={() => setOpen((value) => !value)}
-        className={cx("flex min-h-11 items-center gap-1 rounded-md px-2 text-sm font-medium text-ink-900 hover:bg-ink-50", FOCUS)}
+        className={cx("flex min-h-11 items-center gap-1 rounded-sm px-2 text-small font-medium text-ink hover:bg-vellum", FOCUS)}
       >
         {studentSide ? "My student side" : "All students"}
-        <NavIcon name="chevron" className="size-4 text-ink-500" />
+        <NavIcon name="chevron" className="size-4 text-smoke" />
       </button>
       {open && (
         <nav
           id={menuId}
           aria-label="Workspace"
-          className="absolute -left-20 top-full z-50 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-ink-200 bg-white py-1 shadow-[0_8px_24px_oklch(19%_0.013_205/0.12)] sm:left-0"
+          className="absolute -left-20 top-full z-50 w-72 max-w-[calc(100vw-2rem)] rounded-xs border border-vellum-line bg-paper py-1 shadow-e3 sm:left-0"
         >
           {[
             { href: "/admin", label: "All students", detail: "Real students on the real date", active: adminSide },
@@ -71,13 +71,13 @@ function WorkspaceSwitcher({ studentSide, adminSide }: { studentSide: boolean; a
               href={option.href}
               aria-current={option.active ? "true" : undefined}
               onClick={() => setOpen(false)}
-              className={cx("flex items-center justify-between gap-3 px-4 py-3 text-sm text-ink-900 hover:bg-ink-50", option.active && "bg-ink-50 font-semibold", FOCUS)}
+              className={cx("flex items-center justify-between gap-3 px-4 py-3 text-small text-ink hover:bg-vellum", option.active && "bg-vellum font-semibold", FOCUS)}
             >
               <span>
                 <span className={cx("block font-medium", option.active && "font-semibold")}>{option.label}</span>
-                <span className="block text-xs font-normal text-ink-700">{option.detail}</span>
+                <span className="block text-caption font-regular text-smoke">{option.detail}</span>
               </span>
-              {option.active && <NavIcon name="check" className="size-4 text-accent-700" />}
+              {option.active && <NavIcon name="check" className="size-4 text-ink" />}
             </Link>
           ))}
         </nav>
@@ -101,18 +101,18 @@ export default function AdminNav(props: StudentNavProps & { testState?: TestCont
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-ink-100 bg-white">
+      <header className="sticky top-0 z-40 border-b border-vellum-line bg-paper">
         {studentSide ? (
           <StudentNav {...props} uploadNeeded={uploadNeeded} workspaceSwitcher={switcher} />
         ) : (
           <div className="flex min-h-14 items-center justify-between gap-1 px-4 md:h-16 md:px-8">
             <div className="flex items-center gap-1 sm:gap-3">
               <Logo href="/admin" />
-              <span className="text-ink-200" aria-hidden data-workspace-separator="true">/</span>
+              <span className="text-fog" aria-hidden data-workspace-separator="true">/</span>
               {switcher}
             </div>
             <form action={props.logOut}>
-              <button type="submit" className={cx("min-h-11 rounded-md px-2 text-sm text-ink-700 hover:bg-ink-50", FOCUS)}>Log out</button>
+              <button type="submit" className={cx("min-h-11 rounded-sm px-2 text-small text-smoke hover:bg-vellum", FOCUS)}>Log out</button>
             </form>
           </div>
         )}

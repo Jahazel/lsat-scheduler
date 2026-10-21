@@ -59,7 +59,7 @@ export default function StudentIntakeForm({
       <form.Field name="currentScore">
         {(field) => (
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink-700">Current / avg PT score</span>
+            <span className="text-small font-medium text-smoke">Current / avg PT score</span>
             <input
               type="number"
               min={120}
@@ -67,7 +67,7 @@ export default function StudentIntakeForm({
               required
               value={field.state.value}
               onChange={(e) => field.handleChange(Number(e.target.value))}
-              className="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900"
+              className="rounded-sm border border-vellum-line bg-paper px-3 py-2 text-small text-ink"
             />
           </label>
         )}
@@ -76,7 +76,7 @@ export default function StudentIntakeForm({
       <form.Field name="goalScore">
         {(field) => (
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink-700">Goal score</span>
+            <span className="text-small font-medium text-smoke">Goal score</span>
             <input
               type="number"
               min={120}
@@ -86,12 +86,12 @@ export default function StudentIntakeForm({
               aria-describedby={goalError ? "goal-score-error" : undefined}
               value={field.state.value}
               onChange={(e) => field.handleChange(Number(e.target.value))}
-              className={`rounded-md border bg-white px-3 py-2 text-sm text-ink-900 ${
-                goalError ? "border-red-500" : "border-ink-200"
+              className={`rounded-sm border bg-paper px-3 py-2 text-small text-ink ${
+                goalError ? "border-danger" : "border-vellum-line"
               }`}
             />
             {goalError && (
-              <span id="goal-score-error" className="text-sm text-red-600">
+              <span id="goal-score-error" className="text-small text-danger-ink">
                 {goalError}
               </span>
             )}
@@ -99,7 +99,7 @@ export default function StudentIntakeForm({
         )}
       </form.Field>
 
-      <p className="-mb-1 text-sm text-ink-500">
+      <p className="-mb-1 text-small text-smoke">
         Changes to daily capacity and your preferred practice-test day apply to the next weekly schedule created.
       </p>
 
@@ -110,13 +110,13 @@ export default function StudentIntakeForm({
       <form.Field name="preferredPracticeTestDay">
         {(field) => (
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink-700">Preferred practice-test day</span>
+            <span className="text-small font-medium text-smoke">Preferred practice-test day</span>
             <select
               required
               aria-describedby="preferred-practice-test-day-hint"
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value as DayOfWeek)}
-              className="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900"
+              className="rounded-sm border border-vellum-line bg-paper px-3 py-2 text-small text-ink"
             >
               {DAY_ORDER.map((day) => (
                 <option key={day} value={day}>
@@ -124,7 +124,7 @@ export default function StudentIntakeForm({
                 </option>
               ))}
             </select>
-            <span id="preferred-practice-test-day-hint" className="text-sm text-ink-500">
+            <span id="preferred-practice-test-day-hint" className="text-small text-smoke">
               We schedule your full practice test on this day. {practiceTestHint(accommodation)}
             </span>
           </label>
@@ -134,13 +134,13 @@ export default function StudentIntakeForm({
       <form.Field name="accommodationMultiplier">
         {(field) => (
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink-700">Accommodation</span>
+            <span className="text-small font-medium text-smoke">Accommodation</span>
             <select
               value={field.state.value}
               onChange={(e) =>
                 field.handleChange(Number(e.target.value) as StudentProfileInput["accommodationMultiplier"])
               }
-              className="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900"
+              className="rounded-sm border border-vellum-line bg-paper px-3 py-2 text-small text-ink"
             >
               {([1, 1.5, 2] as const).map((multiplier) => (
                 <option key={multiplier} value={multiplier}>
@@ -155,12 +155,12 @@ export default function StudentIntakeForm({
       <form.Field name="goalTestDate">
         {(field) => (
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-ink-700">Goal test date</span>
+            <span className="text-small font-medium text-smoke">Goal test date</span>
             <select
               required
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
-              className="rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900"
+              className="rounded-sm border border-vellum-line bg-paper px-3 py-2 text-small text-ink"
             >
               <option value="" disabled>
                 Select a test date
@@ -175,12 +175,12 @@ export default function StudentIntakeForm({
         )}
       </form.Field>
 
-      {submitError && <p className="text-sm text-red-600">{submitError}</p>}
+      {submitError && <p className="text-small text-danger-ink">{submitError}</p>}
 
       <button
         type="submit"
         disabled={submitting}
-        className="rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 ease-out hover:bg-accent-700 disabled:opacity-50"
+        className="rounded-sm bg-ink px-4 py-2 text-small font-medium text-chalk transition-colors duration-150 ease-out hover:bg-graphite-raised disabled:opacity-50"
       >
         {submitting ? "Saving…" : submitLabel}
       </button>

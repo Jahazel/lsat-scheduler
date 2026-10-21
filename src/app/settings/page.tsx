@@ -25,7 +25,7 @@ export default async function StudySettingsPage() {
   return (
     <div className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-md">
-        <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Study settings</h1>
+        <h1 className="text-h3 font-semibold text-ink">Study settings</h1>
         <div className="mt-8">
           <StudentIntakeForm
             initialValues={initialValues}

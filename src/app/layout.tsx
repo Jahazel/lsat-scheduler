@@ -34,15 +34,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <AdminTestProvider key={`${session?.user?.id ?? "anonymous"}:${session?.user?.role ?? "student"}`}>
           <SiteHeader />
           <main className="flex-1">{children}</main>
-          <footer className="border-t border-ink-100 px-6 py-6 text-center text-xs text-ink-400">
+          <footer className="border-t border-vellum-line px-6 py-6 text-center text-caption text-smoke">
             <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-x-4 gap-y-1">
-              <Link href="/legal/terms" className="hover:text-ink-600">
+              <Link href="/legal/terms" className="hover:text-ink">
                 Terms of Service
               </Link>
-              <Link href="/legal/privacy" className="hover:text-ink-600">
+              <Link href="/legal/privacy" className="hover:text-ink">
                 Privacy Policy
               </Link>
-              <Link href="/legal/ai-disclosure" className="hover:text-ink-600">
+              <Link href="/legal/ai-disclosure" className="hover:text-ink">
                 AI Disclosure
               </Link>
             </div>

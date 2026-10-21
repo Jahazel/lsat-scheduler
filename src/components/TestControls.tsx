@@ -24,7 +24,7 @@ export interface TestControlState {
 }
 
 const BUTTON = cx(
-  "min-h-11 rounded-md border border-ink-200 px-3 py-2 text-sm font-medium text-ink-900 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50",
+  "min-h-11 rounded-sm border border-vellum-line px-3 py-2 text-small font-medium text-ink hover:bg-vellum disabled:cursor-not-allowed disabled:opacity-50",
   FOCUS,
 );
 const RESETS = [
@@ -137,17 +137,17 @@ export default function TestControls({
   }
 
   return (
-    <div className="text-ink-900">
+    <div className="text-ink">
       <div className="flex items-start justify-between gap-3 px-5 py-5">
         <div>
           <h2 className="font-semibold">Test controls</h2>
-          <p className="mt-3 text-sm text-ink-700">
+          <p className="mt-3 text-small text-smoke">
             {state.simulated ? "Simulated date" : "Using the real date"}
           </p>
-          <p className="mt-1 text-xl font-semibold tabular-nums">
+          <p className="mt-1 text-lead font-semibold tabular-nums">
             {displaySimulatedDate(state.date)}
           </p>
-          <p className="mt-1 text-sm text-ink-700">
+          <p className="mt-1 text-small text-smoke">
             Real date {displaySimulatedDate(state.realDate)}
           </p>
         </div>
@@ -163,8 +163,8 @@ export default function TestControls({
         </button>
       </div>
       <fieldset disabled={busy} className="min-w-0">
-        <section className="border-t border-ink-100 px-5 py-5">
-          <h3 className="text-sm font-semibold">
+        <section className="border-t border-vellum-line px-5 py-5">
+          <h3 className="text-small font-semibold">
             Week of {displaySimulatedDate(state.weekStartDate)}
           </h3>
           <div className="mt-3 grid grid-cols-7 gap-1">
@@ -183,17 +183,17 @@ export default function TestControls({
                   aria-current={target === state.date ? "date" : undefined}
                   onClick={() => move(target)}
                   className={cx(
-                    "min-h-12 rounded-md py-2 text-xs tabular-nums enabled:hover:bg-ink-100 disabled:cursor-not-allowed",
+                    "min-h-12 rounded-sm py-2 text-caption tabular-nums enabled:hover:bg-vellum-line disabled:cursor-not-allowed",
                     // Today is not a move target, but it stays at full strength.
                     target === state.date
-                      ? "bg-ink-900 text-white"
-                      : "text-ink-900 disabled:opacity-50",
+                      ? "bg-ink text-chalk"
+                      : "text-ink disabled:opacity-50",
                     FOCUS,
                   )}
                 >
                   <span className="block">{day}</span>
-                  <span className="mt-1 block text-sm">{dayNumber}</span>
-                  <span className="mt-1 block h-4 text-xs">{status}</span>
+                  <span className="mt-1 block text-small">{dayNumber}</span>
+                  <span className="mt-1 block h-4 text-caption">{status}</span>
                 </button>
               );
             })}
@@ -212,7 +212,7 @@ export default function TestControls({
               void move(date);
             }}
           >
-            <label htmlFor={`${id}-date`} className="text-sm font-medium">
+            <label htmlFor={`${id}-date`} className="text-small font-medium">
               Move to a later date
             </label>
             <div className="mt-2 flex gap-2">
@@ -224,7 +224,7 @@ export default function TestControls({
                 value={date}
                 onChange={(event) => setDate(event.target.value)}
                 className={cx(
-                  "min-w-0 flex-1 rounded-md border border-ink-200 bg-white px-2 py-2 text-sm",
+                  "min-w-0 flex-1 rounded-sm border border-vellum-line bg-paper px-2 py-2 text-small",
                   FOCUS,
                 )}
               />
@@ -233,16 +233,16 @@ export default function TestControls({
               </button>
             </div>
           </form>
-          <p className="mt-3 text-xs leading-5 text-ink-700">
+          <p className="mt-3 text-caption text-smoke">
             Dates only move forward. Reset test data returns you to the real
             date.
           </p>
         </section>
-        <section className="border-t border-ink-100 px-5 py-5">
-          <h3 className="text-sm font-semibold">Sample analytics</h3>
+        <section className="border-t border-vellum-line px-5 py-5">
+          <h3 className="text-small font-semibold">Sample analytics</h3>
           {state.onboarded ? (
             <>
-              <p className="mt-2 text-sm leading-6 text-ink-700">
+              <p className="mt-2 text-small leading-body text-smoke">
                 Generate values, then review and edit them before approving.
               </p>
               <fieldset className="mt-3">
@@ -252,7 +252,7 @@ export default function TestControls({
                     (value) => (
                       <label
                         key={value}
-                        className="flex min-h-11 items-center gap-1.5 text-sm"
+                        className="flex min-h-11 items-center gap-1.5 text-small"
                       >
                         <input
                           type="radio"
@@ -260,7 +260,7 @@ export default function TestControls({
                           value={value}
                           checked={direction === value}
                           onChange={() => setDirection(value)}
-                          className="accent-accent-600"
+                          className="accent-accent"
                         />
                         {value[0].toUpperCase() + value.slice(1)}
                       </label>
@@ -283,24 +283,24 @@ export default function TestControls({
               </button>
             </>
           ) : (
-            <p className="mt-2 text-sm text-ink-700">
+            <p className="mt-2 text-small text-smoke">
               Complete onboarding before generating a sample.
             </p>
           )}
         </section>
-        <section className="border-t border-ink-100 px-5 py-5">
-          <h3 className="text-sm font-semibold">Reset</h3>
-          <ul className="mt-1 divide-y divide-ink-100">
+        <section className="border-t border-vellum-line px-5 py-5">
+          <h3 className="text-small font-semibold">Reset</h3>
+          <ul className="mt-1 divide-y divide-vellum-line">
             {RESETS.map((reset) => (
               <li key={reset.key} className="py-4">
-                <p className="text-sm font-medium">{reset.label}</p>
-                <p className="mt-1 text-xs leading-5 text-ink-700">
+                <p className="text-small font-medium">{reset.label}</p>
+                <p className="mt-1 text-caption text-smoke">
                   {reset.requiresSchedule && !canRebuild
                     ? "No weekly schedule this week yet."
                     : reset.detail}
                 </p>
                 {confirmation === reset.key ? (
-                  <div className="mt-3 space-y-2 text-xs leading-5 text-ink-700">
+                  <div className="mt-3 space-y-2 text-caption text-smoke">
                     <p>Deletes {reset.deletes}.</p>
                     <p>Keeps {reset.keeps}.</p>
                     {reset.returnsToRealDate && (
@@ -317,7 +317,7 @@ export default function TestControls({
                       </button>
                       <button
                         type="button"
-                        className={cx(BUTTON, "text-red-700")}
+                        className={cx(BUTTON, "text-danger-ink")}
                         onClick={() =>
                           run(async () => {
                             await reset.action();
@@ -357,13 +357,13 @@ export default function TestControls({
         </section>
       </fieldset>
       <div className="px-5 pb-5" aria-live="polite">
-        {busy && <p className="text-sm text-ink-700">Updating…</p>}
+        {busy && <p className="text-small text-smoke">Updating…</p>}
         {error && (
-          <p role="alert" className="text-sm text-red-700">
+          <p role="alert" className="text-small text-danger-ink">
             {error}
           </p>
         )}
-        {notice && <p className="text-sm text-ink-700">{notice}</p>}
+        {notice && <p className="text-small text-smoke">{notice}</p>}
       </div>
     </div>
   );
