@@ -12,8 +12,7 @@ A student enters their study profile during onboarding. They can later change St
 ## How to get to it (user POV)
 
 - Signup automatically opens `/onboarding`. A signed-in Account without a Student also reaches it from This week or Study settings.
-- Click `Study settings` in desktop navigation or `Settings` at narrow widths to reach `/settings`.
-- On a weekly schedule's capacity notice, click `Change daily capacity` to reach the same settings.
+- Click `Study settings` in desktop navigation or `Settings` at narrow widths to reach `/settings`. This week has no capacity notice or settings link.
 - Direct `/settings` links enforce sign-in and onboarding.
 
 ## Driving it with browser tools
@@ -31,7 +30,7 @@ Preconditions:
 - On Step 3, Back keeps every value. Click `role=button[name="Skip for now"]`. It reads `Saving…` and Back stops taking presses while the save runs. Wait for `/dashboard` and `Add your latest analytics snapshot`. Inspect records. Require one Student linked to the user, numeric current score 150 and goal score 165, daily capacities of 90, `SATURDAY`, Accommodation 1, and the chosen date. Without approved analytics, require no weekly schedule. Reloading `/onboarding` before the save restarts at Step 1.
 - Open Study settings through its navigation link. Type `168` into `role=spinbutton[name="Goal score"]`. Click `role=combobox[name="All days hours"]`, press `Escape`, press `0`, then `Tab`. The minutes clamp to 30. In Playwright, select value `0` with `selectOption`. Confirm `All days minutes` is `30`. Click `role=button[name="Apply"]`. Require each day's selector to show 0 hours and 30 minutes, and `Total: 3 h 30 min per week`.
 - Click `role=button[name="Save changes"]`. Wait for `/dashboard`. Reopen `/settings` through the navigation and require goal score 168 and all seven capacities 30. Capture screenshots and database records with these values.
-- With an existing weekly schedule, capture its document before editing. Drive the `Change daily capacity` entry from a capacity notice. Save a different capacity and reopen This week. Require the entire saved weekly schedule document to remain equal, including its saved capacities and schedule reasons. A later unsaved week uses the updated settings.
+- With an existing weekly schedule, capture its document before editing. Open Study settings from the navigation. Save a different capacity and reopen This week. Require the entire saved weekly schedule document to remain equal, including its saved capacities and schedule reasons. A later unsaved week uses the updated settings.
 
 ## Gotchas
 
