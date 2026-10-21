@@ -43,6 +43,13 @@
       "when": 1791936000000,
       "tag": "0005_official_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792022400000,
+      "tag": "0006_practice_test_results",
+      "breakpoints": true
     }
   ]
 }

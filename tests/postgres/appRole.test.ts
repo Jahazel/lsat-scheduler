@@ -87,6 +87,7 @@ const ownedRecords = z.object({
   account_id: z.uuid().brand<"AccountId">(),
   student_id: z.uuid().brand<"StudentId">(),
   snapshot_id: z.uuid().brand<"AnalyticsSnapshotId">(),
+  practice_test_id: z.uuid().brand<"PracticeTestResultId">(),
   schedule_id: z.uuid().brand<"WeeklyScheduleId">(),
   check_in_id: z.uuid().brand<"ActivityCheckInId">(),
 });
@@ -109,6 +110,12 @@ async function createOwnedRecords() {
         approved_at, extraction_source, extracted_at, extracted_values_match, is_latest_analytics, confirmed_at
       ) select id, '2026-10-05', '{"Weaken":55}', ARRAY['Causal reasoning'],
         now(), 'admin_sample', now(), true, true, now() from student returning id
+    ), practice_test as (
+      insert into practice_test_results (
+        student_id, week_of, prep_test, sections, missed_stem_type_counts,
+        approved_at, extraction_source, extracted_at, extracted_values_match, is_this_weeks_practice_test, confirmed_at
+      ) select id, '2026-10-05', 158, '[{},{},{},{}]', '{"Weaken":1}',
+        now(), 'admin_sample', now(), true, true, now() from student returning id
     ), schedule as (
       insert into weekly_schedules (
         student_id, week_start_date, generated_at, schedule, source_snapshot_ids, generation_inputs, policy_version
@@ -118,8 +125,8 @@ async function createOwnedRecords() {
       insert into activity_check_ins (schedule_id, activity_id, status)
         select id, 'MONDAY:0', 'not_started' from schedule returning id
     ) select account.id as account_id, student.id as student_id, snapshot.id as snapshot_id,
-        schedule.id as schedule_id, check_in.id as check_in_id
-      from account, student, snapshot, schedule, check_in
+        practice_test.id as practice_test_id, schedule.id as schedule_id, check_in.id as check_in_id
+      from account, student, snapshot, practice_test, schedule, check_in
   `);
   return ownedRecords.parse(result.rows[0]);
 }
@@ -133,12 +140,13 @@ it("connects as the SQL-created app role and reads and writes Accounts", async (
     .toEqual([{ email: "role@example.test", name: "Student" }]);
 });
 
-it("reads, inserts, corrects, and deletes the six app tables with the allowed permissions", async () => {
+it("reads, inserts, corrects, and deletes the seven app tables with the allowed permissions", async () => {
   const db = appDb();
   const records = await createOwnedRecords();
   await db.execute(sql`update accounts set name = 'Updated' where id = ${records.account_id}`);
   await db.execute(sql`update students set current_score = 155 where id = ${records.student_id}`);
   await db.execute(sql`update analytics_snapshots set lr_accuracy_by_type = '{"Weaken":60}' where id = ${records.snapshot_id}`);
+  await db.execute(sql`update practice_test_results set prep_test = 157 where id = ${records.practice_test_id}`);
   await db.execute(sql`update activity_check_ins set status = 'completed' where id = ${records.check_in_id}`);
   await db.execute(sql`insert into leads (email) values ('lead@example.test')`);
   await db.execute(sql`update leads set email = 'updated-lead@example.test'`);
@@ -155,7 +163,8 @@ it("reads, inserts, corrects, and deletes the six app tables with the allowed pe
     policy_version: "adaptive-weekly-schedule-v2", status: "completed",
   }]);
   expect((await db.execute(sql`select email from leads`)).rows).toEqual([{ email: "updated-lead@example.test" }]);
-  for (const table of ["activity_check_ins", "weekly_schedules", "analytics_snapshots", "students", "accounts", "leads"]) {
+  expect((await db.execute(sql`select prep_test from practice_test_results`)).rows).toEqual([{ prep_test: 157 }]);
+  for (const table of ["activity_check_ins", "weekly_schedules", "analytics_snapshots", "practice_test_results", "students", "accounts", "leads"]) {
     await db.execute(sql`delete from ${sql.identifier(table)}`);
     expect((await db.execute(sql`select * from ${sql.identifier(table)}`)).rows).toEqual([]);
   }
@@ -216,7 +225,7 @@ it("refuses Weekly schedule updates by permission even with the trigger disabled
   }
 });
 
-it("refuses orphan students, Analytics snapshots, Weekly schedules, and Activity check-ins", async () => {
+it("refuses orphan students, Analytics snapshots, Practice-test results, Weekly schedules, and Activity check-ins", async () => {
   const records = await createOwnedRecords();
   const missingOwner = randomUUID();
   for (const query of [
@@ -229,6 +238,10 @@ it("refuses orphan students, Analytics snapshots, Weekly schedules, and Activity
       student_id, week_of, lr_accuracy_by_type, lr_top_priority_logic_types,
       approved_at, extraction_source, extracted_at, extracted_values_match, is_latest_analytics, confirmed_at
     ) values (${missingOwner}, '2026-10-05', '{}', '{}', now(), 'admin_sample', now(), true, true, now())`,
+    sql`insert into practice_test_results (
+      student_id, week_of, prep_test, sections, missed_stem_type_counts,
+      approved_at, extraction_source, extracted_at, extracted_values_match, is_this_weeks_practice_test, confirmed_at
+    ) values (${missingOwner}, '2026-10-05', 158, '[{},{},{},{}]', '{}', now(), 'admin_sample', now(), true, true, now())`,
     sql`insert into weekly_schedules (
       student_id, week_start_date, generated_at, schedule, source_snapshot_ids, generation_inputs, policy_version
     ) values (${missingOwner}, '2026-10-05', now(), '{}', '{}', '{}', 'adaptive-weekly-schedule-v2')`,
@@ -249,6 +262,7 @@ it("deletes all records owned by an Account and keeps other Accounts and leads",
     ["accounts", records.account_id, other.account_id],
     ["students", records.student_id, other.student_id],
     ["analytics_snapshots", records.snapshot_id, other.snapshot_id],
+    ["practice_test_results", records.practice_test_id, other.practice_test_id],
     ["weekly_schedules", records.schedule_id, other.schedule_id],
     ["activity_check_ins", records.check_in_id, other.check_in_id],
   ]) {

@@ -1,4 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod";
+import type { SectionReading } from "./practiceTestResult";
 import type { ScreenshotMediaType } from "./screenshotUpload";
 import type { AnalyticsExtractedRow, AnalyticsSection, LRLogicType, LRType, PriorityTier, RCType, RulesConfig } from "./types";
 
@@ -167,4 +169,86 @@ Call ${TOOL_NAME} with one entry per passage-type row that is visible and shows 
   return rows
     .filter(({ type }) => rules.rcTypes.includes(type))
     .map(({ type, accuracy }) => ({ type, category: "passage", accuracy }));
+}
+
+const SECTION_TOOL_NAME = "record_practice_test_section";
+const QUESTION_RESULTS = ["correct", "wrong", "unanswered", "hidden"] as const;
+
+const SectionHeader = {
+  page: z.literal("section_review"),
+  prepTest: z.number().int().positive(),
+  section: z.number().int().positive(),
+  score: z.number().int().transform((score) => (score > 0 ? -score : score)),
+  reachesEnd: z.boolean(),
+};
+const ToolSectionReading = z.union([
+  z.object({
+    ...SectionHeader,
+    kind: z.literal("LR"),
+    rows: z.array(z.object({ question: z.number().int().positive(), result: z.enum(QUESTION_RESULTS), tags: z.array(z.string()) })),
+  }),
+  z.object({ ...SectionHeader, kind: z.literal("RC") }),
+  z.object({ page: z.enum(["analytics", "other"]) }),
+]);
+
+export async function readPracticeTestSectionFromImage(imageBuffer: Buffer, mediaType: ScreenshotMediaType): Promise<SectionReading> {
+  const response = await anthropicClient().messages.create({
+    model: MODEL,
+    max_tokens: 4096,
+    tool_choice: { type: "tool", name: SECTION_TOOL_NAME },
+    tools: [
+      {
+        name: SECTION_TOOL_NAME,
+        description: "Record what a 7Sage screenshot shows: one practice-test section review, or another page.",
+        input_schema: {
+          type: "object",
+          properties: {
+            page: {
+              type: "string",
+              enum: ["section_review", "analytics", "other"],
+              description: "section_review for one section of a practice-test review, analytics for the 7Sage analytics dashboard, other for anything else.",
+            },
+            prepTest: { type: "integer", description: "The PrepTest number, such as 158 from PT158.S2.Q18." },
+            section: { type: "integer", description: "The section number, such as 2 from PT158.S2.Q18." },
+            kind: { type: "string", enum: ["LR", "RC"], description: "The badge beside the section title." },
+            score: { type: "integer", description: "The SCORE box at the top right, as shown. It is zero or negative, such as -4." },
+            reachesEnd: { type: "boolean", description: "True when the bottom edge of the question table is visible after the last row." },
+            rows: {
+              type: "array",
+              description: "Every LR question row visible, top to bottom. Leave empty for RC.",
+              items: {
+                type: "object",
+                properties: {
+                  question: { type: "integer", description: "The question number, such as 18 from PT158.S2.Q18." },
+                  result: { type: "string", enum: QUESTION_RESULTS },
+                  tags: { type: "array", items: { type: "string" }, description: "Every tag under the question id, exactly as written." },
+                },
+                required: ["question", "result", "tags"],
+              },
+            },
+          },
+          required: ["page"],
+        },
+      },
+    ],
+    messages: [
+      {
+        role: "user",
+        content: [
+          imageBlock(imageBuffer, mediaType),
+          {
+            type: "text",
+            text: `This should be a screenshot of one section of a 7Sage LSAT practice-test review page. The page title reads "Section N" with an LR or RC badge. A SCORE box sits at the top right. Each question row starts with an id such as PT158.S2.Q18: PrepTest 158, section 2, question 18. RC ids include a passage, such as PT158.S1.P1.Q1. Small tags under each id name the question type, such as Flaw, NA, or CausR.
+
+The RESULT column shows a green check for correct, a red X for wrong, and a red minus for unanswered. A row with no result icon, where the cursor hover shows answer-popularity percentages instead, is hidden.
+
+Call ${SECTION_TOOL_NAME} once. For an LR section, report every visible row in order with its result and all of its tags. For an RC section, do not report rows. If the screenshot shows the 7Sage analytics dashboard, set page to analytics. If it shows anything else, set page to other.`,
+          },
+        ],
+      },
+    ],
+  });
+
+  const parsed = ToolSectionReading.safeParse(toolInput(response.content));
+  return parsed.success ? parsed.data : { page: "other" };
 }

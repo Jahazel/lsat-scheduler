@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { createPostgresConnection } from "../src/lib/postgres";
 
 type Connection = ReturnType<typeof createPostgresConnection>;
-const ids = z.object({ account_id: z.uuid(), student_id: z.uuid(), snapshot_id: z.uuid(), schedule_id: z.uuid(), check_in_id: z.uuid() });
+const ids = z.object({ account_id: z.uuid(), student_id: z.uuid(), snapshot_id: z.uuid(), practice_test_id: z.uuid(), schedule_id: z.uuid(), check_in_id: z.uuid() });
 
 export async function checkPostgresFoundation(connection: Connection) {
   const { db, requiresEncryption } = connection;
@@ -72,6 +72,12 @@ export async function checkPostgresFoundation(connection: Connection) {
               approved_at, extraction_source, extracted_at, extracted_values_match, is_latest_analytics, confirmed_at
             ) select id, '2026-10-05', '{"Weaken":55}', ARRAY['Causal reasoning'],
               now(), 'admin_sample', now(), true, true, now() from student returning id
+          ), practice_test as (
+            insert into practice_test_results (
+              student_id, week_of, prep_test, sections, missed_stem_type_counts,
+              approved_at, extraction_source, extracted_at, extracted_values_match, is_this_weeks_practice_test, confirmed_at
+            ) select id, '2026-10-05', 158, '[{},{},{},{}]', '{"Weaken":1}',
+              now(), 'admin_sample', now(), true, true, now() from student returning id
           ), schedule as (
             insert into weekly_schedules (
               student_id, week_start_date, generated_at, schedule, source_snapshot_ids, generation_inputs, policy_version
@@ -81,8 +87,8 @@ export async function checkPostgresFoundation(connection: Connection) {
             insert into activity_check_ins (schedule_id, activity_id, status)
               select id, 'MONDAY:0', 'not_started' from schedule returning id
           ) select account.id as account_id, student.id as student_id, snapshot.id as snapshot_id,
-              schedule.id as schedule_id, check_in.id as check_in_id
-            from account, student, snapshot, schedule, check_in
+              practice_test.id as practice_test_id, schedule.id as schedule_id, check_in.id as check_in_id
+            from account, student, snapshot, practice_test, schedule, check_in
         `)).rows[0]);
       }
       const records = await createOwnedRecords();
@@ -96,6 +102,9 @@ export async function checkPostgresFoundation(connection: Connection) {
       await tx.execute(sql`update accounts set name = 'Updated' where id = ${records.account_id}`);
       await tx.execute(sql`update students set current_score = 155 where id = ${records.student_id}`);
       await tx.execute(sql`update analytics_snapshots set lr_accuracy_by_type = '{"Weaken":60}' where id = ${records.snapshot_id}`);
+      await tx.execute(sql`update practice_test_results set prep_test = 157 where id = ${records.practice_test_id}`);
+      deepStrictEqual((await tx.execute(sql`select prep_test from practice_test_results where id = ${records.practice_test_id}`)).rows,
+        [{ prep_test: 157 }]);
       await tx.execute(sql`update activity_check_ins set status = 'completed' where id = ${records.check_in_id}`);
       deepStrictEqual((await tx.execute(sql`
         select accounts.name, students.current_score, analytics_snapshots.lr_accuracy_by_type,
@@ -133,6 +142,7 @@ export async function checkPostgresFoundation(connection: Connection) {
       for (const query of [
         sql`update students set account_id = ${missing} where id = ${records.student_id}`,
         sql`update analytics_snapshots set student_id = ${missing} where id = ${records.snapshot_id}`,
+        sql`update practice_test_results set student_id = ${missing} where id = ${records.practice_test_id}`,
         sql`insert into weekly_schedules (student_id, week_start_date, generated_at, schedule, source_snapshot_ids, generation_inputs, policy_version)
           values (${missing}, '2026-10-05', now(), '{}', '{}', '{}', 'adaptive-weekly-schedule-v2')`,
         sql`insert into activity_check_ins (schedule_id, activity_id, status) values (${missing}, 'MONDAY:0', 'not_started')`,
@@ -164,7 +174,8 @@ export async function checkPostgresFoundation(connection: Connection) {
       await tx.execute(sql`delete from accounts where id = ${records.account_id}`);
       for (const [table, deletedId, keptId] of [
         ["accounts", records.account_id, other.account_id], ["students", records.student_id, other.student_id],
-        ["analytics_snapshots", records.snapshot_id, other.snapshot_id], ["weekly_schedules", records.schedule_id, other.schedule_id],
+        ["analytics_snapshots", records.snapshot_id, other.snapshot_id], ["practice_test_results", records.practice_test_id, other.practice_test_id],
+        ["weekly_schedules", records.schedule_id, other.schedule_id],
         ["activity_check_ins", records.check_in_id, other.check_in_id],
       ]) {
         deepStrictEqual((await tx.execute(sql`select id from ${sql.identifier(table)} where id = ${deletedId}`)).rows, []);
@@ -174,7 +185,7 @@ export async function checkPostgresFoundation(connection: Connection) {
       messages.push("PASS: Account deletion");
       for (const [table, id] of [
         ["activity_check_ins", other.check_in_id], ["weekly_schedules", other.schedule_id],
-        ["analytics_snapshots", other.snapshot_id], ["students", other.student_id], ["accounts", other.account_id], ["leads", leadId],
+        ["analytics_snapshots", other.snapshot_id], ["practice_test_results", other.practice_test_id], ["students", other.student_id], ["accounts", other.account_id], ["leads", leadId],
       ]) {
         deepStrictEqual((await tx.execute(sql`delete from ${sql.identifier(table)} where id = ${id} returning id`)).rows, [{ id }]);
       }
