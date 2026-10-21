@@ -120,6 +120,7 @@ describe("AnalyticsUploader", () => {
         { type: "Humanities", category: "passage", accuracy: 81 },
         { type: "Art", category: "passage", accuracy: 77 },
       ],
+      sections: [],
       extractedAt: "2026-09-28T12:00:00.000Z",
     };
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(Response.json(

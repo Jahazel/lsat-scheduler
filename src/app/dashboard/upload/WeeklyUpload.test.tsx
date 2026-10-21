@@ -143,7 +143,9 @@ describe("WeeklyUpload", () => {
     expect(onCheckValues).toHaveBeenCalledOnce();
     const [read] = onCheckValues.mock.calls[0];
     expect(read.currentScore).toBe(156);
-    expect(read.practiceTest.missedStemTypeCounts["Flaw or descriptive weakening"]).toBe(2);
+    expect(read.practiceTest.result.missedStemTypeCounts["Flaw or descriptive weakening"]).toBe(2);
+    expect(read.practiceTest.readings.map(({ section }: { section: number }) => section)).toEqual([1, 2, 3, 4]);
+    expect(read.files.LR.name).toBe("lr-analytics.png");
     expect(read.analytics.rows).toHaveLength(LR_ROWS.length + RC_ROWS.length);
   });
 
@@ -247,7 +249,7 @@ describe("WeeklyUpload", () => {
     expect(within(pick).getByRole("button", { name: "Q18 · Argument part" }).getAttribute("aria-pressed")).toBe("true");
     expect(button("Check the values").disabled).toBe(false);
     await user.click(button("Check the values"));
-    expect(onCheckValues.mock.calls[0][0].practiceTest.missedStemTypeCounts["Argument part"]).toBe(1);
+    expect(onCheckValues.mock.calls[0][0].practiceTest.result.missedStemTypeCounts["Argument part"]).toBe(1);
   });
 
   it("asks again when the screenshot a hidden result was picked on is replaced", async () => {

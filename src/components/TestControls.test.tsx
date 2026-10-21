@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { AdminTestProvider, SampleReviewSlot } from "./AdminTestContext";
 const mocks = vi.hoisted(() => ({ move: vi.fn(), rebuild: vi.fn(), data: vi.fn(), everything: vi.fn(), push: vi.fn(), refresh: vi.fn() }));
 vi.mock("@/app/admin/test/actions", () => ({ setSimulatedDate: mocks.move, rebuildThisWeek: mocks.rebuild, resetTestData: mocks.data, resetEverything: mocks.everything, generateTestSample: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push, refresh: mocks.refresh }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/dashboard", useRouter: () => ({ push: mocks.push, refresh: mocks.refresh }) }));
 vi.mock("@/app/dashboard/AnalyticsUploader", () => ({ default: () => null }));
 import TestControls from "./TestControls";
 const state = { date: "2026-10-07", realDate: "2026-09-27", weekStartDate: "2026-10-05", simulated: true, onboarded: true, canRebuild: true };

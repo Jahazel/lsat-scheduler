@@ -11,7 +11,7 @@ import { TextInput } from "@/components/ui/TextInput";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { readSection as addAnalyticsSection, SECTION_NAME, SECTIONS, type SnapshotReview } from "@/lib/analyticsReview";
 import {
-  reviewPracticeTest, type HiddenPick, type PracticeTestProblem, type PracticeTestResult, type SectionReading,
+  reviewPracticeTest, type HiddenPick, type PracticeTestProblem, type PracticeTestResult, type SectionReading, type SectionReview,
 } from "@/lib/practiceTestResult";
 import {
   CANNOT_READ, MAX_SCREENSHOT_MB, SCREENSHOT_MEDIA_TYPES, checkScreenshot, extractPracticeTestScreenshot, readAnalyticsScreenshot,
@@ -46,10 +46,19 @@ type SectionUpload = Upload<SectionReading>;
 type RowProblem = Exclude<PracticeTestProblem, { problem: "section-missing" | "hidden-pick" }>;
 interface UploadPick { upload: number; missed: number[] }
 
+export interface CheckedPracticeTest {
+  result: PracticeTestResult;
+  readings: SectionReview[];
+  picks: HiddenPick[];
+  extractedAt: string;
+}
+
 export interface WeeklyUploadRead {
   currentScore: number;
   analytics: SnapshotReview;
-  practiceTest: PracticeTestResult | null;
+  lrRead: AnalyticsExtractedRow[];
+  files: Partial<Record<AnalyticsSection, File>>;
+  practiceTest: CheckedPracticeTest | null;
 }
 
 interface WeeklyUploadProps {
@@ -64,7 +73,8 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   const [analytics, setAnalytics] = useState<Partial<Record<AnalyticsSection, AnalyticsUpload>>>({});
   const [sections, setSections] = useState<SectionUpload[]>([]);
   const [rejections, setRejections] = useState<Record<string, string>>({});
-  const [started, setStarted] = useState(false);
+  const [startedAt, setStartedAt] = useState<string | null>(null);
+  const started = startedAt !== null;
   const [picks, setPicks] = useState<UploadPick[]>([]);
   const nextId = useRef(0);
 
@@ -128,7 +138,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   }
 
   function startReading() {
-    setStarted(true);
+    setStartedAt(new Date().toISOString());
     SECTIONS.forEach((section) => {
       const upload = analytics[section];
       if (upload) void readAnalytics(section, upload);
@@ -181,12 +191,19 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   function checkValues() {
     const lr = analytics.LR?.read;
     const rc = analytics.RC?.read;
-    if (!ready || score === null || lr?.status !== "read" || rc?.status !== "read") return;
+    if (!ready || score === null || startedAt === null || lr?.status !== "read" || rc?.status !== "read") return;
     const withLr = addAnalyticsSection(null, "LR", lr.value.rows, { source: "7sage_screenshot", extractedAt: lr.value.at });
     onCheckValues?.({
       currentScore: score,
       analytics: addAnalyticsSection(withLr, "RC", rc.value.rows, { source: "7sage_screenshot", extractedAt: rc.value.at }),
-      practiceTest,
+      lrRead: lr.value.rows,
+      files: { LR: analytics.LR?.file, RC: analytics.RC?.file },
+      practiceTest: practiceTest && {
+        result: practiceTest,
+        readings: readings.flatMap((reading) => (reading.page === "section_review" ? [reading] : [])),
+        picks: hiddenPicks,
+        extractedAt: startedAt,
+      },
     });
   }
 

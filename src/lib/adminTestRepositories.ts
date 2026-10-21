@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { getPostgresDatabase } from "./postgres";
-import { accounts, analyticsSnapshots, students } from "./postgresSchema";
+import { accounts, analyticsSnapshots, practiceTestResults, students } from "./postgresSchema";
 import { findStudentByAccountId } from "./studentRepository";
 import { listApprovedAnalyticsSnapshots } from "./analyticsSnapshotRepository";
 import { postgresAdminClock } from "./studentClock";
@@ -23,6 +23,9 @@ export const postgresAdminTestRepositories: AdminTestRepositories = {
         },
         async deleteSnapshots(studentId) {
           await transaction.delete(analyticsSnapshots).where(eq(analyticsSnapshots.studentId, studentId));
+        },
+        async deletePracticeTestResults(studentId) {
+          await transaction.delete(practiceTestResults).where(eq(practiceTestResults.studentId, studentId));
         },
         async deleteStudent(studentId, userId) {
           await transaction.delete(students).where(and(eq(students.id, studentId), eq(students.accountId, userId)));

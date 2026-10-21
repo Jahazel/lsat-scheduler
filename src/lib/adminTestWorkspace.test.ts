@@ -136,6 +136,7 @@ function workspace() {
     ],
     checkIns: ["old", "current", "real"],
     snapshots: ["admin-student", "real-student"],
+    practiceTests: ["admin-student", "real-student"],
   };
   const repos: AdminTestRepositories = {
     clock: repository,
@@ -160,6 +161,9 @@ function workspace() {
         async deleteSnapshots(studentId) {
           records.snapshots = records.snapshots.filter((id) => id !== studentId);
         },
+        async deletePracticeTestResults(studentId) {
+          records.practiceTests = records.practiceTests.filter((id) => id !== studentId);
+        },
         async deleteStudent(studentId, userId) {
           if (userId !== "admin") return;
           records.students = records.students.filter((id) => id !== studentId);
@@ -179,6 +183,7 @@ it("rebuilds only the current simulated week's weekly schedule and activity chec
   expect(records.schedules.map((s) => s.id)).toEqual(["old", "real"]);
   expect(records.checkIns).toEqual(["old", "real"]);
   expect(records.snapshots).toEqual(["admin-student", "real-student"]);
+  expect(records.practiceTests).toEqual(["admin-student", "real-student"]);
   expect(user.simulatedDate).toBe("2026-10-07");
 });
 
@@ -227,6 +232,7 @@ it.each(["test-data", "everything"] as const)(
     expect(records.schedules.map((s) => s.id)).toEqual(["real"]);
     expect(records.checkIns).toEqual(["real"]);
     expect(records.snapshots).toEqual(["real-student"]);
+    expect(records.practiceTests).toEqual(["real-student"]);
     expect(records.students).toEqual(
       scope === "everything" ? ["real-student"] : ["admin-student", "real-student"],
     );
@@ -252,6 +258,11 @@ it("carries performance trend and Sunday practice-test review across three simul
     snapshots: {
       async listEligibleForStudent() {
         return snapshots;
+      },
+    },
+    practiceTestResults: {
+      async listForStudent() {
+        return [];
       },
     },
     weeklySchedules: {
@@ -391,6 +402,7 @@ it("carries performance trend and Sunday practice-test review across three simul
           return deleted.length;
         },
         async deleteSnapshots() {},
+        async deletePracticeTestResults() {},
         async deleteStudent() {},
         async clearSimulatedDate() {},
       });

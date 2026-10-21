@@ -163,7 +163,7 @@ if (command === "inspect") {
   const records = await postgres(async (db) => {
     const result = {};
     result.accounts = (await db.execute(sql`select id, email, name, role, simulated_date from accounts`)).rows;
-    for (const name of ["students", "analytics_snapshots", "weekly_schedules", "activity_check_ins", "leads"]) {
+    for (const name of ["students", "analytics_snapshots", "practice_test_results", "weekly_schedules", "activity_check_ins", "leads"]) {
       result[name] = (await db.execute(sql`select * from ${sql.identifier(name)}`)).rows;
     }
     return result;

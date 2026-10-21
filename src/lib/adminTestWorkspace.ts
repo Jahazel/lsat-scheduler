@@ -8,6 +8,7 @@ import {
 } from "./sampleAnalytics";
 import { mockRules } from "./mockData";
 import { PASSAGE_TYPES } from "./analyticsReview";
+import { PT158_FIXTURES } from "./practiceTestFixtures/pt158";
 import type { AnalyticsExtractedRow } from "./types";
 
 export interface AdminClockRepository {
@@ -161,6 +162,7 @@ export interface AdminTestWrites {
   // This write deletes activity check-ins with their weekly schedule.
   deleteSchedules(studentId: string, weekStartDate?: string): Promise<number>;
   deleteSnapshots(studentId: string): Promise<void>;
+  deletePracticeTestResults(studentId: string): Promise<void>;
   deleteStudent(studentId: string, userId: string): Promise<void>;
   clearSimulatedDate(userId: string): Promise<void>;
 }
@@ -210,6 +212,7 @@ export async function resetTestWorkspace(
     if (student) {
       await writes.deleteSchedules(student.id);
       await writes.deleteSnapshots(student.id);
+      await writes.deletePracticeTestResults(student.id);
       if (scope === "everything")
         await writes.deleteStudent(student.id, userId);
     }
@@ -267,4 +270,8 @@ export async function generateTestAnalytics(
     })),
   ];
   return rows;
+}
+
+export function samplePracticeTestSections() {
+  return PT158_FIXTURES.flatMap(({ reading }) => (reading.page === "section_review" ? [reading] : []));
 }

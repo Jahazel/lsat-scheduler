@@ -1,21 +1,14 @@
 import {
   accuracyError,
-  addRow,
   dropSection,
-  editAccuracy,
-  missingTypes,
   readSection,
-  removeRow,
   SECTIONS,
   reviewedRows,
   sectionOf,
-  setStatement,
   snapshotApproval,
-  toggleTopPriority,
-  type ReviewRow,
   type SnapshotReview,
-  type Statement,
 } from "./analyticsReview";
+import { confirmLock, reviewDraftReducer, startDraft, type AnalyticsType, type ReviewAction, type ReviewDraft } from "./reviewDraft";
 import { activityLabel, lrTypesName } from "./activityLabel";
 import { summarizeAnalyticsRows } from "./analytics";
 import type { SnapshotApprovalMetadata } from "./analyticsSnapshots";
@@ -33,7 +26,7 @@ import {
   type StudentProfileInput,
 } from "./studentProfile";
 import { testCountdown, testCountdownLabel } from "./testCountdown";
-import type { Activity, AnalyticsExtractedRow, AnalyticsSection, DayOfWeek, LRType, RCType } from "./types";
+import type { Activity, AnalyticsExtractedRow, AnalyticsSection, DayOfWeek } from "./types";
 
 const STEP_NAMES = ["Goal", "Week", "Analytics", "Review"] as const;
 export type WizardStep = "goal" | "week" | "analytics" | "review";
@@ -60,18 +53,10 @@ export interface AttemptsDraft {
   nextId: number;
 }
 
-export type AnalyticsType = LRType | RCType;
-
 export type Screenshot =
   | { status: "none" }
   | { status: "reading" | "connection-lost" | "cannot-read" | "signed-out" | "no-rows"; file: File }
   | { status: "read"; file: File; rows: AnalyticsExtractedRow[] };
-
-export interface ReviewDraft {
-  review: SnapshotReview;
-  typedText: Partial<Record<AnalyticsType, string>>;
-  revealedBoxes: AnalyticsType[];
-}
 
 export interface WizardState {
   step: WizardStep;
@@ -100,13 +85,7 @@ export type WizardAction =
   | { type: "screenshotRejected"; section: AnalyticsSection; message: string }
   | { type: "readStarted"; section: AnalyticsSection; file: File }
   | { type: "readEnded"; section: AnalyticsSection; attempt: number; reply: ExtractReply; at: Date }
-  | { type: "editAccuracy"; rowType: AnalyticsType; text: string }
-  | { type: "leaveAccuracyBox"; rowType: AnalyticsType }
-  | { type: "removeRow"; rowType: LRType }
-  | { type: "toggleFlag"; rowType: LRType }
-  | { type: "addType"; rowType: LRType }
-  | { type: "setStatement"; statement: Statement; checked: boolean; at: Date }
-  | { type: "confirmBlocked" }
+  | ReviewAction
   | { type: "saveStarted" }
   | { type: "saveFailed" };
 
@@ -377,73 +356,6 @@ export function bothRead(state: WizardState) {
   return SECTIONS.every((section) => state.screenshots[section].status === "read");
 }
 
-export type ConfirmLock = { reason: string; fix: { at: "box"; type: AnalyticsType } | { at: "add-type" } | { at: "statements" } };
-
-export function confirmLock(review: SnapshotReview): ConfirmLock | null {
-  const wrong = review.rows.filter(({ row }) => accuracyError(row));
-  if (wrong.length > 0) {
-    const reason = wrong.length === 1 ? `Fix ${wrong[0].row.type} above to confirm.` : `Fix ${wrong.length} values above to confirm.`;
-    return { reason, fix: { at: "box", type: wrong[0].row.type } };
-  }
-  const counts = ({ row }: ReviewRow) =>
-    row.category === "regular" ? row.accuracy !== undefined : row.category === "restricted" && row.isTopPriority;
-  if (!review.rows.some(counts)) return { reason: "Add an accuracy value or tick a flag to confirm.", fix: { at: "add-type" } };
-  if (!review.confirmation.confirmedAt) return { reason: "Tick both statements to confirm.", fix: { at: "statements" } };
-  return null;
-}
-
-const ACCURACY_MESSAGE = {
-  empty: "Enter the percentage, or remove this row with ×.",
-  "out-of-range": "Enter a percentage from 0 to 100.",
-} as const;
-const PASSAGE_EMPTY_MESSAGE = "Enter the percentage from your RC screenshot.";
-
-const PERCENTAGE = /^\d+(\.\d+)?$/;
-
-export function boxText(state: WizardState, type: AnalyticsType): string {
-  const { draft } = state;
-  if (!draft) return "";
-  const typed = draft.typedText[type];
-  if (typed !== undefined) return typed;
-  return String(draft.review.rows.find(({ row }) => row.type === type)?.row.accuracy ?? "");
-}
-
-export function accuracyMessage(state: WizardState, type: AnalyticsType): string | null {
-  const { draft } = state;
-  if (!draft || !draft.revealedBoxes.includes(type)) return null;
-  const entry = draft.review.rows.find(({ row }) => row.type === type);
-  const error = entry && accuracyError(entry.row);
-  if (!error) return null;
-  return entry.row.category === "passage" && error === "empty" ? PASSAGE_EMPTY_MESSAGE : ACCURACY_MESSAGE[error];
-}
-
-export type ReviewList = "accuracy" | "flags";
-const LIST_CATEGORY = { accuracy: "regular", flags: "restricted" } as const;
-const EMPTY_LIST_NOTE: Record<ReviewList, string> = {
-  accuracy: "We didn't find accuracy values in your LR screenshot. If 7Sage shows any, add them with the link below.",
-  flags: "We didn't find priority flags in your LR screenshot. If 7Sage shows any, add them with the link below.",
-};
-
-export function emptyListNote(state: WizardState, list: ReviewList): string | null {
-  const screenshot = state.screenshots.LR;
-  if (screenshot.status !== "read" || !state.draft) return null;
-  const inList = ({ category }: AnalyticsExtractedRow) => category === LIST_CATEGORY[list];
-  if (screenshot.rows.some(inList) || state.draft.review.rows.some(({ row }) => inList(row))) return null;
-  return EMPTY_LIST_NOTE[list];
-}
-
-export function addTypeOptions(state: WizardState, query: string): Record<ReviewList, LRType[]> {
-  const options: Record<ReviewList, LRType[]> = { accuracy: [], flags: [] };
-  if (!state.draft) return options;
-  const wordStart = new RegExp(`\\b${query.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
-  for (const { type, category } of missingTypes(state.draft.review)) {
-    if (!wordStart.test(type)) continue;
-    options[category === "regular" ? "accuracy" : "flags"].push(type);
-  }
-  for (const list of Object.values(options)) list.sort((a, b) => a.localeCompare(b));
-  return options;
-}
-
 export type ProfileWithAttempts = StudentProfileInput & { officialAttempts: OfficialAttempt[] };
 
 export function profileWithAttempts(state: WizardState): ProfileWithAttempts | null {
@@ -495,7 +407,7 @@ function readEnded(state: WizardState, section: AnalyticsSection, attempt: numbe
       const rows = reply.rows.filter((row) => sectionOf(row) === section);
       if (rows.length === 0) return withScreenshot(state, section, { status: "no-rows", file });
       const review = readSection(state.draft?.review ?? null, section, rows, { source: "7sage_screenshot", extractedAt: at.toISOString() });
-      const draft = { typedText: {}, revealedBoxes: [], ...state.draft, review };
+      const draft = { ...startDraft(review), ...state.draft, review };
       return { ...withScreenshot(state, section, { status: "read", file, rows }), draft };
     }
     case "rejected":
@@ -513,16 +425,6 @@ function readEnded(state: WizardState, section: AnalyticsSection, attempt: numbe
 
 function updateDraft(state: WizardState, update: (draft: ReviewDraft) => ReviewDraft): WizardState {
   return state.draft ? { ...state, draft: update(state.draft) } : state;
-}
-
-function updateReview(state: WizardState, update: (review: SnapshotReview) => SnapshotReview): WizardState {
-  return updateDraft(state, (draft) => ({ ...draft, review: update(draft.review) }));
-}
-
-const rowIndex = (review: SnapshotReview, type: AnalyticsType) => review.rows.findIndex(({ row }) => row.type === type);
-
-function revealBoxes(state: WizardState, types: AnalyticsType[]): WizardState {
-  return updateDraft(state, (draft) => ({ ...draft, revealedBoxes: [...new Set([...draft.revealedBoxes, ...types])] }));
 }
 
 export function wizardReducer(state: WizardState, action: WizardAction): WizardState {
@@ -560,36 +462,14 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       return readStarted(state, action.section, action.file);
     case "readEnded":
       return readEnded(state, action.section, action.attempt, action.reply, action.at);
-    case "editAccuracy": {
-      const { rowType, text } = action;
-      const accuracy = text === "" ? undefined : PERCENTAGE.test(text) ? Number(text) : NaN;
-      return updateDraft(state, (draft) => ({
-        ...draft,
-        review: editAccuracy(draft.review, rowIndex(draft.review, rowType), accuracy),
-        typedText: { ...draft.typedText, [rowType]: text },
-      }));
-    }
+    case "editAccuracy":
     case "leaveAccuracyBox":
-      return revealBoxes(state, [action.rowType]);
     case "removeRow":
-      return updateDraft(state, (draft) => {
-        const index = rowIndex(draft.review, action.rowType);
-        if (index === -1) return draft;
-        const typedText = { ...draft.typedText };
-        delete typedText[action.rowType];
-        return { ...draft, review: removeRow(draft.review, index), typedText };
-      });
     case "toggleFlag":
-      return updateReview(state, (review) => toggleTopPriority(review, rowIndex(review, action.rowType)));
     case "addType":
-      return updateReview(state, (review) => addRow(review, action.rowType));
     case "setStatement":
-      return updateReview(state, (review) => setStatement(review, action.statement, action.checked, action.at));
-    case "confirmBlocked": {
-      if (!state.draft) return state;
-      const wrong = state.draft.review.rows.filter(({ row }) => accuracyError(row)).map(({ row }) => row.type);
-      return revealBoxes(state, wrong);
-    }
+    case "confirmBlocked":
+      return updateDraft(state, (draft) => reviewDraftReducer(draft, action));
     case "saveStarted":
       return profileWithAttempts(state) ? { ...state, save: "saving" } : state;
     case "saveFailed":

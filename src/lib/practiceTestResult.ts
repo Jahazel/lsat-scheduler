@@ -54,6 +54,13 @@ export interface PracticeTestResult {
   missedStemTypeCounts: Partial<Record<LRStemType, number>>;
 }
 
+export interface ApprovedPracticeTestResult {
+  id: string;
+  approvedAt: string;
+  prepTest: number;
+  missedStemTypeCounts: PracticeTestResult["missedStemTypeCounts"];
+}
+
 export interface HiddenPick { section: number; missed: number[] }
 
 export type PracticeTestProblem =

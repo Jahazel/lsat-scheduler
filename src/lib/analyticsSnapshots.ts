@@ -42,6 +42,27 @@ export interface SnapshotApprovalMetadata {
 
 export class SnapshotApprovalError extends Error {}
 
+export function checkApprovalTimes(
+  { extraction, confirmation }: {
+    extraction: { source: "7sage_screenshot" | "admin_sample"; extractedAt: string };
+    confirmation: { confirmedAt: string };
+  },
+  realNow: Date,
+  messages: { stale: string; early: string },
+) {
+  const extractedAt = new Date(extraction.extractedAt);
+  if (realNow.getTime() - extractedAt.getTime() > MAX_EXTRACTION_AGE_MS || extractedAt > realNow) {
+    throw new SnapshotApprovalError(messages.stale);
+  }
+  const confirmedAt = new Date(confirmation.confirmedAt);
+  // Samples are generated on the server and confirmed on the browser's clock.
+  // Screenshot extraction and confirmation both use the browser's clock.
+  if ((extraction.source !== "admin_sample" && confirmedAt < extractedAt) || confirmedAt > realNow) {
+    throw new SnapshotApprovalError(messages.early);
+  }
+  return { extractedAt, confirmedAt };
+}
+
 export function snapshotWeekOptions(clock: StudentClock) {
   return clock.simulated ? { weekOf: dateInScheduleTimezone(clock.now) } : {};
 }
@@ -67,21 +88,12 @@ export function prepareApprovedSnapshot(input: unknown, approvedAt = new Date(),
     throw new SnapshotApprovalError("The reviewed extraction is empty.");
   }
 
-  const extractedAt = new Date(values.extraction.extractedAt);
-  if (realNow.getTime() - extractedAt.getTime() > MAX_EXTRACTION_AGE_MS || extractedAt > realNow) {
-    throw new SnapshotApprovalError(
-      values.extraction.source === "admin_sample"
-        ? "Generate a new sample analytics snapshot before saving."
-        : "Upload a fresh analytics screenshot before saving.",
-    );
-  }
-
-  const confirmedAt = new Date(values.confirmation.confirmedAt);
-  // Samples are generated on the server and confirmed on the browser's clock.
-  // Screenshot extraction and confirmation both use the browser's clock.
-  if ((values.extraction.source !== "admin_sample" && confirmedAt < extractedAt) || confirmedAt > realNow) {
-    throw new SnapshotApprovalError("Confirm the extraction after reviewing it.");
-  }
+  const { extractedAt, confirmedAt } = checkApprovalTimes(values, realNow, {
+    stale: values.extraction.source === "admin_sample"
+      ? "Generate a new sample analytics snapshot before saving."
+      : "Upload a fresh analytics screenshot before saving.",
+    early: "Confirm the extraction after reviewing it.",
+  });
 
   return {
     weekOf: options.weekOf ?? approvedAt.toISOString().slice(0, 10),

@@ -117,4 +117,21 @@ describe("ScheduleCheckInView", () => {
     expect(within(dayCard("Monday")).getByText("Not scheduled.")).toBeTruthy();
     expect(screen.getAllByText(/^Practice test [12] of 2 · /)).toHaveLength(2);
   });
+
+  it("shows the Plan next week reminder above the plan, linking to the weekly upload, with no way to close it", () => {
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} uploadReminder />);
+    const reminder = screen.getByRole("complementary", { name: "Reminder" });
+
+    expect(reminder.textContent).toContain("Next week starts Monday. Add your screenshots to build your weekly schedule.");
+    expect(within(reminder).getByRole("link", { name: "Plan next week" }).getAttribute("href")).toBe("/dashboard/upload");
+    expect(within(reminder).queryByRole("button")).toBeNull();
+    expect(reminder.compareDocumentPosition(screen.getByRole("heading", { level: 1 })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("shows no reminder unless the weekend asks for next week's upload", () => {
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />);
+
+    expect(screen.queryByRole("complementary", { name: "Reminder" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Plan next week" })).toBeNull();
+  });
 });

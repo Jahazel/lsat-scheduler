@@ -1,4 +1,5 @@
 import { DAY_ORDER, generateWeek } from "./engine";
+import type { ApprovedPracticeTestResult } from "./practiceTestResult";
 import { isoDateInWeek, unscheduledDaySentence } from "./scheduleReasonText";
 import type {
   AnalyticsSnapshot,
@@ -16,6 +17,9 @@ const TREND_WEIGHTS = [0.6, 0.3, 0.1];
 export interface CurrentWeekRepositories {
   snapshots: {
     listEligibleForStudent(studentId: string): Promise<ApprovedAnalyticsSnapshot[]>;
+  };
+  practiceTestResults: {
+    listForStudent(studentId: string): Promise<ApprovedPracticeTestResult[]>;
   };
   weeklySchedules: {
     findByStudentAndWeek(studentId: string, weekStartDate: string): Promise<PersistedWeeklySchedule | null>;
@@ -61,21 +65,55 @@ export function localDateInTimezone(now: Date, timezone: string) {
   return new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10);
 }
 
-export function currentWeekInTimezone(now: Date, timezone: string) {
-  const localDate = new Date(`${localDateInTimezone(now, timezone)}T00:00:00.000Z`);
-  const weekday = localDate.getUTCDay();
-  const mondayOffset = weekday === 0 ? -6 : 1 - weekday;
-  localDate.setUTCDate(localDate.getUTCDate() + mondayOffset);
-  return localDate.toISOString().slice(0, 10);
+function mondayOf(isoDate: string) {
+  const date = new Date(`${isoDate}T00:00:00.000Z`);
+  const weekday = date.getUTCDay();
+  date.setUTCDate(date.getUTCDate() + (weekday === 0 ? -6 : 1 - weekday));
+  return date.toISOString().slice(0, 10);
 }
 
-export function freshSnapshotsForCurrentWeek(
-  snapshots: ApprovedAnalyticsSnapshot[],
-  now: Date,
-  timezone: string
+export function currentWeekInTimezone(now: Date, timezone: string) {
+  return mondayOf(localDateInTimezone(now, timezone));
+}
+
+const SATURDAY_TO_NEXT_MONDAY_DAYS = 2;
+
+export function uploadWeekOf(approvedAt: Date, timezone: string) {
+  return mondayOf(isoDateInWeek(localDateInTimezone(approvedAt, timezone), SATURDAY_TO_NEXT_MONDAY_DAYS));
+}
+
+export function approvedForWeek<Approval extends { approvedAt: string }>(
+  approvals: Approval[],
+  weekStartDate: string,
+  timezone: string,
 ) {
-  const weekStartDate = currentWeekInTimezone(now, timezone);
-  return snapshots.filter((snapshot) => currentWeekInTimezone(new Date(snapshot.approvedAt), timezone) === weekStartDate);
+  return approvals.filter((approval) => uploadWeekOf(new Date(approval.approvedAt), timezone) === weekStartDate);
+}
+
+function approvedUpToWeek<Approval extends { approvedAt: string }>(
+  approvals: Approval[],
+  weekStartDate: string,
+  timezone: string,
+) {
+  return approvals.filter((approval) => uploadWeekOf(new Date(approval.approvedAt), timezone) <= weekStartDate);
+}
+
+const isUploadWeekend = (now: Date, timezone: string) => uploadWeekOf(now, timezone) !== currentWeekInTimezone(now, timezone);
+
+function nextWeekHasUpload(snapshots: ApprovedAnalyticsSnapshot[], now: Date, timezone: string) {
+  const nextWeek = isoDateInWeek(currentWeekInTimezone(now, timezone), 7);
+  return approvedForWeek(snapshots, nextWeek, timezone).length > 0;
+}
+
+export function showsUploadReminder(snapshots: ApprovedAnalyticsSnapshot[], now: Date, timezone: string) {
+  return isUploadWeekend(now, timezone) && !nextWeekHasUpload(snapshots, now, timezone);
+}
+
+export type WeekWithoutPlan = "upload_for_this_week" | "upload_for_next_week" | "plan_starts_monday";
+
+export function weekWithoutPlan(snapshots: ApprovedAnalyticsSnapshot[], now: Date, timezone: string): WeekWithoutPlan {
+  if (!isUploadWeekend(now, timezone)) return "upload_for_this_week";
+  return nextWeekHasUpload(snapshots, now, timezone) ? "plan_starts_monday" : "upload_for_next_week";
 }
 
 function currentDayInTimezone(now: Date, timezone: string): DayOfWeek {
@@ -163,10 +201,12 @@ export async function loadOrGenerateCurrentWeek(
   }
 
   const eligibleSnapshots = await input.snapshots.listEligibleForStudent(input.studentId);
-  if (freshSnapshotsForCurrentWeek(eligibleSnapshots, now, input.timezone).length === 0) {
+  if (approvedForWeek(eligibleSnapshots, weekStartDate, input.timezone).length === 0) {
     return { kind: "analytics_required" };
   }
-  const snapshots = newestApprovedSnapshots(eligibleSnapshots).slice(0, 3);
+  const snapshots = newestApprovedSnapshots(approvedUpToWeek(eligibleSnapshots, weekStartDate, input.timezone)).slice(0, 3);
+  const [practiceTest] = approvedForWeek(await input.practiceTestResults.listForStudent(input.studentId), weekStartDate, input.timezone)
+    .sort((a, b) => b.approvedAt.localeCompare(a.approvedAt) || a.id.localeCompare(b.id));
 
   const analytics = analyticsTrend(snapshots, weekStartDate);
   const priorSchedule = await input.weeklySchedules.findByStudentAndWeek(
@@ -183,6 +223,7 @@ export async function loadOrGenerateCurrentWeek(
       createdOn: currentDay,
       priorWeekPracticeTestReviewMinutes,
       priorSchedules: history.map((record) => record.schedule),
+      missedStemTypeCounts: practiceTest?.missedStemTypeCounts,
     }),
     currentDay
   );
@@ -200,6 +241,7 @@ export async function loadOrGenerateCurrentWeek(
       analytics,
       priorWeekPracticeTestReviewMinutes,
       priorScheduleIds: history.map((record) => record.id),
+      ...(practiceTest && { practiceTestResultId: practiceTest.id }),
     },
     policyVersion: SCHEDULING_POLICY_VERSION,
   };

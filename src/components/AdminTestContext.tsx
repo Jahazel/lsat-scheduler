@@ -7,11 +7,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { SectionReview } from "@/lib/practiceTestResult";
 import type { AnalyticsExtractedRow } from "@/lib/types";
 import AnalyticsUploader from "@/app/dashboard/AnalyticsUploader";
 
 export interface SampleDraft {
   rows: AnalyticsExtractedRow[];
+  sections: SectionReview[];
   extractedAt: string;
 }
 const AdminTestContext = createContext<{
