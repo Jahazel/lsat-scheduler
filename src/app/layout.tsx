@@ -1,9 +1,9 @@
 import { auth } from "@/auth";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
 import { AdminTestProvider } from "@/components/AdminTestContext";
 import SiteHeader from "@/components/nav/SiteHeader";
+import { Footer } from "@/components/ui/Footer";
 import { WORKSPACE_NAV_BREAKPOINT } from "@/components/nav/workspaceBreakpoint";
 import "./globals.css";
 
@@ -34,19 +34,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <AdminTestProvider key={`${session?.user?.id ?? "anonymous"}:${session?.user?.role ?? "student"}`}>
           <SiteHeader />
           <main className="flex-1">{children}</main>
-          <footer className="border-t border-vellum-line px-6 py-6 text-center text-caption text-smoke">
-            <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-x-4 gap-y-1">
-              <Link href="/legal/terms" className="hover:text-ink">
-                Terms of Service
-              </Link>
-              <Link href="/legal/privacy" className="hover:text-ink">
-                Privacy Policy
-              </Link>
-              <Link href="/legal/ai-disclosure" className="hover:text-ink">
-                AI Disclosure
-              </Link>
-            </div>
-          </footer>
+          <Footer />
         </AdminTestProvider>
       </body>
     </html>

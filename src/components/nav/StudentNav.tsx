@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { FOCUS, cx } from "@/components/ui/classes";
+import { NavTab } from "@/components/ui/NavTab";
 import { NavIcon } from "./NavIcon";
-import { FOCUS, Logo, TABS, cx, isTabActive } from "./shared";
+import { DESKTOP_BAR, Logo, MOBILE_BAR, TABS, isTabActive } from "./shared";
 import { WORKSPACE_NAV_BREAKPOINT } from "./workspaceBreakpoint";
 
 export interface StudentNavProps {
@@ -48,7 +50,6 @@ function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<S
     };
   }, [open]);
 
-  const initialsCircle = "flex items-center justify-center rounded-full bg-accent/tint font-semibold text-accent";
   const item = cx("block w-full px-4 py-2.5 text-left text-small text-ink hover:bg-vellum", FOCUS);
 
   return (
@@ -60,25 +61,18 @@ function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<S
         aria-expanded={open}
         aria-label={`Account menu for ${email}`}
         onClick={() => setOpen((wasOpen) => !wasOpen)}
-        className={
-          compact
-            ? cx(initialsCircle, "size-9 text-small", FOCUS)
-            : cx("flex h-9 items-center gap-2 rounded-full bg-vellum pl-1 pr-2.5 text-small text-ink transition-colors duration-150 ease-out hover:bg-vellum-line", FOCUS)
-        }
-      >
-        {compact ? (
-          initials
-        ) : (
-          <>
-            <span className={cx(initialsCircle, "size-7 text-caption")}>{initials}</span>
-            <NavIcon name="chevron" className="size-4 text-smoke" />
-          </>
+        className={cx(
+          "flex shrink-0 items-center justify-center rounded-pill bg-vellum font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum-line",
+          compact ? "size-8 text-caption" : "size-10 text-small",
+          FOCUS,
         )}
+      >
+        {initials}
       </button>
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-11 z-50 w-60 rounded-xs border border-vellum-line bg-paper py-1 shadow-e3"
+          className="absolute right-0 top-full z-50 mt-1 w-60 rounded-xs border border-vellum-line bg-paper py-1 shadow-e3"
         >
           <p className="truncate border-b border-vellum-line px-4 py-2.5 text-caption text-smoke">{email}</p>
           {countdownLabel && (
@@ -100,63 +94,51 @@ function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<S
 
 function Countdown({ label, isTestDay }: { label: string; isTestDay: boolean }) {
   if (isTestDay) {
-    return <span className="rounded-full bg-ink px-3 py-1 text-small font-semibold text-chalk">{label}</span>;
+    return <span className="text-body font-medium text-ink">{label}</span>;
   }
-  const [count, ...rest] = label.split(" ");
-  return (
-    <span className="rounded-full bg-vellum px-3 py-1 text-small text-smoke">
-      <b className="font-mono font-semibold tabular-nums text-ink">{count}</b> {rest.join(" ")}
-    </span>
-  );
+  return <span className="text-body tabular-nums text-smoke">{label}</span>;
 }
 
 export default function StudentNav(props: StudentNavProps & { workspaceSwitcher?: ReactNode }) {
   const pathname = usePathname();
   const isActive = (href: string) => isTabActive(pathname, href);
 
+  const currentTab = TABS.find((tab) => isActive(tab.href));
+
   return (
     <>
-      {/* Mobile: slim bar. The countdown lives in the avatar menu. */}
-      <div className={cx("flex h-14 items-center justify-between px-4", props.workspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.mobileHeader : "md:hidden")}>
-        <div className="flex items-center gap-1 sm:gap-3">
-          <Logo href="/dashboard" />
+      <div className={cx(MOBILE_BAR, props.workspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.mobileHeader : "md:hidden")}>
+        <div className="flex min-w-0 items-center gap-1 sm:gap-3">
+          <Logo href="/dashboard" compact />
           {props.workspaceSwitcher && <span className="text-fog" aria-hidden data-workspace-separator="true">/</span>}
           {props.workspaceSwitcher}
         </div>
-        <AvatarMenu {...props} compact />
+        <div className="flex items-center gap-3">
+          {currentTab && (
+            <span className="hidden whitespace-nowrap rounded-pill bg-vellum px-3 py-[5px] text-small text-ink min-[360px]:inline">{currentTab.label}</span>
+          )}
+          <AvatarMenu {...props} compact />
+        </div>
       </div>
 
-      {/* Desktop: centred pill tabs. Below 900px of bar width the countdown folds into the menu. */}
       <div className={cx("@container hidden", props.workspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.desktopHeader : "md:block")}>
-        <div className="grid h-16 grid-cols-[1fr_auto_1fr] items-center gap-6 px-8">
-          <div className="flex items-center gap-3">
-            <Logo href="/dashboard" />
-            {props.workspaceSwitcher && <span className="text-fog" aria-hidden data-workspace-separator="true">/</span>}
-            {props.workspaceSwitcher}
-          </div>
-          <nav aria-label="Primary" className="flex gap-1 rounded-full bg-vellum p-1">
-            {TABS.map((tab) => {
-              const active = isActive(tab.href);
-              return (
-                <Link
-                  key={tab.href}
-                  href={tab.href}
-                  aria-current={active ? "page" : undefined}
-                  className={cx(
-                    "flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-small transition-colors duration-150 ease-out",
-                    active
-                      ? "bg-paper font-semibold text-ink shadow-control"
-                      : "text-smoke hover:text-ink",
-                    FOCUS,
-                  )}
-                >
+        <div className={DESKTOP_BAR}>
+          <div className="flex min-w-0 items-center gap-8">
+            <div className="flex items-center gap-3">
+              <Logo href="/dashboard" />
+              {props.workspaceSwitcher && <span className="text-fog" aria-hidden data-workspace-separator="true">/</span>}
+              {props.workspaceSwitcher}
+            </div>
+            <nav aria-label="Primary" className="flex gap-1">
+              {TABS.map((tab) => (
+                <NavTab key={tab.href} href={tab.href} current={isActive(tab.href)}>
                   {tab.label}
                   {tab.flagsUpload && props.uploadNeeded && <UploadDot />}
-                </Link>
-              );
-            })}
-          </nav>
-          <div className="flex items-center justify-end gap-4 whitespace-nowrap">
+                </NavTab>
+              ))}
+            </nav>
+          </div>
+          <div className="flex items-center justify-end gap-6 whitespace-nowrap">
             {props.countdownLabel && (
               <span className="hidden @[900px]:inline-flex">
                 <Countdown label={props.countdownLabel} isTestDay={props.isTestDay} />
