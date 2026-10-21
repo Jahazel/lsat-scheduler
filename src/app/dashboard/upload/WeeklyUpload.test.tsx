@@ -111,6 +111,12 @@ describe("WeeklyUpload", () => {
     expect(screen.getByText("pt158-s1.png · score −9")).toBeDefined();
     expect(screen.getByText("Section 3 · Logical Reasoning")).toBeDefined();
     expect(screen.getByText("Your score on practice test 158? Type it here. We save it to your study settings.")).toBeDefined();
+    const summary = screen.getByRole("heading", { name: "Screenshots" }).closest("section") as HTMLElement;
+    expect(within(summary).getByText("6 of 6 read")).toBeDefined();
+    expect(within(summary).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
+      "LR analytics3 typesReplace", "RC analytics5 typesReplace",
+      "PT 158 · Section 1 · RC−9Replace", "PT 158 · Section 2 · LR−2Replace", "PT 158 · Section 3 · LR−4Replace", "PT 158 · Section 4 · LR−2Replace",
+    ]);
 
     const found = screen.getByRole("region", { name: "What we found" });
     expect(within(found).getByText("What we found · practice test 158 · score 156")).toBeDefined();
@@ -128,7 +134,7 @@ describe("WeeklyUpload", () => {
     expect(within(preview).getByText(/^Oct 5–11 · .* of study · practice test on Saturday$/)).toBeDefined();
     expect(within(preview).getByText("Mon 5")).toBeDefined();
     expect(within(preview).getByText("PT")).toBeDefined();
-    expect(within(preview).getByText("Monday's drills")).toBeDefined();
+    expect(within(preview).getByText("Monday's drills").textContent).toBe("Monday's drills · Oct 5");
     expect(within(preview).getByText("Read from your screenshots · not confirmed")).toBeDefined();
     expect(within(preview).getByText("Goes first").closest("li")?.textContent).toContain("Flaw or descriptive weakening");
 
@@ -154,7 +160,7 @@ describe("WeeklyUpload", () => {
     await user.click(button("Read my screenshots"));
     await screen.findByText("rc-analytics.png · 5 passage types");
     expect(screen.queryByRole("region", { name: "What we found" })).toBeNull();
-    expect(within(screen.getByRole("region", { name: "Next week" })).getByText("Monday's drills")).toBeDefined();
+    expect(within(screen.getByRole("region", { name: "Next week" })).getByText("Monday's drills").textContent).toBe("Monday's drills · Oct 5");
     expect(screen.queryByText("Goes first")).toBeNull();
     expect(button("Check the values").disabled).toBe(false);
   });
@@ -242,6 +248,41 @@ describe("WeeklyUpload", () => {
     expect(button("Check the values").disabled).toBe(false);
     await user.click(button("Check the values"));
     expect(onCheckValues.mock.calls[0][0].practiceTest.missedStemTypeCounts["Argument part"]).toBe(1);
+  });
+
+  it("asks again when the screenshot a hidden result was picked on is replaced", async () => {
+    const hidden = () => {
+      const reading = sample(3) as LRSectionReading;
+      reading.score = -5;
+      reading.rows[18] = { ...reading.rows[18], result: "hidden" };
+      return reading;
+    };
+    stubServer({ "pt158-s3.png": hidden(), "retake-s3.png": hidden() });
+    const { user } = setup();
+    await readAll(user);
+    const group = "Section 3: which question did you miss?";
+    await user.click(within(screen.getByRole("group", { name: group })).getByRole("button", { name: "Q18 · Argument part" }));
+    expect(button("Check the values").disabled).toBe(false);
+
+    await user.upload(screen.getAllByLabelText("Replacement for pt158-s3.png")[0], png("retake-s3.png"));
+    const pick = await screen.findByRole("group", { name: group });
+    expect(within(pick).getByRole("button", { name: "Q18 · Argument part" }).getAttribute("aria-pressed")).toBe("false");
+    expect(button("Check the values").disabled).toBe(true);
+  });
+
+  it("checks the sections that were read when another section's file could not be read", async () => {
+    const cut = sample(3) as LRSectionReading;
+    cut.rows = cut.rows.slice(0, 20);
+    cut.reachesEnd = false;
+    stubServer({ "pt158-s3.png": cut, "pt158-s4.png": new Response(null, { status: 502 }) });
+    const { user } = setup();
+    await readAll(user);
+    const cutRow = (await screen.findByText("pt158-s3.png · ends at Q20")).closest("[data-file-row]") as HTMLElement;
+    expect(within(cutRow).getByText(/^Section 3 stops at Q20\./)).toBeDefined();
+    const failedRow = screen.getByText("We couldn't read this screenshot").closest("[data-file-row]") as HTMLElement;
+    expect(within(failedRow).getByText("Couldn't read that screenshot. Try again or a clearer image.")).toBeDefined();
+    expect(screen.queryByText("Section 4 is missing")).toBeNull();
+    expect(button("Check the values").disabled).toBe(true);
   });
 
   it.each([

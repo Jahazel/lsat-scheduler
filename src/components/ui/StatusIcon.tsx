@@ -39,6 +39,14 @@ export function StatusIcon({ name, className }: { name: StatusIconName; classNam
   }
 }
 
+export function CheckGlyph() {
+  return (
+    <svg aria-hidden viewBox="0 0 12 12" className="size-3 shrink-0 text-success-ink">
+      <path d="M2.5 6.2l2.3 2.3 4.7-5" fill="none" className="stroke-current" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function InfoGlyph({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 14 14" aria-hidden className={cx("size-3.5 shrink-0 text-smoke", className)}>

@@ -84,7 +84,7 @@ function currentDayInTimezone(now: Date, timezone: string): DayOfWeek {
   return DAY_ORDER[dayOfWeek === 0 ? 6 : dayOfWeek - 1];
 }
 
-function newestApprovedSnapshots(snapshots: ApprovedAnalyticsSnapshot[]) {
+export function newestApprovedSnapshots(snapshots: ApprovedAnalyticsSnapshot[]) {
   return [...snapshots].sort((a, b) => b.approvedAt.localeCompare(a.approvedAt) || a.id.localeCompare(b.id));
 }
 

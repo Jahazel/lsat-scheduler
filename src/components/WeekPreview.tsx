@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { DayOfWeek } from "@/lib/types";
 
 export interface WeekTile {
@@ -50,7 +51,7 @@ export interface DrillItem {
   detail: { kind: "accuracy" | "flag"; text: string } | null;
 }
 
-export function DrillList({ title, tag, items }: { title: string; tag: string; items: DrillItem[] }) {
+export function DrillList({ title, tag, items }: { title: ReactNode; tag: string; items: DrillItem[] }) {
   return (
     <>
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1.5">

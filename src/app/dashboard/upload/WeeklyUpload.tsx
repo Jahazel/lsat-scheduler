@@ -6,7 +6,7 @@ import { DrillList, WeekTiles } from "@/components/WeekPreview";
 import { Button } from "@/components/ui/Button";
 import { DropZone } from "@/components/ui/DropZone";
 import { FileRow, ProblemNote } from "@/components/ui/FileRow";
-import { InfoGlyph } from "@/components/ui/StatusIcon";
+import { CheckGlyph, InfoGlyph } from "@/components/ui/StatusIcon";
 import { TextInput } from "@/components/ui/TextInput";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { readSection as addAnalyticsSection, SECTION_NAME, SECTIONS, type SnapshotReview } from "@/lib/analyticsReview";
@@ -44,6 +44,7 @@ interface Upload<T> { id: number; file: File; read: Read<T> }
 type AnalyticsUpload = Upload<{ rows: AnalyticsExtractedRow[]; at: string }>;
 type SectionUpload = Upload<SectionReading>;
 type RowProblem = Exclude<PracticeTestProblem, { problem: "section-missing" | "hidden-pick" }>;
+interface UploadPick { upload: number; missed: number[] }
 
 export interface WeeklyUploadRead {
   currentScore: number;
@@ -64,7 +65,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   const [sections, setSections] = useState<SectionUpload[]>([]);
   const [rejections, setRejections] = useState<Record<string, string>>({});
   const [started, setStarted] = useState(false);
-  const [picks, setPicks] = useState<HiddenPick[]>([]);
+  const [picks, setPicks] = useState<UploadPick[]>([]);
   const nextId = useRef(0);
 
   const reject = (key: string, message: string | null) =>
@@ -140,9 +141,14 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   const scoreError = score === null ? SCORE_ERROR : undefined;
 
   const readSections = sections.flatMap((upload) => (upload.read.status === "read" ? [{ upload, reading: upload.read.value }] : []));
-  const sectionsSettled = started && readSections.length === sections.length;
+  const sectionsSettled = started && sections.every(({ read }) => read.status !== "added" && read.status !== "reading");
+  const anyUnreadable = readSections.length < sections.length;
   const readings = readSections.map(({ reading }) => reading);
-  const review = needsSections && sectionsSettled ? reviewPracticeTest(readings, picks) : null;
+  const hiddenPicks = readSections.flatMap(({ upload, reading }): HiddenPick[] => {
+    const pick = picks.find((entry) => entry.upload === upload.id);
+    return pick && reading.page === "section_review" ? [{ section: reading.section, missed: pick.missed }] : [];
+  });
+  const review = needsSections && sectionsSettled ? reviewPracticeTest(readings, hiddenPicks) : null;
   const unpicked = needsSections && sectionsSettled ? reviewPracticeTest(readings) : null;
   const problems = review && !review.ok ? review.problems : [];
   const rowProblem = new Map(problems.flatMap((problem) =>
@@ -226,7 +232,11 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
             : "From your study settings. Type a new score if your latest practice test changed it. We save it there too."}
         />
 
-        <UploadGroup title="7Sage analytics" count="2 screenshots">
+        {found && (
+          <ReadSummary analytics={analytics} sections={sections} onAnalytics={addAnalytics} onReplace={replaceSection} />
+        )}
+
+        <UploadGroup title="7Sage analytics" count="2 screenshots" className={found ? "max-md:hidden" : undefined}>
           {SECTIONS.map((section) => (
             <AnalyticsRow
               key={section}
@@ -240,7 +250,11 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
         </UploadGroup>
 
         {needsSections ? (
-          <UploadGroup title="Practice test review" count={<><span className="md:hidden">One per section</span><span className="hidden md:inline">4 screenshots, one per section</span></>}>
+          <UploadGroup
+            title="Practice test review"
+            count={<><span className="md:hidden">One per section</span><span className="hidden md:inline">4 screenshots, one per section</span></>}
+            className={found ? "max-md:hidden" : undefined}
+          >
             {!started ? (
               <>
                 {sections.length < SECTION_COUNT && (
@@ -279,7 +293,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
               <SectionRows
                 sections={sections}
                 rowProblem={rowProblem}
-                missing={sectionsSettled ? missing : []}
+                missing={anyUnreadable ? [] : missing}
                 rejections={rejections}
                 pickQuestions={pickQuestions}
                 picks={picks}
@@ -330,15 +344,56 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   );
 }
 
-function UploadGroup({ title, count, children }: { title: string; count: ReactNode; children: ReactNode }) {
+function UploadGroup({ title, count, className, children }: { title: string; count: ReactNode; className?: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-3">
+    <section className={cx("flex flex-col gap-3", className)}>
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="text-body font-semibold text-ink">{title}</h2>
         <span className="text-small text-smoke">{count}</span>
       </div>
       {children}
     </section>
+  );
+}
+
+function ReadSummary({ analytics, sections, onAnalytics, onReplace }: {
+  analytics: Partial<Record<AnalyticsSection, AnalyticsUpload>>;
+  sections: SectionUpload[];
+  onAnalytics: (section: AnalyticsSection, file: File) => void;
+  onReplace: (id: number, file: File) => void;
+}) {
+  const rows = [
+    ...SECTIONS.flatMap((section) => {
+      const upload = analytics[section];
+      return upload?.read.status === "read"
+        ? [{ upload, label: `${section} analytics`, value: `${upload.read.value.rows.length} types`, onFile: (file: File) => onAnalytics(section, file) }]
+        : [];
+    }),
+    ...[...sections].sort((a, b) => sortKey(a) - sortKey(b)).flatMap((upload) => {
+      const reading = upload.read.status === "read" ? upload.read.value : null;
+      return reading?.page === "section_review"
+        ? [{
+          upload,
+          label: `PT ${reading.prepTest} · Section ${reading.section} · ${reading.kind}`,
+          value: formatSectionScore(reading.score),
+          onFile: (file: File) => onReplace(upload.id, file),
+        }]
+        : [];
+    }),
+  ];
+  return (
+    <UploadGroup title="Screenshots" count={`${rows.length} of ${SECTIONS.length + sections.length} read`} className="md:hidden">
+      <ul className="flex flex-col rounded-md border border-vellum-line px-4">
+        {rows.map(({ upload, label, value, onFile }) => (
+          <li key={upload.id} className="flex h-12 items-center gap-2.5 border-b border-vellum-line last:border-b-0">
+            <span className="flex w-3.5 shrink-0"><CheckGlyph /></span>
+            <span className="min-w-0 grow truncate text-small text-ink">{label}</span>
+            <span className="shrink-0 text-small text-smoke">{value}</span>
+            <span className="flex w-14 shrink-0 justify-end"><ReplaceButton file={upload.file} onFile={onFile} /></span>
+          </li>
+        ))}
+      </ul>
+    </UploadGroup>
   );
 }
 
@@ -365,18 +420,10 @@ function ReplaceButton({ file, onFile, className }: { file: File; onFile: (file:
   );
 }
 
-function CheckMark() {
-  return (
-    <svg aria-hidden viewBox="0 0 12 12" className="size-3 shrink-0 text-success-ink">
-      <path d="M2.5 6.2l2.3 2.3 4.7-5" fill="none" className="stroke-current" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function Detail({ children, read = false, problem = false }: { children: ReactNode; read?: boolean; problem?: boolean }) {
   return (
     <span aria-live="polite" className={cx("flex min-w-0 items-center gap-1.5", problem ? "text-danger-ink" : "text-smoke")}>
-      {read && <CheckMark />}
+      {read && <CheckGlyph />}
       <span className="truncate">{children}</span>
     </span>
   );
@@ -422,8 +469,8 @@ function SectionRows({ sections, rowProblem, missing, rejections, pickQuestions,
   missing: number[];
   rejections: Record<string, string>;
   pickQuestions: PickQuestion[];
-  picks: HiddenPick[];
-  onPick: (picks: HiddenPick[]) => void;
+  picks: UploadPick[];
+  onPick: (picks: UploadPick[]) => void;
   onReplace: (id: number, file: File) => void;
   onRemove: (id: number) => void;
   onAddMissing: (section: number, file: File) => void;
@@ -507,16 +554,17 @@ const questionList = (questions: number[]) => {
   return names.length <= 2 ? names.join(" and ") : `${names.slice(0, -1).join(", ")}, and ${names.at(-1)}`;
 };
 
-function HiddenPickBox({ question, picks, onPick }: { question: PickQuestion; picks: HiddenPick[]; onPick: (picks: HiddenPick[]) => void }) {
+function HiddenPickBox({ question, picks, onPick }: { question: PickQuestion; picks: UploadPick[]; onPick: (picks: UploadPick[]) => void }) {
   const titleId = useId();
   const reading = question.upload.read.status === "read" ? question.upload.read.value : null;
   const score = reading?.page === "section_review" ? reading.score : 0;
-  const chosen = picks.find((pick) => pick.section === question.section)?.missed ?? [];
+  const upload = question.upload.id;
+  const chosen = picks.find((pick) => pick.upload === upload)?.missed ?? [];
   const choose = (number: number) => {
     const missed = chosen.includes(number)
       ? chosen.filter((picked) => picked !== number)
       : question.pick === 1 ? [number] : [...chosen, number].slice(-question.pick);
-    onPick([...picks.filter((pick) => pick.section !== question.section), { section: question.section, missed }]);
+    onPick([...picks.filter((pick) => pick.upload !== upload), { upload, missed }]);
   };
   return (
     <div role="group" aria-labelledby={titleId} className="flex flex-col gap-3.5 rounded-md border border-accent bg-accent/4 p-4">
@@ -565,30 +613,35 @@ function WhatWeFound({ result, analytics, goesFirst, score }: {
   return (
     <section aria-label="What we found" className="flex flex-col gap-4 lg:rounded-md lg:bg-paper lg:p-7 lg:shadow-e2">
       <div className="flex flex-col gap-1.5">
-        <p className="text-small text-smoke">What we found · practice test {result.prepTest}{score !== null && ` · score ${score}`}</p>
-        <h2 className="text-h4 font-semibold text-ink">
+        <p className="text-small text-smoke max-md:hidden">What we found · practice test {result.prepTest}{score !== null && ` · score ${score}`}</p>
+        <h2 className="text-h5 font-semibold text-ink md:text-h4">
           {types.length > 0 ? `${types[0].type} goes first next week.` : "No question type goes first next week."}
         </h2>
         <p className="text-small text-smoke">
           {types.length > 0
-            ? missedCountSentence(types, analytics)
+            ? <><span className="md:hidden">Practice test {result.prepTest}. </span>{missedCountSentence(types, analytics)}</>
             : `You missed no Logical Reasoning question on practice test ${result.prepTest}.`}
         </p>
       </div>
       {types.length > 0 && (
         <ul className="flex flex-col border-t border-vellum-line">
           {shown.map(({ type, misses }, index) => (
-            <li key={type} className="flex flex-col gap-1 border-b border-vellum-line py-2.5 sm:flex-row sm:items-center sm:gap-3">
+            <li
+              key={type}
+              className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 border-b border-vellum-line py-2.5 sm:flex sm:items-center"
+            >
               <span className={cx("min-w-0 flex-1 text-small text-ink", index === 0 && "font-medium")}>{type}</span>
-              <span className="font-mono text-caption text-smoke sm:w-40">{misses.map(missLabel).join(" · ")}</span>
-              <span className={cx("text-small sm:w-18 sm:text-right", index === 0 ? "font-semibold text-ink" : "text-smoke")}>{misses.length} missed</span>
+              <span className="col-start-1 font-mono text-caption text-smoke sm:w-40">{misses.map(missLabel).join(" · ")}</span>
+              <span className={cx("col-start-2 row-start-1 text-right text-small sm:w-18", index === 0 ? "font-semibold text-ink" : "text-smoke")}>
+                {misses.length} missed
+              </span>
             </li>
           ))}
         </ul>
       )}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="flex items-center gap-2 text-small text-ink">
-          <CheckMark />
+          <CheckGlyph />
           {result.missedQuestions} missed in all · each section matches its 7Sage score
         </p>
         {types.length > TOP_TYPES && (
@@ -613,9 +666,13 @@ function NextWeek({ schedule, goesFirst }: { schedule: WeeklySchedule; goesFirst
         <span className="text-small text-smoke">{weekSummary(schedule)}</span>
       </p>
       <WeekTiles className="hidden md:flex" days={weekTiles(schedule)} highlight={drills?.day ?? null} />
-      <div className="flex flex-col gap-2.5 rounded-sm border border-vellum-line bg-paper p-5">
+      <div className="flex flex-col gap-2.5 rounded-sm border border-vellum-line bg-paper p-4 md:p-5">
         {drills ? (
-          <DrillList title={`${DAY_LABEL[drills.day]}'s drills`} tag="Read from your screenshots · not confirmed" items={drills.items} />
+          <DrillList
+            title={<>{DAY_LABEL[drills.day]}&apos;s drills<span className="md:hidden"> · {drills.date}</span></>}
+            tag="Read from your screenshots · not confirmed"
+            items={drills.items}
+          />
         ) : (
           <p className="text-small text-smoke">Next week has no drilling day.</p>
         )}

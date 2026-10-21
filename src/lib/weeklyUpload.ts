@@ -1,5 +1,5 @@
 import { summarizeAnalyticsRows } from "./analytics";
-import { currentWeekInTimezone, weightedTrend } from "./currentWeeklySchedule";
+import { currentWeekInTimezone, newestApprovedSnapshots, weightedTrend } from "./currentWeeklySchedule";
 import { DAY_ORDER, generateWeek } from "./engine";
 import { activityLabel } from "./activityLabel";
 import { formatDuration, shortDuration } from "./formatDuration";
@@ -37,8 +37,7 @@ export function nextWeekBasis({ now, timezone, student, schedules, snapshots }: 
     weekOf: isoDateInWeek(currentWeek, 7),
     student,
     hadPracticeTest: DAY_ORDER.some((day) => current?.days[day].activities.some((activity) => activity.kind === "PT") ?? false),
-    priorSnapshots: [...snapshots]
-      .sort((a, b) => b.approvedAt.localeCompare(a.approvedAt) || a.id.localeCompare(b.id))
+    priorSnapshots: newestApprovedSnapshots(snapshots)
       .slice(0, TREND_WINDOW - 1)
       .map(({ id, approvedAt, weekOf, lrAccuracyByType, lrTopPriorityLogicTypes, rcAccuracyByType }) =>
         ({ id, approvedAt, weekOf, lrAccuracyByType, lrTopPriorityLogicTypes, ...(rcAccuracyByType && { rcAccuracyByType }) })),
@@ -111,9 +110,11 @@ export function firstDrills(schedule: WeeklySchedule, goesFirst: LRStemType | un
   const day = DAY_ORDER.find((weekday) => schedule.days[weekday].type === "drill" && schedule.days[weekday].activities.length > 0);
   if (!day) return null;
   const activities = schedule.days[day].activities;
+  const date = isoDateInWeek(schedule.weekOf, DAY_ORDER.indexOf(day));
   const flagged = activities.findIndex((activity) => goesFirst !== undefined && activity.kind === "LR" && !activity.isFullSection && activity.types.includes(goesFirst));
   return {
     day,
+    date: `${monthShort(date)} ${dayOfMonth(date)}`,
     items: activities.map((activity, index) => ({
       label: activityLabel(activity),
       detail: index === flagged ? { kind: "flag" as const, text: "Goes first" } : null,

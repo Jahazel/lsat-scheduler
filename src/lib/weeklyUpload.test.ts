@@ -41,6 +41,17 @@ describe("nextWeekBasis", () => {
     expect(basisAt(saturday, [savedWeek("2026-09-21")]).hadPracticeTest).toBe(false);
   });
 
+  it("keeps the 2 newest approved snapshots, breaking a tie by id", () => {
+    const snapshot = (id: string, approvedAt: string) => ({ ...mockAnalytics, id, approvedAt });
+    const snapshots = [
+      snapshot("old", "2026-09-20T12:00:00.000Z"),
+      snapshot("tie-b", "2026-09-27T12:00:00.000Z"),
+      snapshot("tie-a", "2026-09-27T12:00:00.000Z"),
+    ];
+    const basis = nextWeekBasis({ now: saturday, timezone: TIMEZONE, student: mockStudent, schedules: [], snapshots });
+    expect(basis.priorSnapshots.map(({ id }) => id)).toEqual(["tie-a", "tie-b"]);
+  });
+
   it("carries a Sunday practice test into next week's review day", () => {
     const sunday = savedWeek("2026-09-28", { ...mockStudent, preferredPracticeTestDay: "SUNDAY" });
     expect(basisAt(saturday, [sunday]).priorWeekPracticeTestReviewMinutes).toBeGreaterThan(0);

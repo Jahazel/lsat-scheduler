@@ -16,6 +16,7 @@ import { IconButton } from "@/components/ui/Button";
 import { DropZone } from "@/components/ui/DropZone";
 import { FileRow } from "@/components/ui/FileRow";
 import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
+import { CheckGlyph } from "@/components/ui/StatusIcon";
 import { DAY_ORDER } from "@/lib/engine";
 import { SECTION_NAME, SECTIONS, lowestPassageType, type ReviewRow, type SnapshotReview, type Statement } from "@/lib/analyticsReview";
 import { formatDuration } from "@/lib/formatDuration";
@@ -686,11 +687,7 @@ function ScreenshotFileRow({
         title={SECTION_NAME[section]}
         detail={
           <span aria-live="polite" className={`flex min-w-0 items-center gap-1.5 ${problem ? "text-danger-ink" : "text-smoke"}`}>
-            {status === "read" && (
-              <svg aria-hidden viewBox="0 0 12 12" className="size-3 shrink-0 text-success-ink">
-                <path d="M2.5 6.2l2.3 2.3 4.7-5" fill="none" className="stroke-current" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )}
+            {status === "read" && <CheckGlyph />}
             <span className="truncate">
               {screenshot.file.name} · {statusText}
             </span>
