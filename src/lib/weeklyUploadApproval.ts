@@ -62,7 +62,7 @@ function preparePracticeTest(input: unknown, approvedAt: Date, realNow: Date, we
   if (extraction.source === "admin_sample" && !allowAdminSample) {
     throw new SnapshotApprovalError("Admin access required for sample analytics.");
   }
-  const { extractedAt, confirmedAt } = checkApprovalTimes(extraction.source, extraction.extractedAt, confirmation.confirmedAt, realNow, {
+  const { extractedAt, confirmedAt } = checkApprovalTimes(parsed.data, realNow, {
     stale: "Upload fresh practice-test screenshots before saving.",
     early: "Confirm the practice test after reviewing it.",
   });

@@ -43,20 +43,21 @@ export interface SnapshotApprovalMetadata {
 export class SnapshotApprovalError extends Error {}
 
 export function checkApprovalTimes(
-  source: "7sage_screenshot" | "admin_sample",
-  extracted: string,
-  confirmed: string,
+  { extraction, confirmation }: {
+    extraction: { source: "7sage_screenshot" | "admin_sample"; extractedAt: string };
+    confirmation: { confirmedAt: string };
+  },
   realNow: Date,
   messages: { stale: string; early: string },
 ) {
-  const extractedAt = new Date(extracted);
+  const extractedAt = new Date(extraction.extractedAt);
   if (realNow.getTime() - extractedAt.getTime() > MAX_EXTRACTION_AGE_MS || extractedAt > realNow) {
     throw new SnapshotApprovalError(messages.stale);
   }
-  const confirmedAt = new Date(confirmed);
+  const confirmedAt = new Date(confirmation.confirmedAt);
   // Samples are generated on the server and confirmed on the browser's clock.
   // Screenshot extraction and confirmation both use the browser's clock.
-  if ((source !== "admin_sample" && confirmedAt < extractedAt) || confirmedAt > realNow) {
+  if ((extraction.source !== "admin_sample" && confirmedAt < extractedAt) || confirmedAt > realNow) {
     throw new SnapshotApprovalError(messages.early);
   }
   return { extractedAt, confirmedAt };
@@ -87,7 +88,7 @@ export function prepareApprovedSnapshot(input: unknown, approvedAt = new Date(),
     throw new SnapshotApprovalError("The reviewed extraction is empty.");
   }
 
-  const { extractedAt, confirmedAt } = checkApprovalTimes(values.extraction.source, values.extraction.extractedAt, values.confirmation.confirmedAt, realNow, {
+  const { extractedAt, confirmedAt } = checkApprovalTimes(values, realNow, {
     stale: values.extraction.source === "admin_sample"
       ? "Generate a new sample analytics snapshot before saving."
       : "Upload a fresh analytics screenshot before saving.",
