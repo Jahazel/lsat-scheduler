@@ -21,10 +21,17 @@ describe("proxy route", () => {
   });
 
   it("tells a browser whose session the check ended that its session ended", () => {
-    expect(proxyRoute("/dashboard", null, true)).toEqual({ kind: "redirect", to: "/login?error=SessionEnded" });
-    expect(proxyRoute("/api/analytics", null, true)).toEqual({ kind: "unauthorized" });
-    expect(proxyRoute("/login", null, true)).toEqual({ kind: "allow" });
-    expect(proxyRoute("/dashboard", student, true)).toEqual({ kind: "allow" });
+    const ended = { sentSessionCookie: true };
+    expect(proxyRoute("/dashboard", null, ended)).toEqual({ kind: "redirect", to: "/login?error=SessionEnded" });
+    expect(proxyRoute("/login", null, ended)).toEqual({ kind: "redirect", to: "/login?error=SessionEnded" });
+    expect(proxyRoute("/api/analytics", null, ended)).toEqual({ kind: "unauthorized" });
+    expect(proxyRoute("/", null, ended)).toEqual({ kind: "allow" });
+    expect(proxyRoute("/dashboard", student, ended)).toEqual({ kind: "allow" });
+  });
+
+  it("keeps Login open when it already shows a reason, so a cookie that stays cannot loop", () => {
+    expect(proxyRoute("/login", null, { sentSessionCookie: true, loginReason: "SessionEnded" })).toEqual({ kind: "allow" });
+    expect(proxyRoute("/login", null, { sentSessionCookie: true, loginReason: "AccessDenied" })).toEqual({ kind: "allow" });
   });
 
   it("reads the Auth.js session cookie on http and https, chunked or whole", () => {

@@ -14,7 +14,7 @@ DrillMap signs people in with Google only. Signup asks for the Terms and Privacy
 
 - On `/`, click `Build my first plan` or the navigation `Sign up` link. Both reach `/signup`.
 - On `/login`, click `Sign up`. On `/signup`, click `Log in`. Public navigation also has `Log in`.
-- Auth.js sends every Google sign-in failure to `/login?error=<type>`. A refused Google sign-in (`AccessDenied`) and any other Auth.js error type show the refusal text. `AccountDisabled` and `SessionEnded` show their own text. The proxy adds `SessionEnded` when the browser sent a session cookie that the current-Account check ended.
+- Auth.js sends every Google sign-in failure to `/login?error=<type>`. A refused Google sign-in (`AccessDenied`) and any other Auth.js error type show the refusal text. `AccountDisabled` and `SessionEnded` show their own text. The proxy adds `SessionEnded` when the browser sent a session cookie that the current-Account check ended, on a protected page or on a direct `/login` visit.
 - In the student workspace, open `Account menu for verify-student@example.test`. Choose `Account` or `Log out`.
 - Direct `/signup`, `/login`, and `/account` links must enforce the same sign-in rules.
 

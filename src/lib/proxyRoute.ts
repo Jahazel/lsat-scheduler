@@ -9,10 +9,17 @@ const SESSION_COOKIE = /^(__Secure-)?authjs\.session-token(\.\d+)?$/;
 
 export const hasSessionCookie = (cookieNames: string[]) => cookieNames.some((name) => SESSION_COOKIE.test(name));
 
-export function proxyRoute(pathname: string, user: { role?: string } | null, sentSessionCookie = false): ProxyRoute {
+type BrowserSession = { sentSessionCookie: boolean; loginReason?: string | null };
+
+export function proxyRoute(
+  pathname: string,
+  user: { role?: string } | null,
+  { sentSessionCookie, loginReason }: BrowserSession = { sentSessionCookie: false },
+): ProxyRoute {
   if (pathname.startsWith("/api/auth")) return { kind: "allow" };
 
   if (!user) {
+    if (pathname === "/login" && sentSessionCookie && !loginReason) return { kind: "redirect", to: SESSION_ENDED_PATH };
     if (PUBLIC_ROUTES.includes(pathname)) return { kind: "allow" };
     return pathname.startsWith("/api/") ? { kind: "unauthorized" } : { kind: "redirect", to: sentSessionCookie ? SESSION_ENDED_PATH : "/login" };
   }

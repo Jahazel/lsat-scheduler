@@ -16,7 +16,7 @@ startup command, migrations, and database tests.
 
 The core student workflow is implemented:
 
-- Google sign-in, with separate student and admin roles. Password sign-in waits for a DrillMap domain (#222).
+- Google sign-in, with separate student and admin roles. Password sign-in waits for a DrillMap domain (#230, ADR 0005).
 - Student signup, onboarding, profile editing, and a weekly dashboard
 - A deterministic scheduling engine with coverage for its rules
 - Append-only approved Analytics snapshots in Postgres

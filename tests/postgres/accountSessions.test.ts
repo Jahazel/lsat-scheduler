@@ -252,6 +252,14 @@ it("a browser that never signed in reaches plain Login, with no ended-session me
   expect(await proxyResponse("/onboarding", null)).toMatchObject({ status: 307, location: "http://localhost:3000/login" });
 });
 
+it("a direct Login visit with an ended session shows the ended-session reason once", async () => {
+  const student = await account("student@example.test");
+  const cookie = await signedIn(student.id);
+  await ownerSql(sql`update accounts set disabled_at = now() where id = ${student.id}`);
+  expect(await proxyResponse("/login", cookie)).toMatchObject({ status: 307, location: "http://localhost:3000/login?error=SessionEnded" });
+  expect(await proxyResponse("/login?error=SessionEnded", cookie)).toEqual({ status: 200, location: null });
+});
+
 it("the same paths work for a fresh session, so the refusal is the session check", async () => {
   const student = await account("student@example.test");
   request.cookie = await signedIn(student.id);

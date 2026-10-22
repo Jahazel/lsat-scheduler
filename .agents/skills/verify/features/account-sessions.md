@@ -27,7 +27,7 @@ Steps:
 
 - Mint two sessions for the student with `local.mjs session` and set one cookie in each browser. Open `/account` in both. Expect the `Account` heading and the student's email in both.
 - Save `records-before.json`. Run `update accounts set disabled_at = now() where email = '<student email>'`. Reload `/account` in each browser. Expect `/login?error=SessionEnded` and "Your session ended. Sign in again." in both. Inspect records and require `disabled_at` set, `session_version` raised by one, and the student's records unchanged.
-- Run `update accounts set disabled_at = null where email = '<student email>'`. Reload the old browsers. Expect plain `/login`: the first refusal cleared the cookie, and the old sessions stay ended. Mint a new session and expect `/account` to open.
+- Run `update accounts set disabled_at = null where email = '<student email>'`. Open `/account` in the old browsers. Expect plain `/login`: the first refusal cleared the cookie, and the old sessions stay ended. Mint a new session and expect `/account` to open.
 - Mint two sessions for the Admin and set one in each browser. Open `/admin` in both. Expect `All students`. Run `update accounts set role = 'student' where email = '<Admin email>'`. Reload `/admin` in each browser. Expect `/login?error=SessionEnded` in both.
 
 ## Gotchas

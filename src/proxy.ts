@@ -5,8 +5,10 @@ import { hasSessionCookie, proxyRoute } from "@/lib/proxyRoute";
 // Whether a signed-in student has completed onboarding yet is checked in
 // the page components themselves (they need the Student record anyway).
 export default auth((req) => {
-  const sentSessionCookie = hasSessionCookie(req.cookies.getAll().map((cookie) => cookie.name));
-  const route = proxyRoute(req.nextUrl.pathname, req.auth?.user ?? null, sentSessionCookie);
+  const route = proxyRoute(req.nextUrl.pathname, req.auth?.user ?? null, {
+    sentSessionCookie: hasSessionCookie(req.cookies.getAll().map((cookie) => cookie.name)),
+    loginReason: req.nextUrl.searchParams.get("error"),
+  });
   switch (route.kind) {
     case "allow":
       return NextResponse.next();
