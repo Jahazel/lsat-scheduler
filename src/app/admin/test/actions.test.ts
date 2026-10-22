@@ -33,11 +33,4 @@ describe("admin test actions", () => {
       expect(mocks.findAccount).not.toHaveBeenCalled();
     },
   );
-  it.each(actions)("rejects a stale admin token", async (action) => {
-    mocks.auth.mockResolvedValue({
-      user: { id: "former-admin", role: "admin" },
-    });
-    mocks.findAccount.mockResolvedValue({ role: "student" });
-    await expect(action()).rejects.toThrow("Admin access required");
-  });
 });

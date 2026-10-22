@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { proxyRoute } from "@/lib/proxyRoute";
 
-// Optimistic checks only — role comes straight off the session cookie, no
-// DB lookups here (Proxy runs on every request, including prefetches).
 // Whether a signed-in student has completed onboarding yet is checked in
 // the page components themselves (they need the Student record anyway).
 export default auth((req) => {

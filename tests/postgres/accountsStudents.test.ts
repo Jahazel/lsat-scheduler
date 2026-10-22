@@ -8,7 +8,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { createAppTestDatabase } from "./appTestDatabase";
 import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
 import { findAccountByEmail, createAccount } from "../../src/lib/accountRepository";
-import { authorizeCredentials, createGoogleAccountOnSignIn, accountToken } from "../../src/lib/authAccounts";
+import { authorizeCredentials, createGoogleAccountOnSignIn } from "../../src/lib/authAccounts";
+import { accountSessionToken } from "../../src/lib/accountSession";
 import { findStudentByAccountId } from "../../src/lib/studentRepository";
 import type { Student } from "../../src/lib/types";
 
@@ -146,7 +147,7 @@ function googleSignIn(id: string, email: string, profile: Record<string, unknown
   });
 }
 function googleToken(id: string, email: string) {
-  return accountToken({
+  return accountSessionToken({
     token: {}, user: { email },
     account: { provider: "google", providerAccountId: id, type: "oidc" },
   });
@@ -246,6 +247,15 @@ it("password sign-in refuses every Admin, with a stored hash or none", async () 
   expect(await authorizeCredentials({ email: "admin@example.test", password: "throwawayPassword123" })).toBeNull();
 });
 
+it("password sign-in refuses a Disabled Account with the ordinary login message", async () => {
+  await signup({}, signupForm());
+  await database.owner.execute(sql`update accounts set disabled_at = now() where email = 'student@example.test'`);
+  expect(await authorizeCredentials({ email: "student@example.test", password: "throwawayPassword123" })).toBeNull();
+  request.session = null;
+  expect(await login({}, signupForm())).toEqual({ error: "Invalid email or password." });
+  expect(request.session).toBeNull();
+});
+
 it("owner Admin grant needs a Google identity, clears the password, and a fresh Google sign-in opens Admin access", async () => {
   await signup({}, signupForm("admin@example.test"));
   const refused = await makeAdmin("admin@example.test").then(() => null, (error: unknown) => error);
@@ -329,9 +339,8 @@ it("Admin checks and simulated dates use the current Account role", async () => 
   expect(await studentSideClock(admin, real)).toMatchObject({ simulated: true });
   expect(await studentSideClock(student, real)).toMatchObject({ simulated: false, now: real });
   await getPostgresDatabase().execute(sql`update accounts set role = 'student' where id = ${admin.id}`);
-  await expect(requireCurrentAdmin()).rejects.toThrow("Admin access required");
   expect(await postgresAdminClock.moveDate(admin.id, "2026-10-19", "2026-10-20")).toBe(false);
-  session({ ...student, role: "admin" });
+  session(student);
   await expect(requireCurrentAdmin()).rejects.toThrow("Admin access required");
   request.session = null;
   await expect(requireCurrentAdmin()).rejects.toThrow("Admin access required");

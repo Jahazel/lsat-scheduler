@@ -61,13 +61,14 @@ describe("issue 70 request boundary evidence", () => {
     expect(mocks.connectDB).not.toHaveBeenCalled();
   });
 
-  it("allows roster and individual reads with a stale admin claim, while the admin action guard rejects it", async () => {
-    mocks.auth.mockResolvedValue({ user: { id: "synthetic-demoted-admin", role: "admin" } });
+  it("fixed in issue 225: roster reads, individual reads, and the admin action guard all use the session role", async () => {
+    mocks.auth.mockResolvedValue({ user: { id: "synthetic-admin", role: "admin" } });
     expect((await roster()).status).toBe(200);
     expect((await student(new Request("http://localhost/api/students/synthetic-student"), { params: Promise.resolve({ id: "synthetic-student" }) })).status).toBe(200);
-    expect(mocks.findAccountById).not.toHaveBeenCalled();
+    expect(await requireCurrentAdmin()).toBe("synthetic-admin");
+    mocks.auth.mockResolvedValue({ user: { id: "synthetic-student", role: "student" } });
     await expect(requireCurrentAdmin()).rejects.toThrow("Admin access required");
-    expect(mocks.findAccountById).toHaveBeenCalledWith("synthetic-demoted-admin");
+    expect(mocks.findAccountById).not.toHaveBeenCalled();
   });
 
   it("the extraction handler itself calls Anthropic without authentication", async () => {

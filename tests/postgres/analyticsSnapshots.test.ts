@@ -131,9 +131,8 @@ it("generates an admin Sample analytics snapshot with all five passage types", a
   const next = await generateTestSample("steady");
   expect(next.rows.length).toBeGreaterThan(0);
 });
-it.each(["student", "stale-admin"])("refuses to generate Sample analytics snapshots for a %s", async (role) => {
+it("refuses to generate Sample analytics snapshots for a student", async () => {
   await student("student@example.test");
-  if (role === "stale-admin" && state.session?.user) state.session.user.role = "admin";
   await expect(generateTestSample("steady")).rejects.toThrow();
 });
 it("resets only the admin's test snapshots and keeps the other student's approved snapshots", async () => {

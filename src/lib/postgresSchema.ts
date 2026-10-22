@@ -23,6 +23,8 @@ export const accounts = pgTable("accounts", {
   googleId: text("google_id").unique(),
   role: text("role", { enum: ["student", "admin"] }).notNull().default("student"),
   simulatedDate: date("simulated_date", { mode: "string" }),
+  disabledAt: timestamp("disabled_at", { withTimezone: true }),
+  sessionVersion: integer("session_version").notNull().default(0),
 });
 
 const dailyCapacity = (name: string) => numeric(name, { mode: "number" }).notNull();

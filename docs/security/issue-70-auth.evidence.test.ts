@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 const mocks = vi.hoisted(() => ({
   config: null as NextAuthConfig | null,
   findAccount: vi.fn(),
+  findAccountById: vi.fn(),
   findGoogleAccount: vi.fn(),
   createAccount: vi.fn(),
 }));
@@ -15,7 +16,8 @@ vi.mock("next-auth", () => ({
   },
 }));
 vi.mock("@/lib/accountRepository", () => ({
-  findAccountByEmail: mocks.findAccount, findAccountByGoogleId: mocks.findGoogleAccount, createAccount: mocks.createAccount,
+  findAccountByEmail: mocks.findAccount, findAccountById: mocks.findAccountById,
+  findAccountByGoogleId: mocks.findGoogleAccount, createAccount: mocks.createAccount,
 }));
 import "@/auth";
 
@@ -43,7 +45,7 @@ describe("issue 70 authentication evidence", () => {
     const signIn = config().callbacks!.signIn!;
     expect(await signIn({ user, account, profile: { sub: user.id, email_verified: false } })).toBe(false);
     expect(mocks.createAccount).not.toHaveBeenCalled();
-    mocks.findGoogleAccount.mockResolvedValue({ id: "synthetic-admin", role: "admin" });
+    mocks.findGoogleAccount.mockResolvedValue({ id: "synthetic-admin", role: "admin", disabledAt: null, sessionVersion: 0 });
     const token = await config().callbacks!.jwt!({
       token: {}, user, account, trigger: "signIn", profile: { email_verified: true },
     });
@@ -52,12 +54,15 @@ describe("issue 70 authentication evidence", () => {
     expect(mocks.findAccount).not.toHaveBeenCalled();
   });
 
-  it("retains a deleted or demoted user's token claims on subsequent session access", async () => {
-    const token = { id: "synthetic-deleted-admin", role: "admin" };
+  it("fixed in issue 225: ends a deleted or demoted user's session on the next session access", async () => {
+    const token = { id: "synthetic-admin", role: "admin" as const, sessionVersion: 0, signedInAt: Math.floor(Date.now() / 1000) };
     // Auth.js omits user on session refresh, despite declaring it required.
-    const result = await config().callbacks!.jwt!({ token } as unknown as Parameters<NonNullable<NonNullable<NextAuthConfig["callbacks"]>["jwt"]>>[0]);
-    expect(result).toEqual(token);
-    expect(mocks.findAccount).not.toHaveBeenCalled();
+    const refresh = () => config().callbacks!.jwt!({ token } as unknown as Parameters<NonNullable<NonNullable<NextAuthConfig["callbacks"]>["jwt"]>>[0]);
+    mocks.findAccountById.mockResolvedValue(null);
+    expect(await refresh()).toBeNull();
+    mocks.findAccountById.mockResolvedValue({ id: token.id, role: "student", disabledAt: null, sessionVersion: 1 });
+    expect(await refresh()).toBeNull();
+    expect(mocks.findAccountById).toHaveBeenCalledWith("synthetic-admin");
   });
 
   it("bcrypt ignores differences after the first 72 bytes of an accepted long password", async () => {
