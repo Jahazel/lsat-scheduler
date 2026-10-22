@@ -16,7 +16,7 @@ startup command, migrations, and database tests.
 
 The core student workflow is implemented:
 
-- Email/password and Google sign-in, with separate student and admin roles
+- Google sign-in, with separate student and admin roles. Password sign-in waits for a DrillMap domain (#222).
 - Student signup, onboarding, profile editing, and a weekly dashboard
 - A deterministic scheduling engine with coverage for its rules
 - Append-only approved Analytics snapshots in Postgres
@@ -140,11 +140,12 @@ credential is a secret that gives access, such as a password or an API key.
    sign-in works only at `http://localhost:3000`, not at `127.0.0.1`. Use
    `npm run dev` when you set `SCREENSHOT_EXTRACTOR` yourself.
 
-   Open `http://localhost:3000`. The local database starts empty. Sign up locally
-   to create your Account. Do not copy real students' records into it.
+   Open `http://localhost:3000`. The local database starts empty. Sign up with
+   Google to create your Account. This needs a local Google client in `.env.local`.
+   Without one, use the verify helper's minted session cookies
+   (`.agents/skills/verify/SKILL.md`). Do not copy real students' records into it.
 
-5. Admins sign in only with Google and never with a password. Sign in once with
-   Google locally, which needs a local Google client in `.env.local`. Then, in
+5. Sign in once with Google locally. Then, in
    another terminal, make that local Account an Admin. `make-admin` refuses an
    Account that has not signed in with Google, and it clears any password. It reads
    `DATABASE_URL` from the terminal environment, so pass the local value explicitly:
@@ -167,22 +168,6 @@ npm run build   # create a production build
 npm run start   # run a production build
 ```
 
-Create a local test Account for email-and-password sign-in:
-
-```bash
-npm run create-test-user               # student@test.local, role student
-npm run create-test-user -- --email parallel@test.local
-```
-
-The command reads `.env.local` and prints the email, fixed test password, and
-role. Sign in at `/login`. A new student reaches onboarding. The command makes
-no Admin, because an Admin signs in only with Google. Each run resets the
-Account's password. Existing Accounts
-keep their names, Study settings, and Weekly schedules. The command creates
-only an Account, with no Study settings or Weekly schedules. Use a separate
-`--email` for each parallel test run. It refuses `NODE_ENV=production` before
-connecting.
-
 Delete every student from the local database:
 
 ```bash
@@ -194,7 +179,7 @@ and Activity check-ins in one transaction. Accounts and leads stay, so each
 person signs in and goes through onboarding again. Without `--yes`, it stops
 and names what it would delete. It refuses `NODE_ENV=production` before connecting.
 
-The reset, `make-admin`, `create-test-user`, and `db:migrate` commands read
+The reset, `make-admin`, and `db:migrate` commands read
 `postgres://` and `postgresql://` strings only. They allow database hosts
 `localhost`, `127.0.0.1`, and `::1`. They check every host in the address and
 in the `host` and `hostaddr` query settings, even when the address has no host.
