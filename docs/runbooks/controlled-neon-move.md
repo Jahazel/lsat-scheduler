@@ -260,6 +260,9 @@ Check the actual project controls before following them.
 
 ## Recovery
 
+The Atlas project was deleted on 2026-10-22 UTC (#147). The first three rows below
+no longer apply. Only the Neon restore row remains.
+
 | State | Safe recovery action |
 | --- | --- |
 | Before domain assignment | Stop. Keep or restore the old MongoDB deployment on the domain. Reopen old writes only after the owner confirms no Postgres writes occurred and approves restoring old access. Repeat inventory before a later attempt. |
