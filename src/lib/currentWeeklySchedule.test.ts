@@ -5,6 +5,7 @@ import {
   loadOrGenerateCurrentWeek,
   showsUploadReminder,
   weekWithoutPlan,
+  weeklyUploadIsOpen,
 } from "./currentWeeklySchedule";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "./mockData";
 import { generateWeek } from "./engine";
@@ -609,12 +610,24 @@ describe("weekWithoutPlan", () => {
   const timezone = "America/Chicago";
   const saturday = new Date("2026-09-19T17:00:00.000Z");
 
-  it("asks for this week's upload from Monday to Friday", () => {
-    expect(weekWithoutPlan([], new Date("2026-09-17T15:00:00.000Z"), timezone)).toBe("upload_for_this_week");
+  it("opens the weekly upload from Monday to Friday", () => {
+    expect(weekWithoutPlan([], new Date("2026-09-17T15:00:00.000Z"), timezone)).toBe("weekly_upload");
   });
 
-  it("asks for next week's upload on the weekend, then says the plan starts Monday once it is approved", () => {
-    expect(weekWithoutPlan([], saturday, timezone)).toBe("upload_for_next_week");
+  it("opens the weekly upload on the weekend, then says the plan starts Monday once it is approved", () => {
+    expect(weekWithoutPlan([], saturday, timezone)).toBe("weekly_upload");
     expect(weekWithoutPlan([approvedSnapshot("saturday", "2026-09-19T16:00:00.000Z")], saturday, timezone)).toBe("plan_starts_monday");
+  });
+});
+
+describe("weeklyUploadIsOpen", () => {
+  const timezone = "America/Chicago";
+  const wednesday = new Date("2026-09-16T15:00:00.000Z");
+  const saturday = new Date("2026-09-19T17:00:00.000Z");
+
+  it("stays open all weekend, and from Monday to Friday only until the week has a weekly schedule", () => {
+    expect(weeklyUploadIsOpen(saturday, timezone, true)).toBe(true);
+    expect(weeklyUploadIsOpen(wednesday, timezone, false)).toBe(true);
+    expect(weeklyUploadIsOpen(wednesday, timezone, true)).toBe(false);
   });
 });

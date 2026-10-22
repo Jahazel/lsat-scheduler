@@ -93,10 +93,6 @@ export function lowestPassageType(review: SnapshotReview): RCType | null {
   return passages[0]?.type ?? null;
 }
 
-export function hasSection(review: SnapshotReview | null, section: AnalyticsSection) {
-  return review?.rows.some(({ row }) => sectionOf(row) === section) ?? false;
-}
-
 function withRowsUnconfirmed(review: SnapshotReview, rows: ReviewRow[]): SnapshotReview {
   return { ...review, rows, confirmation: UNCONFIRMED };
 }

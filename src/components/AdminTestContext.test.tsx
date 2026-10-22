@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import { AdminTestProvider, SampleReviewSlot, useAdminTest } from "./AdminTestContext";
-
-vi.mock("@/app/dashboard/AnalyticsUploader", () => ({ default: () => null }));
+import { AdminTestProvider, CurrentWeekReport, useAdminTest } from "./AdminTestContext";
 
 afterEach(cleanup);
 
@@ -15,7 +13,7 @@ function CurrentWeekStatus() {
 it("keeps This week's weekly schedule status when This week closes", () => {
   const view = render(
     <AdminTestProvider>
-      <SampleReviewSlot week="2026-10-05" hasSchedule>Review</SampleReviewSlot>
+      <CurrentWeekReport week="2026-10-05" hasSchedule />
       <CurrentWeekStatus />
     </AdminTestProvider>,
   );

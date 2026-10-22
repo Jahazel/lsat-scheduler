@@ -9,7 +9,6 @@ import {
 } from "react";
 import type { SectionReview } from "@/lib/practiceTestResult";
 import type { AnalyticsExtractedRow } from "@/lib/types";
-import AnalyticsUploader from "@/app/dashboard/AnalyticsUploader";
 
 export interface SampleDraft {
   rows: AnalyticsExtractedRow[];
@@ -45,32 +44,10 @@ export function AdminTestProvider({ children }: { children: ReactNode }) {
 
 export const useAdminTest = () => useContext(AdminTestContext);
 
-export function UploaderFrame({ children }: { children: ReactNode }) {
-  return <div className="px-6 py-12"><div className="mx-auto max-w-3xl">{children}</div></div>;
-}
-
-export function SampleReviewSlot({
-  children,
-  week,
-  hasSchedule,
-}: {
-  children: ReactNode;
-  week: string;
-  hasSchedule: boolean;
-}) {
-  const { sample, setSample, setCurrentWeek } = useAdminTest();
+export function CurrentWeekReport({ week, hasSchedule }: { week: string; hasSchedule: boolean }) {
+  const { setCurrentWeek } = useAdminTest();
   useEffect(() => {
     setCurrentWeek({ week, exists: hasSchedule });
   }, [week, hasSchedule, setCurrentWeek]);
-  return sample ? (
-    <UploaderFrame>
-      <AnalyticsUploader
-        key={sample.extractedAt}
-        sample={sample}
-        onSampleDone={() => setSample(null)}
-      />
-    </UploaderFrame>
-  ) : (
-    children
-  );
+  return null;
 }

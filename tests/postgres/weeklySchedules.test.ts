@@ -172,13 +172,13 @@ it("cannot update a saved schedule as either the app role or database owner", as
   expect(await listWeeklySchedulesForStudent(saved.id)).toEqual([schedule]);
 });
 
-it.each(["student", "admin"] as const)("shows This week for a %s and requires fresh analytics for a new week", async (role) => {
+it.each(["student", "admin"] as const)("shows This week for a %s and opens the weekly upload for a new week", async (role) => {
   const { saved } = await student("student@example.test", role);
-  expect(renderToStaticMarkup(await dashboard())).toContain("Add your latest analytics snapshot");
+  await expect(dashboard()).rejects.toThrow("redirect:/dashboard/upload");
   await approve(saved.id);
   expect(renderToStaticMarkup(await dashboard())).toContain("Your plan for this week");
   vi.setSystemTime(new Date("2026-10-19T16:00:00Z"));
-  expect(renderToStaticMarkup(await dashboard())).toContain("Add your latest analytics snapshot");
+  await expect(dashboard()).rejects.toThrow("redirect:/dashboard/upload");
   expect(await listWeeklySchedulesForStudent(saved.id)).toHaveLength(1);
 });
 

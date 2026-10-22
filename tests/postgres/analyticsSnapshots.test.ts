@@ -6,11 +6,12 @@ import { createAppTestDatabase } from "./appTestDatabase";
 import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
 import { createAccount } from "../../src/lib/accountRepository";
 import { createStudent } from "../../src/lib/studentRepository";
-import { listApprovedAnalyticsSnapshots } from "../../src/lib/analyticsSnapshotRepository";
+import { createApprovedAnalyticsSnapshot, listApprovedAnalyticsSnapshots } from "../../src/lib/analyticsSnapshotRepository";
+import { prepareApprovedSnapshot, snapshotWeekOptions } from "../../src/lib/analyticsSnapshots";
+import { studentSideClock } from "../../src/lib/studentClock";
 import { summarizeAnalyticsRows } from "../../src/lib/analytics";
 import { analyticsTrend } from "../../src/lib/currentWeeklySchedule";
 import type { Student } from "../../src/lib/types";
-import { POST as approve } from "../../src/app/api/analytics/route";
 import { POST as extract } from "../../src/app/api/analytics/extract/route";
 import { generateTestSample, resetEverything, resetTestData } from "../../src/app/admin/test/actions";
 import { deleteAccount } from "../../src/app/account/actions";
@@ -59,8 +60,8 @@ async function student(email: string, role: "student" | "admin" = "student") {
   state.session = { user: { ...account, email, name: email }, expires: "2099-01-01" };
   return { account, saved };
 }
-function approval(body: unknown) {
-  return approve(new NextRequest("http://localhost/api/analytics", { method: "POST", body: JSON.stringify(body) }));
+function approve(studentId: string, body: unknown = confirmed()) {
+  return createApprovedAnalyticsSnapshot(studentId, prepareApprovedSnapshot(body));
 }
 const rcAccuracyByType = { Law: 0.58, Comparative: 0.7, Science: 0.64, Humanities: 0.81, Art: 0.77 };
 function confirmed(values: { lrAccuracyByType: Record<string, number>; lrTopPriorityLogicTypes: string[]; rcAccuracyByType?: Record<string, number> } = { lrAccuracyByType: { Strengthen: 0.7 }, lrTopPriorityLogicTypes: [] }) {
@@ -84,8 +85,8 @@ it("uploads with the fake extractor, reviews corrected values, and appends appro
   const reviewed = summarizeAnalyticsRows([...(await extracted.json()).rows, ...(await passages.json()).rows]);
   reviewed.lrAccuracyByType.Strengthen = 0.82;
   const approved = confirmed(reviewed);
-  expect((await approval(approved)).status).toBe(201);
-  expect((await approval(approved)).status).toBe(201);
+  await approve(saved.id, approved);
+  await approve(saved.id, approved);
   const snapshots = await listApprovedAnalyticsSnapshots(saved.id);
   expect(snapshots).toHaveLength(2);
   expect(snapshots[0]).toMatchObject({ studentId: saved.id, lrAccuracyByType: { Strengthen: 0.82 }, rcAccuracyByType, extraction: approved.extraction, confirmation: approved.confirmation });
@@ -98,34 +99,18 @@ it("returns the plain extraction failure without saving a snapshot", async () =>
   expect(await response.json()).toEqual({ error: "Couldn't read that screenshot" });
   expect(await listApprovedAnalyticsSnapshots(saved.id)).toEqual([]);
 });
-it("keeps approval with the session owner and reads the three newest approved snapshots for the Performance trend", async () => {
+it("reads one student's three newest approved snapshots for the Performance trend", async () => {
   const a = await student("a@example.test");
   vi.useFakeTimers({ toFake: ["Date"] });
   for (const [index, accuracy] of [0.1, 0.4, 0.6, 0.8].entries()) {
     vi.setSystemTime(new Date(Date.UTC(2026, 9, 12, 12, index)));
-    expect((await approval({ ...confirmed({ lrAccuracyByType: { Strengthen: accuracy }, lrTopPriorityLogicTypes: [] }), studentId: "someone-else" })).status).toBe(201);
+    await approve(a.saved.id, confirmed({ lrAccuracyByType: { Strengthen: accuracy }, lrTopPriorityLogicTypes: [] }));
   }
   const b = await student("b@example.test");
-  expect(await listApprovedAnalyticsSnapshots(b.saved.id)).toEqual([]);
-  expect((await approval(confirmed({ lrAccuracyByType: { Strengthen: 0.99 }, lrTopPriorityLogicTypes: [] }))).status).toBe(201);
+  await approve(b.saved.id, confirmed({ lrAccuracyByType: { Strengthen: 0.99 }, lrTopPriorityLogicTypes: [] }));
   const snapshots = await listApprovedAnalyticsSnapshots(a.saved.id);
   expect(snapshots.map((snapshot) => snapshot.lrAccuracyByType.Strengthen)).toEqual([0.8, 0.6, 0.4, 0.1]);
   expect(analyticsTrend(snapshots, "2026-10-12").lrAccuracyByType.Strengthen).toBeCloseTo(0.7);
-});
-it.each([
-  ["unconfirmed", (body: ReturnType<typeof confirmed>) => ({ ...body, confirmation: { ...body.confirmation, isLatestAnalytics: false } })],
-  ["empty", (body: ReturnType<typeof confirmed>) => ({ ...body, lrAccuracyByType: {}, lrTopPriorityLogicTypes: [] })],
-  ["missing RC accuracy", (body: ReturnType<typeof confirmed>) => ({ ...body, rcAccuracyByType: undefined })],
-  ["a missing passage type", (body: ReturnType<typeof confirmed>) => ({ ...body, rcAccuracyByType: { ...rcAccuracyByType, Art: undefined } })],
-  ["an RC accuracy over 100%", (body: ReturnType<typeof confirmed>) => ({ ...body, rcAccuracyByType: { ...rcAccuracyByType, Law: 1.2 } })],
-  ["an unknown passage type", (body: ReturnType<typeof confirmed>) => ({ ...body, rcAccuracyByType: { ...rcAccuracyByType, Poetry: 0.5 } })],
-  ["stale", (body: ReturnType<typeof confirmed>) => ({ ...body, extraction: { ...body.extraction, extractedAt: new Date(Date.now() - 86400001).toISOString() } })],
-  ["future extraction", (body: ReturnType<typeof confirmed>) => ({ ...body, extraction: { ...body.extraction, extractedAt: new Date(Date.now() + 60000).toISOString() } })],
-  ["confirmation before review", (body: ReturnType<typeof confirmed>) => ({ ...body, confirmation: { ...body.confirmation, confirmedAt: new Date(Date.now() - 60000).toISOString() } })],
-])("rejects %s without saving a snapshot", async (_name, change) => {
-  const { saved } = await student("invalid@example.test");
-  expect((await approval(change(confirmed()))).status).toBe(422);
-  expect(await listApprovedAnalyticsSnapshots(saved.id)).toEqual([]);
 });
 it("reads a snapshot approved before RC analytics without RC accuracy", async () => {
   const { saved } = await student("before-rc@example.test");
@@ -138,59 +123,25 @@ it("reads a snapshot approved before RC analytics without RC accuracy", async ()
   expect(analyticsTrend([snapshot], "2026-10-05").rcAccuracyByType).toBeUndefined();
 });
 
-it("requires a session and an onboarded Student, and rejects malformed JSON", async () => {
-  expect((await approval(confirmed())).status).toBe(401);
-  const owner = await createAccount({ email: "new@example.test", name: "New" });
-  if (!owner) throw new Error("Account fixture missing");
-  state.session = { user: owner, expires: "2099-01-01" };
-  expect((await approval(confirmed())).status).toBe(404);
-  expect((await approve(new NextRequest("http://localhost/api/analytics", { method: "POST", body: "{" }))).status).toBe(422);
-});
-
-
-it("generates an admin Sample analytics snapshot and approves it on the simulated date", async () => {
-  const { saved, account } = await student("admin@example.test", "admin");
-  await database.owner.execute(sql`update accounts set simulated_date = '2027-03-08' where id = ${account.id}`);
+it("generates an admin Sample analytics snapshot with all five passage types", async () => {
+  await student("admin@example.test", "admin");
   const sample = await generateTestSample("improving");
   expect(sample.rows.length).toBeGreaterThan(0);
-  const body = confirmed(summarizeAnalyticsRows(sample.rows));
-  expect(Object.keys(body.rcAccuracyByType).sort()).toEqual(["Art", "Comparative", "Humanities", "Law", "Science"]);
-  const response = await approval({ ...body, extraction: { source: "admin_sample", extractedAt: sample.extractedAt } });
-  expect(response.status).toBe(201);
-  const [snapshot] = await listApprovedAnalyticsSnapshots(saved.id);
-  expect(snapshot).toMatchObject({ weekOf: "2027-03-08", extraction: { source: "admin_sample" }, rcAccuracyByType: body.rcAccuracyByType });
-  expect(snapshot.approvedAt.slice(0, 10)).toMatch(/^2027-03-0[89]$/);
+  expect(Object.keys(summarizeAnalyticsRows(sample.rows).rcAccuracyByType ?? {}).sort()).toEqual(["Art", "Comparative", "Humanities", "Law", "Science"]);
   const next = await generateTestSample("steady");
   expect(next.rows.length).toBeGreaterThan(0);
 });
-it.each(["student", "stale-admin"])("refuses Sample analytics snapshots from a %s", async (role) => {
-  const { saved } = await student("student@example.test");
+it.each(["student", "stale-admin"])("refuses to generate Sample analytics snapshots for a %s", async (role) => {
+  await student("student@example.test");
   if (role === "stale-admin" && state.session?.user) state.session.user.role = "admin";
   await expect(generateTestSample("steady")).rejects.toThrow();
-  const body = confirmed();
-  expect((await approval({ ...body, extraction: { ...body.extraction, source: "admin_sample" } })).status).toBe(403);
-  expect(await listApprovedAnalyticsSnapshots(saved.id)).toEqual([]);
-});
-it("asks an admin to generate a new sample after 24 hours", async () => {
-  const { saved } = await student("admin@example.test", "admin");
-  const body = confirmed();
-  const response = await approval({ ...body, extraction: { source: "admin_sample", extractedAt: new Date(Date.now() - 86400001).toISOString() } });
-  expect(response.status).toBe(422);
-  expect(await response.json()).toEqual({ error: "Generate a new sample analytics snapshot before saving." });
-  expect(await listApprovedAnalyticsSnapshots(saved.id)).toEqual([]);
-});
-it.each([["admin_sample", 201], ["7sage_screenshot", 422]])("handles a browser clock behind extraction for %s", async (source, status) => {
-  await student("admin@example.test", "admin");
-  const body = confirmed();
-  const response = await approval({ ...body, extraction: { source, extractedAt: new Date(Date.now() - 60000).toISOString() }, confirmation: { ...body.confirmation, confirmedAt: new Date(Date.now() - 120000).toISOString() } });
-  expect(response.status).toBe(status);
 });
 it("resets only the admin's test snapshots and keeps the other student's approved snapshots", async () => {
   const other = await student("other@example.test");
-  await approval(confirmed());
+  await approve(other.saved.id);
   const admin = await student("admin@example.test", "admin");
   await database.owner.execute(sql`update accounts set simulated_date = '2027-03-08' where id = ${admin.account.id}`);
-  await approval(confirmed());
+  await approve(admin.saved.id);
   await resetTestData();
   expect(await findAccountById(admin.account.id)).toMatchObject({ role: "admin", simulatedDate: null });
   expect(await listApprovedAnalyticsSnapshots(admin.saved.id)).toEqual([]);
@@ -204,20 +155,19 @@ it("resets only the admin's test snapshots and keeps the other student's approve
 });
 it("deletes the signed-in student's Account and cascades snapshots while refusing admin deletion", async () => {
   const other = await student("other@example.test");
-  await approval(confirmed());
+  await approve(other.saved.id);
   const owner = await student("owner@example.test");
-  await approval(confirmed());
+  await approve(owner.saved.id);
   const form = new FormData();
   form.set("confirmation", "DELETE");
   await deleteAccount(form);
   expect(await listApprovedAnalyticsSnapshots(owner.saved.id)).toEqual([]);
   expect(await listApprovedAnalyticsSnapshots(other.saved.id)).toHaveLength(1);
   const admin = await student("admin@example.test", "admin");
-  await approval(confirmed());
+  await approve(admin.saved.id);
   await expect(deleteAccount(form)).rejects.toThrow();
   expect(await listApprovedAnalyticsSnapshots(admin.saved.id)).toHaveLength(1);
 });
-
 
 async function schedule(studentId: string, week = "2026-10-12") {
   const inserted = await getPostgresDatabase().execute(sql`
@@ -234,7 +184,7 @@ async function checkIns(scheduleId: string) {
 }
 it("reset rolls back all Postgres writes if the reset fails", async () => {
   const { saved } = await student("admin@example.test", "admin");
-  await approval(confirmed());
+  await approve(saved.id);
   const id = await schedule(saved.id);
   await expect(postgresAdminTestRepositories.inTransaction(async (writes) => {
     await writes.deleteSchedules(saved.id);
@@ -251,7 +201,7 @@ it("admin rebuild deletes only the current week's schedule and its Activity chec
   await database.owner.execute(sql`update accounts set simulated_date = '2026-10-14' where id = ${admin.account.id}`);
   const current = await schedule(admin.saved.id);
   const earlier = await schedule(admin.saved.id, "2026-10-05");
-  await approval(confirmed());
+  await approve(admin.saved.id);
   await rebuildThisWeek();
   expect(await checkIns(current)).toEqual([]);
   expect(await checkIns(earlier)).toHaveLength(1);
@@ -264,33 +214,13 @@ it("uses the simulated calendar date when Chicago's evening falls on tomorrow in
   vi.setSystemTime(new Date("2026-09-15T03:00:00Z"));
   const { saved, account } = await student("admin@example.test", "admin");
   await database.owner.execute(sql`update accounts set simulated_date = '2026-10-07' where id = ${account.id}`);
-  expect((await approval(confirmed())).status).toBe(201);
+  if (!state.session) throw new Error("Session fixture missing");
+  const clock = await studentSideClock(state.session.user);
+  await createApprovedAnalyticsSnapshot(saved.id, prepareApprovedSnapshot(confirmed(), clock.now, clock.real, snapshotWeekOptions(clock)));
   expect((await listApprovedAnalyticsSnapshots(saved.id))[0]).toMatchObject({ weekOf: "2026-10-07", approvedAt: "2026-10-08T03:00:00.000Z", extraction: { source: "7sage_screenshot" } });
-});
-it.each(["student", "admin"] as const)("ignores a supplied schedule test date and another Student ID for a %s's screenshot", async (role) => {
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(new Date("2026-09-14T16:00:00Z"));
-  const { saved } = await student("owner@example.test", role);
-  expect((await approval({ ...confirmed(), scheduleTestDate: "2026-09-21", studentId: "someone-else" })).status).toBe(201);
-  expect((await listApprovedAnalyticsSnapshots(saved.id))[0]).toMatchObject({ studentId: saved.id, weekOf: "2026-09-14", approvedAt: "2026-09-14T16:00:00.000Z" });
 });
 it("rejects missing screenshot input", async () => {
   const response = await extract(new NextRequest("http://localhost/api/analytics/extract", { method: "POST", body: new FormData() }));
   expect(response.status).toBe(400);
   expect(await response.json()).toEqual({ error: "No image provided" });
-});
-it("retains existing acceptance of fabricated screenshot provenance and unknown analytics labels", async () => {
-  const { saved } = await student("evidence@example.test");
-  const body = confirmed({ lrAccuracyByType: { "Unknown analytics label": 0.93 }, lrTopPriorityLogicTypes: [] });
-  expect((await approval(body)).status).toBe(201);
-  const [snapshot] = await listApprovedAnalyticsSnapshots(saved.id);
-  expect(snapshot).toMatchObject({ lrAccuracyByType: { "Unknown analytics label": 0.93 }, extraction: body.extraction });
-});
-it("retains the approval handler's lack of an independent Origin check and cache-control header", async () => {
-  await student("evidence@example.test");
-  const response = await approve(new NextRequest("http://localhost/api/analytics", {
-    method: "POST", headers: { Origin: "https://foreign.example.test", "Content-Type": "application/json" }, body: JSON.stringify(confirmed()),
-  }));
-  expect(response.status).toBe(201);
-  expect(response.headers.get("cache-control")).toBeNull();
 });

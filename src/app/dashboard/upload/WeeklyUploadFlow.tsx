@@ -4,12 +4,12 @@ import { useState } from "react";
 import { useAdminTest, type SampleDraft } from "@/components/AdminTestContext";
 import { startReview } from "@/lib/analyticsReview";
 import { reviewPracticeTest } from "@/lib/practiceTestResult";
-import type { NextWeekBasis } from "@/lib/weeklyUpload";
+import type { WeeklyUploadBasis } from "@/lib/weeklyUpload";
 import { confirmWeeklyUpload } from "./actions";
 import WeeklyCheck, { type CheckSource } from "./WeeklyCheck";
 import WeeklyUpload, { type WeeklyUploadRead } from "./WeeklyUpload";
 
-function sampleRead(sample: SampleDraft, basis: NextWeekBasis, currentScore: number): WeeklyUploadRead {
+function sampleRead(sample: SampleDraft, basis: WeeklyUploadBasis, currentScore: number): WeeklyUploadRead {
   const review = basis.hadPracticeTest ? reviewPracticeTest(sample.sections) : null;
   return {
     currentScore,
@@ -23,7 +23,7 @@ function sampleRead(sample: SampleDraft, basis: NextWeekBasis, currentScore: num
 }
 
 export default function WeeklyUploadFlow({ basis, initialScore, confirm = confirmWeeklyUpload }: {
-  basis: NextWeekBasis;
+  basis: WeeklyUploadBasis;
   initialScore: number;
   confirm?: typeof confirmWeeklyUpload;
 }) {

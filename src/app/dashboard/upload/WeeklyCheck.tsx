@@ -17,7 +17,8 @@ import { confirmLock, reviewDraftReducer, startDraft } from "@/lib/reviewDraft";
 import { DAY_LABEL } from "@/lib/studentProfile";
 import type { LRStemType } from "@/lib/types";
 import {
-  checkPreviewDrills, formatSectionScore, nextWeekAnalytics, parseScore, previewNextWeek, MAX_SCORE, MIN_SCORE, type NextWeekBasis,
+  checkPreviewDrills, formatSectionScore, parseScore, planText, plannedWeekAnalytics, previewPlannedWeek, MAX_SCORE, MIN_SCORE,
+  type WeeklyUploadBasis,
 } from "@/lib/weeklyUpload";
 import type { PracticeTestApprovalInput } from "@/lib/weeklyUploadApproval";
 import type { confirmWeeklyUpload, WeeklyUploadConfirmResult } from "./actions";
@@ -31,16 +32,16 @@ const LABEL = "grow whitespace-nowrap text-small text-ink";
 
 export type CheckSource = "7sage_screenshot" | "admin_sample";
 
-function statementsFor(source: CheckSource, hasPracticeTest: boolean): { statement: Statement; text: string }[] {
+function statementsFor(source: CheckSource, hasPracticeTest: boolean, lastWeek: string): { statement: Statement; text: string }[] {
   if (source === "admin_sample") {
     return [
       { statement: "extractedValuesMatch", text: "I reviewed and approved these sample values." },
-      { statement: "isLatestAnalytics", text: hasPracticeTest ? "Use this sample as my latest analytics and this week's practice test." : "Use this sample as my latest analytics." },
+      { statement: "isLatestAnalytics", text: hasPracticeTest ? `Use this sample as my latest analytics and ${lastWeek}'s practice test.` : "Use this sample as my latest analytics." },
     ];
   }
   return [
     { statement: "extractedValuesMatch", text: "I reviewed these values and they match my screenshots." },
-    { statement: "isLatestAnalytics", text: hasPracticeTest ? "These are my latest analytics and this week's practice test." : "These screenshots show my latest 7Sage analytics." },
+    { statement: "isLatestAnalytics", text: hasPracticeTest ? `These are my latest analytics and ${lastWeek}'s practice test.` : "These screenshots show my latest 7Sage analytics." },
   ];
 }
 
@@ -85,20 +86,20 @@ function PracticeTestBlock({ result, goesFirst }: { result: PracticeTestResult; 
   );
 }
 
-function NoPracticeTestBlock() {
+function NoPracticeTestBlock({ text }: { text: ReturnType<typeof planText> }) {
   return (
     <section aria-label="Practice test" className="flex flex-col">
       <h2 className="px-3 pt-2 pb-3 text-body font-semibold text-ink">Practice test</h2>
       <div className="flex flex-col gap-1 border-y border-vellum-line px-3 py-3">
-        <p className="text-small font-medium text-ink">{"No practice test on this week's plan"}</p>
-        <p className="text-small text-smoke">{"Next week's order comes from your analytics only. No question type goes first from a practice test."}</p>
+        <p className="text-small font-medium text-ink">No practice test on {text.lastWeek}&apos;s plan</p>
+        <p className="text-small text-smoke">{text.Week}&apos;s order comes from your analytics only. No question type goes first from a practice test.</p>
       </div>
     </section>
   );
 }
 
 export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, onSent }: {
-  basis: NextWeekBasis;
+  basis: WeeklyUploadBasis;
   read: WeeklyUploadRead;
   source: CheckSource;
   onBack: () => void;
@@ -112,7 +113,8 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
   const requestFocus = useFocusAfterRender();
   const { review } = draft;
   const practiceTest = read.practiceTest;
-  const statements = statementsFor(source, practiceTest !== null);
+  const text = planText(basis);
+  const statements = statementsFor(source, practiceTest !== null, text.lastWeek);
 
   const score = parseScore(scoreText);
   const lock = confirmLock(review);
@@ -120,10 +122,10 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
     : score === null ? "Enter a score from 120 to 180 to confirm."
       : lock?.reason ?? null;
 
-  const trend = nextWeekAnalytics(basis, reviewedRows(review).filter((row) => !accuracyError(row)));
+  const trend = plannedWeekAnalytics(basis, reviewedRows(review).filter((row) => !accuracyError(row)));
   const counts = practiceTest?.result.missedStemTypeCounts;
   const goesFirst = mostMissedType(counts, trend, mockRules);
-  const drills = score === null ? null : checkPreviewDrills(previewNextWeek(basis, trend, score, counts), goesFirst, trend);
+  const drills = score === null ? null : checkPreviewDrills(previewPlannedWeek(basis, trend, score, counts), goesFirst, trend);
 
   function confirm() {
     const approval = snapshotApproval(review);
@@ -154,7 +156,7 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
   }
 
   const note = saving
-    ? "Saving and building next week. This takes a few seconds."
+    ? `Saving and building ${text.week}. This takes a few seconds.`
     : reply && "error" in reply
       ? <span className="text-danger-ink">{reply.error}</span>
       : reason;
@@ -164,13 +166,13 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
       <div className="flex justify-center px-5 py-8 lg:px-10 lg:py-16">
         <div className="flex w-full flex-col gap-8 lg:max-w-[440px]">
           <div className="flex flex-col gap-2">
-            <p className="font-mono text-label uppercase text-smoke">Plan next week · Check</p>
+            <p className="font-mono text-label uppercase text-smoke">{text.title} · Check</p>
             <h1 className="text-h3 font-semibold text-ink">Check what we read</h1>
             <p className="text-body text-smoke">Compare each value with your screenshots. Nothing counts until you confirm.</p>
           </div>
           <div className="flex flex-col gap-5">
             <SnapshotReviewFields draft={draft} lrRead={read.lrRead} files={read.files} dispatch={dispatch} />
-            {practiceTest ? <PracticeTestBlock result={practiceTest.result} goesFirst={goesFirst} /> : <NoPracticeTestBlock />}
+            {practiceTest ? <PracticeTestBlock result={practiceTest.result} goesFirst={goesFirst} /> : <NoPracticeTestBlock text={text} />}
             <section aria-label="Current score" className="flex flex-col">
               <h2 className="px-3 pt-2 pb-3 text-body font-semibold text-ink">Current score</h2>
               <div className="flex flex-col border-y border-vellum-line">
@@ -199,7 +201,7 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
             <ReviewStatements draft={draft} statements={statements} dispatch={dispatch} />
           </div>
           <ConfirmBar
-            label="Confirm and build next week"
+            label={`Confirm and build ${text.week}`}
             saving={saving}
             locked={Boolean(reason)}
             note={note}
@@ -209,17 +211,17 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
           {reply && "signedOut" in reply && <SignInExpired />}
         </div>
       </div>
-      <aside aria-label="Your screenshots and next Monday" className="hidden flex-col gap-4 bg-vellum px-8 pb-12 pt-32 lg:flex xl:px-18">
+      <aside aria-label={`Your screenshots and ${text.preview}`} className="hidden flex-col gap-4 bg-vellum px-8 pb-12 pt-32 lg:flex xl:px-18">
         {SECTIONS.map((section) => {
           const file = read.files[section];
           return file ? <ScreenshotCard key={section} section={section} file={file} /> : null;
         })}
         <div className="flex flex-col gap-2.5 rounded-sm border border-vellum-line bg-paper p-4">
           {drills ? (
-            <DrillList title={`Next ${DAY_LABEL[drills.day]} from these values`} tag="Not confirmed yet" items={drills.items} />
+            <DrillList title={`${text.previewDay} ${DAY_LABEL[drills.day]} from these values`} tag="Not confirmed yet" items={drills.items} />
           ) : (
             <p className="text-small text-smoke">
-              {score === null ? `Enter a score from ${MIN_SCORE} to ${MAX_SCORE} to see next week.` : "Next week has no drilling day."}
+              {score === null ? `Enter a score from ${MIN_SCORE} to ${MAX_SCORE} to see ${text.week}.` : `${text.Week} has no drilling day.`}
             </p>
           )}
         </div>

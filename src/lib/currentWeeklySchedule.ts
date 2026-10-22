@@ -1,4 +1,4 @@
-import { DAY_ORDER, generateWeek } from "./engine";
+import { DAY_ORDER, generateWeek, type WeekShapeOptions } from "./engine";
 import type { ApprovedPracticeTestResult } from "./practiceTestResult";
 import { isoDateInWeek, unscheduledDaySentence } from "./scheduleReasonText";
 import type {
@@ -98,7 +98,7 @@ function approvedUpToWeek<Approval extends { approvedAt: string }>(
   return approvals.filter((approval) => uploadWeekOf(new Date(approval.approvedAt), timezone) <= weekStartDate);
 }
 
-const isUploadWeekend = (now: Date, timezone: string) => uploadWeekOf(now, timezone) !== currentWeekInTimezone(now, timezone);
+export const isUploadWeekend = (now: Date, timezone: string) => uploadWeekOf(now, timezone) !== currentWeekInTimezone(now, timezone);
 
 function nextWeekHasUpload(snapshots: ApprovedAnalyticsSnapshot[], now: Date, timezone: string) {
   const nextWeek = isoDateInWeek(currentWeekInTimezone(now, timezone), 7);
@@ -109,14 +109,17 @@ export function showsUploadReminder(snapshots: ApprovedAnalyticsSnapshot[], now:
   return isUploadWeekend(now, timezone) && !nextWeekHasUpload(snapshots, now, timezone);
 }
 
-export type WeekWithoutPlan = "upload_for_this_week" | "upload_for_next_week" | "plan_starts_monday";
+export type WeekWithoutPlan = "weekly_upload" | "plan_starts_monday";
 
 export function weekWithoutPlan(snapshots: ApprovedAnalyticsSnapshot[], now: Date, timezone: string): WeekWithoutPlan {
-  if (!isUploadWeekend(now, timezone)) return "upload_for_this_week";
-  return nextWeekHasUpload(snapshots, now, timezone) ? "plan_starts_monday" : "upload_for_next_week";
+  return isUploadWeekend(now, timezone) && nextWeekHasUpload(snapshots, now, timezone) ? "plan_starts_monday" : "weekly_upload";
 }
 
-function currentDayInTimezone(now: Date, timezone: string): DayOfWeek {
+export function weeklyUploadIsOpen(now: Date, timezone: string, currentWeekHasSchedule: boolean) {
+  return isUploadWeekend(now, timezone) || !currentWeekHasSchedule;
+}
+
+export function currentDayInTimezone(now: Date, timezone: string): DayOfWeek {
   const { year, month, day } = localDateParts(now, timezone);
   const dayOfWeek = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
   return DAY_ORDER[dayOfWeek === 0 ? 6 : dayOfWeek - 1];
@@ -157,6 +160,16 @@ export function weightedTrend(newestFirst: Omit<AnalyticsSnapshot, "weekOf">[], 
     lrTopPriorityLogicTypes: window[0].lrTopPriorityLogicTypes,
     ...(Object.keys(rcAccuracyByType).length > 0 && { rcAccuracyByType }),
   };
+}
+
+export function generateRemainingWeek(
+  student: Student,
+  analytics: AnalyticsSnapshot,
+  rules: RulesConfig,
+  studentName: string,
+  options: WeekShapeOptions & { createdOn: DayOfWeek },
+) {
+  return remainingSchedule(generateWeek(student, analytics, rules, studentName, options), options.createdOn);
 }
 
 function remainingSchedule(schedule: WeeklySchedule, currentDay: DayOfWeek): WeeklySchedule {
@@ -218,15 +231,12 @@ export async function loadOrGenerateCurrentWeek(
     ? priorSunday.activities.find((activity) => activity.kind === "PT")?.minutes
     : undefined;
   const currentDay = currentDayInTimezone(now, input.timezone);
-  const schedule = remainingSchedule(
-    generateWeek(input.student, analytics, input.rules, input.studentName, {
-      createdOn: currentDay,
-      priorWeekPracticeTestReviewMinutes,
-      priorSchedules: history.map((record) => record.schedule),
-      missedStemTypeCounts: practiceTest?.missedStemTypeCounts,
-    }),
-    currentDay
-  );
+  const schedule = generateRemainingWeek(input.student, analytics, input.rules, input.studentName, {
+    createdOn: currentDay,
+    priorWeekPracticeTestReviewMinutes,
+    priorSchedules: history.map((record) => record.schedule),
+    missedStemTypeCounts: practiceTest?.missedStemTypeCounts,
+  });
   const saved: PersistedWeeklySchedule = {
     id: `${input.studentId}:${weekStartDate}`,
     studentId: input.studentId,

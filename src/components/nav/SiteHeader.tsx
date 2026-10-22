@@ -1,6 +1,6 @@
 import { isAdminUser } from "@/lib/accessControl";
 import { dateInScheduleTimezone, timeForVerifiedUser } from "@/lib/adminTestWorkspace";
-import { currentWeekInTimezone } from "@/lib/currentWeeklySchedule";
+import { currentWeekInTimezone, isUploadWeekend } from "@/lib/currentWeeklySchedule";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { postgresAdminClock, studentSideNow } from "@/lib/studentClock";
 import { auth } from "@/auth";
@@ -46,7 +46,8 @@ export default async function SiteHeader() {
       date: dateInScheduleTimezone(now), realDate: dateInScheduleTimezone(realNow),
       weekStartDate: currentWeekInTimezone(now, SCHEDULE_TIMEZONE),
       simulated: !!currentUser.simulatedDate, onboarded: !!state,
-      canRebuild: state?.hasCurrentWeek ?? false,
+      weekHasSchedule: state?.hasCurrentWeek ?? false,
+      uploadWeekend: isUploadWeekend(now, SCHEDULE_TIMEZONE),
     } : undefined;
     return (
       <AdminNav
