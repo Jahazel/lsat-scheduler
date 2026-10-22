@@ -19,9 +19,10 @@ const [command, directory, ...extra] = process.argv.slice(2);
 const base = resolve(root, ".verification/evidence");
 const validSeed = command === "seed" && ["student", "admin"].includes(extra[0])
   && (extra.length === 2 || extra.length === 3 && extra[2] === "--not-onboarded");
-const validSession = command === "session" && extra.length === 1;
+const validSession = command === "session"
+  && (extra.length === 1 || extra.length === 3 && extra[1] === "--signed-in-minutes-ago" && /^\d+$/.test(extra[2]));
 if (!directory || !(["launch", "doctor", "inspect", "cleanup"].includes(command) && extra.length === 0 || validSeed || validSession)) {
-  throw new Error("Usage: local.mjs launch|doctor|inspect|cleanup .verification/evidence/<run-name>\n       local.mjs seed .verification/evidence/<run-name> student|admin <email> [--not-onboarded]\n       local.mjs session .verification/evidence/<run-name> <email>");
+  throw new Error("Usage: local.mjs launch|doctor|inspect|cleanup .verification/evidence/<run-name>\n       local.mjs seed .verification/evidence/<run-name> student|admin <email> [--not-onboarded]\n       local.mjs session .verification/evidence/<run-name> <email> [--signed-in-minutes-ago <minutes>]");
 }
 const run = resolve(root, directory);
 if (!relative(base, run) || relative(base, run).startsWith("..")) {
@@ -204,7 +205,7 @@ if (command === "session") {
     const value = await encode({
       token: {
         id: account.id, email: account.email, name: account.name,
-        sessionVersion: account.sessionVersion, signedInAt: Math.floor(Date.now() / 1000),
+        sessionVersion: account.sessionVersion, signedInAt: Math.floor(Date.now() / 1000) - Number(extra[2] ?? 0) * 60,
       },
       secret: readFileSync(resolve(run, "scratch/auth-secret"), "utf8"), salt: name, maxAge: 60 * 60,
     });
