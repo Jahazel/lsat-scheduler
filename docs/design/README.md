@@ -66,3 +66,23 @@ and the drop zone's keyboard focus.
 | `step-4-review` | Step 4 · Review (4d) |
 | `step-4-review-phone` | Phone · Step 4 · Review (4d) |
 | `states` | Onboarding · States |
+
+## Accounts (`accounts/`)
+
+Exported on 2026-10-22 for #224. The states come from #222, "Pages for the owner to design in Paper".
+
+| File | Paper board | Also covers |
+| --- | --- | --- |
+| `login-default` | Login · default (A) | Sessions "done": after "Sign out of all devices", the browser lands on Login |
+| `login-refused` | Login · refused sign-in (A) | |
+| `login-account-disabled` | Login · Account disabled (A) | |
+| `login-session-ended` | Login · session ended (A) | |
+| `signup-default` | Signup · default (1) | |
+| `signup-box-not-ticked` | Signup · box not ticked (1) | |
+| `account-default` | Account · default (2) | Sessions default; deletion with a recent sign-in |
+| `account-sessions-confirm` | Account · sessions confirm (2) | |
+| `account-sessions-working` | Account · sessions working (2) | |
+| `account-deletion-sign-in-too-old` | Account · deletion sign-in too old (2) | |
+| `account-deletion-wrong-text` | Account · deletion wrong text (2) | |
+| `account-deletion-working` | Account · deletion working (2) | |
+| `account-deletion-admin` | Account · deletion Admin (2) | |
