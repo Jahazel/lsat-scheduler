@@ -169,7 +169,7 @@ it("a student session ends 30 days after sign-in even while in use", async () =>
     expect(read.user).not.toBeNull();
     cookie = read.cookie;
   }
-  advance(4);
+  advance(3);
   expect((await readSession(cookie)).user).toBeNull();
 });
 
@@ -188,7 +188,7 @@ it("an Admin session ends 24 hours after sign-in", async () => {
   advance(DAY - 1);
   const read = await readSession(cookie);
   expect(read.user).toEqual({ id: admin.id, role: "admin" });
-  advance(2);
+  advance(1);
   expect((await readSession(read.cookie)).user).toBeNull();
 });
 
