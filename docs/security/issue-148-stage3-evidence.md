@@ -132,7 +132,7 @@ Known and accepted data loss: 2 student Accounts with study data (2 analytics sn
 | Stale-backup alert: a checker reports `stale` and the owner receives the DOWN email | Stage 7 (owner decision, 2026-10-22) | Launch. Must pass by the Stage 7 alert proof, the first promotion, or 2026-11-30, whichever comes first. |
 | Admin 2 on the real site | Owner and tutor partner, #216 | Nothing in Stage 3. Launch check B9 needs both Admins. |
 | Full copy walkthrough on the live version `315fad4` | Agent and owner | Launch. Excepted for the move until first promotion or 2026-11-30. |
-| Apply migrations `0003` and `0004` to Neon production before promoting any build after `315fad4` | Owner | The next real-site release |
+| Apply every migration newer than `315fad4` to the copy, then to Neon production, before promoting any later build. On 2026-10-22, `main` has `0003` to `0006` and a changed `sql/app-role.sql`. Use the owner SQL steps in the [controlled move runbook](../runbooks/controlled-neon-move.md#apply-the-owner-sql). | Owner | The next real-site release |
 | Delete the 2026-10-18 `ALTER ROLE drillmap_app` statement from the Neon SQL Editor history | Owner | Nothing. The password is no longer valid. |
 | Delete the old Atlas database password from the password manager | Owner | Nothing |
 | Why Admin 2 left the copy after #141 | Unassigned | Nothing |
