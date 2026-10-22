@@ -100,6 +100,18 @@ _Avoid_: account settings, profile
 The student's email and account deletion. It does not hold study settings.
 _Avoid_: settings
 
+**Disabled Account**:
+An Account the owner has stopped without deleting its data. It cannot sign in, and its open sessions stop on their next request.
+_Avoid_: banned account, locked account, suspended account
+
+**Sign out of all devices**:
+Ending every session of an Account at once, on every browser and device, including the current one. The ordinary "Sign out" ends only the current browser.
+_Avoid_: sign out everywhere, global logout
+
+**Recent sign-in**:
+A Google sign-in within the last 10 minutes. Account deletion needs one; an older session must sign in again first.
+_Avoid_: re-authentication, fresh login
+
 ### Capacity
 
 **Daily capacity**:
