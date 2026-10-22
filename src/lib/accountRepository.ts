@@ -16,6 +16,8 @@ const publicColumns = {
   name: accounts.name,
   role: accounts.role,
   simulatedDate: accounts.simulatedDate,
+  disabledAt: accounts.disabledAt,
+  sessionVersion: accounts.sessionVersion,
 };
 
 export async function findAccountById(id: string | undefined) {

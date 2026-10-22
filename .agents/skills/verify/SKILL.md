@@ -1,6 +1,6 @@
 ---
 name: verify
-description: "Verify DrillMap's web app through a real browser. Use for sign-up, onboarding, study settings, analytics approval, weekly schedules, activity check-ins, Progress, and Admin controls after behavior changes."
+description: "Verify DrillMap's web app through a real browser. Use for sign-up, Account sessions, onboarding, study settings, analytics approval, weekly schedules, activity check-ins, Progress, and Admin controls after behavior changes."
 ---
 
 # Verify DrillMap
@@ -28,7 +28,7 @@ VERIFY_RUN_DIR=".verification/evidence/$(date -u +%Y%m%dT%H%M%SZ)"
 
 Retain the printed absolute run directory across terminal calls. Readiness is the `Ready: http://127.0.0.1:3100` line. It requires `/login` to return HTTP 200 with `Log in`. The helper runs the repo's `next dev` command with `--hostname 127.0.0.1 --port 3100`.
 
-The helper sets a fresh in-memory Auth.js secret and local callback URLs. It overrides Google credentials and `ANTHROPIC_API_KEY` with empty values and sets `SCREENSHOT_EXTRACTOR=fake` before Next loads `.env.local`. It does not edit local environment files. Students use email/password sign-in. Admins have no password: `local.mjs session` mints an Admin session cookie. Google sign-in is outside this baseline. Screenshot upload uses the fake extractor: any uploaded image returns fixed LR rows or fixed RC passage rows, by drop zone, and makes no Anthropic call. Admin Sample analytics snapshots use the app's real review and approval path.
+The helper sets a fresh in-memory Auth.js secret and local callback URLs. It overrides Google credentials and `ANTHROPIC_API_KEY` with empty values and sets `SCREENSHOT_EXTRACTOR=fake` before Next loads `.env.local`. It does not edit local environment files. Students use email/password sign-in. Admins have no password. `local.mjs session` mints a session cookie for a seeded student or Admin, with the session version and sign-in time that the current-Account check requires. Google sign-in is outside this baseline. Screenshot upload uses the fake extractor: any uploaded image returns fixed LR rows or fixed RC passage rows, by drop zone, and makes no Anthropic call. Admin Sample analytics snapshots use the app's real review and approval path.
 
 The fixed app port prevents two helper runs at once. Two Next dev servers cannot share `.next/dev` in one checkout. The helper refuses an occupied port or a live owner of the Next dev lock. Next handles stale locks itself. Use a separate checkout to run alongside another dev server. A second browser tab shares cookies, so it is not a separate signed-in profile. Do not drive the user's signed-in tab or shared local database.
 
@@ -76,7 +76,7 @@ Seed each fixture Account with one command. The Account is onboarded with the fe
 ./.agents/skills/verify/scripts/local.mjs seed "$VERIFY_RUN_DIR" admin verify-admin@example.test
 ```
 
-The command prints the email, a random password, and the Account ID. An Admin fixture has no password and a made-up Google ID. Sign in as that Admin with `local.mjs session "$VERIFY_RUN_DIR" verify-admin@example.test`. It prints a session cookie `name`, `value`, and `url`. Set that cookie in the browser, then open `/admin`. In T3, sign out first and wait for the public landing page. Then set it with `preview_evaluate` and `document.cookie = "<name>=<value>; path=/; SameSite=Lax"`. A signed-in student's HttpOnly session cookie blocks that overwrite. The cookie is signed with this run's secret and expires in one hour. It uses the app's own Account and student save functions against this run's database. Keep the password out of evidence files. A seeded Account is fixture setup and proves no user feature. Use the browser sign-up and onboarding only when the change touches sign-up, onboarding, or Account creation.
+The command prints the email, a random password, and the Account ID. An Admin fixture has no password and a made-up Google ID. Sign in as that Admin with `local.mjs session "$VERIFY_RUN_DIR" verify-admin@example.test`. It prints a session cookie `name`, `value`, and `url`. Set that cookie in the browser, then open `/admin`. In T3, sign out first and wait for the public landing page. Then set it with `preview_evaluate` and `document.cookie = "<name>=<value>; path=/; SameSite=Lax"`. A signed-in student's HttpOnly session cookie blocks that overwrite. The cookie is signed with this run's secret and expires in one hour. The first protected request re-signs it with the 14-day idle limit. The same command mints student sessions, for example a second browser's session in [Account sessions](features/account-sessions.md). It uses the app's own Account and student save functions against this run's database. Keep the password out of evidence files. A seeded Account is fixture setup and proves no user feature. Use the browser sign-up and onboarding only when the change touches sign-up, onboarding, or Account creation.
 
 ## Evidence
 

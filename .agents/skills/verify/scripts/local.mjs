@@ -162,7 +162,7 @@ if (command === "inspect") {
   await doctor();
   const records = await postgres(async (db) => {
     const result = {};
-    result.accounts = (await db.execute(sql`select id, email, name, role, simulated_date from accounts`)).rows;
+    result.accounts = (await db.execute(sql`select id, email, name, role, simulated_date, disabled_at, session_version from accounts`)).rows;
     for (const name of ["students", "analytics_snapshots", "practice_test_results", "weekly_schedules", "activity_check_ins", "leads"]) {
       result[name] = (await db.execute(sql`select * from ${sql.identifier(name)}`)).rows;
     }
@@ -195,7 +195,6 @@ if (command === "seed") {
   } finally { await closePostgresDatabase(); }
 }
 if (command === "session") {
-  // Mint the session Google sign-in would give a seeded Admin. This run's secret signs it.
   await doctor();
   process.env.DATABASE_URL = postgresSettingForDatabase(loadState().postgresDatabase);
   const { findAccountByEmail } = await tsImport("../../../../src/lib/accountRepository.ts", import.meta.url);
@@ -205,7 +204,10 @@ if (command === "session") {
     if (!account) throw new Error(`No Account exists for ${extra[0]}.`);
     const name = "authjs.session-token";
     const value = await encode({
-      token: { id: account.id, role: account.role, email: account.email, name: account.name },
+      token: {
+        id: account.id, email: account.email, name: account.name,
+        sessionVersion: account.sessionVersion, signedInAt: Math.floor(Date.now() / 1000),
+      },
       secret: readFileSync(resolve(run, "scratch/auth-secret"), "utf8"), salt: name, maxAge: 60 * 60,
     });
     console.log(JSON.stringify({ name, value, url }, null, 2));
