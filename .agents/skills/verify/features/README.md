@@ -22,7 +22,7 @@ Capture the action, resulting UI, and persisted records. Retain evidence through
 
 - [Sign-up and Account](sign-up-account.md): public navigation, consent, email/password sign-in, sign-out, and student deletion.
 - [Onboarding and Study settings](study-settings.md): initial study profile, daily capacity, preference editing, and persistence.
-- [Analytics and This week](weekly-schedule.md): snapshot review and approval, saved schedule views, and activity check-ins.
+- [Analytics and This week](weekly-schedule.md): the weekly upload (screenshots and practice-test sections), snapshot review and approval, saved schedule views, and activity check-ins.
 - [Progress](progress.md): empty state, finished-week summaries, past-week details, and legacy deep links.
 - [Admin](admin.md): all-student read-only views, workspace switching, Simulated date, Sample analytics snapshots, and resets.
 
