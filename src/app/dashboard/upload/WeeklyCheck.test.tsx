@@ -8,7 +8,7 @@ import { samplePracticeTestSections } from "@/lib/adminTestWorkspace";
 import { mockStudent } from "@/lib/mockData";
 import { reviewPracticeTest } from "@/lib/practiceTestResult";
 import type { AnalyticsExtractedRow } from "@/lib/types";
-import type { NextWeekBasis } from "@/lib/weeklyUpload";
+import type { WeeklyUploadBasis } from "@/lib/weeklyUpload";
 import type { confirmWeeklyUpload, WeeklyUploadConfirmResult } from "./actions";
 import type { WeeklyUploadRead } from "./WeeklyUpload";
 
@@ -26,8 +26,9 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
-const basis = (hadPracticeTest = true): NextWeekBasis => ({
+const basis = (hadPracticeTest = true, start: Pick<WeeklyUploadBasis, "plans" | "startsOn"> = { plans: "next_week", startsOn: "MONDAY" }): WeeklyUploadBasis => ({
   weekOf: "2026-10-19",
+  ...start,
   student: { ...mockStudent, currentScore: 156, goalTestDate: "2027-06-01" },
   hadPracticeTest,
   priorSnapshots: [],
@@ -193,6 +194,20 @@ describe("Check what we read", () => {
     expect(preview.getByText("Not confirmed yet")).toBeDefined();
     expect(preview.getByAltText("Your 7Sage Logical Reasoning screenshot")).toBeDefined();
     expect(preview.getByText("goes first").parentElement?.textContent).toMatch(/^\d+ Flaw or descriptive weakening/);
+  });
+
+  it("on a weekday, checks last week's practice test and builds this week", async () => {
+    const confirm = vi.fn<typeof confirmWeeklyUpload>(async () => REFUSED);
+    const user = userEvent.setup();
+    render(<WeeklyCheck basis={basis(true, { plans: "this_week", startsOn: "WEDNESDAY" })} read={read()} source="7sage_screenshot" onBack={() => {}} onConfirm={confirm} />);
+
+    expect(screen.getByText("Plan this week · Check")).toBeDefined();
+    const preview = within(screen.getByRole("complementary", { name: "Your screenshots and this week" }));
+    expect(preview.getByText(/^This (Wednesday|Thursday|Friday|Saturday|Sunday) from these values$/)).toBeDefined();
+    await user.click(statement(REVIEWED));
+    await user.click(statement("These are my latest analytics and last week's practice test."));
+    await user.click(screen.getByRole("button", { name: "Confirm and build this week" }));
+    expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ weekOf: "2026-10-19" }));
   });
 
   it("confirms the analytics alone in a week with no practice test", async () => {

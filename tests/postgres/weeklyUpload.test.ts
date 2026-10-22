@@ -15,6 +15,7 @@ import { postgresAdminTestRepositories } from "../../src/lib/adminTestRepositori
 import { resetTestWorkspace } from "../../src/lib/adminTestWorkspace";
 import { confirmWeeklyUpload } from "../../src/app/dashboard/upload/actions";
 import DashboardPage from "../../src/app/dashboard/page";
+import WeeklyUploadPage from "../../src/app/dashboard/upload/page";
 import type { Student } from "../../src/lib/types";
 
 const state = vi.hoisted((): { session: Session | null } => ({ session: null }));
@@ -57,6 +58,7 @@ const profile: Student = {
 };
 
 const dashboard = async () => renderToStaticMarkup(await DashboardPage({ searchParams: Promise.resolve({}) }));
+const uploadPage = async () => renderToStaticMarkup(await WeeklyUploadPage());
 
 async function studentWithThisWeek(role: "student" | "admin" = "student") {
   vi.setSystemTime(MONDAY);
@@ -153,6 +155,57 @@ it("refuses a page built for next week once the upload window is over, without s
   const before = await saved(studentId, accountId);
 
   await expect(confirmWeeklyUpload(upload(tuesday))).resolves.toEqual({ error: "This page is out of date. Open This week to continue." });
+
+  expect(await saved(studentId, accountId)).toEqual(before);
+});
+
+it("a student with no plan on Wednesday plans the rest of this week from last week's practice test, with the missed type first", async () => {
+  const { studentId, accountId } = await studentWithThisWeek();
+  const wednesday = new Date("2026-10-21T16:00:00Z");
+  vi.setSystemTime(wednesday);
+  await expect(dashboard()).rejects.toThrow("redirect:/dashboard/upload");
+
+  await expect(confirmWeeklyUpload(upload(wednesday, { weekOf: "2026-10-19", currentScore: 160 }))).rejects.toThrow("redirect:/dashboard");
+  const after = await saved(studentId, accountId);
+  expect(after.score).toBe(160);
+  expect(after.practiceTests).toHaveLength(1);
+
+  const markup = await dashboard();
+  const week = (await listWeeklySchedulesForStudent(studentId)).find(({ weekStartDate }) => weekStartDate === "2026-10-19");
+  expect(week?.generationInputs).toMatchObject({ practiceTestResultId: after.practiceTests[0].id, student: { currentScore: 160 } });
+  expect(week?.generationInputs.remainingDays[0]).toBe("WEDNESDAY");
+  expect([week?.schedule.days.MONDAY.activities, week?.schedule.days.TUESDAY.activities]).toEqual([[], []]);
+  const firstDrill = Object.values(week?.schedule.days ?? {}).flatMap((day) => day.activities)
+    .find((activity) => activity.kind === "LR" && !activity.isFullSection);
+  expect(firstDrill?.kind === "LR" && firstDrill.types[0]).toBe("Flaw or descriptive weakening");
+  expect(markup).toContain("Flaw or descriptive weakening comes first this week.");
+});
+
+it("opens the weekly upload on a weekday only while the week has no plan and no upload that counts for it", async () => {
+  const { studentId } = await studentWithThisWeek();
+  vi.setSystemTime(new Date("2026-10-13T16:00:00Z"));
+  await expect(uploadPage()).rejects.toThrow("redirect:/dashboard");
+
+  vi.setSystemTime(new Date("2026-10-21T16:00:00Z"));
+  const markup = await uploadPage();
+  expect(markup).toContain("Plan this week");
+  expect(markup).toContain("Your plan starts today and runs to Sunday, Oct 25.");
+
+  vi.setSystemTime(SATURDAY);
+  await expect(confirmWeeklyUpload(upload(SATURDAY))).rejects.toThrow("redirect:/dashboard");
+  vi.setSystemTime(NEXT_MONDAY);
+  await expect(uploadPage()).rejects.toThrow("redirect:/dashboard");
+  expect((await listWeeklySchedulesForStudent(studentId)).map(({ weekStartDate }) => weekStartDate)).toEqual(["2026-10-12"]);
+});
+
+it("refuses a weekday upload once this week has a weekly schedule, without saving anything", async () => {
+  const { studentId, accountId } = await studentWithThisWeek();
+  const tuesday = new Date("2026-10-13T16:00:00Z");
+  vi.setSystemTime(tuesday);
+  const before = await saved(studentId, accountId);
+
+  await expect(confirmWeeklyUpload(upload(tuesday, { weekOf: "2026-10-12" })))
+    .resolves.toEqual({ error: "This page is out of date. Open This week to continue." });
 
   expect(await saved(studentId, accountId)).toEqual(before);
 });

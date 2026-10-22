@@ -1,6 +1,8 @@
 import { summarizeAnalyticsRows } from "./analytics";
-import { currentWeekInTimezone, newestApprovedSnapshots, weightedTrend } from "./currentWeeklySchedule";
-import { DAY_ORDER, generateWeek } from "./engine";
+import {
+  currentDayInTimezone, currentWeekInTimezone, generateRemainingWeek, newestApprovedSnapshots, uploadWeekOf, weightedTrend,
+} from "./currentWeeklySchedule";
+import { DAY_ORDER } from "./engine";
 import { activityLabel } from "./activityLabel";
 import { formatDuration, shortDuration } from "./formatDuration";
 import { mockRules } from "./mockData";
@@ -14,8 +16,10 @@ import type {
 
 const TREND_WINDOW = 3;
 
-export interface NextWeekBasis {
+export interface WeeklyUploadBasis {
   weekOf: string;
+  plans: "this_week" | "next_week";
+  startsOn: DayOfWeek;
   student: Student;
   hadPracticeTest: boolean;
   priorSnapshots: ApprovedAnalyticsSnapshot[];
@@ -31,19 +35,23 @@ export function weekHadPracticeTest(schedules: PersistedWeeklySchedule[], weekSt
   return DAY_ORDER.some((day) => schedule?.days[day].activities.some((activity) => activity.kind === "PT") ?? false);
 }
 
-export function nextWeekBasis({ now, timezone, student, schedules, snapshots }: {
+export function weeklyUploadBasis({ now, timezone, student, schedules, snapshots }: {
   now: Date;
   timezone: string;
   student: Student;
   schedules: PersistedWeeklySchedule[];
   snapshots: ApprovedAnalyticsSnapshot[];
-}): NextWeekBasis {
-  const currentWeek = currentWeekInTimezone(now, timezone);
-  const sunday = scheduleForWeek(schedules, currentWeek)?.days.SUNDAY;
+}): WeeklyUploadBasis {
+  const weekOf = uploadWeekOf(now, timezone);
+  const plansThisWeek = weekOf === currentWeekInTimezone(now, timezone);
+  const lastWeek = isoDateInWeek(weekOf, -7);
+  const sunday = scheduleForWeek(schedules, lastWeek)?.days.SUNDAY;
   return {
-    weekOf: isoDateInWeek(currentWeek, 7),
+    weekOf,
+    plans: plansThisWeek ? "this_week" : "next_week",
+    startsOn: plansThisWeek ? currentDayInTimezone(now, timezone) : "MONDAY",
     student,
-    hadPracticeTest: weekHadPracticeTest(schedules, currentWeek),
+    hadPracticeTest: weekHadPracticeTest(schedules, lastWeek),
     priorSnapshots: newestApprovedSnapshots(snapshots)
       .slice(0, TREND_WINDOW - 1)
       .map(({ id, approvedAt, weekOf, lrAccuracyByType, lrTopPriorityLogicTypes, rcAccuracyByType }) =>
@@ -51,23 +59,23 @@ export function nextWeekBasis({ now, timezone, student, schedules, snapshots }: 
     priorWeekPracticeTestReviewMinutes: sunday?.type === "practice_test"
       ? sunday.activities.find((activity) => activity.kind === "PT")?.minutes
       : undefined,
-    priorSchedules: schedules.filter((record) => record.weekStartDate <= currentWeek).map((record) => record.schedule),
+    priorSchedules: schedules.filter((record) => record.weekStartDate < weekOf).map((record) => record.schedule),
   };
 }
 
-export function nextWeekAnalytics(basis: NextWeekBasis, rows: AnalyticsExtractedRow[]): AnalyticsSnapshot {
+export function plannedWeekAnalytics(basis: WeeklyUploadBasis, rows: AnalyticsExtractedRow[]): AnalyticsSnapshot {
   const read = summarizeAnalyticsRows(rows);
   return weightedTrend([read, ...basis.priorSnapshots], basis.weekOf);
 }
 
-export function previewNextWeek(
-  basis: NextWeekBasis,
+export function previewPlannedWeek(
+  basis: WeeklyUploadBasis,
   analytics: AnalyticsSnapshot,
   currentScore: number,
   missedStemTypeCounts?: Partial<Record<LRStemType, number>>,
 ): WeeklySchedule {
-  return generateWeek({ ...basis.student, currentScore }, analytics, mockRules, "", {
-    createdOn: "MONDAY",
+  return generateRemainingWeek({ ...basis.student, currentScore }, analytics, mockRules, "", {
+    createdOn: basis.startsOn,
     priorWeekPracticeTestReviewMinutes: basis.priorWeekPracticeTestReviewMinutes,
     priorSchedules: basis.priorSchedules,
     missedStemTypeCounts,
@@ -82,24 +90,38 @@ const utcDate = (isoDate: string) => new Date(`${isoDate}T00:00:00.000Z`);
 const dayOfMonth = (isoDate: string) => utcDate(isoDate).getUTCDate();
 const monthShort = (isoDate: string) => utcDate(isoDate).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
 
-export function weekStartLabel(weekOf: string) {
-  return utcDate(weekOf).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" });
+const longDate = (isoDate: string) =>
+  utcDate(isoDate).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" });
+
+const PLAN_TEXT = {
+  next_week: { title: "Plan next week", week: "next week", Week: "Next week", lastWeek: "this week", LastWeek: "This week", previewDay: "Next", preview: "next Monday" },
+  this_week: { title: "Plan this week", week: "this week", Week: "This week", lastWeek: "last week", LastWeek: "Last week", previewDay: "This", preview: "this week" },
+} as const;
+
+export function planText(basis: WeeklyUploadBasis) {
+  return {
+    ...PLAN_TEXT[basis.plans],
+    startSentence: basis.plans === "next_week"
+      ? `Next week starts ${longDate(basis.weekOf)}.`
+      : `Your plan starts today and runs to ${longDate(isoDateInWeek(basis.weekOf, 6))}.`,
+  };
 }
 
-function weekRange(weekOf: string) {
+function weekRange(weekOf: string, startsOn: DayOfWeek) {
+  const start = isoDateInWeek(weekOf, DAY_ORDER.indexOf(startsOn));
   const sunday = isoDateInWeek(weekOf, 6);
-  const end = monthShort(sunday) === monthShort(weekOf) ? `${dayOfMonth(sunday)}` : `${monthShort(sunday)} ${dayOfMonth(sunday)}`;
-  return `${monthShort(weekOf)} ${dayOfMonth(weekOf)}–${end}`;
+  const end = monthShort(sunday) === monthShort(start) ? `${dayOfMonth(sunday)}` : `${monthShort(sunday)} ${dayOfMonth(sunday)}`;
+  return `${monthShort(start)} ${dayOfMonth(start)}–${end}`;
 }
 
-export function weekSummary(schedule: WeeklySchedule) {
+export function weekSummary(schedule: WeeklySchedule, startsOn: DayOfWeek) {
   const total = Math.round(DAY_ORDER.reduce((sum, day) => sum + schedule.days[day].totalMinutes, 0));
   const practiceTestDays = DAY_ORDER.filter((day) => schedule.days[day].type === "practice_test").map((day) => DAY_LABEL[day]);
   const practiceTest = practiceTestDays.length > 0 ? `practice test on ${practiceTestDays.join(" and ")}` : "no practice test";
-  return `${weekRange(schedule.weekOf)} · ${formatDuration(total)} of study · ${practiceTest}`;
+  return `${weekRange(schedule.weekOf, startsOn)} · ${formatDuration(total)} of study · ${practiceTest}`;
 }
 
-export function weekTiles(schedule: WeeklySchedule) {
+export function weekTiles(schedule: WeeklySchedule, startsOn: DayOfWeek) {
   const longest = Math.max(1, ...DAY_ORDER.map((day) => schedule.days[day].totalMinutes));
   return DAY_ORDER.map((day, index) => {
     const plan = schedule.days[day];
@@ -110,7 +132,7 @@ export function weekTiles(schedule: WeeklySchedule) {
       practiceTest: plan.type === "practice_test",
       barShare: plan.totalMinutes / longest,
     };
-  });
+  }).slice(DAY_ORDER.indexOf(startsOn));
 }
 
 function firstDrillDay(schedule: WeeklySchedule, goesFirst: LRStemType | undefined) {

@@ -6,12 +6,15 @@ import WeeklyUpload from "./WeeklyUpload";
 import { mockStudent } from "@/lib/mockData";
 import { PT158_FIXTURES } from "@/lib/practiceTestFixtures/pt158";
 import type { LRSectionReading, SectionReading } from "@/lib/practiceTestResult";
-import type { NextWeekBasis } from "@/lib/weeklyUpload";
+import type { WeeklyUploadBasis } from "@/lib/weeklyUpload";
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
-const basis = (hadPracticeTest = true): NextWeekBasis => ({
+const WEDNESDAY = { plans: "this_week", startsOn: "WEDNESDAY" } as const;
+
+const basis = (hadPracticeTest = true, start: Pick<WeeklyUploadBasis, "plans" | "startsOn"> = { plans: "next_week", startsOn: "MONDAY" }): WeeklyUploadBasis => ({
   weekOf: "2026-10-05",
+  ...start,
   student: { ...mockStudent, currentScore: 156, goalTestDate: "2027-06-01" },
   hadPracticeTest,
   priorSnapshots: [],
@@ -48,10 +51,10 @@ function stubServer(sections: Record<string, SectionReading | Response> = {}, an
 const png = (name: string) => new File(["image"], name, { type: "image/png" });
 const SECTION_FILES = ["pt158-s1.png", "pt158-s2.png", "pt158-s3.png", "pt158-s4.png"];
 
-function setup(hadPracticeTest = true) {
+function setup(hadPracticeTest = true, start?: Pick<WeeklyUploadBasis, "plans" | "startsOn">) {
   const onCheckValues = vi.fn();
   const user = userEvent.setup();
-  render(<WeeklyUpload basis={basis(hadPracticeTest)} initialScore={156} onCheckValues={onCheckValues} />);
+  render(<WeeklyUpload basis={basis(hadPracticeTest, start)} initialScore={156} onCheckValues={onCheckValues} />);
   return { user, onCheckValues };
 }
 
@@ -165,6 +168,31 @@ describe("WeeklyUpload", () => {
     expect(within(screen.getByRole("region", { name: "Next week" })).getByText("Monday's drills").textContent).toBe("Monday's drills · Oct 5");
     expect(screen.queryByText("Goes first")).toBeNull();
     expect(button("Check the values").disabled).toBe(false);
+  });
+
+  it("on a weekday, plans the rest of this week from last week's practice test", async () => {
+    stubServer();
+    const { user } = setup(true, WEDNESDAY);
+    expect(screen.getByRole("heading", { name: "Plan this week" })).toBeDefined();
+    expect(screen.getByText("Your plan starts today and runs to Sunday, Oct 11. Add last week's screenshots, and we build your weekly schedule from them.")).toBeDefined();
+    await readAll(user);
+
+    expect(within(screen.getByRole("region", { name: "What we found" }))
+      .getByRole("heading", { name: "Flaw or descriptive weakening goes first this week." })).toBeDefined();
+    const preview = screen.getByRole("region", { name: "This week" });
+    expect(within(preview).getByText(/^Oct 7–11 · /)).toBeDefined();
+    expect(within(preview).queryByText("Mon 5")).toBeNull();
+    expect(within(preview).queryByText("Tue 6")).toBeNull();
+    expect(within(preview).getByText("Wed 7")).toBeDefined();
+    expect(within(preview).getByText("Goes first").closest("li")?.textContent).toContain("Flaw or descriptive weakening");
+  });
+
+  it("on a weekday after a week with no practice test, asks only for the 2 analytics screenshots", () => {
+    setup(false, WEDNESDAY);
+    expect(screen.getByText("Your plan starts today and runs to Sunday, Oct 11. Last week had no practice test, so we need only your 2 analytics screenshots.")).toBeDefined();
+    expect(screen.queryByLabelText("All 4 section screenshots file")).toBeNull();
+    expect(screen.getByText("No practice test on last week's plan")).toBeDefined();
+    expect(screen.getByText("This week's order comes from your analytics only. No question type goes first from a practice test.")).toBeDefined();
   });
 
   it("keeps the button off for a score outside 120 to 180", async () => {

@@ -65,13 +65,15 @@ This week is a checklist. Each day header shows the day type, planned total, and
 
 A student checks off a line with one tap and can undo it. An activity check-in is not started or completed; there is no skip and no actual minutes. The header counts "N of M done", and a finished day shows "All done". A correction changes the check-in, not the saved plan. Unscheduled days have a distinct dashed card. The rest day, a near-test week, a week without a practice test, and a practice-test review day carried from last week use plain labels.
 
-On Saturday and Sunday, This week shows a reminder with a "Plan next week" link until next week's weekly upload is confirmed. Between that confirmation and Monday, This week shows the current plan with no reminder. When the week has no schedule and no upload that counts for it, This week opens the weekly upload.
+On Saturday and Sunday, This week shows a reminder with a "Plan next week" link until next week's weekly upload is confirmed. Between that confirmation and Monday, This week shows the current plan with no reminder. When the week has no schedule and no upload that counts for it, This week opens the weekly upload. From Monday to Friday that upload is "Plan this week" and builds a weekly schedule from today to Sunday ([#214](https://github.com/Jahazel/lsat-scheduler/issues/214) replaces the earlier analytics-only page for this path).
 
 The policy saves a schedule reason, with a code, week or day placement, and final sentence, for each policy departure at creation. v3 schedule reasons cover missed-type priority, starred rotation, a dropped full section, a moved rest day, no practice test, a near-test week, an unscheduled day, a practice-test review day carried over from last week's Sunday practice test, and a practice-test review day due next Monday. The `capacity_overage` and `skip_reduction` codes exist only on saved v1 and v2 schedules, and This week hides `capacity_overage`. The baseline drilling ratio and LR type focus get no schedule reason. Past sentences never change when policy wording changes. The admin view shows the same saved sentences.
 
 ## Weekly upload
 
 The "Plan next week" page asks for the LR and RC analytics screenshots, four practice-test review screenshots (one per section), and the current score, prefilled from Study settings. The score must be a whole number from 120 to 180. After "Read my screenshots", "Check what we read" shows the analytics values, each practice-test section with its 7Sage score and missed count, the type that goes first, the current score, and a preview of next Monday's first drills. Confirming saves the analytics snapshot, the practice-test result, and the current score in one transaction. When this week's weekly schedule had no practice test, the page asks only for the analytics screenshots and next week has no missed-type priority.
+
+From Monday to Friday, a student whose week has no weekly schedule gets the same page as "Plan this week". It asks for last week's practice test only when last week's weekly schedule had one. Its preview shows only today to Sunday, and "Confirm and build this week" saves the same three records and builds the rest of the week, with the most-missed type first. Once the week has a weekly schedule, the weekly upload stays closed until Saturday.
 
 ## Verification and release
 

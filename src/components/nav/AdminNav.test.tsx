@@ -137,7 +137,7 @@ describe("workspace switcher interactions", () => {
 });
 
 describe("admin test dock", () => {
-  const testState = { date: "2026-10-07", realDate: "2026-09-27", weekStartDate: "2026-10-05", simulated: true, onboarded: true, canRebuild: true };
+  const testState = { date: "2026-10-07", realDate: "2026-09-27", weekStartDate: "2026-10-05", simulated: true, onboarded: true, weekHasSchedule: true, uploadWeekend: false };
   beforeEach(() => {
     mocks.pathname = "/dashboard";
     vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));

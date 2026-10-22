@@ -2,16 +2,42 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { AdminTestProvider, SampleReviewSlot } from "./AdminTestContext";
-const mocks = vi.hoisted(() => ({ move: vi.fn(), rebuild: vi.fn(), data: vi.fn(), everything: vi.fn(), push: vi.fn(), refresh: vi.fn() }));
-vi.mock("@/app/admin/test/actions", () => ({ setSimulatedDate: mocks.move, rebuildThisWeek: mocks.rebuild, resetTestData: mocks.data, resetEverything: mocks.everything, generateTestSample: vi.fn() }));
+import { AdminTestProvider, CurrentWeekReport } from "./AdminTestContext";
+const mocks = vi.hoisted(() => ({ move: vi.fn(), rebuild: vi.fn(), data: vi.fn(), everything: vi.fn(), push: vi.fn(), refresh: vi.fn(), sample: vi.fn() }));
+vi.mock("@/app/admin/test/actions", () => ({ setSimulatedDate: mocks.move, rebuildThisWeek: mocks.rebuild, resetTestData: mocks.data, resetEverything: mocks.everything, generateTestSample: mocks.sample }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/dashboard", useRouter: () => ({ push: mocks.push, refresh: mocks.refresh }) }));
-vi.mock("@/app/dashboard/AnalyticsUploader", () => ({ default: () => null }));
 import TestControls from "./TestControls";
-const state = { date: "2026-10-07", realDate: "2026-09-27", weekStartDate: "2026-10-05", simulated: true, onboarded: true, canRebuild: true };
+const state = { date: "2026-10-07", realDate: "2026-09-27", weekStartDate: "2026-10-05", simulated: true, onboarded: true, weekHasSchedule: true, uploadWeekend: false };
 afterEach(cleanup);
 beforeEach(() => vi.clearAllMocks());
 describe("Test controls", () => {
+  it("Generate sample opens the weekly upload", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<TestControls state={{ ...state, weekHasSchedule: false }} onClose={onClose} />);
+    await user.click(screen.getByRole("button", { name: "Generate sample" }));
+    expect(mocks.sample).toHaveBeenCalledWith("steady");
+    expect(mocks.push).toHaveBeenCalledWith("/dashboard/upload");
+    expect(onClose).toHaveBeenCalled();
+  });
+  it.each([
+    ["a weekday whose week has a weekly schedule", { weekHasSchedule: true, uploadWeekend: false }, false],
+    ["a weekday with no weekly schedule yet", { weekHasSchedule: false, uploadWeekend: false }, true],
+    ["the weekend", { weekHasSchedule: true, uploadWeekend: true }, true],
+  ])("sets Generate sample on or off for %s", (_name, week, open) => {
+    render(<TestControls state={{ ...state, ...week }} onClose={() => {}} />);
+    expect((screen.getByRole("button", { name: "Generate sample" }) as HTMLButtonElement).disabled).toBe(!open);
+    expect(!!screen.queryByText("The weekly upload is closed this week. Reset test data, or move the simulated date to Saturday.")).toBe(!open);
+  });
+  it("turns Generate sample off once This week reports a new weekly schedule", () => {
+    render(
+      <AdminTestProvider>
+        <CurrentWeekReport week={state.weekStartDate} hasSchedule />
+        <TestControls state={{ ...state, weekHasSchedule: false }} onClose={() => {}} />
+      </AdminTestProvider>,
+    );
+    expect((screen.getByRole("button", { name: "Generate sample" }) as HTMLButtonElement).disabled).toBe(true);
+  });
   it("labels past and current dates visibly without relying on color", () => {
     render(<TestControls state={state} onClose={() => {}} />);
     const past = screen.getByRole("button", { name: /Oct 5, 2026/ });
@@ -43,15 +69,15 @@ describe("Test controls", () => {
     expect(mocks.push).toHaveBeenCalledWith(destination);
   });
   it("disables only rebuild when there is no weekly schedule", () => {
-    render(<TestControls state={{ ...state, canRebuild: false }} onClose={() => {}} />);
+    render(<TestControls state={{ ...state, weekHasSchedule: false }} onClose={() => {}} />);
     expect((screen.getByRole("button", { name: "Rebuild this week" }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole("button", { name: "Reset test data" }) as HTMLButtonElement).disabled).toBe(false);
   });
   it("keeps rebuild available after leaving This week when a weekly schedule exists", () => {
-    const controls = <TestControls state={{ ...state, canRebuild: false }} onClose={() => {}} />;
+    const controls = <TestControls state={{ ...state, weekHasSchedule: false }} onClose={() => {}} />;
     const view = render(
       <AdminTestProvider>
-        <SampleReviewSlot week={state.weekStartDate} hasSchedule>Review</SampleReviewSlot>
+        <CurrentWeekReport week={state.weekStartDate} hasSchedule />
         {controls}
       </AdminTestProvider>,
     );
@@ -60,10 +86,10 @@ describe("Test controls", () => {
   });
   it.each(["Reset test data", "Reset everything"])("disables rebuild after %s succeeds", async (label) => {
     const user = userEvent.setup();
-    const controls = <TestControls state={{ ...state, canRebuild: false }} onClose={() => {}} />;
+    const controls = <TestControls state={{ ...state, weekHasSchedule: false }} onClose={() => {}} />;
     const view = render(
       <AdminTestProvider>
-        <SampleReviewSlot week={state.weekStartDate} hasSchedule>Review</SampleReviewSlot>
+        <CurrentWeekReport week={state.weekStartDate} hasSchedule />
         {controls}
       </AdminTestProvider>,
     );
@@ -78,10 +104,10 @@ describe("Test controls", () => {
   it("keeps rebuild available when a reset fails", async () => {
     mocks.data.mockRejectedValueOnce(new Error("Reset failed."));
     const user = userEvent.setup();
-    const controls = <TestControls state={{ ...state, canRebuild: false }} onClose={() => {}} />;
+    const controls = <TestControls state={{ ...state, weekHasSchedule: false }} onClose={() => {}} />;
     const view = render(
       <AdminTestProvider>
-        <SampleReviewSlot week={state.weekStartDate} hasSchedule>Review</SampleReviewSlot>
+        <CurrentWeekReport week={state.weekStartDate} hasSchedule />
         {controls}
       </AdminTestProvider>,
     );

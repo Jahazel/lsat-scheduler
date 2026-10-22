@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { listApprovedAnalyticsSnapshots } from "@/lib/analyticsSnapshotRepository";
-import { uploadWeekOf } from "@/lib/currentWeeklySchedule";
+import { approvedForWeek, currentWeekInTimezone, weeklyUploadIsOpen } from "@/lib/currentWeeklySchedule";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { studentSideClock } from "@/lib/studentClock";
 import { findStudentByAccountId } from "@/lib/studentRepository";
 import type { Student } from "@/lib/types";
 import { listWeeklySchedulesForStudent } from "@/lib/weeklyScheduleRepository";
-import { nextWeekBasis } from "@/lib/weeklyUpload";
+import { weeklyUploadBasis } from "@/lib/weeklyUpload";
 import WeeklyUploadFlow from "./WeeklyUploadFlow";
 
 export default async function WeeklyUploadPage() {
@@ -30,9 +30,14 @@ export default async function WeeklyUploadPage() {
     listWeeklySchedulesForStudent(doc.id),
     listApprovedAnalyticsSnapshots(doc.id),
   ]);
-  const basis = nextWeekBasis({ now: clock.now, timezone: SCHEDULE_TIMEZONE, student, schedules, snapshots });
-
-  if (uploadWeekOf(clock.now, SCHEDULE_TIMEZONE) !== basis.weekOf) redirect("/dashboard");
+  const currentWeek = currentWeekInTimezone(clock.now, SCHEDULE_TIMEZONE);
+  if (!weeklyUploadIsOpen(clock.now, SCHEDULE_TIMEZONE, schedules.some((record) => record.weekStartDate === currentWeek))) {
+    redirect("/dashboard");
+  }
+  const basis = weeklyUploadBasis({ now: clock.now, timezone: SCHEDULE_TIMEZONE, student, schedules, snapshots });
+  if (basis.plans === "this_week" && approvedForWeek(snapshots, basis.weekOf, SCHEDULE_TIMEZONE).length > 0) {
+    redirect("/dashboard");
+  }
 
   return <WeeklyUploadFlow basis={basis} initialScore={doc.currentScore} />;
 }

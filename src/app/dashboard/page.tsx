@@ -16,8 +16,7 @@ import { postgresActivityCheckIns } from "@/lib/activityCheckInRepository";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import type { Student } from "@/lib/types";
 import ScheduleCheckInView from "@/components/ScheduleCheckInView";
-import AnalyticsUploader from "./AnalyticsUploader";
-import { SampleReviewSlot, UploaderFrame } from "@/components/AdminTestContext";
+import { CurrentWeekReport } from "@/components/AdminTestContext";
 
 type DashboardSearchParams = { historyWeek?: string | string[] };
 
@@ -72,7 +71,7 @@ export default async function DashboardPage({
     listApprovedAnalyticsSnapshots(doc.id),
   ]);
   const withoutPlan = currentSchedule ? null : weekWithoutPlan(snapshots, now, SCHEDULE_TIMEZONE);
-  if (withoutPlan === "upload_for_next_week") redirect("/dashboard/upload");
+  if (withoutPlan === "weekly_upload") redirect("/dashboard/upload");
 
   const dashboardContent = withoutPlan === "plan_starts_monday" ? (
     <PageHeader
@@ -80,7 +79,7 @@ export default async function DashboardPage({
       title="Your plan starts Monday"
       lead="Your upload is saved. Your weekly schedule opens on Monday."
     />
-  ) : currentSchedule ? (
+  ) : currentSchedule && (
     <ScheduleCheckInView
       scheduleId={currentSchedule.id}
       schedule={currentSchedule.schedule}
@@ -89,20 +88,14 @@ export default async function DashboardPage({
       today={localDateInTimezone(now, SCHEDULE_TIMEZONE)}
       uploadReminder={showsUploadReminder(snapshots, now, SCHEDULE_TIMEZONE)}
     />
-  ) : (
-    <UploaderFrame><AnalyticsUploader /></UploaderFrame>
   );
 
   return (
     <div className="min-h-screen">
-      {isAdminUser(session.user) ? (
-        <SampleReviewSlot
-          week={currentWeekInTimezone(now, SCHEDULE_TIMEZONE)}
-          hasSchedule={!!currentSchedule}
-        >
-          {dashboardContent}
-        </SampleReviewSlot>
-      ) : dashboardContent}
+      {isAdminUser(session.user) && (
+        <CurrentWeekReport week={currentWeekInTimezone(now, SCHEDULE_TIMEZONE)} hasSchedule={!!currentSchedule} />
+      )}
+      {dashboardContent}
     </div>
   );
 }

@@ -21,8 +21,8 @@ import { mostMissedType } from "@/lib/engine";
 import { mockRules } from "@/lib/mockData";
 import type { AnalyticsExtractedRow, AnalyticsSection, AnalyticsSnapshot, LRStemType, WeeklySchedule } from "@/lib/types";
 import {
-  firstDrills, formatSectionScore, missLabel, missedCountSentence, missedTypesInOrder, nextWeekAnalytics, parseScore, previewNextWeek,
-  problemMessage, sectionTitle, weekStartLabel, weekSummary, weekTiles, MAX_SCORE, MIN_SCORE, type NextWeekBasis,
+  firstDrills, formatSectionScore, missLabel, missedCountSentence, missedTypesInOrder, parseScore, planText, plannedWeekAnalytics, previewPlannedWeek,
+  problemMessage, sectionTitle, weekSummary, weekTiles, MAX_SCORE, MIN_SCORE, type WeeklyUploadBasis,
 } from "@/lib/weeklyUpload";
 
 const ACCEPT = SCREENSHOT_MEDIA_TYPES.join(",");
@@ -62,13 +62,14 @@ export interface WeeklyUploadRead {
 }
 
 interface WeeklyUploadProps {
-  basis: NextWeekBasis;
+  basis: WeeklyUploadBasis;
   initialScore: number;
   onCheckValues?: (read: WeeklyUploadRead) => void;
 }
 
 export default function WeeklyUpload({ basis, initialScore, onCheckValues }: WeeklyUploadProps) {
   const needsSections = basis.hadPracticeTest;
+  const text = planText(basis);
   const [scoreText, setScoreText] = useState(String(initialScore));
   const [analytics, setAnalytics] = useState<Partial<Record<AnalyticsSection, AnalyticsUpload>>>({});
   const [sections, setSections] = useState<SectionUpload[]>([]);
@@ -184,9 +185,9 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
     const read = analytics[section]?.read;
     return read?.status === "read" ? read.value.rows : [];
   });
-  const trend = found ? nextWeekAnalytics(basis, analyticsRows) : null;
+  const trend = found ? plannedWeekAnalytics(basis, analyticsRows) : null;
   const goesFirst = trend ? mostMissedType(practiceTest?.missedStemTypeCounts, trend, mockRules) : undefined;
-  const schedule = trend && score !== null ? previewNextWeek(basis, trend, score, practiceTest?.missedStemTypeCounts) : null;
+  const schedule = trend && score !== null ? previewPlannedWeek(basis, trend, score, practiceTest?.missedStemTypeCounts) : null;
 
   function checkValues() {
     const lr = analytics.LR?.read;
@@ -207,16 +208,16 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
     });
   }
 
-  const startsOn = `Next week starts ${weekStartLabel(basis.weekOf)}.`;
+  const start = text.startSentence;
   const lead = !started
     ? needsSections
-      ? `${startsOn} Add this week's screenshots, and we build your weekly schedule from them.`
-      : `${startsOn} This week had no practice test, so we need only your 2 analytics screenshots.`
+      ? `${start} Add ${text.lastWeek}'s screenshots, and we build your weekly schedule from them.`
+      : `${start} ${text.LastWeek} had no practice test, so we need only your 2 analytics screenshots.`
     : found
-      ? `${startsOn} We read ${needsSections ? "all 6 screenshots" : "both screenshots"}. Check them, then build your weekly schedule.`
+      ? `${start} We read ${needsSections ? "all 6 screenshots" : "both screenshots"}. Check them, then build your weekly schedule.`
       : anyReading
-        ? `${startsOn} We're reading your screenshots.`
-        : `${startsOn} Fix the screenshots marked below, then check them.`;
+        ? `${start} We're reading your screenshots.`
+        : `${start} Fix the screenshots marked below, then check them.`;
 
   const hint = !started
     ? !allAdded
@@ -236,7 +237,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
     <div className="grid grid-cols-[minmax(0,1fr)] bg-paper lg:min-h-[calc(100vh-var(--spacing-18))] lg:grid-cols-[minmax(0,680px)_minmax(0,1fr)] lg:grid-rows-[auto_1fr]">
       <div className="flex flex-col gap-10 px-5 pt-8 lg:px-30 lg:pt-18">
         <header className="flex flex-col gap-2">
-          <h1 className="text-h3 font-semibold text-ink">Plan next week</h1>
+          <h1 className="text-h3 font-semibold text-ink">{text.title}</h1>
           <p className="text-body text-smoke">{lead}</p>
         </header>
 
@@ -332,8 +333,8 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
             <div className="flex gap-3 rounded-md bg-vellum p-5">
               <InfoGlyph className="mt-0.5" />
               <div className="flex flex-col gap-1">
-                <p className="text-small font-medium text-ink">{"No practice test on this week's plan"}</p>
-                <p className="text-small text-smoke">{"Next week's order comes from your analytics only. No question type goes first from a practice test."}</p>
+                <p className="text-small font-medium text-ink">No practice test on {text.lastWeek}&apos;s plan</p>
+                <p className="text-small text-smoke">{text.Week}&apos;s order comes from your analytics only. No question type goes first from a practice test.</p>
               </div>
             </div>
           </UploadGroup>
@@ -342,14 +343,14 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
 
       <aside className="flex flex-col gap-6 px-5 pt-10 lg:row-span-2 lg:border-l lg:border-vellum-line lg:bg-vellum lg:p-18">
         {trend && practiceTest && (
-          <WhatWeFound result={practiceTest} analytics={trend} goesFirst={goesFirst} score={score} />
+          <WhatWeFound result={practiceTest} analytics={trend} goesFirst={goesFirst} score={score} week={text.week} />
         )}
         {trend && (schedule ? (
-          <NextWeek schedule={schedule} goesFirst={goesFirst} />
+          <PlannedWeek schedule={schedule} basis={basis} goesFirst={goesFirst} />
         ) : (
-          <p className="text-small text-smoke">Enter a score from {MIN_SCORE} to {MAX_SCORE} to see next week.</p>
+          <p className="text-small text-smoke">Enter a score from {MIN_SCORE} to {MAX_SCORE} to see {text.week}.</p>
         ))}
-        {!found && <WhereToFind needsSections={needsSections} />}
+        {!found && <WhereToFind needsSections={needsSections} lastWeek={text.lastWeek} />}
       </aside>
 
       <div className="flex flex-col gap-4 px-5 pt-10 pb-12 lg:px-30 lg:pb-18">
@@ -620,11 +621,12 @@ function HiddenPickBox({ question, picks, onPick }: { question: PickQuestion; pi
   );
 }
 
-function WhatWeFound({ result, analytics, goesFirst, score }: {
+function WhatWeFound({ result, analytics, goesFirst, score, week }: {
   result: PracticeTestResult;
   analytics: AnalyticsSnapshot;
   goesFirst: LRStemType | undefined;
   score: number | null;
+  week: string;
 }) {
   const [showAll, setShowAll] = useState(false);
   const types = missedTypesInOrder(result.missedStemTypes, goesFirst);
@@ -635,7 +637,7 @@ function WhatWeFound({ result, analytics, goesFirst, score }: {
       <div className="flex flex-col gap-1.5">
         <p className="text-small text-smoke max-md:hidden">What we found · practice test {result.prepTest}{score !== null && ` · score ${score}`}</p>
         <h2 className="text-h5 font-semibold text-ink md:text-h4">
-          {types.length > 0 ? `${types[0].type} goes first next week.` : "No question type goes first next week."}
+          {types.length > 0 ? `${types[0].type} goes first ${week}.` : `No question type goes first ${week}.`}
         </h2>
         <p className="text-small text-smoke">
           {types.length > 0
@@ -677,15 +679,20 @@ function WhatWeFound({ result, analytics, goesFirst, score }: {
   );
 }
 
-function NextWeek({ schedule, goesFirst }: { schedule: WeeklySchedule; goesFirst: LRStemType | undefined }) {
+function PlannedWeek({ schedule, basis, goesFirst }: {
+  schedule: WeeklySchedule;
+  basis: WeeklyUploadBasis;
+  goesFirst: LRStemType | undefined;
+}) {
   const drills = firstDrills(schedule, goesFirst);
+  const { Week } = planText(basis);
   return (
-    <section aria-label="Next week" className="flex flex-col gap-3">
+    <section aria-label={Week} className="flex flex-col gap-3">
       <p className="hidden flex-wrap items-baseline gap-x-3 md:flex">
-        <span className="text-h6 font-semibold text-ink">Next week</span>
-        <span className="text-small text-smoke">{weekSummary(schedule)}</span>
+        <span className="text-h6 font-semibold text-ink">{Week}</span>
+        <span className="text-small text-smoke">{weekSummary(schedule, basis.startsOn)}</span>
       </p>
-      <WeekTiles className="hidden md:flex" days={weekTiles(schedule)} highlight={drills?.day ?? null} />
+      <WeekTiles className="hidden md:flex" days={weekTiles(schedule, basis.startsOn)} highlight={drills?.day ?? null} />
       <div className="flex flex-col gap-2.5 rounded-sm border border-vellum-line bg-paper p-4 md:p-5">
         {drills ? (
           <DrillList
@@ -694,20 +701,20 @@ function NextWeek({ schedule, goesFirst }: { schedule: WeeklySchedule; goesFirst
             items={drills.items}
           />
         ) : (
-          <p className="text-small text-smoke">Next week has no drilling day.</p>
+          <p className="text-small text-smoke">{Week} has no drilling day.</p>
         )}
       </div>
     </section>
   );
 }
 
-const STEPS = [
-  "In 7Sage, open the practice test you took this week. Go to its Review page.",
+const steps = (lastWeek: string) => [
+  `In 7Sage, open the practice test you took ${lastWeek}. Go to its Review page.`,
   "Take one tall screenshot for each section. Start at the section title. End below the last question.",
   "Move the cursor off the Result column first. It can hide a result.",
 ];
 
-function WhereToFind({ needsSections }: { needsSections: boolean }) {
+function WhereToFind({ needsSections, lastWeek }: { needsSections: boolean; lastWeek: string }) {
   const [open, setOpen] = useState(false);
   const title = needsSections ? "Where to find them" : "Where to find it";
   return (
@@ -732,7 +739,7 @@ function WhereToFind({ needsSections }: { needsSections: boolean }) {
             <div className="flex flex-col gap-2.5">
               <h3 className="text-small font-medium text-ink">Practice test review</h3>
               <ol className="flex flex-col gap-2.5">
-                {STEPS.map((step, index) => (
+                {steps(lastWeek).map((step, index) => (
                   <li key={step} className="flex gap-3 text-small text-ink">
                     <span aria-hidden className="w-4 shrink-0 text-caption leading-small text-smoke">{index + 1}</span>
                     {step}

@@ -20,9 +20,11 @@ export interface TestControlState {
   weekStartDate: string;
   simulated: boolean;
   onboarded: boolean;
-  canRebuild: boolean;
+  weekHasSchedule: boolean;
+  uploadWeekend: boolean;
 }
 
+const UPLOAD_PATH = "/dashboard/upload";
 const BUTTON = cx(
   "min-h-11 rounded-sm border border-vellum-line px-3 py-2 text-small font-medium text-ink hover:bg-vellum disabled:cursor-not-allowed disabled:opacity-50",
   FOCUS,
@@ -86,7 +88,8 @@ export default function TestControls({
   const canRebuild =
     currentWeek?.week === state.weekStartDate
       ? currentWeek.exists
-      : state.canRebuild;
+      : state.weekHasSchedule;
+  const uploadOpen = state.uploadWeekend || !canRebuild;
   const id = useId();
   const [date, setDate] = useState("");
   const [direction, setDirection] = useState<SampleDirection>("steady");
@@ -272,16 +275,23 @@ export default function TestControls({
               <button
                 type="button"
                 className={cx(BUTTON, "mt-3 w-full")}
+                disabled={!uploadOpen}
                 onClick={() =>
                   run(async () => {
                     setSample(await generateTestSample(direction));
-                    if (pathname !== "/dashboard/upload") router.push("/dashboard");
+                    if (pathname !== UPLOAD_PATH) router.push(UPLOAD_PATH);
                     onClose();
                   }, "Sample ready for review.")
                 }
               >
                 Generate sample
               </button>
+              {!uploadOpen && (
+                <p className="mt-2 text-caption text-smoke">
+                  The weekly upload is closed this week. Reset test data, or
+                  move the simulated date to Saturday.
+                </p>
+              )}
             </>
           ) : (
             <p className="mt-2 text-small text-smoke">

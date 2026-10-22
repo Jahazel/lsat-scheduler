@@ -10,7 +10,7 @@ import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { studentSideClock } from "@/lib/studentClock";
 import { findStudentByAccountId } from "@/lib/studentRepository";
 import { listWeeklySchedulesForStudent } from "@/lib/weeklyScheduleRepository";
-import { uploadWeekOf } from "@/lib/currentWeeklySchedule";
+import { currentWeekInTimezone, uploadWeekOf, weeklyUploadIsOpen } from "@/lib/currentWeeklySchedule";
 import { isoDateInWeek } from "@/lib/scheduleReasonText";
 import { weekHadPracticeTest } from "@/lib/weeklyUpload";
 import { prepareWeeklyUploadApproval } from "@/lib/weeklyUploadApproval";
@@ -42,10 +42,14 @@ export async function confirmWeeklyUpload(input: unknown): Promise<WeeklyUploadC
 
   const clock = await studentSideClock(session.user);
   const target = TargetWeek.safeParse(input);
-  if (!target.success || target.data.weekOf !== uploadWeekOf(clock.now, SCHEDULE_TIMEZONE)) {
+  const schedules = await listWeeklySchedulesForStudent(student.id);
+  const currentWeek = currentWeekInTimezone(clock.now, SCHEDULE_TIMEZONE);
+  if (
+    !target.success || target.data.weekOf !== uploadWeekOf(clock.now, SCHEDULE_TIMEZONE)
+    || !weeklyUploadIsOpen(clock.now, SCHEDULE_TIMEZONE, schedules.some((record) => record.weekStartDate === currentWeek))
+  ) {
     return { error: "This page is out of date. Open This week to continue." };
   }
-  const schedules = await listWeeklySchedulesForStudent(student.id);
   try {
     await approveWeeklyUpload(student.id, prepareWeeklyUploadApproval(input, clock.now, clock.real, {
       allowAdminSample,
