@@ -9,7 +9,7 @@ It approves no release, exception, or launch. No launch checklist row passes bec
 - The real site `lsat-scheduler.vercel.app` serves commit `315fad4` on Neon production since 2026-10-21 22:53 UTC (#146).
 - One Admin (Admin 1) works on the real site through Google only. The second Admin is open in [#216](https://github.com/Jahazel/lsat-scheduler/issues/216), which blocks nothing.
 - The Atlas project was deleted on 2026-10-22 00:39 UTC (#147). Recovery now uses only the Neon restore procedure from #144.
-- One Stage 3 check is still open: the stale-backup alert. See [Still open](#still-open).
+- The stale-backup alert has not run. The owner moved it to Stage 7 on 2026-10-22, as an accepted risk in the [launch checklist](release-gate.md#accepted-risks). See [Still open](#still-open).
 - DrillMap is not promoted. Stages 4 to 7 and a separate launch approval remain.
 
 ## Child ticket results
@@ -98,7 +98,7 @@ Not proven: refusal on the real site's own app role of creating roles or changin
 | Copy missing-run alert and recovery | Passed 2026-10-19 | [Issue 144 evidence](issue-144-evidence.md#copy-alerts) |
 | First `schedule`-event run of each checker | Passed 2026-10-20: production [run 39447327360](https://github.com/Jahazel/lsat-scheduler/actions/runs/39447327360), copy [run 39447533376](https://github.com/Jahazel/lsat-scheduler/actions/runs/39447533376). Both started 4 h 42 min late. | [#148 owner decisions](https://github.com/Jahazel/lsat-scheduler/issues/148#issuecomment-6295484127) |
 | Second scheduled runs | Both `fresh` on 2026-10-21, started about 15:31 UTC (about 4.9 hours late). Production [run 39626451130](https://github.com/Jahazel/lsat-scheduler/actions/runs/39626451130), copy [run 39626661283](https://github.com/Jahazel/lsat-scheduler/actions/runs/39626661283). Whether the 8-hour grace prevented a false DOWN alert is not recorded. | GitHub Actions |
-| Stale-backup alert (`stale` and owner receipt) | **Not run.** No checker run has reported `stale`. | GitHub Actions run list, 2026-10-22 |
+| Stale-backup alert (`stale` and owner receipt) | **Not run.** No checker run has reported `stale`. Moved to Stage 7 as an accepted risk (owner, 2026-10-22). | GitHub Actions run list, 2026-10-22; [launch checklist accepted risks](release-gate.md#accepted-risks) |
 | 30-day age alert (`retention-overdue`) | Not possible before 2026-11-17 18:34 UTC. Moved to Stage 7 as an accepted risk (owner, 2026-10-20). | [Launch checklist accepted risks](release-gate.md#accepted-risks) |
 
 ## Restore rehearsal
@@ -129,7 +129,7 @@ Known and accepted data loss: 2 student Accounts with study data (2 analytics sn
 
 | Item | Owner | Blocks |
 | --- | --- | --- |
-| Stale-backup alert: a checker reports `stale` and the owner receives the DOWN email | Owner and agent | Stage 3 completion. Also excepted for the move until first promotion or 2026-11-30. |
+| Stale-backup alert: a checker reports `stale` and the owner receives the DOWN email | Stage 7 (owner decision, 2026-10-22) | Launch. Must pass by the Stage 7 alert proof, the first promotion, or 2026-11-30, whichever comes first. |
 | Admin 2 on the real site | Owner and tutor partner, #216 | Nothing in Stage 3. Launch check B9 needs both Admins. |
 | Full copy walkthrough on the live version `315fad4` | Agent and owner | Launch. Excepted for the move until first promotion or 2026-11-30. |
 | Apply migrations `0003` and `0004` to Neon production before promoting any build after `315fad4` | Owner | The next real-site release |
@@ -150,7 +150,7 @@ Every launch checklist row stays `Not tested`. Stage 3 adds partial evidence onl
 | H3 | Production and copy passwords 32 characters, `verify-full` | Recheck on the launch version |
 | H4 | Separate secrets, previews empty, script refusals | Email keys (Stage 4) |
 | H6 | Real Google client published | Recheck on the launch version |
-| I1 | Production schedule, retention, checker, access, missing-backup alert | Stale-backup alert |
+| I1 | Production schedule, retention, checker, access, missing-backup alert | Stale-backup alert and 30-day age alert (Stage 7) |
 | I2 | Copy restore rehearsal | Deletion replay (Stage 6); full rerun (Stage 7) |
 | I3 | Backup alerts | Four other alerts (Stage 7) |
 
@@ -180,7 +180,7 @@ Stage 4 reuses the Google identity and Google-only Admin code from #140. Do not 
 ## Later stages and launch
 
 - **Stage 6:** deletion list and replay after restore, retention jobs, security logs, browser protections, and the final privacy, terms, and AI disclosure text.
-- **Stage 7:** full restore check with deletion replay, credential rotation drill, all five alert tests, the 30-day age alert, and the emergency guide rehearsal on the release version.
+- **Stage 7:** full restore check with deletion replay, credential rotation drill, all five alert tests, the stale-backup alert, the 30-day age alert, and the emergency guide rehearsal on the release version.
 - **Launch approval** is a separate written owner decision that names one exact version. Stage 3 does not give it.
 - **No promotion.** The owner does not promote DrillMap until launch approval.
 
