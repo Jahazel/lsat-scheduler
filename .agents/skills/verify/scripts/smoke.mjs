@@ -30,6 +30,7 @@ const dailyCapacities = (student) => Object.entries(student)
   .filter(([key]) => key.endsWith("_capacity_minutes"))
   .map(([, value]) => Number(value));
 const log = (action) => actions.push({ at: new Date().toISOString(), action, url: page.url() });
+const WEEKLY_UPLOAD = /^Plan (this|next) week$/;
 const heading = (name) => page.getByRole("heading", { name, exact: true }).waitFor();
 const goto = async (path) => { log(`Navigate to ${path}`); await page.goto(healthy.url + path); };
 async function capture(name) {
@@ -95,7 +96,7 @@ try {
   await heading("Add your 7Sage analytics");
   log("Skip analytics for now");
   await page.getByRole("button", { name: "Skip for now", exact: true }).click();
-  await heading("Add your latest analytics snapshot");
+  await heading(WEEKLY_UPLOAD);
   const onboarded = records("records-onboarding.json");
   assert.equal(onboarded.students.length, 1);
   assert.equal(onboarded.students[0].goal_score, 165);
@@ -112,7 +113,7 @@ try {
   log("Set goal score 168, apply 30 minutes to all days, and save");
   await capture("settings-before-save");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
-  await heading("Add your latest analytics snapshot");
+  await heading(WEEKLY_UPLOAD);
   await goto("/settings");
   await heading("Study settings");
   assert.equal(await page.getByRole("spinbutton", { name: "Goal score", exact: true }).inputValue(), "168");
@@ -145,7 +146,7 @@ try {
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill(password);
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await heading("Add your latest analytics snapshot");
+  await heading(WEEKLY_UPLOAD);
   for (const path of ["/login", "/signup"]) {
     await goto(path);
     assert.equal(new URL(page.url()).pathname, "/dashboard");

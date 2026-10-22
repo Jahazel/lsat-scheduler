@@ -81,7 +81,7 @@ The student's current weekly schedule as a checklist of schedule activities, or 
 _Avoid_: dashboard, current plan
 
 **Weekly upload**:
-The "Plan next week" page where a student adds two analytics screenshots, four practice-test section screenshots, and their current score, then confirms what was read. Confirming saves the analytics snapshot, the practice-test result if there is one, and the current score together. An upload confirmed from Saturday onward counts for the next weekly schedule. When the current weekly schedule has no practice test, it asks only for the analytics screenshots.
+The page where a student adds two analytics screenshots, four practice-test section screenshots, and their current score, then confirms what was read. Confirming saves the analytics snapshot, the practice-test result if there is one, and the current score together. An upload confirmed from Saturday onward is "Plan next week" and counts for the next weekly schedule. An upload confirmed Monday to Friday, when the week has no weekly schedule yet, is "Plan this week" and counts for the rest of the current week. When the week before the planned week had no practice test, it asks only for the analytics screenshots.
 _Avoid_: weekly check-in, analytics upload
 
 **Progress**:
@@ -163,5 +163,5 @@ The fixed "today" an admin sets for their own student side. It moves only forwar
 _Avoid_: test date, fake date, time travel
 
 **Sample analytics snapshot**:
-An analytics snapshot generated for an admin's student side instead of extracted from a 7Sage screenshot. The admin reviews and approves it like an uploaded snapshot.
+An analytics snapshot generated for an admin's student side instead of extracted from a 7Sage screenshot. The admin reviews and approves it in the weekly upload, like an uploaded snapshot.
 _Avoid_: mock analytics, fake analytics
