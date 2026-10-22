@@ -11,30 +11,38 @@ A saved Monday–Sunday study plan for one student and one calendar week. It is 
 _Avoid_: schedule generation, plan template
 
 **Schedule activity**:
-One individually trackable item within a weekly schedule, such as an LR drill, RC drill, practice test, or review session. A student can report it as not started, completed, or skipped.
+One individually trackable item within a weekly schedule, such as an LR drill, RC drill, paired LR drill, full section, practice test, or review session. It shows as one line, labeled with its count, type, and difficulty, without its planned minutes. A student checks it off when it is done.
 _Avoid_: task, to-do
 
 **Activity check-in**:
-A student's latest reported status and optional actual minutes for one schedule activity. The student may correct it later without changing the planned activity.
+A student's latest reported status for one schedule activity: not started or completed. One check-off marks it completed, and the student may undo it later without changing the planned activity.
 _Avoid_: activity completion record
 
 **Analytics snapshot**:
 An approved, dated extraction of a student's 7Sage analytics. Snapshots are retained so performance can be compared across weeks.
 _Avoid_: current analytics, analytics upload
 
+**Practice-test result**:
+An approved reading of a student's four practice-test review screenshots, one per section: the PrepTest number, each section's 7Sage score, each LR question's result and tags, and the missed question type counts. A weekly upload holds at most one.
+_Avoid_: PT score, test upload
+
+**Missed question type**:
+An LR question-stem type tagged on a question the student got wrong or left unanswered in a practice-test result. A question whose result the screenshot hides counts when its section score or the student settles it as missed. The type missed most goes first in the next weekly schedule, for that week only.
+_Avoid_: weak type, error type
+
 **Performance trend**:
 A recency-weighted view of up to the three most recent approved analytics snapshots. Fewer snapshots are valid for a new student; the newest snapshot has the strongest influence.
 _Avoid_: single-week result, lifetime average
 
 **Adaptive weekly schedule**:
-A weekly schedule shaped by the student's earlier schedule activities and analytics snapshots. It accounts for both reported progress and performance trends.
+A weekly schedule shaped by the student's earlier weekly schedules, analytics snapshots, and latest practice-test result. It accounts for performance trends and recent misses, not for which activities were checked off.
 _Avoid_: smart schedule, AI schedule
 
 **Scheduling policy version**:
 The named version of the deterministic rules used to create a weekly schedule. It is retained with the schedule so historical plans remain explainable and reproducible.
 
 **Schedule reason**:
-A saved code, placement, and short sentence recording why a weekly schedule departs from the student's normal week, such as a skip reduction or a capacity overage. The sentence is written when the weekly schedule is created, so a past schedule keeps its original wording.
+A saved code, placement, and short sentence recording why a weekly schedule departs from the student's normal week, such as a moved rest day or a missed question type that goes first. The sentence is written when the weekly schedule is created, so a past schedule keeps its original wording.
 _Avoid_: explanation, rationale, note
 
 **Legacy analytics record**:
@@ -69,12 +77,20 @@ _Avoid_: empty day, missed day
 ### Student app
 
 **This week**:
-The student's current weekly schedule, where they check in activities, or the analytics upload that creates it when none exists yet.
+The student's current weekly schedule as a checklist of schedule activities, or the weekly upload that creates it when none exists yet. On Saturday and Sunday it reminds the student to plan next week until next week's weekly upload is confirmed.
 _Avoid_: dashboard, current plan
+
+**Weekly upload**:
+The "Plan next week" page where a student adds two analytics screenshots, four practice-test section screenshots, and their current score, then confirms what was read. Confirming saves the analytics snapshot, the practice-test result if there is one, and the current score together. An upload confirmed from Saturday onward counts for the next weekly schedule. When the current weekly schedule has no practice test, it asks only for the analytics screenshots.
+_Avoid_: weekly check-in, analytics upload
 
 **Progress**:
 The student's history across finished weeks: completion stats and each past weekly schedule, opened read-in-place.
 _Avoid_: history, past plans
+
+**Official LSAT attempt**:
+A real LSAT the student has taken, recorded during onboarding as a score with its month and year. It gives the tutor context; the weekly schedule does not use it.
+_Avoid_: past LSAT, real test
 
 **Study settings**:
 The student's study profile: scores, goal test date, daily capacity, preferred practice-test day and accommodation. Changes apply to the next weekly schedule created.
@@ -94,25 +110,21 @@ _Avoid_: availability, weekday capacity, weekend capacity
 The smallest amount of LR or RC work every drilling day receives, even when it exceeds that day's daily capacity.
 _Avoid_: floor, minimum drill
 
-**Fill limit**:
-A drilling day's daily capacity after any skip reduction. The daily minimum and full section count toward it and can exceed it; other work is added only while the day stays within it.
-_Avoid_: daily cap, available hours
+**Fill window**:
+The range a drilling day's planned minutes must land in: from 10 minutes under its daily capacity to 30 minutes over. Work is added while the day is below its daily capacity, and only work that keeps the day inside the window. The daily minimum and full section are always placed. Practice-test days and practice-test review days have no fill window.
+_Avoid_: fill limit, daily cap, available hours
 
 **Day fill**:
 A drilling day's planned schedule-activity minutes as a share of that day's daily capacity. The tutor uses it to judge whether assigned work differs too much between days.
 _Avoid_: utilization, load
 
 **Capacity overage**:
-The minutes by which a day's planned schedule activities exceed its daily capacity.
+The minutes by which a day's planned schedule activities exceed its daily capacity. It is saved on the day for the tutor; the student sees no notice for it.
 _Avoid_: overflow
 
 **Accommodation**:
 A student's approved extra-time category (standard, 1.5x, or 2x), which lengthens the planned time of their schedule activities.
 _Avoid_: multiplier, extra time
-
-**Skip reduction**:
-The cut to a weekly schedule's planned work, sized by the share of planned minutes the student skipped in the immediately preceding week. It never reduces a drilling day below its daily minimum.
-_Avoid_: workload reduction, penalty
 
 ### Drill content
 
@@ -125,8 +137,12 @@ An LR question type the tutor ranks first for drilling.
 _Avoid_: mandatory type, core type
 
 **Drill**:
-A schedule activity covering a set number of LR questions of one question type, or a set number of RC passages. It is the unit the daily minimum and the drilling ratio are counted in.
+A schedule activity covering a set number of LR questions of one question type (two for a paired LR drill), or one or two RC passages. It is the unit the daily minimum and the drilling ratio are counted in.
 _Avoid_: drill block, practice set
+
+**Paired LR drill**:
+One drill of 10 LR questions across two question types the tutor pairs, such as Necessary and Sufficient assumption. A weekly schedule holds two when the current score is 160 or higher and one otherwise, never more than one per drilling day.
+_Avoid_: 5+5 unit, combo drill
 
 **Drilling ratio**:
 The fixed proportion of LR to RC drilling within one weekly schedule: 10 LR questions for every RC passage. Full sections and practice tests are counted separately.
