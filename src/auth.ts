@@ -17,6 +17,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user && typeof token.id === "string" && (token.role === "student" || token.role === "admin")) {
         session.user.id = token.id;
         session.user.role = token.role;
+        session.signedInAt = token.signedInAt;
       }
       return session;
     },

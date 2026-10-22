@@ -6,6 +6,11 @@ const DAY_SECONDS = 24 * 60 * 60;
 // Auth.js re-signs the cookie with this lifetime on every read, so it is the idle limit.
 export const SESSION_IDLE_SECONDS = 14 * DAY_SECONDS;
 const SIGN_IN_LIMIT_SECONDS = { student: 30 * DAY_SECONDS, admin: DAY_SECONDS } as const;
+const RECENT_SIGN_IN_SECONDS = 10 * 60;
+
+export function signedInRecently(signedInAt: number | undefined) {
+  return signedInAt !== undefined && Math.floor(Date.now() / 1000) - signedInAt <= RECENT_SIGN_IN_SECONDS;
+}
 
 type SessionAccount = NonNullable<Awaited<ReturnType<typeof findAccountById>>>;
 
