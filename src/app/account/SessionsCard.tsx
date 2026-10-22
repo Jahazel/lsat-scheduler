@@ -42,14 +42,14 @@ export function SessionsCard() {
 function ConfirmButtons({ onCancel }: { onCancel: () => void }) {
   const { pending } = useFormStatus();
   return (
-    <div className="flex shrink-0 gap-3">
-      <button type="button" onClick={onCancel} disabled={pending} className={cx(OUTLINE, "w-28")}>
+    <div className="flex shrink-0 flex-col-reverse gap-3 sm:flex-row">
+      <button type="button" onClick={onCancel} disabled={pending} className={cx(OUTLINE, "sm:w-28")}>
         Cancel
       </button>
       <button
         type="submit"
         disabled={pending}
-        className={cx(BUTTON, "min-w-52 bg-ink text-chalk hover:bg-graphite-raised disabled:opacity-strong", MOTION, FOCUS)}
+        className={cx(BUTTON, "sm:min-w-52 bg-ink text-chalk hover:bg-graphite-raised disabled:opacity-strong", MOTION, FOCUS)}
       >
         {pending ? "Signing out…" : "Sign out of all devices"}
       </button>
