@@ -14,7 +14,6 @@ const commands = [
   ["migrate-postgres", []],
   ["make-admin", ["admin@example.test"]],
   ["reset-dev-data", ["--yes"]],
-  ["create-test-user", []],
   ["check-neon", []],
 ];
 const commandTimeout = 10000;

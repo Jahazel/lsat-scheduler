@@ -1,73 +1,77 @@
-"use client";
+import { GoogleButton } from "@/components/signIn/GoogleButton";
+import { PreviewHeader, SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";
+import { cx } from "@/components/ui/classes";
+import { loginNotice, type LoginNotice } from "@/lib/loginNotice";
+import { signInWithGoogle } from "./actions";
 
-import Link from "next/link";
-import { useActionState } from "react";
-import { login, signInWithGoogle, type LoginState } from "./actions";
-
-const initialState: LoginState = {};
-
-export default function LoginPage() {
-  const [state, formAction, pending] = useActionState(login, initialState);
-
+export default async function LoginPage({ searchParams }: PageProps<"/login">) {
+  const notice = loginNotice((await searchParams).error);
   return (
-    <div className="min-h-screen px-6 py-12">
-      <div className="mx-auto max-w-sm">
-        <h1 className="text-h3 font-semibold text-ink">Log in</h1>
+    <SignInFrame title="Log in to DrillMap" lead="Your plan for this week is ready." preview={<TodayPreview />}>
+      {notice && <Notice notice={notice} />}
+      <form action={signInWithGoogle}>
+        <GoogleButton />
+      </form>
+      <SwitchPageLink question="New to DrillMap?" href="/signup" label="Sign up" />
+    </SignInFrame>
+  );
+}
 
-        <form action={signInWithGoogle} className="mt-8">
-          <button
-            type="submit"
-            className="w-full rounded-sm border border-vellum-line bg-paper px-4 py-2 text-small font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum-line"
-          >
-            Continue with Google
-          </button>
-        </form>
-
-        <div className="my-6 flex items-center gap-3 text-caption text-smoke">
-          <div className="h-px flex-1 bg-vellum-line" />
-          or
-          <div className="h-px flex-1 bg-vellum-line" />
-        </div>
-
-        <form action={formAction} className="flex flex-col gap-5">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-small font-medium text-smoke">Email</span>
-            <input
-              type="email"
-              name="email"
-              required
-              className="rounded-sm border border-vellum-line bg-paper px-3 py-2 text-small text-ink"
-            />
-          </label>
-
-          <label className="flex flex-col gap-1.5">
-            <span className="text-small font-medium text-smoke">Password</span>
-            <input
-              type="password"
-              name="password"
-              required
-              className="rounded-sm border border-vellum-line bg-paper px-3 py-2 text-small text-ink"
-            />
-          </label>
-
-          {state.error && <p className="text-small text-danger-ink">{state.error}</p>}
-
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded-sm bg-ink px-4 py-2 text-small font-medium text-chalk transition-colors duration-150 ease-out hover:bg-graphite-raised disabled:opacity-50"
-          >
-            {pending ? "Logging in…" : "Log in"}
-          </button>
-        </form>
-
-        <p className="mt-6 text-center text-small text-smoke">
-          New to DrillMap?{" "}
-          <Link href="/signup" className="font-medium text-accent hover:text-ink">
-            Sign up
-          </Link>
-        </p>
-      </div>
+function Notice({ notice }: { notice: LoginNotice }) {
+  const danger = notice.tone === "danger";
+  return (
+    <div className="flex items-start gap-2">
+      <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" className={cx("mt-0.5 shrink-0", danger ? "stroke-danger-ink" : "stroke-smoke")} fill="none" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="8" cy="8" r="6.5" />
+        {danger ? (
+          <>
+            <path d="M8 4.75V8.75" />
+            <circle cx="8" cy="11" r="0.8" className="fill-danger-ink stroke-none" />
+          </>
+        ) : (
+          <path d="M8 4.75V8L10.25 9.5" />
+        )}
+      </svg>
+      <p role={danger ? "alert" : "status"} className={cx("text-small leading-[20px]", danger ? "text-danger-ink" : "text-ink")}>
+        {notice.text}
+      </p>
     </div>
+  );
+}
+
+const TODAY = [
+  { label: "Flaw questions · 12 drills", minutes: "35 min", done: true },
+  { label: "Weaken · timed section", minutes: "35 min", done: false },
+  { label: "Reading comp · 2 passages", minutes: "1 h", done: false },
+];
+
+function TodayPreview() {
+  return (
+    <>
+      <PreviewHeader label="Thursday · Today" detail="2 h 10 min" />
+      <ul className="flex flex-col gap-3">
+        {TODAY.map((row) => (
+          <li key={row.label} className="flex items-center gap-3">
+            {row.done ? (
+              <span className="flex size-4 shrink-0 items-center justify-center rounded-pill bg-ink">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="stroke-chalk" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 5.2l2 2 4-4.4" />
+                </svg>
+              </span>
+            ) : (
+              <span className="size-4 shrink-0 rounded-pill border-[1.5px] border-fog" />
+            )}
+            <span className={cx("grow text-body leading-[20px]", row.done ? "text-smoke line-through" : "text-ink")}>{row.label}</span>
+            <span className={cx("font-mono text-mono", row.done ? "text-fog" : "text-smoke")}>{row.minutes}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-col gap-2">
+        <div className="h-2 rounded-pill bg-vellum-line">
+          <div className="h-full w-1/3 rounded-pill bg-accent" />
+        </div>
+        <p className="text-small font-medium text-accent">2 remaining today</p>
+      </div>
+    </>
   );
 }

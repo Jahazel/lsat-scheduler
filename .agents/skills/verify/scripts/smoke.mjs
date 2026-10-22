@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { randomBytes } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { dirname, resolve, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -13,7 +12,7 @@ const run = resolve(root, directory);
 const base = resolve(root, ".verification/evidence");
 if (!relative(base, run) || relative(base, run).startsWith("..")) throw new Error("Use a directory below .verification/evidence/.");
 const helper = resolve(root, ".agents/skills/verify/scripts/local.mjs");
-const check = (command) => JSON.parse(execFileSync(process.execPath, [helper, command, directory], { cwd: root, encoding: "utf8" }));
+const check = (command, ...args) => JSON.parse(execFileSync(process.execPath, [helper, command, directory, ...args], { cwd: root, encoding: "utf8" }));
 const healthy = check("doctor");
 const modulePath = process.env.VERIFY_PLAYWRIGHT_MODULE || resolve(run, "scratch/tools/node_modules/playwright/index.mjs");
 const { chromium } = await import(pathToFileURL(modulePath).href);
@@ -23,7 +22,7 @@ const page = await context.newPage();
 const actions = [];
 const errors = [];
 const email = "verify-smoke@example.test";
-const password = randomBytes(18).toString("base64url") + "Aa1";
+const REFUSED = "Google sign-in didn't finish. Try again, or use a Google account with a verified email.";
 const save = (name, value) => writeFileSync(resolve(run, name), JSON.stringify(value, null, 2) + "\n");
 const records = (name) => { const value = check("inspect"); save(name, value); return value; };
 const dailyCapacities = (student) => Object.entries(student)
@@ -32,10 +31,11 @@ const dailyCapacities = (student) => Object.entries(student)
 const log = (action) => actions.push({ at: new Date().toISOString(), action, url: page.url() });
 const WEEKLY_UPLOAD = /^Plan (this|next) week$/;
 const heading = (name) => page.getByRole("heading", { name, exact: true }).waitFor();
-const goto = async (path) => { log(`Navigate to ${path}`); await page.goto(healthy.url + path); };
-async function capture(name) {
-  await page.screenshot({ path: resolve(run, `${name}.png`), fullPage: true });
-  writeFileSync(resolve(run, `${name}.aria.txt`), await page.locator("body").ariaSnapshot());
+const goto = async (path, on = page) => { log(`Navigate to ${path}`); await on.goto(healthy.url + path); };
+const signInAs = async (on, account) => { log(`Set a minted session cookie for ${account}`); await on.context().addCookies([check("session", account)]); };
+async function capture(name, on = page) {
+  await on.screenshot({ path: resolve(run, `${name}.png`), fullPage: true });
+  writeFileSync(resolve(run, `${name}.aria.txt`), await on.locator("body").ariaSnapshot());
 }
 page.on("pageerror", (error) => errors.push(error.message));
 await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
@@ -47,33 +47,41 @@ try {
   await capture("landing");
   log("Choose Build my first plan");
   await page.getByRole("link", { name: "Build my first plan", exact: true }).click();
-  await heading("Create your account");
+  await heading("Sign up for DrillMap");
   await goto("/");
   log("Choose the public Sign up navigation link");
   await page.locator("header").getByRole("link", { name: "Sign up", exact: true }).click();
-  await heading("Create your account");
+  await heading("Sign up for DrillMap");
   log("Choose the signup form's Log in link");
   await page.locator("main").getByRole("link", { name: "Log in", exact: true }).click();
-  await heading("Log in");
+  await heading("Log in to DrillMap");
   log("Choose the login form's Sign up link");
   await page.locator("main").getByRole("link", { name: "Sign up", exact: true }).click();
-  await heading("Create your account");
+  await heading("Sign up for DrillMap");
   await goto("/");
   log("Choose the public Log in navigation link");
   await page.locator("header").getByRole("link", { name: "Log in", exact: true }).click();
-  await heading("Log in");
+  await heading("Log in to DrillMap");
+  assert.deepEqual(await page.locator("main").getByRole("button").allTextContents(), ["Continue with Google"]);
+  assert.equal(await page.locator("main input").count(), 0);
+  await capture("login-default");
+  for (const [error, role, text] of [["AccessDenied", "alert", REFUSED], ["AccountDisabled", "alert", "This Account can't sign in."], ["SessionEnded", "status", "Your session ended. Sign in again."]]) {
+    await goto(`/login?error=${error}`);
+    assert.equal(await page.locator("main").getByRole(role).textContent(), text);
+    await capture(`login-${error}`);
+  }
   await goto("/signup");
-  await page.locator('input[name="name"]').fill("Verify Student");
-  await page.locator('input[name="email"]').fill(email);
-  await page.locator('input[name="password"]').fill(password);
-  log("Submit valid signup fields without consent");
-  await page.getByRole("button", { name: "Sign up", exact: true }).click();
-  assert(await page.locator('input[name="agreedToTerms"]').evaluate((input) => input.validity.valueMissing));
+  await capture("signup-default");
+  log("Continue with Google without ticking the Terms and Privacy box");
+  await page.getByRole("button", { name: "Continue with Google", exact: true }).click();
+  await page.getByText("Tick the box to continue.", { exact: true }).waitFor();
+  assert.equal(new URL(page.url()).pathname, "/signup");
+  assert.equal(await page.getByRole("checkbox").getAttribute("aria-invalid"), "true");
   assert.equal(records("records-consent-refused.json").accounts.length, 0);
-  await capture("consent-refused");
-  log("Accept terms and create the Account");
-  await page.locator('input[name="agreedToTerms"]').check();
-  await page.getByRole("button", { name: "Sign up", exact: true }).click();
+  await capture("signup-box-not-ticked");
+  check("seed", "student", email, "--not-onboarded");
+  await signInAs(page, email);
+  await goto("/onboarding");
   await heading("Set your target");
   const signedUp = records("records-signup.json");
   assert.equal(signedUp.accounts.length, 1);
@@ -135,23 +143,22 @@ try {
   await page.getByRole("menuitem", { name: "Log out", exact: true }).click();
   await page.waitForURL(healthy.url + "/");
   await goto("/account");
-  await heading("Log in");
-  await page.locator('input[name="email"]').fill(email);
-  await page.locator('input[name="password"]').fill("WrongPassword123");
-  log("Submit an invalid password");
-  await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await page.getByText("Invalid email or password.", { exact: true }).waitFor();
-  await capture("invalid-login");
-  log("Submit the valid password");
-  await page.locator('input[name="email"]').fill(email);
-  await page.locator('input[name="password"]').fill(password);
-  await page.getByRole("button", { name: "Log in", exact: true }).click();
+  await heading("Log in to DrillMap");
+  assert.equal(new URL(page.url()).search, "", "A signed-out browser sees Login with no reason.");
+  assert.equal(await page.locator("main").getByRole("status").count(), 0);
+  await signInAs(page, email);
+  await goto("/dashboard");
   await heading(WEEKLY_UPLOAD);
   for (const path of ["/login", "/signup"]) {
     await goto(path);
     await heading(WEEKLY_UPLOAD);
     assert.equal(new URL(page.url()).pathname, "/dashboard/upload");
   }
+  const second = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const secondPage = await second.newPage();
+  await signInAs(secondPage, email);
+  await goto("/account", secondPage);
+  await secondPage.getByRole("heading", { name: "Account", exact: true }).waitFor();
   await goto("/account");
   await heading("Account");
   await page.locator('input[name="confirmation"]').fill("DELETE");
@@ -160,16 +167,15 @@ try {
   await page.getByRole("link", { name: "Build my first plan", exact: true }).waitFor();
   const deleted = records("records-deleted.json");
   for (const collection of ["accounts", "students", "analytics_snapshots", "weekly_schedules", "activity_check_ins"]) assert.equal(deleted[collection].length, 0);
-  await goto("/login");
-  await page.locator('input[name="email"]').fill(email);
-  await page.locator('input[name="password"]').fill(password);
-  log("Try the deleted Account's valid password");
-  await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await page.getByText("Invalid email or password.", { exact: true }).waitFor();
-  await capture("deleted-account-login");
+  log("Reload Account in the second browser after the deletion");
+  await secondPage.reload();
+  await secondPage.getByText("Your session ended. Sign in again.", { exact: true }).waitFor();
+  assert.equal(new URL(secondPage.url()).pathname + new URL(secondPage.url()).search, "/login?error=SessionEnded");
+  await capture("deleted-account-second-browser", secondPage);
+  await second.close();
   assert.deepEqual(errors, []);
-  save("smoke-result.json", { passed: true, areas: ["sign-up-account", "study-settings"], pageErrors: errors, limitations: ["No nonempty analytics or schedule history in the deletion fixture", "No capacity-notice settings entry, mobile navigation, Google sign-in, or screenshot extraction"] });
-  console.log(`Passed signup, onboarding, settings persistence, sign-in, sign-out, and Account deletion. Evidence: ${run}`);
+  save("smoke-result.json", { passed: true, areas: ["sign-up-account", "study-settings"], pageErrors: errors, limitations: ["No nonempty analytics or schedule history in the deletion fixture", "Login refusal states are opened by their reason links; real Google sign-in and its refusals need the copy", "No capacity-notice settings entry, mobile navigation, or screenshot extraction"] });
+  console.log(`Passed Login and Signup states, onboarding, settings persistence, sign-out, Account deletion, and the ended session. Evidence: ${run}`);
 } catch (error) {
   await capture("failure").catch(() => {});
   save("smoke-result.json", { passed: false, error: error.message, pageErrors: errors });

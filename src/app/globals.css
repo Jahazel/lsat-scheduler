@@ -140,3 +140,16 @@ body {
   body:has([data-test-dock="collapsed"]) main,
   body:has([data-test-dock="collapsed"]) footer { margin-right: 5rem; }
 }
+
+body:has([data-sign-in-page]) > header,
+body:has([data-sign-in-page]) > footer { display: none; }
+
+@utility bg-sign-in-glow {
+  background-image: radial-gradient(
+    circle farthest-corner at 50% 70% in oklab,
+    color-mix(in oklab, var(--color-spectrum-amber) 85%, transparent) 0%,
+    color-mix(in oklab, var(--color-spectrum-pink) 70%, transparent) 30%,
+    color-mix(in oklab, var(--color-spectrum-violet) 45%, transparent) 55%,
+    transparent 75%
+  );
+}

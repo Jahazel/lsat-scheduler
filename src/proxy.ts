@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { proxyRoute } from "@/lib/proxyRoute";
+import { hasSessionCookie, proxyRoute } from "@/lib/proxyRoute";
 
 // Whether a signed-in student has completed onboarding yet is checked in
 // the page components themselves (they need the Student record anyway).
 export default auth((req) => {
-  const route = proxyRoute(req.nextUrl.pathname, req.auth?.user ?? null);
+  const sentSessionCookie = hasSessionCookie(req.cookies.getAll().map((cookie) => cookie.name));
+  const route = proxyRoute(req.nextUrl.pathname, req.auth?.user ?? null, sentSessionCookie);
   switch (route.kind) {
     case "allow":
       return NextResponse.next();
@@ -17,5 +18,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|google-g.svg).*)"],
 };

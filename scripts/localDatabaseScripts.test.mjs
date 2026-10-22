@@ -7,7 +7,6 @@ const stoppedConnection = "Test stopped at the Postgres connection boundary.";
 const fixture = fileURLToPath(new URL("./test-fixtures/stop-postgres-connection.mjs", import.meta.url));
 const commands = [
   ["reset-dev-data", ["--yes"], "This script only runs against a local database or an approved copy-site host."],
-  ["create-test-user", [], "This command only runs against a local database."],
 ];
 
 function runScript(name, args, uri, extraEnv = {}) {
@@ -101,28 +100,11 @@ it.each(["postgres", "postgresql"])("reset confirmation does not bypass the %s h
   expect(result.output).not.toContain(stoppedConnection);
 });
 
-it.each(copyDatabaseHosts)("create-test-user refuses the copy host %s before connecting", async (host) => {
-  const result = await runScript("create-test-user", [], `postgresql://guard-user:guard-password@${host}/db`);
-  expect(result.code).toBe(1);
-  expect(result.output).toContain(`Refusing database host ${host}: not a local host.`);
-  expect(result.output).toContain("This command only runs against a local database.");
-  expect(result.output).not.toContain("guard-user");
-  expect(result.output).not.toContain("guard-password");
-  expect(result.output).not.toContain(stoppedConnection);
-});
-
 it.each(copyDatabaseHosts)("make-admin still accepts the copy host %s", async (host) => {
   const result = await runScript("make-admin", ["admin@example.test"], `postgresql://guard-user:guard-password@${host}/db`);
   expect(result.code).toBe(86);
   expect(result.output).toContain(stoppedConnection);
   expect(result.output).not.toContain("Refusing database host");
-});
-
-it("refuses invalid create-test-user arguments before connecting", async () => {
-  const result = await runScript("create-test-user", ["--email"], "postgresql://127.0.0.1:5432/db");
-  expect(result.code).toBe(1);
-  expect(result.output).toContain("Usage: npm run create-test-user");
-  expect(result.output).not.toContain(stoppedConnection);
 });
 
 async function runMakeAdmin(uri) {

@@ -2,107 +2,71 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { signup, signInWithGoogle, type SignupState } from "./actions";
+import { GoogleButton } from "@/components/signIn/GoogleButton";
+import { PreviewHeader, SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { FOCUS, cx } from "@/components/ui/classes";
+import { signUpWithGoogle, type SignupState } from "./actions";
 
 const initialState: SignupState = {};
+const LEGAL_LINK = cx("rounded-xs font-medium text-accent underline underline-offset-[3px] hover:text-ink", FOCUS);
 
 export default function SignupPage() {
-  const [state, formAction, pending] = useActionState(signup, initialState);
+  const [state, formAction] = useActionState(signUpWithGoogle, initialState);
 
   return (
-    <div className="min-h-screen px-6 py-12">
-      <div className="mx-auto max-w-sm">
-        <h1 className="text-h3 font-semibold text-ink">Create your account</h1>
-        <p className="mt-1 text-small text-smoke">Start with your intake, and DrillMap builds your first week.</p>
-
-        <form action={signInWithGoogle} className="mt-8">
-          <button
-            type="submit"
-            className="w-full rounded-sm border border-vellum-line bg-paper px-4 py-2 text-small font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum-line"
-          >
-            Continue with Google
-          </button>
-        </form>
-
-        <div className="my-6 flex items-center gap-3 text-caption text-smoke">
-          <div className="h-px flex-1 bg-vellum-line" />
-          or
-          <div className="h-px flex-1 bg-vellum-line" />
+    <SignInFrame
+      title="Sign up for DrillMap"
+      lead="DrillMap uses Google sign-in. There is no new password to remember."
+      preview={<StepsPreview />}
+    >
+      <form action={formAction} className="flex flex-col gap-8">
+        <div className="flex flex-col gap-2">
+          <Checkbox
+            name="agreedToTerms"
+            invalid={!!state.error}
+            aria-describedby={state.error ? "agreed-to-terms-error" : undefined}
+            label={
+              <span>
+                I agree to the <Link href="/legal/terms" className={LEGAL_LINK}>Terms of Service</Link> and{" "}
+                <Link href="/legal/privacy" className={LEGAL_LINK}>Privacy Policy</Link>
+              </span>
+            }
+          />
+          {state.error && (
+            <p id="agreed-to-terms-error" className="pl-7 text-small leading-[20px] text-danger-ink">{state.error}</p>
+          )}
         </div>
+        <GoogleButton />
+      </form>
+      <SwitchPageLink question="Already have an account?" href="/login" label="Log in" />
+    </SignInFrame>
+  );
+}
 
-        <form action={formAction} className="flex flex-col gap-5">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-small font-medium text-smoke">Name</span>
-            <input
-              type="text"
-              name="name"
-              required
-              className="rounded-sm border border-vellum-line bg-paper px-3 py-2 text-small text-ink"
-            />
-            {state.errors?.name && <p className="text-small text-danger-ink">{state.errors.name[0]}</p>}
-          </label>
+const STEPS = [
+  { title: "Set your goal score", tag: "Goal" },
+  { title: "Pick your study days", tag: "Week" },
+  { title: "Add your 7Sage analytics", tag: "Analytics" },
+  { title: "Check your first week", tag: "Review" },
+];
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-small font-medium text-smoke">Email</span>
-            <input
-              type="email"
-              name="email"
-              required
-              className="rounded-sm border border-vellum-line bg-paper px-3 py-2 text-small text-ink"
-            />
-            {state.errors?.email && <p className="text-small text-danger-ink">{state.errors.email[0]}</p>}
-          </label>
-
-          <label className="flex flex-col gap-1.5">
-            <span className="text-small font-medium text-smoke">Password</span>
-            <input
-              type="password"
-              name="password"
-              required
-              className="rounded-sm border border-vellum-line bg-paper px-3 py-2 text-small text-ink"
-            />
-            {state.errors?.password && (
-              <ul className="text-small text-danger-ink">
-                {state.errors.password.map((error) => (
-                  <li key={error}>{error}</li>
-                ))}
-              </ul>
-            )}
-          </label>
-
-          <label className="flex items-start gap-2 text-small text-smoke">
-            <input type="checkbox" name="agreedToTerms" required className="mt-0.5" />
-            <span>
-              I agree to the{" "}
-              <Link href="/legal/terms" className="text-accent underline">
-                Terms of Service
-              </Link>{" "}
-              and{" "}
-              <Link href="/legal/privacy" className="text-accent underline">
-                Privacy Policy
-              </Link>
-              .
+function StepsPreview() {
+  return (
+    <>
+      <PreviewHeader label="After you sign up" detail="4 steps" />
+      <ol className="flex flex-col gap-3">
+        {STEPS.map((step, index) => (
+          <li key={step.tag} className="flex items-center gap-3">
+            <span className={cx("w-6 shrink-0 font-mono text-mono", index === 0 ? "text-accent" : "text-fog")}>
+              {String(index + 1).padStart(2, "0")}
             </span>
-          </label>
-
-          {state.message && <p className="text-small text-danger-ink">{state.message}</p>}
-
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded-sm bg-ink px-4 py-2 text-small font-medium text-chalk transition-colors duration-150 ease-out hover:bg-graphite-raised disabled:opacity-50"
-          >
-            {pending ? "Creating account…" : "Sign up"}
-          </button>
-        </form>
-
-        <p className="mt-6 text-center text-small text-smoke">
-          Already have an account?{" "}
-          <Link href="/login" className="font-medium text-accent hover:text-ink">
-            Log in
-          </Link>
-        </p>
-      </div>
-    </div>
+            <span className="grow text-body leading-[20px] text-ink">{step.title}</span>
+            <span className="font-mono text-mono text-smoke">{step.tag}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="border-t border-vellum-line pt-4 text-small font-medium text-accent">Then your weekly plan is ready.</p>
+    </>
   );
 }

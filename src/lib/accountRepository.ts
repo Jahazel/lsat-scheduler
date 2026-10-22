@@ -28,7 +28,7 @@ export async function findAccountById(id: string | undefined) {
 
 export async function findAccountByEmail(email: string) {
   const [account] = await getPostgresDatabase()
-    .select({ ...publicColumns, passwordHash: accounts.passwordHash })
+    .select(publicColumns)
     .from(accounts)
     .where(eq(accounts.email, sql`normalized_email(${email})`));
   return account ?? null;
