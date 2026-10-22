@@ -12,6 +12,6 @@ later uploads, and profile changes unable to rewrite a student's saved plan.
 ## Consequences
 
 - Generation must be idempotent and protected by a unique `(studentId, weekStartDate)` constraint.
-- The application must distinguish planned minutes from reported actual minutes.
+- ~~The application must distinguish planned minutes from reported actual minutes.~~ Superseded by [ADR 0004](0004-fill-drilling-days-to-a-fill-window.md): from `adaptive-weekly-schedule-v3`, an activity check-in records no actual minutes.
 - A fresh approved snapshot is required for a new plan. For `adaptive-weekly-schedule-v2`, ADR 0002 supersedes the original rule that only the Saturday practice test may exceed daily capacity.
 - Apply the Postgres migrations before the first use of the persisted schedule path. No records move from the old database. This Stage 2 decision replaces the original requirement to migrate old indexes and Legacy analytics records. The [MongoDB history runbook](../runbooks/adaptive-weekly-schedules-rollout.md) records the earlier rollout only.
