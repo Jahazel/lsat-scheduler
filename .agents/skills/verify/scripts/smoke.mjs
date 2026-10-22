@@ -149,7 +149,8 @@ try {
   await heading(WEEKLY_UPLOAD);
   for (const path of ["/login", "/signup"]) {
     await goto(path);
-    assert.equal(new URL(page.url()).pathname, "/dashboard");
+    await heading(WEEKLY_UPLOAD);
+    assert.equal(new URL(page.url()).pathname, "/dashboard/upload");
   }
   await goto("/account");
   await heading("Account");
