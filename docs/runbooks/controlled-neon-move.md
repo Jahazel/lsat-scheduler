@@ -276,12 +276,13 @@ post-restore deletion replay. Stage 6 implements deletion replay first.
 
 ## Atlas retirement is a separate gate
 
-Retain Atlas and the old deployment until both Admins work on Neon, bounded live
+Retain Atlas and the old deployment until Admin 1 works on Neon, bounded live
 checks pass, and production backup proof remains current. Obtain **separate owner
 approval** under #147 for the exact Atlas project deletion. Stop old traffic, remove
 obsolete access and settings, and record the provider's deletion result without
 secrets. Deletion removes the old MongoDB rollback path. Keep a tested Neon recovery
-path. This procedure authorizes no Atlas deletion.
+path. This procedure authorizes no Atlas deletion. The Admin 2 grant (#216) does not
+block retirement (owner decision, 2026-10-21).
 
 The no-backup risk acceptance ends **November 1, 2026**, or earlier when daily
 backups run. If the move is not ready, stop and obtain an interim backup decision
