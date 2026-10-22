@@ -11,7 +11,7 @@ A student enters their study profile during onboarding. They can later change St
 
 ## How to get to it (user POV)
 
-- Signup automatically opens `/onboarding`. A signed-in Account without a Student also reaches it from This week or Study settings.
+- A first Google sign-in from Signup opens `/onboarding`. A signed-in Account without a Student also reaches it from This week or Study settings.
 - Click `Study settings` in desktop navigation or `Settings` at narrow widths to reach `/settings`. This week has no capacity notice or settings link.
 - Direct `/settings` links enforce sign-in and onboarding.
 
@@ -19,7 +19,7 @@ A student enters their study profile during onboarding. They can later change St
 
 Preconditions:
 
-- Doctor passes. The student is signed in. Use a new Account for onboarding.
+- Doctor passes. The student is signed in. For onboarding, seed a new Account with `--not-onboarded` and set its minted session cookie.
 
 - Step labels such as `Step 1 of 4 · Goal` render in capitals through CSS, so the visible text is `STEP 1 OF 4 · GOAL`. A case-sensitive text wait on the source wording fails. Wait on each step's heading instead: `Set your target`, `Plan your week`, `Add your 7Sage analytics`, and `Check what we read`.
 - On `/onboarding`, wait for `Set your target`. Step 1 has no platform field; the server saves 7Sage. Both score boxes and the goal test date start empty, Test time starts at Standard, and Continue is grey with `Enter both scores to continue.`

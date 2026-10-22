@@ -6,8 +6,8 @@ Read this index before driving the app. Each linked file defines user entry poin
 
 - Launch with the parent skill's helper. Require Doctor to pass on port 3100.
 - Start with an empty database and a dedicated browser tab at `http://127.0.0.1:3100`.
-- Use `Verify Student`, `verify-student@example.test`, and a disposable password with at least eight characters, a letter, and a number. Use a different address for each additional Account.
-- Create fixture Accounts with the parent skill's `seed` command. It onboards them with 7Sage, current score 150, goal score 165, 90 minutes for every day, Saturday as the preferred practice-test day, Standard time, and June 2027. When the change touches sign-up or onboarding, enter these answers through the UI instead. Choose a later offered date if June 2027 is no longer future. Do not inject approved analytics or schedules into the database.
+- Use `verify-student@example.test` for the first student. Use a different address for each additional Account. Every Account signs in with a minted session cookie from the parent skill's `session` command; this baseline has no Google client.
+- Create fixture Accounts with the parent skill's `seed` command. It onboards them with 7Sage, current score 150, goal score 165, 90 minutes for every day, Saturday as the preferred practice-test day, Standard time, and June 2027. When the change touches onboarding, seed with `--not-onboarded` and enter these answers through the UI instead. Choose a later offered date if June 2027 is no longer future. Do not inject approved analytics or schedules into the database.
 - For an Admin fixture, seed with the `admin` role.
 
 ## Driving conventions
@@ -20,7 +20,7 @@ Capture the action, resulting UI, and persisted records. Retain evidence through
 
 ## Features
 
-- [Sign-up and Account](sign-up-account.md): public navigation, consent, email/password sign-in, sign-out, and student deletion.
+- [Sign-up and Account](sign-up-account.md): public navigation, the Google-only Login and Signup states, consent, sign-out, and student deletion.
 - [Account sessions](account-sessions.md): the current-Account check on every request, Disabled Accounts, role changes, and session time limits.
 - [Onboarding and Study settings](study-settings.md): initial study profile, daily capacity, preference editing, and persistence.
 - [Analytics and This week](weekly-schedule.md): the weekly upload (screenshots and practice-test sections), snapshot review and approval, saved schedule views, and activity check-ins.

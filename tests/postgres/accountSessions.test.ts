@@ -7,7 +7,8 @@ import { createAppTestDatabase } from "./appTestDatabase";
 import { closePostgresDatabase } from "../../src/lib/postgres";
 import { createAccount } from "../../src/lib/accountRepository";
 import { accountSessionToken } from "../../src/lib/accountSession";
-import { createGoogleAccountOnSignIn, DISABLED_SIGN_IN_PATH } from "../../src/lib/authAccounts";
+import { createGoogleAccountOnSignIn } from "../../src/lib/authAccounts";
+import { DISABLED_SIGN_IN_PATH } from "../../src/lib/loginNotice";
 import { handlers } from "../../src/auth";
 import proxy from "../../src/proxy";
 import { createStudentProfile } from "../../src/app/onboarding/actions";
@@ -93,10 +94,10 @@ async function readSession(cookie: string) {
   };
 }
 
-async function proxyResponse(path: string, cookie: string) {
-  const response = await proxy(new NextRequest(`http://localhost:3000${path}`, {
-    headers: { host: "localhost:3000", "x-forwarded-proto": "http", cookie: `${COOKIE}=${cookie}` },
-  }), { params: Promise.resolve({}) });
+async function proxyResponse(path: string, cookie: string | null) {
+  const headers: Record<string, string> = { host: "localhost:3000", "x-forwarded-proto": "http" };
+  if (cookie !== null) headers.cookie = `${COOKIE}=${cookie}`;
+  const response = await proxy(new NextRequest(`http://localhost:3000${path}`, { headers }), { params: Promise.resolve({}) });
   return { status: response?.status, location: response?.headers.get("location") ?? null };
 }
 
@@ -242,9 +243,21 @@ it("a refused session reaches no onboarding, weekly upload, or extraction and sa
   expect(await confirmWeeklyUpload({ weekOf: "2026-10-19", analytics: {}, practiceTest: {} })).toEqual({ signedOut: true });
   expect((await extractPracticeTest(screenshotRequest("/api/practice-test/extract", cookie))).status).toBe(401);
   expect(await proxyResponse("/api/analytics/extract", cookie)).toEqual({ status: 401, location: null });
-  expect(await proxyResponse("/onboarding", cookie)).toMatchObject({ status: 307, location: "http://localhost:3000/login" });
+  expect(await proxyResponse("/onboarding", cookie)).toMatchObject({ status: 307, location: "http://localhost:3000/login?error=SessionEnded" });
   expect(request.createMessage).not.toHaveBeenCalled();
   expect(await savedRows()).toEqual({ students: 0, snapshots: 0, practice_tests: 0 });
+});
+
+it("a browser that never signed in reaches plain Login, with no ended-session message", async () => {
+  expect(await proxyResponse("/onboarding", null)).toMatchObject({ status: 307, location: "http://localhost:3000/login" });
+});
+
+it("a direct Login visit with an ended session shows the ended-session reason once", async () => {
+  const student = await account("student@example.test");
+  const cookie = await signedIn(student.id);
+  await ownerSql(sql`update accounts set disabled_at = now() where id = ${student.id}`);
+  expect(await proxyResponse("/login", cookie)).toMatchObject({ status: 307, location: "http://localhost:3000/login?error=SessionEnded" });
+  expect(await proxyResponse("/login?error=SessionEnded", cookie)).toEqual({ status: 200, location: null });
 });
 
 it("the same paths work for a fresh session, so the refusal is the session check", async () => {
@@ -265,6 +278,6 @@ it("a demoted Admin reaches no Admin page or Admin action on the next request", 
   await ownerSql(sql`update accounts set role = 'student' where id = ${admin.id}`);
   await expect(AdminPage()).rejects.toThrow("redirect:/dashboard");
   await expect(setSimulatedDate("2026-10-24")).rejects.toThrow("Admin access required");
-  expect(await proxyResponse("/admin", request.cookie)).toMatchObject({ status: 307, location: "http://localhost:3000/login" });
+  expect(await proxyResponse("/admin", request.cookie)).toMatchObject({ status: 307, location: "http://localhost:3000/login?error=SessionEnded" });
   expect((await ownerSql(sql`select simulated_date::text from accounts`)).rows).toEqual([{ simulated_date: "2026-10-23" }]);
 });

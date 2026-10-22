@@ -21,7 +21,7 @@ An Admin views students' saved schedules without editing them. Their own student
 
 Preconditions:
 
-- Doctor passes. Seed an onboarded Admin with `local.mjs seed "$VERIFY_RUN_DIR" admin verify-admin@example.test`. The Admin has no password. Sign in by setting the cookie from `local.mjs session "$VERIFY_RUN_DIR" verify-admin@example.test`. The Admin login form must refuse every password. For All students and read-only view checks, also seed a separate student with the `student` role. The Admin's own profile cannot serve as that fixture.
+- Doctor passes. Seed an onboarded Admin with `local.mjs seed "$VERIFY_RUN_DIR" admin verify-admin@example.test`. Sign in by setting the cookie from `local.mjs session "$VERIFY_RUN_DIR" verify-admin@example.test`. For All students and read-only view checks, also seed a separate student with the `student` role. The Admin's own profile cannot serve as that fixture.
 
 - After Admin login, require `/admin`. Click the student's card by its displayed email. Require `Viewing as admin — read only`, the correct email, and the saved schedule or the explicit no-saved-schedule message. Record weekly-schedule counts before and after opening. This view must not create a missing schedule. Require no check-off controls (`role=checkbox`). Test both the list link and the direct student URL.
 - Open the workspace switcher and select the option whose link `href` is `/dashboard`. Require My student side. Use the same switcher to return to `/admin`. A standard student visiting `/admin` must return to their own workspace.

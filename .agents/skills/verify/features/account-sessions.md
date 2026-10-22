@@ -26,12 +26,12 @@ Preconditions:
 Steps:
 
 - Mint two sessions for the student with `local.mjs session` and set one cookie in each browser. Open `/account` in both. Expect the `Account` heading and the student's email in both.
-- Save `records-before.json`. Run `update accounts set disabled_at = now() where email = '<student email>'`. Reload `/account` in each browser. Expect `/login` in both. Inspect records and require `disabled_at` set, `session_version` raised by one, and the student's records unchanged.
-- Run `update accounts set disabled_at = null where email = '<student email>'`. Reload the old browsers. Expect `/login`: the old sessions stay ended. Mint a new session and expect `/account` to open.
-- Mint two sessions for the Admin and set one in each browser. Open `/admin` in both. Expect `All students`. Run `update accounts set role = 'student' where email = '<Admin email>'`. Reload `/admin` in each browser. Expect `/login` in both.
+- Save `records-before.json`. Run `update accounts set disabled_at = now() where email = '<student email>'`. Reload `/account` in each browser. Expect `/login?error=SessionEnded` and "Your session ended. Sign in again." in both. Inspect records and require `disabled_at` set, `session_version` raised by one, and the student's records unchanged.
+- Run `update accounts set disabled_at = null where email = '<student email>'`. Open `/account` in the old browsers. Expect plain `/login`: the first refusal cleared the cookie, and the old sessions stay ended. Mint a new session and expect `/account` to open.
+- Mint two sessions for the Admin and set one in each browser. Open `/admin` in both. Expect `All students`. Run `update accounts set role = 'student' where email = '<Admin email>'`. Reload `/admin` in each browser. Expect `/login?error=SessionEnded` in both.
 
 ## Gotchas
 
 - The minted cookie expires one hour after minting. The first protected request re-signs it with the 14-day idle limit.
-- A refused browser lands on the existing `/login` page. The Login messages for ended sessions and Disabled Accounts belong to the Google-only Login ticket.
+- A refused browser lands on `/login?error=SessionEnded` and reads "Your session ended. Sign in again." A browser with no session cookie lands on plain `/login`.
 - `JWTSessionError` in `app.log` is expected only for a cookie signed by an earlier run's secret. A refused session clears the cookie without that error.

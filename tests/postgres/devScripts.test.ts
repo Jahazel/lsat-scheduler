@@ -1,4 +1,3 @@
-import bcrypt from "bcryptjs";
 import { execFile } from "node:child_process";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
@@ -98,33 +97,8 @@ it("reset deletes every student and its records and keeps Accounts and leads", a
   });
 });
 
-it("create-test-user saves a sign-in Account and resets only its password on a rerun", async () => {
-  const created = await runScript("create-test-user", ["--email", " Parallel@Test.Local "]);
-  expect(created.code).toBe(0);
-  expect(created.output).toContain("Email: parallel@test.local\nPassword: DrillMapTest123\nRole: student\n");
-
-  await owner.db.execute(sql`
-    update accounts set name = 'Renamed', simulated_date = '2026-10-15', password_hash = 'replaced'
-    where email = 'parallel@test.local'
-  `);
-  const [before] = await rows(sql`select id from accounts where email = 'parallel@test.local'`);
-  const rerun = await runScript("create-test-user", ["--email", "parallel@test.local"]);
-  expect(rerun.code).toBe(0);
-
-  const accounts = await rows(sql`select id, name, role, simulated_date, password_hash from accounts`);
-  expect(accounts).toHaveLength(1);
-  expect(accounts[0]).toMatchObject({ id: before.id, name: "Renamed", role: "student", simulated_date: "2026-10-15" });
-  expect(await bcrypt.compare("DrillMapTest123", String(accounts[0].password_hash))).toBe(true);
-});
-
-it("create-test-user refuses an Admin because Admins have no password", async () => {
-  const refused = await runScript("create-test-user", ["--admin"]);
-  expect(refused.code).toBe(1);
-  expect(await rows(sql`select id from accounts`)).toEqual([]);
-});
-
 it("make-admin refuses an Account that never signed in with Google", async () => {
-  await runScript("create-test-user", ["--email", "password-only@test.local"]);
+  await owner.db.execute(sql`insert into accounts (email, name, password_hash) values ('password-only@test.local', 'Old', 'old-hash')`);
 
   const refused = await runScript("make-admin", ["password-only@test.local"]);
   expect(refused.code).toBe(1);
@@ -134,8 +108,8 @@ it("make-admin refuses an Account that never signed in with Google", async () =>
 });
 
 it("make-admin promotes a Google Account and clears any password", async () => {
-  await runScript("create-test-user", ["--email", "promote@test.local"]);
-  await owner.db.execute(sql`update accounts set google_id = 'throwaway-google' where email = 'promote@test.local'`);
+  await owner.db.execute(sql`insert into accounts (email, name, password_hash, google_id)
+    values ('promote@test.local', 'Promote', 'old-hash', 'throwaway-google')`);
 
   const promoted = await runScript("make-admin", ["Promote@Test.Local"]);
   expect(promoted.code).toBe(0);

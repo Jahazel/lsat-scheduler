@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextAuthConfig } from "next-auth";
-import bcrypt from "bcryptjs";
 
 const mocks = vi.hoisted(() => ({
   config: null as NextAuthConfig | null,
@@ -29,13 +28,8 @@ function config() {
 describe("issue 70 authentication evidence", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("rejects an operator object in credentials before querying Postgres", async () => {
-    const provider = config().providers[1] as unknown as {
-      options: { authorize: (credentials: Record<string, unknown>) => Promise<unknown> };
-    };
-    expect(await provider.options.authorize({ email: { $ne: null }, password: "synthetic123" })).toBeNull();
-    expect(mocks.findAccount).not.toHaveBeenCalled();
-    expect(mocks.createAccount).not.toHaveBeenCalled();
+  it("fixed in issue 226: offers Google as the only sign-in provider, so no password can sign in", () => {
+    expect(config().providers.map((provider) => typeof provider === "function" ? provider().id : provider.id)).toEqual(["google"]);
   });
 
   it("fixed in issue 140: refuses an unverified Google email and never looks an Account up by email", async () => {
@@ -63,11 +57,5 @@ describe("issue 70 authentication evidence", () => {
     mocks.findAccountById.mockResolvedValue({ id: token.id, role: "student", disabledAt: null, sessionVersion: 1 });
     expect(await refresh()).toBeNull();
     expect(mocks.findAccountById).toHaveBeenCalledWith("synthetic-admin");
-  });
-
-  it("bcrypt ignores differences after the first 72 bytes of an accepted long password", async () => {
-    const prefix = "a1".repeat(36);
-    const hash = await bcrypt.hash(`${prefix}first-suffix`, 10);
-    expect(await bcrypt.compare(`${prefix}different-suffix`, hash)).toBe(true);
   });
 });

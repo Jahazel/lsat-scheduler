@@ -17,10 +17,11 @@ requirePostgresTestTarget();
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const [command, directory, ...extra] = process.argv.slice(2);
 const base = resolve(root, ".verification/evidence");
-const validSeed = command === "seed" && extra.length === 2 && ["student", "admin"].includes(extra[0]);
+const validSeed = command === "seed" && ["student", "admin"].includes(extra[0])
+  && (extra.length === 2 || extra.length === 3 && extra[2] === "--not-onboarded");
 const validSession = command === "session" && extra.length === 1;
 if (!directory || !(["launch", "doctor", "inspect", "cleanup"].includes(command) && extra.length === 0 || validSeed || validSession)) {
-  throw new Error("Usage: local.mjs launch|doctor|inspect|cleanup .verification/evidence/<run-name>\n       local.mjs seed .verification/evidence/<run-name> student|admin <email>\n       local.mjs session .verification/evidence/<run-name> <email>");
+  throw new Error("Usage: local.mjs launch|doctor|inspect|cleanup .verification/evidence/<run-name>\n       local.mjs seed .verification/evidence/<run-name> student|admin <email> [--not-onboarded]\n       local.mjs session .verification/evidence/<run-name> <email>");
 }
 const run = resolve(root, directory);
 if (!relative(base, run) || relative(base, run).startsWith("..")) {
@@ -172,14 +173,11 @@ if (command === "inspect") {
 }
 if (command === "seed") {
   await doctor();
-  const [role, email] = extra;
+  const [role, email, onboarding] = extra;
   process.env.DATABASE_URL = postgresSettingForDatabase(loadState().postgresDatabase);
   const { createAccount } = await tsImport("../../../../src/lib/accountRepository.ts", import.meta.url);
   const { createStudent } = await tsImport("../../../../src/lib/studentRepository.ts", import.meta.url);
   const { studentProfileSchema } = await tsImport("../../../../src/lib/studentProfile.ts", import.meta.url);
-  const { default: bcrypt } = await import("bcryptjs");
-  // An Admin has no password and signs in only through a Google identity.
-  const password = role === "admin" ? null : randomBytes(12).toString("base64url") + "Aa1";
   // The feature map's baseline onboarding answers.
   const profile = studentProfileSchema.parse({
     platform: "7Sage", currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01", preferredPracticeTestDay: "SATURDAY",
@@ -187,11 +185,11 @@ if (command === "seed") {
     dailyCapacityMinutes: Object.fromEntries(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"].map((day) => [day, 90])),
   });
   try {
-    const account = await createAccount({ name: email.split("@")[0], email, passwordHash: password && await bcrypt.hash(password, 10),
-      googleId: role === "admin" ? `verify-google-${randomBytes(12).toString("hex")}` : null, role });
+    const account = await createAccount({ name: email.split("@")[0], email, googleId: `verify-google-${randomBytes(12).toString("hex")}`, role });
     if (!account) throw new Error(`An Account already exists for ${email}. Choose another email.`);
-    if (!(await createStudent(account.id, profile))) throw new Error(`No student saved for ${email}.`);
-    console.log(JSON.stringify({ email, password, role, accountId: account.id, onboarded: true }, null, 2));
+    const onboarded = onboarding !== "--not-onboarded";
+    if (onboarded && !(await createStudent(account.id, profile))) throw new Error(`No student saved for ${email}.`);
+    console.log(JSON.stringify({ email, role, accountId: account.id, onboarded }, null, 2));
   } finally { await closePostgresDatabase(); }
 }
 if (command === "session") {
