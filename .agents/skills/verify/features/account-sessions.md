@@ -36,7 +36,6 @@ Steps:
 ## Gotchas
 
 - The working state lasts well under a second. Record it with a `MutationObserver` that writes to `sessionStorage`, or with a recording; a snapshot taken after the click usually misses it.
-
 - The minted cookie expires one hour after minting. The first protected request re-signs it with the 14-day idle limit.
 - A refused browser lands on `/login?error=SessionEnded` and reads "Your session ended. Sign in again." A browser with no session cookie lands on plain `/login`.
 - `JWTSessionError` in `app.log` is expected only for a cookie signed by an earlier run's secret. A refused session clears the cookie without that error.
