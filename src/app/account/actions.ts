@@ -6,7 +6,7 @@ import { auth, signOut } from "@/auth";
 import { eq } from "drizzle-orm";
 import { getPostgresDatabase } from "@/lib/postgres";
 import { accounts } from "@/lib/postgresSchema";
-import { isAccountId } from "@/lib/accountRepository";
+import { isAccountId, endAllSessions } from "@/lib/accountRepository";
 import { updateStudentByAccountId } from "@/lib/studentRepository";
 import { studentSideToday } from "@/lib/studentClock";
 import { parseStudentProfile, type StudentProfileInput } from "@/lib/studentProfile";
@@ -45,4 +45,14 @@ export async function deleteAccount(formData: FormData) {
   if (!isAccountId(session.user.id)) throw new Error("Account record not found");
   await getPostgresDatabase().delete(accounts).where(eq(accounts.id, session.user.id));
   await signOut({ redirectTo: "/" });
+}
+
+export async function signOutAllDevices() {
+  const session = await auth();
+  if (!session?.user) {
+    throw new Error("Not authenticated");
+  }
+  if (!isAccountId(session.user.id)) throw new Error("Account record not found");
+  await endAllSessions(session.user.id);
+  await signOut({ redirectTo: "/login" });
 }

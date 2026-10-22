@@ -16,6 +16,8 @@ import { confirmWeeklyUpload } from "../../src/app/dashboard/upload/actions";
 import { POST as extractPracticeTest } from "../../src/app/api/practice-test/extract/route";
 import AdminPage from "../../src/app/admin/page";
 import { setSimulatedDate } from "../../src/app/admin/test/actions";
+import { signOutAllDevices } from "../../src/app/account/actions";
+import { logOut } from "../../src/components/nav/actions";
 import type { Student } from "../../src/lib/types";
 
 const COOKIE = "authjs.session-token";
@@ -26,12 +28,15 @@ const { SECRET, originalSecret, request } = vi.hoisted(() => {
   // Auth.js reads its secret when src/auth loads, before any hook runs.
   const originalSecret = process.env.AUTH_SECRET;
   process.env.AUTH_SECRET = "account-sessions-test-secret-0123456789";
-  return { SECRET: process.env.AUTH_SECRET, originalSecret, request: { cookie: "", createMessage: vi.fn() } };
+  return {
+    SECRET: process.env.AUTH_SECRET, originalSecret, request: { cookie: "", createMessage: vi.fn(), setCookie: vi.fn() },
+  };
 });
 vi.mock("next/headers", () => ({
   headers: async () => new Headers({
     host: "localhost:3000", "x-forwarded-proto": "http", cookie: `authjs.session-token=${request.cookie}`,
   }),
+  cookies: async () => ({ set: request.setCookie }),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
@@ -49,6 +54,7 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   request.cookie = "";
+  request.setCookie.mockReset();
   request.createMessage.mockReset().mockRejectedValue(new Error("no network in tests"));
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-10-22T12:00:00Z"));
@@ -148,6 +154,26 @@ it("a raised session version ends every older session", async () => {
   const cookie = await signedIn(student.id);
   await ownerSql(sql`update accounts set session_version = session_version + 1 where id = ${student.id}`);
   expect((await readSession(cookie)).user).toBeNull();
+  expect((await readSession(await signedIn(student.id, { sessionVersion: 1 }))).user).not.toBeNull();
+});
+
+it("ordinary sign-out ends only this browser, and Sign out of all devices ends every session", async () => {
+  const student = await account("student@example.test");
+  const laptop = await signedIn(student.id);
+  const phone = await signedIn(student.id);
+  const clearedHere = () => expect(request.setCookie).toHaveBeenCalledWith(COOKIE, "", expect.objectContaining({ maxAge: 0 }));
+
+  request.cookie = laptop;
+  await expect(logOut()).rejects.toThrow("redirect:");
+  clearedHere();
+  expect((await readSession(phone)).user).toEqual({ id: student.id, role: "student" });
+
+  request.setCookie.mockReset();
+  request.cookie = phone;
+  await expect(signOutAllDevices()).rejects.toThrow(/^redirect:http:\/\/localhost:3000\/login$/);
+  clearedHere();
+  expect((await readSession(laptop)).user).toBeNull();
+  expect((await readSession(phone)).user).toBeNull();
   expect((await readSession(await signedIn(student.id, { sessionVersion: 1 }))).user).not.toBeNull();
 });
 

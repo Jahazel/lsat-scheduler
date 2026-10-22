@@ -48,3 +48,10 @@ export async function createAccount(values: typeof accounts.$inferInsert) {
     .returning({ id: accounts.id, role: accounts.role });
   return account ?? null;
 }
+
+export async function endAllSessions(id: AccountId) {
+  await getPostgresDatabase()
+    .update(accounts)
+    .set({ sessionVersion: sql`${accounts.sessionVersion} + 1` })
+    .where(eq(accounts.id, id));
+}
