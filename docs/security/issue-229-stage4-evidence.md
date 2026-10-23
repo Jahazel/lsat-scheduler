@@ -4,7 +4,7 @@ Record for [#229](https://github.com/Jahazel/lsat-scheduler/issues/229), under t
 This file holds no password, key, connection string, cookie, recovery code, email, or Google ID.
 It approves no release, exception, or launch. No launch checklist row passes because of this file.
 
-**Status: waiting for the owner's copy run.** The run sheet below lists the steps. Every result reads `Pending` until the owner reports it.
+**Status: copy run done on 2026-10-23. Every step passed.** The owner ran the steps with a wizard and reported each result. The agent recorded them below.
 
 ## Child ticket results
 
@@ -69,15 +69,27 @@ Follow [Apply the owner SQL](../runbooks/controlled-neon-move.md#apply-the-owner
 
 ## Results
 
+The owner ran every step on 2026-10-23 between about 09:30 and 15:15 US Central time. Each result is the owner's observation. The agent read back no page or row.
+
 | Step | Copy deployment | Result | Notes |
 | --- | --- | --- | --- |
-| A1 to A5 | Pending | Pending | |
-| B4-1 to B4-3 | Pending | Pending | |
-| S-1, S-2 | Pending | Pending | |
-| B2-1 to B2-3 | Pending | Pending | |
-| B1-1 to B1-5 | Pending | Pending | |
-| B10-1 to B10-3 | Pending | Pending | |
-| B9-1, B9-2 | Pending | Pending | |
+| A1 to A5 | `dpl_GuAhid4jZNLxKF7vWNSfKrXJkGR1` | Pass | A2: the copy's `neondb` as `neondb_owner` showed `7` and `1792022400000`. A3: `8` and `1792108800000`. A5: the copy build was `Staged`, and the owner promoted it in the copy project only. |
+| B4-1 to B4-3 | same | Pass | B4-2 showed the refusal text, and `/dashboard` went to Login. B4-3: `0` Accounts with both a password and a Google ID. |
+| S-1, S-2 | same | Pass | S-2 came back with `error=Configuration`, not `AccessDenied`. Login showed the refusal text. |
+| B2-1 to B2-3 | same | Pass | B2-1 came back with `error=AccessDenied`, and the count was `1`. B2-2 signed in by Google ID, and the changed DrillMap email stayed. |
+| B1-1 to B1-5 | same | Pass | Each reload went to Login. B1-1 showed "Your session ended. Sign in again." B1-2 showed "This Account can't sign in." |
+| B10-1 to B10-3 | same | Pass | B10-2 showed the account chooser. After deletion, the count was `0`. |
+| B9-1, B9-2 | same | Pass | Login showed only "Continue with Google". `0` Admins with a password. |
+
+### What differed from the run sheet
+
+- **Real site.** The run sheet expected the Stage 3 build `315fad4`. The real site served `7103300`, deployment `2ryju7FX3dhkA3nB245xRVUSLPqL`. That is the intentional release recorded on [#148](https://github.com/Jahazel/lsat-scheduler/issues/148) on 2026-10-22. The owner reported that it did not change during the run.
+- **Row counts.** The Neon SQL editor reports success, not a row count, for `INSERT`, `UPDATE`, and `DELETE`. Each `INSERT 0 1`, `UPDATE 1`, and `DELETE 1` above was checked by a `SELECT count(*)` that followed it.
+- **Placeholder rows (B4).** The first B4-1 insert used the literal text `TEST_EMAIL`, because the clipboard was overwritten. The owner deleted that row, confirmed a count of `0`, and redid the insert. The first B4-3 delete also used the placeholder and matched nothing. The owner reran it with the real email and confirmed a count of `0`.
+- **Google cancel (S-2).** Google skipped the account chooser, because the test user had already given the copy access in S-1. The owner removed the copy's access in the test Google account. Then Google showed its permission screen, and the owner pressed Cancel there.
+- **B1-1.** The test user had finished onboarding, so B reloaded the dashboard in place of onboarding.
+- **B10-1.** The wizard's timer was skipped early. The owner opened Account after more than 10 minutes by the clock.
+- **B10-3.** The owner deleted the Account before answering the wizard's "test user, not an Admin" question. B1-5 had already set the role back to student, and A showed no Admin link.
 
 ## What the copy run cannot prove
 
@@ -94,4 +106,31 @@ Every launch checklist row stays `Not tested`. Stage 4 adds evidence only.
 
 ## Stage 5 handoff
 
-Written after the copy run.
+Stage 4 is proven on the copy with real Google sign-in. Stage 5 builds on it. Do not rebuild these.
+
+**Proven on the copy (Stage 4).**
+
+- Login and Signup offer only "Continue with Google". No Admin has a password.
+- A Google sign-in whose email belongs to a password Account makes no session and joins nothing.
+- Sign-in finds the Account by Google ID only. A new Google ID with a used email is refused. A changed DrillMap email keeps the same Account.
+- Every session read checks the current Account. "Sign out of all devices", disabling, and role changes end the other sessions on the next request.
+- Account deletion needs a Google sign-in, with the account chooser, from the last 10 minutes.
+
+**Stage 5 work.** Stage 5 is abuse and paid scanning limits ([#79](https://github.com/Jahazel/lsat-scheduler/issues/79)):
+
+- Signup and login rate limits. [#222](https://github.com/Jahazel/lsat-scheduler/issues/222) moved them here.
+- Shared database counters.
+- Upload size and type limits, and checks on the model's output.
+- Daily and monthly scan limits, with spend counted before each call.
+- Time and concurrency limits.
+- The emergency switch.
+- Hand-typed Analytics snapshots.
+
+**Carried forward.**
+
+- **Cancel shows as `Configuration` (Stage 6).** A cancel at Google comes back to Login as `error=Configuration`. Login shows the right text. But the sign-in event logs must not count each cancel as a setup fault.
+- **The real site lacks `0007_account_sessions`.** Stage 4 ran on the copy only. The real site changes only through a release that the owner approves in writing.
+- **Password sign-in** waits for a domain ([#230](https://github.com/Jahazel/lsat-scheduler/issues/230)).
+- **Admin 2** is not on the real site yet ([#216](https://github.com/Jahazel/lsat-scheduler/issues/216)).
+- **Copy releases are `Staged`.** Production builds from `main` in the copy project need a manual promotion, as A5 did. Release steps must say so.
+- **No promotion.** The no-promotion rule stays until launch approval.
