@@ -24,8 +24,8 @@ It approves no release, exception, or launch. No launch checklist row passes bec
 | Commit | `fcc8277c8bc501a3379e15377b6edc6abb2795ad` (`main` after PR #238) |
 | Owner SQL bundle | `node scripts/sql-editor-migrations.mjs`, 404 lines, SHA-256 `67b8ecab…4d102ff4` |
 | `sql/app-role.sql` | SHA-256 `833994e3…a59850012`. Adds `practice_test_results` to the app role grants. |
-| Copy migrations before the run | `0000` to `0002`, the last copy build `4170ab8` (#145). The owner confirms in step A2. |
-| Migrations the run adds | `0003_check_off_only` to `0007_account_sessions` |
+| Copy migrations before the run | `0000` to `0006`: 7 journal rows, last time `1792022400000`. Owner read-back on 2026-10-23. |
+| Migrations the run adds | `0007_account_sessions` |
 | New environment variables | None since `315fad4` |
 
 ## Owner run sheet
@@ -39,7 +39,7 @@ In the SQL steps, replace `TEST_EMAIL` with the test user's email. Do not paste 
 Follow [Apply the owner SQL](../runbooks/controlled-neon-move.md#apply-the-owner-sql) in the controlled-move runbook.
 
 1. In a clean checkout of the commit above, run `npm ci`, then `node scripts/sql-editor-migrations.mjs > /tmp/drillmap-owner-migrations.sql`. Check that `shasum -a 256 /tmp/drillmap-owner-migrations.sql` starts with `67b8ecab`.
-2. In the Neon SQL editor, select the **copy** project, its branch, its database, and the owner role. Run `SELECT current_database(), current_user;`. Then run `SELECT count(*), max(created_at) FROM drillmap_migrations.applied;`. Expect `3` and `1791676800000`, the journal time of `0002`. Report both values.
+2. In the Neon SQL editor, select the **copy** project, its branch, its database, and the owner role. Run `SELECT current_database(), current_user;`. Then run `SELECT count(*), max(created_at) FROM drillmap_migrations.applied;`. Report both values. The copy showed `7` and `1792022400000` (`0006`) on 2026-10-23.
 3. Paste the whole bundle as one run. Rerun the count query. Expect `8` and `1792108800000`, the journal time of `0007`.
 4. Paste the whole `sql/app-role.sql` from the same commit as one run.
 5. In the copy Vercel project, deploy the commit above to Production. Report the deployment ID. Check that the copy's domain points at it, and that the real site's deployment did not change.
