@@ -6,6 +6,7 @@ declare module "next-auth" {
       id: string;
       role: "student" | "admin";
     } & DefaultSession["user"];
+    signedInAt?: number;
   }
 
   interface User {

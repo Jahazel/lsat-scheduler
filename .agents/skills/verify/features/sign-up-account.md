@@ -1,6 +1,6 @@
 # Sign-up and Account
 
-DrillMap signs people in with Google only. Signup asks for the Terms and Privacy agreement before Google sign-in starts. Login shows one Google button and explains why a sign-in failed or a session ended. Account shows the email and lets a student delete their own records.
+DrillMap signs people in with Google only. Signup asks for the Terms and Privacy agreement before Google sign-in starts. Login shows one Google button and explains why a sign-in failed or a session ended. Account shows the email and lets a student delete their own records after a Google sign-in from the last 10 minutes.
 
 ## Sub-features
 
@@ -9,6 +9,7 @@ DrillMap signs people in with Google only. Signup asks for the Terms and Privacy
 - `login-states` shows one "Continue with Google" button, no email or password field, and one message per reason: refused sign-in, Disabled Account, and ended session.
 - `logout` returns to the public app with protected pages unavailable.
 - `account-delete` removes the student's Account and associated records, and ends the Account's sessions in every browser.
+- `account-delete-sign-in-age` asks for a new Google sign-in when the sign-in is more than 10 minutes old. "Continue with Google" there forces the Google account chooser and returns to `/account#delete-account`.
 
 ## How to get to it (user POV)
 
@@ -32,11 +33,13 @@ Steps:
 - Open `/login`. Expect the `Log in to DrillMap` heading, exactly one button, `Continue with Google`, and no input. Open `/login?error=AccessDenied`, `/login?error=AccountDisabled`, and `/login?error=SessionEnded`. Expect, in order, the alert `Google sign-in didn't finish. Try again, or use a Google account with a verified email.`, the alert `This Account can't sign in.`, and the status `Your session ended. Sign in again.` Capture each.
 - Seed the student with `local.mjs seed "$VERIFY_RUN_DIR" student verify-student@example.test --not-onboarded`. Set its minted session cookie. Open `/onboarding` and expect `Set your target`. Complete [onboarding](study-settings.md) to obtain student navigation. Open `role=button[name="Account menu for verify-student@example.test"]`, then `role=menuitem[name="Account"]`. Expect `/account`, the `Account` heading, and the same email.
 - Open the Account menu and click `role=menuitem[name="Log out"]`. Wait for `role=link[name="Build my first plan"]` on the landing page; a direct visit before that still lands signed in. Visit `/account` directly. Expect plain `/login` with no message: the browser sent no session cookie.
-- For deletion, use only this disposable student. Mint a second session in a second browser (an isolated Playwright context) and open `/account` there. Save records and affected IDs first. In the first browser, reach Account through its menu and through `/account`. Type `DELETE` into `input[name="confirmation"]`, then click `role=button[name="Delete account"]`. Expect the public landing page. Inspect records and require the user's ID, their Student, analytics snapshots, weekly schedules, and activity check-ins to be absent. Reload `/account` in the second browser. Expect `/login?error=SessionEnded` and `Your session ended. Sign in again.`
+- For an old sign-in, seed a second student and mint its session with `local.mjs session "$VERIFY_RUN_DIR" <email> --signed-in-minutes-ago 15`. Open `/account`. Expect `Sign in again to delete`, `Deleting your account needs a Google sign-in from the last 10 minutes.`, and one `Continue with Google` button in the deletion card with no confirmation field. Click it. The browser reaches `accounts.google.com`, which refuses the empty baseline client ID. To read the address, POST the page's `$ACTION_ID_…` form field with that cookie and an `Origin: http://127.0.0.1:3100` header: require `prompt=select_account` in the `Location` header and `/account#delete-account` in the `authjs.callback-url` cookie.
+- For deletion, use only this disposable student. Mint a second session in a second browser (an isolated Playwright context) and open `/account` there. Save records and affected IDs first. In the first browser, reach Account through its menu and through `/account`. Type `delete` into `role=textbox[name="Type DELETE to confirm"]` and click `role=button[name="Delete account"]`. Expect `Type DELETE in capital letters to confirm.` under the field, the field with `aria-invalid="true"` and still holding `delete`, and no record change. Type `DELETE` and click again. Expect `Deleting…` on the disabled button with a read-only field, then the public landing page. Inspect records and require the user's ID, their Student, analytics snapshots, weekly schedules, and activity check-ins to be absent. Reload `/account` in the second browser. Expect `/login?error=SessionEnded` and `Your session ended. Sign in again.`
 
 ## Gotchas
 
 - A signed-in student visiting `/signup` or `/login` redirects to `/dashboard`. From there, an Account without a Student goes to `/onboarding`, and a week without a weekly schedule goes to `/dashboard/upload`. An Admin lands on `/admin`.
-- Admin Accounts have no deletion form. Verify student deletion with a student Account.
+- Admin Accounts have no deletion form. Their deletion card shows `Admin account` and `This action is not available for admin accounts.` Verify student deletion with a student Account.
+- A minted session counts as a fresh sign-in for 10 minutes. Mint the deleting student's session just before the deletion steps.
 - This baseline supplies no Google client. Do not click `Continue with Google` with the box ticked, and do not use the user's connected Google account. Real Google sign-in, its refusals, and the Disabled Account refusal at sign-in are checked by the owner on the copy with a Google test user. Record them as untested here.
 - UI validation alone proves no write only when the read-only database check also shows no new user.

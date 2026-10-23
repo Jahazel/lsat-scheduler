@@ -16,7 +16,7 @@ import { confirmWeeklyUpload } from "../../src/app/dashboard/upload/actions";
 import { POST as extractPracticeTest } from "../../src/app/api/practice-test/extract/route";
 import AdminPage from "../../src/app/admin/page";
 import { setSimulatedDate } from "../../src/app/admin/test/actions";
-import { signOutAllDevices } from "../../src/app/account/actions";
+import { deleteAccount, signOutAllDevices } from "../../src/app/account/actions";
 import { logOut } from "../../src/components/nav/actions";
 import type { Student } from "../../src/lib/types";
 
@@ -175,6 +175,22 @@ it("ordinary sign-out ends only this browser, and Sign out of all devices ends e
   expect((await readSession(laptop)).user).toBeNull();
   expect((await readSession(phone)).user).toBeNull();
   expect((await readSession(await signedIn(student.id, { sessionVersion: 1 }))).user).not.toBeNull();
+});
+
+it("Account deletion needs a sign-in from the last 10 minutes, then ends every session", async () => {
+  const student = await account("student@example.test");
+  const phone = await signedIn(student.id);
+  const confirmed = new FormData();
+  confirmed.set("confirmation", "DELETE");
+
+  request.cookie = await signedIn(student.id, { signedInAt: nowSeconds() - 11 * 60 });
+  expect(await deleteAccount(null, confirmed)).toBe("sign-in-too-old");
+  expect((await ownerSql(sql`select count(*)::int as count from accounts`)).rows[0].count).toBe(1);
+
+  request.cookie = await signedIn(student.id);
+  await expect(deleteAccount(null, confirmed)).rejects.toThrow(/^redirect:http:\/\/localhost:3000\/$/);
+  expect((await ownerSql(sql`select count(*)::int as count from accounts`)).rows[0].count).toBe(0);
+  expect((await readSession(phone)).user).toBeNull();
 });
 
 it.each([

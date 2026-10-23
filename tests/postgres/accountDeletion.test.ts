@@ -1,12 +1,13 @@
 import { sql } from "drizzle-orm";
 import type { Session } from "next-auth";
-import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { createAppTestDatabase } from "./appTestDatabase";
 import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
 import { createAccount } from "../../src/lib/accountRepository";
 import { createStudent } from "../../src/lib/studentRepository";
 import type { Student } from "../../src/lib/types";
 import { deleteAccount } from "../../src/app/account/actions";
+import { ADMIN_RESTRICTED_ACTION_MESSAGE } from "../../src/lib/accessControl";
 
 const state = vi.hoisted((): { session: Session | null } => ({ session: null }));
 vi.mock("@/auth", () => ({ auth: async () => state.session, signOut: vi.fn() }));
@@ -21,8 +22,11 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   state.session = null;
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-22T12:00:00Z"));
   await database.owner.execute(sql`truncate accounts cascade`);
 });
+afterEach(() => vi.useRealTimers());
 afterAll(async () => {
   await closePostgresDatabase();
   process.env.DATABASE_URL = originalSetting;
@@ -35,8 +39,10 @@ const profile: Student = {
   dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 90, SUNDAY: 90 },
 };
 
-async function studentWithRecords(email: string) {
-  const account = await createAccount({ email, name: email, role: "student" });
+const minutesAgo = (minutes: number) => Math.floor(Date.now() / 1000) - minutes * 60;
+
+async function studentWithRecords(email: string, role: "student" | "admin" = "student") {
+  const account = await createAccount({ email, name: email, role });
   if (!account) throw new Error("Account fixture already exists");
   const student = await createStudent(account.id, profile);
   if (!student) throw new Error("Student fixture already exists");
@@ -60,7 +66,7 @@ async function studentWithRecords(email: string) {
       values (${inserted.rows[0].id}::uuid, 'MONDAY:0', 'completed')
     `);
   }
-  state.session = { user: { ...account, email, name: email }, expires: "2099-01-01" };
+  state.session = { user: { ...account, email, name: email }, signedInAt: minutesAgo(1), expires: "2099-01-01" };
   return { account, student };
 }
 
@@ -77,36 +83,57 @@ async function ownedRecords(accountId: string, studentId: string) {
   return rows[0];
 }
 
-function confirmedDeletion() {
+function confirmation(text: string) {
   const form = new FormData();
-  form.set("confirmation", "DELETE");
+  form.set("confirmation", text);
   return form;
 }
+const deleteWith = (text: string) => deleteAccount(null, confirmation(text));
+const allRecords = { accounts: 1, students: 1, analytics_snapshots: 1, weekly_schedules: 2, activity_check_ins: 2 };
+const noRecords = { accounts: 0, students: 0, analytics_snapshots: 0, weekly_schedules: 0, activity_check_ins: 0 };
 
 it("removes the Account, student, Analytics snapshots, Weekly schedules, and Activity check-ins", async () => {
   const owner = await studentWithRecords("owner@example.test");
-  expect(await ownedRecords(owner.account.id, owner.student.id))
-    .toEqual({ accounts: 1, students: 1, analytics_snapshots: 1, weekly_schedules: 2, activity_check_ins: 2 });
-  await deleteAccount(confirmedDeletion());
-  expect(await ownedRecords(owner.account.id, owner.student.id))
-    .toEqual({ accounts: 0, students: 0, analytics_snapshots: 0, weekly_schedules: 0, activity_check_ins: 0 });
+  expect(await ownedRecords(owner.account.id, owner.student.id)).toEqual(allRecords);
+  await deleteWith("DELETE");
+  expect(await ownedRecords(owner.account.id, owner.student.id)).toEqual(noRecords);
 });
 
-it("refuses deletion without the typed confirmation and keeps every record", async () => {
+it.each(["", "delete", " DELETE"])("refuses the confirmation %j and keeps every record", async (text) => {
   const owner = await studentWithRecords("owner@example.test");
-  await expect(deleteAccount(new FormData())).rejects.toThrow("Type DELETE");
-  expect(await ownedRecords(owner.account.id, owner.student.id))
-    .toEqual({ accounts: 1, students: 1, analytics_snapshots: 1, weekly_schedules: 2, activity_check_ins: 2 });
+  expect(await deleteWith(text)).toBe("wrong-text");
+  expect(await ownedRecords(owner.account.id, owner.student.id)).toEqual(allRecords);
+});
+
+it("deletes with a Google sign-in exactly 10 minutes old", async () => {
+  const owner = await studentWithRecords("owner@example.test");
+  state.session = { ...state.session!, signedInAt: minutesAgo(10) };
+  await deleteWith("DELETE");
+  expect(await ownedRecords(owner.account.id, owner.student.id)).toEqual(noRecords);
+});
+
+it.each([
+  ["more than 10 minutes old", () => minutesAgo(10) - 1],
+  ["missing", () => undefined],
+])("refuses deletion when the sign-in time is %s, even with DELETE typed", async (_name, signedInAt) => {
+  const owner = await studentWithRecords("owner@example.test");
+  state.session = { ...state.session!, signedInAt: signedInAt() };
+  expect(await deleteWith("DELETE")).toBe("sign-in-too-old");
+  expect(await ownedRecords(owner.account.id, owner.student.id)).toEqual(allRecords);
+});
+
+it("refuses an Admin with a recent sign-in and keeps every record", async () => {
+  const admin = await studentWithRecords("admin@example.test", "admin");
+  await expect(deleteWith("DELETE")).rejects.toThrow(ADMIN_RESTRICTED_ACTION_MESSAGE);
+  expect(await ownedRecords(admin.account.id, admin.student.id)).toEqual(allRecords);
 });
 
 it("leaves another student's records untouched", async () => {
   const other = await studentWithRecords("other@example.test");
   const owner = await studentWithRecords("owner@example.test");
-  await deleteAccount(confirmedDeletion());
-  expect(await ownedRecords(owner.account.id, owner.student.id))
-    .toEqual({ accounts: 0, students: 0, analytics_snapshots: 0, weekly_schedules: 0, activity_check_ins: 0 });
-  expect(await ownedRecords(other.account.id, other.student.id))
-    .toEqual({ accounts: 1, students: 1, analytics_snapshots: 1, weekly_schedules: 2, activity_check_ins: 2 });
+  await deleteWith("DELETE");
+  expect(await ownedRecords(owner.account.id, owner.student.id)).toEqual(noRecords);
+  expect(await ownedRecords(other.account.id, other.student.id)).toEqual(allRecords);
 });
 
 it("keeps every record when the last cascading delete fails", async () => {
@@ -117,10 +144,9 @@ it("keeps every record when the last cascading delete fails", async () => {
   await database.owner.execute(sql`create trigger reject_check_in_delete_test before delete on activity_check_ins
     for each row execute function reject_check_in_delete_test()`);
   try {
-    await expect(deleteAccount(confirmedDeletion())).rejects.toThrow();
-    const full = { accounts: 1, students: 1, analytics_snapshots: 1, weekly_schedules: 2, activity_check_ins: 2 };
-    expect(await ownedRecords(owner.account.id, owner.student.id)).toEqual(full);
-    expect(await ownedRecords(other.account.id, other.student.id)).toEqual(full);
+    await expect(deleteWith("DELETE")).rejects.toThrow();
+    expect(await ownedRecords(owner.account.id, owner.student.id)).toEqual(allRecords);
+    expect(await ownedRecords(other.account.id, other.student.id)).toEqual(allRecords);
   } finally {
     await database.owner.execute(sql`drop trigger reject_check_in_delete_test on activity_check_ins`);
     await database.owner.execute(sql`drop function reject_check_in_delete_test()`);

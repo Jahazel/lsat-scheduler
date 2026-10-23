@@ -57,7 +57,7 @@ async function student(email: string, role: "student" | "admin" = "student") {
   if (!account) throw new Error("Account fixture already exists");
   const saved = await createStudent(account.id, profile);
   if (!saved) throw new Error("Student fixture already exists");
-  state.session = { user: { ...account, email, name: email }, expires: "2099-01-01" };
+  state.session = { user: { ...account, email, name: email }, signedInAt: Math.floor(Date.now() / 1000), expires: "2099-01-01" };
   return { account, saved };
 }
 function approve(studentId: string, body: unknown = confirmed()) {
@@ -159,12 +159,12 @@ it("deletes the signed-in student's Account and cascades snapshots while refusin
   await approve(owner.saved.id);
   const form = new FormData();
   form.set("confirmation", "DELETE");
-  await deleteAccount(form);
+  await deleteAccount(null, form);
   expect(await listApprovedAnalyticsSnapshots(owner.saved.id)).toEqual([]);
   expect(await listApprovedAnalyticsSnapshots(other.saved.id)).toHaveLength(1);
   const admin = await student("admin@example.test", "admin");
   await approve(admin.saved.id);
-  await expect(deleteAccount(form)).rejects.toThrow();
+  await expect(deleteAccount(null, form)).rejects.toThrow();
   expect(await listApprovedAnalyticsSnapshots(admin.saved.id)).toHaveLength(1);
 });
 

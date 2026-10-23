@@ -455,8 +455,10 @@ it("Google sign-in returns through the role-aware login route", async () => {
 it.each(["student", "admin"] as const)("Account shows the %s's email and offers deletion only to students", async (role) => {
   const owner = await account("owner@example.test", role);
   session(owner);
+  request.session!.signedInAt = Math.floor(Date.now() / 1000);
   await onboard();
   const markup = renderToStaticMarkup(await AccountPage());
   expect(markup).toContain("owner@example.test");
-  expect(markup.includes("Delete account")).toBe(role === "student");
+  expect(markup.includes('name="confirmation"')).toBe(role === "student");
+  expect(markup.includes("This action is not available for admin accounts.")).toBe(role === "admin");
 });
