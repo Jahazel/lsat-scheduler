@@ -69,7 +69,7 @@ Follow [Apply the owner SQL](../runbooks/controlled-neon-move.md#apply-the-owner
 
 ## Results
 
-The owner ran every step on 2026-10-23 between about 09:30 and 15:15 US Central time. Each result is the owner's observation. The agent read back no page or row.
+The owner ran every step on 2026-10-23 between about 09:30 and 15:15 US Central time. Each result is the owner's observation. The agent saw some pages and SQL results only in the owner's screenshots. It read back no page or row itself.
 
 | Step | Copy deployment | Result | Notes |
 | --- | --- | --- | --- |
@@ -83,7 +83,7 @@ The owner ran every step on 2026-10-23 between about 09:30 and 15:15 US Central 
 
 ### What differed from the run sheet
 
-- **Real site.** The run sheet expected the Stage 3 build `315fad4`. The real site served `7103300`, deployment `2ryju7FX3dhkA3nB245xRVUSLPqL`. That is the intentional release recorded on [#148](https://github.com/Jahazel/lsat-scheduler/issues/148) on 2026-10-22. The owner reported that it did not change during the run.
+- **Real site.** The wizard expected the Stage 3 build `315fad4`. The real site served `7103300`, deployment `2ryju7FX3dhkA3nB245xRVUSLPqL`. That is the intentional release recorded on [#148](https://github.com/Jahazel/lsat-scheduler/issues/148) on 2026-10-22. The owner reported that it did not change during the run.
 - **Row counts.** The Neon SQL editor reports success, not a row count, for `INSERT`, `UPDATE`, and `DELETE`. Each `INSERT 0 1`, `UPDATE 1`, and `DELETE 1` above was checked by a `SELECT count(*)` that followed it.
 - **Placeholder rows (B4).** The first B4-1 insert used the literal text `TEST_EMAIL`, because the clipboard was overwritten. The owner deleted that row, confirmed a count of `0`, and redid the insert. The first B4-3 delete also used the placeholder and matched nothing. The owner reran it with the real email and confirmed a count of `0`.
 - **Google cancel (S-2).** Google skipped the account chooser, because the test user had already given the copy access in S-1. The owner removed the copy's access in the test Google account. Then Google showed its permission screen, and the owner pressed Cancel there.
@@ -129,7 +129,7 @@ Stage 4 is proven on the copy with real Google sign-in. Stage 5 builds on it. Do
 **Carried forward.**
 
 - **Cancel shows as `Configuration` (Stage 6).** A cancel at Google comes back to Login as `error=Configuration`. Login shows the right text. But the sign-in event logs must not count each cancel as a setup fault.
-- **The real site lacks `0007_account_sessions`.** Stage 4 ran on the copy only. The real site changes only through a release that the owner approves in writing.
+- **The real site is not on Stage 4.** This run changed only the copy. The real site gets `0007_account_sessions` and the Stage 4 build only through a release that the owner approves in writing.
 - **Password sign-in** waits for a domain ([#230](https://github.com/Jahazel/lsat-scheduler/issues/230)).
 - **Admin 2** is not on the real site yet ([#216](https://github.com/Jahazel/lsat-scheduler/issues/216)).
 - **Copy releases are `Staged`.** Production builds from `main` in the copy project need a manual promotion, as A5 did. Release steps must say so.
