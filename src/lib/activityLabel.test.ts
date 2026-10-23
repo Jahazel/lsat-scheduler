@@ -32,13 +32,13 @@ describe("activity labels", () => {
 
   it("labels a one-passage RC drill", () => {
     expect(activityLabel({ kind: "RC", isFullSection: false, passages: [{ type: "Law", difficultyLevel: 3 }],
-      drillMinutes: 9 })).toBe("1 Law passage (L3)");
+      drillMinutes: 9 })).toBe("1 RC Passage Law L3");
   });
 
-  it("labels a two-passage RC drill with both types and the level range, lower first", () => {
+  it("labels a two-passage RC drill with each passage's own level, in drill order", () => {
     expect(activityLabel({ kind: "RC", isFullSection: false, drillMinutes: 18,
-      passages: [{ type: "Humanities", difficultyLevel: 4 }, { type: "Science", difficultyLevel: 3 }] }))
-      .toBe("1 Humanities + 1 Science passage (L3-4)");
+      passages: [{ type: "Art", difficultyLevel: 2 }, { type: "Comparative", difficultyLevel: 4 }] }))
+      .toBe("2 RC Passages Art L2, Comparative L4");
   });
 
   it("allows only one or two LR types and one or two RC passages", () => {

@@ -113,7 +113,7 @@ describe("RC passage types", () => {
   const rcRead = { source: "7sage_screenshot", extractedAt: "2026-10-18T12:02:00.000Z" } as const;
   const lrRows: AnalyticsExtractedRow[] = [{ type: "Strengthen", category: "regular", accuracy: 68 }];
 
-  it("lists all 5 passage types in 7Sage order, with an empty row for a type the read missed", () => {
+  it("lists all 5 passage types in 7Sage order, and approves with an empty row for a type the read missed", () => {
     const review = readSection(readSection(null, "LR", lrRows, lrRead), "RC", passages.slice(0, 4).reverse(), rcRead);
     expect(review.rows.map(({ row, original }) => [row.type, row.accuracy, original === null])).toEqual([
       ["Strengthen", 68, false],
@@ -123,9 +123,8 @@ describe("RC passage types", () => {
       ["Humanities", 81, false],
       ["Art", undefined, true],
     ]);
-    expect(accuracyError(review.rows[5].row)).toBe("empty");
-    expect(snapshotApproval(confirm(review))).toBeNull();
-    expect(snapshotApproval(confirm(editAccuracy(review, 5, 77)))).not.toBeNull();
+    expect(accuracyError(review.rows[5].row)).toBeNull();
+    expect(snapshotApproval(confirm(review))).not.toBeNull();
   });
 
   it("keeps the other section's edits when one screenshot is read again", () => {

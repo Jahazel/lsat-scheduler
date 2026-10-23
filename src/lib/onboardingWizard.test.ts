@@ -459,8 +459,7 @@ describe("onboarding wizard", () => {
       expect(state.draft).toBeNull();
     });
 
-    it("keeps a passage type the read missed, empty, and locks Confirm until it is filled", () => {
-      const complete = onReview(readRows, ...tickBoth);
+    it("keeps a passage type the read missed empty and still confirms", () => {
       const withoutArt = run(
         validGoal,
         { type: "continue" },
@@ -473,19 +472,9 @@ describe("onboarding wizard", () => {
         { type: "continue" },
         ...tickBoth,
       );
-      expect(confirmSnapshotInput(complete)).not.toBeNull();
       expect(boxText(draftOf(withoutArt), "Art")).toBe("");
-      expect(blockedReason(withoutArt)).toBe("Fix Art above to confirm.");
-      expect(confirmSnapshotInput(withoutArt)).toBeNull();
-
-      const blocked = wizardReducer(withoutArt, { type: "confirmBlocked" });
-      expect(accuracyMessage(draftOf(blocked), "Art")).toBe("Enter the percentage from your RC screenshot.");
-
-      const filled = wizardReducer(
-        wizardReducer(withoutArt, { type: "editAccuracy", rowType: "Art", text: "77" }),
-        tickBoth[0],
-      );
-      expect(confirmSnapshotInput(wizardReducer(filled, tickBoth[1]))?.analyticsRows.at(-1)).toEqual({ type: "Art", category: "passage", accuracy: 77 });
+      expect(blockedReason(withoutArt)).toBeNull();
+      expect(confirmSnapshotInput(withoutArt)?.analyticsRows.at(-1)).toEqual({ type: "Art", category: "passage" });
     });
   });
 
@@ -624,7 +613,7 @@ describe("onboarding wizard", () => {
       );
       const rc = previewDrills(state, TODAY)?.items.find(({ activity }) => activity.kind === "RC" && !activity.isFullSection);
 
-      expect(rc?.label).toMatch(/^1 Law \+ 1 Science passage/);
+      expect(rc?.label).toMatch(/^2 RC Passages Law L\d, Science L\d$/);
       expect(rc?.detail).toEqual({ kind: "accuracy", text: "58%" });
     });
 

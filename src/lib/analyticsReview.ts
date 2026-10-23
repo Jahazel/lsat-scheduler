@@ -88,7 +88,8 @@ export function dropSection(review: SnapshotReview, section: AnalyticsSection): 
 export function lowestPassageType(review: SnapshotReview): RCType | null {
   const passages = review.rows
     .map(({ row }) => row)
-    .filter((row): row is PassageExtractedRow & { accuracy: number } => row.category === "passage" && !accuracyError(row));
+    .filter((row): row is PassageExtractedRow & { accuracy: number } =>
+      row.category === "passage" && row.accuracy !== undefined && !accuracyError(row));
   passages.sort((a, b) => a.accuracy - b.accuracy || mockRules.rcTypes.indexOf(a.type) - mockRules.rcTypes.indexOf(b.type));
   return passages[0]?.type ?? null;
 }
@@ -133,7 +134,7 @@ export function setStatement(review: SnapshotReview, statement: Statement, check
 
 export function accuracyError(row: AnalyticsExtractedRow): AccuracyError | null {
   if (row.category === "restricted") return null;
-  if (row.accuracy === undefined) return "empty";
+  if (row.accuracy === undefined) return row.category === "passage" ? null : "empty";
   if (!Number.isFinite(row.accuracy) || row.accuracy < 0 || row.accuracy > 100) return "out-of-range";
   return null;
 }

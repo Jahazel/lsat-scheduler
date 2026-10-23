@@ -655,24 +655,16 @@ describe("OnboardingWizard", () => {
       expect(within(box("Science").closest("div")!.parentElement!).getByText("Goes first")).toBeDefined();
     });
 
-    it("keeps a missed passage type empty and Confirm locked until the student fills it", async () => {
+    it("saves with a missed passage type left empty", async () => {
       const missingArt: ExtractReply = { kind: "rows", rows: rcRows.kind === "rows" ? rcRows.rows.slice(0, 4) : [] };
       const { user, onSave } = await openReview(undefined, read, missingArt);
       expect(box("Art").value).toBe("");
       expect(screen.getByText("not found")).toBeDefined();
-      for (const statement of statements) await user.click(screen.getByLabelText(statement));
-      expect(screen.getByText("Fix Art above to confirm.")).toBeDefined();
 
-      await user.click(confirmButton());
-      expect(onSave).not.toHaveBeenCalled();
-      expect(document.activeElement).toBe(box("Art"));
-      expect(screen.getByText("Enter the percentage from your RC screenshot.")).toBeDefined();
-
-      await user.type(box("Art"), "77");
       for (const statement of statements) await user.click(screen.getByLabelText(statement));
       await user.click(confirmButton());
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
-        analyticsRows: expect.arrayContaining([{ type: "Art", category: "passage", accuracy: 77 }]),
+        analyticsRows: expect.arrayContaining([{ type: "Art", category: "passage" }]),
       }));
     });
   });

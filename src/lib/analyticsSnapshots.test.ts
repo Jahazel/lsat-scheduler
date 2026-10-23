@@ -24,13 +24,17 @@ describe("prepareApprovedSnapshot", () => {
     expect(prepareApprovedSnapshot(confirmed(), NOW, NOW, { weekOf: "2027-03-08" }).weekOf).toBe("2027-03-08");
   });
 
+  it("saves without the passage types the screenshot showed no percentage for", () => {
+    const withoutArt = { Law: 0.58, Comparative: 0.7, Science: 0.64, Humanities: 0.81 };
+    expect(prepareApprovedSnapshot({ ...confirmed(), rcAccuracyByType: withoutArt }, NOW).rcAccuracyByType).toEqual(withoutArt);
+  });
+
   it.each([
     ["unconfirmed", (body: Body) => ({ ...body, confirmation: { ...body.confirmation, isLatestAnalytics: false } }), "Confirm that the reviewed extraction matches your latest analytics."],
     ["empty", (body: Body) => ({ ...body, lrAccuracyByType: {}, lrTopPriorityLogicTypes: [] }), "The reviewed extraction is empty."],
-    ["missing RC accuracy", (body: Body) => ({ ...body, rcAccuracyByType: undefined }), "Add an accuracy from 0 to 100 for all 5 RC passage types."],
-    ["a missing passage type", (body: Body) => ({ ...body, rcAccuracyByType: { ...rcAccuracyByType, Art: undefined } }), "Add an accuracy from 0 to 100 for all 5 RC passage types."],
-    ["an RC accuracy over 100%", (body: Body) => ({ ...body, rcAccuracyByType: { ...rcAccuracyByType, Law: 1.2 } }), "Add an accuracy from 0 to 100 for all 5 RC passage types."],
-    ["an unknown passage type", (body: Body) => ({ ...body, rcAccuracyByType: { ...rcAccuracyByType, Poetry: 0.5 } }), "Add an accuracy from 0 to 100 for all 5 RC passage types."],
+    ["missing RC accuracy", (body: Body) => ({ ...body, rcAccuracyByType: undefined }), "Each RC passage accuracy must be from 0 to 100."],
+    ["an RC accuracy over 100%", (body: Body) => ({ ...body, rcAccuracyByType: { ...rcAccuracyByType, Law: 1.2 } }), "Each RC passage accuracy must be from 0 to 100."],
+    ["an unknown passage type", (body: Body) => ({ ...body, rcAccuracyByType: { ...rcAccuracyByType, Poetry: 0.5 } }), "Each RC passage accuracy must be from 0 to 100."],
     ["stale", (body: Body) => ({ ...body, extraction: { ...body.extraction, extractedAt: minutesBefore(24 * 60 + 1) } }), "Upload a fresh analytics screenshot before saving."],
     ["future extraction", (body: Body) => ({ ...body, extraction: { ...body.extraction, extractedAt: minutesBefore(-1) } }), "Upload a fresh analytics screenshot before saving."],
     ["confirmation before review", (body: Body) => ({ ...body, confirmation: { ...body.confirmation, confirmedAt: minutesBefore(10) } }), "Confirm the extraction after reviewing it."],

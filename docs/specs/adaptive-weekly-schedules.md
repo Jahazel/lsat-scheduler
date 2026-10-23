@@ -14,7 +14,7 @@ A weekly upload counts for a week by the date it is confirmed, in the schedule t
 
 ### Analytics and practice-test inputs
 
-An eligible analytics snapshot requires fresh, usable 7Sage LR and RC screenshots and student confirmation that the extraction matches and is the latest. The newest three eligible snapshots that count for W or an earlier week form the performance trend, weighted 60%, 30%, and 10%, with weights renormalized when fewer exist. LR question-type accuracy and RC passage-type accuracy are weighted the same way. A missing row contributes no invented accuracy; ranking uses only snapshots that report it. The newest snapshot supplies restricted priority flags.
+An eligible analytics snapshot requires fresh, usable 7Sage LR and RC screenshots and student confirmation that the extraction matches and is the latest. The newest three eligible snapshots that count for W or an earlier week form the performance trend, weighted 60%, 30%, and 10%, with weights renormalized when fewer exist. LR question-type accuracy and RC passage-type accuracy are weighted the same way. A missing row contributes no invented accuracy; ranking uses only snapshots that report it. The 7Sage RC screenshot may show no percentage for some passage types; the student can approve the snapshot with those types left empty. The newest snapshot supplies restricted priority flags.
 
 The practice-test result is the newest one that counts for W. It holds each section's 7Sage score and each LR question's result and tags. A missed question is wrong or unanswered. A hidden result counts as missed or correct when the section score settles it; otherwise the student picks which hidden questions were missed. Each question-stem tag on a missed LR question counts once. Logic-type tags, unknown tags, and RC sections do not count. When this week's weekly schedule had no practice test, the weekly upload saves no practice-test result.
 
@@ -60,8 +60,8 @@ This week is a checklist. Each day header shows the day type, planned total, and
 | Full section | "1 Full LR Section" or "1 Full RC Section" |
 | LR line | "10 Weaken (L3-5)" |
 | Paired LR drill | "10 Necessary + Sufficient assumption (L2-4)". When both type names are two words with the same last word, the first drops it. |
-| 1-passage RC drill | "1 Law passage (L3)" |
-| 2-passage RC drill | "1 Humanities + 1 Science passage (L3-4)" |
+| 1-passage RC drill | "1 RC Passage Law L3" |
+| 2-passage RC drill | "2 RC Passages Humanities L3, Science L4" |
 
 A student checks off a line with one tap and can undo it. An activity check-in is not started or completed; there is no skip and no actual minutes. The header counts "N of M done", and a finished day shows "All done". A correction changes the check-in, not the saved plan. Unscheduled days have a distinct dashed card. The rest day, a near-test week, a week without a practice test, and a practice-test review day carried from last week use plain labels.
 

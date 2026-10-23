@@ -154,7 +154,7 @@ async function extractPassageRows(imageBuffer: Buffer, mediaType: ScreenshotMedi
           imageBlock(imageBuffer, mediaType),
           {
             type: "text",
-            text: `This is a screenshot of a 7Sage LSAT analytics dashboard. Find the Reading Comprehension passage types: ${rules.rcTypes.join(", ")}. Each row shows an accuracy percentage.
+            text: `This is a screenshot of a 7Sage LSAT analytics dashboard. Find the Reading Comprehension passage types: ${rules.rcTypes.join(", ")}. A row may show an accuracy percentage or no percentage.
 
 Call ${TOOL_NAME} with one entry per passage-type row that is visible and shows a percentage. Do not report Logical Reasoning question types, and do not include rows that aren't visible in the image.`,
           },

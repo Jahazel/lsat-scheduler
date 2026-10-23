@@ -11,7 +11,7 @@ const RCAccuracySchema = z.strictObject({
   Science: Accuracy,
   Humanities: Accuracy,
   Art: Accuracy,
-} satisfies Record<RCType, typeof Accuracy>);
+} satisfies Record<RCType, typeof Accuracy>).partial();
 
 const SnapshotApprovalSchema = z.object({
   lrAccuracyByType: z.record(z.string(), Accuracy),
@@ -76,7 +76,7 @@ export function prepareApprovedSnapshot(input: unknown, approvedAt = new Date(),
   const values = parsed.data;
   const rcAccuracy = RCAccuracySchema.safeParse(values.rcAccuracyByType);
   if (!rcAccuracy.success) {
-    throw new SnapshotApprovalError("Add an accuracy from 0 to 100 for all 5 RC passage types.");
+    throw new SnapshotApprovalError("Each RC passage accuracy must be from 0 to 100.");
   }
   if (values.extraction.source === "admin_sample" && !options.allowAdminSample) {
     throw new SnapshotApprovalError("Admin access required for sample analytics.");
