@@ -14,11 +14,15 @@ export function categoryFor(type: LRType, rules: RulesConfig): "regular" | "rest
 
 const PRIORITY_TIER: Record<"HIGHEST" | "MEDIUM" | "LOW", PriorityTier> = { HIGHEST: "highest", MEDIUM: "medium", LOW: "low" };
 
-interface ExtractedRow {
-  type: LRType;
-  accuracy?: number;
-  priority?: keyof typeof PRIORITY_TIER;
-}
+const Accuracy = z.number().min(0).max(100);
+const Priority = z.enum(["HIGHEST", "MEDIUM", "LOW"]);
+
+const lrToolInput = (types: LRType[]) => z.object({
+  rows: z.array(z.object({ type: z.enum(types), accuracy: Accuracy.optional(), priority: Priority.optional() })).max(types.length),
+});
+const passageToolInput = (types: RCType[]) => z.object({
+  rows: z.array(z.object({ type: z.enum(types), accuracy: Accuracy })).max(types.length),
+});
 
 function anthropicClient() {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -32,9 +36,11 @@ function imageBlock(imageBuffer: Buffer, mediaType: ScreenshotMediaType) {
   return { type: "image" as const, source: { type: "base64" as const, media_type: mediaType, data: imageBuffer.toString("base64") } };
 }
 
-function toolInput(content: Anthropic.ContentBlock[]) {
+function parseToolInput<T>(content: Anthropic.ContentBlock[], name: string, schema: z.ZodType<T>): T {
   const toolUse = content.find((block) => block.type === "tool_use");
-  return toolUse?.type === "tool_use" ? toolUse.input : null;
+  const parsed = schema.safeParse(toolUse?.type === "tool_use" && toolUse.name === name ? toolUse.input : null);
+  if (!parsed.success) throw new Error(`The model's ${name} reply does not fit its format`);
+  return parsed.data;
 }
 
 export function extractAnalyticsRowsFromImage(
@@ -106,11 +112,7 @@ For every row visible in the image, call ${TOOL_NAME} with one entry per row. Us
     ],
   });
 
-  const input = toolInput(response.content);
-  if (!input) return [];
-
-  const { rows } = input as { rows: ExtractedRow[] };
-
+  const { rows } = parseToolInput(response.content, TOOL_NAME, lrToolInput(allTypes));
   return rows.map(({ type, accuracy, priority }) => {
     const row: AnalyticsExtractedRow = { type, category: categoryFor(type, rules), accuracy };
     const priorityTier = priority && PRIORITY_TIER[priority];
@@ -163,29 +165,30 @@ Call ${TOOL_NAME} with one entry per passage-type row that is visible and shows 
     ],
   });
 
-  const input = toolInput(response.content);
-  if (!input) return [];
-  const { rows } = input as { rows: { type: RCType; accuracy?: number }[] };
-  return rows
-    .filter(({ type }) => rules.rcTypes.includes(type))
-    .map(({ type, accuracy }) => ({ type, category: "passage", accuracy }));
+  const { rows } = parseToolInput(response.content, TOOL_NAME, passageToolInput(rules.rcTypes));
+  return rows.map(({ type, accuracy }) => ({ type, category: "passage", accuracy }));
 }
 
 const SECTION_TOOL_NAME = "record_practice_test_section";
 const QUESTION_RESULTS = ["correct", "wrong", "unanswered", "hidden"] as const;
 
+const MAX_SECTION_QUESTIONS = 30;
 const SectionHeader = {
   page: z.literal("section_review"),
-  prepTest: z.number().int().positive(),
-  section: z.number().int().positive(),
-  score: z.number().int().transform((score) => (score > 0 ? -score : score)),
+  prepTest: z.number().int().min(1).max(999),
+  section: z.number().int().min(1).max(4),
+  score: z.number().int().min(-MAX_SECTION_QUESTIONS).max(MAX_SECTION_QUESTIONS).transform((score) => (score > 0 ? -score : score)),
   reachesEnd: z.boolean(),
 };
 const ToolSectionReading = z.union([
   z.object({
     ...SectionHeader,
     kind: z.literal("LR"),
-    rows: z.array(z.object({ question: z.number().int().positive(), result: z.enum(QUESTION_RESULTS), tags: z.array(z.string()) })),
+    rows: z.array(z.object({
+      question: z.number().int().min(1).max(MAX_SECTION_QUESTIONS),
+      result: z.enum(QUESTION_RESULTS),
+      tags: z.array(z.string().max(40)).max(8),
+    })).max(MAX_SECTION_QUESTIONS),
   }),
   z.object({ ...SectionHeader, kind: z.literal("RC") }),
   z.object({ page: z.enum(["analytics", "other"]) }),
@@ -249,6 +252,5 @@ Call ${SECTION_TOOL_NAME} once. For an LR section, report every visible row in o
     ],
   });
 
-  const parsed = ToolSectionReading.safeParse(toolInput(response.content));
-  return parsed.success ? parsed.data : { page: "other" };
+  return parseToolInput(response.content, SECTION_TOOL_NAME, ToolSectionReading);
 }

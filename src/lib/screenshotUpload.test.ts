@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { extractScreenshot, readAnalyticsScreenshot } from "./screenshotUpload";
+import { extractPracticeTestScreenshot, extractScreenshot, readAnalyticsScreenshot, shrunkSize } from "./screenshotUpload";
 
 const file = new File(["png"], "7sage-analytics.png", { type: "image/png" });
 
@@ -26,7 +26,7 @@ describe("extractScreenshot", () => {
     expect(body.get("section")).toBe("RC");
   });
 
-  it.each([413, 415])("passes on the route's %i rejection message", async (status) => {
+  it.each([413, 415, 422])("passes on the route's %i rejection message", async (status) => {
     replyWith(status, { error: "That file is 4.2 MB. Choose one that is 4 MB or less.", reason: "too-large" });
 
     expect(await extractScreenshot(file, "LR")).toEqual({
@@ -70,5 +70,27 @@ describe("readAnalyticsScreenshot", () => {
     replyWith(200, { rows: [] });
 
     expect(await readAnalyticsScreenshot(file, "RC")).toEqual({ kind: "rows", rows: [] });
+  });
+});
+
+describe("before upload", () => {
+  it.each([
+    [1568, 900, null],
+    [1179, 2556, { width: 723, height: 1568 }],
+    [3000, 1000, { width: 1568, height: 523 }],
+    [1569, 1569, { width: 1568, height: 1568 }],
+    [8000, 1, { width: 1568, height: 1 }],
+  ])("shrinks a %i x %i image so its longer side is at most 1,568 px", (width, height, size) => {
+    expect(shrunkSize(width, height)).toEqual(size);
+  });
+
+  it("refuses a file still over 4 MB without sending it", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const large = new File([new Uint8Array(Math.round(6.2 * 1024 * 1024))], "pt158-s1.png", { type: "image/png" });
+
+    expect(await extractPracticeTestScreenshot(large)).toEqual({
+      kind: "rejected", message: "That file is 6.2 MB. Choose one that is 4 MB or less.",
+    });
+    expect(fetch).not.toHaveBeenCalled();
   });
 });

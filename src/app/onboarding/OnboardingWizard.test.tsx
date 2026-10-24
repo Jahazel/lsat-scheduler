@@ -371,29 +371,18 @@ describe("OnboardingWizard", () => {
       expect(checkTheValues().disabled).toBe(false);
     });
 
-    it("rejects a wrong type or a file over 4 MB before any upload", async () => {
-      const { user, extract } = await fillGoalAndWeek();
+    it("rejects a wrong type before any upload", async () => {
+      const { extract } = await fillGoalAndWeek();
 
       fireEvent.drop(screen.getByRole("button", { name: /Logical Reasoning screenshot/ }), {
         dataTransfer: { files: [new File(["%PDF"], "study-notes.pdf", { type: "application/pdf" })] },
       });
-      expect(screen.getByRole("alert").textContent).toBe("study-notes.pdf is a PDF. Choose a PNG, JPG, or WEBP screenshot.");
-
-      const big = new File(["png"], "huge.png", { type: "image/png" });
-      Object.defineProperty(big, "size", { value: 12.4 * 1024 * 1024 });
-      await upload(user, big);
-      expect(screen.getByRole("alert").textContent).toBe("That file is 12.4 MB. Choose one that is 4 MB or less.");
-
-      await upload(user, big, "RC");
-      expect(screen.getAllByRole("alert").map((alert) => alert.textContent)).toEqual([
-        "That file is 12.4 MB. Choose one that is 4 MB or less.",
-        "That file is 12.4 MB. Choose one that is 4 MB or less.",
-      ]);
+      expect(screen.getByRole("alert").textContent).toBe("That file is not a PNG, JPG, or WEBP. Choose a screenshot in one of those types.");
       expect(extract).not.toHaveBeenCalled();
     });
 
     it("returns focus to the drop zone when the server rejects the file", async () => {
-      const message = "huge.png is not a PNG, JPG, or WEBP image. Choose a PNG, JPG, or WEBP screenshot.";
+      const message = "That file is not a PNG, JPG, or WEBP. Choose a screenshot in one of those types.";
       let reject: (reply: ExtractReply) => void = () => {};
       const extract = vi.fn(() => new Promise<ExtractReply>((resolve) => { reject = resolve; }));
       const { user } = await fillGoalAndWeek(undefined, extract);

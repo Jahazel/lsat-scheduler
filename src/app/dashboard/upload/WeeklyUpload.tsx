@@ -14,7 +14,7 @@ import {
   reviewPracticeTest, type HiddenPick, type PracticeTestProblem, type PracticeTestResult, type SectionReading, type SectionReview,
 } from "@/lib/practiceTestResult";
 import {
-  CANNOT_READ, MAX_SCREENSHOT_MB, SCREENSHOT_MEDIA_TYPES, checkScreenshot, extractPracticeTestScreenshot, readAnalyticsScreenshot,
+  CANNOT_READ, MAX_SCREENSHOT_MB, SCREENSHOT_MEDIA_TYPES, checkScreenshotType, extractPracticeTestScreenshot, readAnalyticsScreenshot,
 } from "@/lib/screenshotUpload";
 import { DAY_LABEL } from "@/lib/studentProfile";
 import { mostMissedType } from "@/lib/engine";
@@ -112,7 +112,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   }
 
   function addAnalytics(section: AnalyticsSection, file: File) {
-    const rejection = checkScreenshot(file);
+    const rejection = checkScreenshotType(file);
     reject(section, rejection?.message ?? null);
     if (rejection) return;
     const upload: AnalyticsUpload = { id: nextId.current++, file, read: { status: "added" } };
@@ -121,8 +121,8 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   }
 
   function addSectionFiles(files: File[], key: string, room: number) {
-    const accepted = files.filter((file) => !checkScreenshot(file));
-    const firstRejection = files.map(checkScreenshot).find(Boolean)?.message;
+    const accepted = files.filter((file) => !checkScreenshotType(file));
+    const firstRejection = files.map(checkScreenshotType).find(Boolean)?.message;
     const uploads = accepted.slice(0, room).map((file): SectionUpload => ({ id: nextId.current++, file, read: { status: "added" } }));
     reject(key, firstRejection ?? (accepted.length > room ? "Add one screenshot per section, 4 in all. Replace a section to change it." : null));
     setSections((current) => [...current, ...uploads]);
@@ -130,7 +130,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   }
 
   function replaceSection(id: number, file: File) {
-    const rejection = checkScreenshot(file);
+    const rejection = checkScreenshotType(file);
     reject(`file-${id}`, rejection?.message ?? null);
     if (rejection) return;
     const upload: SectionUpload = { id: nextId.current++, file, read: { status: "added" } };

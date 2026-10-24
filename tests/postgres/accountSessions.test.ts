@@ -14,6 +14,8 @@ import proxy from "../../src/proxy";
 import { createStudentProfile } from "../../src/app/onboarding/actions";
 import { confirmWeeklyUpload } from "../../src/app/dashboard/upload/actions";
 import { POST as extractPracticeTest } from "../../src/app/api/practice-test/extract/route";
+import { POST as extractAnalytics } from "../../src/app/api/analytics/extract/route";
+import { png, screenshotRequest as formRequest } from "../../src/lib/screenshotFixtures/files";
 import AdminPage from "../../src/app/admin/page";
 import { setSimulatedDate } from "../../src/app/admin/test/actions";
 import { deleteAccount, signOutAllDevices } from "../../src/app/account/actions";
@@ -257,17 +259,10 @@ const profile: Student = {
   dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 90, SUNDAY: 90 },
 };
 const profileInput = { ...profile, officialAttempts: [], analyticsRows: [], analyticsApproval: null };
-const png = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=",
-  "base64",
-);
 function screenshotRequest(path: string, cookie: string) {
-  const form = new FormData();
-  form.set("image", new File([png], "section.png", { type: "image/png" }));
-  form.set("section", "LR");
-  return new NextRequest(`http://localhost:3000${path}`, {
-    method: "POST", body: form, headers: { cookie: `${COOKIE}=${cookie}` },
-  });
+  return formRequest(`http://localhost:3000${path}`, {
+    image: new File([new Uint8Array(png(40, 30))], "section.png", { type: "image/png" }), section: "LR",
+  }, { cookie: `${COOKIE}=${cookie}` });
 }
 const savedRows = async () => (await ownerSql(sql`select
   (select count(*) from students)::int as students,
@@ -283,11 +278,25 @@ it("a refused session reaches no onboarding, weekly upload, or extraction and sa
   request.cookie = cookie;
   await expect(createStudentProfile(profileInput)).rejects.toThrow("Not authenticated");
   expect(await confirmWeeklyUpload({ weekOf: "2026-10-19", analytics: {}, practiceTest: {} })).toEqual({ signedOut: true });
-  expect((await extractPracticeTest(screenshotRequest("/api/practice-test/extract", cookie))).status).toBe(401);
+  expect((await extractPracticeTest(await screenshotRequest("/api/practice-test/extract", cookie))).status).toBe(401);
+  expect((await extractAnalytics(await screenshotRequest("/api/analytics/extract", cookie))).status).toBe(401);
   expect(await proxyResponse("/api/analytics/extract", cookie)).toEqual({ status: 401, location: null });
   expect(await proxyResponse("/onboarding", cookie)).toMatchObject({ status: 307, location: "http://localhost:3000/login?error=SessionEnded" });
   expect(request.createMessage).not.toHaveBeenCalled();
   expect(await savedRows()).toEqual({ students: 0, snapshots: 0, practice_tests: 0 });
+});
+
+it("a deleted or anonymous caller starts no extraction on either scan route", async () => {
+  const student = await account("student@example.test");
+  const cookie = await signedIn(student.id);
+  await ownerSql(sql`delete from accounts where id = ${student.id}`);
+
+  for (const sentCookie of [cookie, ""]) {
+    request.cookie = sentCookie;
+    expect((await extractPracticeTest(await screenshotRequest("/api/practice-test/extract", sentCookie))).status).toBe(401);
+    expect((await extractAnalytics(await screenshotRequest("/api/analytics/extract", sentCookie))).status).toBe(401);
+  }
+  expect(request.createMessage).not.toHaveBeenCalled();
 });
 
 it("a browser that never signed in reaches plain Login, with no ended-session message", async () => {
@@ -305,8 +314,9 @@ it("a direct Login visit with an ended session shows the ended-session reason on
 it("the same paths work for a fresh session, so the refusal is the session check", async () => {
   const student = await account("student@example.test");
   request.cookie = await signedIn(student.id);
-  expect((await extractPracticeTest(screenshotRequest("/api/practice-test/extract", request.cookie))).status).toBe(502);
-  expect(request.createMessage).toHaveBeenCalledOnce();
+  expect((await extractPracticeTest(await screenshotRequest("/api/practice-test/extract", request.cookie))).status).toBe(502);
+  expect((await extractAnalytics(await screenshotRequest("/api/analytics/extract", request.cookie))).status).toBe(502);
+  expect(request.createMessage).toHaveBeenCalledTimes(2);
   await expect(createStudentProfile(profileInput)).rejects.toThrow("redirect:/dashboard");
   expect(await savedRows()).toMatchObject({ students: 1 });
 });

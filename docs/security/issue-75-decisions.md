@@ -83,7 +83,7 @@ The evidence comes from issue 70 findings F05, F07, F08, and F09. The $10 monthl
 25. Each side is at most 8,000 px, and the image is at most 25 megapixels. The server reads the size from the file header before it decodes the image.
 26. The image has one frame. The server refuses animated PNG and animated WebP.
 27. Before upload, the browser shrinks the image until its longer side is at most 1,568 px. The server still applies rules 22 to 26.
-28. The server refuses a bad file before it reads the whole file and before it calls Anthropic.
+28. The server refuses a bad file before it reads the whole file and before it calls Anthropic. **Clarified by the owner on 2026-10-24 ([issue 248](https://github.com/Jahazel/lsat-scheduler/issues/248)):** the server refuses a request over 4.5 MB before it reads the whole request. It checks the file after that bounded read, before any Anthropic call. A broken image means a cut-off or badly built file. A well-built file with corrupt picture data is not decoded on the server; Anthropic refuses it, and the student sees "Couldn't read that screenshot."
 
 **Why:** Anthropic shrinks any image with a longer side over 1,568 px, so a larger image does not help the model ([vision documentation](https://platform.claude.com/docs/en/build-with-claude/vision)). Shrinking in the browser keeps phone and Retina screenshots under 4 MB. It also caps the image cost of each extraction.
 
