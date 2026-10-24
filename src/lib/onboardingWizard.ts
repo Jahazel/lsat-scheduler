@@ -405,7 +405,7 @@ function readEnded(state: WizardState, section: AnalyticsSection, attempt: numbe
   switch (reply.kind) {
     case "rows": {
       const rows = reply.rows.filter((row) => sectionOf(row) === section);
-      if (rows.length === 0) return withScreenshot(state, section, { status: "no-rows", file });
+      if (section === "LR" && rows.length === 0) return withScreenshot(state, section, { status: "no-rows", file });
       const review = readSection(state.draft?.review ?? null, section, rows, { source: "7sage_screenshot", extractedAt: at.toISOString() });
       const draft = { ...startDraft(review), ...state.draft, review };
       return { ...withScreenshot(state, section, { status: "read", file, rows }), draft };

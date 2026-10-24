@@ -134,13 +134,27 @@ describe("Check what we read", () => {
     await user.click(statement(LATEST));
 
     await user.clear(screen.getByLabelText("Law accuracy"));
+    await user.type(screen.getByLabelText("Law accuracy"), "150");
     await user.click(statement(REVIEWED));
     await user.click(statement(LATEST));
     await user.click(confirmButton());
 
     expect(confirm).not.toHaveBeenCalled();
     expect(screen.getByText("Fix Law above to confirm.")).toBeDefined();
-    expect(screen.getByText("Enter the percentage from your RC screenshot.")).toBeDefined();
+    expect(screen.getByText("Enter a percentage from 0 to 100.")).toBeDefined();
+  });
+
+  it("confirms with empty RC boxes and sends only the RC passage types that have a value", async () => {
+    const { user, confirm } = setup();
+    await user.clear(screen.getByLabelText("Law accuracy"));
+    await user.clear(screen.getByLabelText("Art accuracy"));
+    await user.click(statement(REVIEWED));
+    await user.click(statement(LATEST));
+    await user.click(confirmButton());
+
+    expect(confirm).toHaveBeenCalledOnce();
+    const { analytics } = confirm.mock.calls[0][0] as { analytics: { rcAccuracyByType: object } };
+    expect(analytics.rcAccuracyByType).toEqual({ Comparative: 0.7, Science: 0.64, Humanities: 0.81 });
   });
 
   it("sends the reviewed analytics, the section readings, and the new score when confirmed", async () => {

@@ -18,6 +18,7 @@ import {
   type WizardAction,
   type WizardState,
 } from "./onboardingWizard";
+import { PASSAGE_TYPES } from "./analyticsReview";
 import { generateWeek } from "./engine";
 import { accuracyMessage, addTypeOptions, boxText, emptyListNote } from "./reviewDraft";
 import { mockRules } from "./mockData";
@@ -450,17 +451,26 @@ describe("onboarding wizard", () => {
       expect(blockedReason(lrOnly)).toBe("Add both screenshots to check the values.");
     });
 
-    it("treats an RC read with no passage types as the wrong screenshot", () => {
-      const state = run(
-        { type: "readStarted", section: "RC", file: new File(["png"], "lr.png", { type: "image/png" }) },
-        { type: "readEnded", section: "RC", attempt: 1, reply: { kind: "rows", rows: readRows }, at: READ_AT },
+    it("accepts an RC read with no passage-type percentage and confirms it with 5 empty boxes", () => {
+      const noPercentages = run(
+        validGoal,
+        { type: "continue" },
+        { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
+        { type: "continue" },
+        { type: "readStarted", section: "LR", file: new File(["png"], "lr.png", { type: "image/png" }) },
+        { type: "readEnded", section: "LR", attempt: 1, reply: { kind: "rows", rows: readRows }, at: READ_AT },
+        { type: "readStarted", section: "RC", file: new File(["png"], "rc.png", { type: "image/png" }) },
+        { type: "readEnded", section: "RC", attempt: 1, reply: { kind: "rows", rows: [] }, at: READ_AT },
+        { type: "continue" },
+        ...tickBoth,
       );
-      expect(state.screenshots.RC.status).toBe("no-rows");
-      expect(state.draft).toBeNull();
+      expect(noPercentages.screenshots.RC.status).toBe("read");
+      expect(PASSAGE_TYPES.map((type) => boxText(draftOf(noPercentages), type))).toEqual(["", "", "", "", ""]);
+      expect(blockedReason(noPercentages)).toBeNull();
+      expect(confirmSnapshotInput(noPercentages)?.analyticsRows.filter((row) => row.category === "passage" && row.accuracy !== undefined)).toEqual([]);
     });
 
-    it("keeps a passage type the read missed, empty, and locks Confirm until it is filled", () => {
-      const complete = onReview(readRows, ...tickBoth);
+    it("keeps a passage type the read missed empty, with no error, and blocks only a typed value outside 0 to 100", () => {
       const withoutArt = run(
         validGoal,
         { type: "continue" },
@@ -473,13 +483,14 @@ describe("onboarding wizard", () => {
         { type: "continue" },
         ...tickBoth,
       );
-      expect(confirmSnapshotInput(complete)).not.toBeNull();
       expect(boxText(draftOf(withoutArt), "Art")).toBe("");
-      expect(blockedReason(withoutArt)).toBe("Fix Art above to confirm.");
-      expect(confirmSnapshotInput(withoutArt)).toBeNull();
+      expect(blockedReason(withoutArt)).toBeNull();
+      expect(confirmSnapshotInput(withoutArt)).not.toBeNull();
+      expect(accuracyMessage(draftOf(wizardReducer(withoutArt, { type: "confirmBlocked" })), "Art")).toBeNull();
 
-      const blocked = wizardReducer(withoutArt, { type: "confirmBlocked" });
-      expect(accuracyMessage(draftOf(blocked), "Art")).toBe("Enter the percentage from your RC screenshot.");
+      const typo = wizardReducer(withoutArt, { type: "editAccuracy", rowType: "Art", text: "177" });
+      expect(blockedReason(typo)).toBe("Fix Art above to confirm.");
+      expect(accuracyMessage(draftOf(wizardReducer(typo, { type: "confirmBlocked" })), "Art")).toBe("Enter a percentage from 0 to 100.");
 
       const filled = wizardReducer(
         wizardReducer(withoutArt, { type: "editAccuracy", rowType: "Art", text: "77" }),

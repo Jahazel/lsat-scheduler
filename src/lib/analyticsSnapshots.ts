@@ -5,13 +5,14 @@ import type { LRLogicType, RCType } from "@/lib/types";
 const MAX_EXTRACTION_AGE_MS = 24 * 60 * 60 * 1000;
 
 const Accuracy = z.number().finite().min(0).max(1);
+const OptionalAccuracy = Accuracy.optional();
 const RCAccuracySchema = z.strictObject({
-  Law: Accuracy,
-  Comparative: Accuracy,
-  Science: Accuracy,
-  Humanities: Accuracy,
-  Art: Accuracy,
-} satisfies Record<RCType, typeof Accuracy>);
+  Law: OptionalAccuracy,
+  Comparative: OptionalAccuracy,
+  Science: OptionalAccuracy,
+  Humanities: OptionalAccuracy,
+  Art: OptionalAccuracy,
+} satisfies Record<RCType, typeof OptionalAccuracy>);
 
 const SnapshotApprovalSchema = z.object({
   lrAccuracyByType: z.record(z.string(), Accuracy),
@@ -76,7 +77,7 @@ export function prepareApprovedSnapshot(input: unknown, approvedAt = new Date(),
   const values = parsed.data;
   const rcAccuracy = RCAccuracySchema.safeParse(values.rcAccuracyByType);
   if (!rcAccuracy.success) {
-    throw new SnapshotApprovalError("Add an accuracy from 0 to 100 for all 5 RC passage types.");
+    throw new SnapshotApprovalError("Enter each RC accuracy from 0 to 100.");
   }
   if (values.extraction.source === "admin_sample" && !options.allowAdminSample) {
     throw new SnapshotApprovalError("Admin access required for sample analytics.");

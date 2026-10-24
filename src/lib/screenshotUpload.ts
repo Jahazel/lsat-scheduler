@@ -102,10 +102,7 @@ export async function extractPracticeTestScreenshot(file: File): Promise<Section
 
 export const CANNOT_READ = "Couldn't read that screenshot. Try again or a clearer image.";
 
-const NO_ROWS: Record<AnalyticsSection, string> = {
-  LR: "We found no LR question types in that screenshot. Choose your Logical Reasoning screenshot.",
-  RC: "We found no passage types in that screenshot. Choose your Reading Comprehension screenshot.",
-};
+const NO_LR_ROWS = "We found no LR question types in that screenshot. Choose your Logical Reasoning screenshot.";
 
 export type AnalyticsRead =
   | { kind: "rows"; rows: AnalyticsExtractedRow[] }
@@ -118,7 +115,7 @@ export async function readAnalyticsScreenshot(file: File, section: AnalyticsSect
   const reply = await extractScreenshot(file, section);
   switch (reply.kind) {
     case "rows":
-      return reply.rows.length === 0 ? { kind: "problem", message: NO_ROWS[section] } : reply;
+      return section === "LR" && reply.rows.length === 0 ? { kind: "problem", message: NO_LR_ROWS } : reply;
     case "rejected":
       return { kind: "problem", message: reply.message };
     case "signed-out":

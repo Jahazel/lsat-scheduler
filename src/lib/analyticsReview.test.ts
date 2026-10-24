@@ -113,7 +113,7 @@ describe("RC passage types", () => {
   const rcRead = { source: "7sage_screenshot", extractedAt: "2026-10-18T12:02:00.000Z" } as const;
   const lrRows: AnalyticsExtractedRow[] = [{ type: "Strengthen", category: "regular", accuracy: 68 }];
 
-  it("lists all 5 passage types in 7Sage order, with an empty row for a type the read missed", () => {
+  it("lists all 5 passage types in 7Sage order, with an empty row for a type the read missed that does not block approval", () => {
     const review = readSection(readSection(null, "LR", lrRows, lrRead), "RC", passages.slice(0, 4).reverse(), rcRead);
     expect(review.rows.map(({ row, original }) => [row.type, row.accuracy, original === null])).toEqual([
       ["Strengthen", 68, false],
@@ -123,9 +123,9 @@ describe("RC passage types", () => {
       ["Humanities", 81, false],
       ["Art", undefined, true],
     ]);
-    expect(accuracyError(review.rows[5].row)).toBe("empty");
-    expect(snapshotApproval(confirm(review))).toBeNull();
-    expect(snapshotApproval(confirm(editAccuracy(review, 5, 77)))).not.toBeNull();
+    expect(accuracyError(review.rows[5].row)).toBeNull();
+    expect(snapshotApproval(confirm(review))).not.toBeNull();
+    expect(snapshotApproval(confirm(editAccuracy(review, 5, 101)))).toBeNull();
   });
 
   it("keeps the other section's edits when one screenshot is read again", () => {
@@ -150,11 +150,18 @@ describe("RC passage types", () => {
     expect(accuracyError({ type: "Law", category: "passage", accuracy: 0 })).toBeNull();
   });
 
+  it("approves an RC read with no passage-type percentage", () => {
+    const review = readSection(readSection(null, "LR", lrRows, lrRead), "RC", [], rcRead);
+    expect(review.rows.filter(({ row }) => row.category === "passage")).toHaveLength(5);
+    expect(snapshotApproval(confirm(review))).not.toBeNull();
+  });
+
   it("marks the lowest passage type, with ties in rules-list order", () => {
     expect(lowestPassageType(extracted())).toBe("Law");
     const tied = readSection(null, "RC", passages.map((row) => ({ ...row, accuracy: 60 })), rcRead);
     expect(lowestPassageType(tied)).toBe("Art");
     expect(lowestPassageType(readSection(null, "RC", [], rcRead))).toBeNull();
+    expect(lowestPassageType(readSection(null, "RC", passages.slice(3), rcRead))).toBe("Art");
   });
 
   it("never offers a passage type in the add-a-type list", () => {

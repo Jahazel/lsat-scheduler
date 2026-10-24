@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { SECTION_NAME } from "@/lib/analyticsReview";
 import type { ExtractReply } from "@/lib/screenshotUpload";
-import type { AnalyticsSection } from "@/lib/types";
+import type { AnalyticsExtractedRow, AnalyticsSection } from "@/lib/types";
 import { upcomingTestMonths } from "@/lib/studentProfile";
 import OnboardingWizard from "./OnboardingWizard";
 
@@ -350,7 +350,6 @@ describe("OnboardingWizard", () => {
       const extract = vi.fn<Extract>()
         .mockResolvedValueOnce({ kind: "rows", rows: [] })
         .mockResolvedValueOnce(rows)
-        .mockResolvedValueOnce(rows)
         .mockResolvedValueOnce(rcRows);
       const { user } = await fillGoalAndWeek(undefined, extract);
 
@@ -367,9 +366,6 @@ describe("OnboardingWizard", () => {
       expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
       expect(screen.getByText(/lr-analytics\.png/)).toBeDefined();
 
-      await upload(user, new File(["png"], "swapped.png", { type: "image/png" }), "RC");
-      expect(await screen.findByText(/No passage types in this one\./)).toBeDefined();
-      expect(screen.getByText("Reading Comprehension passage types")).toBeDefined();
       await upload(user, rcScreenshot, "RC");
       expect(await screen.findByText("rc-analytics.png · 5 passage types")).toBeDefined();
       expect(checkTheValues().disabled).toBe(false);
@@ -655,25 +651,41 @@ describe("OnboardingWizard", () => {
       expect(within(box("Science").closest("div")!.parentElement!).getByText("Goes first")).toBeDefined();
     });
 
-    it("keeps a missed passage type empty and Confirm locked until the student fills it", async () => {
+    it("saves only the passage types with a value when the RC screenshot misses some", async () => {
       const missingArt: ExtractReply = { kind: "rows", rows: rcRows.kind === "rows" ? rcRows.rows.slice(0, 4) : [] };
       const { user, onSave } = await openReview(undefined, read, missingArt);
       expect(box("Art").value).toBe("");
-      expect(screen.getByText("not found")).toBeDefined();
+      expect(screen.queryByText("not found")).toBeNull();
+      expect(screen.queryByText(/Enter/)).toBeNull();
+
+      for (const statement of statements) await user.click(screen.getByLabelText(statement));
+      await user.click(confirmButton());
+      const [[profile]] = onSave.mock.calls as unknown as [[{ analyticsRows: AnalyticsExtractedRow[] }]];
+      const saved = profile.analyticsRows.filter(({ category }) => category === "passage");
+      expect(saved.map(({ type }) => type)).toEqual(["Law", "Comparative", "Science", "Humanities", "Art"]);
+      expect(saved.find(({ type }) => type === "Art")?.accuracy).toBeUndefined();
+    });
+
+    it("approves an RC screenshot with no passage-type percentage", async () => {
+      const { user, onSave } = await openReview(undefined, read, { kind: "rows", rows: [] });
+      for (const type of ["Law", "Comparative", "Science", "Humanities", "Art"]) expect(box(type).value).toBe("");
+      expect(screen.queryByText("Goes first")).toBeNull();
+
+      for (const statement of statements) await user.click(screen.getByLabelText(statement));
+      await user.click(confirmButton());
+      expect(onSave).toHaveBeenCalled();
+    });
+
+    it("blocks a typed RC value outside 0 to 100 with its error", async () => {
+      const missingArt: ExtractReply = { kind: "rows", rows: rcRows.kind === "rows" ? rcRows.rows.slice(0, 4) : [] };
+      const { user, onSave } = await openReview(undefined, read, missingArt);
+      await user.type(box("Art"), "177");
       for (const statement of statements) await user.click(screen.getByLabelText(statement));
       expect(screen.getByText("Fix Art above to confirm.")).toBeDefined();
 
       await user.click(confirmButton());
       expect(onSave).not.toHaveBeenCalled();
-      expect(document.activeElement).toBe(box("Art"));
-      expect(screen.getByText("Enter the percentage from your RC screenshot.")).toBeDefined();
-
-      await user.type(box("Art"), "77");
-      for (const statement of statements) await user.click(screen.getByLabelText(statement));
-      await user.click(confirmButton());
-      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
-        analyticsRows: expect.arrayContaining([{ type: "Art", category: "passage", accuracy: 77 }]),
-      }));
+      expect(screen.getByText("Enter a percentage from 0 to 100.")).toBeDefined();
     });
   });
 

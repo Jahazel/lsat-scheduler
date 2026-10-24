@@ -76,8 +76,10 @@ function lrTypeOrder(analytics: AnalyticsSnapshot, rules: RulesConfig, history: 
 }
 
 function rcTypeOrder(analytics: AnalyticsSnapshot, rules: RulesConfig): RCType[] {
+  const accuracy = analytics.rcAccuracyByType ?? {};
   return [...rules.rcTypes].sort((a, b) =>
-    (analytics.rcAccuracyByType?.[a] ?? 1) - (analytics.rcAccuracyByType?.[b] ?? 1)
+    Number(accuracy[a] === undefined) - Number(accuracy[b] === undefined)
+    || (accuracy[a] ?? 0) - (accuracy[b] ?? 0)
     || rules.rcTypes.indexOf(a) - rules.rcTypes.indexOf(b));
 }
 

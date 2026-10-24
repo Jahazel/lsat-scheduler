@@ -15,6 +15,7 @@ function confirmed(source: "7sage_screenshot" | "admin_sample" = "7sage_screensh
   };
 }
 type Body = ReturnType<typeof confirmed>;
+const RC_ERROR = "Enter each RC accuracy from 0 to 100.";
 
 describe("prepareApprovedSnapshot", () => {
   it("saves the reviewed values for the approval date, or the simulated date when one is given", () => {
@@ -25,12 +26,19 @@ describe("prepareApprovedSnapshot", () => {
   });
 
   it.each([
+    ["no RC passage types", {}],
+    ["some RC passage types", { Law: 0.58, Art: 0 }],
+  ])("saves only the RC values given, with %s", (_name, rc) => {
+    expect(prepareApprovedSnapshot({ ...confirmed(), rcAccuracyByType: rc }, NOW).rcAccuracyByType).toEqual(rc);
+  });
+
+  it.each([
     ["unconfirmed", (body: Body) => ({ ...body, confirmation: { ...body.confirmation, isLatestAnalytics: false } }), "Confirm that the reviewed extraction matches your latest analytics."],
     ["empty", (body: Body) => ({ ...body, lrAccuracyByType: {}, lrTopPriorityLogicTypes: [] }), "The reviewed extraction is empty."],
-    ["missing RC accuracy", (body: Body) => ({ ...body, rcAccuracyByType: undefined }), "Add an accuracy from 0 to 100 for all 5 RC passage types."],
-    ["a missing passage type", (body: Body) => ({ ...body, rcAccuracyByType: { ...rcAccuracyByType, Art: undefined } }), "Add an accuracy from 0 to 100 for all 5 RC passage types."],
-    ["an RC accuracy over 100%", (body: Body) => ({ ...body, rcAccuracyByType: { ...rcAccuracyByType, Law: 1.2 } }), "Add an accuracy from 0 to 100 for all 5 RC passage types."],
-    ["an unknown passage type", (body: Body) => ({ ...body, rcAccuracyByType: { ...rcAccuracyByType, Poetry: 0.5 } }), "Add an accuracy from 0 to 100 for all 5 RC passage types."],
+    ["missing RC accuracy", (body: Body) => ({ ...body, rcAccuracyByType: undefined }), RC_ERROR],
+    ["an RC accuracy over 100%", (body: Body) => ({ ...body, rcAccuracyByType: { ...rcAccuracyByType, Law: 1.2 } }), RC_ERROR],
+    ["a negative RC accuracy", (body: Body) => ({ ...body, rcAccuracyByType: { Law: -0.1 } }), RC_ERROR],
+    ["an unknown passage type", (body: Body) => ({ ...body, rcAccuracyByType: { ...rcAccuracyByType, Poetry: 0.5 } }), RC_ERROR],
     ["stale", (body: Body) => ({ ...body, extraction: { ...body.extraction, extractedAt: minutesBefore(24 * 60 + 1) } }), "Upload a fresh analytics screenshot before saving."],
     ["future extraction", (body: Body) => ({ ...body, extraction: { ...body.extraction, extractedAt: minutesBefore(-1) } }), "Upload a fresh analytics screenshot before saving."],
     ["confirmation before review", (body: Body) => ({ ...body, confirmation: { ...body.confirmation, confirmedAt: minutesBefore(10) } }), "Confirm the extraction after reviewing it."],

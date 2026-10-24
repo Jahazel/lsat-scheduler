@@ -635,12 +635,7 @@ const FILE_STATUS: Record<Exclude<Screenshot["status"], "none" | "read">, { text
   "connection-lost": { text: "Connection lost. Your file is still here.", problem: false },
   "cannot-read": { text: "We couldn't read the rows in it.", problem: true },
   "signed-out": { text: SIGN_IN_EXPIRED, problem: true },
-  "no-rows": { text: "", problem: true },
-};
-
-const NO_ROWS: Record<AnalyticsSection, string> = {
-  LR: "No question types in this one.",
-  RC: "No passage types in this one.",
+  "no-rows": { text: "No question types in this one.", problem: true },
 };
 
 function readSummary(section: AnalyticsSection, count: number) {
@@ -669,7 +664,7 @@ function ScreenshotFileRow({
   const problem = status !== "read" && FILE_STATUS[status].problem;
   const statusText = status === "read"
     ? readSummary(section, screenshot.rows.length)
-    : status === "no-rows" ? NO_ROWS[section] : FILE_STATUS[status].text;
+    : FILE_STATUS[status].text;
 
   return (
     <div className="flex flex-col gap-3">

@@ -97,7 +97,6 @@ const ACCURACY_MESSAGE = {
   empty: "Enter the percentage, or remove this row with ×.",
   "out-of-range": "Enter a percentage from 0 to 100.",
 } as const;
-const PASSAGE_EMPTY_MESSAGE = "Enter the percentage from your RC screenshot.";
 
 export function boxText(draft: ReviewDraft, type: AnalyticsType): string {
   const typed = draft.typedText[type];
@@ -110,7 +109,7 @@ export function accuracyMessage(draft: ReviewDraft, type: AnalyticsType): string
   const entry = draft.review.rows.find(({ row }) => row.type === type);
   const error = entry && accuracyError(entry.row);
   if (!error) return null;
-  return entry.row.category === "passage" && error === "empty" ? PASSAGE_EMPTY_MESSAGE : ACCURACY_MESSAGE[error];
+  return ACCURACY_MESSAGE[error];
 }
 
 export type ReviewList = "accuracy" | "flags";

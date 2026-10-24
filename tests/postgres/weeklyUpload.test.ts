@@ -148,6 +148,25 @@ it("next Monday's weekly schedule uses the Saturday upload: missed type first, i
   expect(markup).toContain("Flaw or descriptive weakening comes first this week. You missed it most on your last practice test.");
 });
 
+it.each([
+  ["some", { Science: 1, Law: 0.5 }],
+  ["no", {}],
+])("a weekly upload with %s RC passage-type values saves only those values and builds next Monday's weekly schedule", async (_name, rc) => {
+  const { studentId } = await studentWithThisWeek();
+  vi.setSystemTime(SATURDAY);
+  const body = upload(SATURDAY);
+  await expect(confirmWeeklyUpload({ ...body, analytics: { ...body.analytics, rcAccuracyByType: rc } })).rejects.toThrow("redirect:/dashboard");
+
+  const newest = (await listApprovedAnalyticsSnapshots(studentId)).find(({ approvedAt }) => approvedAt === SATURDAY.toISOString());
+  expect(newest?.rcAccuracyByType).toEqual(rc);
+
+  vi.setSystemTime(NEXT_MONDAY);
+  await dashboard();
+  const [next] = await listWeeklySchedulesForStudent(studentId);
+  expect(next.weekStartDate).toBe("2026-10-19");
+  expect(Object.values(next.schedule.days).flatMap((day) => day.activities).some((activity) => activity.kind === "RC")).toBe(true);
+});
+
 it("refuses a page built for next week once the upload window is over, without saving anything", async () => {
   const { studentId, accountId } = await studentWithThisWeek();
   const tuesday = new Date("2026-10-13T16:00:00Z");

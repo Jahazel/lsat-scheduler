@@ -246,11 +246,7 @@ export function SnapshotReviewFields({ draft, lrRead, files, dispatch }: {
         {passageRows.map((entry) =>
           accuracyRow(
             entry,
-            entry.row.type === goesFirst ? (
-              <span className="font-sans text-small text-accent">Goes first</span>
-            ) : entry.original === null ? (
-              "not found"
-            ) : null,
+            entry.row.type === goesFirst ? <span className="font-sans text-small text-accent">Goes first</span> : null,
           ),
         )}
       </div>
