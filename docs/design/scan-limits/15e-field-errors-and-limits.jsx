@@ -65,7 +65,7 @@
               </div>
               <div style={{ alignItems: 'center', backgroundColor: 'var(--color-paper)', borderColor: 'var(--color-danger)', borderRadius: 'var(--radius-sm)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '2px', height: '30px', justifyContent: 'end', paddingInline: '8px', width: '64px' }}>
                 <div style={{ boxSizing: 'border-box', color: 'var(--color-ink)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-mono)', lineHeight: 'var(--leading-mono)' }}>
-
+                   
                 </div>
                 <div style={{ boxSizing: 'border-box', color: 'var(--color-fog)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-mono)', lineHeight: 'var(--leading-mono)' }}>
                   %
