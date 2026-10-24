@@ -30,15 +30,18 @@ describe("activity labels", () => {
       difficultyRange: "L3-5", drillMinutes: 15 })).toBe(label);
   });
 
-  it("labels a one-passage RC drill", () => {
+  it("labels a one-passage RC drill with its type and level", () => {
     expect(activityLabel({ kind: "RC", isFullSection: false, passages: [{ type: "Law", difficultyLevel: 3 }],
-      drillMinutes: 9 })).toBe("1 Law passage (L3)");
+      drillMinutes: 9 })).toBe("1 RC Passage Law L3");
   });
 
-  it("labels a two-passage RC drill with both types and the level range, lower first", () => {
-    expect(activityLabel({ kind: "RC", isFullSection: false, drillMinutes: 18,
-      passages: [{ type: "Humanities", difficultyLevel: 4 }, { type: "Science", difficultyLevel: 3 }] }))
-      .toBe("1 Humanities + 1 Science passage (L3-4)");
+  it.each([
+    [[{ type: "Comparative", difficultyLevel: 4 }, { type: "Art", difficultyLevel: 2 }], "2 RC Passages Art L2, Comparative L4"],
+    [[{ type: "Art", difficultyLevel: 2 }, { type: "Comparative", difficultyLevel: 4 }], "2 RC Passages Art L2, Comparative L4"],
+    [[{ type: "Law", difficultyLevel: 3 }, { type: "Science", difficultyLevel: 3 }], "2 RC Passages Law L3, Science L3"],
+    [[{ type: "Science", difficultyLevel: 3 }, { type: "Law", difficultyLevel: 3 }], "2 RC Passages Science L3, Law L3"],
+  ] as const)("labels a two-passage RC drill with each level, easier first: %j", (passages, label) => {
+    expect(activityLabel({ kind: "RC", isFullSection: false, drillMinutes: 18, passages: [...passages] })).toBe(label);
   });
 
   it("allows only one or two LR types and one or two RC passages", () => {

@@ -60,8 +60,8 @@ This week is a checklist. Each day header shows the day type, planned total, and
 | Full section | "1 Full LR Section" or "1 Full RC Section" |
 | LR line | "10 Weaken (L3-5)" |
 | Paired LR drill | "10 Necessary + Sufficient assumption (L2-4)". When both type names are two words with the same last word, the first drops it. |
-| 1-passage RC drill | "1 Law passage (L3)" |
-| 2-passage RC drill | "1 Humanities + 1 Science passage (L3-4)" |
+| 1-passage RC drill | "1 RC Passage Law L3" |
+| 2-passage RC drill | "2 RC Passages Art L2, Comparative L4". Each passage shows its own level, never a range. The easier passage comes first; passages with the same level keep their engine order. |
 
 A student checks off a line with one tap and can undo it. An activity check-in is not started or completed; there is no skip and no actual minutes. The header counts "N of M done", and a finished day shows "All done". A correction changes the check-in, not the saved plan. Unscheduled days have a distinct dashed card. The rest day, a near-test week, a week without a practice test, and a practice-test review day carried from last week use plain labels.
 
