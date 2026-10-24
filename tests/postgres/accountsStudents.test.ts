@@ -32,6 +32,7 @@ import { signInWithGoogle } from "../../src/app/login/actions";
 import { createStudentProfile } from "../../src/app/onboarding/actions";
 import { updateStudentProfile } from "../../src/app/account/actions";
 import AccountPage from "../../src/app/account/page";
+import OnboardingPage from "../../src/app/onboarding/page";
 import { captureLead } from "../../src/app/actions";
 import { requireCurrentAdmin } from "../../src/lib/requireAdmin";
 import { postgresAdminClock, studentSideClock } from "../../src/lib/studentClock";
@@ -446,6 +447,22 @@ it.each(["student", "admin"] as const)("Study settings store the %s's Wednesday 
     ...profile, dailyCapacityMinutes, preferredPracticeTestDay: "WEDNESDAY",
   })).rejects.toThrow("redirect:/dashboard");
   expect(await findStudentByAccountId(owner.id)).toMatchObject({ dailyCapacityMinutes, preferredPracticeTestDay: "WEDNESDAY" });
+});
+
+it("onboarding works for an Account that signed in before and has no Student (D4)", async () => {
+  expect(await googleSignIn("google-returning", "returning@example.test")).toBe(true);
+  const existing = await findAccountByEmail("returning@example.test");
+  if (!existing) throw new Error("Google sign-in made no Account.");
+  session({ id: existing.id, role: "student", email: existing.email, name: existing.name });
+  expect(await findStudentByAccountId(existing.id)).toBeNull();
+
+  const page = renderToStaticMarkup(await OnboardingPage());
+  expect(page).toContain("Google");
+  await onboard();
+
+  expect(await findStudentByAccountId(existing.id)).toMatchObject({ currentScore: 150, goalScore: 165 });
+  expect(await accountRows()).toHaveLength(1);
+  await expect(OnboardingPage()).rejects.toThrow("redirect:/dashboard");
 });
 
 it("Study settings send an Account without a Student to onboarding", async () => {

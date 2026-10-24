@@ -42,7 +42,7 @@ import {
   type WizardState,
 } from "@/lib/onboardingWizard";
 import { SIGN_IN_EXPIRED, SignInAgainLink } from "@/components/SignInExpired";
-import { SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, checkScreenshot, extractScreenshot } from "@/lib/screenshotUpload";
+import { SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, checkScreenshotType, extractScreenshot } from "@/lib/screenshotUpload";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "@/lib/types";
 import { DAY_LABEL, MAX_OFFICIAL_ATTEMPTS, attemptMonths, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { createStudentProfile } from "./actions";
@@ -77,7 +77,7 @@ export default function OnboardingWizard({
   const [state, dispatch] = useReducer(wizardReducer, undefined, initialWizardState);
 
   async function readScreenshot(section: AnalyticsSection, file: File) {
-    const rejection = checkScreenshot(file);
+    const rejection = checkScreenshotType(file);
     if (rejection) {
       dispatch({ type: "screenshotRejected", section, message: rejection.message });
       return;

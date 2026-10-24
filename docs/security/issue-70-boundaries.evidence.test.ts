@@ -22,16 +22,15 @@ import { GET as roster } from "@/app/api/students/route";
 import { GET as student } from "@/app/api/students/[id]/route";
 import { extractAnalyticsRowsFromImage } from "@/lib/claudeExtract";
 import { requireCurrentAdmin } from "@/lib/requireAdmin";
+import { png, screenshotRequest } from "@/lib/screenshotFixtures/files";
 
-const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const EXTRACT_URL = "http://localhost/api/analytics/extract";
 
 function imageRequest(bytes: number, type = "image/png") {
-  const content = new Uint8Array(Math.max(bytes, PNG_SIGNATURE.length));
-  content.set(PNG_SIGNATURE);
-  const form = new FormData();
-  form.set("image", new File([content], "synthetic.png", { type }));
-  form.set("section", "LR");
-  return new NextRequest("http://localhost/api/analytics/extract", { method: "POST", body: form });
+  const image = png(1, 1);
+  const content = new Uint8Array(Math.max(bytes, image.length));
+  content.set(image);
+  return screenshotRequest(EXTRACT_URL, { image: new File([content], "synthetic.png", { type }), section: "LR" });
 }
 
 describe("issue 70 request boundary evidence", () => {
@@ -44,7 +43,7 @@ describe("issue 70 request boundary evidence", () => {
     mocks.findStudent.mockReturnValue({
       _id: "synthetic-student", lean: async () => ({ _id: "synthetic-student" }),
     });
-    mocks.messages.mockResolvedValue({ content: [{ type: "tool_use", input: { rows: [] } }] });
+    mocks.messages.mockResolvedValue({ content: [{ type: "tool_use", name: "record_analytics_rows", input: { rows: [] } }] });
     mocks.listStudents.mockResolvedValue([{ email: "student@example.invalid" }]);
     mocks.getStudent.mockResolvedValue({ email: "student@example.invalid" });
     mocks.findAccountById.mockResolvedValue({ role: "student" });
@@ -71,49 +70,47 @@ describe("issue 70 request boundary evidence", () => {
     expect(mocks.findAccountById).not.toHaveBeenCalled();
   });
 
-  it("the extraction handler itself calls Anthropic without authentication", async () => {
+  it("fixed in issue 248: the extraction handler checks the session itself", async () => {
     mocks.auth.mockResolvedValue(null);
-    expect((await extract(imageRequest(8))).status).toBe(200);
-    expect(mocks.auth).not.toHaveBeenCalled();
-    expect(mocks.messages).toHaveBeenCalledOnce();
+    expect((await extract(await imageRequest(8))).status).toBe(401);
+    expect(mocks.auth).toHaveBeenCalledOnce();
+    expect(mocks.messages).not.toHaveBeenCalled();
   });
 
   it("refuses a 6 MiB PNG before calling Anthropic", async () => {
-    expect((await extract(imageRequest(6 * 1024 * 1024))).status).toBe(413);
+    expect((await extract(await imageRequest(6 * 1024 * 1024))).status).toBe(413);
     expect(mocks.messages).not.toHaveBeenCalled();
   });
 
   it("refuses a claimed PNG whose first bytes are not an image before calling Anthropic", async () => {
-    const form = new FormData();
-    form.set("image", new File([new Uint8Array(8)], "synthetic.png", { type: "image/png" }));
-    form.set("section", "LR");
-    expect((await extract(new NextRequest("http://localhost/api/analytics/extract", { method: "POST", body: form }))).status).toBe(415);
+    const request = await screenshotRequest(EXTRACT_URL, { image: new File([new Uint8Array(8)], "synthetic.png", { type: "image/png" }), section: "LR" });
+    expect((await extract(request)).status).toBe(415);
     expect(mocks.messages).not.toHaveBeenCalled();
   });
 
   it("ignores the claimed MIME type and sends PNG bytes as image/png", async () => {
-    expect((await extract(imageRequest(8, "text/plain"))).status).toBe(200);
+    expect((await extract(await imageRequest(8, "text/plain"))).status).toBe(200);
     expect(mocks.messages.mock.calls[0][0].messages[0].content[0].source.media_type).toBe("image/png");
   });
 
   it("returns a generic extraction error rather than the SDK error message", async () => {
     mocks.messages.mockRejectedValue(new Error("synthetic provider detail"));
-    const response = await extract(imageRequest(8));
+    const response = await extract(await imageRequest(8));
     expect(response.status).toBe(502);
     expect(await response.json()).toEqual({ error: "Couldn't read that screenshot" });
   });
 
-  it("lets malformed multipart parsing escape its generic error handler", async () => {
-    const request = new NextRequest("http://localhost/api/analytics/extract", { method: "POST", body: "invalid" });
-    await expect(extract(request)).rejects.toThrow();
+  it("fixed in issue 248: malformed multipart gets a plain refusal", async () => {
+    const request = new NextRequest(EXTRACT_URL, { method: "POST", body: "invalid", headers: { "content-length": "7" } });
+    expect((await extract(request)).status).toBe(400);
     expect(mocks.messages).not.toHaveBeenCalled();
   });
 
-  it("trusts out-of-schema model tool output at runtime", async () => {
-    mocks.messages.mockResolvedValue({ content: [{ type: "tool_use", input: { rows: [{ type: "Unknown synthetic type", accuracy: 999, priority: "SOMETIMES" }] } }] });
-    expect(await extractAnalyticsRowsFromImage(Buffer.from([0]), "image/png", mockRules, "LR")).toStrictEqual([
-      { type: "Unknown synthetic type", category: "regular", accuracy: 999 },
-    ]);
+  it("fixed in issue 248: refuses model tool output outside the tool's format", async () => {
+    mocks.messages.mockResolvedValue({ content: [{
+      type: "tool_use", name: "record_analytics_rows", input: { rows: [{ type: "Unknown synthetic type", accuracy: 999, priority: "SOMETIMES" }] },
+    }] });
+    await expect(extractAnalyticsRowsFromImage(Buffer.from([0]), "image/png", mockRules, "LR")).rejects.toThrow("does not fit its format");
   });
 
   it("strips profile ownership and operator fields but accepts a non-date goalTestDate", () => {

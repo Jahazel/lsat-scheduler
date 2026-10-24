@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import type { Session } from "next-auth";
-import { NextRequest } from "next/server";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { createAppTestDatabase } from "./appTestDatabase";
 import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
@@ -13,6 +12,7 @@ import { summarizeAnalyticsRows } from "../../src/lib/analytics";
 import { analyticsTrend } from "../../src/lib/currentWeeklySchedule";
 import type { Student } from "../../src/lib/types";
 import { POST as extract } from "../../src/app/api/analytics/extract/route";
+import { png, screenshotRequest } from "../../src/lib/screenshotFixtures/files";
 import { generateTestSample, resetEverything, resetTestData } from "../../src/app/admin/test/actions";
 import { deleteAccount } from "../../src/app/account/actions";
 import { postgresAdminTestRepositories } from "../../src/lib/adminTestRepositories";
@@ -68,12 +68,9 @@ function confirmed(values: { lrAccuracyByType: Record<string, number>; lrTopPrio
   const now = new Date().toISOString();
   return { rcAccuracyByType, ...values, extraction: { source: "7sage_screenshot", extractedAt: now }, confirmation: { extractedValuesMatch: true, isLatestAnalytics: true, confirmedAt: now } };
 }
-function upload(section: "LR" | "RC" = "LR") {
-  const form = new FormData();
-  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=", "base64");
-  form.set("image", new File([png], "analytics.png", { type: "image/png" }));
-  form.set("section", section);
-  return extract(new NextRequest("http://localhost/api/analytics/extract", { method: "POST", body: form }));
+async function upload(section: "LR" | "RC" = "LR") {
+  const image = new File([new Uint8Array(png(40, 30))], "analytics.png", { type: "image/png" });
+  return extract(await screenshotRequest("http://localhost/api/analytics/extract", { image, section }));
 }
 it("uploads with the fake extractor, reviews corrected values, and appends approved snapshots as the app role", async () => {
   const { saved } = await student("one@example.test");
@@ -219,7 +216,8 @@ it("uses the simulated calendar date when Chicago's evening falls on tomorrow in
   expect((await listApprovedAnalyticsSnapshots(saved.id))[0]).toMatchObject({ weekOf: "2026-10-07", approvedAt: "2026-10-08T03:00:00.000Z", extraction: { source: "7sage_screenshot" } });
 });
 it("rejects missing screenshot input", async () => {
-  const response = await extract(new NextRequest("http://localhost/api/analytics/extract", { method: "POST", body: new FormData() }));
+  await student("missing-input@example.test");
+  const response = await extract(await screenshotRequest("http://localhost/api/analytics/extract", {}));
   expect(response.status).toBe(400);
   expect(await response.json()).toEqual({ error: "No image provided" });
 });

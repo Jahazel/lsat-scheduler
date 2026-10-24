@@ -5,62 +5,55 @@ export const SCREENSHOT_MEDIA_TYPES = ["image/png", "image/jpeg", "image/webp"] 
 export type ScreenshotMediaType = (typeof SCREENSHOT_MEDIA_TYPES)[number];
 
 export const MAX_SCREENSHOT_MB = 4;
-const MAX_SCREENSHOT_BYTES = MAX_SCREENSHOT_MB * 1024 * 1024;
+export const MAX_SCREENSHOT_BYTES = MAX_SCREENSHOT_MB * 1024 * 1024;
 export const SCREENSHOT_LIMITS = `PNG, JPG, or WEBP · ${MAX_SCREENSHOT_MB} MB or less`;
+const MAX_UPLOAD_SIDE = 1568;
 
-export type ScreenshotRejection = { reason: "wrong-type" | "too-large"; message: string };
-
-export const rejectionStatus = ({ reason }: ScreenshotRejection) => (reason === "too-large" ? 413 : 415);
-
-interface ScreenshotFile {
-  name: string;
-  type: string;
-  size: number;
-}
+export type ScreenshotRejection = { reason: "wrong-type" | "too-large" | "image-too-large" | "animated"; message: string };
 
 function isScreenshotMediaType(type: string): type is ScreenshotMediaType {
   return (SCREENSHOT_MEDIA_TYPES as readonly string[]).includes(type);
 }
 
-const CHOOSE_ANOTHER = "Choose a PNG, JPG, or WEBP screenshot.";
-const SCREENSHOT_EXTENSIONS = ["png", "jpg", "jpeg", "webp"];
-
-function wrongTypeRejection(name: string): ScreenshotRejection {
-  const extension = name.includes(".") ? name.split(".").pop()?.toLowerCase() : undefined;
-  const message = extension && !SCREENSHOT_EXTENSIONS.includes(extension)
-    ? `${name} is a ${extension.toUpperCase()}. ${CHOOSE_ANOTHER}`
-    : `${name} is not a PNG, JPG, or WEBP image. ${CHOOSE_ANOTHER}`;
-  return { reason: "wrong-type", message };
-}
+export const WRONG_TYPE: ScreenshotRejection = {
+  reason: "wrong-type",
+  message: "That file is not a PNG, JPG, or WEBP. Choose a screenshot in one of those types.",
+};
 
 function megabytesRoundedUp(bytes: number) {
   return (Math.ceil((bytes / (1024 * 1024)) * 10) / 10).toFixed(1);
 }
 
-function tooLargeRejection(size: number): ScreenshotRejection | null {
-  if (size <= MAX_SCREENSHOT_BYTES) return null;
+export function tooLargeRejection(size: number): ScreenshotRejection {
   return { reason: "too-large", message: `That file is ${megabytesRoundedUp(size)} MB. Choose one that is ${MAX_SCREENSHOT_MB} MB or less.` };
 }
 
-export function checkScreenshot(file: ScreenshotFile): ScreenshotRejection | null {
-  if (!isScreenshotMediaType(file.type)) return wrongTypeRejection(file.name);
-  return tooLargeRejection(file.size);
+export function checkScreenshotType(file: { type: string }): ScreenshotRejection | null {
+  return isScreenshotMediaType(file.type) ? null : WRONG_TYPE;
 }
 
-export async function readScreenshot(file: File): Promise<{ bytes: Buffer; mediaType: ScreenshotMediaType } | ScreenshotRejection> {
-  const tooLarge = tooLargeRejection(file.size);
-  if (tooLarge) return tooLarge;
-  const bytes = Buffer.from(await file.arrayBuffer());
-  const mediaType = sniffScreenshotType(bytes);
-  return mediaType ? { bytes, mediaType } : wrongTypeRejection(file.name);
+export function shrunkSize(width: number, height: number) {
+  const scale = MAX_UPLOAD_SIDE / Math.max(width, height);
+  return scale >= 1 ? null : { width: Math.round(width * scale), height: Math.round(height * scale) };
 }
 
-function sniffScreenshotType(bytes: Uint8Array): ScreenshotMediaType | null {
-  const startsWith = (signature: number[], offset = 0) => signature.every((byte, i) => bytes[offset + i] === byte);
-  if (startsWith([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return "image/png";
-  if (startsWith([0xff, 0xd8, 0xff])) return "image/jpeg";
-  if (startsWith([0x52, 0x49, 0x46, 0x46]) && startsWith([0x57, 0x45, 0x42, 0x50], 8)) return "image/webp";
-  return null;
+async function shrinkForUpload(file: File): Promise<File> {
+  let image: ImageBitmap;
+  try {
+    image = await createImageBitmap(file);
+  } catch {
+    return file;
+  }
+  const size = shrunkSize(image.width, image.height);
+  if (!size) {
+    image.close();
+    return file;
+  }
+  const canvas = new OffscreenCanvas(size.width, size.height);
+  canvas.getContext("2d")?.drawImage(image, 0, 0, size.width, size.height);
+  image.close();
+  const blob = await canvas.convertToBlob({ type: file.type, quality: 0.92 });
+  return new File([blob], file.name, { type: blob.type });
 }
 
 type ScreenshotFailure =
@@ -72,10 +65,17 @@ type ScreenshotFailure =
 export type ExtractReply = { kind: "rows"; rows: AnalyticsExtractedRow[] } | ScreenshotFailure;
 export type SectionReply = { kind: "reading"; reading: SectionReading } | ScreenshotFailure;
 
-async function postScreenshot(url: string, formData: FormData): Promise<{ kind: "ok"; body: unknown } | ScreenshotFailure> {
+const REFUSED_FILE_STATUSES = [413, 415, 422];
+
+async function postScreenshot(url: string, file: File, fields: Record<string, string> = {}): Promise<{ kind: "ok"; body: unknown } | ScreenshotFailure> {
+  const upload = await shrinkForUpload(file);
+  if (upload.size > MAX_SCREENSHOT_BYTES) return { kind: "rejected", message: tooLargeRejection(upload.size).message };
+  const formData = new FormData();
+  formData.append("image", upload);
+  for (const [name, value] of Object.entries(fields)) formData.append(name, value);
   try {
     const res = await fetch(url, { method: "POST", body: formData });
-    if (res.status === 413 || res.status === 415) return { kind: "rejected", message: (await res.json()).error };
+    if (REFUSED_FILE_STATUSES.includes(res.status)) return { kind: "rejected", message: (await res.json()).error };
     if (res.status === 401) return { kind: "signed-out" };
     if (res.status === 502) return { kind: "cannot-read" };
     if (!res.ok) return { kind: "connection-lost" };
@@ -86,17 +86,12 @@ async function postScreenshot(url: string, formData: FormData): Promise<{ kind: 
 }
 
 export async function extractScreenshot(file: File, section: AnalyticsSection): Promise<ExtractReply> {
-  const formData = new FormData();
-  formData.append("image", file);
-  formData.append("section", section);
-  const reply = await postScreenshot("/api/analytics/extract", formData);
+  const reply = await postScreenshot("/api/analytics/extract", file, { section });
   return reply.kind === "ok" ? { kind: "rows", rows: (reply.body as { rows: AnalyticsExtractedRow[] }).rows } : reply;
 }
 
 export async function extractPracticeTestScreenshot(file: File): Promise<SectionReply> {
-  const formData = new FormData();
-  formData.append("image", file);
-  const reply = await postScreenshot("/api/practice-test/extract", formData);
+  const reply = await postScreenshot("/api/practice-test/extract", file);
   return reply.kind === "ok" ? { kind: "reading", reading: (reply.body as { reading: SectionReading }).reading } : reply;
 }
 
@@ -110,7 +105,7 @@ export type AnalyticsRead =
   | { kind: "signed-out" };
 
 export async function readAnalyticsScreenshot(file: File, section: AnalyticsSection): Promise<AnalyticsRead> {
-  const rejection = checkScreenshot(file);
+  const rejection = checkScreenshotType(file);
   if (rejection) return { kind: "problem", message: rejection.message };
   const reply = await extractScreenshot(file, section);
   switch (reply.kind) {
