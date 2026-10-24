@@ -91,7 +91,8 @@ export default function OnboardingWizard({
   async function save(input: Parameters<typeof onSave>[0]) {
     dispatch({ type: "saveStarted" });
     try {
-      await onSave(input);
+      const refusal = await onSave(input);
+      if (refusal) dispatch({ type: "saveRefused", message: refusal.error });
     } catch {
       dispatch({ type: "saveFailed" });
     }
@@ -866,7 +867,7 @@ function ReviewStep({
     ? "Saving your plan. This takes a few seconds."
     : state.save === "failed"
       ? "We couldn't save your plan. Check your connection and press Confirm snapshot again."
-      : reason;
+      : typeof state.save === "object" ? state.save.refused : reason;
 
   return (
     <div className="flex flex-col gap-8">

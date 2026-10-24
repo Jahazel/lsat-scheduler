@@ -3,7 +3,8 @@ import { readFile } from "node:fs/promises";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { createPostgresConnection } from "../../src/lib/postgres";
+import { closePostgresDatabase, createPostgresConnection } from "../../src/lib/postgres";
+import { countAction } from "../../src/lib/actionLimits";
 import { createPostgresTestDatabase } from "./testDatabase";
 
 const role = `drillmap_app_test_${randomUUID().replaceAll("-", "")}`;
@@ -83,7 +84,7 @@ async function applyAppRoleSql() {
 }
 
 beforeEach(async () => {
-  await ownerDb().execute(sql`truncate public.accounts, public.leads cascade`);
+  await ownerDb().execute(sql`truncate public.accounts, public.leads, public.action_counters cascade`);
 });
 
 const ownedRecords = z.object({
@@ -189,6 +190,20 @@ it.each([
   ["a truncated table", sql`truncate leads`],
 ])("refuses %s through the app login", async (_description, query) => {
   await expect(appDb().execute(query)).rejects.toMatchObject({ cause: { code: "42501" } });
+});
+
+it("counts, refuses, and deletes ended action counters through the app login", async () => {
+  vi.stubEnv("DATABASE_URL", appSetting);
+  try {
+    const at = new Date("2026-10-24T15:00:00Z");
+    for (let index = 0; index < 5; index += 1) expect(await countAction("leadCapture", "203.0.113.7", at)).toEqual({ allowed: true });
+    expect(await countAction("leadCapture", "203.0.113.7", at)).toMatchObject({ allowed: false });
+    expect(await countAction("leadCapture", "203.0.113.7", new Date("2026-10-24T16:00:00Z"))).toEqual({ allowed: true });
+    expect((await appDb().execute(sql`select window_start from action_counters`)).rows).toHaveLength(1);
+  } finally {
+    await closePostgresDatabase();
+    vi.unstubAllEnvs();
+  }
 });
 
 it("refuses switching the app login to the database owner", async () => {

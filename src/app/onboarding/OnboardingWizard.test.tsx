@@ -604,6 +604,18 @@ describe("OnboardingWizard", () => {
       expect(onSave).toHaveBeenCalledTimes(2);
     });
 
+    it("shows the server's refusal and keeps every tick when the snapshot save limit is reached", async () => {
+      const refusal = "You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time.";
+      const onSave = vi.fn().mockResolvedValue({ error: refusal });
+      const { user } = await openReview(onSave);
+      for (const statement of statements) await user.click(screen.getByLabelText(statement));
+
+      await user.click(confirmButton());
+      expect(await screen.findByText(refusal)).toBeDefined();
+      expect((screen.getByLabelText(statements[1]) as HTMLInputElement).checked).toBe(true);
+      expect((confirmButton() as HTMLButtonElement).disabled).toBe(false);
+    });
+
     it("expands each uploaded screenshot inline with Show your LR or RC screenshot", async () => {
       const { user } = await openReview();
 

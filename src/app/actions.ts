@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { clientIpAddress, countAction } from "@/lib/actionLimits";
 import { getPostgresDatabase } from "@/lib/postgres";
 import { leads } from "@/lib/postgresSchema";
 
@@ -17,6 +18,9 @@ export async function captureLead(_state: CaptureLeadState, formData: FormData):
   const validated = EmailSchema.safeParse(formData.get("email"));
   if (!validated.success) {
     return { error: "Enter a valid email." };
+  }
+  if (!(await countAction("leadCapture", await clientIpAddress(), new Date())).allowed) {
+    return { error: "Too many tries from this network. Try again in an hour." };
   }
 
   await getPostgresDatabase().insert(leads)

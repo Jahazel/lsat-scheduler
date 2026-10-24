@@ -1,0 +1,132 @@
+import { sql } from "drizzle-orm";
+import type { Session } from "next-auth";
+import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
+import { createAppTestDatabase } from "./appTestDatabase";
+import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
+import { createAccount } from "../../src/lib/accountRepository";
+import { countAction } from "../../src/lib/actionLimits";
+import { actionCounters } from "../../src/lib/postgresSchema";
+import { findStudentByAccountId } from "../../src/lib/studentRepository";
+
+const request = vi.hoisted(() => ({ ip: "203.0.113.7", session: null as Session | null }));
+vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-vercel-forwarded-for": request.ip }) }));
+vi.mock("@/auth", () => ({ auth: async () => request.session }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
+
+import { captureLead } from "../../src/app/actions";
+import { createStudentProfile } from "../../src/app/onboarding/actions";
+
+let database: Awaited<ReturnType<typeof createAppTestDatabase>>;
+const originalSetting = process.env.DATABASE_URL;
+beforeAll(async () => {
+  await closePostgresDatabase();
+  database = await createAppTestDatabase();
+  process.env.DATABASE_URL = database.setting;
+});
+beforeEach(async () => {
+  request.ip = "203.0.113.7";
+  request.session = null;
+  vi.useRealTimers();
+  await database.owner.execute(sql`truncate accounts, leads, action_counters cascade`);
+});
+afterAll(async () => {
+  vi.useRealTimers();
+  await closePostgresDatabase();
+  process.env.DATABASE_URL = originalSetting;
+  await database?.cleanup();
+});
+
+const counterRows = () => database.owner.select().from(actionCounters);
+
+async function countTimes(times: number, action: Parameters<typeof countAction>[0], subject: string, at: Date) {
+  const results = [];
+  for (let index = 0; index < times; index += 1) results.push(await countAction(action, subject, at));
+  return results;
+}
+
+it("allows 5 snapshot saves in one Chicago day, refuses the 6th until midnight Central time, then allows again", async () => {
+  const lateEvening = new Date("2026-10-24T04:30:00Z");
+  expect(await countTimes(5, "analyticsSnapshotSave", "account-a", lateEvening)).toEqual(Array(5).fill({ allowed: true }));
+  const chicagoMidnight = new Date("2026-10-24T05:00:00Z");
+  expect(await countAction("analyticsSnapshotSave", "account-a", lateEvening))
+    .toEqual({ allowed: false, windowEnd: chicagoMidnight });
+  expect(await countAction("analyticsSnapshotSave", "account-a", new Date(chicagoMidnight.getTime() - 1)))
+    .toEqual({ allowed: false, windowEnd: chicagoMidnight });
+  expect(await countAction("analyticsSnapshotSave", "account-b", lateEvening)).toEqual({ allowed: true });
+
+  expect(await countAction("analyticsSnapshotSave", "account-a", chicagoMidnight)).toEqual({ allowed: true });
+  expect(await counterRows()).toEqual([{
+    action: "analyticsSnapshotSave", subject: "account-a", windowStart: chicagoMidnight,
+    windowEnd: new Date("2026-10-25T05:00:00Z"), count: 1,
+  }]);
+});
+
+it("ends the Chicago day at local midnight across a daylight time change", async () => {
+  await countTimes(5, "analyticsSnapshotSave", "account-a", new Date("2026-11-01T12:00:00Z"));
+  expect(await countAction("analyticsSnapshotSave", "account-a", new Date("2026-11-01T12:00:00Z")))
+    .toEqual({ allowed: false, windowEnd: new Date("2026-11-02T06:00:00Z") });
+});
+
+it("allows 5 lead captures in one hour and refuses the 6th until the hour ends", async () => {
+  const at = new Date("2026-10-24T15:59:59Z");
+  expect(await countTimes(5, "leadCapture", "203.0.113.7", at)).toEqual(Array(5).fill({ allowed: true }));
+  expect(await countAction("leadCapture", "203.0.113.7", at)).toEqual({ allowed: false, windowEnd: new Date("2026-10-24T16:00:00Z") });
+  expect(await countAction("leadCapture", "203.0.113.7", new Date("2026-10-24T16:00:00Z"))).toEqual({ allowed: true });
+});
+
+it("lets exactly 5 of 10 requests at the same time through", async () => {
+  const at = new Date("2026-10-24T15:00:00Z");
+  const results = await Promise.all(Array.from({ length: 10 }, () => countAction("analyticsSnapshotSave", "account-a", at)));
+  expect(results.filter(({ allowed }) => allowed)).toHaveLength(5);
+  const leads = await Promise.all(Array.from({ length: 10 }, () => countAction("leadCapture", "203.0.113.7", at)));
+  expect(leads.filter(({ allowed }) => allowed)).toHaveLength(5);
+});
+
+it("lead capture refuses the 6th submission in an hour from one IP address and writes nothing", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-24T15:10:00Z"));
+  const form = (email: string) => {
+    const data = new FormData();
+    data.set("email", email);
+    return data;
+  };
+  expect(await captureLead({}, form("LEAD@example.test"))).toEqual({ success: true });
+  for (let index = 0; index < 4; index += 1) expect(await captureLead({}, form("lead@example.test"))).toEqual({ success: true });
+  expect(await captureLead({}, form("new@example.test")))
+    .toEqual({ error: "Too many tries from this network. Try again in an hour." });
+  expect((await getPostgresDatabase().execute(sql`select email from leads`)).rows).toEqual([{ email: "lead@example.test" }]);
+
+  request.ip = "198.51.100.4";
+  expect(await captureLead({}, form("other@example.test"))).toEqual({ success: true });
+  request.ip = "203.0.113.7";
+  vi.setSystemTime(new Date("2026-10-24T16:00:00Z"));
+  expect(await captureLead({}, form("new@example.test"))).toEqual({ success: true });
+  expect((await getPostgresDatabase().execute(sql`select email from leads order by email`)).rows)
+    .toEqual([{ email: "lead@example.test" }, { email: "new@example.test" }, { email: "other@example.test" }]);
+});
+
+it("onboarding shares the snapshot save counter and refuses before any write", async () => {
+  const account = await createAccount({ email: "student@example.test", name: "Sam" });
+  if (!account) throw new Error("Account fixture already exists");
+  request.session = { user: { id: account.id, role: "student", email: "student@example.test", name: "Sam" }, expires: "2099-01-01" };
+  await countTimes(5, "analyticsSnapshotSave", account.id, new Date());
+  const now = new Date().toISOString();
+  const input = {
+    currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01", preferredPracticeTestDay: "SATURDAY" as const,
+    accommodationMultiplier: 1 as const,
+    dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 90, SUNDAY: 90 },
+    officialAttempts: [],
+    analyticsRows: [{ type: "Strengthen" as const, category: "regular" as const, accuracy: 0.6 }],
+    analyticsApproval: {
+      extraction: { source: "7sage_screenshot" as const, extractedAt: now },
+      confirmation: { extractedValuesMatch: true as const, isLatestAnalytics: true as const, confirmedAt: now },
+    },
+  };
+  expect(await createStudentProfile(input))
+    .toEqual({ error: "You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time." });
+  expect(await findStudentByAccountId(account.id)).toBeNull();
+
+  await expect(createStudentProfile({ ...input, analyticsRows: [], analyticsApproval: null })).rejects.toThrow("redirect:/dashboard");
+  expect(await findStudentByAccountId(account.id)).not.toBeNull();
+});

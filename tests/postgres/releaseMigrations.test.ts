@@ -81,7 +81,6 @@ beforeAll(async () => {
   owner = connectAs(ownerRole, ownerPassword);
   await owner.db.execute(sql.raw(migrationBundle({ migrations: migrations.slice(0, -1) })));
   await runAsOwner("sql/app-role.sql");
-  await runAsOwner("sql/app-role-grants.sql");
   await runAsOwner("sql/migration-role.sql");
   await owner.db.execute(sql.raw(`alter role ${migrationRole} password '${migratorPassword}'`));
 });

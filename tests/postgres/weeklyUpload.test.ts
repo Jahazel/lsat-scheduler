@@ -304,3 +304,35 @@ it("lets only an admin confirm sample data, and Reset test data deletes the admi
   expect(await listApprovedPracticeTestResults(admin.studentId)).toEqual([]);
   expect(await listApprovedAnalyticsSnapshots(admin.studentId)).toEqual([]);
 });
+
+it("refuses the 6th snapshot save in one Chicago day before any write, and allows saves again after midnight Central time", async () => {
+  const { studentId, accountId } = await studentWithThisWeek();
+  vi.setSystemTime(SATURDAY);
+  for (let index = 0; index < 5; index += 1) {
+    await expect(confirmWeeklyUpload(upload(SATURDAY, { currentScore: 160 + index }))).rejects.toThrow("redirect:/dashboard");
+  }
+  const before = await saved(studentId, accountId);
+  expect(before.snapshots).toHaveLength(6);
+
+  await expect(confirmWeeklyUpload(upload(SATURDAY, { currentScore: 170 }))).resolves
+    .toEqual({ error: "You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time." });
+  expect(await saved(studentId, accountId)).toEqual(before);
+
+  const sundayMidnight = new Date("2026-10-18T05:00:00Z");
+  vi.setSystemTime(sundayMidnight);
+  await expect(confirmWeeklyUpload(upload(sundayMidnight, { currentScore: 170 }))).rejects.toThrow("redirect:/dashboard");
+  expect((await saved(studentId, accountId)).score).toBe(170);
+});
+
+it("counts an Admin's student-side saves on the real clock, whatever the simulated date", async () => {
+  const { studentId, accountId } = await studentWithThisWeek("admin");
+  await database.owner.execute(sql`update accounts set simulated_date = '2026-10-17' where id = ${accountId}`);
+  vi.setSystemTime(SATURDAY);
+  for (let index = 0; index < 5; index += 1) {
+    await expect(confirmWeeklyUpload(upload(SATURDAY))).rejects.toThrow("redirect:/dashboard");
+  }
+  await database.owner.execute(sql`update accounts set simulated_date = '2026-10-18' where id = ${accountId}`);
+  await expect(confirmWeeklyUpload(upload(SATURDAY))).resolves
+    .toEqual({ error: "You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time." });
+  expect((await saved(studentId, accountId)).snapshots).toHaveLength(6);
+});
