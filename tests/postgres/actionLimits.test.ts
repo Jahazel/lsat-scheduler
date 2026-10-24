@@ -83,6 +83,32 @@ it("lets exactly 5 of 10 requests at the same time through", async () => {
   expect(leads.filter(({ allowed }) => allowed)).toHaveLength(5);
 });
 
+it("does not wait for an ended counter row that another save holds", async () => {
+  await countAction("leadCapture", "203.0.113.7", new Date("2026-10-24T14:30:00Z"));
+  let release = () => {};
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  let locked = () => {};
+  const isLocked = new Promise<void>((resolve) => { locked = resolve; });
+  const holder = database.owner.transaction(async (tx) => {
+    await tx.execute(sql`select * from action_counters for update`);
+    locked();
+    await held;
+  });
+  await isLocked;
+  try {
+    const counted = await Promise.race([
+      countAction("analyticsSnapshotSave", "account-a", new Date("2026-10-24T16:00:00Z")),
+      new Promise((resolve) => setTimeout(() => resolve("waited"), 2000)),
+    ]);
+    expect(counted).toEqual({ allowed: true });
+  } finally {
+    release();
+    await holder;
+  }
+  await countAction("analyticsSnapshotSave", "account-a", new Date("2026-10-24T16:00:00Z"));
+  expect((await counterRows()).map(({ action }) => action)).toEqual(["analyticsSnapshotSave"]);
+});
+
 it("lead capture refuses the 6th submission in an hour from one IP address and writes nothing", async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-10-24T15:10:00Z"));
