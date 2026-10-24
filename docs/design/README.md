@@ -86,3 +86,28 @@ Exported on 2026-10-22 for #224. The states come from #222, "Pages for the owner
 | `account-deletion-wrong-text` | Account · deletion wrong text (2) | |
 | `account-deletion-working` | Account · deletion working (2) | |
 | `account-deletion-admin` | Account · deletion Admin (2) | |
+
+## Scan limits (`scan-limits/`)
+
+Exported on 2026-10-24 for #247. The states come from #245, "Pages for the owner to design in Paper".
+
+When a student picks "Type them", the typing boxes show on the upload page, under the switch. The next page is the
+same check page as for screenshots: the student checks the values there and confirms.
+
+| File | Paper board | Screen ticket |
+| --- | --- | --- |
+| `15a-input-switch` | 15a · Weekly upload: Screenshots or Type them | #253 |
+| `15b-type-them-chosen` | 15b · Weekly upload: Type them, boxes on page | #253 |
+| `15d-check-typed-values` | 15d · Check your values: typed, filled | #253 |
+| `15e-field-errors-and-limits` | 15e · Typed analytics: field errors and limits | #253 |
+| `15f-onboarding-step-3-type-them` | 15f · Onboarding Step 3: Type them, boxes on page | #253 |
+| `15g-onboarding-step-4-check-typed-values` | 15g · Onboarding Step 4: check typed values | #253 |
+| `16a-scanning-off-no-practice-test` | 16a · Scanning off: weekly upload, no practice test | #254 |
+| `16b-scanning-off-practice-test-week` | 16b · Scanning off: practice-test week | #254 |
+| `16c-scanning-off-check-values` | 16c · Scanning off: check values, PT skipped | #254 |
+| `16d-scanning-off-onboarding-step-3` | 16d · Scanning off: onboarding Step 3 | #254 |
+| `17a-reading-one-at-a-time` | 17a · Weekly upload: reading one at a time | #250 |
+| `17b-scan-refusals` | 17b · Scan refusals and file checks | #250, #248, #251 |
+
+`17b-scan-refusals` holds every refusal message: daily and monthly scan limits and "We're still reading your last
+screenshot." (#250), the file checks (#248), and scanning turned off during an upload (#251).
