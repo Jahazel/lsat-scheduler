@@ -61,6 +61,11 @@ Keep exact-host evidence with #143 and #146 before release.
 
 ## Apply the owner SQL
 
+Since issue 220, a release applies migrations through the
+[release migrations workflow](release-migrations.md). These manual steps are its fallback.
+After `sql/migration-role.sql` runs, the bundle and `sql/app-role-grants.sql` act as the
+migration role by themselves.
+
 A migration changes the database structure. The journal records which migrations
 have run. Drizzle is the library that reads that journal for the normal runner.
 
@@ -81,10 +86,11 @@ have run. Drizzle is the library that reads that journal for the normal runner.
 - [ ] If execution fails or the browser disconnects, reconnect and inspect the journal.
   Rerun the entire unchanged bundle after resolving the cause. It can finish an
   earlier valid prefix or skip a completed run. Stop on unexplained state.
-- [ ] Apply the exact candidate's `sql/app-role.sql` as owner after migrations.
-  It creates `drillmap_app` with no password and only app permissions. It refuses
+- [ ] Apply the exact candidate's `sql/app-role.sql`, then `sql/app-role-grants.sql`,
+  as owner after migrations. The first creates `drillmap_app` with no password and gives
+  database access. The second gives only the app's table permissions. Both refuse
   an existing role with administration powers, membership, or owned objects.
-  Rerun this SQL unchanged to restore its intended grants. It preserves the password.
+  Rerun them unchanged to restore their intended grants. They preserve the password.
 
 Neon grants administration membership to roles created through its role-creation
 console, API, or CLI. Create the limited role with SQL instead.

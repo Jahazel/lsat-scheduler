@@ -159,13 +159,19 @@ students reads each student with its Account's name and email in one join.
 ## Create the limited app role
 
 After applying the migrations, run [the app role SQL](../sql/app-role.sql)
-as the database owner. It selects the connected database, so it works with
-any database name. For a local database, use `psql`, Postgres's command-line
-client, with the owner's connection setting:
+and then [the app table grants](../sql/app-role-grants.sql) as the database
+owner. They select the connected database, so they work with any database name.
+For a local database, use `psql`, Postgres's command-line client, with the
+owner's connection setting:
 
 ```sh
 psql "$DATABASE_URL" --set ON_ERROR_STOP=1 --file=sql/app-role.sql
+psql "$DATABASE_URL" --set ON_ERROR_STOP=1 --file=sql/app-role-grants.sql
 ```
+
+The table grants are a separate file because only the table owner can change
+them. On Neon, the [migration role](runbooks/release-migrations.md) owns the
+tables, and the release workflow reapplies the grants after each migration.
 
 On the Neon copy, the owner can paste the same file into Neon's SQL editor
 while connected as the database owner. Create the app role through this SQL.

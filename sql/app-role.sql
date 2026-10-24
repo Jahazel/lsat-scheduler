@@ -23,10 +23,5 @@ BEGIN
   REVOKE CREATE ON SCHEMA public FROM PUBLIC;
   EXECUTE format('REVOKE ALL PRIVILEGES ON SCHEMA public FROM %I', app_role);
   EXECUTE format('GRANT USAGE ON SCHEMA public TO %I', app_role);
-  REVOKE ALL PRIVILEGES ON TABLE public.accounts, public.students, public.leads,
-    public.analytics_snapshots, public.practice_test_results, public.weekly_schedules, public.activity_check_ins FROM PUBLIC;
-  EXECUTE format('REVOKE ALL PRIVILEGES ON TABLE public.accounts, public.students, public.leads, public.analytics_snapshots, public.practice_test_results, public.weekly_schedules, public.activity_check_ins FROM %I', app_role);
-  EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.accounts, public.students, public.leads, public.analytics_snapshots, public.practice_test_results, public.activity_check_ins TO %I', app_role);
-  EXECUTE format('GRANT SELECT, INSERT, DELETE ON TABLE public.weekly_schedules TO %I', app_role);
 END;
 $$;

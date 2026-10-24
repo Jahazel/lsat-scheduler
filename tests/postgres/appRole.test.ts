@@ -11,6 +11,7 @@ let database: Awaited<ReturnType<typeof createPostgresTestDatabase>> | undefined
 let owner: ReturnType<typeof createPostgresConnection> | undefined;
 let app: ReturnType<typeof createPostgresConnection> | undefined;
 let roleSql: string;
+let grantsSql: string;
 let appSetting: string;
 
 function connectApp() {
@@ -28,6 +29,7 @@ beforeAll(async () => {
   await owner.db.execute(sql`grant create on schema public to public`);
   await owner.db.execute(sql`grant update on weekly_schedules to public`);
   roleSql = await readFile("sql/app-role.sql", "utf8");
+  grantsSql = await readFile("sql/app-role-grants.sql", "utf8");
   await applyAppRoleSql();
   const password = randomBytes(32).toString("hex");
   await owner.db.transaction(async (tx) => {
@@ -76,6 +78,7 @@ async function applyAppRoleSql() {
   await ownerDb().transaction(async (tx) => {
     await tx.execute(sql`select set_config('drillmap.app_role', ${role}, true)`);
     await tx.execute(sql.raw(roleSql));
+    await tx.execute(sql.raw(grantsSql));
   });
 }
 

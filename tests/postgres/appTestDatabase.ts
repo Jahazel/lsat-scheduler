@@ -20,10 +20,12 @@ export async function createAppTestDatabase() {
   }
   try {
     const roleSql = await readFile("sql/app-role.sql", "utf8");
+    const grantsSql = await readFile("sql/app-role-grants.sql", "utf8");
     const password = randomBytes(32).toString("hex");
     await owner.db.transaction(async (tx) => {
       await tx.execute(sql`select set_config('drillmap.app_role', ${role}, true)`);
       await tx.execute(sql.raw(roleSql));
+      await tx.execute(sql.raw(grantsSql));
       await tx.execute(sql`select set_config('drillmap.test_password', ${password}, true)`);
       await tx.execute(sql.raw(`DO $$ BEGIN
         EXECUTE format('ALTER ROLE %I PASSWORD %L',

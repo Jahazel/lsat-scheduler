@@ -1,0 +1,59 @@
+name: Release migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      copy_only:
+        description: Stop after the copy (for rehearsals and proofs)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-migrations
+  cancel-in-progress: false
+
+jobs:
+  copy:
+    name: Apply migrations to the copy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: migrations-copy
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Apply migrations
+        run: node --import tsx scripts/release-migrations.mts
+        env:
+          MIGRATION_TARGET: copy
+          DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+
+  production:
+    name: Apply migrations to production
+    needs: copy
+    if: github.ref == 'refs/heads/main' && !inputs.copy_only
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: migrations-production
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Apply migrations
+        run: node --import tsx scripts/release-migrations.mts
+        env:
+          MIGRATION_TARGET: production
+          DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
