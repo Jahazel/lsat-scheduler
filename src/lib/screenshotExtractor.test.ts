@@ -68,7 +68,7 @@ it.each([
   ["an unknown result", [toolUse("record_practice_test_section", { ...lrSection, rows: [{ ...lrRow, result: "maybe" }] })]],
   ["reachesEnd as text", [toolUse("record_practice_test_section", { ...lrSection, reachesEnd: "true", rows: [] })]],
   ["a score past the section's questions", [toolUse("record_practice_test_section", { ...lrSection, score: -31, rows: [] })]],
-  ["a section number that is not on a test", [toolUse("record_practice_test_section", { ...lrSection, section: 9, rows: [] })]],
+  ["a section number that is not on a test", [toolUse("record_practice_test_section", { ...lrSection, section: 5, rows: [] })]],
   ["31 question rows", [toolUse("record_practice_test_section", {
     ...lrSection, rows: Array.from({ length: 31 }, (_, i) => ({ ...lrRow, question: (i % 30) + 1 })),
   })]],

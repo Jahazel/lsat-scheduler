@@ -6,9 +6,20 @@ const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   constructClient: vi.fn(),
   createMessage: vi.fn(),
+  extractor: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
+vi.mock("@/lib/screenshotExtractor", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/screenshotExtractor")>();
+  return {
+    ...original,
+    extractAnalyticsRows: (...args: Parameters<typeof original.extractAnalyticsRows>) => {
+      mocks.extractor(...args);
+      return original.extractAnalyticsRows(...args);
+    },
+  };
+});
 
 vi.mock("@anthropic-ai/sdk", () => ({
   default: class {
@@ -228,12 +239,21 @@ describe("POST /api/analytics/extract", () => {
     const response = await POST(await imageRequest());
 
     expect(response.status).toBe(401);
-    expect(mocks.createMessage).not.toHaveBeenCalled();
+    expect(mocks.extractor).not.toHaveBeenCalled();
   });
 
   describe("checks the file from its bytes before calling Anthropic", () => {
     const WRONG_TYPE = "That file is not a PNG, JPG, or WEBP. Choose a screenshot in one of those types.";
     const take = "Take a screenshot up to 8,000 px on each side.";
+
+    function webpHeaderOnly() {
+      const bytes = Buffer.alloc(30);
+      bytes.write("RIFF", 0);
+      bytes.writeUInt32LE(22, 4);
+      bytes.write("WEBPVP8X", 8);
+      bytes.writeUInt32LE(10, 16);
+      return bytes;
+    }
 
     beforeEach(() => {
       vi.stubEnv("ANTHROPIC_API_KEY", "synthetic-anthropic-key");
@@ -253,13 +273,20 @@ describe("POST /api/analytics/extract", () => {
       ["a PNG signature with no header", pngOf(40, 30).subarray(0, 8), "empty.png", "image/png"],
       ["a JPEG cut off before its frame header", fixture("still.jpg").subarray(0, 20), "cut.jpg", "image/jpeg"],
       ["a WebP with no image chunk", Buffer.from("RIFF\x16\x00\x00\x00WEBPJUNK\x0a\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"), "junk.webp", "image/webp"],
+      ["a PNG cut off just after its pixel chunk starts", pngOf(40, 30).subarray(0, 41), "cut.png", "image/png"],
+      ["a PNG with no end chunk", pngOf(40, 30).subarray(0, -12), "cut.png", "image/png"],
+      ["a JPEG with only a frame header", Buffer.from("ffd8ffc000000800010001", "hex"), "header.jpg", "image/jpeg"],
+      ["a JPEG cut off before its end marker", fixture("still.jpg").subarray(0, -2), "cut.jpg", "image/jpeg"],
+      ["a WebP with only an extended header", webpHeaderOnly(), "header.webp", "image/webp"],
+      ["a WebP cut off inside its image", fixture("still-lossless.webp").subarray(0, -10), "cut.webp", "image/webp"],
     ])("refuses %s as the wrong type", async (_case, bytes, name, type) => {
       const response = await send(bytes, name, type);
 
       expect(response.status).toBe(415);
       expect(await response.json()).toEqual({ error: WRONG_TYPE, reason: "wrong-type" });
-      expect(mocks.constructClient).not.toHaveBeenCalled();
+      expect(mocks.extractor).not.toHaveBeenCalled();
       expect(mocks.createMessage).not.toHaveBeenCalled();
+      expect(mocks.extractor).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -274,6 +301,7 @@ describe("POST /api/analytics/extract", () => {
       const response = await send(bytes, "analytics", "");
 
       expect(response.status).toBe(200);
+      expect(mocks.extractor).toHaveBeenCalledOnce();
       expect(mocks.createMessage).toHaveBeenCalledOnce();
       expect(mocks.createMessage.mock.calls[0][0].messages[0].content[0].source.media_type).toBe(mediaType);
     });
@@ -289,6 +317,7 @@ describe("POST /api/analytics/extract", () => {
       expect(response.status).toBe(422);
       expect(await response.json()).toEqual({ error, reason: "image-too-large" });
       expect(mocks.createMessage).not.toHaveBeenCalled();
+      expect(mocks.extractor).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -300,6 +329,7 @@ describe("POST /api/analytics/extract", () => {
       expect(response.status).toBe(422);
       expect(await response.json()).toEqual({ error: "That image is animated. Choose a still screenshot.", reason: "animated" });
       expect(mocks.createMessage).not.toHaveBeenCalled();
+      expect(mocks.extractor).not.toHaveBeenCalled();
     });
 
     it("refuses a PNG over 4 MB", async () => {
@@ -309,6 +339,7 @@ describe("POST /api/analytics/extract", () => {
       expect(await response.json()).toEqual({ error: "That file is 4.1 MB. Choose one that is 4 MB or less.", reason: "too-large" });
       expect(mocks.constructClient).not.toHaveBeenCalled();
       expect(mocks.createMessage).not.toHaveBeenCalled();
+      expect(mocks.extractor).not.toHaveBeenCalled();
     });
 
     it("accepts a PNG of exactly 4 MB", async () => {
@@ -346,6 +377,7 @@ describe("POST /api/analytics/extract", () => {
       expect((await response.json()).reason).toBe("too-large");
       expect(chunksSent()).toBeLessThanOrEqual(1);
       expect(mocks.createMessage).not.toHaveBeenCalled();
+      expect(mocks.extractor).not.toHaveBeenCalled();
     });
 
     it("refuses a request without a length", async () => {
@@ -356,6 +388,7 @@ describe("POST /api/analytics/extract", () => {
       expect(response.status).toBe(411);
       expect(chunksSent()).toBeLessThanOrEqual(1);
       expect(mocks.createMessage).not.toHaveBeenCalled();
+      expect(mocks.extractor).not.toHaveBeenCalled();
     });
 
     it("stops reading a body that grows past 4.5 MB under a smaller declared length", async () => {
@@ -366,6 +399,7 @@ describe("POST /api/analytics/extract", () => {
       expect(response.status).toBe(413);
       expect(chunksSent()).toBeLessThan(10);
       expect(mocks.createMessage).not.toHaveBeenCalled();
+      expect(mocks.extractor).not.toHaveBeenCalled();
     });
 
     it("accepts a request body of exactly 4.5 MB", async () => {

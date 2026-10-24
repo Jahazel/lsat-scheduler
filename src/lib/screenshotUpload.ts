@@ -34,7 +34,7 @@ export function checkScreenshotType(file: { type: string }): ScreenshotRejection
 
 export function shrunkSize(width: number, height: number) {
   const scale = MAX_UPLOAD_SIDE / Math.max(width, height);
-  return scale >= 1 ? null : { width: Math.round(width * scale), height: Math.round(height * scale) };
+  return scale >= 1 ? null : { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
 }
 
 async function shrinkForUpload(file: File): Promise<File> {
@@ -49,11 +49,16 @@ async function shrinkForUpload(file: File): Promise<File> {
     image.close();
     return file;
   }
-  const canvas = new OffscreenCanvas(size.width, size.height);
-  canvas.getContext("2d")?.drawImage(image, 0, 0, size.width, size.height);
-  image.close();
-  const blob = await canvas.convertToBlob({ type: file.type, quality: 0.92 });
-  return new File([blob], file.name, { type: blob.type });
+  try {
+    const canvas = new OffscreenCanvas(size.width, size.height);
+    canvas.getContext("2d")?.drawImage(image, 0, 0, size.width, size.height);
+    const blob = await canvas.convertToBlob({ type: file.type, quality: 0.92 });
+    return new File([blob], file.name, { type: blob.type });
+  } catch {
+    return file;
+  } finally {
+    image.close();
+  }
 }
 
 type ScreenshotFailure =

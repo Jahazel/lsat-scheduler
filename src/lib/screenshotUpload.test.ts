@@ -79,6 +79,7 @@ describe("before upload", () => {
     [1179, 2556, { width: 723, height: 1568 }],
     [3000, 1000, { width: 1568, height: 523 }],
     [1569, 1569, { width: 1568, height: 1568 }],
+    [8000, 1, { width: 1568, height: 1 }],
   ])("shrinks a %i x %i image so its longer side is at most 1,568 px", (width, height, size) => {
     expect(shrunkSize(width, height)).toEqual(size);
   });

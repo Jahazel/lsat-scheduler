@@ -1,9 +1,16 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { crc32, deflateSync } from "node:zlib";
+import { deflateSync } from "node:zlib";
 import { NextRequest } from "next/server";
 
 export const fixture = (name: string) => readFileSync(path.join(__dirname, name));
+
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+const crc32 = (bytes: Buffer) => (bytes.reduce((c, byte) => CRC_TABLE[(c ^ byte) & 0xff] ^ (c >>> 8), 0xffffffff) ^ 0xffffffff) >>> 0;
 
 function chunk(type: string, data: Buffer) {
   const length = Buffer.alloc(4);

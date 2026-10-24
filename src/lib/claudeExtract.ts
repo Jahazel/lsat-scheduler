@@ -176,7 +176,7 @@ const MAX_SECTION_QUESTIONS = 30;
 const SectionHeader = {
   page: z.literal("section_review"),
   prepTest: z.number().int().min(1).max(999),
-  section: z.number().int().min(1).max(5),
+  section: z.number().int().min(1).max(4),
   score: z.number().int().min(-MAX_SECTION_QUESTIONS).max(MAX_SECTION_QUESTIONS).transform((score) => (score > 0 ? -score : score)),
   reachesEnd: z.boolean(),
 };
