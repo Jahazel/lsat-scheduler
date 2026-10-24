@@ -14,10 +14,9 @@ export function activityLabel(activity: Activity) {
       return `${activity.questionCount} ${lrTypesName(activity.types)} (${activity.difficultyRange})`;
     case "RC": {
       if (activity.isFullSection) return "1 Full RC Section";
-      const names = activity.passages.map(({ type }) => `1 ${type}`).join(" + ");
-      const levels = activity.passages.map(({ difficultyLevel }) => difficultyLevel).sort((a, b) => a - b);
-      const range = levels[0] === levels.at(-1) ? `L${levels[0]}` : `L${levels[0]}-${levels.at(-1)}`;
-      return `${names} passage (${range})`;
+      const passages = activity.passages.toSorted((a, b) => a.difficultyLevel - b.difficultyLevel)
+        .map(({ type, difficultyLevel }) => `${type} L${difficultyLevel}`).join(", ");
+      return activity.passages.length === 1 ? `1 RC Passage ${passages}` : `2 RC Passages ${passages}`;
     }
     case "PT":
     case "REVIEW":

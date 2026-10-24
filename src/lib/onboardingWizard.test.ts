@@ -635,7 +635,7 @@ describe("onboarding wizard", () => {
       );
       const rc = previewDrills(state, TODAY)?.items.find(({ activity }) => activity.kind === "RC" && !activity.isFullSection);
 
-      expect(rc?.label).toMatch(/^1 Law \+ 1 Science passage/);
+      expect(rc?.label).toBe("2 RC Passages Law L2, Science L4");
       expect(rc?.detail).toEqual({ kind: "accuracy", text: "58%" });
     });
 

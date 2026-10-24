@@ -101,7 +101,7 @@ describe("saved weekly schedule reads", () => {
     const { days } = persistedWeeklySchedule(record).schedule;
 
     expect([...days.MONDAY.activities, ...days.TUESDAY.activities, ...days.SATURDAY.activities].map(activityLabel))
-      .toEqual(["1 Full LR Section", "5 Inference (L2-4)", "1 Law passage (L3)", "1 Full RC Section",
+      .toEqual(["1 Full LR Section", "5 Inference (L2-4)", "1 RC Passage Law L3", "1 Full RC Section",
         "Practice Test (from PT 101+)"]);
     expect(days.MONDAY.activities[1]).toEqual({ kind: "LR", types: ["Inference"], questionCount: 5,
       difficultyRange: "L2-4", drillMinutes: 7.5, isFullSection: false });
