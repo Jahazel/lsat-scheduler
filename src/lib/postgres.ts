@@ -122,6 +122,8 @@ export function getPostgresDatabase() {
   return globalThis.drillmapPostgres.db;
 }
 
+export type PostgresTransaction = Parameters<Parameters<ReturnType<typeof getPostgresDatabase>["transaction"]>[0]>[0];
+
 export async function closePostgresDatabase() {
   const connection = globalThis.drillmapPostgres;
   globalThis.drillmapPostgres = undefined;

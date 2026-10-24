@@ -1,10 +1,13 @@
 "use server";
 
 import { z } from "zod";
-import { clientIpAddress, countAction } from "@/lib/actionLimits";
+import { countAction } from "@/lib/actionLimits";
+import { clientIpAddress } from "@/lib/clientIpAddress";
 import { getPostgresDatabase } from "@/lib/postgres";
 import { leads } from "@/lib/postgresSchema";
+import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 
+const CENTRAL_TIME = new Intl.DateTimeFormat("en-US", { timeZone: SCHEDULE_TIMEZONE, hour: "numeric", minute: "2-digit" });
 const EmailSchema = z.email({ error: "Enter a valid email." });
 
 export interface CaptureLeadState {
@@ -19,8 +22,9 @@ export async function captureLead(_state: CaptureLeadState, formData: FormData):
   if (!validated.success) {
     return { error: "Enter a valid email." };
   }
-  if (!(await countAction("leadCapture", await clientIpAddress(), new Date())).allowed) {
-    return { error: "Too many tries from this network. Try again in an hour." };
+  const limit = await countAction("leadCapture", await clientIpAddress(), new Date());
+  if (!limit.allowed) {
+    return { error: `Too many tries from this network. Try again after ${CENTRAL_TIME.format(limit.windowEnd)} Central time.` };
   }
 
   await getPostgresDatabase().insert(leads)

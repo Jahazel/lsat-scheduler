@@ -1,6 +1,5 @@
 import { lte, sql } from "drizzle-orm";
-import { headers } from "next/headers";
-import { getPostgresDatabase } from "./postgres";
+import { getPostgresDatabase, type PostgresTransaction } from "./postgres";
 import { actionCounters } from "./postgresSchema";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
 
@@ -19,10 +18,17 @@ const LIMITS = {
 export type LimitedAction = keyof typeof LIMITS;
 export type LimitResult = { allowed: true } | { allowed: false; windowEnd: Date };
 
-/** Counts one action for one subject in its fixed window. `realNow` must be the real clock, never a simulated date. */
-export async function countAction(action: LimitedAction, subject: string, realNow: Date): Promise<LimitResult> {
+/**
+ * Counts one action for one subject in its fixed window. `realNow` must be the real clock, never a simulated date.
+ * Pass the caller's transaction when the counted action writes, so a failed write gives the count back.
+ */
+export async function countAction(
+  action: LimitedAction,
+  subject: string,
+  realNow: Date,
+  db: ReturnType<typeof getPostgresDatabase> | PostgresTransaction = getPostgresDatabase(),
+): Promise<LimitResult> {
   const { max, window: { unit, zone } } = LIMITS[action];
-  const db = getPostgresDatabase();
   const localStart = sql`date_trunc(${unit}, ${realNow.toISOString()}::timestamptz at time zone ${zone})`;
   const [counted] = await db.insert(actionCounters).values({
     action,
@@ -34,11 +40,6 @@ export async function countAction(action: LimitedAction, subject: string, realNo
     target: [actionCounters.action, actionCounters.subject, actionCounters.windowStart],
     set: { count: sql`${actionCounters.count} + 1` },
   }).returning({ count: actionCounters.count, windowEnd: actionCounters.windowEnd });
-  await db.delete(actionCounters).where(lte(actionCounters.windowEnd, realNow));
+  await getPostgresDatabase().delete(actionCounters).where(lte(actionCounters.windowEnd, realNow));
   return counted.count <= max ? { allowed: true } : { allowed: false, windowEnd: counted.windowEnd };
-}
-
-/** The only reader of the client IP address. Vercel overwrites this header, so a client cannot choose it. */
-export async function clientIpAddress() {
-  return (await headers()).get("x-vercel-forwarded-for") ?? "unknown";
 }

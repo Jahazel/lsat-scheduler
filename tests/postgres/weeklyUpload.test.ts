@@ -262,17 +262,20 @@ it("a student who signs up on Saturday plans next week, sees that the plan start
   expect((await listWeeklySchedulesForStudent(student.id)).map(({ weekStartDate }) => weekStartDate)).toEqual(["2026-10-19"]);
 });
 
-it("rolls back the snapshot and the score when the practice-test insert fails", async () => {
+it("rolls back the snapshot, the score, and the day's save count when the practice-test insert fails", async () => {
   const { studentId, accountId } = await studentWithThisWeek();
   vi.setSystemTime(SATURDAY);
   const before = await saved(studentId, accountId);
   const prepared = prepareWeeklyUploadApproval(upload(SATURDAY), SATURDAY, SATURDAY, { allowAdminSample: false, needsPracticeTest: true });
   if (!prepared.practiceTest) throw new Error("Expected a practice test");
 
-  await expect(approveWeeklyUpload(studentId, { ...prepared, practiceTest: { ...prepared.practiceTest, prepTest: 0 } }))
-    .rejects.toMatchObject({ cause: { code: "23514" } });
+  for (let index = 0; index < 5; index += 1) {
+    await expect(approveWeeklyUpload(studentId, { ...prepared, practiceTest: { ...prepared.practiceTest, prepTest: 0 } }, { accountId, realNow: SATURDAY }))
+      .rejects.toMatchObject({ cause: { code: "23514" } });
+  }
 
   expect(await saved(studentId, accountId)).toEqual(before);
+  await expect(confirmWeeklyUpload(upload(SATURDAY))).rejects.toThrow("redirect:/dashboard");
 });
 
 it("refuses an invalid score or a missing practice test without saving anything", async () => {

@@ -94,7 +94,7 @@ it("lead capture refuses the 6th submission in an hour from one IP address and w
   expect(await captureLead({}, form("LEAD@example.test"))).toEqual({ success: true });
   for (let index = 0; index < 4; index += 1) expect(await captureLead({}, form("lead@example.test"))).toEqual({ success: true });
   expect(await captureLead({}, form("new@example.test")))
-    .toEqual({ error: "Too many tries from this network. Try again in an hour." });
+    .toEqual({ error: "Too many tries from this network. Try again after 11:00 AM Central time." });
   expect((await getPostgresDatabase().execute(sql`select email from leads`)).rows).toEqual([{ email: "lead@example.test" }]);
 
   request.ip = "198.51.100.4";
@@ -129,4 +129,26 @@ it("onboarding shares the snapshot save counter and refuses before any write", a
 
   await expect(createStudentProfile({ ...input, analyticsRows: [], analyticsApproval: null })).rejects.toThrow("redirect:/dashboard");
   expect(await findStudentByAccountId(account.id)).not.toBeNull();
+});
+
+it("counts only the onboarding save that wrote a snapshot when several run at the same time", async () => {
+  const account = await createAccount({ email: "student@example.test", name: "Sam" });
+  if (!account) throw new Error("Account fixture already exists");
+  request.session = { user: { id: account.id, role: "student", email: "student@example.test", name: "Sam" }, expires: "2099-01-01" };
+  const now = new Date().toISOString();
+  const input = {
+    currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01", preferredPracticeTestDay: "SATURDAY" as const,
+    accommodationMultiplier: 1 as const,
+    dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 90, SUNDAY: 90 },
+    officialAttempts: [],
+    analyticsRows: [{ type: "Strengthen" as const, category: "regular" as const, accuracy: 0.6 }],
+    analyticsApproval: {
+      extraction: { source: "7sage_screenshot" as const, extractedAt: now },
+      confirmation: { extractedValuesMatch: true as const, isLatestAnalytics: true as const, confirmedAt: now },
+    },
+  };
+  await Promise.allSettled(Array.from({ length: 5 }, () => createStudentProfile(input)));
+
+  expect(await countTimes(4, "analyticsSnapshotSave", account.id, new Date())).toEqual(Array(4).fill({ allowed: true }));
+  expect(await countAction("analyticsSnapshotSave", account.id, new Date())).toMatchObject({ allowed: false });
 });

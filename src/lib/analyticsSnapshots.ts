@@ -4,8 +4,6 @@ import type { LRLogicType, RCType } from "@/lib/types";
 
 const MAX_EXTRACTION_AGE_MS = 24 * 60 * 60 * 1000;
 
-export const SNAPSHOT_SAVE_LIMIT_MESSAGE = "You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time.";
-
 const Accuracy = z.number().finite().min(0).max(1);
 const OptionalAccuracy = Accuracy.optional();
 const RCAccuracySchema = z.strictObject({
@@ -44,6 +42,12 @@ export interface SnapshotApprovalMetadata {
 }
 
 export class SnapshotApprovalError extends Error {}
+
+export class SnapshotSaveLimitReached extends SnapshotApprovalError {
+  constructor() {
+    super("You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time.");
+  }
+}
 
 export function checkApprovalTimes(
   { extraction, confirmation }: {

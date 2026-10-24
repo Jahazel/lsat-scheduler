@@ -4,8 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { auth } from "@/auth";
-import { countAction } from "@/lib/actionLimits";
-import { SNAPSHOT_SAVE_LIMIT_MESSAGE, snapshotWeekOptions, SnapshotApprovalError } from "@/lib/analyticsSnapshots";
+import { snapshotWeekOptions, SnapshotApprovalError } from "@/lib/analyticsSnapshots";
 import { requireCurrentAdmin } from "@/lib/requireAdmin";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { studentSideClock } from "@/lib/studentClock";
@@ -51,21 +50,16 @@ export async function confirmWeeklyUpload(input: unknown): Promise<WeeklyUploadC
   ) {
     return { error: "This page is out of date. Open This week to continue." };
   }
-  let upload;
   try {
-    upload = prepareWeeklyUploadApproval(input, clock.now, clock.real, {
+    await approveWeeklyUpload(student.id, prepareWeeklyUploadApproval(input, clock.now, clock.real, {
       allowAdminSample,
       needsPracticeTest: weekHadPracticeTest(schedules, isoDateInWeek(target.data.weekOf, -7)),
       ...snapshotWeekOptions(clock),
-    });
+    }), { accountId: session.user.id, realNow: clock.real });
   } catch (error) {
     if (error instanceof SnapshotApprovalError) return { error: error.message };
     throw error;
   }
-  if (!(await countAction("analyticsSnapshotSave", session.user.id, clock.real)).allowed) {
-    return { error: SNAPSHOT_SAVE_LIMIT_MESSAGE };
-  }
-  await approveWeeklyUpload(student.id, upload);
 
   revalidatePath("/", "layout");
   redirect("/dashboard");

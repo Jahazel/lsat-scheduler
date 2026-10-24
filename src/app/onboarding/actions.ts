@@ -7,8 +7,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { createStudent, findStudentByAccountId } from "@/lib/studentRepository";
 import { summarizeAnalyticsRows } from "@/lib/analytics";
-import { countAction } from "@/lib/actionLimits";
-import { SNAPSHOT_SAVE_LIMIT_MESSAGE, snapshotWeekOptions, prepareApprovedSnapshot, type SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
+import { SnapshotSaveLimitReached, snapshotWeekOptions, prepareApprovedSnapshot, type SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
 import { parseOfficialAttempts, parseStudentProfile, type OfficialAttempt, type StudentProfileInput } from "@/lib/studentProfile";
 import type { AnalyticsExtractedRow } from "@/lib/types";
 
@@ -39,10 +38,16 @@ export async function createStudentProfile(
     analyticsRows.length > 0 && analyticsApproval
       ? prepareApprovedSnapshot({ ...summarizeAnalyticsRows(analyticsRows), ...analyticsApproval }, clock.now, clock.real, snapshotWeekOptions(clock))
       : null;
-  if (approvedSnapshot && !(await countAction("analyticsSnapshotSave", session.user.id, clock.real)).allowed) {
-    return { error: SNAPSHOT_SAVE_LIMIT_MESSAGE };
+  let student;
+  try {
+    student = await createStudent(session.user.id, studentFields, {
+      snapshot: approvedSnapshot && { values: approvedSnapshot, realNow: clock.real },
+      officialAttempts: attempts,
+    });
+  } catch (error) {
+    if (error instanceof SnapshotSaveLimitReached) return { error: error.message };
+    throw error;
   }
-  const student = await createStudent(session.user.id, studentFields, { snapshot: approvedSnapshot, officialAttempts: attempts });
   if (!student) redirect("/dashboard");
 
   revalidatePath("/", "layout");
