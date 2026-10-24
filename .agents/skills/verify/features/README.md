@@ -23,7 +23,7 @@ Capture the action, resulting UI, and persisted records. Retain evidence through
 - [Sign-up and Account](sign-up-account.md): public navigation, the Google-only Login and Signup states, consent, sign-out, and student deletion.
 - [Account sessions](account-sessions.md): the current-Account check on every request, Sign out of all devices, Disabled Accounts, role changes, and session time limits.
 - [Onboarding and Study settings](study-settings.md): initial study profile, daily capacity, preference editing, and persistence.
-- [Analytics and This week](weekly-schedule.md): the weekly upload (screenshots and practice-test sections), snapshot review and approval, saved schedule views, and activity check-ins.
+- [Analytics and This week](weekly-schedule.md): the weekly upload (screenshots and practice-test sections), snapshot review and approval, saved schedule views, activity check-ins, and the daily analytics save limit.
 - [Progress](progress.md): empty state, finished-week summaries, past-week details, and legacy deep links.
 - [Admin](admin.md): all-student read-only views, workspace switching, Simulated date, Sample analytics snapshots, and resets.
 

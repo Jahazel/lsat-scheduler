@@ -78,6 +78,8 @@ Seed each fixture Account with one command. The Account is onboarded with the fe
 
 The command prints the email, the role, the Account ID, and whether it is onboarded. Every fixture gets a made-up Google ID and no password. Sign in as an Admin with `local.mjs session "$VERIFY_RUN_DIR" verify-admin@example.test`. It prints a session cookie `name`, `value`, and `url`. Set that cookie in the browser, then open `/admin`. In T3, sign out first and wait for the public landing page. Then set it with `preview_evaluate` and `document.cookie = "<name>=<value>; path=/; SameSite=Lax"`. A signed-in student's HttpOnly session cookie blocks that overwrite. The cookie is signed with this run's secret and expires in one hour. The first protected request re-signs it with the 14-day idle limit. The same command mints student sessions, for example a second browser's session in [Account sessions](features/account-sessions.md). Add `--signed-in-minutes-ago <minutes>` to backdate the sign-in time, for example to reach the Account deletion sign-in step. Seeding uses the app's own Account and student save functions against this run's database. A seeded Account is fixture setup and proves no user feature. When the change touches onboarding, seed with `--not-onboarded` and enter the answers through the UI.
 
+Each Account can save analytics 5 times per America/Chicago day on the real clock. An onboarding Confirm snapshot and each weekly upload or Admin sample approval count once. Simulated date and the Admin resets do not give saves back. Plan a run's approvals per Account, and seed a fresh Account when one runs out. The count is the `analyticsSnapshotSave` row in `action_counters`.
+
 ## Evidence
 
 All proof survives at `.verification/evidence/<run-name>/`, ignored by Git. Save evidence while the disposable database is running:
@@ -87,7 +89,7 @@ All proof survives at `.verification/evidence/<run-name>/`, ignored by Git. Save
 ./.agents/skills/verify/scripts/local.mjs inspect "$VERIFY_RUN_DIR" > "$VERIFY_RUN_DIR/records-after.json"
 ```
 
-`inspect` checks Doctor first, then reads Accounts, students, Analytics snapshots, practice-test results, Weekly schedules, Activity check-ins, and leads from this run's Postgres database. Evidence uses the SQL table and column names. It never reads password hashes. Capture `records-before.json` before a mutation when proving absence, immutability, or deletion. Compare the affected IDs and values. Do not equate a success notice with persistence.
+`inspect` checks Doctor first, then reads Accounts, students, Analytics snapshots, practice-test results, Weekly schedules, Activity check-ins, leads, and action counters from this run's Postgres database. Evidence uses the SQL table and column names. It never reads password hashes. Capture `records-before.json` before a mutation when proving absence, immutability, or deletion. Compare the affected IDs and values. Do not equate a success notice with persistence.
 
 For a browser proof, save a before snapshot, the actions and their locators, an after snapshot, and screenshots with DrillMap visible. In T3, start `preview_recording_start` before the action and call `preview_recording_stop` afterward. Copy the returned recording file into the run directory. Use `preview_snapshot` with `save: true` for each screenshot and copy its returned `screenshotPath` there. Save text snapshots separately with `includeImage: false`. Tool-result images alone are not files. Use a read-only `preview_evaluate` to inspect DOM values or browser state when needed.
 
