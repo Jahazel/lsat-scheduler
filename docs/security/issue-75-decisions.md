@@ -2,6 +2,8 @@
 
 Decisions for [issue 75](https://github.com/Jahazel/lsat-scheduler/issues/75), under [issue 69](https://github.com/Jahazel/lsat-scheduler/issues/69). Decided by the owner on October 2, 2026, America/Chicago, against checkout `26ef710`.
 
+**Update, October 23, 2026:** The owner replaced some rules after the practice-test result made a weekly upload send up to 6 screenshots ([issue 245](https://github.com/Jahazel/lsat-scheduler/issues/245)). Rule 29 is now 10 in 1 day and 40 in 1 month. Rules 39 to 41 count $0.02 for an analytics extraction and $0.03 for a practice-test section extraction. Rule 49 now adds a warning at 80% of the app limit. Rule 52 now lets a practice-test week skip the practice-test result while extraction is off. The password parts of rules 8 to 10 and 12 to 16 wait for the password sign-in issue ([issue 230](https://github.com/Jahazel/lsat-scheduler/issues/230)) and must pass before password sign-in returns. Each replaced rule below keeps its original text and names its replacement.
+
 **Status: decided.** These are rules for later work. None of them is built yet. The checks in [release-gate.md](release-gate.md#c-abuse-limits-and-spending) still fail until the code passes them.
 
 The evidence comes from issue 70 findings F05, F07, F08, and F09. The $10 monthly extraction limit and the manual entry fallback come from [issue 72](issue-72-decisions.md). The signup, verification, and reset flows that these limits protect come from [issue 74](issue-74-decisions.md).
@@ -87,7 +89,7 @@ The evidence comes from issue 70 findings F05, F07, F08, and F09. The $10 monthl
 
 ### Extraction limit for each student
 
-29. One student can have 5 extractions in 1 day and 20 in 1 month.
+29. One student can have 5 extractions in 1 day and 20 in 1 month. **Replaced by [issue 245](https://github.com/Jahazel/lsat-scheduler/issues/245), decision 1:** 10 extractions in 1 day and 40 in 1 month. One practice-test week needs 6, and a month needs about 27.
 30. An extraction counts when a file passes rules 22 to 28 and the app calls Anthropic.
 31. Admins have the same limits.
 32. There is no extraction limit for each IP address. Email verification (issue 74) slows new Accounts, and the $10 monthly limit caps the total.
@@ -112,9 +114,9 @@ The evidence comes from issue 70 findings F05, F07, F08, and F09. The $10 monthl
 
 ### Counting the $10 monthly limit
 
-39. Before each extraction, the app counts $0.02.
-40. When Anthropic replies, the app replaces the $0.02 with the real cost from the reply's token usage and the current price. With no reply, such as a timeout or an error, the $0.02 stays.
-41. Before each extraction, the app adds $0.02 to the month's total. If the result is more than the limit, no extraction starts. The total never goes over the limit.
+39. Before each extraction, the app counts $0.02. **Replaced by [issue 245](https://github.com/Jahazel/lsat-scheduler/issues/245), decision 2:** $0.02 for an analytics extraction and $0.03 for a practice-test section extraction.
+40. When Anthropic replies, the app replaces the $0.02 with the real cost from the reply's token usage and the current price. With no reply, such as a timeout or an error, the $0.02 stays. **Replaced by [issue 245](https://github.com/Jahazel/lsat-scheduler/issues/245), decision 2:** the count for the extraction type ($0.02 or $0.03) is replaced or stays.
+41. Before each extraction, the app adds $0.02 to the month's total. If the result is more than the limit, no extraction starts. The total never goes over the limit. **Replaced by [issue 245](https://github.com/Jahazel/lsat-scheduler/issues/245), decision 2:** the app adds the count for the extraction type ($0.02 or $0.03).
 42. The total goes back to $0 at the start of each month.
 43. All extractions on the real site count. This includes admin extractions and failed extractions.
 44. Sample analytics snapshots and hand-typed analytics snapshots do not count. They make no Anthropic call.
@@ -122,15 +124,15 @@ The evidence comes from issue 70 findings F05, F07, F08, and F09. The $10 monthl
 46. The limit is a database setting, $10 at launch. The owner changes it with one command. The change works on the next extraction, with no new release.
 47. If the owner sets the limit above $20, the owner must also raise the Anthropic monthly spend limit. Otherwise Anthropic stops all extractions first.
 48. When the limit is reached, students see "Scanning is off right now. Enter your analytics by hand."
-49. No new warning is added. Anthropic's emails at $5 and $8 and the release gate's "App extraction limit reached" alert stay.
+49. No new warning is added. Anthropic's emails at $5 and $8 and the release gate's "App extraction limit reached" alert stay. **Replaced by [issue 245](https://github.com/Jahazel/lsat-scheduler/issues/245), decision 3:** when the month's total reaches 80% of the limit ($8 of $10), the owner gets an email through Healthchecks.io. The "App extraction limit reached" alert stays.
 
-**Why:** After rule 27, one extraction costs at most about $0.008. That is about 1,600 image tokens, about 1,200 tokens of text and tool schema, and 1,024 output tokens at Haiku 4.5 prices ([pricing](https://platform.claude.com/docs/en/about-claude/pricing)). The $0.02 is more than twice that, so the app's total is never below the real spend. Review the $0.02 when the model, the price, or the image rules change.
+**Why:** After rule 27, one extraction costs at most about $0.008. That is about 1,600 image tokens, about 1,200 tokens of text and tool schema, and 1,024 output tokens at Haiku 4.5 prices ([pricing](https://platform.claude.com/docs/en/about-claude/pricing)). The $0.02 is more than twice that, so the app's total is never below the real spend. Review the $0.02 when the model, the price, or the image rules change. A practice-test section extraction allows 4,096 output tokens, so its worst case is about $0.024. [Issue 245](https://github.com/Jahazel/lsat-scheduler/issues/245) counts $0.03 for it.
 
 ### Emergency switch
 
 50. A database setting turns extraction off. The owner sets it with one command.
 51. The app reads the setting before each extraction. The change works on the next extraction.
-52. When extraction is off, no Anthropic call starts. Students see the message in rule 48. Hand-typed analytics snapshots, this week, and progress still work.
+52. When extraction is off, no Anthropic call starts. Students see the message in rule 48. Hand-typed analytics snapshots, this week, and progress still work. **Added by [issue 245](https://github.com/Jahazel/lsat-scheduler/issues/245), decision 4:** when extraction is off or the limit is reached, a student in a practice-test week can confirm the weekly upload without the practice-test result. The next weekly schedule then has no "missed type goes first" for that week. It does not reuse an older practice-test result.
 53. The emergency guide in `docs/runbooks/` lists the commands for rules 46 and 50. Revoking the Anthropic key stays the last step.
 54. An admin page control can come later, when the other admin gets permission to pause the site.
 
@@ -157,7 +159,7 @@ The [launch checklist](release-gate.md#c-abuse-limits-and-spending) holds the fu
 | C1 | 5 to 21 |
 | C2 | 1 to 4, 36 to 38 |
 | C3 | 29 to 31 |
-| C4 | 33, 34, 39 to 47 |
+| C4 | 33, 34, 39 to 47, 49 |
 | C5 | 48, 50 to 53 |
 | C6 | 55 to 61 |
 | [D2](release-gate.md#d-screenshots-and-model-output) | 22 to 28 |
@@ -180,15 +182,15 @@ The owner made each decision in the issue 75 discussion.
 | Lead capture | One record for each email, and 5 submissions in 1 hour for each IP address. |
 | Analytics snapshot saves | 5 in 1 day for each student. |
 | Upload files | As in rules 22 to 28. |
-| Extraction limit for each student | 5 in 1 day and 20 in 1 month. Admins have the same limit. |
+| Extraction limit for each student | 5 in 1 day and 20 in 1 month. Admins have the same limit. Replaced by [issue 245](https://github.com/Jahazel/lsat-scheduler/issues/245): 10 in 1 day and 40 in 1 month. |
 | Retries | None automatic. A 30-second timeout. |
 | Extractions at the same time | 1 for each student and 5 for the site, with a 2-minute expiry. |
 | Emergency switch | A database setting, changed with one command. |
 | Hand-typed analytics snapshots | Always available. Source `manual_entry`, not proven. The same checks for every source. |
 | Refusals | HTTP 429 with `Retry-After`, before any costly work. |
-| Counting the $10 | $0.02 before each extraction, replaced by the real cost. |
+| Counting the $10 | $0.02 before each extraction, replaced by the real cost. Replaced by [issue 245](https://github.com/Jahazel/lsat-scheduler/issues/245): $0.02 for an analytics extraction, $0.03 for a practice-test section extraction. |
 | When extraction stops | Before the total would go over the limit. |
 | Month start | Midnight on the 1st, America/Chicago. |
 | What counts | All real-site extractions, including admin and failed ones. |
 | Changing the limit | A database setting, changed with one command. |
-| Warnings | No new ones. |
+| Warnings | No new ones. Replaced by [issue 245](https://github.com/Jahazel/lsat-scheduler/issues/245): a warning at 80% of the app limit. |
