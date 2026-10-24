@@ -118,4 +118,12 @@ Use this when GitHub Actions is down or the workflow refuses for an unclear reas
 ## Replace or remove the migration password
 
 To replace it, repeat setup steps 2 and 3. To stop the workflow at once, delete the environment
-secret, then run `ALTER ROLE drillmap_migrator PASSWORD NULL;` as the Neon owner.
+secret. Then, as the Neon owner, remove the password and end the role's open sessions:
+
+```sql
+ALTER ROLE drillmap_migrator PASSWORD NULL;
+SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = 'drillmap_migrator';
+SELECT count(*) FROM pg_stat_activity WHERE usename = 'drillmap_migrator';
+```
+
+The last query must return `0`. A removed password stops new logins only.

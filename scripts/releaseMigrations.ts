@@ -2,7 +2,6 @@ import { readFile } from "node:fs/promises";
 import { sql } from "drizzle-orm";
 import type { getPostgresDatabase } from "../src/lib/postgres";
 import copyDatabaseHosts from "./copyDatabaseHosts.json";
-import { getDatabaseHost } from "./localDatabaseGuard.mjs";
 import { migrationBundle, readMigrations } from "./migrationBundle.mjs";
 import productionDatabaseHosts from "./productionDatabaseHosts.json";
 
@@ -20,6 +19,7 @@ const knownDatabaseMessages = new Set([
 
 export function requireReleaseTarget(
   environment: Record<string, string | undefined>,
+  readHosts: () => string,
 ): ReleaseTarget {
   if (environment.GITHUB_ACTIONS !== "true") {
     throw new ReleaseRefusal("Release migrations run only in the GitHub release workflow.");
@@ -28,14 +28,14 @@ export function requireReleaseTarget(
   if (target !== "copy" && target !== "production") {
     throw new ReleaseRefusal("MIGRATION_TARGET must be copy or production.");
   }
-  requireHostOfTarget(target, environment.DATABASE_URL);
+  requireHostOfTarget(target, readHosts);
   return target;
 }
 
-function requireHostOfTarget(target: ReleaseTarget, uri: string | undefined) {
+function requireHostOfTarget(target: ReleaseTarget, readHosts: () => string) {
   let hosts: string[];
   try {
-    hosts = getDatabaseHost(uri).split(",").map((host) => host.replace(/:\d+$/, "").toLowerCase());
+    hosts = readHosts().split(",").map((host) => host.replace(/:\d+$/, "").toLowerCase());
   } catch {
     throw new ReleaseRefusal("Cannot read the database host.");
   }

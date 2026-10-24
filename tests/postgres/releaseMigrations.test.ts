@@ -109,6 +109,8 @@ it("hands every app object to a migration role that cannot create roles or datab
     rolcanlogin: true, rolsuper: false, rolcreatedb: false, rolcreaterole: false,
     rolreplication: false, rolbypassrls: false, has_membership: false,
   }]);
+  expect((await admin.db.execute(sql`select has_database_privilege(${migrationRole}, current_database(), 'CREATE') as allowed`)).rows)
+    .toEqual([{ allowed: false }]);
   const migrator = connectAs(migrationRole, migratorPassword);
   for (const query of [sql.raw(`create role ${migrationRole}_probe`), sql.raw(`create database ${migrationRole}_probe`)]) {
     await expect(migrator.db.execute(query)).rejects.toMatchObject({ cause: { code: "42501" } });

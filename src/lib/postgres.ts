@@ -128,6 +128,10 @@ export async function closePostgresDatabase() {
   await connection?.close();
 }
 
+export function getPostgresHosts() {
+  return getDatabaseHost(databaseUrl());
+}
+
 export function requirePostgresScriptTarget() {
   return requireLocalDatabase(databaseUrl());
 }

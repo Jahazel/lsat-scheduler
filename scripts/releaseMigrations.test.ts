@@ -3,16 +3,19 @@ import { promisify } from "node:util";
 import { expect, it } from "vitest";
 import copyDatabaseHosts from "./copyDatabaseHosts.json";
 import productionDatabaseHosts from "./productionDatabaseHosts.json";
+import { getDatabaseHost } from "./localDatabaseGuard.mjs";
 import { publicFailureMessage, requireReleaseTarget } from "./releaseMigrations";
 
 const exec = promisify(execFile);
 const [copyHost] = copyDatabaseHosts;
 const [productionHost] = productionDatabaseHosts;
 const setting = (host: string) => `postgresql://migrator:secret-password@${host}/neondb?sslmode=verify-full`;
+const check = ({ DATABASE_URL, ...environment }: Record<string, string>) =>
+  requireReleaseTarget(environment, () => getDatabaseHost(DATABASE_URL));
 
 it("accepts a copy host for the copy and a production host for production", () => {
-  expect(requireReleaseTarget({ GITHUB_ACTIONS: "true", MIGRATION_TARGET: "copy", DATABASE_URL: setting(copyHost) })).toBe("copy");
-  expect(requireReleaseTarget({ GITHUB_ACTIONS: "true", MIGRATION_TARGET: "production", DATABASE_URL: setting(`${productionHost}:5432`) }))
+  expect(check({ GITHUB_ACTIONS: "true", MIGRATION_TARGET: "copy", DATABASE_URL: setting(copyHost) })).toBe("copy");
+  expect(check({ GITHUB_ACTIONS: "true", MIGRATION_TARGET: "production", DATABASE_URL: setting(`${productionHost}:5432`) }))
     .toBe("production");
 });
 
@@ -24,7 +27,7 @@ it.each([
   ["a local host", { GITHUB_ACTIONS: "true", MIGRATION_TARGET: "copy", DATABASE_URL: setting("127.0.0.1") }, "The database host is not a copy host. Stop."],
   ["a missing setting", { GITHUB_ACTIONS: "true", MIGRATION_TARGET: "copy" }, "Cannot read the database host."],
 ])("refuses %s", (_case, environment, message) => {
-  expect(() => requireReleaseTarget(environment)).toThrow(message);
+  expect(() => check(environment)).toThrow(message);
 });
 
 it("logs only known refusals and error codes, never data or connection details", () => {
