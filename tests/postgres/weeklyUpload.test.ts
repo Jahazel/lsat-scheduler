@@ -339,3 +339,16 @@ it("counts an Admin's student-side saves on the real clock, whatever the simulat
     .toEqual({ error: "You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time." });
   expect((await saved(studentId, accountId)).snapshots).toHaveLength(6);
 });
+
+it("lets exactly 5 of 10 weekly upload confirms at the same time save", async () => {
+  const { studentId, accountId } = await studentWithThisWeek();
+  vi.setSystemTime(SATURDAY);
+  const results = await Promise.allSettled(Array.from({ length: 10 }, () => confirmWeeklyUpload(upload(SATURDAY))));
+
+  expect(results.filter((result) => result.status === "rejected" && String(result.reason).includes("redirect:/dashboard"))).toHaveLength(5);
+  expect(results.filter((result) => result.status === "fulfilled")).toEqual(Array(5).fill({
+    status: "fulfilled",
+    value: { error: "You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time." },
+  }));
+  expect((await saved(studentId, accountId)).snapshots).toHaveLength(6);
+});

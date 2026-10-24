@@ -40,6 +40,6 @@ export async function countAction(
     target: [actionCounters.action, actionCounters.subject, actionCounters.windowStart],
     set: { count: sql`${actionCounters.count} + 1` },
   }).returning({ count: actionCounters.count, windowEnd: actionCounters.windowEnd });
-  await getPostgresDatabase().delete(actionCounters).where(lte(actionCounters.windowEnd, realNow));
+  await db.delete(actionCounters).where(lte(actionCounters.windowEnd, realNow));
   return counted.count <= max ? { allowed: true } : { allowed: false, windowEnd: counted.windowEnd };
 }

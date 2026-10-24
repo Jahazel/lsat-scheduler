@@ -147,7 +147,10 @@ it("counts only the onboarding save that wrote a snapshot when several run at th
       confirmation: { extractedValuesMatch: true as const, isLatestAnalytics: true as const, confirmedAt: now },
     },
   };
-  await Promise.allSettled(Array.from({ length: 5 }, () => createStudentProfile(input)));
+  const results = await Promise.allSettled(Array.from({ length: 5 }, () => createStudentProfile(input)));
+  expect(results.map((result) => result.status === "rejected" && String(result.reason))).toEqual(Array(5).fill("Error: redirect:/dashboard"));
+  const student = await findStudentByAccountId(account.id);
+  expect((await database.owner.execute(sql`select id from analytics_snapshots where student_id = ${student?.id}`)).rows).toHaveLength(1);
 
   expect(await countTimes(4, "analyticsSnapshotSave", account.id, new Date())).toEqual(Array(4).fill({ allowed: true }));
   expect(await countAction("analyticsSnapshotSave", account.id, new Date())).toMatchObject({ allowed: false });
