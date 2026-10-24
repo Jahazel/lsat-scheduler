@@ -170,6 +170,17 @@ describe("WeeklyUpload", () => {
     expect(button("Check the values").disabled).toBe(false);
   });
 
+  it("reads an RC screenshot with no passage-type percentage and lets the student check the values", async () => {
+    stubServer({}, { RC: Response.json({ rows: [] }) });
+    const { user } = setup(false);
+
+    await addAnalytics(user);
+    await user.click(button("Read my screenshots"));
+    await screen.findByText("rc-analytics.png · 0 passage types");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(button("Check the values").disabled).toBe(false);
+  });
+
   it("on a weekday, plans the rest of this week from last week's practice test", async () => {
     stubServer();
     const { user } = setup(true, WEDNESDAY);

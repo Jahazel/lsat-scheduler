@@ -313,9 +313,17 @@ it("onboarding saves approved analytics with its student and refuses a partial w
   expect((await getPostgresDatabase().execute(sql`select id from analytics_snapshots`)).rows).toHaveLength(1);
   const withoutRC = await account("snapshot-no-rc@example.test");
   session(withoutRC);
-  await expect(createStudentProfile({ ...input, analyticsRows: input.analyticsRows.slice(0, 1) }))
-    .rejects.toThrow("Add an accuracy from 0 to 100 for all 5 RC passage types.");
-  expect(await findStudentByAccountId(withoutRC.id)).toBeNull();
+  await expect(createStudentProfile({ ...input, analyticsRows: input.analyticsRows.slice(0, 1) })).rejects.toThrow("redirect:/dashboard");
+  const noRC = await findStudentByAccountId(withoutRC.id);
+  expect((await getPostgresDatabase().execute(sql`select rc_accuracy_by_type from analytics_snapshots where student_id = ${noRC?.id}`)).rows)
+    .toEqual([{ rc_accuracy_by_type: {} }]);
+  const rcTypo = await account("snapshot-rc-typo@example.test");
+  session(rcTypo);
+  await expect(createStudentProfile({
+    ...input,
+    analyticsRows: [...input.analyticsRows.slice(0, 1), { type: "Law", category: "passage", accuracy: 150 }],
+  })).rejects.toThrow("Enter each RC accuracy from 0 to 100.");
+  expect(await findStudentByAccountId(rcTypo.id)).toBeNull();
   const b = await account("snapshot-fail@example.test");
   session(b);
   await database.owner.execute(sql`create function reject_snapshot_test() returns trigger language plpgsql as
@@ -325,7 +333,7 @@ it("onboarding saves approved analytics with its student and refuses a partial w
   try {
     await expect(createStudentProfile(input)).rejects.toThrow();
     expect(await findStudentByAccountId(b.id)).toBeNull();
-    expect((await getPostgresDatabase().execute(sql`select id from analytics_snapshots`)).rows).toHaveLength(1);
+    expect((await getPostgresDatabase().execute(sql`select id from analytics_snapshots`)).rows).toHaveLength(2);
   } finally {
     await database.owner.execute(sql`drop trigger reject_snapshot_test on analytics_snapshots`);
     await database.owner.execute(sql`drop function reject_snapshot_test()`);

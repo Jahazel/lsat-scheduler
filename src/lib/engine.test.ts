@@ -295,10 +295,11 @@ describe("adaptive weekly schedule v3", () => {
     expect(schedule.days.FRIDAY.totalMinutes).toBe(105);
   });
 
-  it("pairs RC passages of two types in lowest-accuracy order and keeps a 1-passage daily minimum", () => {
+  it("pairs RC passages of two types in lowest-accuracy order, unmeasured types last, and keeps a 1-passage daily minimum", () => {
     for (const [analytics, order] of [
       [{ ...mockAnalytics, rcAccuracyByType: rcAccuracy }, ["Law", "Science", "Art", "Humanities", "Comparative"]],
       [mockAnalytics, mockRules.rcTypes],
+      [{ ...mockAnalytics, rcAccuracyByType: { Comparative: 1, Law: 0.5 } }, ["Law", "Comparative", "Art", "Humanities", "Science"]],
     ] as const) {
       const schedule = generateWeek({ ...mockStudent, dailyCapacityMinutes: everyDay(90) }, analytics, mockRules, mockStudentName);
       const rcByDay = DAY_ORDER.map((day) => schedule.days[day].activities.filter(isRC));

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { extractScreenshot } from "./screenshotUpload";
+import { extractScreenshot, readAnalyticsScreenshot } from "./screenshotUpload";
 
 const file = new File(["png"], "7sage-analytics.png", { type: "image/png" });
 
@@ -53,5 +53,22 @@ describe("extractScreenshot", () => {
 
     replyWith(500, {});
     expect(await extractScreenshot(file, "LR")).toEqual({ kind: "connection-lost" });
+  });
+});
+
+describe("readAnalyticsScreenshot", () => {
+  it("asks for the LR screenshot again when it shows no question types", async () => {
+    replyWith(200, { rows: [] });
+
+    expect(await readAnalyticsScreenshot(file, "LR")).toEqual({
+      kind: "problem",
+      message: "We found no LR question types in that screenshot. Choose your Logical Reasoning screenshot.",
+    });
+  });
+
+  it("accepts an RC screenshot with no passage-type percentage", async () => {
+    replyWith(200, { rows: [] });
+
+    expect(await readAnalyticsScreenshot(file, "RC")).toEqual({ kind: "rows", rows: [] });
   });
 });
