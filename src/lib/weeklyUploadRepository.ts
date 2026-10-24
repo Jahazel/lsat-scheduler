@@ -1,12 +1,13 @@
 import { asc, desc, eq } from "drizzle-orm";
-import { approvedSnapshotColumns } from "./analyticsSnapshotRepository";
+import { approvedSnapshotColumns, countSnapshotSave, type SnapshotSaver } from "./analyticsSnapshotRepository";
 import { getPostgresDatabase } from "./postgres";
 import { analyticsSnapshots, practiceTestResults, students } from "./postgresSchema";
 import type { ApprovedPracticeTestResult } from "./practiceTestResult";
 import type { PreparedWeeklyUpload } from "./weeklyUploadApproval";
 
-export async function approveWeeklyUpload(studentId: string, upload: PreparedWeeklyUpload) {
+export async function approveWeeklyUpload(studentId: string, upload: PreparedWeeklyUpload, saver: SnapshotSaver) {
   await getPostgresDatabase().transaction(async (transaction) => {
+    await countSnapshotSave(transaction, saver);
     await transaction.insert(analyticsSnapshots).values(approvedSnapshotColumns(studentId, upload.snapshot));
     if (upload.practiceTest) {
       await transaction.insert(practiceTestResults).values({ studentId, ...upload.practiceTest });

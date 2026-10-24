@@ -43,6 +43,12 @@ export interface SnapshotApprovalMetadata {
 
 export class SnapshotApprovalError extends Error {}
 
+export class SnapshotSaveLimitReached extends SnapshotApprovalError {
+  constructor() {
+    super("You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time.");
+  }
+}
+
 export function checkApprovalTimes(
   { extraction, confirmation }: {
     extraction: { source: "7sage_screenshot" | "admin_sample"; extractedAt: string };

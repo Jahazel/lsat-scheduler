@@ -1,6 +1,6 @@
 import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
-import { approvedSnapshotColumns } from "./analyticsSnapshotRepository";
+import { approvedSnapshotColumns, countSnapshotSave } from "./analyticsSnapshotRepository";
 import type { prepareApprovedSnapshot } from "./analyticsSnapshots";
 import { isAccountId } from "./accountRepository";
 import { getPostgresDatabase } from "./postgres";
@@ -86,7 +86,10 @@ export async function createStudent(
   {
     snapshot = null,
     officialAttempts = [],
-  }: { snapshot?: ReturnType<typeof prepareApprovedSnapshot> | null; officialAttempts?: OfficialAttempt[] } = {},
+  }: {
+    snapshot?: { values: ReturnType<typeof prepareApprovedSnapshot>; realNow: Date } | null;
+    officialAttempts?: OfficialAttempt[];
+  } = {},
 ) {
   if (!isAccountId(accountId)) return null;
   return getPostgresDatabase().transaction(async (transaction) => {
@@ -97,7 +100,8 @@ export async function createStudent(
       .returning();
     if (!row) return null;
     if (snapshot) {
-      await transaction.insert(analyticsSnapshots).values(approvedSnapshotColumns(row.id, snapshot));
+      await countSnapshotSave(transaction, { accountId, realNow: snapshot.realNow });
+      await transaction.insert(analyticsSnapshots).values(approvedSnapshotColumns(row.id, snapshot.values));
     }
     return persistedStudent(row);
   });

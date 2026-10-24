@@ -262,17 +262,20 @@ it("a student who signs up on Saturday plans next week, sees that the plan start
   expect((await listWeeklySchedulesForStudent(student.id)).map(({ weekStartDate }) => weekStartDate)).toEqual(["2026-10-19"]);
 });
 
-it("rolls back the snapshot and the score when the practice-test insert fails", async () => {
+it("rolls back the snapshot, the score, and the day's save count when the practice-test insert fails", async () => {
   const { studentId, accountId } = await studentWithThisWeek();
   vi.setSystemTime(SATURDAY);
   const before = await saved(studentId, accountId);
   const prepared = prepareWeeklyUploadApproval(upload(SATURDAY), SATURDAY, SATURDAY, { allowAdminSample: false, needsPracticeTest: true });
   if (!prepared.practiceTest) throw new Error("Expected a practice test");
 
-  await expect(approveWeeklyUpload(studentId, { ...prepared, practiceTest: { ...prepared.practiceTest, prepTest: 0 } }))
-    .rejects.toMatchObject({ cause: { code: "23514" } });
+  for (let index = 0; index < 5; index += 1) {
+    await expect(approveWeeklyUpload(studentId, { ...prepared, practiceTest: { ...prepared.practiceTest, prepTest: 0 } }, { accountId, realNow: SATURDAY }))
+      .rejects.toMatchObject({ cause: { code: "23514" } });
+  }
 
   expect(await saved(studentId, accountId)).toEqual(before);
+  await expect(confirmWeeklyUpload(upload(SATURDAY))).rejects.toThrow("redirect:/dashboard");
 });
 
 it("refuses an invalid score or a missing practice test without saving anything", async () => {
@@ -303,4 +306,49 @@ it("lets only an admin confirm sample data, and Reset test data deletes the admi
   await resetTestWorkspace(admin.accountId, "test-data", postgresAdminTestRepositories);
   expect(await listApprovedPracticeTestResults(admin.studentId)).toEqual([]);
   expect(await listApprovedAnalyticsSnapshots(admin.studentId)).toEqual([]);
+});
+
+it("refuses the 6th snapshot save in one Chicago day before any write, and allows saves again after midnight Central time", async () => {
+  const { studentId, accountId } = await studentWithThisWeek();
+  vi.setSystemTime(SATURDAY);
+  for (let index = 0; index < 5; index += 1) {
+    await expect(confirmWeeklyUpload(upload(SATURDAY, { currentScore: 160 + index }))).rejects.toThrow("redirect:/dashboard");
+  }
+  const before = await saved(studentId, accountId);
+  expect(before.snapshots).toHaveLength(6);
+
+  await expect(confirmWeeklyUpload(upload(SATURDAY, { currentScore: 170 }))).resolves
+    .toEqual({ error: "You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time." });
+  expect(await saved(studentId, accountId)).toEqual(before);
+
+  const sundayMidnight = new Date("2026-10-18T05:00:00Z");
+  vi.setSystemTime(sundayMidnight);
+  await expect(confirmWeeklyUpload(upload(sundayMidnight, { currentScore: 170 }))).rejects.toThrow("redirect:/dashboard");
+  expect((await saved(studentId, accountId)).score).toBe(170);
+});
+
+it("counts an Admin's student-side saves on the real clock, whatever the simulated date", async () => {
+  const { studentId, accountId } = await studentWithThisWeek("admin");
+  await database.owner.execute(sql`update accounts set simulated_date = '2026-10-17' where id = ${accountId}`);
+  vi.setSystemTime(SATURDAY);
+  for (let index = 0; index < 5; index += 1) {
+    await expect(confirmWeeklyUpload(upload(SATURDAY))).rejects.toThrow("redirect:/dashboard");
+  }
+  await database.owner.execute(sql`update accounts set simulated_date = '2026-10-18' where id = ${accountId}`);
+  await expect(confirmWeeklyUpload(upload(SATURDAY))).resolves
+    .toEqual({ error: "You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time." });
+  expect((await saved(studentId, accountId)).snapshots).toHaveLength(6);
+});
+
+it("lets exactly 5 of 10 weekly upload confirms at the same time save", async () => {
+  const { studentId, accountId } = await studentWithThisWeek();
+  vi.setSystemTime(SATURDAY);
+  const results = await Promise.allSettled(Array.from({ length: 10 }, () => confirmWeeklyUpload(upload(SATURDAY))));
+
+  expect(results.filter((result) => result.status === "rejected" && String(result.reason).includes("redirect:/dashboard"))).toHaveLength(5);
+  expect(results.filter((result) => result.status === "fulfilled")).toEqual(Array(5).fill({
+    status: "fulfilled",
+    value: { error: "You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time." },
+  }));
+  expect((await saved(studentId, accountId)).snapshots).toHaveLength(6);
 });

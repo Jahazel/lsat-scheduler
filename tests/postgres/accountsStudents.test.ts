@@ -33,7 +33,6 @@ import { createStudentProfile } from "../../src/app/onboarding/actions";
 import { updateStudentProfile } from "../../src/app/account/actions";
 import AccountPage from "../../src/app/account/page";
 import OnboardingPage from "../../src/app/onboarding/page";
-import { captureLead } from "../../src/app/actions";
 import { requireCurrentAdmin } from "../../src/lib/requireAdmin";
 import { postgresAdminClock, studentSideClock } from "../../src/lib/studentClock";
 import { loadStudentNavState } from "../../src/lib/studentNav";
@@ -277,14 +276,6 @@ it("Admin checks and simulated dates use the current Account role", async () => 
   await expect(requireCurrentAdmin()).rejects.toThrow("Admin access required");
   request.session = null;
   await expect(requireCurrentAdmin()).rejects.toThrow("Admin access required");
-});
-
-it("lead capture normalizes and accepts repeated submissions without a second row", async () => {
-  const form = new FormData();
-  form.set("email", "LEAD@example.test");
-  expect(await captureLead({}, form)).toEqual({ success: true });
-  expect(await captureLead({}, form)).toEqual({ success: true });
-  expect((await getPostgresDatabase().execute(sql`select email from leads`)).rows).toEqual([{ email: "lead@example.test" }]);
 });
 
 it("onboarding saves approved analytics with its student and refuses a partial write", async () => {

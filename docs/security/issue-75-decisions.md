@@ -40,7 +40,7 @@ The evidence comes from issue 70 findings F05, F07, F08, and F09. The $10 monthl
 
 ### Refusals
 
-5. A refused request gets HTTP 429 with a `Retry-After` header and a short message that says when to try again. A form shows the message on the form.
+5. A refused request gets HTTP 429 with a `Retry-After` header and a short message that says when to try again. A form shows the message on the form. **Update, October 24, 2026:** A Next.js form action cannot set a status code or a header, so a refused form action replies with the message only and saves nothing. HTTP 429 with `Retry-After` applies to the scan routes ([issue 249](https://github.com/Jahazel/lsat-scheduler/issues/249)).
 6. Each refusal happens before bcrypt, email, a database write, or an Anthropic call.
 7. Every limit uses the real clock.
 

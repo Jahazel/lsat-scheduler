@@ -1,6 +1,7 @@
 import { asc, desc, eq } from "drizzle-orm";
-import type { prepareApprovedSnapshot } from "./analyticsSnapshots";
-import { getPostgresDatabase } from "./postgres";
+import { countAction } from "./actionLimits";
+import { SnapshotSaveLimitReached, type prepareApprovedSnapshot } from "./analyticsSnapshots";
+import { getPostgresDatabase, type PostgresTransaction } from "./postgres";
 import { analyticsSnapshots } from "./postgresSchema";
 
 type ApprovedSnapshotInput = ReturnType<typeof prepareApprovedSnapshot>;
@@ -19,6 +20,14 @@ export function approvedSnapshotColumns(studentId: string, snapshot: ApprovedSna
     isLatestAnalytics: snapshot.confirmation.isLatestAnalytics,
     confirmedAt: snapshot.confirmation.confirmedAt,
   } satisfies typeof analyticsSnapshots.$inferInsert;
+}
+
+export type SnapshotSaver = { accountId: string; realNow: Date };
+
+export async function countSnapshotSave(transaction: PostgresTransaction, saver: SnapshotSaver) {
+  if (!(await countAction("analyticsSnapshotSave", saver.accountId, saver.realNow, transaction)).allowed) {
+    throw new SnapshotSaveLimitReached();
+  }
 }
 
 export async function createApprovedAnalyticsSnapshot(studentId: string, snapshot: ApprovedSnapshotInput) {

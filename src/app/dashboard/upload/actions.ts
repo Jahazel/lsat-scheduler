@@ -29,7 +29,7 @@ function usesSample(input: unknown) {
 
 export async function confirmWeeklyUpload(input: unknown): Promise<WeeklyUploadConfirmResult> {
   const session = await auth();
-  if (!session?.user) return { signedOut: true };
+  if (!session?.user?.id) return { signedOut: true };
 
   const allowAdminSample = usesSample(input);
   if (allowAdminSample) {
@@ -55,7 +55,7 @@ export async function confirmWeeklyUpload(input: unknown): Promise<WeeklyUploadC
       allowAdminSample,
       needsPracticeTest: weekHadPracticeTest(schedules, isoDateInWeek(target.data.weekOf, -7)),
       ...snapshotWeekOptions(clock),
-    }));
+    }), { accountId: session.user.id, realNow: clock.real });
   } catch (error) {
     if (error instanceof SnapshotApprovalError) return { error: error.message };
     throw error;

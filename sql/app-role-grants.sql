@@ -22,9 +22,9 @@ BEGIN
     RAISE EXCEPTION 'The app role must have no administration rights, memberships, or owned objects.';
   END IF;
   REVOKE ALL PRIVILEGES ON TABLE public.accounts, public.students, public.leads,
-    public.analytics_snapshots, public.practice_test_results, public.weekly_schedules, public.activity_check_ins FROM PUBLIC;
-  EXECUTE format('REVOKE ALL PRIVILEGES ON TABLE public.accounts, public.students, public.leads, public.analytics_snapshots, public.practice_test_results, public.weekly_schedules, public.activity_check_ins FROM %I', app_role);
-  EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.accounts, public.students, public.leads, public.analytics_snapshots, public.practice_test_results, public.activity_check_ins TO %I', app_role);
+    public.analytics_snapshots, public.practice_test_results, public.weekly_schedules, public.activity_check_ins, public.action_counters FROM PUBLIC;
+  EXECUTE format('REVOKE ALL PRIVILEGES ON TABLE public.accounts, public.students, public.leads, public.analytics_snapshots, public.practice_test_results, public.weekly_schedules, public.activity_check_ins, public.action_counters FROM %I', app_role);
+  EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.accounts, public.students, public.leads, public.analytics_snapshots, public.practice_test_results, public.activity_check_ins, public.action_counters TO %I', app_role);
   EXECUTE format('GRANT SELECT, INSERT, DELETE ON TABLE public.weekly_schedules TO %I', app_role);
 END;
 $$;

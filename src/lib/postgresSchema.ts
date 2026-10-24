@@ -1,4 +1,4 @@
-import { boolean, jsonb, date, integer, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, jsonb, date, integer, numeric, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import type {
   Activity, ActivityCheckInStatus, AnalyticsSnapshot, DayOfWeek, DayPlan, LRType, PersistedWeeklySchedule, RCType, Student,
   WeeklySchedule,
@@ -105,3 +105,11 @@ export const activityCheckIns = pgTable("activity_check_ins", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const actionCounters = pgTable("action_counters", {
+  action: text("action").notNull(),
+  subject: text("subject").notNull(),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+  windowEnd: timestamp("window_end", { withTimezone: true }).notNull(),
+  count: integer("count").notNull(),
+}, (table) => [primaryKey({ columns: [table.action, table.subject, table.windowStart] })]);

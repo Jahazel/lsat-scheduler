@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { createStudent, findStudentByAccountId } from "@/lib/studentRepository";
 import { summarizeAnalyticsRows } from "@/lib/analytics";
-import { snapshotWeekOptions, prepareApprovedSnapshot, type SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
+import { SnapshotSaveLimitReached, snapshotWeekOptions, prepareApprovedSnapshot, type SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
 import { parseOfficialAttempts, parseStudentProfile, type OfficialAttempt, type StudentProfileInput } from "@/lib/studentProfile";
 import type { AnalyticsExtractedRow } from "@/lib/types";
 
@@ -17,9 +17,9 @@ export async function createStudentProfile(
     analyticsRows: AnalyticsExtractedRow[];
     analyticsApproval: SnapshotApprovalMetadata | null;
   }
-) {
+): Promise<{ error: string } | void> {
   const session = await auth();
-  if (!session?.user) {
+  if (!session?.user?.id) {
     throw new Error("Not authenticated");
   }
 
@@ -38,7 +38,16 @@ export async function createStudentProfile(
     analyticsRows.length > 0 && analyticsApproval
       ? prepareApprovedSnapshot({ ...summarizeAnalyticsRows(analyticsRows), ...analyticsApproval }, clock.now, clock.real, snapshotWeekOptions(clock))
       : null;
-  const student = await createStudent(session.user.id, studentFields, { snapshot: approvedSnapshot, officialAttempts: attempts });
+  let student;
+  try {
+    student = await createStudent(session.user.id, studentFields, {
+      snapshot: approvedSnapshot && { values: approvedSnapshot, realNow: clock.real },
+      officialAttempts: attempts,
+    });
+  } catch (error) {
+    if (error instanceof SnapshotSaveLimitReached) return { error: error.message };
+    throw error;
+  }
   if (!student) redirect("/dashboard");
 
   revalidatePath("/", "layout");
