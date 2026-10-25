@@ -4,7 +4,6 @@ import type { Session } from "next-auth";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppTestDatabase } from "./appTestDatabase";
 import { closePostgresDatabase } from "../../src/lib/postgres";
-import { createAccount } from "../../src/lib/accountRepository";
 import { createStudent, findStudentByAccountId } from "../../src/lib/studentRepository";
 import { createApprovedAnalyticsSnapshot, listApprovedAnalyticsSnapshots } from "../../src/lib/analyticsSnapshotRepository";
 import { listWeeklySchedulesForStudent } from "../../src/lib/weeklyScheduleRepository";
@@ -60,7 +59,7 @@ const SOURCES = ["7sage_screenshot", "admin_sample", "manual_entry"] as const sa
 const dashboard = async () => renderToStaticMarkup(await DashboardPage({ searchParams: Promise.resolve({}) }));
 
 async function signIn(role: "student" | "admin") {
-  const account = await createAccount({ email: `${role}@example.test`, name: "Sam", role });
+  const account = await database.createAccountAsOwner({ email: `${role}@example.test`, name: "Sam", role });
   if (!account) throw new Error("Account fixture already exists");
   state.session = { user: { id: account.id, role, email: `${role}@example.test`, name: "Sam" }, expires: "2099-01-01" };
   return account;
