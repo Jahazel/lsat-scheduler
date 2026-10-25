@@ -7,9 +7,11 @@ const extractedAt = "2026-10-17T17:00:00.000Z";
 const confirmedAt = "2026-10-17T17:04:00.000Z";
 
 const analytics = {
-  lrAccuracyByType: { "Necessary assumption": 0.76 },
-  lrTopPriorityLogicTypes: ["Phenomenon-hypothesis"],
-  rcAccuracyByType: { Law: 0.58, Comparative: 0.7, Science: 0.64, Humanities: 0.81, Art: 0.77 },
+  rows: [
+    { type: "Necessary assumption", category: "regular", accuracy: 76 },
+    { type: "Phenomenon-hypothesis (LR)", category: "restricted", isTopPriority: true },
+    { type: "Law", category: "passage", accuracy: 58 },
+  ],
   extraction: { source: "7sage_screenshot", extractedAt },
   confirmation: { extractedValuesMatch: true, isLatestAnalytics: true, confirmedAt },
 };

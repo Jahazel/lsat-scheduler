@@ -19,7 +19,7 @@ A student's latest reported status for one schedule activity: not started or com
 _Avoid_: activity completion record
 
 **Analytics snapshot**:
-An approved, dated extraction of a student's 7Sage analytics. Snapshots are retained so performance can be compared across weeks. It needs both the LR and the RC screenshot. It holds 0 to 5 RC passage-type accuracies, one for each type that 7Sage shows a percentage for or that the student typed.
+An approved, dated extraction of a student's 7Sage analytics. Snapshots are retained so performance can be compared across weeks. It needs both the LR and the RC screenshot. It holds 0 to 5 RC passage-type accuracies, one for each type that 7Sage shows a percentage for or that the student typed. Its source is `7sage_screenshot`, `admin_sample`, or `manual_entry` (values typed by hand). Every source passes the same save checks. Only the screenshot and sample sources must be read within 24 hours.
 _Avoid_: current analytics, analytics upload
 
 **Practice-test result**:

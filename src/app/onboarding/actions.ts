@@ -6,8 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { createStudent, findStudentByAccountId } from "@/lib/studentRepository";
-import { summarizeAnalyticsRows } from "@/lib/analytics";
-import { SnapshotSaveLimitReached, snapshotWeekOptions, prepareApprovedSnapshot, type SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
+import { SnapshotSaveLimitReached, snapshotWeekOptions, prepareApprovedSnapshot, summarizeApprovedRows, type SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
 import { parseOfficialAttempts, parseStudentProfile, type OfficialAttempt, type StudentProfileInput } from "@/lib/studentProfile";
 import type { AnalyticsExtractedRow } from "@/lib/types";
 
@@ -36,7 +35,7 @@ export async function createStudentProfile(
 
   const approvedSnapshot =
     analyticsRows.length > 0 && analyticsApproval
-      ? prepareApprovedSnapshot({ ...summarizeAnalyticsRows(analyticsRows), ...analyticsApproval }, clock.now, clock.real, snapshotWeekOptions(clock))
+      ? prepareApprovedSnapshot({ ...summarizeApprovedRows(analyticsRows), ...analyticsApproval }, clock.now, clock.real, snapshotWeekOptions(clock))
       : null;
   let student;
   try {
