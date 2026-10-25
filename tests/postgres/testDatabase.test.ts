@@ -14,7 +14,7 @@ it("creates separate empty databases from migrations and removes them after use"
   const first = await createPostgresTestDatabase();
   const firstConnection = createPostgresConnection({ database: first.name });
   try {
-    expect(await firstConnection.db.select({ count: sql<number>`(select count(*)::integer from drillmap_migrations.applied)` }).from(sql`(select 1) as probe`)).toEqual([{ count: 11 }]);
+    expect(await firstConnection.db.select({ count: sql<number>`(select count(*)::integer from drillmap_migrations.applied)` }).from(sql`(select 1) as probe`)).toEqual([{ count: 12 }]);
     await firstConnection.db.execute(sql`create table leftover_probe (value integer)`);
     const second = await createPostgresTestDatabase();
     const secondConnection = createPostgresConnection({ database: second.name });
@@ -23,7 +23,7 @@ it("creates separate empty databases from migrations and removes them after use"
       expect(await secondConnection.db.select({
         leftover: sql<string | null>`to_regclass('public.leftover_probe')::text`,
         count: sql<number>`(select count(*)::integer from drillmap_migrations.applied)`,
-      }).from(sql`(select 1) as probe`)).toEqual([{ leftover: null, count: 11 }]);
+      }).from(sql`(select 1) as probe`)).toEqual([{ leftover: null, count: 12 }]);
     } finally {
       await secondConnection.close();
       await second.cleanup();

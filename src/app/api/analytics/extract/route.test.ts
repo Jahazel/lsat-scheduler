@@ -43,12 +43,15 @@ const png = Buffer.from(
 
 const URL = "http://localhost/api/analytics/extract";
 
+const replyUsage = { input_tokens: 1000, output_tokens: 100 };
+
 function imageRequest(file = new File([png], "analytics.png", { type: "image/png" }), section: string | null = "LR") {
   return screenshotRequest(URL, section === null ? { image: file } : { image: file, section });
 }
 
 function rowsFromAnthropic() {
   mocks.createMessage.mockResolvedValue({
+    usage: replyUsage,
     content: [{ type: "tool_use", name: "record_analytics_rows", input: { rows: [{ type: "Strengthen", accuracy: 72 }] } }],
   });
 }
@@ -59,8 +62,8 @@ describe("POST /api/analytics/extract", () => {
     vi.resetAllMocks();
     vi.stubEnv("SCREENSHOT_EXTRACTOR", undefined);
     mocks.auth.mockResolvedValue({ user: { id: "student-account", role: "student" } });
-    mocks.createMessage.mockResolvedValue({ content: [] });
-    mocks.takeScanPlace.mockImplementation(async (subject: string, startedAt: Date) => ({ subject, startedAt }));
+    mocks.createMessage.mockResolvedValue({ usage: replyUsage, content: [] });
+    mocks.takeScanPlace.mockImplementation(async (subject: string, kind: string, startedAt: Date) => ({ subject, kind, startedAt }));
     mocks.freeScanPlace.mockResolvedValue(undefined);
   });
 
@@ -123,6 +126,7 @@ describe("POST /api/analytics/extract", () => {
   it("reads RC passage types from Anthropic for an RC screenshot", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "synthetic-anthropic-key");
     mocks.createMessage.mockResolvedValue({
+      usage: replyUsage,
       content: [{
         type: "tool_use",
         name: "record_analytics_rows",
@@ -147,6 +151,7 @@ describe("POST /api/analytics/extract", () => {
   it("returns no rows and the plain failure when Anthropic's reply does not fit the tool's format", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "synthetic-anthropic-key");
     mocks.createMessage.mockResolvedValue({
+      usage: replyUsage,
       content: [{ type: "tool_use", name: "record_analytics_rows", input: { rows: [{ type: "Law", accuracy: 58 }, { type: "Strengthen", accuracy: 70 }] } }],
     });
 
@@ -187,6 +192,7 @@ describe("POST /api/analytics/extract", () => {
     vi.stubEnv("SCREENSHOT_EXTRACTOR", setting);
     vi.stubEnv("ANTHROPIC_API_KEY", "synthetic-anthropic-key");
     mocks.createMessage.mockResolvedValue({
+      usage: replyUsage,
       content: [{
         type: "tool_use",
         name: "record_analytics_rows",
@@ -219,6 +225,8 @@ describe("POST /api/analytics/extract", () => {
     });
     expect(mocks.constructClient).toHaveBeenCalledWith({ apiKey: "synthetic-anthropic-key", maxRetries: 0, timeout: 30_000 });
     expect(mocks.createMessage).toHaveBeenCalledOnce();
+    expect(mocks.takeScanPlace).toHaveBeenCalledWith("student-account", "analytics", expect.any(Date));
+    expect(mocks.freeScanPlace).toHaveBeenCalledWith(expect.objectContaining({ kind: "analytics" }), 0.0015);
   });
 
   it("says a read that took over 30 seconds stopped, and frees the running-scan place", async () => {
@@ -232,7 +240,7 @@ describe("POST /api/analytics/extract", () => {
     expect(response.status).toBe(504);
     expect(await response.json()).toEqual({ error: "Reading took too long and stopped. Try again." });
     expect(mocks.createMessage).toHaveBeenCalledOnce();
-    expect(mocks.freeScanPlace).toHaveBeenCalledWith({ subject: "student-account", startedAt: expect.any(Date) });
+    expect(mocks.freeScanPlace).toHaveBeenCalledWith({ subject: "student-account", kind: "analytics", startedAt: expect.any(Date) }, null);
   });
 
   it.each([
@@ -242,7 +250,7 @@ describe("POST /api/analytics/extract", () => {
     ["site-busy", "Many students are scanning right now. Wait a moment, then try this one.", 90_000, "90"],
   ])("refuses a %s scan with 429 and Retry-After, without running the extractor", async (refused, message, waitMs, retryAfter) => {
     vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
-    mocks.takeScanPlace.mockImplementation(async (_subject: string, realNow: Date) => ({
+    mocks.takeScanPlace.mockImplementation(async (_subject: string, _kind: string, realNow: Date) => ({
       refused, message, retryAt: new Date(realNow.getTime() + waitMs),
     }));
 
@@ -254,6 +262,19 @@ describe("POST /api/analytics/extract", () => {
     expect(await response.json()).toEqual({ error: message, reason: refused });
     expect(mocks.extractor).not.toHaveBeenCalled();
     expect(mocks.freeScanPlace).not.toHaveBeenCalled();
+  });
+
+  it("refuses a scan while scanning is off with 429 and no Retry-After, without running the extractor", async () => {
+    vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
+    mocks.takeScanPlace.mockResolvedValue({ refused: "scanning-off", message: "Scanning is off right now. Enter your analytics by hand." });
+
+    const { POST } = await import("./route");
+    const response = await POST(await imageRequest());
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBeNull();
+    expect(await response.json()).toEqual({ error: "Scanning is off right now. Enter your analytics by hand.", reason: "scanning-off" });
+    expect(mocks.extractor).not.toHaveBeenCalled();
   });
 
   it("keeps a finished read's rows when its running-scan place cannot be freed", async () => {

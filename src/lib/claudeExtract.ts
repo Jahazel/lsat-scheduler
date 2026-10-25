@@ -6,6 +6,9 @@ import type { AnalyticsExtractedRow, AnalyticsSection, LRLogicType, LRType, Prio
 
 const TOOL_NAME = "record_analytics_rows";
 const MODEL = "claude-haiku-4-5-20251001";
+const MODEL_USD_PER_MILLION_TOKENS = { input: 1, output: 5, cacheWrite: 1.25, cacheRead: 0.1 };
+
+export type RecordCost = (usd: number) => void;
 
 export function categoryFor(type: LRType, rules: RulesConfig): "regular" | "restricted" {
   if (!rules.lrLogicTypes.includes(type as LRLogicType)) return "regular";
@@ -32,6 +35,20 @@ function anthropicClient() {
   return new Anthropic({ apiKey, maxRetries: 0, timeout: 30_000 });
 }
 
+function replyCostUsd(usage: Anthropic.Usage) {
+  const price = MODEL_USD_PER_MILLION_TOKENS;
+  return (usage.input_tokens * price.input
+    + usage.output_tokens * price.output
+    + (usage.cache_creation_input_tokens ?? 0) * price.cacheWrite
+    + (usage.cache_read_input_tokens ?? 0) * price.cacheRead) / 1_000_000;
+}
+
+async function askClaude(request: Omit<Anthropic.MessageCreateParamsNonStreaming, "model">, recordCost: RecordCost) {
+  const response = await anthropicClient().messages.create({ model: MODEL, ...request });
+  recordCost(replyCostUsd(response.usage));
+  return response;
+}
+
 function imageBlock(imageBuffer: Buffer, mediaType: ScreenshotMediaType) {
   return { type: "image" as const, source: { type: "base64" as const, media_type: mediaType, data: imageBuffer.toString("base64") } };
 }
@@ -48,17 +65,20 @@ export function extractAnalyticsRowsFromImage(
   mediaType: ScreenshotMediaType,
   rules: RulesConfig,
   section: AnalyticsSection,
+  recordCost: RecordCost,
 ): Promise<AnalyticsExtractedRow[]> {
-  return section === "LR" ? extractLRRows(imageBuffer, mediaType, rules) : extractPassageRows(imageBuffer, mediaType, rules);
+  return section === "LR" ? extractLRRows(imageBuffer, mediaType, rules, recordCost) : extractPassageRows(imageBuffer, mediaType, rules, recordCost);
 }
 
-async function extractLRRows(imageBuffer: Buffer, mediaType: ScreenshotMediaType, rules: RulesConfig): Promise<AnalyticsExtractedRow[]> {
-  const client = anthropicClient();
-
+async function extractLRRows(
+  imageBuffer: Buffer,
+  mediaType: ScreenshotMediaType,
+  rules: RulesConfig,
+  recordCost: RecordCost,
+): Promise<AnalyticsExtractedRow[]> {
   const allTypes: LRType[] = [...rules.lrStemTypes, ...rules.lrLogicTypes];
 
-  const response = await client.messages.create({
-    model: MODEL,
+  const response = await askClaude({
     max_tokens: 1024,
     tool_choice: { type: "tool", name: TOOL_NAME },
     tools: [
@@ -110,7 +130,7 @@ For every row visible in the image, call ${TOOL_NAME} with one entry per row. Us
         ],
       },
     ],
-  });
+  }, recordCost);
 
   const { rows } = parseToolInput(response.content, TOOL_NAME, lrToolInput(allTypes));
   return rows.map(({ type, accuracy, priority }) => {
@@ -121,9 +141,13 @@ For every row visible in the image, call ${TOOL_NAME} with one entry per row. Us
   });
 }
 
-async function extractPassageRows(imageBuffer: Buffer, mediaType: ScreenshotMediaType, rules: RulesConfig): Promise<AnalyticsExtractedRow[]> {
-  const response = await anthropicClient().messages.create({
-    model: MODEL,
+async function extractPassageRows(
+  imageBuffer: Buffer,
+  mediaType: ScreenshotMediaType,
+  rules: RulesConfig,
+  recordCost: RecordCost,
+): Promise<AnalyticsExtractedRow[]> {
+  const response = await askClaude({
     max_tokens: 512,
     tool_choice: { type: "tool", name: TOOL_NAME },
     tools: [
@@ -163,7 +187,7 @@ Call ${TOOL_NAME} with one entry per passage-type row that is visible and shows 
         ],
       },
     ],
-  });
+  }, recordCost);
 
   const { rows } = parseToolInput(response.content, TOOL_NAME, passageToolInput(rules.rcTypes));
   return rows.map(({ type, accuracy }) => ({ type, category: "passage", accuracy }));
@@ -194,9 +218,12 @@ const ToolSectionReading = z.union([
   z.object({ page: z.enum(["analytics", "other"]) }),
 ]);
 
-export async function readPracticeTestSectionFromImage(imageBuffer: Buffer, mediaType: ScreenshotMediaType): Promise<SectionReading> {
-  const response = await anthropicClient().messages.create({
-    model: MODEL,
+export async function readPracticeTestSectionFromImage(
+  imageBuffer: Buffer,
+  mediaType: ScreenshotMediaType,
+  recordCost: RecordCost,
+): Promise<SectionReading> {
+  const response = await askClaude({
     max_tokens: 4096,
     tool_choice: { type: "tool", name: SECTION_TOOL_NAME },
     tools: [
@@ -250,7 +277,7 @@ Call ${SECTION_TOOL_NAME} once. For an LR section, report every visible row in o
         ],
       },
     ],
-  });
+  }, recordCost);
 
   return parseToolInput(response.content, SECTION_TOOL_NAME, ToolSectionReading);
 }

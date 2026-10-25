@@ -22,7 +22,7 @@ vi.mock("@anthropic-ai/sdk", () => ({
   },
 }));
 vi.mock("@/lib/scanPlaces", () => ({
-  takeScanPlace: async (subject: string, startedAt: Date) => ({ subject, startedAt }),
+  takeScanPlace: async (subject: string, kind: string, startedAt: Date) => ({ subject, kind, startedAt }),
   freeScanPlace: async () => {},
 }));
 import { POST as extract } from "@/app/api/analytics/extract/route";
@@ -51,7 +51,7 @@ describe("issue 70 request boundary evidence", () => {
     mocks.findStudent.mockReturnValue({
       _id: "synthetic-student", lean: async () => ({ _id: "synthetic-student" }),
     });
-    mocks.messages.mockResolvedValue({ content: [{ type: "tool_use", name: "record_analytics_rows", input: { rows: [] } }] });
+    mocks.messages.mockResolvedValue({ content: [{ type: "tool_use", name: "record_analytics_rows", input: { rows: [] } }], usage: { input_tokens: 1, output_tokens: 1 } });
     mocks.listStudents.mockResolvedValue([{ email: "student@example.invalid" }]);
     mocks.getStudent.mockResolvedValue({ email: "student@example.invalid" });
     mocks.findAccountById.mockResolvedValue({ role: "student" });
@@ -117,8 +117,8 @@ describe("issue 70 request boundary evidence", () => {
   it("fixed in issue 248: refuses model tool output outside the tool's format", async () => {
     mocks.messages.mockResolvedValue({ content: [{
       type: "tool_use", name: "record_analytics_rows", input: { rows: [{ type: "Unknown synthetic type", accuracy: 999, priority: "SOMETIMES" }] },
-    }] });
-    await expect(extractAnalyticsRowsFromImage(Buffer.from([0]), "image/png", mockRules, "LR")).rejects.toThrow("does not fit its format");
+    }], usage: { input_tokens: 1, output_tokens: 1 } });
+    await expect(extractAnalyticsRowsFromImage(Buffer.from([0]), "image/png", mockRules, "LR", () => {})).rejects.toThrow("does not fit its format");
   });
 
   it("strips profile ownership and operator fields but accepts a non-date goalTestDate", () => {

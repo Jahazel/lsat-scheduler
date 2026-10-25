@@ -113,7 +113,7 @@ export async function extractPracticeTestScreenshot(file: File): Promise<Section
 export const CANNOT_READ = "Couldn't read that screenshot. Try again or a clearer image.";
 export const TOOK_TOO_LONG = "Reading took too long and stopped. Try again.";
 
-export const stopsLaterScans = ({ refused }: ScanRefused) => refused === "daily-limit" || refused === "monthly-limit";
+export const stopsLaterScans = ({ refused }: ScanRefused) => refused === "scanning-off" || refused === "daily-limit" || refused === "monthly-limit";
 
 const NO_LR_ROWS = "We found no LR question types in that screenshot. Choose your Logical Reasoning screenshot.";
 

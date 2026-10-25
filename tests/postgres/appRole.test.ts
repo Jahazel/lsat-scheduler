@@ -206,6 +206,19 @@ it("counts, refuses, and deletes ended action counters through the app login", a
   }
 });
 
+it("reads the scan settings but refuses changing the emergency switch or the monthly limit through the app login", async () => {
+  expect((await appDb().execute(sql`select scanning_off, monthly_limit_usd from scan_settings`)).rows)
+    .toEqual([{ scanning_off: false, monthly_limit_usd: 10 }]);
+  for (const change of [
+    sql`update scan_settings set scanning_off = true`,
+    sql`update scan_settings set monthly_limit_usd = 1000`,
+    sql`delete from scan_settings`,
+    sql`insert into scan_settings default values`,
+  ]) {
+    await expect(appDb().execute(change)).rejects.toMatchObject({ cause: { code: "42501" } });
+  }
+});
+
 it("refuses switching the app login to the database owner", async () => {
   const row = z.object({ current_user: z.string() }).parse((await ownerDb().execute(sql`select current_user`)).rows[0]);
   await expect(appDb().execute(sql`set role ${sql.identifier(row.current_user)}`))
