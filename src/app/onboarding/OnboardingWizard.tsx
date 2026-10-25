@@ -57,7 +57,6 @@ const SMALL_BUTTON = `h-10 self-start rounded-sm border border-vellum-line bg-pa
 const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline ${FOCUS}`;
 const CHANGE_LATER = "You can change these any time in Study settings.";
 
-
 interface OnboardingWizardProps {
   firstName: string;
   initials: string;
@@ -546,22 +545,22 @@ function AnalyticsStep({
           <SnapshotReviewFields draft={typedDraft} lrRead={[]} files={{}} dispatch={dispatch} />
         </div>
       ) : (
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-3">
-          {SECTIONS.map((section) => (
-            <SectionUpload
-              key={section}
-              section={section}
-              screenshot={screenshots[section]}
-              rejection={state.rejections[section]}
-              onFile={(file) => onFile(section, file)}
-            />
-          ))}
-          {!anyAdded && <p className="text-small text-smoke">{SCREENSHOT_LIMITS} each.</p>}
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-3">
+            {SECTIONS.map((section) => (
+              <SectionUpload
+                key={section}
+                section={section}
+                screenshot={screenshots[section]}
+                rejection={state.rejections[section]}
+                onFile={(file) => onFile(section, file)}
+              />
+            ))}
+            {!anyAdded && <p className="text-small text-smoke">{SCREENSHOT_LIMITS} each.</p>}
+          </div>
+          {lrRead && <RowsFound rows={lrRead.rows} complete={screenshots.RC.status === "read"} />}
+          {!anyAdded && <WhereToFindIt />}
         </div>
-        {lrRead && <RowsFound rows={lrRead.rows} complete={screenshots.RC.status === "read"} />}
-        {!anyAdded && <WhereToFindIt />}
-      </div>
       )}
       <div className="flex flex-col gap-4">
         <div className="flex gap-3">

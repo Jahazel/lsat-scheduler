@@ -448,3 +448,48 @@ describe("WeeklyUpload", () => {
     expect(button("Check the values").disabled).toBe(false);
   });
 });
+
+describe("WeeklyUpload · Type them", () => {
+  it("reads the analytics screenshots when the student switches back to them after the sections were read", async () => {
+    const fetchSpy = stubServer();
+    const { user } = setup();
+    await addAnalytics(user);
+    await user.click(screen.getByLabelText("Type them"));
+    await user.click(screen.getByRole("button", { name: "Add a question type" }));
+    await user.type(screen.getByRole("combobox", { name: "Search question types" }), "Necessary");
+    await user.keyboard("{Enter}");
+    await user.type(screen.getByRole("textbox", { name: "Necessary assumption accuracy" }), "76");
+    await addSections(user);
+    await user.click(button("Read my 4 sections"));
+    await queueEmpty();
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
+
+    await user.click(screen.getByLabelText("Screenshots"));
+    await queueEmpty();
+
+    expect(fetchSpy).toHaveBeenCalledTimes(6);
+    expect(screen.getByText("lr-analytics.png · 3 question types")).toBeDefined();
+    expect(button("Check the values").disabled).toBe(false);
+  }, 15_000);
+
+  it("names the typed values, not the screenshots, when a typed value breaks after reading", async () => {
+    stubServer();
+    const { user } = setup();
+    await user.click(screen.getByLabelText("Type them"));
+    await user.click(screen.getByRole("button", { name: "Add a question type" }));
+    await user.type(screen.getByRole("combobox", { name: "Search question types" }), "Necessary");
+    await user.keyboard("{Enter}");
+    await user.type(screen.getByRole("textbox", { name: "Necessary assumption accuracy" }), "76");
+    await addSections(user);
+    await user.click(button("Read my 4 sections"));
+    await queueEmpty();
+    const summary = screen.getByRole("heading", { name: "Screenshots" }).closest("section") as HTMLElement;
+    expect(within(summary).getByText("4 of 4 read")).toBeDefined();
+
+    await user.clear(screen.getByRole("textbox", { name: "Necessary assumption accuracy" }));
+    await user.type(screen.getByRole("textbox", { name: "Necessary assumption accuracy" }), "104");
+
+    expect(screen.getByText("Next week starts Monday, Oct 5. Fix the values marked below, then check them.")).toBeDefined();
+    expect(button("Check the values").disabled).toBe(true);
+  }, 15_000);
+});

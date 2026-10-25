@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useId, useRef, useState, type Key
 import { Checkbox as SharedCheckbox } from "@/components/ui/Checkbox";
 import { SECTION_NAME, isTyped, lowestPassageType, type ReviewRow, type Statement } from "@/lib/analyticsReview";
 import {
-  accuracyMessage, addTypeOptions, boxText, emptyListNote, tierMessage,
+  accuracyMessage, addTypeOptions, boxText, emptyListNote, listedTypes, tierMessage,
   type AnalyticsType, type ReviewAction, type ReviewDraft, type ReviewList,
 } from "@/lib/reviewDraft";
 import type { AnalyticsExtractedRow, AnalyticsSection, LRType, PriorityTier } from "@/lib/types";
@@ -227,9 +227,9 @@ function ReviewFields({ draft, lrRead, files, dispatch }: {
       }}
     />
   );
-  const passages = (caption: string) => (
+  const passages = (caption: string, file: File | undefined) => (
     <>
-      <SectionHeading section="RC" file={files.RC} />
+      <SectionHeading section="RC" file={file} />
       <div className="flex flex-col">
         <ListCaption>{caption}</ListCaption>
         {passageRows.map((entry) =>
@@ -278,7 +278,7 @@ function ReviewFields({ draft, lrRead, files, dispatch }: {
           </div>
         )}
         {addType}
-        {passages("Passage types · leave a box empty if 7Sage shows no percentage")}
+        {passages("Passage types · leave a box empty if 7Sage shows no percentage", undefined)}
       </>
     );
   }
@@ -321,7 +321,7 @@ function ReviewFields({ draft, lrRead, files, dispatch }: {
         {emptyNote("flags")}
       </div>
       {addType}
-      {passages("Passage types · lowest goes first in your plan")}
+      {passages("Passage types · lowest goes first in your plan", files.RC)}
     </>
   );
 }
@@ -625,6 +625,9 @@ function AddType({
           </div>
         ))}
       </div>
+      {typed && listedTypes(draft, query).map((type) => (
+        <p key={type} className="px-3 text-caption text-smoke">{type} is already on your list.</p>
+      ))}
     </div>
   );
 }

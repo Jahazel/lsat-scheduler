@@ -856,6 +856,34 @@ describe("OnboardingWizard · Type them", () => {
     expect(preview().getByText("Typed · not confirmed")).toBeDefined();
   });
 
+  it("shows no screenshot on the typed check page, even after one was uploaded", async () => {
+    const { user } = await fillGoalAndWeek();
+    await upload(user, rcScreenshot, "RC");
+    await screen.findByText("rc-analytics.png · 5 passage types");
+
+    await user.click(screen.getByLabelText("Type them"));
+    await addType(user, "Diagram");
+    await user.type(box("Diagram"), "64");
+    await user.click(continueButton());
+
+    expect(screen.getByRole("heading", { name: "Check your analytics" })).toBeDefined();
+    expect(screen.queryByRole("button", { name: /Show your RC screenshot/ })).toBeNull();
+    expect(screen.queryByRole("img", { name: /screenshot/ })).toBeNull();
+  });
+
+  it("says a type is already on the list instead of offering it twice", async () => {
+    const { user } = await fillGoalAndWeek();
+    await user.click(screen.getByLabelText("Type them"));
+    await addType(user, "Necessary assumption");
+    await user.click(screen.getByRole("button", { name: "Add a question type" }));
+    await user.type(screen.getByRole("combobox", { name: "Search question types" }), "assum");
+
+    const options = within(screen.getByRole("listbox", { name: "Question types" }));
+    expect(options.queryByRole("option", { name: "Necessary assumption" })).toBeNull();
+    expect(options.getByRole("option", { name: /Sufficient assumption/ })).toBeDefined();
+    expect(screen.getByText("Necessary assumption is already on your list.")).toBeDefined();
+  });
+
   it("keeps typed values when the student switches to screenshots and back", async () => {
     const { user } = await fillGoalAndWeek();
 

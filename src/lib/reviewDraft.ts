@@ -96,11 +96,13 @@ export type ConfirmLock = {
   fix: { at: "box"; type: AnalyticsType } | { at: "tier"; type: LRType } | { at: "add-type" } | { at: "statements" };
 };
 
-function emptyReason(review: SnapshotReview) {
-  if (!isTyped(review)) return "Add an accuracy value or tick a flag to confirm.";
+type LockAction = "confirm" | "continue";
+
+function emptyReason(review: SnapshotReview, action: LockAction) {
+  if (!isTyped(review)) return `Add an accuracy value or tick a flag to ${action}.`;
   return review.rows.some(({ row }) => row.category !== "passage")
-    ? "Add a percentage or a Highest tier to confirm."
-    : "Add a Logical Reasoning type to confirm.";
+    ? `Add a percentage or a Highest tier to ${action}.`
+    : `Add a Logical Reasoning type to ${action}.`;
 }
 
 export const ANALYTICS_INPUTS = [
@@ -109,21 +111,26 @@ export const ANALYTICS_INPUTS = [
 ] as const;
 export type AnalyticsInput = (typeof ANALYTICS_INPUTS)[number]["value"];
 
-export function typedEntryProblem(review: SnapshotReview): string | null {
-  const lock = confirmLock(review);
-  return lock && lock.fix.at !== "statements" ? lock.reason.replace(/to confirm\.$/, "to continue.") : null;
-}
-
-export function confirmLock(review: SnapshotReview): ConfirmLock | null {
+function valueLock(review: SnapshotReview, action: LockAction): ConfirmLock | null {
   const wrong = review.rows.filter(({ row }) => rowWrong(review, row));
   if (wrong.length > 0) {
-    const reason = wrong.length === 1 ? `Fix ${wrong[0].row.type} above to confirm.` : `Fix ${wrong.length} values above to confirm.`;
+    const reason = wrong.length === 1 ? `Fix ${wrong[0].row.type} above to ${action}.` : `Fix ${wrong.length} values above to ${action}.`;
     const { row } = wrong[0];
     return { reason, fix: row.category === "restricted" ? { at: "tier", type: row.type } : { at: "box", type: row.type } };
   }
   const counts = ({ row }: ReviewRow) =>
     row.category === "regular" ? row.accuracy !== undefined : row.category === "restricted" && row.isTopPriority;
-  if (!review.rows.some(counts)) return { reason: emptyReason(review), fix: { at: "add-type" } };
+  if (!review.rows.some(counts)) return { reason: emptyReason(review, action), fix: { at: "add-type" } };
+  return null;
+}
+
+export function typedEntryProblem(review: SnapshotReview): string | null {
+  return valueLock(review, "continue")?.reason ?? null;
+}
+
+export function confirmLock(review: SnapshotReview): ConfirmLock | null {
+  const lock = valueLock(review, "confirm");
+  if (lock) return lock;
   if (!review.confirmation.confirmedAt) return { reason: "Tick both statements to confirm.", fix: { at: "statements" } };
   return null;
 }
@@ -167,13 +174,21 @@ export function emptyListNote(draft: ReviewDraft, lrRead: AnalyticsExtractedRow[
   return EMPTY_LIST_NOTE[list];
 }
 
+const wordStart = (query: string) => new RegExp(`\\b${query.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
+
 export function addTypeOptions(draft: ReviewDraft, query: string): Record<ReviewList, LRType[]> {
   const options: Record<ReviewList, LRType[]> = { accuracy: [], flags: [] };
-  const wordStart = new RegExp(`\\b${query.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
+  const matches = wordStart(query);
   for (const { type, category } of missingTypes(draft.review)) {
-    if (!wordStart.test(type)) continue;
+    if (!matches.test(type)) continue;
     options[category === "regular" ? "accuracy" : "flags"].push(type);
   }
   for (const list of Object.values(options)) list.sort((a, b) => a.localeCompare(b));
   return options;
+}
+
+export function listedTypes(draft: ReviewDraft, query: string): LRType[] {
+  if (query.trim() === "") return [];
+  const matches = wordStart(query);
+  return draft.review.rows.flatMap(({ row }) => (row.category !== "passage" && matches.test(row.type) ? [row.type] : []));
 }

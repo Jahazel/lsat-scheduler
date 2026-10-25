@@ -208,6 +208,19 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
     setSections((current) => current.map((upload) => ({ ...upload, read: { status: "waiting" } })));
   }
 
+  function chooseInput(next: AnalyticsInput) {
+    setInput(next);
+    if (!started || next !== "screenshots") return;
+    setAnalytics((current) => {
+      const queuedNow = { ...current };
+      for (const section of SECTIONS) {
+        const upload = current[section];
+        if (upload?.read.status === "added") queuedNow[section] = { ...upload, read: { status: "waiting" } };
+      }
+      return queuedNow;
+    });
+  }
+
   function tryAgain(section: AnalyticsSection | null, id: number) {
     const waiting = <T extends { id: number }>(upload: T) => (upload.id === id ? { ...upload, read: { status: "waiting" as const } } : upload);
     if (section) setAnalytics((current) => ({ ...current, [section]: current[section] && waiting(current[section]) }));
@@ -242,8 +255,8 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   const analyticsRead = SECTIONS.every((section) => analytics[section]?.read.status === "read");
   const analyticsReady = typed ? typedProblem === null : started && analyticsRead;
   const allAdded = (typed || SECTIONS.every((section) => analytics[section])) && (!needsSections || sections.length >= SECTION_COUNT);
-  const analyticsUploads = typed ? {} : analytics;
-  const uploads = [...SECTIONS.flatMap((section) => analyticsUploads[section] ?? []), ...sections];
+  const shownAnalytics = typed ? {} : analytics;
+  const uploads = [...SECTIONS.flatMap((section) => shownAnalytics[section] ?? []), ...sections];
   const anyReading = started && uploads.some(({ read }) => PENDING.includes(read.status));
   const readCount = (group: { read: Read<unknown> }[]) => `${group.filter(({ read }) => read.status === "read").length} of ${group.length} read`;
   const settledCount = uploads.filter(({ read }) => !PENDING.includes(read.status)).length;
@@ -301,7 +314,9 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
       ? `${start} We read ${typed ? "all 4 sections" : needsSections ? "all 6 screenshots" : "both screenshots"}. Check them, then build your weekly schedule.`
       : anyReading
         ? `${start} We read your screenshots one at a time. You don't need to click anything.`
-        : `${start} Fix the screenshots marked below, then check them.`;
+        : typedProblem
+          ? `${start} Fix the values marked below, then check them.`
+          : `${start} Fix the screenshots marked below, then check them.`;
 
   const hint = typed && !started
     ? needsSections && !allAdded && typedDraft.review.rows.every(({ row }) => row.category === "passage")
@@ -346,7 +361,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
         />
 
         {summarized && (needsSections || !typed) && (
-          <ReadSummary analytics={analyticsUploads} sections={sections} onAnalytics={addAnalytics} onReplace={replaceSection} />
+          <ReadSummary analytics={shownAnalytics} sections={sections} onAnalytics={addAnalytics} onReplace={replaceSection} />
         )}
 
         <UploadGroup
@@ -354,7 +369,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
           count={typed ? "Typed by you" : started ? readCount(SECTIONS.flatMap((section) => analytics[section] ?? [])) : "Screenshots or typed"}
           className={summarized && !typed ? "max-md:hidden" : undefined}
         >
-          <SegmentedSwitch name="analyticsInput" label="How to add your analytics" options={ANALYTICS_INPUTS} value={input} onChange={setInput} />
+          <SegmentedSwitch name="analyticsInput" label="How to add your analytics" options={ANALYTICS_INPUTS} value={input} onChange={chooseInput} />
           {typed ? (
             <div className="flex flex-col gap-5">
               <SnapshotReviewFields idPrefix="typed-" draft={typedDraft} lrRead={[]} files={{}} dispatch={dispatchTyped} />
@@ -517,7 +532,7 @@ function ReadSummary({ analytics, sections, onAnalytics, onReplace }: {
     }),
   ];
   return (
-    <UploadGroup title="Screenshots" count={`${rows.length} of ${SECTIONS.length + sections.length} read`} className="md:hidden">
+    <UploadGroup title="Screenshots" count={`${rows.length} of ${SECTIONS.filter((section) => analytics[section]).length + sections.length} read`} className="md:hidden">
       <ul className="flex flex-col rounded-md border border-vellum-line px-4">
         {rows.map(({ upload, label, value, onFile }) => (
           <li key={upload.id} className="flex h-12 items-center gap-2.5 border-b border-vellum-line last:border-b-0">
