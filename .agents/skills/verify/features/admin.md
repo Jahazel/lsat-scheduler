@@ -35,6 +35,7 @@ Preconditions:
 
 - A seeded Admin is setup, not proof of authorization. The `make-admin` command still needs a fresh sign-in after promotion; a seeded Admin signs in with the Admin role from the start.
 - Rebuild and reset use Postgres transactions.
+- Each sample approval uses one of the Account's 5 analytics saves for the real day. Generate sample and `Back` use none. Resets and Simulated date do not give saves back. A full recipe with two weekly approvals leaves 3; seed a second Admin for more.
 - Sample generation is unavailable before onboarding. It creates candidate values; approval still requires both statements.
 - Test controls can be collapsed. On desktop, `Generate sample` collapses the dock. Expand it again before the next control. The desktop dock and the narrow-width overlay are both in the DOM, so each control name matches twice. In T3, add `>> visible=true` to the locator, such as `role=button[name="Next Monday"] >> visible=true`. Use snapshot names rather than coordinates. Resize the browser and exercise the overlay when responsive controls change.
 - Direct Admin views of students use the real date. Simulated date affects only the Admin's own student side.
