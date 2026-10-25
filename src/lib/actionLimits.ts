@@ -8,14 +8,18 @@ const ZONE_WITHOUT_A_REPEATED_HOUR = "UTC";
 const WINDOWS = {
   hour: { unit: "hour", zone: ZONE_WITHOUT_A_REPEATED_HOUR },
   day: { unit: "day", zone: SCHEDULE_TIMEZONE },
+  month: { unit: "month", zone: SCHEDULE_TIMEZONE },
 } as const;
 
 const LIMITS = {
   leadCapture: { max: 5, window: WINDOWS.hour },
   analyticsSnapshotSave: { max: 5, window: WINDOWS.day },
+  scanInDay: { max: 10, window: WINDOWS.day },
+  scanInMonth: { max: 40, window: WINDOWS.month },
 } as const;
 
 export type LimitedAction = keyof typeof LIMITS;
+export const limitOf = (action: LimitedAction) => LIMITS[action].max;
 export type LimitResult = { allowed: true } | { allowed: false; windowEnd: Date };
 
 /**

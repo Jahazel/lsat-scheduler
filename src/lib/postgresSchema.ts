@@ -113,3 +113,8 @@ export const actionCounters = pgTable("action_counters", {
   windowEnd: timestamp("window_end", { withTimezone: true }).notNull(),
   count: integer("count").notNull(),
 }, (table) => [primaryKey({ columns: [table.action, table.subject, table.windowStart] })]);
+
+export const runningScans = pgTable("running_scans", {
+  subject: text("subject").primaryKey(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+});

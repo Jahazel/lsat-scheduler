@@ -29,7 +29,7 @@ function anthropicClient() {
   if (!apiKey) {
     throw new Error("Anthropic API key is not configured");
   }
-  return new Anthropic({ apiKey });
+  return new Anthropic({ apiKey, maxRetries: 0, timeout: 30_000 });
 }
 
 function imageBlock(imageBuffer: Buffer, mediaType: ScreenshotMediaType) {

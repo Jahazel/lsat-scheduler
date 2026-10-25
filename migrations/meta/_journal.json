@@ -64,6 +64,13 @@
       "when": 1792195200000,
       "tag": "0008_action_counters",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792281600000,
+      "tag": "0009_running_scans",
+      "breakpoints": true
     }
   ]
 }

@@ -7,9 +7,12 @@ const mocks = vi.hoisted(() => ({
   constructClient: vi.fn(),
   createMessage: vi.fn(),
   extractor: vi.fn(),
+  takeScanPlace: vi.fn(),
+  freeScanPlace: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
+vi.mock("@/lib/scanPlaces", () => ({ takeScanPlace: mocks.takeScanPlace, freeScanPlace: mocks.freeScanPlace }));
 vi.mock("@/lib/screenshotExtractor", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/screenshotExtractor")>();
   return {
@@ -23,6 +26,8 @@ vi.mock("@/lib/screenshotExtractor", async (importOriginal) => {
 
 vi.mock("@anthropic-ai/sdk", () => ({
   default: class {
+    static APIConnectionTimeoutError = class extends Error {};
+
     messages = { create: mocks.createMessage };
 
     constructor(options?: { apiKey?: string }) {
@@ -55,6 +60,7 @@ describe("POST /api/analytics/extract", () => {
     vi.stubEnv("SCREENSHOT_EXTRACTOR", undefined);
     mocks.auth.mockResolvedValue({ user: { id: "student-account", role: "student" } });
     mocks.createMessage.mockResolvedValue({ content: [] });
+    mocks.takeScanPlace.mockImplementation(async (subject: string, startedAt: Date) => ({ subject, startedAt }));
   });
 
   afterEach(() => {
@@ -210,8 +216,50 @@ describe("POST /api/analytics/extract", () => {
         { type: "Conditional reasoning", category: "regular", accuracy: 85 },
       ],
     });
-    expect(mocks.constructClient).toHaveBeenCalledWith({ apiKey: "synthetic-anthropic-key" });
+    expect(mocks.constructClient).toHaveBeenCalledWith({ apiKey: "synthetic-anthropic-key", maxRetries: 0, timeout: 30_000 });
     expect(mocks.createMessage).toHaveBeenCalledOnce();
+  });
+
+  it("says a read that took over 30 seconds stopped, and frees the running-scan place", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "synthetic-anthropic-key");
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    mocks.createMessage.mockRejectedValue(new Anthropic.APIConnectionTimeoutError());
+
+    const { POST } = await import("./route");
+    const response = await POST(await imageRequest());
+
+    expect(response.status).toBe(504);
+    expect(await response.json()).toEqual({ error: "Reading took too long and stopped. Try again." });
+    expect(mocks.createMessage).toHaveBeenCalledOnce();
+    expect(mocks.freeScanPlace).toHaveBeenCalledWith({ subject: "student-account", startedAt: expect.any(Date) });
+  });
+
+  it.each([
+    ["daily-limit", "You've read 10 screenshots today. You can scan again tomorrow, after midnight Central time.", 3_600_000, "3600"],
+    ["still-reading", "We're still reading your last screenshot. Wait a moment, then try this one.", 1_500, "2"],
+  ])("refuses a %s scan with 429 and Retry-After, without running the extractor", async (refused, message, waitMs, retryAfter) => {
+    vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
+    mocks.takeScanPlace.mockImplementation(async (_subject: string, realNow: Date) => ({
+      refused, message, retryAt: new Date(realNow.getTime() + waitMs),
+    }));
+
+    const { POST } = await import("./route");
+    const response = await POST(await imageRequest());
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe(retryAfter);
+    expect(await response.json()).toEqual({ error: message, reason: refused });
+    expect(mocks.extractor).not.toHaveBeenCalled();
+    expect(mocks.freeScanPlace).not.toHaveBeenCalled();
+  });
+
+  it("counts no scan for a screenshot with a wrong section", async () => {
+    vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
+
+    const { POST } = await import("./route");
+    await POST(await imageRequest(undefined, "Writing"));
+
+    expect(mocks.takeScanPlace).not.toHaveBeenCalled();
   });
 
   it("handles a client creation failure as a plain screenshot error", async () => {
