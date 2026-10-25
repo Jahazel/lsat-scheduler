@@ -52,7 +52,7 @@ const commands = {
 const usage = (name) => `local.mjs ${name} <run-dir>${commands[name].args}`;
 const help = (name) => `Usage: ${usage(name)}\n\n${commands[name].does}\n\nExample:\n  ./.agents/skills/verify/scripts/local.mjs ${commands[name].example}\n`;
 const overview = () => `Usage: local.mjs <command> <run-dir> [arguments]\n       local.mjs <command> --help\n\n`
-  + `<run-dir> is a new directory below .verification/evidence/, such as .verification/evidence/20261025T120000Z.\n`
+  + `<run-dir> is below .verification/evidence/. launch needs a new one, such as .verification/evidence/20261025T120000Z;\nthe other commands take the directory that launch made.\n`
   + `Run from the repository root. Every command needs DATABASE_URL set to a loopback Postgres owner connection.\n\nCommands:\n`
   + Object.entries(commands).map(([name, { does }]) => `  ${name.padEnd(8)} ${does.split(". ")[0].replace(/\.$/, "")}.`).join("\n")
   + `\n\nThe full recipe is .agents/skills/verify/SKILL.md.\n`;
@@ -62,9 +62,14 @@ function refuse(message) {
 }
 
 const [command, directory, ...extra] = process.argv.slice(2);
-if (!command || ["--help", "-h", "help"].includes(command)) {
+if (!command) refuse(overview());
+if (command === "help" && Object.hasOwn(commands, directory)) {
+  process.stdout.write(help(directory));
+  process.exit(0);
+}
+if (["--help", "-h", "help"].includes(command)) {
   process.stdout.write(overview());
-  process.exit(command ? 0 : 1);
+  process.exit(0);
 }
 if (!Object.hasOwn(commands, command)) refuse(`Unknown command "${command}".\n\n${overview()}`);
 if ([directory, ...extra].some((arg) => arg === "--help" || arg === "-h")) {
