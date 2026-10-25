@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import WeeklyUpload from "./WeeklyUpload";
 import { mockStudent } from "@/lib/mockData";
@@ -73,8 +73,10 @@ async function readAll(user: ReturnType<typeof userEvent.setup>, names = SECTION
   await addAnalytics(user);
   await addSections(user, names);
   await user.click(button("Read my screenshots"));
-  await screen.findByText("rc-analytics.png · 5 passage types");
+  await queueEmpty();
 }
+
+const queueEmpty = () => waitFor(() => expect(screen.queryByText(/ · (Waiting to read|Reading now)$/)).toBeNull());
 
 describe("WeeklyUpload", () => {
   it("asks for 6 screenshots with the score from Study settings and the read button off", () => {
@@ -221,7 +223,7 @@ describe("WeeklyUpload", () => {
     await user.clear(score);
     await user.type(score, "158");
     await user.click(button("Read my screenshots"));
-    await screen.findByText("rc-analytics.png · 5 passage types");
+    await queueEmpty();
     expect(button("Check the values").disabled).toBe(false);
     await user.type(score, "0");
     expect(button("Check the values").disabled).toBe(true);
@@ -335,6 +337,7 @@ describe("WeeklyUpload", () => {
 
     await user.upload(screen.getAllByLabelText("Replacement for wrong.png")[0], png("unreadable.png"));
     expect(await screen.findByText("Couldn't read that screenshot. Try again or a clearer image.")).toBeDefined();
+    await queueEmpty();
     expect(button("Check the values").disabled).toBe(true);
   });
 
@@ -367,6 +370,81 @@ describe("WeeklyUpload", () => {
     await addSections(user);
     await user.click(button("Read my screenshots"));
     expect(await screen.findByText("Couldn't read that screenshot. Try again or a clearer image.")).toBeDefined();
+    await queueEmpty();
     expect(button("Check the values").disabled).toBe(true);
+  });
+
+  it("reads one screenshot at a time, in page order, with the rest waiting", async () => {
+    const order: string[] = [];
+    let running = 0;
+    let mostRunning = 0;
+    const server = stubServer();
+    const answer = server.getMockImplementation()!;
+    server.mockImplementation(async (url, init) => {
+      running += 1;
+      mostRunning = Math.max(mostRunning, running);
+      order.push(((init.body as FormData).get("image") as File).name);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      running -= 1;
+      return answer(url, init);
+    });
+    const { user } = setup();
+    await addAnalytics(user);
+    await addSections(user);
+    await user.click(button("Read my screenshots"));
+
+    expect(screen.getByText("lr-analytics.png · Reading now")).toBeDefined();
+    expect(screen.getByText("rc-analytics.png · Waiting to read")).toBeDefined();
+    expect(screen.getAllByText(/^pt158-s\d\.png · Waiting to read$/)).toHaveLength(4);
+    expect(button("Reading 1 of 6…").disabled).toBe(true);
+    expect(screen.getByText("Each screenshot takes up to 30 seconds.")).toBeDefined();
+    await queueEmpty();
+
+    expect(mostRunning).toBe(1);
+    expect(order).toEqual(["lr-analytics.png", "rc-analytics.png", ...SECTION_FILES]);
+    expect(button("Check the values").disabled).toBe(false);
+  });
+
+  it("stops the waiting screenshots at the daily scan limit and keeps what was read", async () => {
+    const message = "You've read 10 screenshots today. You can scan again tomorrow, after midnight Central time.";
+    const server = stubServer({}, { RC: Response.json({ error: message, reason: "daily-limit" }, { status: 429 }) });
+    const { user } = setup();
+    await readAll(user);
+
+    expect(screen.getByText("lr-analytics.png · 3 question types")).toBeDefined();
+    expect(screen.getAllByText(message)).toHaveLength(5);
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(server).toHaveBeenCalledTimes(2);
+    expect(button("Check the values").disabled).toBe(true);
+  });
+
+  it("offers Try again when the last screenshot is still being read, and reads it on the press", async () => {
+    const server = stubServer({}, {
+      LR: Response.json({ error: "We're still reading your last screenshot. Wait a moment, then try this one.", reason: "still-reading" }, { status: 429 }),
+    });
+    const { user } = setup(false);
+    await addAnalytics(user);
+    await user.click(button("Read my screenshots"));
+    await queueEmpty();
+    expect(screen.getByText("We're still reading your last screenshot. Wait a moment, then try this one.")).toBeDefined();
+    expect(screen.getByText("rc-analytics.png · 5 passage types")).toBeDefined();
+
+    stubServer();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("lr-analytics.png · 3 question types")).toBeDefined();
+    expect(server).toHaveBeenCalledTimes(2);
+  });
+
+  it("says a read that took too long stopped, and one Try again sends one new read", async () => {
+    stubServer({ "pt158-s2.png": new Response(null, { status: 504 }) });
+    const { user } = setup();
+    await readAll(user);
+    expect(screen.getByText("Reading took too long and stopped. Try again.")).toBeDefined();
+
+    const retry = stubServer();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    await screen.findByText("pt158-s2.png · score −2");
+    expect(retry).toHaveBeenCalledOnce();
+    expect(button("Check the values").disabled).toBe(false);
   });
 });

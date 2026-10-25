@@ -6,9 +6,12 @@ import { fixture as screenshotFixture, png as pngOf, screenshotRequest } from "@
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   extractor: vi.fn(),
+  takeScanPlace: vi.fn(),
+  freeScanPlace: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
+vi.mock("@/lib/scanPlaces", () => ({ takeScanPlace: mocks.takeScanPlace, freeScanPlace: mocks.freeScanPlace }));
 vi.mock("@/lib/screenshotExtractor", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/screenshotExtractor")>();
   mocks.extractor.mockImplementation(original.extractPracticeTestSection);
@@ -25,6 +28,8 @@ describe("POST /api/practice-test/extract", () => {
   beforeEach(() => {
     vi.resetModules();
     mocks.extractor.mockClear();
+    mocks.freeScanPlace.mockReset().mockResolvedValue(undefined);
+    mocks.takeScanPlace.mockReset().mockImplementation(async (subject: string, startedAt: Date) => ({ subject, startedAt }));
     mocks.auth.mockResolvedValue({ user: { id: "student-account", role: "student" } });
     vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
   });
@@ -78,13 +83,14 @@ describe("POST /api/practice-test/extract", () => {
     ["an image over 25 megapixels", new File([new Uint8Array(pngOf(8000, 3126))], "huge.png", { type: "image/png" }), 422, "image-too-large"],
     ["an animated PNG", new File([new Uint8Array(pngOf(40, 30, { animated: true }))], "loop.png", { type: "image/png" }), 422, "animated"],
     ["an animated WebP", new File([new Uint8Array(screenshotFixture("animated.webp"))], "loop.webp", { type: "image/webp" }), 422, "animated"],
-  ])("refuses %s without running the extractor", async (_case, file, status, reason) => {
+  ])("refuses %s without counting a scan or running the extractor", async (_case, file, status, reason) => {
     const { POST } = await import("./route");
     const response = await POST(await imageRequest(file));
 
     expect(response.status).toBe(status);
     expect((await response.json()).reason).toBe(reason);
     expect(mocks.extractor).not.toHaveBeenCalled();
+    expect(mocks.takeScanPlace).not.toHaveBeenCalled();
   });
 
   it("returns the plain failure when the extractor fails", async () => {
@@ -94,5 +100,32 @@ describe("POST /api/practice-test/extract", () => {
 
     expect(response.status).toBe(502);
     expect(await response.json()).toEqual({ error: "Couldn't read that screenshot" });
+  });
+
+  it.each([
+    ["daily-limit", "You've read 10 screenshots today. You can scan again tomorrow, after midnight Central time.", 3_600_000, "3600"],
+    ["monthly-limit", "You've read 40 screenshots this month. You can scan again on Nov 1.", 86_400_000, "86400"],
+    ["still-reading", "We're still reading your last screenshot. Wait a moment, then try this one.", 1_500, "2"],
+    ["site-busy", "Many students are scanning right now. Wait a moment, then try this one.", 90_000, "90"],
+  ])("refuses a %s scan with 429 and Retry-After, without running the extractor", async (refused, message, waitMs, retryAfter) => {
+    mocks.takeScanPlace.mockImplementation(async (_subject: string, realNow: Date) => ({
+      refused, message, retryAt: new Date(realNow.getTime() + waitMs),
+    }));
+    const { POST } = await import("./route");
+    const response = await POST(await imageRequest());
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe(retryAfter);
+    expect(await response.json()).toEqual({ error: message, reason: refused });
+    expect(mocks.extractor).not.toHaveBeenCalled();
+  });
+
+  it("frees the running-scan place after a failed read", async () => {
+    vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake-failure");
+    const { POST } = await import("./route");
+    await POST(await imageRequest());
+
+    expect(mocks.takeScanPlace).toHaveBeenCalledWith("student-account", expect.any(Date));
+    expect(mocks.freeScanPlace).toHaveBeenCalledWith(await mocks.takeScanPlace.mock.results[0].value);
   });
 });

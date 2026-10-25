@@ -47,6 +47,19 @@ describe("extractScreenshot", () => {
     expect(await extractScreenshot(file, "LR")).toEqual({ kind: "signed-out" });
   });
 
+  it("passes on a scan refusal with its reason and message", async () => {
+    const message = "You've read 10 screenshots today. You can scan again tomorrow, after midnight Central time.";
+    replyWith(429, { error: message, reason: "daily-limit" });
+
+    expect(await extractScreenshot(file, "LR")).toEqual({ kind: "refused", refused: "daily-limit", message });
+  });
+
+  it("treats a 504 reply as a read that took too long", async () => {
+    replyWith(504, { error: "Reading took too long and stopped. Try again." });
+
+    expect(await extractScreenshot(file, "LR")).toEqual({ kind: "timed-out" });
+  });
+
   it("treats a network failure or another server error as a lost connection", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
     expect(await extractScreenshot(file, "LR")).toEqual({ kind: "connection-lost" });
@@ -63,6 +76,7 @@ describe("readAnalyticsScreenshot", () => {
     expect(await readAnalyticsScreenshot(file, "LR")).toEqual({
       kind: "problem",
       message: "We found no LR question types in that screenshot. Choose your Logical Reasoning screenshot.",
+      tryAgain: false,
     });
   });
 

@@ -15,7 +15,15 @@ vi.mock("@/models/Student", () => ({ StudentModel: { findOne: mocks.findStudent 
 vi.mock("@/lib/studentRepository", () => ({ listStudentsWithOwners: mocks.listStudents, findStudentWithOwner: mocks.getStudent }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@anthropic-ai/sdk", () => ({
-  default: class { messages = { create: mocks.messages }; },
+  default: class {
+    static APIConnectionTimeoutError = class extends Error {};
+
+    messages = { create: mocks.messages };
+  },
+}));
+vi.mock("@/lib/scanPlaces", () => ({
+  takeScanPlace: async (subject: string, startedAt: Date) => ({ subject, startedAt }),
+  freeScanPlace: async () => {},
 }));
 import { POST as extract } from "@/app/api/analytics/extract/route";
 import { GET as roster } from "@/app/api/students/route";

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SECTION_NAME } from "@/lib/analyticsReview";
 import type { ExtractReply } from "@/lib/screenshotUpload";
@@ -285,7 +285,7 @@ describe("OnboardingWizard", () => {
       expect((screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement).disabled).toBe(true);
 
       await upload(user);
-      expect(screen.getByText("lr-analytics.png · Reading…")).toBeDefined();
+      expect(screen.getByText("lr-analytics.png · Reading now")).toBeDefined();
       expect(screen.getByRole("progressbar", { name: "Reading your Logical Reasoning screenshot" })).toBeDefined();
       expect(checkTheValues().disabled).toBe(true);
       expect(screen.getByRole("button", { name: "Skip for now" })).toBeDefined();
@@ -427,11 +427,57 @@ describe("OnboardingWizard", () => {
 
       await upload(user, new File(["png"], "first.png", { type: "image/png" }));
       await upload(user);
+      expect(screen.getByText("lr-analytics.png · Waiting to read")).toBeDefined();
+      expect(extract).toHaveBeenCalledOnce();
       replies[0]({ kind: "cannot-read" });
+      await waitFor(() => expect(extract).toHaveBeenCalledTimes(2));
       replies[1](rows);
 
       expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
       expect(screen.queryByText(/We couldn't read the rows in it\./)).toBeNull();
+    });
+
+    it("reads the RC screenshot only after the LR read ends", async () => {
+      let finishLr: (reply: ExtractReply) => void = () => {};
+      const extract = vi.fn<Extract>((_file, section) =>
+        section === "LR" ? new Promise<ExtractReply>((resolve) => { finishLr = resolve; }) : Promise.resolve(rcRows));
+      const { user } = await fillGoalAndWeek(undefined, extract);
+
+      await upload(user);
+      await upload(user, rcScreenshot, "RC");
+      expect(screen.getByText("rc-analytics.png · Waiting to read")).toBeDefined();
+      expect(extract).toHaveBeenCalledOnce();
+
+      finishLr(rows);
+      expect(await screen.findByText("rc-analytics.png · 5 passage types")).toBeDefined();
+      expect(extract).toHaveBeenCalledTimes(2);
+    });
+
+    it("stops the waiting screenshot at the monthly scan limit and offers no Try again", async () => {
+      const message = "You've read 40 screenshots this month. You can scan again on Nov 1.";
+      let refuse: (reply: ExtractReply) => void = () => {};
+      const extract = vi.fn<Extract>(() => new Promise<ExtractReply>((resolve) => { refuse = resolve; }));
+      const { user } = await fillGoalAndWeek(undefined, extract);
+
+      await upload(user);
+      await upload(user, rcScreenshot, "RC");
+      refuse({ kind: "refused", refused: "monthly-limit", message });
+
+      expect(await screen.findAllByText(message)).toHaveLength(2);
+      expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+      expect(extract).toHaveBeenCalledOnce();
+    });
+
+    it("says a read stopped after 30 seconds and sends one new read on Try again", async () => {
+      const extract = vi.fn<Extract>().mockResolvedValueOnce({ kind: "timed-out" }).mockResolvedValueOnce(rows);
+      const { user } = await fillGoalAndWeek(undefined, extract);
+
+      await upload(user);
+      expect(await screen.findByText("lr-analytics.png · Reading took too long and stopped.")).toBeDefined();
+      await user.click(screen.getByRole("button", { name: "Try again" }));
+
+      expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
+      expect(extract).toHaveBeenCalledTimes(2);
     });
   });
 

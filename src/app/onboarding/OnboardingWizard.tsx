@@ -5,15 +5,16 @@ import {
   useId,
   useReducer,
   useRef,
+  useState,
   type FormEvent,
   type ReactNode,
 } from "react";
 import { DurationSelect } from "@/components/DailyCapacityFieldset";
 import { IconButton } from "@/components/ui/Button";
 import { DropZone } from "@/components/ui/DropZone";
-import { FileRow } from "@/components/ui/FileRow";
+import { FileRow, WaitNote } from "@/components/ui/FileRow";
 import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
-import { CheckGlyph } from "@/components/ui/StatusIcon";
+import { CheckGlyph, ClockGlyph, ReadingGlyph } from "@/components/ui/StatusIcon";
 import { DAY_ORDER } from "@/lib/engine";
 import { SECTION_NAME, SECTIONS, type Statement } from "@/lib/analyticsReview";
 import { confirmLock, type ReviewDraft } from "@/lib/reviewDraft";
@@ -75,17 +76,31 @@ export default function OnboardingWizard({
   extract = extractScreenshot,
 }: OnboardingWizardProps) {
   const [state, dispatch] = useReducer(wizardReducer, undefined, initialWizardState);
+  const readInFlight = useRef(false);
+  const [readsEnded, setReadsEnded] = useState(0);
+  const { screenshots, readAttempts } = state;
 
-  async function readScreenshot(section: AnalyticsSection, file: File) {
-    const rejection = checkScreenshotType(file);
-    if (rejection) {
-      dispatch({ type: "screenshotRejected", section, message: rejection.message });
-      return;
+  useEffect(() => {
+    if (readInFlight.current) return;
+    const section = SECTIONS.find((key) => screenshots[key].status === "waiting");
+    const screenshot = section && screenshots[section];
+    if (!section || screenshot?.status !== "waiting") return;
+    const attempt = readAttempts[section];
+    async function read(section: AnalyticsSection, file: File) {
+      dispatch({ type: "readStarted", section });
+      const reply = await extract(file, section);
+      dispatch({ type: "readEnded", section, attempt, reply, at: new Date() });
     }
-    const attempt = state.readAttempts[section] + 1;
-    dispatch({ type: "readStarted", section, file });
-    const reply = await extract(file, section);
-    dispatch({ type: "readEnded", section, attempt, reply, at: new Date() });
+    readInFlight.current = true;
+    void read(section, screenshot.file).finally(() => {
+      readInFlight.current = false;
+      setReadsEnded((count) => count + 1);
+    });
+  }, [screenshots, readAttempts, extract, readsEnded]);
+
+  function readScreenshot(section: AnalyticsSection, file: File) {
+    const rejection = checkScreenshotType(file);
+    dispatch(rejection ? { type: "screenshotRejected", section, message: rejection.message } : { type: "readQueued", section, file });
   }
 
   async function save(input: Parameters<typeof onSave>[0]) {
@@ -632,7 +647,10 @@ function WhereToFindIt() {
 }
 
 const FILE_STATUS: Record<Exclude<Screenshot["status"], "none" | "read">, { text: string; problem: boolean }> = {
-  reading: { text: "Reading…", problem: false },
+  waiting: { text: "Waiting to read", problem: false },
+  reading: { text: "Reading now", problem: false },
+  refused: { text: "not read", problem: false },
+  "timed-out": { text: "Reading took too long and stopped.", problem: true },
   "connection-lost": { text: "Connection lost. Your file is still here.", problem: false },
   "cannot-read": { text: "We couldn't read the rows in it.", problem: true },
   "signed-out": { text: SIGN_IN_EXPIRED, problem: true },
@@ -673,10 +691,16 @@ function ScreenshotFileRow({
         ref={row}
         tabIndex={-1}
         className="gap-4"
+        tone={status === "refused" ? "warning" : "default"}
         title={SECTION_NAME[section]}
         detail={
-          <span aria-live="polite" className={`flex min-w-0 items-center gap-1.5 ${problem ? "text-danger-ink" : "text-smoke"}`}>
+          <span
+            aria-live="polite"
+            className={`flex min-w-0 items-center gap-1.5 ${problem ? "text-danger-ink" : status === "reading" ? "text-accent" : "text-smoke"}`}
+          >
             {status === "read" && <CheckGlyph />}
+            {status === "waiting" && <ClockGlyph />}
+            {status === "reading" && <ReadingGlyph />}
             <span className="truncate">
               {screenshot.file.name} · {statusText}
             </span>
@@ -703,10 +727,27 @@ function ScreenshotFileRow({
             </button>
           </>
         )}
-        {status === "cannot-read" && (
-          <button type="button" onClick={onChoose} className={SMALL_BUTTON}>
-            Choose a sharper screenshot
-          </button>
+        {(status === "cannot-read" || status === "timed-out") && (
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={onTryAgain} className={SMALL_BUTTON}>
+              Try again
+            </button>
+            {status === "cannot-read" && (
+              <button type="button" onClick={onChoose} className={SMALL_BUTTON}>
+                Choose a sharper screenshot
+              </button>
+            )}
+          </div>
+        )}
+        {screenshot.status === "refused" && (
+          <div className="flex flex-col gap-2.5">
+            <WaitNote>{screenshot.message}</WaitNote>
+            {screenshot.tryAgain && (
+              <button type="button" onClick={onTryAgain} className={`self-start pl-5.5 text-small ${LINK_BUTTON}`}>
+                Try again
+              </button>
+            )}
+          </div>
         )}
         {status === "signed-out" && <SignInAgainLink className={`inline-flex items-center ${SMALL_BUTTON}`} />}
         {status === "no-rows" && (

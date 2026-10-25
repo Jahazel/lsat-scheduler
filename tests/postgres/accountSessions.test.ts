@@ -43,7 +43,11 @@ vi.mock("next/headers", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
 vi.mock("@anthropic-ai/sdk", () => ({
-  default: class { messages = { create: request.createMessage }; },
+  default: class {
+    static APIConnectionTimeoutError = class extends Error {};
+
+    messages = { create: request.createMessage };
+  },
 }));
 
 let database: Awaited<ReturnType<typeof createAppTestDatabase>>;
