@@ -1,4 +1,5 @@
 import type { SectionReading } from "./practiceTestResult";
+import type { ScanRefusal } from "./scanPlaces";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "./types";
 
 export const SCREENSHOT_MEDIA_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
@@ -61,9 +62,13 @@ async function shrinkForUpload(file: File): Promise<File> {
   }
 }
 
+export type ScanRefused = { kind: "refused"; refused: ScanRefusal["refused"]; message: string };
+
 type ScreenshotFailure =
   | { kind: "rejected"; message: string }
+  | ScanRefused
   | { kind: "cannot-read" }
+  | { kind: "timed-out" }
   | { kind: "signed-out" }
   | { kind: "connection-lost" };
 
@@ -81,8 +86,13 @@ async function postScreenshot(url: string, file: File, fields: Record<string, st
   try {
     const res = await fetch(url, { method: "POST", body: formData });
     if (REFUSED_FILE_STATUSES.includes(res.status)) return { kind: "rejected", message: (await res.json()).error };
+    if (res.status === 429) {
+      const { error, reason } = await res.json();
+      return { kind: "refused", refused: reason, message: error };
+    }
     if (res.status === 401) return { kind: "signed-out" };
     if (res.status === 502) return { kind: "cannot-read" };
+    if (res.status === 504) return { kind: "timed-out" };
     if (!res.ok) return { kind: "connection-lost" };
     return { kind: "ok", body: await res.json() };
   } catch {
@@ -101,27 +111,34 @@ export async function extractPracticeTestScreenshot(file: File): Promise<Section
 }
 
 export const CANNOT_READ = "Couldn't read that screenshot. Try again or a clearer image.";
+export const TOOK_TOO_LONG = "Reading took too long and stopped. Try again.";
+
+export const stopsLaterScans = ({ refused }: ScanRefused) => refused === "daily-limit" || refused === "monthly-limit";
 
 const NO_LR_ROWS = "We found no LR question types in that screenshot. Choose your Logical Reasoning screenshot.";
 
 export type AnalyticsRead =
   | { kind: "rows"; rows: AnalyticsExtractedRow[] }
-  | { kind: "problem"; message: string }
+  | { kind: "problem"; message: string; tryAgain: boolean }
+  | ScanRefused
   | { kind: "signed-out" };
 
 export async function readAnalyticsScreenshot(file: File, section: AnalyticsSection): Promise<AnalyticsRead> {
   const rejection = checkScreenshotType(file);
-  if (rejection) return { kind: "problem", message: rejection.message };
+  if (rejection) return { kind: "problem", message: rejection.message, tryAgain: false };
   const reply = await extractScreenshot(file, section);
   switch (reply.kind) {
     case "rows":
-      return section === "LR" && reply.rows.length === 0 ? { kind: "problem", message: NO_LR_ROWS } : reply;
+      return section === "LR" && reply.rows.length === 0 ? { kind: "problem", message: NO_LR_ROWS, tryAgain: false } : reply;
     case "rejected":
-      return { kind: "problem", message: reply.message };
+      return { kind: "problem", message: reply.message, tryAgain: false };
+    case "refused":
     case "signed-out":
       return reply;
+    case "timed-out":
+      return { kind: "problem", message: TOOK_TOO_LONG, tryAgain: true };
     case "cannot-read":
     case "connection-lost":
-      return { kind: "problem", message: CANNOT_READ };
+      return { kind: "problem", message: CANNOT_READ, tryAgain: true };
   }
 }

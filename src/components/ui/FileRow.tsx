@@ -5,7 +5,7 @@ export type FileRowProps = Omit<HTMLAttributes<HTMLDivElement>, "title"> & {
   title: ReactNode;
   detail: ReactNode;
   action?: ReactNode;
-  tone?: "default" | "danger";
+  tone?: "default" | "warning" | "danger";
   ref?: Ref<HTMLDivElement>;
 };
 
@@ -26,7 +26,7 @@ export function FileRow({ title, detail, action, tone = "default", children, cla
       {...props}
       className={cx(
         "flex flex-col gap-3 rounded-md border p-4 outline-none",
-        tone === "danger" ? "border-danger" : "border-vellum-line",
+        tone === "danger" ? "border-danger" : tone === "warning" ? "border-warning/55" : "border-vellum-line",
         className,
       )}
     >
@@ -50,6 +50,18 @@ export function ProblemNote({ children }: { children: ReactNode }) {
         <circle cx="7" cy="7" r="6" fill="none" className="stroke-current" strokeWidth="1.3" />
         <path d="M7 4v3.5" fill="none" className="stroke-current" strokeWidth="1.3" strokeLinecap="round" />
         <path d="M7 9.8v.01" fill="none" className="stroke-current" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+      <span>{children}</span>
+    </p>
+  );
+}
+
+export function WaitNote({ children }: { children: ReactNode }) {
+  return (
+    <p className="flex items-start gap-2 text-small text-warning-ink">
+      <svg aria-hidden viewBox="0 0 14 14" className="mt-0.5 size-3.5 shrink-0">
+        <circle cx="7" cy="7" r="6" fill="none" className="stroke-current" strokeWidth="1.3" />
+        <path d="M7 3.8V7l2 1.2" fill="none" className="stroke-current" strokeWidth="1.3" strokeLinecap="round" />
       </svg>
       <span>{children}</span>
     </p>

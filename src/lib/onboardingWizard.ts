@@ -16,7 +16,7 @@ import { currentWeekInTimezone } from "./currentWeeklySchedule";
 import { DAY_ORDER, generateWeek } from "./engine";
 import { formatDuration, shortDuration } from "./formatDuration";
 import { mockRules } from "./mockData";
-import type { ExtractReply } from "./screenshotUpload";
+import { stopsLaterScans, type ExtractReply } from "./screenshotUpload";
 import {
   DAY_LABEL,
   MAX_OFFICIAL_ATTEMPTS,
@@ -55,7 +55,8 @@ export interface AttemptsDraft {
 
 export type Screenshot =
   | { status: "none" }
-  | { status: "reading" | "connection-lost" | "cannot-read" | "signed-out" | "no-rows"; file: File }
+  | { status: "waiting" | "reading" | "connection-lost" | "cannot-read" | "timed-out" | "signed-out" | "no-rows"; file: File }
+  | { status: "refused"; file: File; message: string; tryAgain: boolean }
   | { status: "read"; file: File; rows: AnalyticsExtractedRow[] };
 
 export interface WizardState {
@@ -83,7 +84,8 @@ export type WizardAction =
   | { type: "continue" }
   | { type: "back" }
   | { type: "screenshotRejected"; section: AnalyticsSection; message: string }
-  | { type: "readStarted"; section: AnalyticsSection; file: File }
+  | { type: "readQueued"; section: AnalyticsSection; file: File }
+  | { type: "readStarted"; section: AnalyticsSection }
   | { type: "readEnded"; section: AnalyticsSection; attempt: number; reply: ExtractReply; at: Date }
   | ReviewAction
   | { type: "saveStarted" }
@@ -389,14 +391,20 @@ function withoutSectionDraft(draft: ReviewDraft, review: SnapshotReview | null, 
   return { review, typedText, revealedBoxes: draft.revealedBoxes.filter((type) => !inSection(type)) };
 }
 
-function readStarted(state: WizardState, section: AnalyticsSection, file: File): WizardState {
+function readQueued(state: WizardState, section: AnalyticsSection, file: File): WizardState {
   const { draft } = state;
   return {
-    ...withScreenshot(state, section, { status: "reading", file }),
+    ...withScreenshot(state, section, { status: "waiting", file }),
     rejections: { ...state.rejections, [section]: null },
     readAttempts: { ...state.readAttempts, [section]: state.readAttempts[section] + 1 },
     draft: draft && withoutSectionDraft(draft, dropSection(draft.review, section), section),
   };
+}
+
+function readStarted(state: WizardState, section: AnalyticsSection): WizardState {
+  const screenshot = state.screenshots[section];
+  if (screenshot.status !== "waiting") return state;
+  return withScreenshot(state, section, { status: "reading", file: screenshot.file });
 }
 
 function readEnded(state: WizardState, section: AnalyticsSection, attempt: number, reply: ExtractReply, at: Date): WizardState {
@@ -413,8 +421,17 @@ function readEnded(state: WizardState, section: AnalyticsSection, attempt: numbe
     }
     case "rejected":
       return { ...withScreenshot(state, section, { status: "none" }), rejections: { ...state.rejections, [section]: reply.message } };
+    case "refused": {
+      const refused = { status: "refused", message: reply.message, tryAgain: !stopsLaterScans(reply) } as const;
+      const stopped = SECTIONS.reduce((next, other) => {
+        const waiting = next.screenshots[other];
+        return stopsLaterScans(reply) && waiting.status === "waiting" ? withScreenshot(next, other, { ...refused, file: waiting.file }) : next;
+      }, state);
+      return withScreenshot(stopped, section, { ...refused, file });
+    }
     case "connection-lost":
     case "cannot-read":
+    case "timed-out":
     case "signed-out":
       return withScreenshot(state, section, { status: reply.kind, file });
     default: {
@@ -429,7 +446,7 @@ function updateDraft(state: WizardState, update: (draft: ReviewDraft) => ReviewD
 }
 
 export function wizardReducer(state: WizardState, action: WizardAction): WizardState {
-  if (state.save === "saving" && !["saveFailed", "saveRefused", "readEnded"].includes(action.type)) return state;
+  if (state.save === "saving" && !["saveFailed", "saveRefused", "readStarted", "readEnded"].includes(action.type)) return state;
   switch (action.type) {
     case "edit":
       return { ...state, values: { ...state.values, ...action.values } };
@@ -459,8 +476,10 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
     }
     case "screenshotRejected":
       return { ...state, rejections: { ...state.rejections, [action.section]: action.message } };
+    case "readQueued":
+      return readQueued(state, action.section, action.file);
     case "readStarted":
-      return readStarted(state, action.section, action.file);
+      return readStarted(state, action.section);
     case "readEnded":
       return readEnded(state, action.section, action.attempt, action.reply, action.at);
     case "editAccuracy":

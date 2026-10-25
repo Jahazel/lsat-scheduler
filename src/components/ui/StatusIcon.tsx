@@ -56,3 +56,20 @@ export function InfoGlyph({ className }: { className?: string }) {
     </svg>
   );
 }
+
+export function ClockGlyph() {
+  return (
+    <svg aria-hidden viewBox="0 0 12 12" className="size-3 shrink-0 text-fog">
+      <circle cx="6" cy="6" r="4.75" fill="none" className="stroke-current" strokeWidth="1.3" />
+      <path d="M6 3.5V6l1.6 1" fill="none" className="stroke-current" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function ReadingGlyph() {
+  return (
+    <svg aria-hidden viewBox="0 0 12 12" className="size-3 shrink-0 animate-spin text-accent motion-reduce:animate-none">
+      <path d="M6 1.5a4.5 4.5 0 0 1 4.5 4.5" fill="none" className="stroke-current" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}

@@ -1,12 +1,12 @@
 "use client";
 
-import { useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import SignInExpired from "@/components/SignInExpired";
 import { DrillList, WeekTiles } from "@/components/WeekPreview";
 import { Button } from "@/components/ui/Button";
 import { DropZone } from "@/components/ui/DropZone";
-import { FileRow, ProblemNote } from "@/components/ui/FileRow";
-import { CheckGlyph, InfoGlyph } from "@/components/ui/StatusIcon";
+import { FileRow, ProblemNote, WaitNote } from "@/components/ui/FileRow";
+import { CheckGlyph, ClockGlyph, InfoGlyph, ReadingGlyph } from "@/components/ui/StatusIcon";
 import { TextInput } from "@/components/ui/TextInput";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { readSection as addAnalyticsSection, SECTION_NAME, SECTIONS, type SnapshotReview } from "@/lib/analyticsReview";
@@ -14,7 +14,8 @@ import {
   reviewPracticeTest, type HiddenPick, type PracticeTestProblem, type PracticeTestResult, type SectionReading, type SectionReview,
 } from "@/lib/practiceTestResult";
 import {
-  CANNOT_READ, MAX_SCREENSHOT_MB, SCREENSHOT_MEDIA_TYPES, checkScreenshotType, extractPracticeTestScreenshot, readAnalyticsScreenshot,
+  CANNOT_READ, MAX_SCREENSHOT_MB, SCREENSHOT_MEDIA_TYPES, TOOK_TOO_LONG, checkScreenshotType, extractPracticeTestScreenshot,
+  readAnalyticsScreenshot, stopsLaterScans, type ScanRefused,
 } from "@/lib/screenshotUpload";
 import { DAY_LABEL } from "@/lib/studentProfile";
 import { mostMissedType } from "@/lib/engine";
@@ -35,10 +36,17 @@ const LIMITS = `PNG, JPG, or WEBP, ${MAX_SCREENSHOT_MB} MB or less each. Tall sc
 
 type Read<T> =
   | { status: "added" }
+  | { status: "waiting" }
   | { status: "reading" }
   | { status: "read"; value: T }
-  | { status: "problem"; message: string }
+  | { status: "problem" | "refused"; message: string; tryAgain: boolean }
   | { status: "signed-out" };
+
+const PENDING: Read<unknown>["status"][] = ["added", "waiting", "reading"];
+
+function refusedRead(reply: ScanRefused): Read<never> {
+  return { status: "refused", message: reply.message, tryAgain: !stopsLaterScans(reply) };
+}
 
 interface Upload<T> { id: number; file: File; read: Read<T> }
 type AnalyticsUpload = Upload<{ rows: AnalyticsExtractedRow[]; at: string }>;
@@ -87,64 +95,114 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
       return next;
     });
 
-  async function readAnalytics(section: AnalyticsSection, upload: AnalyticsUpload) {
-    const set = (read: AnalyticsUpload["read"]) =>
-      setAnalytics((current) => (current[section]?.id === upload.id ? { ...current, [section]: { ...upload, read } } : current));
-    set({ status: "reading" });
-    const result = await readAnalyticsScreenshot(upload.file, section);
-    set(result.kind === "rows"
-      ? { status: "read", value: { rows: result.rows, at: new Date().toISOString() } }
-      : result.kind === "problem" ? { status: "problem", message: result.message } : { status: "signed-out" });
-  }
+  const readInFlight = useRef(false);
+  const [readsEnded, setReadsEnded] = useState(0);
 
-  async function readSectionFile(upload: SectionUpload) {
-    const set = (read: SectionUpload["read"]) =>
-      setSections((current) => current.map((entry) => (entry.id === upload.id ? { ...entry, read } : entry)));
-    set({ status: "reading" });
-    const reply = await extractPracticeTestScreenshot(upload.file);
-    switch (reply.kind) {
-      case "reading": return set({ status: "read", value: reply.reading });
-      case "rejected": return set({ status: "problem", message: reply.message });
-      case "signed-out": return set({ status: "signed-out" });
-      case "cannot-read":
-      case "connection-lost": return set({ status: "problem", message: CANNOT_READ });
+  useEffect(() => {
+    if (readInFlight.current) return;
+    const section = SECTIONS.find((key) => analytics[key]?.read.status === "waiting");
+    const sectionUpload = sections.find(({ read }) => read.status === "waiting");
+
+    function stopWaiting(reply: ScanRefused) {
+      if (!stopsLaterScans(reply)) return;
+      const stopped = refusedRead(reply);
+      setAnalytics((current) => {
+        const next = { ...current };
+        for (const key of SECTIONS) {
+          const upload = current[key];
+          if (upload?.read.status === "waiting") next[key] = { ...upload, read: stopped };
+        }
+        return next;
+      });
+      setSections((current) => current.map((upload) => (upload.read.status === "waiting" ? { ...upload, read: stopped } : upload)));
     }
-  }
+
+    async function readAnalytics(section: AnalyticsSection, upload: AnalyticsUpload) {
+      const set = (read: AnalyticsUpload["read"]) =>
+        setAnalytics((current) => (current[section]?.id === upload.id ? { ...current, [section]: { ...upload, read } } : current));
+      set({ status: "reading" });
+      const result = await readAnalyticsScreenshot(upload.file, section);
+      switch (result.kind) {
+        case "rows": return set({ status: "read", value: { rows: result.rows, at: new Date().toISOString() } });
+        case "problem": return set({ status: "problem", message: result.message, tryAgain: result.tryAgain });
+        case "refused":
+          set(refusedRead(result));
+          return stopWaiting(result);
+        case "signed-out": return set({ status: "signed-out" });
+      }
+    }
+
+    async function readSectionFile(upload: SectionUpload) {
+      const set = (read: SectionUpload["read"]) =>
+        setSections((current) => current.map((entry) => (entry.id === upload.id ? { ...entry, read } : entry)));
+      set({ status: "reading" });
+      const reply = await extractPracticeTestScreenshot(upload.file);
+      switch (reply.kind) {
+        case "reading": return set({ status: "read", value: reply.reading });
+        case "rejected": return set({ status: "problem", message: reply.message, tryAgain: false });
+        case "refused":
+          set(refusedRead(reply));
+          return stopWaiting(reply);
+        case "signed-out": return set({ status: "signed-out" });
+        case "timed-out": return set({ status: "problem", message: TOOK_TOO_LONG, tryAgain: true });
+        case "cannot-read":
+        case "connection-lost": return set({ status: "problem", message: CANNOT_READ, tryAgain: true });
+      }
+    }
+
+    const analyticsUpload = section && analytics[section];
+    const next = section && analyticsUpload ? readAnalytics(section, analyticsUpload) : sectionUpload && readSectionFile(sectionUpload);
+    if (!next) return;
+    readInFlight.current = true;
+    void next.finally(() => {
+      readInFlight.current = false;
+      setReadsEnded((count) => count + 1);
+    });
+  }, [analytics, sections, readsEnded]);
+
+  const queued: Read<never> = started ? { status: "waiting" } : { status: "added" };
 
   function addAnalytics(section: AnalyticsSection, file: File) {
     const rejection = checkScreenshotType(file);
     reject(section, rejection?.message ?? null);
     if (rejection) return;
-    const upload: AnalyticsUpload = { id: nextId.current++, file, read: { status: "added" } };
+    const upload: AnalyticsUpload = { id: nextId.current++, file, read: queued };
     setAnalytics((current) => ({ ...current, [section]: upload }));
-    if (started) void readAnalytics(section, upload);
   }
 
   function addSectionFiles(files: File[], key: string, room: number) {
     const accepted = files.filter((file) => !checkScreenshotType(file));
     const firstRejection = files.map(checkScreenshotType).find(Boolean)?.message;
-    const uploads = accepted.slice(0, room).map((file): SectionUpload => ({ id: nextId.current++, file, read: { status: "added" } }));
+    const uploads = accepted.slice(0, room).map((file): SectionUpload => ({ id: nextId.current++, file, read: queued }));
     reject(key, firstRejection ?? (accepted.length > room ? "Add one screenshot per section, 4 in all. Replace a section to change it." : null));
     setSections((current) => [...current, ...uploads]);
-    if (started) uploads.forEach((upload) => void readSectionFile(upload));
   }
 
   function replaceSection(id: number, file: File) {
     const rejection = checkScreenshotType(file);
     reject(`file-${id}`, rejection?.message ?? null);
     if (rejection) return;
-    const upload: SectionUpload = { id: nextId.current++, file, read: { status: "added" } };
+    const upload: SectionUpload = { id: nextId.current++, file, read: queued };
     setSections((current) => current.map((entry) => (entry.id === id ? upload : entry)));
-    if (started) void readSectionFile(upload);
   }
 
   function startReading() {
     setStartedAt(new Date().toISOString());
-    SECTIONS.forEach((section) => {
-      const upload = analytics[section];
-      if (upload) void readAnalytics(section, upload);
+    setAnalytics((current) => {
+      const next = { ...current };
+      for (const section of SECTIONS) {
+        const upload = current[section];
+        if (upload) next[section] = { ...upload, read: { status: "waiting" } };
+      }
+      return next;
     });
-    sections.forEach((upload) => void readSectionFile(upload));
+    setSections((current) => current.map((upload) => ({ ...upload, read: { status: "waiting" } })));
+  }
+
+  function tryAgain(section: AnalyticsSection | null, id: number) {
+    const waiting = <T extends { id: number }>(upload: T) => (upload.id === id ? { ...upload, read: { status: "waiting" as const } } : upload);
+    if (section) setAnalytics((current) => ({ ...current, [section]: current[section] && waiting(current[section]) }));
+    else setSections((current) => current.map(waiting));
   }
 
   const score = parseScore(scoreText);
@@ -152,7 +210,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   const scoreError = score === null ? SCORE_ERROR : undefined;
 
   const readSections = sections.flatMap((upload) => (upload.read.status === "read" ? [{ upload, reading: upload.read.value }] : []));
-  const sectionsSettled = started && sections.every(({ read }) => read.status !== "added" && read.status !== "reading");
+  const sectionsSettled = started && sections.every(({ read }) => !PENDING.includes(read.status));
   const anyUnreadable = readSections.length < sections.length;
   const readings = readSections.map(({ reading }) => reading);
   const hiddenPicks = readSections.flatMap(({ upload, reading }): HiddenPick[] => {
@@ -174,7 +232,10 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
 
   const analyticsRead = SECTIONS.every((section) => analytics[section]?.read.status === "read");
   const allAdded = SECTIONS.every((section) => analytics[section]) && (!needsSections || sections.length >= SECTION_COUNT);
-  const anyReading = [...SECTIONS.map((section) => analytics[section]), ...sections].some((upload) => upload?.read.status === "reading");
+  const uploads = [...SECTIONS.flatMap((section) => analytics[section] ?? []), ...sections];
+  const anyReading = started && uploads.some(({ read }) => PENDING.includes(read.status));
+  const readCount = (group: { read: Read<unknown> }[]) => `${group.filter(({ read }) => read.status === "read").length} of ${group.length} read`;
+  const settledCount = uploads.filter(({ read }) => !PENDING.includes(read.status)).length;
   const found = started && analyticsRead && (!needsSections || (practiceTest !== null && !anyUnreadable));
   const replacementRejected = SECTIONS.some((section) => rejections[section])
     || sections.some((upload) => rejections[`file-${upload.id}`]);
@@ -216,7 +277,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
     : found
       ? `${start} We read ${needsSections ? "all 6 screenshots" : "both screenshots"}. Check them, then build your weekly schedule.`
       : anyReading
-        ? `${start} We're reading your screenshots.`
+        ? `${start} We read your screenshots one at a time. You don't need to click anything.`
         : `${start} Fix the screenshots marked below, then check them.`;
 
   const hint = !started
@@ -226,12 +287,12 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
     : ready
       ? "Next, you check what we read. Nothing changes until you confirm."
       : anyReading
-        ? "Reading your screenshots…"
+        ? "Each screenshot takes up to 30 seconds."
         : found
           ? SCORE_HINT
           : pickQuestions.length > 0 && problems.every((problem) => problem.problem === "hidden-pick")
             ? "Choose the question you missed to continue."
-            : "Fix the screenshots marked in red to continue.";
+            : "Fix the screenshots marked above to continue.";
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] bg-paper lg:min-h-[calc(100vh-var(--spacing-18))] lg:grid-cols-[minmax(0,680px)_minmax(0,1fr)] lg:grid-rows-[auto_1fr]">
@@ -257,7 +318,11 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
           <ReadSummary analytics={analytics} sections={sections} onAnalytics={addAnalytics} onReplace={replaceSection} />
         )}
 
-        <UploadGroup title="7Sage analytics" count="2 screenshots" className={summarized ? "max-md:hidden" : undefined}>
+        <UploadGroup
+          title="7Sage analytics"
+          count={started ? readCount(SECTIONS.flatMap((section) => analytics[section] ?? [])) : "2 screenshots"}
+          className={summarized ? "max-md:hidden" : undefined}
+        >
           {SECTIONS.map((section) => (
             <AnalyticsRow
               key={section}
@@ -265,6 +330,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
               upload={analytics[section]}
               rejection={rejections[section]}
               onFile={(file) => addAnalytics(section, file)}
+              onTryAgain={(id) => tryAgain(section, id)}
             />
           ))}
           {!needsSections && !analytics.LR && !analytics.RC && <p className="text-small text-smoke">{LIMITS}</p>}
@@ -273,7 +339,9 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
         {needsSections ? (
           <UploadGroup
             title="Practice test review"
-            count={<><span className="md:hidden">One per section</span><span className="hidden md:inline">4 screenshots, one per section</span></>}
+            count={started
+              ? readCount(sections)
+              : <><span className="md:hidden">One per section</span><span className="hidden md:inline">4 screenshots, one per section</span></>}
             className={summarized ? "max-md:hidden" : undefined}
           >
             {!started ? (
@@ -320,6 +388,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
                 picks={picks}
                 onPick={setPicks}
                 onReplace={replaceSection}
+                onTryAgain={(id) => tryAgain(null, id)}
                 onRemove={(id) => setSections((current) => current.filter((entry) => entry.id !== id))}
                 onAddMissing={(section, file) => addSectionFiles([file], `missing-${section}`, 1)}
               />
@@ -327,6 +396,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
             {started && prepTest !== undefined && (
               <p className="text-small text-smoke">Practice test {prepTest}. You can replace any screenshot before you confirm.</p>
             )}
+            {anyReading && <p className="text-small text-smoke">You can replace a screenshot while you wait. It keeps its place in line.</p>}
           </UploadGroup>
         ) : (
           <UploadGroup title="Practice test review" count="Not needed this week">
@@ -355,7 +425,9 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
 
       <div className="flex flex-col gap-4 px-5 pt-10 pb-12 lg:px-30 lg:pb-18">
         {started ? (
-          <Button className="w-full" disabled={!ready} onClick={checkValues}>Check the values</Button>
+          <Button className="w-full" disabled={!ready} onClick={checkValues}>
+            {anyReading ? `Reading ${Math.min(settledCount + 1, uploads.length)} of ${uploads.length}…` : "Check the values"}
+          </Button>
         ) : (
           <Button className="w-full" disabled={!allAdded || score === null} onClick={startReading}>Read my screenshots</Button>
         )}
@@ -441,37 +513,71 @@ function ReplaceButton({ file, onFile, className }: { file: File; onFile: (file:
   );
 }
 
-function Detail({ children, read = false, problem = false }: { children: ReactNode; read?: boolean; problem?: boolean }) {
+function Detail({ file, status, read = false, children }: {
+  file: File;
+  status: Read<unknown>["status"];
+  read?: boolean;
+  children?: ReactNode;
+}) {
   return (
-    <span aria-live="polite" className={cx("flex min-w-0 items-center gap-1.5", problem ? "text-danger-ink" : "text-smoke")}>
+    <span aria-live="polite" className={cx("flex min-w-0 items-center gap-1.5", status === "reading" ? "text-accent" : "text-smoke")}>
       {read && <CheckGlyph />}
-      <span className="truncate">{children}</span>
+      {status === "waiting" && <ClockGlyph />}
+      {status === "reading" && <ReadingGlyph />}
+      <span className="truncate">
+        {file.name}
+        {status === "waiting" ? " · Waiting to read" : status === "reading" ? " · Reading now" : children && <> · {children}</>}
+      </span>
     </span>
   );
 }
 
-function AnalyticsRow({ section, upload, rejection, onFile }: {
+const rowTone = (read: Read<unknown>, rejection: string | undefined) =>
+  read.status === "problem" || read.status === "signed-out" || rejection ? "danger" : read.status === "refused" ? "warning" : "default";
+
+function ReadNote({ read, onTryAgain }: { read: Read<unknown>; onTryAgain: () => void }) {
+  if (read.status === "refused") {
+    return (
+      <div className="flex flex-col gap-2.5">
+        <WaitNote>{read.message}</WaitNote>
+        {read.tryAgain && <button type="button" onClick={onTryAgain} className={cx(LINK_BUTTON, "self-start pl-5.5")}>Try again</button>}
+      </div>
+    );
+  }
+  if (read.status !== "problem") return null;
+  return (
+    <>
+      <ProblemNote>{read.message}</ProblemNote>
+      {read.tryAgain && <Button variant="outline" size="md" className="self-start" onClick={onTryAgain}>Try again</Button>}
+    </>
+  );
+}
+
+function AnalyticsRow({ section, upload, rejection, onFile, onTryAgain }: {
   section: AnalyticsSection;
   upload: AnalyticsUpload | undefined;
   rejection: string | undefined;
   onFile: (file: File) => void;
+  onTryAgain: (id: number) => void;
 }) {
   if (!upload) {
     return <DropZone label={`${SECTION_NAME[section]} screenshot`} accept={ACCEPT} error={rejection} onFile={onFile} />;
   }
   const { read, file } = upload;
   const noun = section === "LR" ? "question types" : "passage types";
-  const detail = read.status === "read" ? `${file.name} · ${read.value.rows.length} ${noun}`
-    : read.status === "reading" ? `${file.name} · Reading…` : file.name;
   return (
     <FileRow
       data-file-row=""
-      tone={read.status === "problem" || read.status === "signed-out" || rejection ? "danger" : "default"}
+      tone={rowTone(read, rejection)}
       title={SECTION_NAME[section]}
-      detail={<Detail read={read.status === "read"}>{detail}</Detail>}
+      detail={(
+        <Detail file={file} status={read.status} read={read.status === "read"}>
+          {read.status === "read" ? `${read.value.rows.length} ${noun}` : read.status === "refused" && "not read"}
+        </Detail>
+      )}
       action={<ReplaceButton file={file} onFile={onFile} />}
     >
-      {read.status === "problem" && <ProblemNote>{read.message}</ProblemNote>}
+      <ReadNote read={read} onTryAgain={() => onTryAgain(upload.id)} />
       {read.status === "signed-out" && <SignInExpired />}
       {rejection && <ProblemNote>{rejection}</ProblemNote>}
     </FileRow>
@@ -484,7 +590,7 @@ function sortKey(upload: SectionUpload) {
   return upload.read.status === "read" && upload.read.value.page === "section_review" ? upload.read.value.section : SECTION_COUNT + 1;
 }
 
-function SectionRows({ sections, rowProblem, missing, rejections, pickQuestions, picks, onPick, onReplace, onRemove, onAddMissing }: {
+function SectionRows({ sections, rowProblem, missing, rejections, pickQuestions, picks, onPick, onReplace, onTryAgain, onRemove, onAddMissing }: {
   sections: SectionUpload[];
   rowProblem: Map<number, RowProblem>;
   missing: number[];
@@ -493,6 +599,7 @@ function SectionRows({ sections, rowProblem, missing, rejections, pickQuestions,
   picks: UploadPick[];
   onPick: (picks: UploadPick[]) => void;
   onReplace: (id: number, file: File) => void;
+  onTryAgain: (id: number) => void;
   onRemove: (id: number) => void;
   onAddMissing: (section: number, file: File) => void;
 }) {
@@ -525,6 +632,7 @@ function SectionRows({ sections, rowProblem, missing, rejections, pickQuestions,
               problem={rowProblem.get(upload.id)}
               rejection={rejections[`file-${upload.id}`]}
               onReplace={(file) => onReplace(upload.id, file)}
+              onTryAgain={() => onTryAgain(upload.id)}
               onRemove={() => onRemove(upload.id)}
             />
             {pick && <HiddenPickBox question={pick} picks={picks} onPick={onPick} />}
@@ -535,11 +643,12 @@ function SectionRows({ sections, rowProblem, missing, rejections, pickQuestions,
   );
 }
 
-function SectionRow({ upload, problem, rejection, onReplace, onRemove }: {
+function SectionRow({ upload, problem, rejection, onReplace, onTryAgain, onRemove }: {
   upload: SectionUpload;
   problem: RowProblem | undefined;
   rejection: string | undefined;
   onReplace: (file: File) => void;
+  onTryAgain: () => void;
   onRemove: () => void;
 }) {
   const { read, file } = upload;
@@ -548,22 +657,22 @@ function SectionRow({ upload, problem, rejection, onReplace, onRemove }: {
     : problem?.problem === "same-section-twice" ? `Section ${problem.section} · again`
       : problem?.problem === "different-prep-test" && reading ? `Section ${reading.section} · practice test ${problem.prepTest}`
         : reading ? sectionTitle(reading.section, reading.kind)
-          : read.status === "reading" || read.status === "added" ? "Reading your screenshot…" : "We couldn't read this screenshot";
-  const detail = problem?.problem === "cut-off" && problem.lastQuestion !== null ? `${file.name} · ends at Q${problem.lastQuestion}`
-    : reading && (!problem || problem.problem === "score-mismatch") ? `${file.name} · score ${formatSectionScore(reading.score)}`
-      : file.name;
-  const message = problem ? problemMessage(problem) : read.status === "problem" ? read.message : null;
+          : PENDING.includes(read.status) ? "Practice test section"
+            : read.status === "refused" ? "Not read yet" : "We couldn't read this screenshot";
+  const detail = problem?.problem === "cut-off" && problem.lastQuestion !== null ? `ends at Q${problem.lastQuestion}`
+    : reading && (!problem || problem.problem === "score-mismatch") ? `score ${formatSectionScore(reading.score)}`
+      : read.status === "refused" && "not read";
   return (
     <FileRow
       data-file-row=""
-      tone={message || rejection || read.status === "signed-out" ? "danger" : "default"}
+      tone={problem ? "danger" : rowTone(read, rejection)}
       title={title}
-      detail={<Detail read={Boolean(reading) && !problem}>{detail}</Detail>}
+      detail={<Detail file={file} status={read.status} read={Boolean(reading) && !problem}>{detail}</Detail>}
       action={problem?.problem === "same-section-twice"
         ? <button type="button" aria-label={`Remove ${file.name}`} onClick={onRemove} className={LINK_BUTTON}>Remove</button>
         : <ReplaceButton file={file} onFile={onReplace} />}
     >
-      {message && <ProblemNote>{message}</ProblemNote>}
+      {problem ? <ProblemNote>{problemMessage(problem)}</ProblemNote> : <ReadNote read={read} onTryAgain={onTryAgain} />}
       {read.status === "signed-out" && <SignInExpired />}
       {rejection && <ProblemNote>{rejection}</ProblemNote>}
     </FileRow>
