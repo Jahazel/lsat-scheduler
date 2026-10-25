@@ -1,47 +1,19 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
-import { dirname, resolve, relative } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { drive } from "./browser.mjs";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const directory = process.argv[2];
 if (!directory || process.argv.length !== 3) throw new Error("Usage: smoke.mjs .verification/evidence/<run-name>");
-const run = resolve(root, directory);
-const base = resolve(root, ".verification/evidence");
-if (!relative(base, run) || relative(base, run).startsWith("..")) throw new Error("Use a directory below .verification/evidence/.");
-const helper = resolve(root, ".agents/skills/verify/scripts/local.mjs");
-const check = (command, ...args) => JSON.parse(execFileSync(process.execPath, [helper, command, directory, ...args], { cwd: root, encoding: "utf8" }));
-const healthy = check("doctor");
-const modulePath = process.env.VERIFY_PLAYWRIGHT_MODULE || resolve(run, "scratch/tools/node_modules/playwright/index.mjs");
-const { chromium } = await import(pathToFileURL(modulePath).href);
-const browser = await chromium.launch({ headless: true });
-const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, recordVideo: { dir: resolve(run, "video") } });
-const page = await context.newPage();
-const actions = [];
-const errors = [];
 const email = "verify-smoke@example.test";
 const REFUSED = "Google sign-in didn't finish. Try again, or use a Google account with a verified email.";
-const save = (name, value) => writeFileSync(resolve(run, name), JSON.stringify(value, null, 2) + "\n");
-const records = (name) => { const value = check("inspect"); save(name, value); return value; };
+const WEEKLY_UPLOAD = /^Plan (this|next) week$/;
 const dailyCapacities = (student) => Object.entries(student)
   .filter(([key]) => key.endsWith("_capacity_minutes"))
   .map(([, value]) => Number(value));
-const log = (action) => actions.push({ at: new Date().toISOString(), action, url: page.url() });
-const WEEKLY_UPLOAD = /^Plan (this|next) week$/;
-const heading = (name) => page.getByRole("heading", { name, exact: true }).waitFor();
-const goto = async (path, on = page) => { log(`Navigate to ${path}`); await on.goto(healthy.url + path); };
-const signInAs = async (on, account) => { log(`Set a minted session cookie for ${account}`); await on.context().addCookies([check("session", account)]); };
-async function capture(name, on = page) {
-  await on.screenshot({ path: resolve(run, `${name}.png`), fullPage: true });
-  writeFileSync(resolve(run, `${name}.aria.txt`), await on.locator("body").ariaSnapshot());
-}
-page.on("pageerror", (error) => errors.push(error.message));
-await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
-try {
-  save("doctor.json", healthy);
-  const initial = records("records-before.json");
+const LIMITATIONS = ["No nonempty analytics or schedule history in the deletion fixture", "Login refusal states are opened by their reason links; real Google sign-in and its refusals need the copy", "No capacity-notice settings entry, mobile navigation, or screenshot extraction"];
+
+const result = await drive(directory, "smoke", async ({ page, url, log, goto, signInAs, heading, capture, records, local, newSession }) => {
+  const initial = records("records-before");
   assert.equal(initial.accounts.length, 0, "Smoke requires an empty disposable database.");
   await goto("/");
   await capture("landing");
@@ -77,13 +49,13 @@ try {
   await page.getByText("Tick the box to continue.", { exact: true }).waitFor();
   assert.equal(new URL(page.url()).pathname, "/signup");
   assert.equal(await page.getByRole("checkbox").getAttribute("aria-invalid"), "true");
-  assert.equal(records("records-consent-refused.json").accounts.length, 0);
+  assert.equal(records("records-consent-refused").accounts.length, 0);
   await capture("signup-box-not-ticked");
-  check("seed", "student", email, "--not-onboarded");
-  await signInAs(page, email);
+  local("seed", "student", email, "--not-onboarded");
+  await signInAs(email);
   await goto("/onboarding");
   await heading("Set your target");
-  const signedUp = records("records-signup.json");
+  const signedUp = records("records-signup");
   assert.equal(signedUp.accounts.length, 1);
   assert.equal(signedUp.accounts[0].email, email);
   assert.equal(signedUp.accounts[0].role, "student");
@@ -105,7 +77,7 @@ try {
   log("Skip analytics for now");
   await page.getByRole("button", { name: "Skip for now", exact: true }).click();
   await heading(WEEKLY_UPLOAD);
-  const onboarded = records("records-onboarding.json");
+  const onboarded = records("records-onboarding");
   assert.equal(onboarded.students.length, 1);
   assert.equal(onboarded.students[0].goal_score, 165);
   assert.equal(onboarded.students[0].preferred_practice_test_day, "SATURDAY");
@@ -129,7 +101,7 @@ try {
     assert.equal(await page.getByRole("combobox", { name: `${day} hours`, exact: true }).inputValue(), "0");
     assert.equal(await page.getByRole("combobox", { name: `${day} minutes`, exact: true }).inputValue(), "30");
   }
-  const updated = records("records-settings.json");
+  const updated = records("records-settings");
   assert.equal(updated.students[0].goal_score, 168);
   assert.deepEqual(dailyCapacities(updated.students[0]), Array(7).fill(30));
   await capture("settings-reopened");
@@ -141,12 +113,12 @@ try {
   log("Log out and request protected Account directly");
   await page.getByRole("button", { name: `Account menu for ${email}`, exact: true }).click();
   await page.getByRole("menuitem", { name: "Log out", exact: true }).click();
-  await page.waitForURL(healthy.url + "/");
+  await page.waitForURL(url + "/");
   await goto("/account");
   await heading("Log in to DrillMap");
   assert.equal(new URL(page.url()).search, "", "A signed-out browser sees Login with no reason.");
   assert.equal(await page.locator("main").getByRole("status").count(), 0);
-  await signInAs(page, email);
+  await signInAs(email);
   await goto("/dashboard");
   await heading(WEEKLY_UPLOAD);
   for (const path of ["/login", "/signup"]) {
@@ -154,35 +126,22 @@ try {
     await heading(WEEKLY_UPLOAD);
     assert.equal(new URL(page.url()).pathname, "/dashboard/upload");
   }
-  const second = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-  const secondPage = await second.newPage();
-  await signInAs(secondPage, email);
-  await goto("/account", secondPage);
-  await secondPage.getByRole("heading", { name: "Account", exact: true }).waitFor();
+  const second = await newSession("second");
+  await second.signInAs(email);
+  await second.goto("/account");
+  await second.heading("Account");
   await goto("/account");
   await heading("Account");
   await page.locator('input[name="confirmation"]').fill("DELETE");
   log("Delete the disposable student's Account");
   await page.getByRole("button", { name: "Delete account", exact: true }).click();
   await page.getByRole("link", { name: "Build my first plan", exact: true }).waitFor();
-  const deleted = records("records-deleted.json");
+  const deleted = records("records-deleted");
   for (const collection of ["accounts", "students", "analytics_snapshots", "weekly_schedules", "activity_check_ins"]) assert.equal(deleted[collection].length, 0);
   log("Reload Account in the second browser after the deletion");
-  await secondPage.reload();
-  await secondPage.getByText("Your session ended. Sign in again.", { exact: true }).waitFor();
-  assert.equal(new URL(secondPage.url()).pathname + new URL(secondPage.url()).search, "/login?error=SessionEnded");
-  await capture("deleted-account-second-browser", secondPage);
-  await second.close();
-  assert.deepEqual(errors, []);
-  save("smoke-result.json", { passed: true, areas: ["sign-up-account", "study-settings"], pageErrors: errors, limitations: ["No nonempty analytics or schedule history in the deletion fixture", "Login refusal states are opened by their reason links; real Google sign-in and its refusals need the copy", "No capacity-notice settings entry, mobile navigation, or screenshot extraction"] });
-  console.log(`Passed Login and Signup states, onboarding, settings persistence, sign-out, Account deletion, and the ended session. Evidence: ${run}`);
-} catch (error) {
-  await capture("failure").catch(() => {});
-  save("smoke-result.json", { passed: false, error: error.message, pageErrors: errors });
-  throw error;
-} finally {
-  save("actions.json", actions);
-  await context.tracing.stop({ path: resolve(run, "trace.zip") });
-  await context.close();
-  await browser.close();
-}
+  await second.page.reload();
+  await second.page.getByText("Your session ended. Sign in again.", { exact: true }).waitFor();
+  assert.equal(new URL(second.page.url()).pathname + new URL(second.page.url()).search, "/login?error=SessionEnded");
+  await second.capture("deleted-account-second-browser");
+});
+console.log(`Passed Login and Signup states, onboarding, settings persistence, sign-out, Account deletion, and the ended session. Limits: ${LIMITATIONS.join("; ")}. Evidence: ${result.out}`);
