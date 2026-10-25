@@ -515,6 +515,7 @@ function AddType({
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const options = addTypeOptions(draft, query);
+  const listed = typed ? listedTypes(draft, query) : [];
   const flat = ADD_TYPE_GROUPS.flatMap(({ list }) => options[list].map((type) => ({ type, list })));
   useEffect(() => {
     document.getElementById(`${prefix}add-type-option-${active}`)?.scrollIntoView?.({ block: "nearest" });
@@ -578,6 +579,7 @@ function AddType({
           aria-controls={`${prefix}add-type-options`}
           aria-autocomplete="list"
           aria-activedescendant={flat[active] ? `${prefix}add-type-option-${active}` : undefined}
+          aria-describedby={listed.length > 0 ? `${prefix}add-type-listed` : undefined}
           autoComplete="off"
           value={query}
           onChange={(e) => {
@@ -624,10 +626,12 @@ function AddType({
             })}
           </div>
         ))}
+        {listed.length > 0 && (
+          <div id={`${prefix}add-type-listed`} role="presentation" className="mt-1 flex flex-col border-t border-vellum-line px-3 pt-2 pb-1 text-caption text-smoke">
+            {listed.map((type) => <span key={type}>{type} is already on your list.</span>)}
+          </div>
+        )}
       </div>
-      {typed && listedTypes(draft, query).map((type) => (
-        <p key={type} className="px-3 text-caption text-smoke">{type} is already on your list.</p>
-      ))}
     </div>
   );
 }

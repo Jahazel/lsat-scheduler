@@ -465,11 +465,45 @@ describe("WeeklyUpload · Type them", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(4);
 
     await user.click(screen.getByLabelText("Screenshots"));
+    await user.click(screen.getByLabelText("Type them"));
+    await user.click(screen.getByLabelText("Screenshots"));
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
+    expect(screen.getByText("Read your analytics screenshots to continue.")).toBeDefined();
+
+    await user.click(button("Read my screenshots"));
     await queueEmpty();
 
     expect(fetchSpy).toHaveBeenCalledTimes(6);
     expect(screen.getByText("lr-analytics.png · 3 question types")).toBeDefined();
     expect(button("Check the values").disabled).toBe(false);
+  }, 15_000);
+
+  it("reads no analytics screenshot that is still waiting once the student switches to Type them", async () => {
+    let releaseLr: () => void = () => {};
+    const lrHeld = new Promise<void>((resolve) => { releaseLr = resolve; });
+    const fetchSpy = vi.fn(async (url: string, init: RequestInit) => {
+      const form = init.body as FormData;
+      if (url === "/api/analytics/extract") {
+        const section = form.get("section");
+        if (section === "LR") await lrHeld;
+        return Response.json({ rows: section === "LR" ? LR_ROWS : RC_ROWS });
+      }
+      return Response.json({ reading: sample(Number((form.get("image") as File).name.match(/s(\d)/)?.[1])) });
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+    const { user } = setup();
+    await addAnalytics(user);
+    await addSections(user);
+    await user.click(button("Read my screenshots"));
+    await screen.findByText("lr-analytics.png · Reading now");
+
+    await user.click(screen.getByLabelText("Type them"));
+    releaseLr();
+    await queueEmpty();
+
+    const analyticsCalls = fetchSpy.mock.calls.filter(([url]) => url === "/api/analytics/extract");
+    expect(analyticsCalls.map(([, init]) => (init.body as FormData).get("section"))).toEqual(["LR"]);
+    expect(fetchSpy).toHaveBeenCalledTimes(5);
   }, 15_000);
 
   it("names the typed values, not the screenshots, when a typed value breaks after reading", async () => {
@@ -490,6 +524,7 @@ describe("WeeklyUpload · Type them", () => {
     await user.type(screen.getByRole("textbox", { name: "Necessary assumption accuracy" }), "104");
 
     expect(screen.getByText("Next week starts Monday, Oct 5. Fix the values marked below, then check them.")).toBeDefined();
+    expect(screen.getByText("Fix Necessary assumption above to continue.")).toBeDefined();
     expect(button("Check the values").disabled).toBe(true);
   }, 15_000);
 });

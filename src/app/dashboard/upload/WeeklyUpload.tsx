@@ -107,7 +107,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
 
   useEffect(() => {
     if (readInFlight.current) return;
-    const section = SECTIONS.find((key) => analytics[key]?.read.status === "waiting");
+    const section = typed ? undefined : SECTIONS.find((key) => analytics[key]?.read.status === "waiting");
     const sectionUpload = sections.find(({ read }) => read.status === "waiting");
 
     function stopWaiting(reply: ScanRefused) {
@@ -165,7 +165,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
       readInFlight.current = false;
       setReadsEnded((count) => count + 1);
     });
-  }, [analytics, sections, readsEnded]);
+  }, [analytics, sections, readsEnded, typed]);
 
   const queued: Read<never> = started ? { status: "waiting" } : { status: "added" };
 
@@ -208,9 +208,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
     setSections((current) => current.map((upload) => ({ ...upload, read: { status: "waiting" } })));
   }
 
-  function chooseInput(next: AnalyticsInput) {
-    setInput(next);
-    if (!started || next !== "screenshots") return;
+  function readAddedAnalytics() {
     setAnalytics((current) => {
       const queuedNow = { ...current };
       for (const section of SECTIONS) {
@@ -257,7 +255,8 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   const allAdded = (typed || SECTIONS.every((section) => analytics[section])) && (!needsSections || sections.length >= SECTION_COUNT);
   const shownAnalytics = typed ? {} : analytics;
   const uploads = [...SECTIONS.flatMap((section) => shownAnalytics[section] ?? []), ...sections];
-  const anyReading = started && uploads.some(({ read }) => PENDING.includes(read.status));
+  const unreadAnalytics = started && !typed && SECTIONS.some((section) => analytics[section]?.read.status === "added");
+  const anyReading = started && uploads.some(({ read }) => read.status === "waiting" || read.status === "reading");
   const readCount = (group: { read: Read<unknown> }[]) => `${group.filter(({ read }) => read.status === "read").length} of ${group.length} read`;
   const settledCount = uploads.filter(({ read }) => !PENDING.includes(read.status)).length;
   const found = analyticsReady && (!needsSections || (started && practiceTest !== null && !anyUnreadable));
@@ -314,9 +313,11 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
       ? `${start} We read ${typed ? "all 4 sections" : needsSections ? "all 6 screenshots" : "both screenshots"}. Check them, then build your weekly schedule.`
       : anyReading
         ? `${start} We read your screenshots one at a time. You don't need to click anything.`
-        : typedProblem
-          ? `${start} Fix the values marked below, then check them.`
-          : `${start} Fix the screenshots marked below, then check them.`;
+        : unreadAnalytics
+          ? `${start} Read your analytics screenshots, then check them.`
+          : typedProblem
+            ? `${start} Fix the ${sectionsSettled && (anyUnreadable || practiceTest === null) ? "values and screenshots" : "values"} marked below, then check them.`
+            : `${start} Fix the screenshots marked below, then check them.`;
 
   const hint = typed && !started
     ? needsSections && !allAdded && typedDraft.review.rows.every(({ row }) => row.category === "passage")
@@ -332,13 +333,15 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
       : score === null ? SCORE_HINT : "You check every value before it counts."
     : ready
       ? "Next, you check what we read. Nothing changes until you confirm."
-      : anyReading
-        ? "Each screenshot takes up to 30 seconds."
-        : found
-          ? SCORE_HINT
-          : pickQuestions.length > 0 && problems.every((problem) => problem.problem === "hidden-pick")
-            ? "Choose the question you missed to continue."
-            : "Fix the screenshots marked above to continue.";
+      : unreadAnalytics && !anyReading
+        ? "Read your analytics screenshots to continue."
+        : typedProblem ?? (anyReading
+          ? "Each screenshot takes up to 30 seconds."
+          : found
+            ? SCORE_HINT
+            : pickQuestions.length > 0 && problems.every((problem) => problem.problem === "hidden-pick")
+              ? "Choose the question you missed to continue."
+              : "Fix the screenshots marked above to continue.");
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] bg-paper lg:min-h-[calc(100vh-var(--spacing-18))] lg:grid-cols-[minmax(0,680px)_minmax(0,1fr)] lg:grid-rows-[auto_1fr]">
@@ -369,7 +372,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
           count={typed ? "Typed by you" : started ? readCount(SECTIONS.flatMap((section) => analytics[section] ?? [])) : "Screenshots or typed"}
           className={summarized && !typed ? "max-md:hidden" : undefined}
         >
-          <SegmentedSwitch name="analyticsInput" label="How to add your analytics" options={ANALYTICS_INPUTS} value={input} onChange={chooseInput} />
+          <SegmentedSwitch name="analyticsInput" label="How to add your analytics" options={ANALYTICS_INPUTS} value={input} onChange={setInput} />
           {typed ? (
             <div className="flex flex-col gap-5">
               <SnapshotReviewFields idPrefix="typed-" draft={typedDraft} lrRead={[]} files={{}} dispatch={dispatchTyped} />
@@ -479,7 +482,9 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
       </aside>
 
       <div className="flex flex-col gap-4 px-5 pt-10 pb-12 lg:px-30 lg:pb-18">
-        {started || (typed && !needsSections) ? (
+        {unreadAnalytics && !anyReading ? (
+          <Button className="w-full" onClick={readAddedAnalytics}>Read my screenshots</Button>
+        ) : started || (typed && !needsSections) ? (
           <Button className="w-full" disabled={!ready} onClick={checkValues}>
             {anyReading ? `Reading ${Math.min(settledCount + 1, uploads.length)} of ${uploads.length}…` : "Check the values"}
           </Button>

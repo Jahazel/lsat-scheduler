@@ -91,7 +91,7 @@ export function reviewDraftReducer(draft: ReviewDraft, action: ReviewAction): Re
   }
 }
 
-export type ConfirmLock = {
+export type ReviewLock = {
   reason: string;
   fix: { at: "box"; type: AnalyticsType } | { at: "tier"; type: LRType } | { at: "add-type" } | { at: "statements" };
 };
@@ -111,7 +111,7 @@ export const ANALYTICS_INPUTS = [
 ] as const;
 export type AnalyticsInput = (typeof ANALYTICS_INPUTS)[number]["value"];
 
-function valueLock(review: SnapshotReview, action: LockAction): ConfirmLock | null {
+function valueLock(review: SnapshotReview, action: LockAction): ReviewLock | null {
   const wrong = review.rows.filter(({ row }) => rowWrong(review, row));
   if (wrong.length > 0) {
     const reason = wrong.length === 1 ? `Fix ${wrong[0].row.type} above to ${action}.` : `Fix ${wrong.length} values above to ${action}.`;
@@ -128,7 +128,7 @@ export function typedEntryProblem(review: SnapshotReview): string | null {
   return valueLock(review, "continue")?.reason ?? null;
 }
 
-export function confirmLock(review: SnapshotReview): ConfirmLock | null {
+export function confirmLock(review: SnapshotReview): ReviewLock | null {
   const lock = valueLock(review, "confirm");
   if (lock) return lock;
   if (!review.confirmation.confirmedAt) return { reason: "Tick both statements to confirm.", fix: { at: "statements" } };
