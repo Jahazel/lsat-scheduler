@@ -8,7 +8,10 @@ import {
   snapshotApproval,
   type SnapshotReview,
 } from "./analyticsReview";
-import { confirmLock, reviewDraftReducer, startDraft, type AnalyticsType, type ReviewAction, type ReviewDraft } from "./reviewDraft";
+import {
+  confirmLock, reviewDraftReducer, startDraft, startTypedDraft, typedEntryProblem,
+  type AnalyticsInput, type AnalyticsType, type ReviewAction, type ReviewDraft,
+} from "./reviewDraft";
 import { activityLabel, lrTypesName } from "./activityLabel";
 import { summarizeAnalyticsRows } from "./analytics";
 import type { SnapshotApprovalMetadata } from "./analyticsSnapshots";
@@ -69,6 +72,8 @@ export interface WizardState {
   rejections: Record<AnalyticsSection, string | null>;
   readAttempts: Record<AnalyticsSection, number>;
   draft: ReviewDraft | null;
+  analyticsInput: AnalyticsInput;
+  typedDraft: ReviewDraft | null;
   save: "idle" | "saving" | "failed" | { refused: string };
 }
 
@@ -87,6 +92,7 @@ export type WizardAction =
   | { type: "readQueued"; section: AnalyticsSection; file: File }
   | { type: "readStarted"; section: AnalyticsSection }
   | { type: "readEnded"; section: AnalyticsSection; attempt: number; reply: ExtractReply; at: Date }
+  | { type: "chooseInput"; input: AnalyticsInput; at: Date }
   | ReviewAction
   | { type: "saveStarted" }
   | { type: "saveFailed" }
@@ -129,6 +135,8 @@ export function initialWizardState(): WizardState {
     rejections: { LR: null, RC: null },
     readAttempts: { LR: 0, RC: 0 },
     draft: null,
+    analyticsInput: "screenshots",
+    typedDraft: null,
     save: "idle",
   };
 }
@@ -280,10 +288,15 @@ export type PreviewDrill = {
   detail: { kind: "accuracy"; text: string } | { kind: "flag" } | null;
 };
 
+export function activeDraft(state: WizardState): ReviewDraft | null {
+  return state.analyticsInput === "typed" ? state.typedDraft : state.draft;
+}
+
 export function previewDrills(state: WizardState, today: string): { day: DayOfWeek; items: PreviewDrill[] } | null {
+  const draft = activeDraft(state);
   const profile = toProfileInput(state.values);
-  if (!profile || !state.draft) return null;
-  const rows = state.draft.review.rows.map(({ row }) => row).filter((row) => !accuracyError(row));
+  if (!profile || !draft) return null;
+  const rows = draft.review.rows.map(({ row }) => row).filter((row) => !accuracyError(row));
   const todayIndex = (utcDay(today).getUTCDay() + 6) % 7;
   const weekOf = currentWeekInTimezone(utcDay(today), "UTC");
   const week = generateWeek(
@@ -328,9 +341,12 @@ export function blockedReason(state: WizardState): string | null {
     case "week":
       return values.preferredPracticeTestDay ? null : "Pick a practice-test day to continue.";
     case "analytics":
+      if (state.analyticsInput === "typed") return state.typedDraft && typedEntryProblem(state.typedDraft.review);
       return bothRead(state) ? null : "Add both screenshots to check the values.";
-    case "review":
-      return state.draft ? (confirmLock(state.draft.review)?.reason ?? null) : null;
+    case "review": {
+      const draft = activeDraft(state);
+      return draft ? (confirmLock(draft.review)?.reason ?? null) : null;
+    }
     default: {
       const _exhaustive: never = state.step;
       return _exhaustive;
@@ -359,6 +375,10 @@ export function bothRead(state: WizardState) {
   return SECTIONS.every((section) => state.screenshots[section].status === "read");
 }
 
+function analyticsReady(state: WizardState) {
+  return state.analyticsInput === "typed" || bothRead(state);
+}
+
 export type ProfileWithAttempts = StudentProfileInput & { officialAttempts: OfficialAttempt[] };
 
 export function profileWithAttempts(state: WizardState): ProfileWithAttempts | null {
@@ -374,8 +394,9 @@ export type ConfirmSnapshotInput = ProfileWithAttempts & {
 
 export function confirmSnapshotInput(state: WizardState): ConfirmSnapshotInput | null {
   const profile = profileWithAttempts(state);
-  if (!profile || !bothRead(state) || !state.draft) return null;
-  const { review } = state.draft;
+  const draft = activeDraft(state);
+  if (!profile || !analyticsReady(state) || !draft) return null;
+  const { review } = draft;
   const analyticsApproval = snapshotApproval(review);
   return analyticsApproval && !confirmLock(review) ? { ...profile, analyticsRows: reviewedRows(review), analyticsApproval } : null;
 }
@@ -446,6 +467,7 @@ function readEnded(state: WizardState, section: AnalyticsSection, attempt: numbe
 }
 
 function updateDraft(state: WizardState, update: (draft: ReviewDraft) => ReviewDraft): WizardState {
+  if (state.analyticsInput === "typed") return state.typedDraft ? { ...state, typedDraft: update(state.typedDraft) } : state;
   return state.draft ? { ...state, draft: update(state.draft) } : state;
 }
 
@@ -486,10 +508,13 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       return readStarted(state, action.section);
     case "readEnded":
       return readEnded(state, action.section, action.attempt, action.reply, action.at);
+    case "chooseInput":
+      return { ...state, analyticsInput: action.input, typedDraft: state.typedDraft ?? (action.input === "typed" ? startTypedDraft(action.at) : null) };
     case "editAccuracy":
-    case "leaveAccuracyBox":
+    case "leaveRow":
     case "removeRow":
     case "toggleFlag":
+    case "setTier":
     case "addType":
     case "setStatement":
     case "confirmBlocked":

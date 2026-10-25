@@ -2,7 +2,7 @@
 
 import { DAY_LABEL } from "@/lib/studentProfile";
 import { SECTIONS } from "@/lib/analyticsReview";
-import { previewDrills, previewHeader, previewWeek, type PreviewDrill, type WizardState } from "@/lib/onboardingWizard";
+import { activeDraft, previewDrills, previewHeader, previewWeek, type PreviewDrill, type WizardState } from "@/lib/onboardingWizard";
 import type { DayOfWeek } from "@/lib/types";
 import { DrillList, WeekTiles, type DrillItem } from "@/components/WeekPreview";
 import { ScreenshotCard } from "@/components/SnapshotReviewFields";
@@ -19,10 +19,13 @@ interface LivePreviewProps {
 export default function LivePreview({ state, firstName, initials, today }: LivePreviewProps) {
   const drills = state.step === "analytics" || state.step === "review" ? previewDrills(state, today) : null;
 
-  if (state.step === "review" && state.draft) {
+  const draft = activeDraft(state);
+  const typed = state.analyticsInput === "typed";
+
+  if (state.step === "review" && draft) {
     return (
       <aside aria-label="Preview of This week" className="hidden flex-col gap-4 bg-vellum px-8 pb-12 pt-32 lg:flex xl:px-18">
-        {SECTIONS.map((section) => {
+        {!typed && SECTIONS.map((section) => {
           const screenshot = state.screenshots[section];
           return screenshot.status === "none" ? null : <ScreenshotCard key={section} section={section} file={screenshot.file} />;
         })}
@@ -69,12 +72,12 @@ export default function LivePreview({ state, firstName, initials, today }: LiveP
           {state.step !== "goal" &&
             (drills ? (
               <div className="flex flex-col gap-2.5 rounded-sm border border-vellum-line bg-paper p-5">
-                <DrillList title={`${DAY_LABEL[drills.day]}'s drills`} tag="Extracted · not confirmed" items={drillItems(drills.items)} />
+                <DrillList title={`${DAY_LABEL[drills.day]}'s drills`} tag={typed ? "Typed · not confirmed" : "Extracted · not confirmed"} items={drillItems(drills.items)} />
               </div>
             ) : (
               <div className="flex flex-col gap-3 rounded-sm border border-dashed border-vellum-line p-5">
                 <p className="text-small text-smoke">
-                  {state.draft ? "No drilling days left this week." : "Your drills fill in after you upload analytics."}
+                  {draft ? "No drilling days left this week." : "Your drills fill in after you upload analytics."}
                 </p>
                 <span aria-hidden className={`w-3/5 max-w-[260px] ${SKELETON} bg-vellum-line`} />
                 <span aria-hidden className={`w-2/5 max-w-[200px] ${SKELETON} bg-vellum-line`} />

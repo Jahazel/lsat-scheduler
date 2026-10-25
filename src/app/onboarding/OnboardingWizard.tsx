@@ -17,15 +17,16 @@ import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
 import { CheckGlyph, ClockGlyph, ReadingGlyph } from "@/components/ui/StatusIcon";
 import { DAY_ORDER } from "@/lib/engine";
 import { SECTION_NAME, SECTIONS, type Statement } from "@/lib/analyticsReview";
-import { confirmLock, type ReviewDraft } from "@/lib/reviewDraft";
+import { ANALYTICS_INPUTS, confirmLock, type ReviewDraft } from "@/lib/reviewDraft";
 import {
   ConfirmBar, ReviewStatements, STEP_PRIMARY as PRIMARY, STEP_SECONDARY as SECONDARY, SnapshotReviewFields,
-  boxId, statementId, useDeferWhilePointerDown, useFocusAfterRender,
+  boxId, statementId, tierId, useDeferWhilePointerDown, useFocusAfterRender,
 } from "@/components/SnapshotReviewFields";
 import { formatDuration } from "@/lib/formatDuration";
 import {
   DAY_SHORT_LABEL,
   TEST_TIME_LABEL,
+  activeDraft,
   attemptMessage,
   blockedReason,
   confirmSnapshotInput,
@@ -56,6 +57,7 @@ const SMALL_BUTTON = `h-10 self-start rounded-sm border border-vellum-line bg-pa
 const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline ${FOCUS}`;
 const CHANGE_LATER = "You can change these any time in Study settings.";
 
+
 interface OnboardingWizardProps {
   firstName: string;
   initials: string;
@@ -76,6 +78,7 @@ export default function OnboardingWizard({
   extract = extractScreenshot,
 }: OnboardingWizardProps) {
   const [state, dispatch] = useReducer(wizardReducer, undefined, initialWizardState);
+  const draft = activeDraft(state);
   const readInFlight = useRef(false);
   const [readsEnded, setReadsEnded] = useState(0);
   const { screenshots, readAttempts } = state;
@@ -138,7 +141,7 @@ export default function OnboardingWizard({
           {state.step === "analytics" && (
             <AnalyticsStep state={state} dispatch={dispatch} onSkip={skipForNow} onFile={readScreenshot} />
           )}
-          {state.step === "review" && state.draft && <ReviewStep state={state} draft={state.draft} dispatch={dispatch} onConfirm={confirmSnapshot} />}
+          {state.step === "review" && draft && <ReviewStep state={state} draft={draft} dispatch={dispatch} onConfirm={confirmSnapshot} />}
         </div>
       </div>
       <LivePreview state={state} firstName={firstName} initials={initials} today={today} />
@@ -522,13 +525,27 @@ function AnalyticsStep({
   onFile: (section: AnalyticsSection, file: File) => void;
 }) {
   const saving = state.save === "saving";
-  const { screenshots } = state;
-  const anyAdded = SECTIONS.some((section) => screenshots[section].status !== "none");
+  const { screenshots, typedDraft } = state;
+  const typed = state.analyticsInput === "typed";
+  const anyAdded = !typed && SECTIONS.some((section) => screenshots[section].status !== "none");
   const lrRead = screenshots.LR.status === "read" ? screenshots.LR : null;
+  const reason = blockedReason(state);
 
   return (
     <div className="flex flex-col gap-8">
-      <StepHeading state={state} title="Add your 7Sage analytics" lede="Two screenshots tell us what to drill first." />
+      <StepHeading state={state} title="Add your 7Sage analytics" lede="Two screenshots, or the same values typed by you, tell us what to drill first." />
+      <SegmentedSwitch
+        name="analyticsInput"
+        label="How to add your analytics"
+        options={ANALYTICS_INPUTS}
+        value={state.analyticsInput}
+        onChange={(input) => dispatch({ type: "chooseInput", input, at: new Date() })}
+      />
+      {typed && typedDraft ? (
+        <div className="flex flex-col gap-5">
+          <SnapshotReviewFields draft={typedDraft} lrRead={[]} files={{}} dispatch={dispatch} />
+        </div>
+      ) : (
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-3">
           {SECTIONS.map((section) => (
@@ -545,6 +562,7 @@ function AnalyticsStep({
         {lrRead && <RowsFound rows={lrRead.rows} complete={screenshots.RC.status === "read"} />}
         {!anyAdded && <WhereToFindIt />}
       </div>
+      )}
       <div className="flex flex-col gap-4">
         <div className="flex gap-3">
           <button type="button" disabled={saving} onClick={() => dispatch({ type: "back" })} className={SECONDARY}>
@@ -552,7 +570,8 @@ function AnalyticsStep({
           </button>
           <button
             type="button"
-            disabled={saving || Boolean(blockedReason(state))}
+            disabled={saving || Boolean(reason)}
+            aria-describedby={typed ? "continue-note" : undefined}
             onClick={() => dispatch({ type: "continue" })}
             className={PRIMARY}
           >
@@ -560,11 +579,12 @@ function AnalyticsStep({
           </button>
         </div>
         {anyAdded && <p className="text-center text-small text-smoke">You can replace either screenshot before you confirm.</p>}
+        {typed && reason && <p id="continue-note" className="text-center text-small text-smoke">{reason}</p>}
         <p className="text-center text-small text-smoke">
           <button type="button" disabled={saving} onClick={onSkip} className={LINK_BUTTON}>
             {saving ? "Saving…" : "Skip for now"}
           </button>
-          {" · Your schedule starts after you add both."}
+          {typed ? " · Your schedule starts after you add your analytics." : " · Your schedule starts after you add both."}
         </p>
         <p role="status" className="text-center text-small text-smoke">
           {state.save === "failed" && "We couldn't save your plan. Check your connection and press Skip for now again."}
@@ -878,6 +898,10 @@ const STATEMENTS: { statement: Statement; text: string }[] = [
   { statement: "extractedValuesMatch", text: "I reviewed these values and they match my screenshots." },
   { statement: "isLatestAnalytics", text: "These screenshots show my latest 7Sage analytics." },
 ];
+const TYPED_STATEMENTS: { statement: Statement; text: string }[] = [
+  { statement: "extractedValuesMatch", text: "I copied these values from my 7Sage Analytics page." },
+  { statement: "isLatestAnalytics", text: "These are my latest 7Sage analytics." },
+];
 
 function ReviewStep({
   state,
@@ -894,29 +918,40 @@ function ReviewStep({
   const reason = blockedReason(state);
   const requestFocus = useFocusAfterRender();
   const { review } = draft;
+  const typed = state.analyticsInput === "typed";
+  const statements = typed ? TYPED_STATEMENTS : STATEMENTS;
 
   function confirm() {
     const lock = confirmLock(review);
     if (onConfirm() === "sent" || !lock) return;
     const { fix } = lock;
     if (fix.at === "box") requestFocus(boxId(fix.type));
+    else if (fix.at === "tier") requestFocus(tierId(fix.type));
     else if (fix.at === "add-type") requestFocus("add-type-link");
-    else requestFocus(statementId(STATEMENTS.findIndex(({ statement }) => !review.confirmation[statement])));
+    else requestFocus(statementId(statements.findIndex(({ statement }) => !review.confirmation[statement])));
   }
 
   const note = saving
     ? "Saving your plan. This takes a few seconds."
     : state.save === "failed"
       ? "We couldn't save your plan. Check your connection and press Confirm snapshot again."
-      : typeof state.save === "object" ? state.save.refused : reason;
+      : typeof state.save === "object" ? state.save.refused : reason ?? (typed && "Your first weekly schedule uses these values like a scan.");
 
   return (
     <div className="flex flex-col gap-8">
-      <StepHeading
-        state={state}
-        title="Check what we read"
-        lede={<>Compare each value with your screenshots<span className="hidden lg:inline"> on the right</span>.</>}
-      />
+      {typed ? (
+        <StepHeading
+          state={state}
+          title="Check your analytics"
+          lede="These are the values you typed. Fix any value here. Nothing counts until you confirm."
+        />
+      ) : (
+        <StepHeading
+          state={state}
+          title="Check what we read"
+          lede={<>Compare each value with your screenshots<span className="hidden lg:inline"> on the right</span>.</>}
+        />
+      )}
       <div className="flex flex-col gap-5">
         <SnapshotReviewFields
           draft={draft}
@@ -924,7 +959,7 @@ function ReviewStep({
           files={{ LR: screenshotFile(state, "LR"), RC: screenshotFile(state, "RC") }}
           dispatch={dispatch}
         />
-        <ReviewStatements draft={draft} statements={STATEMENTS} dispatch={dispatch} />
+        <ReviewStatements draft={draft} statements={statements} dispatch={dispatch} />
       </div>
       <ConfirmBar
         label="Confirm snapshot"

@@ -1,6 +1,6 @@
 import { mockRules } from "@/lib/mockData";
 import type { SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
-import type { AnalyticsExtractedRow, AnalyticsSection, LRExtractedRow, LRType, PassageExtractedRow, RCType } from "@/lib/types";
+import type { AnalyticsExtractedRow, AnalyticsSection, LRExtractedRow, LRType, PassageExtractedRow, PriorityTier, RCType } from "@/lib/types";
 
 // Every type a reviewer can add by hand, tagged with the same "regular" /
 // "restricted" split the engine uses.
@@ -52,6 +52,16 @@ export function startReview(rows: AnalyticsExtractedRow[], extraction: SnapshotR
     confirmation: UNCONFIRMED,
   };
 }
+
+export function startTypedReview(at: Date): SnapshotReview {
+  return {
+    extraction: { source: "manual_entry", extractedAt: at.toISOString() },
+    rows: PASSAGE_TYPES.map((type) => ({ row: { type, category: "passage" }, original: null })),
+    confirmation: UNCONFIRMED,
+  };
+}
+
+export const isTyped = (review: SnapshotReview) => review.extraction.source === "manual_entry";
 
 export function readSection(
   review: SnapshotReview | null,
@@ -107,6 +117,14 @@ export function editAccuracy(review: SnapshotReview, index: number, accuracy: nu
 
 export function toggleTopPriority(review: SnapshotReview, index: number) {
   return updateRow(review, index, (row) => (row.category === "restricted" ? { ...row, isTopPriority: !row.isTopPriority } : row));
+}
+
+export function setTier(review: SnapshotReview, index: number, priorityTier: PriorityTier) {
+  return updateRow(review, index, (row) => (row.category === "restricted" ? { ...row, priorityTier, isTopPriority: priorityTier === "highest" } : row));
+}
+
+export function tierMissing(review: SnapshotReview, row: AnalyticsExtractedRow) {
+  return isTyped(review) && row.category === "restricted" && row.priorityTier === undefined;
 }
 
 export function removeRow(review: SnapshotReview, index: number) {

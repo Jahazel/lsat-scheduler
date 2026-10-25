@@ -86,7 +86,7 @@ describe("WeeklyUpload", () => {
     expect((screen.getByLabelText("Current score") as HTMLInputElement).value).toBe("156");
     expect(screen.getAllByText("Waiting")).toHaveLength(4);
     expect(button("Read my screenshots").disabled).toBe(true);
-    expect(screen.getByText("Add all 6 screenshots to continue. You check every value before it counts.")).toBeDefined();
+    expect(screen.getByText("Add all 6 screenshots, or type your analytics and add the 4 sections. You check every value before it counts.")).toBeDefined();
     expect(screen.getByRole("heading", { name: "Where to find them" })).toBeDefined();
   });
 
@@ -161,7 +161,7 @@ describe("WeeklyUpload", () => {
     expect(screen.queryByLabelText("All 4 section screenshots file")).toBeNull();
     expect(screen.getByText("No practice test on this week's plan")).toBeDefined();
     expect(screen.getByRole("heading", { name: "Where to find it" })).toBeDefined();
-    expect(screen.getByText("Add both screenshots to continue. You check every value before it counts.")).toBeDefined();
+    expect(screen.getByText("Add both screenshots, or type your analytics. You check every value before it counts.")).toBeDefined();
 
     await addAnalytics(user);
     await user.click(button("Read my screenshots"));

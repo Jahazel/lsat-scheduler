@@ -275,3 +275,93 @@ describe("Plan next week with an admin's sample", () => {
     }));
   });
 });
+
+describe("Type them", () => {
+  const box = (type: string) => screen.getByRole("textbox", { name: `${type} accuracy` }) as HTMLInputElement;
+
+  async function typeAnalytics(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByLabelText("Type them"));
+    expect(screen.getByText("Typed by you")).toBeDefined();
+    expect(screen.getByText("No question types yet.")).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "Add a question type" }));
+    await user.type(screen.getByRole("combobox", { name: "Search question types" }), "Necessary");
+    await user.keyboard("{Enter}");
+    await user.type(box("Necessary assumption"), "76");
+    await user.type(box("Law"), "58");
+  }
+
+  function stubSections() {
+    const fetchSpy = vi.fn(async (url: string, init: RequestInit) => {
+      const file = (init.body as FormData).get("image") as File;
+      const index = Number(file.name.match(/s(\d)/)?.[1]) - 1;
+      return url === "/api/practice-test/extract" ? Response.json({ reading: samplePracticeTestSections()[index] }) : new Response(null, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+    return fetchSpy;
+  }
+
+  async function confirmTyped(user: ReturnType<typeof userEvent.setup>, latest: string) {
+    expect(screen.getByRole("heading", { name: "Check your values" })).toBeDefined();
+    expect(box("Necessary assumption").value).toBe("76");
+    await user.click(statement("I copied these values from my 7Sage Analytics page."));
+    await user.click(statement(latest));
+    expect(screen.getByText("Your weekly schedule uses these values like a scan.")).toBeDefined();
+    await user.click(confirmButton());
+  }
+
+  it("types analytics in a week with no practice test and sends them as manual_entry without a scan", async () => {
+    const fetchSpy = stubSections();
+    const confirm = vi.fn<typeof confirmWeeklyUpload>(async () => REFUSED);
+    const user = userEvent.setup();
+    render(<AdminTestProvider><WeeklyUploadFlow basis={basis(false)} initialScore={156} confirm={confirm} /></AdminTestProvider>);
+
+    expect(screen.getByText("Screenshots or typed")).toBeDefined();
+    await typeAnalytics(user);
+    await user.click(screen.getByRole("button", { name: "Check the values" }));
+    await confirmTyped(user, "These are my latest 7Sage analytics.");
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(confirm).toHaveBeenCalledWith(expect.objectContaining({
+      analytics: expect.objectContaining({
+        rows: expect.arrayContaining([
+          { type: "Necessary assumption", category: "regular", accuracy: 76 },
+          { type: "Law", category: "passage", accuracy: 58 },
+        ]),
+        extraction: { source: "manual_entry", extractedAt: expect.any(String) },
+      }),
+      practiceTest: null,
+    }));
+  });
+
+  it("types analytics in a practice-test week, reads only the 4 sections, and keeps the screenshot source on the practice test", async () => {
+    const fetchSpy = stubSections();
+    const confirm = vi.fn<typeof confirmWeeklyUpload>(async () => REFUSED);
+    const user = userEvent.setup();
+    render(<AdminTestProvider><WeeklyUploadFlow basis={basis()} initialScore={156} confirm={confirm} /></AdminTestProvider>);
+
+    await typeAnalytics(user);
+    await user.upload(screen.getByLabelText("All 4 section screenshots file"), ["pt-s1.png", "pt-s2.png", "pt-s3.png", "pt-s4.png"].map(png));
+    await user.click(screen.getByRole("button", { name: "Read my 4 sections" }));
+    await user.click(await screen.findByRole("button", { name: "Check the values" }));
+    await confirmTyped(user, "These are my latest analytics and this week's practice test.");
+
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
+    expect(confirm).toHaveBeenCalledWith(expect.objectContaining({
+      analytics: expect.objectContaining({ extraction: { source: "manual_entry", extractedAt: expect.any(String) } }),
+      practiceTest: expect.objectContaining({ extraction: { source: "7sage_screenshot", extractedAt: expect.any(String) } }),
+    }));
+  });
+
+  it("keeps the read button off until a typed value is fixed", async () => {
+    const user = userEvent.setup();
+    render(<AdminTestProvider><WeeklyUploadFlow basis={basis(false)} initialScore={156} confirm={vi.fn()} /></AdminTestProvider>);
+
+    await typeAnalytics(user);
+    await user.clear(box("Law"));
+    await user.type(box("Law"), "104");
+    await user.tab();
+    expect(screen.getByText("Enter a percentage from 0 to 100.")).toBeDefined();
+    expect((screen.getByRole("button", { name: "Check the values" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText("Fix Law above to continue.")).toBeDefined();
+  });
+});
