@@ -252,11 +252,11 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   const shownAnalytics = typed ? {} : analytics;
   const uploads = [...SECTIONS.flatMap((section) => shownAnalytics[section] ?? []), ...sections];
   const unreadAnalytics = started && !typed && SECTIONS.some((section) => analytics[section]?.read.status === "added");
-  const inLine = uploads.filter(({ read }) => read.status !== "added");
-  const anyReading = started && inLine.some(({ read }) => read.status === "waiting" || read.status === "reading");
+  const queuedOrDone = uploads.filter(({ read }) => read.status !== "added");
+  const anyReading = started && queuedOrDone.some(({ read }) => read.status === "waiting" || read.status === "reading");
   const offerRead = unreadAnalytics && !anyReading;
   const readCount = (group: { read: Read<unknown> }[]) => `${group.filter(({ read }) => read.status === "read").length} of ${group.length} read`;
-  const settledCount = inLine.filter(({ read }) => !PENDING.includes(read.status)).length;
+  const settledCount = queuedOrDone.filter(({ read }) => !PENDING.includes(read.status)).length;
   const found = analyticsReady && (!needsSections || (started && practiceTest !== null && !anyUnreadable));
   const replacementRejected = SECTIONS.some((section) => !typed && rejections[section])
     || sections.some((upload) => rejections[`file-${upload.id}`]);
@@ -484,7 +484,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
           <Button className="w-full" onClick={() => setAnalyticsReads(["added"], { status: "waiting" })}>Read my screenshots</Button>
         ) : started || (typed && !needsSections) ? (
           <Button className="w-full" disabled={!ready} onClick={checkValues}>
-            {anyReading ? `Reading ${Math.min(settledCount + 1, inLine.length)} of ${inLine.length}…` : "Check the values"}
+            {anyReading ? `Reading ${Math.min(settledCount + 1, queuedOrDone.length)} of ${queuedOrDone.length}…` : "Check the values"}
           </Button>
         ) : (
           <Button className="w-full" disabled={!allAdded || score === null || typedProblem !== null} onClick={startReading}>
