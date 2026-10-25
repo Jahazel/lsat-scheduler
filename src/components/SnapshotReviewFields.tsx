@@ -579,7 +579,6 @@ function AddType({
           aria-controls={`${prefix}add-type-options`}
           aria-autocomplete="list"
           aria-activedescendant={flat[active] ? `${prefix}add-type-option-${active}` : undefined}
-          aria-describedby={listed.length > 0 ? `${prefix}add-type-listed` : undefined}
           autoComplete="off"
           value={query}
           onChange={(e) => {
@@ -593,44 +592,44 @@ function AddType({
           Cancel
         </button>
       </div>
-      <div id={`${prefix}add-type-options`} role="listbox" aria-label="Question types" className="flex max-h-72 flex-col overflow-y-auto rounded-sm border border-vellum-line bg-paper py-1.5">
-        {ADD_TYPE_GROUPS.map(({ list, label, typedLabel, none }, groupIndex) => (
-          <div
-            key={list}
-            role="group"
-            aria-labelledby={`${prefix}add-type-group-${list}`}
-            className={groupIndex > 0 ? "mt-1 border-t border-vellum-line pt-1" : undefined}
-          >
-            <div id={`${prefix}add-type-group-${list}`} role="presentation" className="px-3 py-1.5 text-caption text-smoke">
-              {typed ? typedLabel : label}
+      <div className="flex flex-col rounded-sm border border-vellum-line bg-paper">
+        <div id={`${prefix}add-type-options`} role="listbox" aria-label="Question types" className="flex max-h-72 flex-col overflow-y-auto py-1.5">
+          {ADD_TYPE_GROUPS.map(({ list, label, typedLabel, none }, groupIndex) => (
+            <div
+              key={list}
+              role="group"
+              aria-labelledby={`${prefix}add-type-group-${list}`}
+              className={groupIndex > 0 ? "mt-1 border-t border-vellum-line pt-1" : undefined}
+            >
+              <div id={`${prefix}add-type-group-${list}`} role="presentation" className="px-3 py-1.5 text-caption text-smoke">
+                {typed ? typedLabel : label}
+              </div>
+              {options[list].length === 0 && <div className="flex h-9 items-center px-3 text-small text-smoke">{`${none} "${query.trim()}"`}</div>}
+              {options[list].map((type) => {
+                const optionIndex = flat.findIndex((option) => option.type === type);
+                const selected = optionIndex === active;
+                return (
+                  <div
+                    key={type}
+                    id={`${prefix}add-type-option-${optionIndex}`}
+                    role="option"
+                    aria-selected={selected}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={() => setActive(optionIndex)}
+                    onClick={() => add(optionIndex)}
+                    className={`flex min-h-9 cursor-pointer items-center justify-between px-3 text-small text-ink ${selected ? "bg-vellum" : ""}`}
+                  >
+                    {type}
+                    {selected && <span className="font-mono text-caption text-smoke">Enter</span>}
+                  </div>
+                );
+              })}
             </div>
-            {options[list].length === 0 && <div className="flex h-9 items-center px-3 text-small text-smoke">{`${none} "${query.trim()}"`}</div>}
-            {options[list].map((type) => {
-              const optionIndex = flat.findIndex((option) => option.type === type);
-              const selected = optionIndex === active;
-              return (
-                <div
-                  key={type}
-                  id={`${prefix}add-type-option-${optionIndex}`}
-                  role="option"
-                  aria-selected={selected}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onMouseEnter={() => setActive(optionIndex)}
-                  onClick={() => add(optionIndex)}
-                  className={`flex min-h-9 cursor-pointer items-center justify-between px-3 text-small text-ink ${selected ? "bg-vellum" : ""}`}
-                >
-                  {type}
-                  {selected && <span className="font-mono text-caption text-smoke">Enter</span>}
-                </div>
-              );
-            })}
-          </div>
-        ))}
-        {listed.length > 0 && (
-          <div id={`${prefix}add-type-listed`} role="presentation" className="mt-1 flex flex-col border-t border-vellum-line px-3 pt-2 pb-1 text-caption text-smoke">
-            {listed.map((type) => <span key={type}>{type} is already on your list.</span>)}
-          </div>
-        )}
+          ))}
+        </div>
+        <div role="status" className={listed.length > 0 ? "flex flex-col border-t border-vellum-line px-3 pt-2 pb-2.5 text-caption text-smoke" : "sr-only"}>
+          {listed.map((type) => <span key={type}>{type} is already on your list.</span>)}
+        </div>
       </div>
     </div>
   );

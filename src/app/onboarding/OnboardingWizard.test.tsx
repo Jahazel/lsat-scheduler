@@ -881,7 +881,7 @@ describe("OnboardingWizard · Type them", () => {
     const options = within(screen.getByRole("listbox", { name: "Question types" }));
     expect(options.queryByRole("option", { name: "Necessary assumption" })).toBeNull();
     expect(options.getByRole("option", { name: /Sufficient assumption/ })).toBeDefined();
-    expect(screen.getByRole("combobox", { name: "Search question types", description: "Necessary assumption is already on your list." })).toBeDefined();
+    expect(screen.getByText("Necessary assumption is already on your list.").closest("[role=status]")).not.toBeNull();
   });
 
   it("keeps typed values when the student switches to screenshots and back", async () => {

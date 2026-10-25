@@ -107,7 +107,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
 
   useEffect(() => {
     if (readInFlight.current) return;
-    const section = typed ? undefined : SECTIONS.find((key) => analytics[key]?.read.status === "waiting");
+    const section = SECTIONS.find((key) => analytics[key]?.read.status === "waiting");
     const sectionUpload = sections.find(({ read }) => read.status === "waiting");
 
     function stopWaiting(reply: ScanRefused) {
@@ -165,7 +165,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
       readInFlight.current = false;
       setReadsEnded((count) => count + 1);
     });
-  }, [analytics, sections, readsEnded, typed]);
+  }, [analytics, sections, readsEnded]);
 
   const queued: Read<never> = started ? { status: "waiting" } : { status: "added" };
 
@@ -193,30 +193,26 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
     setSections((current) => current.map((entry) => (entry.id === id ? upload : entry)));
   }
 
+  function setAnalyticsReads(from: Read<unknown>["status"][], read: Read<never>) {
+    setAnalytics((current) => {
+      const next = { ...current };
+      for (const section of SECTIONS) {
+        const upload = current[section];
+        if (upload && from.includes(upload.read.status)) next[section] = { ...upload, read };
+      }
+      return next;
+    });
+  }
+
   function startReading() {
     setStartedAt(new Date().toISOString());
-    if (!typed) {
-      setAnalytics((current) => {
-        const next = { ...current };
-        for (const section of SECTIONS) {
-          const upload = current[section];
-          if (upload) next[section] = { ...upload, read: { status: "waiting" } };
-        }
-        return next;
-      });
-    }
+    if (!typed) setAnalyticsReads(["added"], { status: "waiting" });
     setSections((current) => current.map((upload) => ({ ...upload, read: { status: "waiting" } })));
   }
 
-  function readAddedAnalytics() {
-    setAnalytics((current) => {
-      const queuedNow = { ...current };
-      for (const section of SECTIONS) {
-        const upload = current[section];
-        if (upload?.read.status === "added") queuedNow[section] = { ...upload, read: { status: "waiting" } };
-      }
-      return queuedNow;
-    });
+  function chooseInput(next: AnalyticsInput) {
+    setInput(next);
+    if (next === "typed") setAnalyticsReads(["waiting"], { status: "added" });
   }
 
   function tryAgain(section: AnalyticsSection | null, id: number) {
@@ -256,9 +252,11 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   const shownAnalytics = typed ? {} : analytics;
   const uploads = [...SECTIONS.flatMap((section) => shownAnalytics[section] ?? []), ...sections];
   const unreadAnalytics = started && !typed && SECTIONS.some((section) => analytics[section]?.read.status === "added");
-  const anyReading = started && uploads.some(({ read }) => read.status === "waiting" || read.status === "reading");
+  const inLine = uploads.filter(({ read }) => read.status !== "added");
+  const anyReading = started && inLine.some(({ read }) => read.status === "waiting" || read.status === "reading");
+  const offerRead = unreadAnalytics && !anyReading;
   const readCount = (group: { read: Read<unknown> }[]) => `${group.filter(({ read }) => read.status === "read").length} of ${group.length} read`;
-  const settledCount = uploads.filter(({ read }) => !PENDING.includes(read.status)).length;
+  const settledCount = inLine.filter(({ read }) => !PENDING.includes(read.status)).length;
   const found = analyticsReady && (!needsSections || (started && practiceTest !== null && !anyUnreadable));
   const replacementRejected = SECTIONS.some((section) => !typed && rejections[section])
     || sections.some((upload) => rejections[`file-${upload.id}`]);
@@ -312,11 +310,11 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
     : found
       ? `${start} We read ${typed ? "all 4 sections" : needsSections ? "all 6 screenshots" : "both screenshots"}. Check them, then build your weekly schedule.`
       : anyReading
-        ? `${start} We read your screenshots one at a time. You don't need to click anything.`
+        ? `${start} We read your screenshots one at a time.${unreadAnalytics ? "" : " You don't need to click anything."}`
         : unreadAnalytics
           ? `${start} Read your analytics screenshots, then check them.`
           : typedProblem
-            ? `${start} Fix the ${sectionsSettled && (anyUnreadable || practiceTest === null) ? "values and screenshots" : "values"} marked below, then check them.`
+            ? `${start} Fix the ${needsSections && sectionsSettled && (anyUnreadable || problems.some(({ problem }) => problem !== "hidden-pick")) ? "values and screenshots" : "values"} marked below, then check them.`
             : `${start} Fix the screenshots marked below, then check them.`;
 
   const hint = typed && !started
@@ -333,7 +331,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
       : score === null ? SCORE_HINT : "You check every value before it counts."
     : ready
       ? "Next, you check what we read. Nothing changes until you confirm."
-      : unreadAnalytics && !anyReading
+      : offerRead
         ? "Read your analytics screenshots to continue."
         : typedProblem ?? (anyReading
           ? "Each screenshot takes up to 30 seconds."
@@ -372,7 +370,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
           count={typed ? "Typed by you" : started ? readCount(SECTIONS.flatMap((section) => analytics[section] ?? [])) : "Screenshots or typed"}
           className={summarized && !typed ? "max-md:hidden" : undefined}
         >
-          <SegmentedSwitch name="analyticsInput" label="How to add your analytics" options={ANALYTICS_INPUTS} value={input} onChange={setInput} />
+          <SegmentedSwitch name="analyticsInput" label="How to add your analytics" options={ANALYTICS_INPUTS} value={input} onChange={chooseInput} />
           {typed ? (
             <div className="flex flex-col gap-5">
               <SnapshotReviewFields idPrefix="typed-" draft={typedDraft} lrRead={[]} files={{}} dispatch={dispatchTyped} />
@@ -482,11 +480,11 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
       </aside>
 
       <div className="flex flex-col gap-4 px-5 pt-10 pb-12 lg:px-30 lg:pb-18">
-        {unreadAnalytics && !anyReading ? (
-          <Button className="w-full" onClick={readAddedAnalytics}>Read my screenshots</Button>
+        {offerRead ? (
+          <Button className="w-full" onClick={() => setAnalyticsReads(["added"], { status: "waiting" })}>Read my screenshots</Button>
         ) : started || (typed && !needsSections) ? (
           <Button className="w-full" disabled={!ready} onClick={checkValues}>
-            {anyReading ? `Reading ${Math.min(settledCount + 1, uploads.length)} of ${uploads.length}…` : "Check the values"}
+            {anyReading ? `Reading ${Math.min(settledCount + 1, inLine.length)} of ${inLine.length}…` : "Check the values"}
           </Button>
         ) : (
           <Button className="w-full" disabled={!allAdded || score === null || typedProblem !== null} onClick={startReading}>

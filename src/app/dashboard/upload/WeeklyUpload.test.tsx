@@ -501,10 +501,31 @@ describe("WeeklyUpload · Type them", () => {
     releaseLr();
     await queueEmpty();
 
-    const analyticsCalls = fetchSpy.mock.calls.filter(([url]) => url === "/api/analytics/extract");
-    expect(analyticsCalls.map(([, init]) => (init.body as FormData).get("section"))).toEqual(["LR"]);
+    const analyticsSections = () => fetchSpy.mock.calls
+      .filter(([url]) => url === "/api/analytics/extract")
+      .map(([, init]) => (init.body as FormData).get("section"));
+    expect(analyticsSections()).toEqual(["LR"]);
     expect(fetchSpy).toHaveBeenCalledTimes(5);
+
+    await user.click(screen.getByLabelText("Screenshots"));
+    expect(analyticsSections()).toEqual(["LR"]);
+    expect(screen.getByText("Read your analytics screenshots to continue.")).toBeDefined();
+    await user.click(button("Read my screenshots"));
+    await queueEmpty();
+    expect(analyticsSections()).toEqual(["LR", "RC"]);
   }, 15_000);
+
+  it("names only the values when typed values are the one thing left to fix", async () => {
+    stubServer();
+    const { user } = setup(false);
+    await addAnalytics(user);
+    await user.click(button("Read my screenshots"));
+    await queueEmpty();
+
+    await user.click(screen.getByLabelText("Type them"));
+
+    expect(screen.getByText("Next week starts Monday, Oct 5. Fix the values marked below, then check them.")).toBeDefined();
+  });
 
   it("names the typed values, not the screenshots, when a typed value breaks after reading", async () => {
     stubServer();
