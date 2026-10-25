@@ -3,7 +3,6 @@ import type { Session } from "next-auth";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { createAppTestDatabase } from "./appTestDatabase";
 import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
-import { createAccount } from "../../src/lib/accountRepository";
 import { createStudent } from "../../src/lib/studentRepository";
 import { createApprovedAnalyticsSnapshot, listApprovedAnalyticsSnapshots } from "../../src/lib/analyticsSnapshotRepository";
 import { prepareApprovedSnapshot, snapshotWeekOptions } from "../../src/lib/analyticsSnapshots";
@@ -53,7 +52,7 @@ const profile: Student = {
   dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 90, SUNDAY: 90 },
 };
 async function student(email: string, role: "student" | "admin" = "student") {
-  const account = await createAccount({ email, name: email, role });
+  const account = await database.createAccountAsOwner({ email, name: email, role });
   if (!account) throw new Error("Account fixture already exists");
   const saved = await createStudent(account.id, profile);
   if (!saved) throw new Error("Student fixture already exists");

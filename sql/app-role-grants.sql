@@ -25,7 +25,8 @@ BEGIN
     public.analytics_snapshots, public.practice_test_results, public.weekly_schedules, public.activity_check_ins, public.action_counters, public.running_scans,
     public.scan_settings, public.scan_spending FROM PUBLIC;
   EXECUTE format('REVOKE ALL PRIVILEGES ON TABLE public.accounts, public.students, public.leads, public.analytics_snapshots, public.practice_test_results, public.weekly_schedules, public.activity_check_ins, public.action_counters, public.running_scans, public.scan_settings, public.scan_spending FROM %I', app_role);
-  EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.accounts, public.students, public.leads, public.analytics_snapshots, public.practice_test_results, public.activity_check_ins, public.action_counters TO %I', app_role);
+  EXECUTE format('GRANT SELECT, DELETE, INSERT (email, name, google_id), UPDATE (simulated_date, session_version) ON TABLE public.accounts TO %I', app_role);
+  EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.students, public.leads, public.analytics_snapshots, public.practice_test_results, public.activity_check_ins, public.action_counters TO %I', app_role);
   EXECUTE format('GRANT SELECT, INSERT, DELETE ON TABLE public.weekly_schedules, public.running_scans TO %I', app_role);
   EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.scan_spending TO %I', app_role);
   EXECUTE format('GRANT SELECT ON TABLE public.scan_settings TO %I', app_role);

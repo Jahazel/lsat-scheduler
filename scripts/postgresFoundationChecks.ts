@@ -99,7 +99,8 @@ export async function checkPostgresFoundation(connection: Connection) {
       const leadEmail = `${randomUUID()}@example.test`;
       await tx.execute(sql`update leads set email = ${leadEmail} where id = ${leadId}`);
       deepStrictEqual((await tx.execute(sql`select email from leads where id = ${leadId}`)).rows, [{ email: leadEmail }]);
-      await tx.execute(sql`update accounts set name = 'Updated' where id = ${records.account_id}`);
+      await tx.execute(sql`update accounts set simulated_date = '2026-11-02', session_version = session_version + 1
+        where id = ${records.account_id}`);
       await tx.execute(sql`update students set current_score = 155 where id = ${records.student_id}`);
       await tx.execute(sql`update analytics_snapshots set lr_accuracy_by_type = '{"Weaken":60}' where id = ${records.snapshot_id}`);
       await tx.execute(sql`update practice_test_results set prep_test = 157 where id = ${records.practice_test_id}`);
@@ -107,14 +108,14 @@ export async function checkPostgresFoundation(connection: Connection) {
         [{ prep_test: 157 }]);
       await tx.execute(sql`update activity_check_ins set status = 'completed' where id = ${records.check_in_id}`);
       deepStrictEqual((await tx.execute(sql`
-        select accounts.name, students.current_score, analytics_snapshots.lr_accuracy_by_type,
+        select accounts.simulated_date, accounts.session_version, students.current_score, analytics_snapshots.lr_accuracy_by_type,
           weekly_schedules.policy_version, activity_check_ins.status
         from accounts join students on students.account_id = accounts.id
           join analytics_snapshots on analytics_snapshots.student_id = students.id
           join weekly_schedules on weekly_schedules.student_id = students.id
           join activity_check_ins on activity_check_ins.schedule_id = weekly_schedules.id
         where accounts.id = ${records.account_id}
-      `)).rows, [{ name: "Updated", current_score: 155, lr_accuracy_by_type: { Weaken: 60 },
+      `)).rows, [{ simulated_date: "2026-11-02", session_version: 1, current_score: 155, lr_accuracy_by_type: { Weaken: 60 },
         policy_version: "adaptive-weekly-schedule-v2", status: "completed" }]);
       messages.push("PASS: App reads and writes");
 
@@ -129,6 +130,16 @@ export async function checkPostgresFoundation(connection: Connection) {
         sql`update weekly_schedules set policy_version = 'changed' where false`,
       ]) await refused(query, "42501");
       messages.push("PASS: Limited role and immutable Weekly schedules");
+
+      for (const query of [
+        sql`update accounts set role = 'admin' where id = ${records.account_id}`,
+        sql`update accounts set disabled_at = now() where id = ${records.account_id}`,
+        sql`update accounts set google_id = ${randomUUID()} where id = ${records.account_id}`,
+        sql`update accounts set email = ${`${randomUUID()}@example.test`} where id = ${records.account_id}`,
+        sql`insert into accounts (email, name, role) values (${`${randomUUID()}@example.test`}, 'Foundation check', 'admin')`,
+        sql`insert into accounts (email, name, disabled_at) values (${`${randomUUID()}@example.test`}, 'Foundation check', now())`,
+      ]) await refused(query, "42501");
+      messages.push("PASS: Admin role, disabled time, and Google ID changes refused");
 
       for (const query of [
         sql`select hash from drillmap_migrations.applied`,
@@ -148,7 +159,6 @@ export async function checkPostgresFoundation(connection: Connection) {
         sql`insert into activity_check_ins (schedule_id, activity_id, status) values (${missing}, 'MONDAY:0', 'not_started')`,
       ]) await refused(query, "23503");
       for (const query of [
-        sql`update accounts set email = (select email from accounts where id = ${other.account_id}) where id = ${records.account_id}`,
         sql`update students set account_id = ${other.account_id} where id = ${records.student_id}`,
         sql`insert into weekly_schedules (student_id, week_start_date, generated_at, schedule, source_snapshot_ids, generation_inputs, policy_version)
           values (${records.student_id}, '2026-10-05', now(), '{}', '{}', '{}', 'adaptive-weekly-schedule-v2')`,
@@ -157,7 +167,6 @@ export async function checkPostgresFoundation(connection: Connection) {
       for (const query of [
         sql`update activity_check_ins set schedule_id = ${other.schedule_id} where id = ${records.check_in_id}`,
         sql`update activity_check_ins set activity_id = 'MONDAY:1' where id = ${records.check_in_id}`,
-        sql`update accounts set role = 'owner' where id = ${records.account_id}`,
         sql`update students set platform = 'Other' where id = ${records.student_id}`,
         sql`update students set accommodation = 1.25 where id = ${records.student_id}`,
         sql`update students set preferred_practice_test_day = 'FUNDAY' where id = ${records.student_id}`,

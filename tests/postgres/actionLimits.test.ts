@@ -3,7 +3,6 @@ import type { Session } from "next-auth";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { createAppTestDatabase } from "./appTestDatabase";
 import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
-import { createAccount } from "../../src/lib/accountRepository";
 import { countAction } from "../../src/lib/actionLimits";
 import { actionCounters } from "../../src/lib/postgresSchema";
 import { findStudentByAccountId } from "../../src/lib/studentRepository";
@@ -133,7 +132,7 @@ it("lead capture refuses the 6th submission in an hour from one IP address and w
 });
 
 it("onboarding shares the snapshot save counter and refuses before any write", async () => {
-  const account = await createAccount({ email: "student@example.test", name: "Sam" });
+  const account = await database.createAccountAsOwner({ email: "student@example.test", name: "Sam" });
   if (!account) throw new Error("Account fixture already exists");
   request.session = { user: { id: account.id, role: "student", email: "student@example.test", name: "Sam" }, expires: "2099-01-01" };
   await countTimes(5, "analyticsSnapshotSave", account.id, new Date());
@@ -158,7 +157,7 @@ it("onboarding shares the snapshot save counter and refuses before any write", a
 });
 
 it("counts only the onboarding save that wrote a snapshot when several run at the same time", async () => {
-  const account = await createAccount({ email: "student@example.test", name: "Sam" });
+  const account = await database.createAccountAsOwner({ email: "student@example.test", name: "Sam" });
   if (!account) throw new Error("Account fixture already exists");
   request.session = { user: { id: account.id, role: "student", email: "student@example.test", name: "Sam" }, expires: "2099-01-01" };
   const now = new Date().toISOString();

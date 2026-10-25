@@ -36,6 +36,7 @@ it("checks the foundation as the limited login and leaves existing records untou
     const result = await run();
     expect(result.code).toBe(0);
     expect(result.output).toContain("PASS: App reads and writes");
+    expect(result.output).toContain("PASS: Admin role, disabled time, and Google ID changes refused");
     expect(result.output).toContain("PASS: Owner-only migration journal refused");
     expect(result.output).toContain("PASS: Database rules");
     expect(result.output).toContain("PASS: Account deletion");

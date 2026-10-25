@@ -5,6 +5,9 @@ import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { closePostgresDatabase, createPostgresConnection } from "../../src/lib/postgres";
 import { countAction } from "../../src/lib/actionLimits";
+import { createAccount, endAllSessions, findAccountById } from "../../src/lib/accountRepository";
+import { postgresAdminTestRepositories } from "../../src/lib/adminTestRepositories";
+import { postgresAdminClock } from "../../src/lib/studentClock";
 import { createPostgresTestDatabase } from "./testDatabase";
 
 const role = `drillmap_app_test_${randomUUID().replaceAll("-", "")}`;
@@ -147,7 +150,7 @@ it("connects as the SQL-created app role and reads and writes Accounts", async (
 it("reads, inserts, corrects, and deletes the seven app tables with the allowed permissions", async () => {
   const db = appDb();
   const records = await createOwnedRecords();
-  await db.execute(sql`update accounts set name = 'Updated' where id = ${records.account_id}`);
+  await db.execute(sql`update accounts set simulated_date = '2026-11-02' where id = ${records.account_id}`);
   await db.execute(sql`update students set current_score = 155 where id = ${records.student_id}`);
   await db.execute(sql`update analytics_snapshots set lr_accuracy_by_type = '{"Weaken":60}' where id = ${records.snapshot_id}`);
   await db.execute(sql`update practice_test_results set prep_test = 157 where id = ${records.practice_test_id}`);
@@ -155,7 +158,7 @@ it("reads, inserts, corrects, and deletes the seven app tables with the allowed 
   await db.execute(sql`insert into leads (email) values ('lead@example.test')`);
   await db.execute(sql`update leads set email = 'updated-lead@example.test'`);
   expect((await db.execute(sql`
-    select accounts.name, students.current_score, analytics_snapshots.lr_accuracy_by_type,
+    select accounts.simulated_date, students.current_score, analytics_snapshots.lr_accuracy_by_type,
       weekly_schedules.policy_version, activity_check_ins.status
     from accounts join students on students.account_id = accounts.id
       join analytics_snapshots on analytics_snapshots.student_id = students.id
@@ -163,7 +166,7 @@ it("reads, inserts, corrects, and deletes the seven app tables with the allowed 
       join activity_check_ins on activity_check_ins.schedule_id = weekly_schedules.id
     where accounts.id = ${records.account_id}
   `)).rows).toEqual([{
-    name: "Updated", current_score: 155, lr_accuracy_by_type: { Weaken: 60 },
+    simulated_date: "2026-11-02", current_score: 155, lr_accuracy_by_type: { Weaken: 60 },
     policy_version: "adaptive-weekly-schedule-v2", status: "completed",
   }]);
   expect((await db.execute(sql`select email from leads`)).rows).toEqual([{ email: "updated-lead@example.test" }]);
@@ -204,6 +207,48 @@ it("counts, refuses, and deletes ended action counters through the app login", a
     await closePostgresDatabase();
     vi.unstubAllEnvs();
   }
+});
+
+async function asApp<T>(work: () => Promise<T>) {
+  vi.stubEnv("DATABASE_URL", appSetting);
+  try {
+    return await work();
+  } finally {
+    await closePostgresDatabase();
+    vi.unstubAllEnvs();
+  }
+}
+
+it("refuses Admin role, disabled time, and Google ID changes through the app login", async () => {
+  const records = await createOwnedRecords();
+  for (const change of [
+    sql`update accounts set role = 'admin' where id = ${records.account_id}`,
+    sql`update accounts set disabled_at = null where id = ${records.account_id}`,
+    sql`update accounts set google_id = 'stolen' where id = ${records.account_id}`,
+    sql`insert into accounts (email, name, role) values ('admin@example.test', 'Admin', 'admin')`,
+    sql`insert into accounts (email, name, disabled_at) values ('disabled@example.test', 'Disabled', null)`,
+  ]) {
+    await expect(appDb().execute(change)).rejects.toMatchObject({ cause: { code: "42501" } });
+  }
+  expect((await appDb().execute(sql`select role, google_id from accounts`)).rows)
+    .toEqual([{ role: "student", google_id: null }]);
+});
+
+it("creates a student Account, moves and resets the test date, ends sessions, and deletes the Account through the app login", async () => {
+  const created = await asApp(() => createAccount({ email: "new@example.test", name: "New", googleId: "google-new" }));
+  expect(created).toMatchObject({ role: "student" });
+  const id = z.uuid().brand<"AccountId">().parse(created?.id);
+  await ownerDb().execute(sql`update accounts set role = 'admin' where id = ${id}`);
+  await asApp(async () => {
+    expect(await postgresAdminClock.moveDate(id, null, "2026-11-02")).toBe(true);
+    expect(await findAccountById(id)).toMatchObject({ simulatedDate: "2026-11-02" });
+    await postgresAdminTestRepositories.inTransaction((writes) => writes.clearSimulatedDate(id));
+    expect(await findAccountById(id)).toMatchObject({ simulatedDate: null, sessionVersion: 1 });
+    await endAllSessions(id);
+    expect(await findAccountById(id)).toMatchObject({ sessionVersion: 2 });
+  });
+  await appDb().execute(sql`delete from accounts where id = ${id}`);
+  expect((await appDb().execute(sql`select id from accounts`)).rows).toEqual([]);
 });
 
 it("reads the scan settings but refuses changing the emergency switch or the monthly limit through the app login", async () => {

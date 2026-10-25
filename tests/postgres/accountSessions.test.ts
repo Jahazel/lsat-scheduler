@@ -5,7 +5,6 @@ import { z } from "zod";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { createAppTestDatabase } from "./appTestDatabase";
 import { closePostgresDatabase } from "../../src/lib/postgres";
-import { createAccount } from "../../src/lib/accountRepository";
 import { accountSessionToken } from "../../src/lib/accountSession";
 import { createGoogleAccountOnSignIn } from "../../src/lib/authAccounts";
 import { DISABLED_SIGN_IN_PATH } from "../../src/lib/loginNotice";
@@ -79,7 +78,7 @@ const advance = (seconds: number) => vi.setSystemTime(Date.now() + seconds * 100
 const ownerSql = (query: ReturnType<typeof sql>) => database.owner.execute(query);
 
 async function account(email: string, role: "student" | "admin" = "student") {
-  const created = await createAccount({ email, name: email, role, googleId: `google-${email}` });
+  const created = await database.createAccountAsOwner({ email, name: email, role, googleId: `google-${email}` });
   if (!created) throw new Error("Fixture Account already exists.");
   return created;
 }
