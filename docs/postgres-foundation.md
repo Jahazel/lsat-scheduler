@@ -193,7 +193,10 @@ Stage 2 copy-database setup ticket.
 
 The role can connect, use the `public` schema, and select, insert, and delete
 rows in all seven domain tables. It can update every domain table except
-`weekly_schedules`. The Weekly schedule trigger stays in place as a second
+`weekly_schedules` and most of `accounts`. On `accounts`, it inserts only
+`email`, `name`, and `google_id`, and updates only `simulated_date` and
+`session_version`. Only the owner may give the Admin role, disable an
+Account, or change its Google ID. The Weekly schedule trigger stays in place as a second
 protection for the database owner. The app role cannot create roles,
 databases, schemas, tables, temporary tables, or other schema objects.
 It cannot alter, drop, truncate, or disable triggers on the domain tables.

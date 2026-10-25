@@ -3,7 +3,6 @@ import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
 import { createAppTestDatabase } from "./appTestDatabase";
 import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
-import { createAccount } from "../../src/lib/accountRepository";
 import { createStudent } from "../../src/lib/studentRepository";
 import { practiceTestResults } from "../../src/lib/postgresSchema";
 import { PT158_FIXTURES } from "../../src/lib/practiceTestFixtures/pt158";
@@ -33,7 +32,7 @@ const profile: Student = {
 };
 
 async function student() {
-  const account = await createAccount({ email: `${randomUUID()}@example.test`, name: "Student", role: "student" });
+  const account = await database.createAccountAsOwner({ email: `${randomUUID()}@example.test`, name: "Student", role: "student" });
   if (!account) throw new Error("Account fixture already exists");
   const saved = await createStudent(account.id, profile);
   if (!saved) throw new Error("Student fixture already exists");

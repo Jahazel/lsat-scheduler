@@ -4,7 +4,6 @@ import type { Session } from "next-auth";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { createAppTestDatabase } from "./appTestDatabase";
 import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
-import { createAccount } from "../../src/lib/accountRepository";
 import { createStudent } from "../../src/lib/studentRepository";
 import { createApprovedAnalyticsSnapshot } from "../../src/lib/analyticsSnapshotRepository";
 import { listWeeklySchedulesForStudent, postgresCurrentWeekRepositories } from "../../src/lib/weeklyScheduleRepository";
@@ -39,7 +38,7 @@ afterAll(async () => {
   await database?.cleanup();
 });
 async function student(email = "student@example.test", role: "student" | "admin" = "student") {
-  const account = await createAccount({ email, name: "Student", role });
+  const account = await database.createAccountAsOwner({ email, name: "Student", role });
   if (!account) throw new Error("Account fixture already exists");
   const saved = await createStudent(account.id, {
     currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01",
@@ -130,7 +129,7 @@ it("requires a session and a Student, and rejects malformed or missing activitie
   const input = { scheduleId: "00000000-0000-4000-8000-000000000000", activityId: "MONDAY:0", status: "completed" as const };
   await expect(saveActivityCheckIn(input)).rejects.toThrow("Not authenticated");
   await expect(dashboard()).rejects.toThrow("redirect:/login");
-  const account = await createAccount({ email: "new@example.test", name: "New" });
+  const account = await database.createAccountAsOwner({ email: "new@example.test", name: "New" });
   if (!account) throw new Error("Missing fixture");
   state.session = { user: account, expires: "2099-01-01" };
   await expect(saveActivityCheckIn(input)).rejects.toThrow("Student record not found");

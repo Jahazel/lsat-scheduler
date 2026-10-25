@@ -39,14 +39,15 @@ export async function findAccountByGoogleId(googleId: string) {
   return account ?? null;
 }
 
+const createdAccount = z.object({ id: accountIdSchema, role: z.enum(accounts.role.enumValues) });
+
 /** Returns null when another Account already has this email or Google ID. */
-export async function createAccount(values: typeof accounts.$inferInsert) {
-  const [account] = await getPostgresDatabase()
-    .insert(accounts)
-    .values(values)
-    .onConflictDoNothing()
-    .returning({ id: accounts.id, role: accounts.role });
-  return account ?? null;
+export async function createAccount({ email, name, googleId }: { email: string; name: string; googleId: string }) {
+  const result = await getPostgresDatabase().execute(sql`
+    insert into accounts (email, name, google_id) values (${email}, ${name}, ${googleId})
+    on conflict do nothing returning id, role
+  `);
+  return result.rows[0] ? createdAccount.parse(result.rows[0]) : null;
 }
 
 export async function endAllSessions(id: AccountId) {

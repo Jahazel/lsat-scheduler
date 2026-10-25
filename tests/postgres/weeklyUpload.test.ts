@@ -4,7 +4,6 @@ import type { Session } from "next-auth";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { createAppTestDatabase } from "./appTestDatabase";
 import { closePostgresDatabase } from "../../src/lib/postgres";
-import { createAccount } from "../../src/lib/accountRepository";
 import { createStudent, findStudentByAccountId } from "../../src/lib/studentRepository";
 import { createApprovedAnalyticsSnapshot, listApprovedAnalyticsSnapshots } from "../../src/lib/analyticsSnapshotRepository";
 import { listWeeklySchedulesForStudent } from "../../src/lib/weeklyScheduleRepository";
@@ -62,7 +61,7 @@ const uploadPage = async () => renderToStaticMarkup(await WeeklyUploadPage());
 
 async function studentWithThisWeek(role: "student" | "admin" = "student") {
   vi.setSystemTime(MONDAY);
-  const account = await createAccount({ email: `${role}@example.test`, name: "Sam", role });
+  const account = await database.createAccountAsOwner({ email: `${role}@example.test`, name: "Sam", role });
   if (!account) throw new Error("Account fixture already exists");
   const saved = await createStudent(account.id, profile);
   if (!saved) throw new Error("Student fixture already exists");
@@ -245,7 +244,7 @@ it("saves a practice test reviewed on Sunday and confirmed after midnight, and u
 
 it("a student who signs up on Saturday plans next week, sees that the plan starts Monday, and gets it on Monday", async () => {
   vi.setSystemTime(SATURDAY);
-  const account = await createAccount({ email: "weekend@example.test", name: "Sam", role: "student" });
+  const account = await database.createAccountAsOwner({ email: "weekend@example.test", name: "Sam", role: "student" });
   if (!account) throw new Error("Account fixture already exists");
   const student = await createStudent(account.id, profile);
   if (!student) throw new Error("Student fixture already exists");

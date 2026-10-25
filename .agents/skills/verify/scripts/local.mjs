@@ -177,6 +177,7 @@ if (command === "seed") {
   const [role, email, onboarding] = extra;
   process.env.DATABASE_URL = postgresSettingForDatabase(loadState().postgresDatabase);
   const { createAccount } = await tsImport("../../../../src/lib/accountRepository.ts", import.meta.url);
+  const { getPostgresDatabase } = await tsImport("../../../../src/lib/postgres.ts", import.meta.url);
   const { createStudent } = await tsImport("../../../../src/lib/studentRepository.ts", import.meta.url);
   const { studentProfileSchema } = await tsImport("../../../../src/lib/studentProfile.ts", import.meta.url);
   // The feature map's baseline onboarding answers.
@@ -186,8 +187,9 @@ if (command === "seed") {
     dailyCapacityMinutes: Object.fromEntries(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"].map((day) => [day, 90])),
   });
   try {
-    const account = await createAccount({ name: email.split("@")[0], email, googleId: `verify-google-${randomBytes(12).toString("hex")}`, role });
+    const account = await createAccount({ name: email.split("@")[0], email, googleId: `verify-google-${randomBytes(12).toString("hex")}` });
     if (!account) throw new Error(`An Account already exists for ${email}. Choose another email.`);
+    if (role === "admin") await getPostgresDatabase().execute(sql`update accounts set role = 'admin' where id = ${account.id}`);
     const onboarded = onboarding !== "--not-onboarded";
     if (onboarded && !(await createStudent(account.id, profile))) throw new Error(`No student saved for ${email}.`);
     console.log(JSON.stringify({ email, role, accountId: account.id, onboarded }, null, 2));

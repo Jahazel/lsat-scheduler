@@ -7,7 +7,7 @@ import type { Session } from "next-auth";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppTestDatabase } from "./appTestDatabase";
 import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
-import { findAccountByEmail, createAccount } from "../../src/lib/accountRepository";
+import { findAccountByEmail } from "../../src/lib/accountRepository";
 import { createGoogleAccountOnSignIn } from "../../src/lib/authAccounts";
 import { accountSessionToken } from "../../src/lib/accountSession";
 import { findStudentByAccountId } from "../../src/lib/studentRepository";
@@ -65,7 +65,7 @@ async function studentRows() {
 
 function makeAdmin(email: string) {
   return promisify(execFile)("npm", ["run", "make-admin", "--", email], {
-    env: { ...process.env, DATABASE_URL: database.setting }, timeout: 15000,
+    env: { ...process.env, DATABASE_URL: database.ownerSetting }, timeout: 15000,
   });
 }
 
@@ -80,7 +80,7 @@ const profile: Student = {
 };
 const profileInput = { ...profile, officialAttempts: [], analyticsRows: [], analyticsApproval: null };
 async function account(email: string, role: "student" | "admin" = "student") {
-  const created = await createAccount({ email, name: email, role });
+  const created = await database.createAccountAsOwner({ email, name: email, role });
   if (!created) throw new Error("Fixture Account already exists.");
   return { ...created, email, name: email };
 }
@@ -270,7 +270,7 @@ it("Admin checks and simulated dates use the current Account role", async () => 
   const real = new Date("2026-10-15T12:00:00Z");
   expect(await studentSideClock(admin, real)).toMatchObject({ simulated: true });
   expect(await studentSideClock(student, real)).toMatchObject({ simulated: false, now: real });
-  await getPostgresDatabase().execute(sql`update accounts set role = 'student' where id = ${admin.id}`);
+  await database.owner.execute(sql`update accounts set role = 'student' where id = ${admin.id}`);
   expect(await postgresAdminClock.moveDate(admin.id, "2026-10-19", "2026-10-20")).toBe(false);
   session(student);
   await expect(requireCurrentAdmin()).rejects.toThrow("Admin access required");

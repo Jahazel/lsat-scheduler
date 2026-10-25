@@ -3,7 +3,6 @@ import type { Session } from "next-auth";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { createAppTestDatabase } from "./appTestDatabase";
 import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
-import { createAccount } from "../../src/lib/accountRepository";
 import { createStudent } from "../../src/lib/studentRepository";
 import type { Student } from "../../src/lib/types";
 import { deleteAccount } from "../../src/app/account/actions";
@@ -42,7 +41,7 @@ const profile: Student = {
 const minutesAgo = (minutes: number) => Math.floor(Date.now() / 1000) - minutes * 60;
 
 async function studentWithRecords(email: string, role: "student" | "admin" = "student") {
-  const account = await createAccount({ email, name: email, role });
+  const account = await database.createAccountAsOwner({ email, name: email, role });
   if (!account) throw new Error("Account fixture already exists");
   const student = await createStudent(account.id, profile);
   if (!student) throw new Error("Student fixture already exists");

@@ -125,7 +125,8 @@ it("applies a new migration and the app grants, then changes nothing on a second
   expect(applied.map((row) => row.hash)).toEqual(migrations.map((migration) => migration.hash));
   expect(await objectsNotOwnedByMigrator()).toEqual([]);
   expect(await appCan("public.weekly_schedules", "UPDATE")).toBe(false);
-  expect(await appCan("public.accounts", "INSERT")).toBe(true);
+  expect(await appCan("public.accounts", "UPDATE")).toBe(false);
+  expect(await appCan("public.students", "INSERT")).toBe(true);
 
   expect(await applyReleaseMigrations(migrator.db)).toEqual({ before: migrations.length, after: migrations.length });
   expect(await journal()).toEqual(applied);

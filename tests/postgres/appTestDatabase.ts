@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { sql } from "drizzle-orm";
 import { createPostgresConnection } from "../../src/lib/postgres";
+import { accounts } from "../../src/lib/postgresSchema";
 import { createPostgresTestDatabase } from "./testDatabase";
 
 export async function createAppTestDatabase() {
@@ -37,7 +38,12 @@ export async function createAppTestDatabase() {
     setting.password = password;
     setting.searchParams.delete("user");
     setting.searchParams.delete("password");
-    return { setting: setting.toString(), role, owner: owner.db, cleanup };
+    async function createAccountAsOwner(values: typeof accounts.$inferInsert) {
+      const [account] = await owner.db.insert(accounts).values(values).onConflictDoNothing()
+        .returning({ id: accounts.id, role: accounts.role });
+      return account ?? null;
+    }
+    return { setting: setting.toString(), ownerSetting: database.setting, role, owner: owner.db, createAccountAsOwner, cleanup };
   } catch (error) {
     await cleanup();
     throw error;
