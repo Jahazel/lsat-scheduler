@@ -71,6 +71,13 @@
       "when": 1792281600000,
       "tag": "0009_running_scans",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792368000000,
+      "tag": "0010_scan_spending",
+      "breakpoints": true
     }
   ]
 }

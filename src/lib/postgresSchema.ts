@@ -118,3 +118,16 @@ export const runningScans = pgTable("running_scans", {
   subject: text("subject").primaryKey(),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
 });
+
+export const scanSettings = pgTable("scan_settings", {
+  onlyRow: boolean("only_row").primaryKey(),
+  scanningOff: boolean("scanning_off").notNull(),
+  monthlyLimitUsd: numeric("monthly_limit_usd", { mode: "number" }).notNull(),
+});
+
+export const scanSpending = pgTable("scan_spending", {
+  monthStart: timestamp("month_start", { withTimezone: true }).primaryKey(),
+  totalUsd: numeric("total_usd", { mode: "number" }).notNull(),
+  warningSentAt: timestamp("warning_sent_at", { withTimezone: true }),
+  limitAlertSentAt: timestamp("limit_alert_sent_at", { withTimezone: true }),
+});

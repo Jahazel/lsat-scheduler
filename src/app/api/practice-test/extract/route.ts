@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   const read = await readScreenshotForm(request);
   if ("refusal" in read) return read.refusal;
 
-  return scanWithLimits(session.user.id, async () => ({
-    reading: await extractPracticeTestSection(read.screenshot.bytes, read.screenshot.mediaType),
+  return scanWithLimits(session.user.id, "practice-test-section", async (recordCost) => ({
+    reading: await extractPracticeTestSection(read.screenshot.bytes, read.screenshot.mediaType, recordCost),
   }));
 }
