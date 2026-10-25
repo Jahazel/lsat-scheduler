@@ -4,7 +4,7 @@ import nextConfig from "./next.config";
 afterEach(() => vi.unstubAllEnvs());
 
 describe("production deployment redirects", () => {
-  it("sends a deployment URL to the Google OAuth callback's registered host", async () => {
+  it("sends a deployment URL to the drillmap.xyz domain", async () => {
     vi.stubEnv("VERCEL_ENV", "production");
 
     const redirects = await nextConfig.redirects!();
@@ -15,7 +15,7 @@ describe("production deployment redirects", () => {
     expect(hostPattern.test("lsat-scheduler-6rjow71sl-jahazels-projects.vercel.app")).toBe(true);
     expect(hostPattern.test("lsat-scheduler.vercel.app")).toBe(false);
     expect(redirect.source).toBe("/:path*");
-    expect(redirect.destination).toBe("https://lsat-scheduler.vercel.app/:path*");
+    expect(redirect.destination).toBe("https://drillmap.xyz/:path*");
     expect(redirect.permanent).toBe(false);
   });
 

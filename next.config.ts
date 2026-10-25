@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
             value: "lsat-scheduler-[a-z0-9]+-jahazels-projects\\.vercel\\.app",
           },
         ],
-        destination: "https://lsat-scheduler.vercel.app/:path*",
+        destination: "https://drillmap.xyz/:path*",
         permanent: false,
       },
     ];
