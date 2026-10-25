@@ -28,19 +28,19 @@ export async function takeScanPlace(subject: string, realNow: Date): Promise<Sca
   try {
     return await getPostgresDatabase().transaction(async (transaction) => {
       const day = await countAction("scanInDay", subject, realNow, transaction);
-      if (!day.allowed) {
-        throw new Refused({
-          refused: "daily-limit",
-          message: `You've read ${limitOf("scanInDay")} screenshots today. You can scan again tomorrow, after midnight Central time.`,
-          retryAt: day.windowEnd,
-        });
-      }
       const month = await countAction("scanInMonth", subject, realNow, transaction);
       if (!month.allowed) {
         throw new Refused({
           refused: "monthly-limit",
           message: `You've read ${limitOf("scanInMonth")} screenshots this month. You can scan again on ${MONTH_DAY.format(month.windowEnd)}.`,
           retryAt: month.windowEnd,
+        });
+      }
+      if (!day.allowed) {
+        throw new Refused({
+          refused: "daily-limit",
+          message: `You've read ${limitOf("scanInDay")} screenshots today. You can scan again tomorrow, after midnight Central time.`,
+          retryAt: day.windowEnd,
         });
       }
 

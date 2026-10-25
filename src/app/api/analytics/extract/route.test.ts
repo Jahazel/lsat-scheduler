@@ -61,6 +61,7 @@ describe("POST /api/analytics/extract", () => {
     mocks.auth.mockResolvedValue({ user: { id: "student-account", role: "student" } });
     mocks.createMessage.mockResolvedValue({ content: [] });
     mocks.takeScanPlace.mockImplementation(async (subject: string, startedAt: Date) => ({ subject, startedAt }));
+    mocks.freeScanPlace.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -236,7 +237,9 @@ describe("POST /api/analytics/extract", () => {
 
   it.each([
     ["daily-limit", "You've read 10 screenshots today. You can scan again tomorrow, after midnight Central time.", 3_600_000, "3600"],
+    ["monthly-limit", "You've read 40 screenshots this month. You can scan again on Nov 1.", 86_400_000, "86400"],
     ["still-reading", "We're still reading your last screenshot. Wait a moment, then try this one.", 1_500, "2"],
+    ["site-busy", "Many students are scanning right now. Wait a moment, then try this one.", 90_000, "90"],
   ])("refuses a %s scan with 429 and Retry-After, without running the extractor", async (refused, message, waitMs, retryAfter) => {
     vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
     mocks.takeScanPlace.mockImplementation(async (_subject: string, realNow: Date) => ({
@@ -251,6 +254,18 @@ describe("POST /api/analytics/extract", () => {
     expect(await response.json()).toEqual({ error: message, reason: refused });
     expect(mocks.extractor).not.toHaveBeenCalled();
     expect(mocks.freeScanPlace).not.toHaveBeenCalled();
+  });
+
+  it("keeps a finished read's rows when its running-scan place cannot be freed", async () => {
+    vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.freeScanPlace.mockRejectedValue(new Error("synthetic connection loss"));
+
+    const { POST } = await import("./route");
+    const response = await POST(await imageRequest());
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).rows).toHaveLength(5);
   });
 
   it("counts no scan for a screenshot with a wrong section", async () => {

@@ -407,9 +407,19 @@ function readStarted(state: WizardState, section: AnalyticsSection): WizardState
   return withScreenshot(state, section, { status: "reading", file: screenshot.file });
 }
 
+function stopWaitingReads(state: WizardState, message: string): WizardState {
+  return SECTIONS.reduce((next, section) => {
+    const waiting = next.screenshots[section];
+    return waiting.status === "waiting"
+      ? withScreenshot(next, section, { status: "refused", message, tryAgain: false, file: waiting.file })
+      : next;
+  }, state);
+}
+
 function readEnded(state: WizardState, section: AnalyticsSection, attempt: number, reply: ExtractReply, at: Date): WizardState {
-  const screenshot = state.screenshots[section];
-  if (screenshot.status !== "reading" || attempt !== state.readAttempts[section]) return state;
+  const stopped = reply.kind === "refused" && stopsLaterScans(reply) ? stopWaitingReads(state, reply.message) : state;
+  const screenshot = stopped.screenshots[section];
+  if (screenshot.status !== "reading" || attempt !== stopped.readAttempts[section]) return stopped;
   const { file } = screenshot;
   switch (reply.kind) {
     case "rows": {
@@ -421,14 +431,8 @@ function readEnded(state: WizardState, section: AnalyticsSection, attempt: numbe
     }
     case "rejected":
       return { ...withScreenshot(state, section, { status: "none" }), rejections: { ...state.rejections, [section]: reply.message } };
-    case "refused": {
-      const refused = { status: "refused", message: reply.message, tryAgain: !stopsLaterScans(reply) } as const;
-      const stopped = SECTIONS.reduce((next, other) => {
-        const waiting = next.screenshots[other];
-        return stopsLaterScans(reply) && waiting.status === "waiting" ? withScreenshot(next, other, { ...refused, file: waiting.file }) : next;
-      }, state);
-      return withScreenshot(stopped, section, { ...refused, file });
-    }
+    case "refused":
+      return withScreenshot(stopped, section, { status: "refused", message: reply.message, tryAgain: !stopsLaterScans(reply), file });
     case "connection-lost":
     case "cannot-read":
     case "timed-out":

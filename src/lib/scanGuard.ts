@@ -21,6 +21,8 @@ export async function scanWithLimits(accountId: string, read: () => Promise<obje
       ? NextResponse.json({ error: "Reading took too long and stopped. Try again." }, { status: 504 })
       : NextResponse.json({ error: "Couldn't read that screenshot" }, { status: 502 });
   } finally {
-    await freeScanPlace(place);
+    await freeScanPlace(place).catch((error: unknown) => {
+      console.error(JSON.stringify({ event: "scan_place_not_freed", error: error instanceof Error ? error.name : "unknown" }));
+    });
   }
 }

@@ -232,6 +232,24 @@ describe("onboarding wizard", () => {
     });
   });
 
+  it("stops every waiting screenshot at a daily limit, even when the refused read was replaced", () => {
+    const lr = new File(["png"], "lr.png", { type: "image/png" });
+    const rc = new File(["png"], "rc.png", { type: "image/png" });
+    const message = "You've read 10 screenshots today. You can scan again tomorrow, after midnight Central time.";
+    const replaced = run(
+      { type: "readQueued", section: "LR", file: lr }, { type: "readStarted", section: "LR" },
+      { type: "readQueued", section: "RC", file: rc },
+      { type: "readQueued", section: "LR", file: new File(["png"], "lr-2.png", { type: "image/png" }) },
+    );
+
+    const ended = wizardReducer(replaced, {
+      type: "readEnded", section: "LR", attempt: 1, reply: { kind: "refused", refused: "daily-limit", message }, at: READ_AT,
+    });
+
+    expect(ended.screenshots.LR).toMatchObject({ status: "refused", message, tryAgain: false, file: { name: "lr-2.png" } });
+    expect(ended.screenshots.RC).toMatchObject({ status: "refused", message, tryAgain: false, file: rc });
+  });
+
   it("returns to the drop zone with the server's message when it rejects the file", () => {
     const file = new File(["png"], "huge.png", { type: "image/png" });
     const reading = run({ type: "readQueued", section: "LR", file }, { type: "readStarted", section: "LR" });

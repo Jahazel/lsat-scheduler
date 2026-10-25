@@ -68,9 +68,12 @@ it("allows 10 scans in one Chicago day and refuses the 11th until midnight Centr
   expect(await scanAndFinish("student-a", new Date("2026-10-25T05:00:00Z"))).toMatchObject({ subject: "student-a" });
 });
 
-it("allows 40 scans in one Chicago month and refuses the 41st until the 1st", async () => {
+it("allows 40 scans in one Chicago month and refuses the 41st until the 1st, even on a day also at its limit", async () => {
   for (const day of ["2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04"]) await scanTimes(10, "student-a", new Date(`${day}T15:00:00Z`));
 
+  expect(await scanAndFinish("student-a", new Date("2026-10-04T16:00:00Z"))).toMatchObject({
+    refused: "monthly-limit", retryAt: new Date("2026-11-01T05:00:00Z"),
+  });
   const lastEvening = new Date("2026-11-01T04:59:59Z");
   expect(await scanAndFinish("student-a", lastEvening)).toEqual({
     refused: "monthly-limit",
@@ -137,6 +140,19 @@ it("gives one student exactly 1 place and 1 count from 6 scans at the same time"
   expect(await counts()).toEqual([
     { action: "scanInDay", subject: "student-a", count: 1 },
     { action: "scanInMonth", subject: "student-a", count: 1 },
+  ]);
+});
+
+it("lets exactly 1 of 6 scans at the same time through when the student has 1 scan left today", async () => {
+  const at = new Date("2026-10-24T15:00:00Z");
+  await scanTimes(9, "student-a", at);
+  await Promise.all(Array.from({ length: 3 }, () => getPostgresDatabase().execute(sql`select 1`)));
+  const results = await Promise.all(Array.from({ length: 6 }, () => takeScanPlace("student-a", at)));
+
+  expect(results.filter((result) => "subject" in result)).toHaveLength(1);
+  expect(await counts()).toEqual([
+    { action: "scanInDay", subject: "student-a", count: 10 },
+    { action: "scanInMonth", subject: "student-a", count: 10 },
   ]);
 });
 

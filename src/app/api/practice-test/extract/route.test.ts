@@ -28,7 +28,7 @@ describe("POST /api/practice-test/extract", () => {
   beforeEach(() => {
     vi.resetModules();
     mocks.extractor.mockClear();
-    mocks.freeScanPlace.mockClear();
+    mocks.freeScanPlace.mockReset().mockResolvedValue(undefined);
     mocks.takeScanPlace.mockReset().mockImplementation(async (subject: string, startedAt: Date) => ({ subject, startedAt }));
     mocks.auth.mockResolvedValue({ user: { id: "student-account", role: "student" } });
     vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
@@ -102,17 +102,21 @@ describe("POST /api/practice-test/extract", () => {
     expect(await response.json()).toEqual({ error: "Couldn't read that screenshot" });
   });
 
-  it("refuses a scan over the monthly limit with 429 and Retry-After, without running the extractor", async () => {
-    const message = "You've read 40 screenshots this month. You can scan again on Nov 1.";
+  it.each([
+    ["daily-limit", "You've read 10 screenshots today. You can scan again tomorrow, after midnight Central time.", 3_600_000, "3600"],
+    ["monthly-limit", "You've read 40 screenshots this month. You can scan again on Nov 1.", 86_400_000, "86400"],
+    ["still-reading", "We're still reading your last screenshot. Wait a moment, then try this one.", 1_500, "2"],
+    ["site-busy", "Many students are scanning right now. Wait a moment, then try this one.", 90_000, "90"],
+  ])("refuses a %s scan with 429 and Retry-After, without running the extractor", async (refused, message, waitMs, retryAfter) => {
     mocks.takeScanPlace.mockImplementation(async (_subject: string, realNow: Date) => ({
-      refused: "monthly-limit", message, retryAt: new Date(realNow.getTime() + 86_400_000),
+      refused, message, retryAt: new Date(realNow.getTime() + waitMs),
     }));
     const { POST } = await import("./route");
     const response = await POST(await imageRequest());
 
     expect(response.status).toBe(429);
-    expect(response.headers.get("Retry-After")).toBe("86400");
-    expect(await response.json()).toEqual({ error: message, reason: "monthly-limit" });
+    expect(response.headers.get("Retry-After")).toBe(retryAfter);
+    expect(await response.json()).toEqual({ error: message, reason: refused });
     expect(mocks.extractor).not.toHaveBeenCalled();
   });
 
