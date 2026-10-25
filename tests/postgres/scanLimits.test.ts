@@ -28,7 +28,7 @@ beforeEach(async () => {
   vi.unstubAllEnvs();
   request.accountId = "student-a";
   request.extractor.mockClear();
-  await database.owner.execute(sql`truncate action_counters, running_scans`);
+  await database.owner.execute(sql`truncate action_counters, running_scans, scan_spending`);
 });
 afterAll(async () => {
   vi.useRealTimers();
@@ -42,13 +42,13 @@ const counts = async () => (await database.owner.select().from(actionCounters))
   .sort((a, b) => a.action.localeCompare(b.action));
 
 async function scanAndFinish(subject: string, at: Date) {
-  const place = await takeScanPlace(subject, at);
-  if ("subject" in place) await freeScanPlace(place);
+  const place = await takeScanPlace(subject, "analytics", at);
+  if ("subject" in place) await freeScanPlace(place, null);
   return place;
 }
 
 async function scanTimes(times: number, subject: string, at: Date) {
-  for (let index = 0; index < times; index += 1) expect(await scanAndFinish(subject, at)).toEqual({ subject, startedAt: at });
+  for (let index = 0; index < times; index += 1) expect(await scanAndFinish(subject, at)).toEqual({ subject, kind: "analytics", startedAt: at });
 }
 
 it("allows 10 scans in one Chicago day and refuses the 11th until midnight Central time, counting nothing", async () => {
@@ -85,9 +85,9 @@ it("allows 40 scans in one Chicago month and refuses the 41st until the 1st, eve
 
 it("refuses a second scan while one runs, counts nothing for it, and allows it after the first ends", async () => {
   const at = new Date("2026-10-24T15:00:00Z");
-  const first = await takeScanPlace("student-a", at) as ScanPlace;
+  const first = await takeScanPlace("student-a", "analytics", at) as ScanPlace;
 
-  expect(await takeScanPlace("student-a", new Date("2026-10-24T15:00:10Z"))).toEqual({
+  expect(await takeScanPlace("student-a", "analytics", new Date("2026-10-24T15:00:10Z"))).toEqual({
     refused: "still-reading",
     message: "We're still reading your last screenshot. Wait a moment, then try this one.",
     retryAt: new Date("2026-10-24T15:02:00Z"),
@@ -97,35 +97,35 @@ it("refuses a second scan while one runs, counts nothing for it, and allows it a
     { action: "scanInMonth", subject: "student-a", count: 1 },
   ]);
 
-  await freeScanPlace(first);
-  expect(await takeScanPlace("student-a", new Date("2026-10-24T15:00:20Z"))).toMatchObject({ subject: "student-a" });
+  await freeScanPlace(first, null);
+  expect(await takeScanPlace("student-a", "analytics", new Date("2026-10-24T15:00:20Z"))).toMatchObject({ subject: "student-a" });
 });
 
 it("frees a place 2 minutes after it started even when its scan never ended", async () => {
-  await takeScanPlace("student-a", new Date("2026-10-24T15:00:00Z"));
+  await takeScanPlace("student-a", "analytics", new Date("2026-10-24T15:00:00Z"));
 
-  expect(await takeScanPlace("student-a", new Date("2026-10-24T15:01:59.999Z"))).toMatchObject({ refused: "still-reading" });
-  expect(await takeScanPlace("student-a", new Date("2026-10-24T15:02:00Z"))).toMatchObject({ subject: "student-a" });
+  expect(await takeScanPlace("student-a", "analytics", new Date("2026-10-24T15:01:59.999Z"))).toMatchObject({ refused: "still-reading" });
+  expect(await takeScanPlace("student-a", "analytics", new Date("2026-10-24T15:02:00Z"))).toMatchObject({ subject: "student-a" });
   expect(await database.owner.select().from(runningScans)).toEqual([{ subject: "student-a", startedAt: new Date("2026-10-24T15:02:00Z") }]);
 });
 
 it("refuses a 6th running scan on the site until the first place frees", async () => {
-  for (let index = 1; index <= 5; index += 1) await takeScanPlace(`student-${index}`, new Date(`2026-10-24T15:00:0${index}Z`));
+  for (let index = 1; index <= 5; index += 1) await takeScanPlace(`student-${index}`, "analytics", new Date(`2026-10-24T15:00:0${index}Z`));
 
-  expect(await takeScanPlace("student-6", new Date("2026-10-24T15:00:30Z"))).toEqual({
+  expect(await takeScanPlace("student-6", "analytics", new Date("2026-10-24T15:00:30Z"))).toEqual({
     refused: "site-busy",
     message: "Many students are scanning right now. Wait a moment, then try this one.",
     retryAt: new Date("2026-10-24T15:02:01Z"),
   });
   expect(await counts()).not.toContainEqual(expect.objectContaining({ subject: "student-6" }));
-  expect(await takeScanPlace("student-6", new Date("2026-10-24T15:02:01Z"))).toMatchObject({ subject: "student-6" });
+  expect(await takeScanPlace("student-6", "analytics", new Date("2026-10-24T15:02:01Z"))).toMatchObject({ subject: "student-6" });
 });
 
 it("gives the last free place to exactly 1 of 6 students who start at the same time", async () => {
   const at = new Date("2026-10-24T15:00:00Z");
-  for (let index = 1; index <= 4; index += 1) await takeScanPlace(`running-${index}`, at);
+  for (let index = 1; index <= 4; index += 1) await takeScanPlace(`running-${index}`, "analytics", at);
   await Promise.all(Array.from({ length: 3 }, () => getPostgresDatabase().execute(sql`select 1`)));
-  const results = await Promise.all(Array.from({ length: 6 }, (_, index) => takeScanPlace(`student-${index}`, at)));
+  const results = await Promise.all(Array.from({ length: 6 }, (_, index) => takeScanPlace(`student-${index}`, "analytics", at)));
 
   expect(results.filter((result) => "subject" in result)).toHaveLength(1);
   expect(results.filter((result): result is ScanRefusal => "refused" in result).map(({ refused }) => refused)).toEqual(Array(5).fill("site-busy"));
@@ -134,7 +134,7 @@ it("gives the last free place to exactly 1 of 6 students who start at the same t
 
 it("gives one student exactly 1 place and 1 count from 6 scans at the same time", async () => {
   const at = new Date("2026-10-24T15:00:00Z");
-  const results = await Promise.all(Array.from({ length: 6 }, () => takeScanPlace("student-a", at)));
+  const results = await Promise.all(Array.from({ length: 6 }, () => takeScanPlace("student-a", "analytics", at)));
 
   expect(results.filter((result) => "subject" in result)).toHaveLength(1);
   expect(await counts()).toEqual([
@@ -147,7 +147,7 @@ it("lets exactly 1 of 6 scans at the same time through when the student has 1 sc
   const at = new Date("2026-10-24T15:00:00Z");
   await scanTimes(9, "student-a", at);
   await Promise.all(Array.from({ length: 3 }, () => getPostgresDatabase().execute(sql`select 1`)));
-  const results = await Promise.all(Array.from({ length: 6 }, () => takeScanPlace("student-a", at)));
+  const results = await Promise.all(Array.from({ length: 6 }, () => takeScanPlace("student-a", "analytics", at)));
 
   expect(results.filter((result) => "subject" in result)).toHaveLength(1);
   expect(await counts()).toEqual([

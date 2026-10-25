@@ -2,31 +2,35 @@ import { and, eq, lte, sql } from "drizzle-orm";
 import { countAction, limitOf } from "./actionLimits";
 import { getPostgresDatabase } from "./postgres";
 import { runningScans } from "./postgresSchema";
+import { countScanSpend, isScanningOff, claimLimitAlert, replaceScanCount, type ScanKind, type SpendAlert } from "./scanSpending";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
 
 const PLACE_HELD_MS = 2 * 60 * 1000;
 const SITE_PLACES = 5;
 const MONTH_DAY = new Intl.DateTimeFormat("en-US", { timeZone: SCHEDULE_TIMEZONE, month: "short", day: "numeric" });
 
+export const SCANNING_OFF = "Scanning is off right now. Enter your analytics by hand.";
+
 export type ScanRefusal = {
-  refused: "daily-limit" | "monthly-limit" | "still-reading" | "site-busy";
+  refused: "scanning-off" | "daily-limit" | "monthly-limit" | "still-reading" | "site-busy";
   message: string;
-  retryAt: Date;
+  retryAt?: Date;
+  alert?: SpendAlert;
 };
-export type ScanPlace = { subject: string; startedAt: Date };
+export type ScanPlace = { subject: string; kind: ScanKind; startedAt: Date; alert?: SpendAlert };
 
 class Refused extends Error {
-  constructor(readonly refusal: ScanRefusal) {
+  constructor(readonly refusal: ScanRefusal, readonly atMoneyLimit = false) {
     super(refusal.message);
   }
 }
 
 const placeFreesAt = (startedAt: Date) => new Date(startedAt.getTime() + PLACE_HELD_MS);
 
-/** Counts one scan in the day and the month and takes a running-scan place, or refuses and counts nothing. */
-export async function takeScanPlace(subject: string, realNow: Date): Promise<ScanPlace | ScanRefusal> {
+export async function takeScanPlace(subject: string, kind: ScanKind, realNow: Date): Promise<ScanPlace | ScanRefusal> {
   try {
     return await getPostgresDatabase().transaction(async (transaction) => {
+      if (await isScanningOff(transaction)) throw new Refused({ refused: "scanning-off", message: SCANNING_OFF });
       const day = await countAction("scanInDay", subject, realNow, transaction);
       const month = await countAction("scanInMonth", subject, realNow, transaction);
       if (!month.allowed) {
@@ -62,15 +66,19 @@ export async function takeScanPlace(subject: string, realNow: Date): Promise<Sca
           retryAt: placeFreesAt(new Date(Math.min(...held.map((place) => place.startedAt.getTime())))),
         });
       }
-      const [place] = await transaction.insert(runningScans).values({ subject, startedAt: realNow }).returning();
-      return place;
+      await transaction.insert(runningScans).values({ subject, startedAt: realNow });
+      const spend = await countScanSpend(kind, realNow, transaction);
+      if (!spend.added) throw new Refused({ refused: "scanning-off", message: SCANNING_OFF }, true);
+      return { subject, kind, startedAt: realNow, alert: spend.alert };
     });
   } catch (error) {
-    if (error instanceof Refused) return error.refusal;
-    throw error;
+    if (!(error instanceof Refused)) throw error;
+    if (error.atMoneyLimit && await claimLimitAlert(realNow)) return { ...error.refusal, alert: "limit-reached" };
+    return error.refusal;
   }
 }
 
-export async function freeScanPlace({ subject, startedAt }: ScanPlace) {
+export async function freeScanPlace({ subject, kind, startedAt }: ScanPlace, realCostUsd: number | null) {
   await getPostgresDatabase().delete(runningScans).where(and(eq(runningScans.subject, subject), eq(runningScans.startedAt, startedAt)));
+  if (realCostUsd !== null) await replaceScanCount(kind, startedAt, realCostUsd);
 }

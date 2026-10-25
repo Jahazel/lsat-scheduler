@@ -29,7 +29,7 @@ describe("POST /api/practice-test/extract", () => {
     vi.resetModules();
     mocks.extractor.mockClear();
     mocks.freeScanPlace.mockReset().mockResolvedValue(undefined);
-    mocks.takeScanPlace.mockReset().mockImplementation(async (subject: string, startedAt: Date) => ({ subject, startedAt }));
+    mocks.takeScanPlace.mockReset().mockImplementation(async (subject: string, kind: string, startedAt: Date) => ({ subject, kind, startedAt }));
     mocks.auth.mockResolvedValue({ user: { id: "student-account", role: "student" } });
     vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
   });
@@ -108,7 +108,7 @@ describe("POST /api/practice-test/extract", () => {
     ["still-reading", "We're still reading your last screenshot. Wait a moment, then try this one.", 1_500, "2"],
     ["site-busy", "Many students are scanning right now. Wait a moment, then try this one.", 90_000, "90"],
   ])("refuses a %s scan with 429 and Retry-After, without running the extractor", async (refused, message, waitMs, retryAfter) => {
-    mocks.takeScanPlace.mockImplementation(async (_subject: string, realNow: Date) => ({
+    mocks.takeScanPlace.mockImplementation(async (_subject: string, _kind: string, realNow: Date) => ({
       refused, message, retryAt: new Date(realNow.getTime() + waitMs),
     }));
     const { POST } = await import("./route");
@@ -125,7 +125,7 @@ describe("POST /api/practice-test/extract", () => {
     const { POST } = await import("./route");
     await POST(await imageRequest());
 
-    expect(mocks.takeScanPlace).toHaveBeenCalledWith("student-account", expect.any(Date));
-    expect(mocks.freeScanPlace).toHaveBeenCalledWith(await mocks.takeScanPlace.mock.results[0].value);
+    expect(mocks.takeScanPlace).toHaveBeenCalledWith("student-account", "practice-test-section", expect.any(Date));
+    expect(mocks.freeScanPlace).toHaveBeenCalledWith(await mocks.takeScanPlace.mock.results[0].value, null);
   });
 });

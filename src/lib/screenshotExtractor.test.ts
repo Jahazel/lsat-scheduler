@@ -6,44 +6,46 @@ import { extractAnalyticsRows, extractPracticeTestSection } from "./screenshotEx
 import type { AnalyticsSection } from "./types";
 
 const createMessage = vi.hoisted(() => vi.fn());
+const recordCost = vi.fn();
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create: createMessage }; } }));
 
 beforeEach(() => vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake"));
 afterEach(() => {
   vi.unstubAllEnvs();
   createMessage.mockReset();
+  recordCost.mockReset();
 });
 
 it.each(PT158_FIXTURES)("reads $file into its section with the fake extractor", async ({ file, reading }) => {
   const image = await readFile(new URL(`./practiceTestFixtures/${file}`, import.meta.url));
-  expect(await extractPracticeTestSection(image, "image/png")).toEqual(reading);
+  expect(await extractPracticeTestSection(image, "image/png", recordCost)).toEqual(reading);
 });
 
 it("reads any other image as another page with the fake extractor", async () => {
-  expect(await extractPracticeTestSection(Buffer.from("not a practice test"), "image/png")).toEqual({ page: "other" });
+  expect(await extractPracticeTestSection(Buffer.from("not a practice test"), "image/png", recordCost)).toEqual({ page: "other" });
 });
 
 it("fails on request with the failing fake extractor", async () => {
   vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake-failure");
-  await expect(extractPracticeTestSection(Buffer.from("x"), "image/png")).rejects.toThrow("Fake screenshot extractor failed on request");
+  await expect(extractPracticeTestSection(Buffer.from("x"), "image/png", recordCost)).rejects.toThrow("Fake screenshot extractor failed on request");
 });
 
 function claudeReplies(content: unknown[]) {
   vi.stubEnv("SCREENSHOT_EXTRACTOR", "");
   vi.stubEnv("ANTHROPIC_API_KEY", "synthetic-anthropic-key");
-  createMessage.mockResolvedValue({ content });
+  createMessage.mockResolvedValue({ content, usage: { input_tokens: 1500, output_tokens: 200 } });
 }
 
 const toolUse = (name: string, input: unknown) => ({ type: "tool_use", id: "toolu_recorded", name, input });
 
 function claudeReads(input: unknown) {
   claudeReplies([toolUse("record_practice_test_section", input)]);
-  return extractPracticeTestSection(Buffer.from("x"), "image/png");
+  return extractPracticeTestSection(Buffer.from("x"), "image/png", recordCost);
 }
 
 function claudeReadsAnalytics(section: AnalyticsSection, content: unknown[]) {
   claudeReplies(content);
-  return extractAnalyticsRows(Buffer.from("x"), "image/png", mockRules, section);
+  return extractAnalyticsRows(Buffer.from("x"), "image/png", mockRules, section, recordCost);
 }
 
 it("reads a section from Claude, keeping the score negative and dropping RC rows", async () => {
@@ -80,7 +82,7 @@ it.each([
   ["text and no tool", [{ type: "text", text: "This looks like a practice test." }]],
 ])("refuses a section reply with %s", async (_case, content) => {
   claudeReplies(content);
-  await expect(extractPracticeTestSection(Buffer.from("x"), "image/png")).rejects.toThrow("does not fit its format");
+  await expect(extractPracticeTestSection(Buffer.from("x"), "image/png", recordCost)).rejects.toThrow("does not fit its format");
 });
 
 it("reads LR and RC analytics rows that fit the tool's format", async () => {
@@ -113,4 +115,16 @@ it.each([
   ["RC", "6 rows", [toolUse("record_analytics_rows", { rows: Array.from({ length: 6 }, () => ({ type: "Law", accuracy: 50 })) })]],
 ] as const)("refuses an %s analytics reply with %s", async (section, _case, content) => {
   await expect(claudeReadsAnalytics(section, [...content])).rejects.toThrow("does not fit its format");
+});
+
+it("records each Claude reply's cost from its token usage, also when the reply does not fit its format", async () => {
+  await claudeReadsAnalytics("RC", [toolUse("record_analytics_rows", { rows: [{ type: "Law", accuracy: 58 }] })]);
+  await expect(claudeReads({ page: "unknown" })).rejects.toThrow("does not fit its format");
+
+  expect(recordCost.mock.calls).toEqual([[0.0025], [0.0025]]);
+});
+
+it("records no cost from the fake extractor", async () => {
+  await extractAnalyticsRows(Buffer.from("x"), "image/png", mockRules, "LR", recordCost);
+  expect(recordCost).not.toHaveBeenCalled();
 });
