@@ -89,7 +89,10 @@ const ROW_REFUSALS = [
   ["a negative LR accuracy", [{ type: "Weaken", category: "regular", accuracy: -1 }, ...rows], "Enter each LR accuracy from 0 to 100."],
   ["a top-priority type that is not Stimulus Logic", [{ type: "Weaken", category: "restricted", isTopPriority: true }, ...rows], "Only Stimulus Logic types can be top priority."],
   ["two rows for one type", [{ type: "Strengthen", category: "regular", accuracy: 40 }, ...rows], "Enter each type only once."],
+  ["an unknown type with no value", [{ type: "Strengthn", category: "restricted", isTopPriority: false }, ...rows], "Pick each LR type from the 7Sage list."],
+  ["a flag row with an accuracy over 100%", [{ type: "Quantifier", category: "restricted", accuracy: 150, isTopPriority: true }, ...rows], "Enter each LR accuracy from 0 to 100."],
   ["an RC accuracy over 100%", [...rows.slice(0, 2), { type: "Law", category: "passage", accuracy: 150 }], "Enter each RC accuracy from 0 to 100."],
+  ["a negative RC accuracy", [...rows.slice(0, 2), { type: "Law", category: "passage", accuracy: -1 }], "Enter each RC accuracy from 0 to 100."],
 ] as const;
 
 describe.each(SOURCES)("onboarding with a %s snapshot", (source) => {
@@ -172,6 +175,7 @@ const VALUE_REFUSALS = [
   ["an unknown top-priority type", { lrTopPriorityLogicTypes: ["Phenomenon-hypothesis"] }, "Only Stimulus Logic types can be top priority."],
   ["two rows for one type", { lrTopPriorityLogicTypes: ["Causal reasoning", "Causal reasoning"] }, "Enter each type only once."],
   ["an RC accuracy over 100%", { rcAccuracyByType: { Law: 1.5 } }, "Enter each RC accuracy from 0 to 100."],
+  ["a negative RC accuracy", { rcAccuracyByType: { Law: -0.01 } }, "Enter each RC accuracy from 0 to 100."],
   ["an unknown RC passage type", { rcAccuracyByType: { Poetry: 0.5 } }, "Enter each RC accuracy from 0 to 100."],
 ] as const;
 

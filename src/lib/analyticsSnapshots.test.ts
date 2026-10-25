@@ -79,6 +79,7 @@ describe("prepareApprovedSnapshot", () => {
     refuses({ lrTopPriorityLogicTypes: ["Strengthen"] }, TOP_PRIORITY_ERROR);
     refuses({ lrTopPriorityLogicTypes: ["Causal reasoning", "Causal reasoning"] }, DUPLICATE_ERROR);
     refuses({ rcAccuracyByType: { Law: 1.5 } }, RC_ERROR);
+    refuses({ rcAccuracyByType: { Law: -0.1 } }, RC_ERROR);
     refuses({ rcAccuracyByType: { Poetry: 0.5 } }, RC_ERROR);
     refuses({ confirmation: { ...body.confirmation, isLatestAnalytics: false } }, "Confirm that the reviewed extraction matches your latest analytics.");
     expect(prepareApprovedSnapshot({ ...body, lrTopPriorityLogicTypes: ["Causal reasoning", "Diagram"] }, NOW, NOW, { allowAdminSample: true }).extraction.source).toBe(source);
@@ -113,6 +114,17 @@ describe("summarizeApprovedRows", () => {
     ["two rows for one Stimulus Logic type", [...rows, { type: "Causal reasoning", category: "restricted" }]],
   ])("refuses %s", (_name, input) => {
     expect(() => summarizeApprovedRows(input)).toThrow(new SnapshotApprovalError(DUPLICATE_ERROR));
+  });
+
+  it.each([
+    ["an unknown type with no value", { type: "Strengthn", category: "restricted", isTopPriority: false }, UNKNOWN_LR_ERROR],
+    ["a Question Stem type sent as a priority flag", { type: "Weaken", category: "restricted", isTopPriority: true }, TOP_PRIORITY_ERROR],
+    ["an RC row with an LR type", { type: "Weaken", category: "passage", accuracy: 50 }, RC_ERROR],
+    ["a flag row with an accuracy over 100", { type: "Quantifier", category: "restricted", accuracy: 150, isTopPriority: true }, LR_ERROR],
+    ["an LR accuracy over 100", { type: "Weaken", category: "regular", accuracy: 101 }, LR_ERROR],
+    ["a negative RC accuracy", { type: "Art", category: "passage", accuracy: -1 }, RC_ERROR],
+  ])("refuses %s, even when the summary would drop it", (_name, row, message) => {
+    expect(() => summarizeApprovedRows([...rows, row])).toThrow(new SnapshotApprovalError(message));
   });
 
   it("refuses a row whose accuracy is not a number", () => {

@@ -52,6 +52,16 @@ export interface SnapshotApprovalMetadata {
 export class SnapshotApprovalError extends Error {}
 
 const DUPLICATE_TYPE = "Enter each type only once.";
+const UNKNOWN_LR_TYPE = "Pick each LR type from the 7Sage list.";
+const LR_ACCURACY_RANGE = "Enter each LR accuracy from 0 to 100.";
+const RC_ACCURACY_RANGE = "Enter each RC accuracy from 0 to 100.";
+const TOP_PRIORITY_LOGIC_ONLY = "Only Stimulus Logic types can be top priority.";
+
+function categoryOf(type: string) {
+  if ((mockRules.rcTypes as string[]).includes(type)) return "passage";
+  if (!KNOWN_LR_TYPES.has(type)) return null;
+  return LOGIC_TYPES.has(type) && !(mockRules.lrLogicExceptions as string[]).includes(type) ? "restricted" : "regular";
+}
 
 const ReviewedRowsSchema = z.array(z.looseObject({
   type: z.string(),
@@ -64,6 +74,17 @@ export function summarizeApprovedRows(rows: unknown) {
   const parsed = ReviewedRowsSchema.safeParse(rows);
   if (!parsed.success) {
     throw new SnapshotApprovalError("Confirm that the reviewed extraction matches your latest analytics.");
+  }
+  for (const row of parsed.data) {
+    const passage = row.category === "passage";
+    const category = categoryOf(row.type);
+    if (category !== row.category) {
+      if (passage) throw new SnapshotApprovalError(RC_ACCURACY_RANGE);
+      throw new SnapshotApprovalError(row.category === "restricted" && category === "regular" ? TOP_PRIORITY_LOGIC_ONLY : UNKNOWN_LR_TYPE);
+    }
+    if (row.accuracy !== undefined && !(row.accuracy >= 0 && row.accuracy <= 100)) {
+      throw new SnapshotApprovalError(passage ? RC_ACCURACY_RANGE : LR_ACCURACY_RANGE);
+    }
   }
   if (new Set(parsed.data.map((row) => row.type)).size !== parsed.data.length) {
     throw new SnapshotApprovalError(DUPLICATE_TYPE);
@@ -111,21 +132,21 @@ export function prepareApprovedSnapshot(input: unknown, approvedAt = new Date(),
   const values = parsed.data;
   const lrTypes = Object.keys(values.lrAccuracyByType);
   if (lrTypes.some((type) => !KNOWN_LR_TYPES.has(type))) {
-    throw new SnapshotApprovalError("Pick each LR type from the 7Sage list.");
+    throw new SnapshotApprovalError(UNKNOWN_LR_TYPE);
   }
   const lrAccuracy = z.record(z.string(), Accuracy).safeParse(values.lrAccuracyByType);
   if (!lrAccuracy.success) {
-    throw new SnapshotApprovalError("Enter each LR accuracy from 0 to 100.");
+    throw new SnapshotApprovalError(LR_ACCURACY_RANGE);
   }
   if (values.lrTopPriorityLogicTypes.some((type) => !LOGIC_TYPES.has(type))) {
-    throw new SnapshotApprovalError("Only Stimulus Logic types can be top priority.");
+    throw new SnapshotApprovalError(TOP_PRIORITY_LOGIC_ONLY);
   }
   if (new Set(values.lrTopPriorityLogicTypes).size !== values.lrTopPriorityLogicTypes.length) {
     throw new SnapshotApprovalError(DUPLICATE_TYPE);
   }
   const rcAccuracy = RCAccuracySchema.safeParse(values.rcAccuracyByType);
   if (!rcAccuracy.success) {
-    throw new SnapshotApprovalError("Enter each RC accuracy from 0 to 100.");
+    throw new SnapshotApprovalError(RC_ACCURACY_RANGE);
   }
   if (values.extraction.source === "admin_sample" && !options.allowAdminSample) {
     throw new SnapshotApprovalError("Admin access required for sample analytics.");
