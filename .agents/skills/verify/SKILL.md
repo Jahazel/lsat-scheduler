@@ -54,7 +54,7 @@ In another harness, use its browser automation with equivalent role selectors. L
 
 For native selects in T3, click the named combobox, press `Escape` to close its native popup, type the option prefix with `preview_press`, then press `Tab` to commit. Native popup keyboard handling can differ from the page keyboard. Avoid `Enter`, which can submit the enclosing form. Use a label-scoped selector when the accessible name includes hint text. Use read-only DOM inspection to confirm the selected value. For Playwright, use `locator.selectOption` or `getByLabel(...).selectOption` for the native control. Do not assign DOM values, dispatch synthetic change events, call server actions directly, or set React state as a substitute for the user path.
 
-If T3 tools are absent or `preview_open` explicitly reports unsupported or unavailable automation, use the executable browser fallback below. It launches an isolated Chromium context. It never connects to the user's browser. It covers the Login and Signup states, a minted-session Account lifecycle, and the baseline onboarding/settings recipes. See [Playwright library setup](https://playwright.dev/docs/library) for runtime and browser installation.
+Use Playwright instead of T3 when a check chooses a file, such as the weekly upload, or when T3 tools are absent, or when `preview_open` reports unsupported or unavailable automation. Playwright launches an isolated Chromium context. It never connects to the user's browser. See [Playwright library setup](https://playwright.dev/docs/library) for runtime and browser installation.
 
 ```bash
 mkdir -p "$VERIFY_RUN_DIR/scratch/tools"
@@ -63,7 +63,25 @@ node "$VERIFY_RUN_DIR/scratch/tools/node_modules/playwright/cli.js" install chro
 ./.agents/skills/verify/scripts/smoke.mjs "$VERIFY_RUN_DIR"
 ```
 
-An existing Playwright installation can replace that install. Set `VERIFY_PLAYWRIGHT_MODULE` to its absolute `index.mjs` path. Require an empty disposable database for smoke. It captures screenshots, accessibility snapshots, action descriptions, a video, a Playwright trace, and stored-record inspections. Require `smoke-result.json` to have `passed: true`. Its remaining paths are explicitly listed in that file. Run cleanup even if smoke fails. The script closes only the browser it launched in a `finally` block. Browser downloads use Playwright's shared cache; do not delete that cache during cleanup.
+An existing Playwright installation can replace that install. Set `VERIFY_PLAYWRIGHT_MODULE` to its absolute `index.mjs` path. Browser downloads use Playwright's shared cache; do not delete that cache during cleanup.
+
+`smoke.mjs` is the baseline: the Login and Signup states, a minted-session Account lifecycle, and the onboarding and settings recipes. Require an empty disposable database and exit code 0. Its evidence is in `$VERIFY_RUN_DIR/smoke/`, and its untested paths are in its last output line. Run cleanup even if smoke fails.
+
+For any other Playwright check, write a short script in the run directory that calls `drive` from [scripts/browser.mjs](scripts/browser.mjs). Do not write browser setup yourself. Write only the user steps:
+
+```js
+import { drive } from "<repo>/.agents/skills/verify/scripts/browser.mjs";
+await drive(process.argv[2], "weekly-upload", async ({ page, goto, signInAs, heading, capture, records, log }) => {
+  await signInAs("amy@example.test");
+  await goto("/dashboard/upload");
+  log("Choose the Logical Reasoning screenshot");
+  await page.getByLabel("Logical Reasoning screenshot file").setInputFiles("<file>");
+  await capture("after-upload");
+  records("records-after");
+});
+```
+
+Run it with `node <script> "$VERIFY_RUN_DIR"`. `drive` runs Doctor, opens a signed-out browser, and records a video and a Playwright trace. It saves every page error, console error, and failed request, plus new server errors from `app.log`. When a step throws, it saves `failure-<session>.png` and `.aria.txt`. An uncaught page error fails the drive. Everything goes to `$VERIFY_RUN_DIR/<name>/`; read `result.json` there first when a drive fails. The steps get `page`, `context`, `url`, `log`, `goto`, `signInAs(email, ...sessionOptions)`, `heading`, `capture`, `records` (runs `inspect`), `local` (runs any `local.mjs` command), and `newSession(label)` for a second signed-in browser with the same tools. Prefetches that the browser cancels during navigation are not failures and are not recorded.
 
 The shortest interactive first proof is [sign-up and Account](features/sign-up-account.md). It needs no paid service. It seeds one Account with `--not-onboarded`. For scheduling and Progress, seed an Account as described below, then follow [Admin setup](features/admin.md) to approve a Sample analytics snapshot.
 
@@ -95,7 +113,7 @@ For a browser proof, save a before snapshot, the actions and their locators, an 
 
 Write `result.md` with the feature, entry point, preconditions, exact actions, expected result, observed result, and artifact paths. Include failed actions and skipped paths. Exercise the real user path. Capture the action and its result. Confirm saved changes by reopening the page and reading database records. Weekly schedule documents must remain unchanged when activity check-ins or study settings change. Check relevant side effects alongside the screen. Use mocks only at an existing production service boundary. The scheduling recipe uses the production Admin sample feature and a real local database. It does not mock extraction or prove Google sign-in. If another run uses a dry-run or test mode, observe its actual network, file, and database effects before claiming it skips them.
 
-The helper also retains `app.log`, `database.log`, `instance.json`, and `cleanup.json`. Capture new browser errors from snapshot diagnostics and review `app.log`. A session cookie left from an earlier run logs `JWTSessionError` with `no matching decryption secret`. The app treats that browser as signed out, so this error is expected on the first page load. Do not commit screenshots, cookies, session tokens, or environment values.
+The helper also retains `app.log`, `database.log`, `instance.json`, and `cleanup.json`. Capture new browser errors from snapshot diagnostics. Read new server errors with `local.mjs logs "$VERIFY_RUN_DIR"`. It prints each error with its detail lines and the log's byte length as `to`; pass that as `--from <byte>` next time to see only newer errors. A Turbopack `FATAL` error is a dev-server failure, not a product bug. Restart the run before you trust a check that failed after it. A session cookie left from an earlier run logs `JWTSessionError` with `no matching decryption secret`. The app treats that browser as signed out, so this error is expected on the first page load. Do not commit screenshots, cookies, session tokens, or environment values.
 
 ## Cleanup
 
@@ -114,6 +132,6 @@ If launch fails before it creates `instance.json`, it started no app process or 
 
 ## Helpers
 
-The executable [scripts/local.mjs](scripts/local.mjs) supports six commands, all shown above: `launch`, `doctor`, `seed`, `session`, `inspect`, and `cleanup`. Each requires a run directory below `.verification/evidence/`. Evidence directories cannot be reused. Its process and database operations target only the local verification instance. The executable [scripts/smoke.mjs](scripts/smoke.mjs) runs the browser baseline with the invocation shown in Drive. Both helpers run from the repository root.
+The executable [scripts/local.mjs](scripts/local.mjs) supports seven commands, all shown above: `launch`, `doctor`, `seed`, `session`, `inspect`, `logs`, and `cleanup`. Each requires a run directory below `.verification/evidence/`. Evidence directories cannot be reused. Its process and database operations target only the local verification instance. The executable [scripts/smoke.mjs](scripts/smoke.mjs) runs the browser baseline with the invocation shown in Drive. [scripts/browser.mjs](scripts/browser.mjs) exports `drive`, which `smoke.mjs` and every other Playwright check use. Run the helpers from the repository root.
 
 Use `/maintain-verification-skill` when app changes make these recipes or the feature map stale.
