@@ -10,22 +10,81 @@ import { z } from "zod";
 import { tsImport } from "tsx/esm/api";
 import { serverErrors } from "./appLog.mjs";
 
+const commands = {
+  launch: {
+    args: "", valid: (extra) => extra.length === 0,
+    does: "Start DrillMap on http://127.0.0.1:3100 with a new disposable Postgres database. Keep this terminal open; Ctrl+C stops the run.",
+    example: "launch \"$VERIFY_RUN_DIR\"",
+  },
+  doctor: {
+    args: "", valid: (extra) => extra.length === 0,
+    does: "Check that this run's app, port, Git revision, and database are healthy. Read-only. Prints JSON.",
+    example: "doctor \"$VERIFY_RUN_DIR\" > \"$VERIFY_RUN_DIR/doctor.json\"",
+  },
+  seed: {
+    args: " student|admin <email> [--not-onboarded]",
+    valid: (extra) => ["student", "admin"].includes(extra[0]) && (extra.length === 2 || extra.length === 3 && extra[2] === "--not-onboarded"),
+    does: "Create a fixture Account, onboarded with the feature map's baseline answers unless --not-onboarded.",
+    example: "seed \"$VERIFY_RUN_DIR\" student amy@example.test",
+  },
+  session: {
+    args: " <email> [--signed-in-minutes-ago <minutes>]",
+    valid: (extra) => extra.length === 1 || extra.length === 3 && extra[1] === "--signed-in-minutes-ago" && /^\d+$/.test(extra[2]),
+    does: "Print a one-hour session cookie (name, value, url) that signs the browser in as an existing Account.",
+    example: "session \"$VERIFY_RUN_DIR\" verify-admin@example.test",
+  },
+  inspect: {
+    args: "", valid: (extra) => extra.length === 0,
+    does: "Run doctor, then print this run's stored records as JSON. Never reads password hashes.",
+    example: "inspect \"$VERIFY_RUN_DIR\" > \"$VERIFY_RUN_DIR/records-after.json\"",
+  },
+  logs: {
+    args: " [--from <byte>]", valid: (extra) => extra.length === 0 || extra.length === 2 && extra[0] === "--from" && /^\d+$/.test(extra[1]),
+    does: "Print server errors from app.log. Pass the last output's \"to\" as --from to see only newer errors.",
+    example: "logs \"$VERIFY_RUN_DIR\" --from 18342",
+  },
+  cleanup: {
+    args: "", valid: (extra) => extra.length === 0,
+    does: "Stop this run's app and drop its database. Evidence stays in the run directory.",
+    example: "cleanup \"$VERIFY_RUN_DIR\"",
+  },
+};
+const usage = (name) => `local.mjs ${name} <run-dir>${commands[name].args}`;
+const help = (name) => `Usage: ${usage(name)}\n\n${commands[name].does}\n\nExample:\n  ./.agents/skills/verify/scripts/local.mjs ${commands[name].example}\n`;
+const overview = () => `Usage: local.mjs <command> <run-dir> [arguments]\n       local.mjs <command> --help\n\n`
+  + `<run-dir> is below .verification/evidence/. launch needs a new one, such as .verification/evidence/20261025T120000Z;\nthe other commands take the directory that launch made.\n`
+  + `Run from the repository root. Every command needs DATABASE_URL set to a loopback Postgres owner connection.\n\nCommands:\n`
+  + Object.entries(commands).map(([name, { does }]) => `  ${name.padEnd(8)} ${does.split(". ")[0].replace(/\.$/, "")}.`).join("\n")
+  + `\n\nThe full recipe is .agents/skills/verify/SKILL.md.\n`;
+function refuse(message) {
+  console.error(message);
+  process.exit(1);
+}
+
+const [command, directory, ...extra] = process.argv.slice(2);
+if (!command) refuse(overview());
+if (command === "help" && Object.hasOwn(commands, directory)) {
+  process.stdout.write(help(directory));
+  process.exit(0);
+}
+if (["--help", "-h", "help"].includes(command)) {
+  process.stdout.write(overview());
+  process.exit(0);
+}
+if (!Object.hasOwn(commands, command)) refuse(`Unknown command "${command}".\n\n${overview()}`);
+if ([directory, ...extra].some((arg) => arg === "--help" || arg === "-h")) {
+  process.stdout.write(help(command));
+  process.exit(0);
+}
+if (!directory || !commands[command].valid(extra)) refuse(`Usage: ${usage(command)}\nSee local.mjs ${command} --help for an example.`);
+
 const { createPostgresTestDatabase } = await tsImport("../../../../tests/postgres/testDatabase.ts", import.meta.url);
 const { closePostgresDatabase, createPostgresConnection, postgresSettingForDatabase, requirePostgresTestTarget } = await tsImport("../../../../src/lib/postgres.ts", import.meta.url);
 const { sql } = await import("drizzle-orm");
 requirePostgresTestTarget();
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const [command, directory, ...extra] = process.argv.slice(2);
 const base = resolve(root, ".verification/evidence");
-const validSeed = command === "seed" && ["student", "admin"].includes(extra[0])
-  && (extra.length === 2 || extra.length === 3 && extra[2] === "--not-onboarded");
-const validLogs = command === "logs" && (extra.length === 0 || extra.length === 2 && extra[0] === "--from" && /^\d+$/.test(extra[1]));
-const validSession = command === "session"
-  && (extra.length === 1 || extra.length === 3 && extra[1] === "--signed-in-minutes-ago" && /^\d+$/.test(extra[2]));
-if (!directory || !(["launch", "doctor", "inspect", "cleanup"].includes(command) && extra.length === 0 || validSeed || validSession || validLogs)) {
-  throw new Error("Usage: local.mjs launch|doctor|inspect|cleanup .verification/evidence/<run-name>\n       local.mjs seed .verification/evidence/<run-name> student|admin <email> [--not-onboarded]\n       local.mjs session .verification/evidence/<run-name> <email> [--signed-in-minutes-ago <minutes>]\n       local.mjs logs .verification/evidence/<run-name> [--from <byte>]");
-}
 const run = resolve(root, directory);
 if (!relative(base, run) || relative(base, run).startsWith("..")) {
   throw new Error("The run directory must be below .verification/evidence/.");
