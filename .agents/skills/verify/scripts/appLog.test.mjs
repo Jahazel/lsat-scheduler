@@ -28,6 +28,14 @@ describe("serverErrors", () => {
     ]);
   });
 
+  it("returns the app's one-line JSON error events", () => {
+    const events = '{"event":"spend_alert_not_sent","alert":"daily","error":"TypeError"}\n GET /dashboard 200 in 30ms\n{"event":"postgres_idle_connection_error","code":"57P01"}';
+    expect(serverErrors(events)).toEqual([
+      '{"event":"spend_alert_not_sent","alert":"daily","error":"TypeError"}',
+      '{"event":"postgres_idle_connection_error","code":"57P01"}',
+    ]);
+  });
+
   it("returns nothing for a log of successful requests", () => {
     expect(serverErrors(" GET /login 200 in 85ms\n POST /settings 303 in 12ms\n")).toEqual([]);
   });

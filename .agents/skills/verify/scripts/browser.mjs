@@ -59,17 +59,19 @@ export async function drive(directory, name, steps) {
   } catch (caught) {
     error = caught;
     for (const { found, tools } of sessions) await tools.capture(`failure-${found.label}`).catch(() => {});
-  } finally {
-    for (const { context, found } of sessions) {
-      await context.tracing.stop({ path: resolve(out, `trace-${found.label}.zip`) });
-      await context.close();
-    }
-    await browser.close();
   }
+  const cleanupErrors = [];
+  const attempt = (work) => work().catch((caught) => cleanupErrors.push(caught.message));
+  for (const { context, found } of sessions) {
+    await attempt(() => context.tracing.stop({ path: resolve(out, `trace-${found.label}.zip`) }));
+    await attempt(() => context.close());
+  }
+  await attempt(() => browser.close());
+  if (!error && cleanupErrors.length) error = new Error(`Saving the browser evidence failed: ${cleanupErrors[0]}`);
   const pageErrors = sessions.flatMap(({ found }) => found.pageErrors);
   if (!error && pageErrors.length) error = new Error(`The page threw ${pageErrors.length} uncaught error(s). First: ${pageErrors[0]}`);
   const serverErrors = local("logs", "--from", String(logStart)).errors;
-  const result = { passed: !error, error: error?.message, out, sessions: sessions.map(({ found }) => found), serverErrors };
+  const result = { passed: !error, error: error?.message, out, sessions: sessions.map(({ found }) => found), serverErrors, cleanupErrors };
   save("actions.json", actions);
   save("result.json", result);
   const count = (key) => result.sessions.reduce((total, found) => total + found[key].length, 0);
