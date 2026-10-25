@@ -6,6 +6,14 @@ Decisions for [issue 74](https://github.com/Jahazel/lsat-scheduler/issues/74), u
 
 **Update, October 22, 2026:** The owner chose Google sign-in only until DrillMap has its own domain ([ADR 0005](../adr/0005-google-sign-in-only-until-drillmap-has-a-domain.md), [issue 222](https://github.com/Jahazel/lsat-scheduler/issues/222)). Password signup and password login leave the app. Rules 6 to 21 wait for the password sign-in issue ([issue 230](https://github.com/Jahazel/lsat-scheduler/issues/230)) and are not built in Stage 4. Rule 29 applies to Account deletion only; its password-change part waits for issue 230. Recent sign-in for deletion means a fresh Google sign-in, with the account chooser shown, within 10 minutes. The rules below keep their original text.
 
+**Update, October 25, 2026:** The owner bought `drillmap.xyz` and decided the password sign-in rules for [issue 230](https://github.com/Jahazel/lsat-scheduler/issues/230) ([spec #278](https://github.com/Jahazel/lsat-scheduler/issues/278)). These items replace or add to the rules below:
+
+- **Pending signup replaces "pending Account."** A password signup whose email is not verified yet is a pending signup, not an Account. It lives in its own table, and the verification step makes the Account ([ADR 0006](../adr/0006-pending-signups-live-outside-the-accounts-table.md)). This replaces "pending Account" in rules 7 to 9 and the Google sign-in table, and "unverified Account" in rule 16. The rules' behavior does not change.
+- **The current password counts as a recent sign-in.** For a password Account, the current password typed on the deletion form or the change-password form counts as a recent sign-in (rule 29). Google Accounts keep the Google step.
+- **A password change signs out this browser too.** It ends every session, the current one included, and the browser lands on Login. This is stricter than rule 21, which signs out only other devices.
+- **Main address.** `https://drillmap.xyz` is the real site's main address, and `lsat-scheduler.vercel.app` redirects to it. Every email link uses the main address.
+- **Sending domains.** Resend is the email provider (rule 1). The real site sends from `DrillMap <no-reply@mail.drillmap.xyz>`, and the copy of the site sends from `copy-mail.drillmap.xyz`.
+
 **Status: decided.** These are rules for later work. None of them is built yet. The checks in [release-gate.md](release-gate.md#b-sign-in-and-accounts) still fail until the code passes them.
 
 The evidence comes from issue 70 findings F01 to F04 and the Google client settings in issue 71. The protection categories come from [issue 72](issue-72-decisions.md).
