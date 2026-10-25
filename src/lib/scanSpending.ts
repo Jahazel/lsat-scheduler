@@ -1,4 +1,4 @@
-import { lt, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { getPostgresDatabase, type PostgresTransaction } from "./postgres";
 import { scanSettings, scanSpending } from "./postgresSchema";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
@@ -16,6 +16,9 @@ const PING_URL_SETTINGS: Record<SpendAlert, string> = {
 const localMonthStart = (realNow: Date) => sql`date_trunc('month', ${realNow.toISOString()}::timestamptz at time zone ${SCHEDULE_TIMEZONE})`;
 const monthStartOf = (realNow: Date) => sql`${localMonthStart(realNow)} at time zone ${SCHEDULE_TIMEZONE}`;
 
+const deleteMonthsBeforeLastMonth = (realNow: Date, db: ReturnType<typeof getPostgresDatabase> | PostgresTransaction) =>
+  db.delete(scanSpending).where(sql`${scanSpending.monthStart} < (${localMonthStart(realNow)} - interval '1 month') at time zone ${SCHEDULE_TIMEZONE}`);
+
 export async function isScanningOff(transaction: PostgresTransaction) {
   const [settings] = await transaction.select({ scanningOff: scanSettings.scanningOff }).from(scanSettings);
   if (!settings) console.error(JSON.stringify({ event: "scan_settings_missing" }));
@@ -27,7 +30,7 @@ export async function countScanSpend(kind: ScanKind, realNow: Date, transaction:
   const count = sql`${COUNTED_USD[kind]}::numeric`;
   const limit = sql`(select monthly_limit_usd from ${scanSettings})`;
   await transaction.insert(scanSpending).values({ monthStart, totalUsd: 0 }).onConflictDoNothing();
-  await transaction.delete(scanSpending).where(lt(scanSpending.monthStart, monthStart));
+  await deleteMonthsBeforeLastMonth(realNow, transaction);
   const result = await transaction.execute<{ send_warning: boolean }>(sql`
     with before as (select warning_sent_at from ${scanSpending} where month_start = ${monthStart} for update)
     update ${scanSpending} set
@@ -48,6 +51,7 @@ export async function countScanSpend(kind: ScanKind, realNow: Date, transaction:
 }
 
 export async function claimLimitAlert(realNow: Date) {
+  await deleteMonthsBeforeLastMonth(realNow, getPostgresDatabase());
   const marked = await getPostgresDatabase().insert(scanSpending)
     .values({ monthStart: monthStartOf(realNow), totalUsd: 0, limitAlertSentAt: realNow })
     .onConflictDoUpdate({

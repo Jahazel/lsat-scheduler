@@ -9,6 +9,7 @@ import { freeScanPlace, takeScanPlace } from "../../src/lib/scanPlaces";
 
 const WARNING_URL = "https://hc-ping.com/00000000-0000-4000-8000-000000000010";
 const LIMIT_URL = "https://hc-ping.com/00000000-0000-4000-8000-000000000011";
+const SEPTEMBER = new Date("2026-09-01T05:00:00Z");
 const OCTOBER = new Date("2026-10-01T05:00:00Z");
 const NOVEMBER = new Date("2026-11-01T05:00:00Z");
 const MID_OCTOBER = new Date("2026-10-24T15:00:00Z");
@@ -117,12 +118,35 @@ it("allows the scan that brings the total exactly to the limit", async () => {
   expect(await monthTotals()).toEqual([{ monthStart: OCTOBER, totalUsd: 10 }]);
 });
 
-it("starts the total at $0 at midnight on the 1st, Chicago time, and deletes the ended month", async () => {
+it("starts the total at $0 at midnight on the 1st, Chicago time, and deletes months before last month", async () => {
+  await setMonthTotal(SEPTEMBER, "4.00");
   await setMonthTotal(OCTOBER, "9.99");
 
   expect(await scanAndFinish("student-a", new Date("2026-11-01T04:59:59Z"))).toMatchObject({ refused: "scanning-off" });
   expect(await scanAndFinish("student-a", NOVEMBER)).toMatchObject({ subject: "student-a" });
-  expect(await monthTotals()).toEqual([{ monthStart: NOVEMBER, totalUsd: 0.02 }]);
+  expect(await monthTotals()).toEqual([
+    { monthStart: OCTOBER, totalUsd: 9.99 },
+    { monthStart: NOVEMBER, totalUsd: 0.02 },
+  ]);
+});
+
+it("still refuses a scan stamped before midnight on the 1st that runs after a scan of the new month", async () => {
+  await setMonthTotal(OCTOBER, "9.99");
+
+  expect(await scanAndFinish("student-a", NOVEMBER)).toMatchObject({ subject: "student-a" });
+  expect(await scanAndFinish("student-b", new Date("2026-11-01T04:59:59Z"))).toMatchObject({ refused: "scanning-off" });
+  expect(await monthTotals()).toEqual([
+    { monthStart: OCTOBER, totalUsd: 9.99 },
+    { monthStart: NOVEMBER, totalUsd: 0.02 },
+  ]);
+});
+
+it("deletes months before last month also when every scan is refused at the limit", async () => {
+  await setMonthTotal(SEPTEMBER, "4.00");
+  await database.owner.execute(sql`update scan_settings set monthly_limit_usd = 0.01`);
+
+  expect(await scanAndFinish("student-a", NOVEMBER)).toMatchObject({ refused: "scanning-off" });
+  expect((await monthTotals()).map(({ monthStart }) => monthStart)).toEqual([NOVEMBER]);
 });
 
 it("applies the owner's switch and changed limit on the next scan", async () => {

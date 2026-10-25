@@ -11,7 +11,7 @@ adds the scanning switch and the monthly money limit. Stage 7 adds the other ste
 - **Monthly limit**: the `monthly_limit_usd` setting. The month's money total never goes over it.
 - **Month's total**: the `total_usd` value for the current month in `scan_spending`. Each scan adds $0.02
   (analytics) or $0.03 (practice-test section) before its call. A reply replaces that amount with the real cost.
-  A month starts at midnight on the 1st, America/Chicago. The first scan of a month deletes the earlier months' rows.
+  A month starts at midnight on the 1st, America/Chicago. The app keeps this month and last month and deletes older months.
 
 Students who are refused see "Scanning is off right now. Enter your analytics by hand."
 
