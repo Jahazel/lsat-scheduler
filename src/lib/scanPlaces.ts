@@ -68,7 +68,7 @@ export async function takeScanPlace(subject: string, kind: ScanKind, realNow: Da
       }
       await transaction.insert(runningScans).values({ subject, startedAt: realNow });
       const spend = await countScanSpend(kind, realNow, transaction);
-      if (!spend.added) throw new Refused({ refused: "scanning-off", message: SCANNING_OFF }, true);
+      if (!spend.added) throw new Refused({ refused: "scanning-off", message: SCANNING_OFF, retryAt: spend.monthEnd }, true);
       return { subject, kind, startedAt: realNow, alert: spend.alert };
     });
   } catch (error) {

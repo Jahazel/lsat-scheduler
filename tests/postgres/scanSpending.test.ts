@@ -93,14 +93,14 @@ it("keeps the count after a timeout or an error with no reply, and uses the real
   expect(await monthTotals()).toEqual([{ monthStart: OCTOBER, totalUsd: 0.055 }]);
 });
 
-it("refuses either scan type at the limit minus $0.01, starts no read, and counts nothing", async () => {
+it("refuses either scan type at the limit minus $0.01 until the next month, starts no read, and counts nothing", async () => {
   await setMonthTotal(OCTOBER, "9.99");
   const read = vi.fn(async () => ({ rows: [] }));
 
   for (const kind of ["analytics", "practice-test-section"] as const) {
     const refused = await scanWithLimits("student-a", kind, read);
     expect(refused.status).toBe(429);
-    expect(refused.headers.get("Retry-After")).toBeNull();
+    expect(refused.headers.get("Retry-After")).toBe(String((NOVEMBER.getTime() - MID_OCTOBER.getTime()) / 1000));
     expect(await refused.json()).toEqual({ error: "Scanning is off right now. Enter your analytics by hand.", reason: "scanning-off" });
   }
 
@@ -117,15 +117,12 @@ it("allows the scan that brings the total exactly to the limit", async () => {
   expect(await monthTotals()).toEqual([{ monthStart: OCTOBER, totalUsd: 10 }]);
 });
 
-it("starts the total at $0 at midnight on the 1st, Chicago time", async () => {
+it("starts the total at $0 at midnight on the 1st, Chicago time, and deletes the ended month", async () => {
   await setMonthTotal(OCTOBER, "9.99");
 
   expect(await scanAndFinish("student-a", new Date("2026-11-01T04:59:59Z"))).toMatchObject({ refused: "scanning-off" });
   expect(await scanAndFinish("student-a", NOVEMBER)).toMatchObject({ subject: "student-a" });
-  expect(await monthTotals()).toEqual([
-    { monthStart: OCTOBER, totalUsd: 9.99 },
-    { monthStart: NOVEMBER, totalUsd: 0.02 },
-  ]);
+  expect(await monthTotals()).toEqual([{ monthStart: NOVEMBER, totalUsd: 0.02 }]);
 });
 
 it("applies the owner's switch and changed limit on the next scan", async () => {
@@ -167,6 +164,20 @@ it("sends one fail signal at the first refusal at the limit each month", async (
   vi.setSystemTime(new Date("2026-11-02T15:00:00Z"));
   expect((await scanWithLimits("student-a", "analytics", async () => ({}))).status).toBe(429);
   expect(pings).toHaveBeenCalledTimes(1);
+});
+
+it("tries a failed alert again on the next scan that meets its condition", async () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  await setMonthTotal(OCTOBER, "7.99");
+  pings.mockResolvedValueOnce(new Response("", { status: 503 }));
+  for (let index = 0; index < 3; index += 1) expect((await scanWithLimits("student-a", "analytics", async () => ({}))).status).toBe(200);
+  expect(pinged()).toEqual([{ url: `${WARNING_URL}/fail`, method: "POST" }, { url: `${WARNING_URL}/fail`, method: "POST" }]);
+
+  await setMonthTotal(OCTOBER, "9.99");
+  pings.mockClear();
+  pings.mockRejectedValueOnce(new TypeError("synthetic network loss"));
+  for (let index = 0; index < 3; index += 1) expect((await scanWithLimits("student-a", "analytics", async () => ({}))).status).toBe(429);
+  expect(pinged()).toEqual([{ url: `${LIMIT_URL}/fail`, method: "POST" }, { url: `${LIMIT_URL}/fail`, method: "POST" }]);
 });
 
 it("logs a missing or failing ping URL and still runs the scan", async () => {

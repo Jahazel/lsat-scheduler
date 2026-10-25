@@ -11,7 +11,7 @@ adds the scanning switch and the monthly money limit. Stage 7 adds the other ste
 - **Monthly limit**: the `monthly_limit_usd` setting. The month's money total never goes over it.
 - **Month's total**: the `total_usd` value for the current month in `scan_spending`. Each scan adds $0.02
   (analytics) or $0.03 (practice-test section) before its call. A reply replaces that amount with the real cost.
-  A month starts at midnight on the 1st, America/Chicago.
+  A month starts at midnight on the 1st, America/Chicago. The first scan of a month deletes the earlier months' rows.
 
 Students who are refused see "Scanning is off right now. Enter your analytics by hand."
 
@@ -46,7 +46,7 @@ Anthropic Console. Otherwise Anthropic stops all scans first.
 
 ```sql
 SELECT scanning_off, monthly_limit_usd FROM scan_settings;
-SELECT month_start, total_usd, warning_sent_at, limit_alert_sent_at FROM scan_spending ORDER BY month_start DESC LIMIT 3;
+SELECT month_start, total_usd, warning_sent_at, limit_alert_sent_at FROM scan_spending;
 ```
 
 ## Spend alerts
@@ -60,7 +60,7 @@ The app sends a fail signal to a Healthchecks.io check in two cases, at most onc
 
 Set up each check once for the copy and once for the real site, four checks in total. Put each ping URL in
 the Vercel server settings for its own environment. Never share a URL between the copy and the real site.
-A missing URL is logged as `spend_alert_not_configured` and does not stop the scan.
+A missing URL is logged as `spend_alert_not_configured` and does not stop the scan. A missing URL or a failed send leaves the alert unsent, so the next scan that meets the condition tries again.
 
 The checks must alert only on a fail signal, never on silence:
 

@@ -8,7 +8,7 @@ import { trySendSpendAlert, type ScanKind } from "./scanSpending";
 export async function scanWithLimits(accountId: string, kind: ScanKind, read: (recordCost: RecordCost) => Promise<object>): Promise<NextResponse> {
   const realNow = new Date();
   const place = await takeScanPlace(accountId, kind, realNow);
-  const alertSent = place.alert ? trySendSpendAlert(place.alert) : undefined;
+  const alertSent = place.alert ? trySendSpendAlert(place.alert, realNow) : undefined;
   if ("refused" in place) {
     await alertSent;
     const headers = place.retryAt
