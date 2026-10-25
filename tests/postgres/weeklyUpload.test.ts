@@ -85,7 +85,7 @@ function upload(at: Date, { currentScore = 160, source = "7sage_screenshot", wee
     currentScore,
     analytics: {
       lrAccuracyByType: { "Flaw or descriptive weakening": 0.74, Weaken: 0.7, "Necessary assumption": 0.76 },
-      lrTopPriorityLogicTypes: ["Phenomenon-hypothesis"],
+      lrTopPriorityLogicTypes: ["Phenomenon-hypothesis (LR)"],
       rcAccuracyByType: { Law: 0.58, Comparative: 0.7, Science: 0.64, Humanities: 0.81, Art: 0.77 },
       extraction: { source, extractedAt },
       confirmation: { extractedValuesMatch: true, isLatestAnalytics: true, confirmedAt },

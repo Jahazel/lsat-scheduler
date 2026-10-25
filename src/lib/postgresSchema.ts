@@ -63,7 +63,7 @@ export const analyticsSnapshots = pgTable("analytics_snapshots", {
   lrTopPriorityLogicTypes: text("lr_top_priority_logic_types").array().$type<AnalyticsSnapshot["lrTopPriorityLogicTypes"]>().notNull(),
   rcAccuracyByType: jsonb("rc_accuracy_by_type").$type<NonNullable<AnalyticsSnapshot["rcAccuracyByType"]>>(),
   approvedAt: timestamp("approved_at", { withTimezone: true }).notNull(),
-  extractionSource: text("extraction_source", { enum: ["7sage_screenshot", "admin_sample"] }).notNull(),
+  extractionSource: text("extraction_source", { enum: ["7sage_screenshot", "admin_sample", "manual_entry"] }).notNull(),
   extractedAt: timestamp("extracted_at", { withTimezone: true }).notNull(),
   extractedValuesMatch: boolean("extracted_values_match").notNull(),
   isLatestAnalytics: boolean("is_latest_analytics").notNull(),

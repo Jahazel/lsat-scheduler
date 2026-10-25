@@ -1,6 +1,8 @@
 import { dateInScheduleTimezone, type StudentClock } from "./adminTestWorkspace";
 import { z } from "zod";
-import type { LRLogicType, RCType } from "@/lib/types";
+import { summarizeAnalyticsRows } from "./analytics";
+import { mockRules } from "./mockData";
+import type { AnalyticsExtractedRow, LRLogicType, RCType } from "@/lib/types";
 
 const MAX_EXTRACTION_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -14,12 +16,18 @@ const RCAccuracySchema = z.strictObject({
   Art: OptionalAccuracy,
 } satisfies Record<RCType, typeof OptionalAccuracy>);
 
+const SNAPSHOT_SOURCES = ["7sage_screenshot", "admin_sample", "manual_entry"] as const;
+export type SnapshotSource = (typeof SNAPSHOT_SOURCES)[number];
+
+const KNOWN_LR_TYPES = new Set<string>([...mockRules.lrStemTypes, ...mockRules.lrLogicTypes]);
+const LOGIC_TYPES = new Set<string>(mockRules.lrLogicTypes);
+
 const SnapshotApprovalSchema = z.object({
-  lrAccuracyByType: z.record(z.string(), Accuracy),
+  lrAccuracyByType: z.record(z.string(), z.unknown()),
   lrTopPriorityLogicTypes: z.array(z.string()),
   rcAccuracyByType: z.unknown(),
   extraction: z.object({
-    source: z.enum(["7sage_screenshot", "admin_sample"]),
+    source: z.enum(SNAPSHOT_SOURCES),
     extractedAt: z.string().datetime(),
   }),
   confirmation: z.object({
@@ -31,7 +39,7 @@ const SnapshotApprovalSchema = z.object({
 
 export interface SnapshotApprovalMetadata {
   extraction: {
-    source: "7sage_screenshot" | "admin_sample";
+    source: SnapshotSource;
     extractedAt: string;
   };
   confirmation: {
@@ -43,6 +51,26 @@ export interface SnapshotApprovalMetadata {
 
 export class SnapshotApprovalError extends Error {}
 
+const DUPLICATE_TYPE = "Enter each type only once.";
+
+const ReviewedRowsSchema = z.array(z.looseObject({
+  type: z.string(),
+  category: z.enum(["regular", "restricted", "passage"]),
+  accuracy: z.number().optional(),
+  isTopPriority: z.boolean().optional(),
+}));
+
+export function summarizeApprovedRows(rows: unknown) {
+  const parsed = ReviewedRowsSchema.safeParse(rows);
+  if (!parsed.success) {
+    throw new SnapshotApprovalError("Confirm that the reviewed extraction matches your latest analytics.");
+  }
+  if (new Set(parsed.data.map((row) => row.type)).size !== parsed.data.length) {
+    throw new SnapshotApprovalError(DUPLICATE_TYPE);
+  }
+  return summarizeAnalyticsRows(parsed.data as AnalyticsExtractedRow[]);
+}
+
 export class SnapshotSaveLimitReached extends SnapshotApprovalError {
   constructor() {
     super("You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time.");
@@ -51,14 +79,14 @@ export class SnapshotSaveLimitReached extends SnapshotApprovalError {
 
 export function checkApprovalTimes(
   { extraction, confirmation }: {
-    extraction: { source: "7sage_screenshot" | "admin_sample"; extractedAt: string };
+    extraction: { source: SnapshotSource; extractedAt: string };
     confirmation: { confirmedAt: string };
   },
   realNow: Date,
   messages: { stale: string; early: string },
 ) {
   const extractedAt = new Date(extraction.extractedAt);
-  if (realNow.getTime() - extractedAt.getTime() > MAX_EXTRACTION_AGE_MS || extractedAt > realNow) {
+  if (extraction.source !== "manual_entry" && (realNow.getTime() - extractedAt.getTime() > MAX_EXTRACTION_AGE_MS || extractedAt > realNow)) {
     throw new SnapshotApprovalError(messages.stale);
   }
   const confirmedAt = new Date(confirmation.confirmedAt);
@@ -81,6 +109,20 @@ export function prepareApprovedSnapshot(input: unknown, approvedAt = new Date(),
   }
 
   const values = parsed.data;
+  const lrTypes = Object.keys(values.lrAccuracyByType);
+  if (lrTypes.some((type) => !KNOWN_LR_TYPES.has(type))) {
+    throw new SnapshotApprovalError("Pick each LR type from the 7Sage list.");
+  }
+  const lrAccuracy = z.record(z.string(), Accuracy).safeParse(values.lrAccuracyByType);
+  if (!lrAccuracy.success) {
+    throw new SnapshotApprovalError("Enter each LR accuracy from 0 to 100.");
+  }
+  if (values.lrTopPriorityLogicTypes.some((type) => !LOGIC_TYPES.has(type))) {
+    throw new SnapshotApprovalError("Only Stimulus Logic types can be top priority.");
+  }
+  if (new Set(values.lrTopPriorityLogicTypes).size !== values.lrTopPriorityLogicTypes.length) {
+    throw new SnapshotApprovalError(DUPLICATE_TYPE);
+  }
   const rcAccuracy = RCAccuracySchema.safeParse(values.rcAccuracyByType);
   if (!rcAccuracy.success) {
     throw new SnapshotApprovalError("Enter each RC accuracy from 0 to 100.");
@@ -89,7 +131,7 @@ export function prepareApprovedSnapshot(input: unknown, approvedAt = new Date(),
     throw new SnapshotApprovalError("Admin access required for sample analytics.");
   }
   if (
-    Object.keys(values.lrAccuracyByType).length === 0 &&
+    lrTypes.length === 0 &&
     values.lrTopPriorityLogicTypes.length === 0
   ) {
     throw new SnapshotApprovalError("The reviewed extraction is empty.");
@@ -104,7 +146,7 @@ export function prepareApprovedSnapshot(input: unknown, approvedAt = new Date(),
 
   return {
     weekOf: options.weekOf ?? approvedAt.toISOString().slice(0, 10),
-    lrAccuracyByType: values.lrAccuracyByType,
+    lrAccuracyByType: lrAccuracy.data,
     lrTopPriorityLogicTypes: values.lrTopPriorityLogicTypes as LRLogicType[],
     rcAccuracyByType: rcAccuracy.data,
     status: "approved" as const,
