@@ -108,8 +108,16 @@ _Avoid_: banned account, locked account, suspended account
 Ending every session of an Account at once, on every browser and device, including the current one. The ordinary "Sign out" ends only the current browser.
 _Avoid_: sign out everywhere, global logout
 
+**Sign-in method**:
+How an Account signs in: Google or a password, never both. Admin Accounts use Google only.
+_Avoid_: login type, provider, linked account
+
+**Pending signup**:
+A password signup whose email is not verified yet. It is not an Account and holds no data; using its verification link turns it into an Account.
+_Avoid_: pending Account, unverified Account
+
 **Recent sign-in**:
-A Google sign-in within the last 10 minutes. Account deletion needs one; an older session must sign in again first.
+A sign-in within the last 10 minutes: a new Google sign-in for a Google Account, or the current password for a password Account. Account deletion and password change need one.
 _Avoid_: re-authentication, fresh login
 
 ### Capacity
