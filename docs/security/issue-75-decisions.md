@@ -4,6 +4,12 @@ Decisions for [issue 75](https://github.com/Jahazel/lsat-scheduler/issues/75), u
 
 **Update, October 23, 2026:** The owner replaced some rules after the practice-test result made a weekly upload send up to 6 screenshots ([issue 245](https://github.com/Jahazel/lsat-scheduler/issues/245)). Rule 29 is now 10 in 1 day and 40 in 1 month. Rules 39 to 41 count $0.02 for an analytics extraction and $0.03 for a practice-test section extraction. Rule 49 now adds a warning at 80% of the app limit. Rule 52 now lets a practice-test week skip the practice-test result while extraction is off. The password parts of rules 8 to 10 and 12 to 16 wait for the password sign-in issue ([issue 230](https://github.com/Jahazel/lsat-scheduler/issues/230)) and must pass before password sign-in returns. Each replaced rule below keeps its original text and names its replacement.
 
+**Update, October 25, 2026:** The owner decided the password sign-in rules for [issue 230](https://github.com/Jahazel/lsat-scheduler/issues/230) ([spec #278](https://github.com/Jahazel/lsat-scheduler/issues/278)). These items replace or add to the rules below:
+
+- **Pending signup replaces "pending Account."** Over a signup limit, no pending signup is saved (rule 9). A pending signup is not an Account ([ADR 0006](../adr/0006-pending-signups-live-outside-the-accounts-table.md)).
+- **"Forgot password" for a pending signup sends a new verification link.** That email counts against the signup limits and shares their counters (rules 8 and 10). The request also counts against the reset limits (rule 15).
+- **A refused send changes nothing on screen.** If Resend refuses an email, for example at the free plan's 100-a-day cap, the screen stays the same and the app logs the failure.
+
 **Status: decided.** These are rules for later work. None of them is built yet. The checks in [release-gate.md](release-gate.md#c-abuse-limits-and-spending) still fail until the code passes them.
 
 The evidence comes from issue 70 findings F05, F07, F08, and F09. The $10 monthly extraction limit and the manual entry fallback come from [issue 72](issue-72-decisions.md). The signup, verification, and reset flows that these limits protect come from [issue 74](issue-74-decisions.md).

@@ -4,6 +4,13 @@ Decisions for [issue 77](https://github.com/Jahazel/lsat-scheduler/issues/77), u
 
 **Status: decided.** These are rules for later work. None of them is built yet. The checks in [release-gate.md](release-gate.md#g-dependencies-and-code) still fail until the settings and code pass them.
 
+**Update, October 25, 2026:** The owner bought `drillmap.xyz` and decided the password sign-in rules for [issue 230](https://github.com/Jahazel/lsat-scheduler/issues/230) ([spec #278](https://github.com/Jahazel/lsat-scheduler/issues/278)). These items replace or add to the rules below:
+
+- **Main address.** `https://drillmap.xyz` is the real site's main address, and `lsat-scheduler.vercel.app` redirects to it. Every email link uses the place's own configured address, never the address a request claims.
+- **Sending domains.** The real site sends from `DrillMap <no-reply@mail.drillmap.xyz>`. The copy of the site sends from `copy-mail.drillmap.xyz`. Each place's Resend key can send only from its own domain (rule 8). Local work and tests use a fake sender.
+- **Cron secret.** Each place has its own cron secret for the daily cleanup job (rule 8). The credential list (rule 13) adds the cron secret.
+- **Two-step sign-in.** Namecheap, which holds the domain, and Resend, the email provider, join the two-step sign-in list (rule 25).
+
 The evidence comes from issue 70 finding F16 and from issue 71. The copy of the site, the 1-day response time, and the emergency guide come from [the launch checklist](release-gate.md). The email provider comes from [issue 74](issue-74-decisions.md) rule 1.
 
 ## Words in this file
