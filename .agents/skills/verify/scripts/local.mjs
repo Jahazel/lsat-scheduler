@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { z } from "zod";
 import { tsImport } from "tsx/esm/api";
+import { serverErrors } from "./appLog.mjs";
 
 const { createPostgresTestDatabase } = await tsImport("../../../../tests/postgres/testDatabase.ts", import.meta.url);
 const { closePostgresDatabase, createPostgresConnection, postgresSettingForDatabase, requirePostgresTestTarget } = await tsImport("../../../../src/lib/postgres.ts", import.meta.url);
@@ -19,10 +20,11 @@ const [command, directory, ...extra] = process.argv.slice(2);
 const base = resolve(root, ".verification/evidence");
 const validSeed = command === "seed" && ["student", "admin"].includes(extra[0])
   && (extra.length === 2 || extra.length === 3 && extra[2] === "--not-onboarded");
+const validLogs = command === "logs" && (extra.length === 0 || extra.length === 2 && extra[0] === "--from" && /^\d+$/.test(extra[1]));
 const validSession = command === "session"
   && (extra.length === 1 || extra.length === 3 && extra[1] === "--signed-in-minutes-ago" && /^\d+$/.test(extra[2]));
-if (!directory || !(["launch", "doctor", "inspect", "cleanup"].includes(command) && extra.length === 0 || validSeed || validSession)) {
-  throw new Error("Usage: local.mjs launch|doctor|inspect|cleanup .verification/evidence/<run-name>\n       local.mjs seed .verification/evidence/<run-name> student|admin <email> [--not-onboarded]\n       local.mjs session .verification/evidence/<run-name> <email> [--signed-in-minutes-ago <minutes>]");
+if (!directory || !(["launch", "doctor", "inspect", "cleanup"].includes(command) && extra.length === 0 || validSeed || validSession || validLogs)) {
+  throw new Error("Usage: local.mjs launch|doctor|inspect|cleanup .verification/evidence/<run-name>\n       local.mjs seed .verification/evidence/<run-name> student|admin <email> [--not-onboarded]\n       local.mjs session .verification/evidence/<run-name> <email> [--signed-in-minutes-ago <minutes>]\n       local.mjs logs .verification/evidence/<run-name> [--from <byte>]");
 }
 const run = resolve(root, directory);
 if (!relative(base, run) || relative(base, run).startsWith("..")) {
@@ -138,7 +140,7 @@ async function launch() {
     const appEnv = { ...process.env, NODE_ENV: "development", DATABASE_URL: postgresDatabase.setting,
       AUTH_SECRET: authSecret, AUTH_URL: url, NEXTAUTH_URL: url, AUTH_TRUST_HOST: "true",
       AUTH_GOOGLE_ID: "", AUTH_GOOGLE_SECRET: "", GOOGLE_CLIENT_ID: "", GOOGLE_CLIENT_SECRET: "",
-      ANTHROPIC_API_KEY: "", SCREENSHOT_EXTRACTOR: process.env.VERIFY_SCREENSHOT_EXTRACTOR ?? "fake", VERCEL_ENV: "development", NEXT_TELEMETRY_DISABLED: "1" };
+      ANTHROPIC_API_KEY: "", SCAN_SPEND_WARNING_PING_URL: "", SCAN_LIMIT_REACHED_PING_URL: "", SCREENSHOT_EXTRACTOR: process.env.VERIFY_SCREENSHOT_EXTRACTOR ?? "fake", VERCEL_ENV: "development", NEXT_TELEMETRY_DISABLED: "1" };
     const app = start(process.execPath, [resolve(root, "node_modules/next/dist/bin/next"), "dev", "--hostname", "127.0.0.1", "--port", "3100"], "app.log", appEnv);
     state = { root, run, url, postgresDatabase: postgresDatabase.name, supervisorPid: process.pid, appPid: app.pid, revision: revision(), status: "starting" };
     save("instance.json", state);
@@ -213,6 +215,12 @@ if (command === "session") {
     });
     console.log(JSON.stringify({ name, value, url }, null, 2));
   } finally { await closePostgresDatabase(); }
+}
+if (command === "logs") {
+  const log = readFileSync(resolve(run, "app.log"));
+  const from = Number(extra[1] ?? 0);
+  if (from > log.length) throw new Error(`app.log has ${log.length} bytes. Use --from ${log.length} or less.`);
+  console.log(JSON.stringify({ from, to: log.length, errors: serverErrors(log.subarray(from).toString("utf8")) }, null, 2));
 }
 if (command === "cleanup") {
   const state = loadState();
