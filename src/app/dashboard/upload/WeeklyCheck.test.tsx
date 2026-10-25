@@ -4,6 +4,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AdminTestProvider, useAdminTest } from "@/components/AdminTestContext";
 import { readSection } from "@/lib/analyticsReview";
+import { summarizeApprovedRows } from "@/lib/analyticsSnapshots";
 import { samplePracticeTestSections } from "@/lib/adminTestWorkspace";
 import { mockStudent } from "@/lib/mockData";
 import { reviewPracticeTest } from "@/lib/practiceTestResult";
@@ -144,7 +145,7 @@ describe("Check what we read", () => {
     expect(screen.getByText("Enter a percentage from 0 to 100.")).toBeDefined();
   });
 
-  it("confirms with empty RC boxes and sends only the RC passage types that have a value", async () => {
+  it("confirms with empty RC boxes, and the saved values hold only the RC passage types that have a value", async () => {
     const { user, confirm } = setup();
     await user.clear(screen.getByLabelText("Law accuracy"));
     await user.clear(screen.getByLabelText("Art accuracy"));
@@ -153,8 +154,8 @@ describe("Check what we read", () => {
     await user.click(confirmButton());
 
     expect(confirm).toHaveBeenCalledOnce();
-    const { analytics } = confirm.mock.calls[0][0] as { analytics: { rcAccuracyByType: object } };
-    expect(analytics.rcAccuracyByType).toEqual({ Comparative: 0.7, Science: 0.64, Humanities: 0.81 });
+    const { analytics } = confirm.mock.calls[0][0] as { analytics: { rows: unknown } };
+    expect(summarizeApprovedRows(analytics.rows).rcAccuracyByType).toEqual({ Comparative: 0.7, Science: 0.64, Humanities: 0.81 });
   });
 
   it("sends the reviewed analytics, the section readings, and the new score when confirmed", async () => {
@@ -175,9 +176,12 @@ describe("Check what we read", () => {
       weekOf: "2026-10-19",
       currentScore: 160,
       analytics: {
-        lrAccuracyByType: { "Necessary assumption": 0.8, "Flaw or descriptive weakening": 0.74 },
-        lrTopPriorityLogicTypes: ["Phenomenon-hypothesis (LR)"],
-        rcAccuracyByType: { Law: 0.58 },
+        rows: expect.arrayContaining([
+          expect.objectContaining({ type: "Necessary assumption", category: "regular", accuracy: 80 }),
+          expect.objectContaining({ type: "Flaw or descriptive weakening", category: "regular", accuracy: 74 }),
+          expect.objectContaining({ type: "Phenomenon-hypothesis (LR)", category: "restricted", isTopPriority: true }),
+          expect.objectContaining({ type: "Law", category: "passage", accuracy: 58 }),
+        ]),
         extraction: { source: "7sage_screenshot", extractedAt: EXTRACTED_AT },
         confirmation: { extractedValuesMatch: true, isLatestAnalytics: true },
       },

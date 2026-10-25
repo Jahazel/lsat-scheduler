@@ -93,6 +93,8 @@ const ROW_REFUSALS = [
   ["a flag row with an accuracy over 100%", [{ type: "Quantifier", category: "restricted", accuracy: 150, isTopPriority: true }, ...rows], "Enter each LR accuracy from 0 to 100."],
   ["an RC accuracy over 100%", [...rows.slice(0, 2), { type: "Law", category: "passage", accuracy: 150 }], "Enter each RC accuracy from 0 to 100."],
   ["a negative RC accuracy", [...rows.slice(0, 2), { type: "Law", category: "passage", accuracy: -1 }], "Enter each RC accuracy from 0 to 100."],
+  ["an unknown RC passage type", [...rows, { type: "Poetry", category: "passage", accuracy: 50 }], "Enter each RC accuracy from 0 to 100."],
+  ["two rows for one RC passage type", [...rows, { type: "Law", category: "passage", accuracy: 40 }], "Enter each type only once."],
 ] as const;
 
 describe.each(SOURCES)("onboarding with a %s snapshot", (source) => {
@@ -147,17 +149,19 @@ async function studentWithThisWeek(role: "student" | "admin") {
   return saved.id;
 }
 
-function upload(source: SnapshotSource, analytics: object = {}, extractedAt?: Date) {
+const weeklyRows = [
+  { type: "Flaw or descriptive weakening", category: "regular", accuracy: 74 },
+  { type: "Weaken", category: "regular", accuracy: 70 },
+  { type: "Causal reasoning", category: "restricted", isTopPriority: true },
+  { type: "Law", category: "passage", accuracy: 58 },
+  { type: "Science", category: "passage", accuracy: 64 },
+];
+
+function upload(source: SnapshotSource, rows: readonly object[] = weeklyRows, extractedAt?: Date) {
   return {
     weekOf: "2026-10-19",
     currentScore: 160,
-    analytics: {
-      lrAccuracyByType: { "Flaw or descriptive weakening": 0.74, Weaken: 0.7 },
-      lrTopPriorityLogicTypes: ["Causal reasoning"],
-      rcAccuracyByType: { Law: 0.58, Science: 0.64 },
-      ...approval(source, SATURDAY, extractedAt),
-      ...analytics,
-    },
+    analytics: { rows, ...approval(source, SATURDAY, extractedAt) },
     practiceTest: {
       readings: PT158_FIXTURES.map(({ reading }) => reading),
       picks: [],
@@ -167,23 +171,11 @@ function upload(source: SnapshotSource, analytics: object = {}, extractedAt?: Da
   };
 }
 
-const VALUE_REFUSALS = [
-  ["an unknown LR type", { lrAccuracyByType: { Strengthn: 0.5 } }, "Pick each LR type from the 7Sage list."],
-  ["an LR accuracy over 100%", { lrAccuracyByType: { Weaken: 1.01 } }, "Enter each LR accuracy from 0 to 100."],
-  ["a negative LR accuracy", { lrAccuracyByType: { Weaken: -0.01 } }, "Enter each LR accuracy from 0 to 100."],
-  ["a top-priority type that is not Stimulus Logic", { lrTopPriorityLogicTypes: ["Weaken"] }, "Only Stimulus Logic types can be top priority."],
-  ["an unknown top-priority type", { lrTopPriorityLogicTypes: ["Phenomenon-hypothesis"] }, "Only Stimulus Logic types can be top priority."],
-  ["two rows for one type", { lrTopPriorityLogicTypes: ["Causal reasoning", "Causal reasoning"] }, "Enter each type only once."],
-  ["an RC accuracy over 100%", { rcAccuracyByType: { Law: 1.5 } }, "Enter each RC accuracy from 0 to 100."],
-  ["a negative RC accuracy", { rcAccuracyByType: { Law: -0.01 } }, "Enter each RC accuracy from 0 to 100."],
-  ["an unknown RC passage type", { rcAccuracyByType: { Poetry: 0.5 } }, "Enter each RC accuracy from 0 to 100."],
-] as const;
-
 describe.each(SOURCES)("the weekly upload with a %s snapshot", (source) => {
-  it.each(VALUE_REFUSALS)("refuses %s and saves nothing", async (_name, analytics, message) => {
+  it.each(ROW_REFUSALS)("refuses %s and saves nothing", async (_name, sentRows, message) => {
     const studentId = await studentWithThisWeek(source === "admin_sample" ? "admin" : "student");
     vi.setSystemTime(SATURDAY);
-    await expect(confirmWeeklyUpload(upload(source, analytics))).resolves.toEqual({ error: message });
+    await expect(confirmWeeklyUpload(upload(source, sentRows))).resolves.toEqual({ error: message });
     expect(await listApprovedAnalyticsSnapshots(studentId)).toHaveLength(1);
     expect(await listApprovedPracticeTestResults(studentId)).toEqual([]);
   });
@@ -195,7 +187,7 @@ it.each([
 ] as const)("the weekly upload refuses a %s read more than 24 hours ago", async (source, message) => {
   const studentId = await studentWithThisWeek(source === "admin_sample" ? "admin" : "student");
   vi.setSystemTime(SATURDAY);
-  await expect(confirmWeeklyUpload(upload(source, {}, new Date(SATURDAY.getTime() - THREE_DAYS_MS)))).resolves.toEqual({ error: message });
+  await expect(confirmWeeklyUpload(upload(source, weeklyRows, new Date(SATURDAY.getTime() - THREE_DAYS_MS)))).resolves.toEqual({ error: message });
   expect(await listApprovedAnalyticsSnapshots(studentId)).toHaveLength(1);
 });
 
@@ -218,7 +210,7 @@ it("the weekly upload refuses a manual entry without the latest-analytics confir
 it("the weekly upload saves a manual entry typed 3 days ago and builds next Monday's weekly schedule from it", async () => {
   const studentId = await studentWithThisWeek("student");
   vi.setSystemTime(SATURDAY);
-  await expect(confirmWeeklyUpload(upload("manual_entry", {}, new Date(SATURDAY.getTime() - THREE_DAYS_MS))))
+  await expect(confirmWeeklyUpload(upload("manual_entry", weeklyRows, new Date(SATURDAY.getTime() - THREE_DAYS_MS))))
     .rejects.toThrow("redirect:/dashboard");
   const [newest] = await listApprovedAnalyticsSnapshots(studentId);
   expect(newest).toMatchObject({ approvedAt: SATURDAY.toISOString(), extraction: { source: "manual_entry" }, rcAccuracyByType: { Law: 0.58, Science: 0.64 } });

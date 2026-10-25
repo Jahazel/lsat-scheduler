@@ -8,7 +8,6 @@ import {
 } from "@/components/SnapshotReviewFields";
 import { DrillList } from "@/components/WeekPreview";
 import { FOCUS } from "@/components/ui/classes";
-import { summarizeAnalyticsRows } from "@/lib/analytics";
 import { accuracyError, reviewedRows, SECTIONS, snapshotApproval, type Statement } from "@/lib/analyticsReview";
 import { mostMissedType } from "@/lib/engine";
 import { mockRules } from "@/lib/mockData";
@@ -149,7 +148,7 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
       setReply(await onConfirm({
         weekOf: basis.weekOf,
         currentScore: score,
-        analytics: { ...summarizeAnalyticsRows(reviewedRows(review)), ...approval },
+        analytics: { rows: reviewedRows(review), ...approval },
         practiceTest: practiceTestApproval,
       }));
     });

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { checkApprovalTimes, prepareApprovedSnapshot, SnapshotApprovalError } from "./analyticsSnapshots";
+import { checkApprovalTimes, prepareApprovedSnapshot, SnapshotApprovalError, summarizeApprovedRows } from "./analyticsSnapshots";
 import { reviewPracticeTest, type SectionReview } from "./practiceTestResult";
 import { MAX_SCORE, MIN_SCORE } from "./weeklyUpload";
 
@@ -41,7 +41,7 @@ const PracticeTestApprovalSchema = z.strictObject({
 
 const WeeklyUploadApprovalSchema = z.object({
   currentScore: z.unknown(),
-  analytics: z.unknown(),
+  analytics: z.object({ rows: z.unknown(), extraction: z.unknown(), confirmation: z.unknown() }),
   practiceTest: z.unknown(),
 });
 
@@ -91,7 +91,8 @@ export function prepareWeeklyUploadApproval(input: unknown, approvedAt: Date, re
   if (!parsed.success) throw new SnapshotApprovalError("Confirm that the reviewed values match your screenshots.");
   const score = ScoreSchema.safeParse(parsed.data.currentScore);
   if (!score.success) throw new SnapshotApprovalError(`Enter a score from ${MIN_SCORE} to ${MAX_SCORE}.`);
-  const snapshot = prepareApprovedSnapshot(parsed.data.analytics, approvedAt, realNow, {
+  const { rows, extraction, confirmation } = parsed.data.analytics;
+  const snapshot = prepareApprovedSnapshot({ ...summarizeApprovedRows(rows), extraction, confirmation }, approvedAt, realNow, {
     allowAdminSample: options.allowAdminSample,
     weekOf: options.weekOf,
   });

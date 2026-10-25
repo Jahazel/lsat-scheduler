@@ -50,6 +50,7 @@ afterAll(async () => {
 const MONDAY = new Date("2026-10-12T16:00:00Z");
 const SATURDAY = new Date("2026-10-17T17:00:00Z");
 const NEXT_MONDAY = new Date("2026-10-19T16:00:00Z");
+const RC = { Law: 58, Comparative: 70, Science: 64, Humanities: 81, Art: 77 };
 
 const profile: Student = {
   currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01",
@@ -84,9 +85,13 @@ function upload(at: Date, { currentScore = 160, source = "7sage_screenshot", wee
     weekOf,
     currentScore,
     analytics: {
-      lrAccuracyByType: { "Flaw or descriptive weakening": 0.74, Weaken: 0.7, "Necessary assumption": 0.76 },
-      lrTopPriorityLogicTypes: ["Phenomenon-hypothesis (LR)"],
-      rcAccuracyByType: { Law: 0.58, Comparative: 0.7, Science: 0.64, Humanities: 0.81, Art: 0.77 },
+      rows: [
+        { type: "Flaw or descriptive weakening", category: "regular", accuracy: 74 },
+        { type: "Weaken", category: "regular", accuracy: 70 },
+        { type: "Necessary assumption", category: "regular", accuracy: 76 },
+        { type: "Phenomenon-hypothesis (LR)", category: "restricted", isTopPriority: true },
+        ...Object.entries(RC).map(([type, accuracy]) => ({ type, category: "passage", accuracy })),
+      ],
       extraction: { source, extractedAt },
       confirmation: { extractedValuesMatch: true, isLatestAnalytics: true, confirmedAt },
     },
@@ -155,7 +160,11 @@ it.each([
   const { studentId } = await studentWithThisWeek();
   vi.setSystemTime(SATURDAY);
   const body = upload(SATURDAY);
-  await expect(confirmWeeklyUpload({ ...body, analytics: { ...body.analytics, rcAccuracyByType: rc } })).rejects.toThrow("redirect:/dashboard");
+  const rows = [
+    ...body.analytics.rows.filter(({ category }) => category !== "passage"),
+    ...Object.entries(rc).map(([type, accuracy]) => ({ type, category: "passage", accuracy: accuracy * 100 })),
+  ];
+  await expect(confirmWeeklyUpload({ ...body, analytics: { ...body.analytics, rows } })).rejects.toThrow("redirect:/dashboard");
 
   const newest = (await listApprovedAnalyticsSnapshots(studentId)).find(({ approvedAt }) => approvedAt === SATURDAY.toISOString());
   expect(newest?.rcAccuracyByType).toEqual(rc);
