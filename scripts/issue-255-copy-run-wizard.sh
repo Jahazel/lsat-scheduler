@@ -322,8 +322,8 @@ scan_burst() {
   for ((n = 1; n <= i; n++)); do summary+="#$n ${*:n:1}: $(describe_scan "$dir/$n"); "; done
   local refused ran
   refused=$(cat "$dir"/*.result | grep -c '^429' || true)
-  ran=$((i - refused))
-  record "$step" "$i sent at once: $ran ran, $refused refused (429). ${summary%; }"
+  ran=$(cat "$dir"/*.result | grep -cE '^(200|502|504) ' || true)
+  record "$step" "$i sent at once: $ran ran, $refused refused (429), $((i - ran - refused)) never reached the app. ${summary%; }"
 }
 
 # capture_curl NAME A|B reads a "Copy as cURL" request from the clipboard into the run folder.
@@ -523,13 +523,18 @@ s_deploy_b() {
   step "In the COPY project, open deployment A > ⋯ > Redeploy. Keep Production. Do not promote the result."
   step "When it is Ready, copy its own URL (…vercel.app) and its ID."
   ask_id DEPLOYMENT_B "Deployment B ID (dpl_…):"
-  ask_host B_HOST "Deployment B host, without https://:"
+  while true; do
+    ask_host B_HOST "Deployment B host, without https://:"
+    # Only the deployment's own URL has the 9-character build part. The project-and-team alias follows Production, which is A.
+    [[ "$B_HOST" =~ -[a-z0-9]{9}-[a-z0-9-]+\.vercel\.app$ ]] && break
+    warn "That is not B's own URL. Open B in Vercel and copy the address like drillmap-copy-abc123xyz-jahazels-projects.vercel.app."
+  done
   write_env DEPLOYMENT_B "$DEPLOYMENT_B"
   write_env B_HOST "$B_HOST"
-  local code
-  code=$(curl -s -o /dev/null -w '%{http_code}' "https://$B_HOST/login" || true)
-  if [[ "$code" == 401 || "$code" == 403 ]]; then
-    warn "B answers HTTP $code: Deployment Protection is on."
+  local code location
+  read -r code location < <(curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' "https://$B_HOST/login" || true)
+  if [[ "$code" == 401 || "$code" == 403 || "$location" == https://vercel.com/sso-api* ]]; then
+    warn "B answers HTTP $code with Vercel's login: Deployment Protection is on."
     step "COPY project > Settings > Deployment Protection > Protection Bypass for Automation > create a secret."
     local secret=""
     ask_secret secret "Paste the bypass secret (hidden):"
