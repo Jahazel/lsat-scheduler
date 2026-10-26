@@ -320,7 +320,7 @@ describe("onboarding wizard", () => {
       expect(accuracyMessage(draftOf(typing), "Diagram")).toBeNull();
       expect(blockedReason(typing)).toBe("Fix Diagram above to confirm.");
 
-      const left = wizardReducer(typing, { type: "leaveAccuracyBox", rowType: "Diagram" });
+      const left = wizardReducer(typing, { type: "leaveRow", rowType: "Diagram" });
       expect(accuracyMessage(draftOf(left), "Diagram")).toBe("Enter a percentage from 0 to 100.");
 
       const cleared = wizardReducer(left, { type: "editAccuracy", rowType: "Diagram", text: "" });
@@ -332,7 +332,7 @@ describe("onboarding wizard", () => {
       expect(confirmSnapshotInput(decimal)?.analyticsRows[0]).toEqual({ type: "Diagram", category: "regular", accuracy: 9.5 });
 
       for (const text of ["9.", "-5", "7a"]) {
-        const state = onReview(readRows, ...tickBoth, { type: "editAccuracy", rowType: "Diagram", text }, { type: "leaveAccuracyBox", rowType: "Diagram" }, ...tickBoth);
+        const state = onReview(readRows, ...tickBoth, { type: "editAccuracy", rowType: "Diagram", text }, { type: "leaveRow", rowType: "Diagram" }, ...tickBoth);
         expect(boxText(draftOf(state), "Diagram")).toBe(text);
         expect(accuracyMessage(draftOf(state), "Diagram")).toBe("Enter a percentage from 0 to 100.");
         expect(blockedReason(state)).toBe("Fix Diagram above to confirm.");
@@ -345,13 +345,13 @@ describe("onboarding wizard", () => {
         { type: "addType", rowType: "Diagram" },
       );
       expect(boxText(draftOf(readded), "Diagram")).toBe("");
-      const over = onReview(readRows, { type: "editAccuracy", rowType: "Diagram", text: "1000" }, { type: "leaveAccuracyBox", rowType: "Diagram" });
+      const over = onReview(readRows, { type: "editAccuracy", rowType: "Diagram", text: "1000" }, { type: "leaveRow", rowType: "Diagram" });
       expect(accuracyMessage(draftOf(over), "Diagram")).toBe("Enter a percentage from 0 to 100.");
     });
 
     it("accepts a decimal read from the screenshot after focus leaves its box", () => {
       const decimalRead = [{ ...readRows[0], accuracy: 9.5 }, ...readRows.slice(1)];
-      const state = onReview(decimalRead, { type: "leaveAccuracyBox", rowType: "Diagram" }, ...tickBoth);
+      const state = onReview(decimalRead, { type: "leaveRow", rowType: "Diagram" }, ...tickBoth);
       expect(accuracyMessage(draftOf(state), "Diagram")).toBeNull();
       expect(confirmSnapshotInput(state)?.analyticsRows[0].accuracy).toBe(9.5);
     });

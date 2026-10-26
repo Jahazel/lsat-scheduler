@@ -42,6 +42,15 @@ describe("weekly upload approval", () => {
     });
   });
 
+  it("accepts typed analytics with a scanned practice test, each keeping its own source", () => {
+    const typedAt = "2026-10-10T09:00:00.000Z";
+    const prepared = prepare({ analytics: { ...analytics, extraction: { source: "manual_entry", extractedAt: typedAt } } });
+
+    expect(prepared.snapshot.extraction).toEqual({ source: "manual_entry", extractedAt: new Date(typedAt) });
+    expect(prepared.snapshot.lrTopPriorityLogicTypes).toEqual(["Phenomenon-hypothesis (LR)"]);
+    expect(prepared.practiceTest?.extractionSource).toBe("7sage_screenshot");
+  });
+
   it("refuses missed counts sent by the browser, since it works them out from the section readings", () => {
     expect(() => prepare({ practiceTest: { ...practiceTest(), missedStemTypeCounts: { Weaken: 9 } } }))
       .toThrow("Confirm that the practice-test values match your screenshots.");

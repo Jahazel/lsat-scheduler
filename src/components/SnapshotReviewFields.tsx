@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Checkbox as SharedCheckbox } from "@/components/ui/Checkbox";
-import { SECTION_NAME, lowestPassageType, type ReviewRow, type Statement } from "@/lib/analyticsReview";
+import { SECTION_NAME, isTyped, lowestPassageType, type ReviewRow, type Statement } from "@/lib/analyticsReview";
 import {
-  accuracyMessage, addTypeOptions, boxText, emptyListNote,
+  accuracyMessage, addTypeOptions, boxText, emptyListNote, listedTypes, tierMessage,
   type AnalyticsType, type ReviewAction, type ReviewDraft, type ReviewList,
 } from "@/lib/reviewDraft";
 import type { AnalyticsExtractedRow, AnalyticsSection, LRType, PriorityTier } from "@/lib/types";
@@ -15,8 +15,12 @@ const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disab
 export const STEP_PRIMARY = `h-11 flex-1 rounded-sm bg-ink text-body font-medium text-chalk transition-colors duration-150 ease-out hover:bg-graphite-raised disabled:cursor-not-allowed disabled:bg-vellum-line disabled:text-smoke ${FOCUS}`;
 export const STEP_SECONDARY = `h-11 w-28 shrink-0 rounded-sm border border-vellum-line bg-paper text-body font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum disabled:cursor-not-allowed disabled:text-fog ${FOCUS}`;
 
-export const boxId = (type: AnalyticsType) => `accuracy-${type.replace(/\W+/g, "-")}`;
+export const boxId = (type: AnalyticsType, prefix = "") => `${prefix}accuracy-${type.replace(/\W+/g, "-")}`;
 export const statementId = (index: number) => `statement-${index}`;
+export const tierId = (type: LRType, prefix = "") => `${prefix}tier-${type.replace(/\W+/g, "-")}`;
+export const addTypeLinkId = (prefix = "") => `${prefix}add-type-link`;
+
+const IdPrefix = createContext("");
 
 export function useDeferWhilePointerDown() {
   const pressing = useRef(false);
@@ -166,12 +170,27 @@ export function ConfirmBar({ label, saving, locked, note, onBack, onConfirm }: {
   );
 }
 
-export function SnapshotReviewFields({ draft, lrRead, files, dispatch }: {
+export function SnapshotReviewFields({ idPrefix = "", ...props }: {
+  draft: ReviewDraft;
+  lrRead: AnalyticsExtractedRow[];
+  files: Partial<Record<AnalyticsSection, File>>;
+  dispatch: (action: ReviewAction) => void;
+  idPrefix?: string;
+}) {
+  return (
+    <IdPrefix.Provider value={idPrefix}>
+      <ReviewFields {...props} />
+    </IdPrefix.Provider>
+  );
+}
+
+function ReviewFields({ draft, lrRead, files, dispatch }: {
   draft: ReviewDraft;
   lrRead: AnalyticsExtractedRow[];
   files: Partial<Record<AnalyticsSection, File>>;
   dispatch: (action: ReviewAction) => void;
 }) {
+  const prefix = useContext(IdPrefix);
   const requestFocus = useFocusAfterRender();
   const deferWhilePointerDown = useDeferWhilePointerDown();
   const { review } = draft;
@@ -179,6 +198,7 @@ export function SnapshotReviewFields({ draft, lrRead, files, dispatch }: {
   const flagRows = review.rows.filter(({ row }) => row.category === "restricted");
   const passageRows = review.rows.filter(({ row }) => row.category === "passage");
   const goesFirst = lowestPassageType(review);
+  const typed = isTyped(review);
 
   const accuracyRow = (entry: ReviewRow, note: ReactNode = null) => (
     <AccuracyRow
@@ -188,13 +208,80 @@ export function SnapshotReviewFields({ draft, lrRead, files, dispatch }: {
       message={accuracyMessage(draft, entry.row.type)}
       note={note}
       dispatch={dispatch}
-      onLeave={() => deferWhilePointerDown(() => dispatch({ type: "leaveAccuracyBox", rowType: entry.row.type }))}
+      onLeave={() => deferWhilePointerDown(() => dispatch({ type: "leaveRow", rowType: entry.row.type }))}
     />
   );
   const emptyNote = (list: ReviewList) => {
     const note = emptyListNote(draft, lrRead, list);
     return note && <p className="border-b border-vellum-line px-3 py-3.5 text-small text-ink">{note}</p>;
   };
+
+  const addType = (
+    <AddType
+      draft={draft}
+      typed={typed}
+      onAdd={(type, list) => {
+        dispatch({ type: "addType", rowType: type });
+        if (list === "accuracy") requestFocus(boxId(type, prefix));
+        else if (typed) requestFocus(tierId(type, prefix));
+      }}
+    />
+  );
+  const passages = (caption: string, file: File | undefined) => (
+    <>
+      <SectionHeading section="RC" file={file} />
+      <div className="flex flex-col">
+        <ListCaption>{caption}</ListCaption>
+        {passageRows.map((entry) =>
+          accuracyRow(
+            entry,
+            entry.row.type === goesFirst ? <span className="font-sans text-small text-accent">Goes first</span> : null,
+          ),
+        )}
+      </div>
+    </>
+  );
+
+  if (typed) {
+    return (
+      <>
+        <SectionHeading section="LR" file={undefined} />
+        {accuracyRows.length + flagRows.length === 0 && (
+          <div className="flex flex-col">
+            <ListCaption>Question types · from your Analytics page</ListCaption>
+            <div className="flex flex-col gap-1 border-b border-vellum-line px-3 py-3.5 text-small">
+              <p className="text-ink">No question types yet.</p>
+              <p className="text-smoke">Add each type your Analytics page lists. Type its percentage, or pick its tier when 7Sage ranks it instead.</p>
+            </div>
+          </div>
+        )}
+        {accuracyRows.length > 0 && (
+          <div className="flex flex-col">
+            <ListCaption>Accuracy · types with a percentage</ListCaption>
+            {accuracyRows.map((entry) => accuracyRow(entry))}
+          </div>
+        )}
+        {flagRows.length > 0 && (
+          <div className="flex flex-col">
+            <ListCaption>Priority tier · types 7Sage ranks instead · Highest goes first in your plan</ListCaption>
+            {flagRows.map(({ row }) => row.category === "restricted" && (
+              <TierRow
+                key={row.type}
+                type={row.type}
+                tier={row.priorityTier}
+                message={tierMessage(draft, row.type)}
+                onTier={(tier) => dispatch({ type: "setTier", rowType: row.type, tier })}
+                onRemove={() => dispatch({ type: "removeRow", rowType: row.type })}
+                onLeave={() => deferWhilePointerDown(() => dispatch({ type: "leaveRow", rowType: row.type }))}
+              />
+            ))}
+          </div>
+        )}
+        {addType}
+        {passages("Passage types · leave a box empty if 7Sage shows no percentage", undefined)}
+      </>
+    );
+  }
 
   return (
     <>
@@ -233,23 +320,8 @@ export function SnapshotReviewFields({ draft, lrRead, files, dispatch }: {
         ))}
         {emptyNote("flags")}
       </div>
-      <AddType
-        draft={draft}
-        onAdd={(type, list) => {
-          dispatch({ type: "addType", rowType: type });
-          if (list === "accuracy") requestFocus(boxId(type));
-        }}
-      />
-      <SectionHeading section="RC" file={files.RC} />
-      <div className="flex flex-col">
-        <ListCaption>Passage types · lowest goes first in your plan</ListCaption>
-        {passageRows.map((entry) =>
-          accuracyRow(
-            entry,
-            entry.row.type === goesFirst ? <span className="font-sans text-small text-accent">Goes first</span> : null,
-          ),
-        )}
-      </div>
+      {addType}
+      {passages("Passage types · lowest goes first in your plan", files.RC)}
     </>
   );
 }
@@ -282,7 +354,7 @@ function AccuracyRow({
   const removable = row.category !== "passage";
   const edited = original === null || original.accuracy !== row.accuracy;
   const was = note ?? (edited && original?.accuracy !== undefined ? `was ${original.accuracy}%` : null);
-  const id = boxId(row.type);
+  const id = boxId(row.type, useContext(IdPrefix));
   const box = message
     ? "border-danger bg-paper"
     : edited
@@ -312,16 +384,7 @@ function AccuracyRow({
           <span aria-hidden className="pl-0.5 font-mono text-mono text-smoke">%</span>
         </span>
         {removable ? (
-          <button
-            type="button"
-            aria-label={`Remove ${row.type}`}
-            onClick={() => dispatch({ type: "removeRow", rowType: row.type })}
-            className={`grid size-7 shrink-0 place-items-center rounded text-smoke hover:text-ink ${FOCUS}`}
-          >
-            <svg aria-hidden viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-              <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" />
-            </svg>
-          </button>
+          <RemoveButton type={row.type} onRemove={() => dispatch({ type: "removeRow", rowType: row.type })} />
         ) : (
           <span aria-hidden className="size-7 shrink-0" />
         )}
@@ -335,7 +398,79 @@ function AccuracyRow({
   );
 }
 
+function RemoveButton({ type, onRemove }: { type: LRType; onRemove: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={`Remove ${type}`}
+      onClick={onRemove}
+      className={`grid size-7 shrink-0 place-items-center rounded text-smoke hover:text-ink ${FOCUS}`}
+    >
+      <svg aria-hidden viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+        <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" />
+      </svg>
+    </button>
+  );
+}
+
 const TIER_LABEL: Record<PriorityTier, string> = { highest: "Highest", medium: "Medium", low: "Low" };
+const TIERS: PriorityTier[] = ["highest", "medium", "low"];
+
+function TierRow({ type, tier, message, onTier, onRemove, onLeave }: {
+  type: LRType;
+  tier: PriorityTier | undefined;
+  message: string | null;
+  onTier: (tier: PriorityTier) => void;
+  onRemove: () => void;
+  onLeave: () => void;
+}) {
+  const id = tierId(type, useContext(IdPrefix));
+  return (
+    <div
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) onLeave();
+      }}
+      className="flex flex-col border-b border-vellum-line"
+    >
+      <div className="flex min-h-10 items-center gap-3 py-1 pl-3 pr-1">
+        <span className="grow text-small text-ink">{type}</span>
+        <div
+          role="radiogroup"
+          aria-label={`${type} tier`}
+          aria-invalid={message ? true : undefined}
+          aria-describedby={message ? `${id}-message` : undefined}
+          className={`flex w-[196px] shrink-0 gap-0.5 rounded-sm border bg-vellum p-0.5 ${message ? "border-danger" : "border-transparent"}`}
+        >
+          {TIERS.map((option, index) => (
+            <label
+              key={option}
+              className={`flex h-[26px] flex-1 cursor-pointer items-center justify-center rounded-[4px] text-caption has-checked:bg-paper has-checked:font-semibold has-checked:shadow-control has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent ${
+                tier === option ? (option === "highest" ? "text-accent" : "text-ink") : "text-smoke hover:text-ink"
+              }`}
+            >
+              <input
+                id={index === 0 ? id : undefined}
+                type="radio"
+                name={id}
+                value={option}
+                checked={tier === option}
+                onChange={() => onTier(option)}
+                className="sr-only"
+              />
+              {TIER_LABEL[option]}
+            </label>
+          ))}
+        </div>
+        <RemoveButton type={type} onRemove={onRemove} />
+      </div>
+      {message && (
+        <p id={`${id}-message`} className="px-3 pb-2 text-small text-danger-ink">
+          {message}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function TierPill({ tier }: { tier: PriorityTier }) {
   const highest = tier === "highest";
@@ -355,40 +490,49 @@ function TierPill({ tier }: { tier: PriorityTier }) {
   );
 }
 
-const ADD_TYPE_GROUPS: { list: ReviewList; label: string; none: string }[] = [
-  { list: "accuracy", label: "Accuracy · you type the percentage", none: "No accuracy types match" },
-  { list: "flags", label: "Priority flags · added unticked", none: "No priority flags match" },
+const ADD_TYPE_GROUPS: { list: ReviewList; label: string; typedLabel: string; none: string }[] = [
+  { list: "accuracy", label: "Accuracy · you type the percentage", typedLabel: "Percentage · you type the accuracy", none: "No accuracy types match" },
+  {
+    list: "flags",
+    label: "Priority flags · added unticked",
+    typedLabel: "Tier · Stimulus Logic, you pick Highest, Medium, or Low",
+    none: "No priority flags match",
+  },
 ];
 
 function AddType({
   draft,
+  typed,
   onAdd,
 }: {
   draft: ReviewDraft;
+  typed: boolean;
   onAdd: (type: LRType, list: ReviewList) => void;
 }) {
   const requestFocus = useFocusAfterRender();
+  const prefix = useContext(IdPrefix);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const options = addTypeOptions(draft, query);
+  const listed = typed ? listedTypes(draft, query) : [];
   const flat = ADD_TYPE_GROUPS.flatMap(({ list }) => options[list].map((type) => ({ type, list })));
   useEffect(() => {
-    document.getElementById(`add-type-option-${active}`)?.scrollIntoView?.({ block: "nearest" });
-  }, [active]);
+    document.getElementById(`${prefix}add-type-option-${active}`)?.scrollIntoView?.({ block: "nearest" });
+  }, [active, prefix]);
 
   function close(focusLink = true) {
     setOpen(false);
     setQuery("");
     setActive(0);
-    if (focusLink) requestFocus("add-type-link");
+    if (focusLink) requestFocus(addTypeLinkId(prefix));
   }
 
   function add(index: number) {
     const option = flat[index];
     if (!option) return;
     onAdd(option.type, option.list);
-    close(option.list === "flags");
+    close(option.list === "flags" && !typed);
   }
 
   function keyDown(event: KeyboardEvent) {
@@ -408,18 +552,18 @@ function AddType({
   if (!open) {
     return (
       <button
-        id="add-type-link"
+        id={addTypeLinkId(prefix)}
         type="button"
         onClick={() => {
           setOpen(true);
-          requestFocus("add-type-search");
+          requestFocus(`${prefix}add-type-search`);
         }}
         className={`flex items-center gap-2 self-start px-3 text-small ${LINK_BUTTON}`}
       >
         <svg aria-hidden viewBox="0 0 14 14" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
           <path d="M7 2v10M2 7h10" />
         </svg>
-        Add a type the screenshot missed
+        {typed ? "Add a question type" : "Add a type the screenshot missed"}
       </button>
     );
   }
@@ -428,13 +572,13 @@ function AddType({
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
         <input
-          id="add-type-search"
+          id={`${prefix}add-type-search`}
           role="combobox"
           aria-label="Search question types"
           aria-expanded
-          aria-controls="add-type-options"
+          aria-controls={`${prefix}add-type-options`}
           aria-autocomplete="list"
-          aria-activedescendant={flat[active] ? `add-type-option-${active}` : undefined}
+          aria-activedescendant={flat[active] ? `${prefix}add-type-option-${active}` : undefined}
           autoComplete="off"
           value={query}
           onChange={(e) => {
@@ -448,39 +592,44 @@ function AddType({
           Cancel
         </button>
       </div>
-      <div id="add-type-options" role="listbox" aria-label="Question types" className="flex max-h-72 flex-col overflow-y-auto rounded-sm border border-vellum-line bg-paper py-1.5">
-        {ADD_TYPE_GROUPS.map(({ list, label, none }, groupIndex) => (
-          <div
-            key={list}
-            role="group"
-            aria-labelledby={`add-type-group-${list}`}
-            className={groupIndex > 0 ? "mt-1 border-t border-vellum-line pt-1" : undefined}
-          >
-            <div id={`add-type-group-${list}`} role="presentation" className="px-3 py-1.5 text-caption text-smoke">
-              {label}
+      <div className="flex flex-col rounded-sm border border-vellum-line bg-paper">
+        <div id={`${prefix}add-type-options`} role="listbox" aria-label="Question types" className="flex max-h-72 flex-col overflow-y-auto py-1.5">
+          {ADD_TYPE_GROUPS.map(({ list, label, typedLabel, none }, groupIndex) => (
+            <div
+              key={list}
+              role="group"
+              aria-labelledby={`${prefix}add-type-group-${list}`}
+              className={groupIndex > 0 ? "mt-1 border-t border-vellum-line pt-1" : undefined}
+            >
+              <div id={`${prefix}add-type-group-${list}`} role="presentation" className="px-3 py-1.5 text-caption text-smoke">
+                {typed ? typedLabel : label}
+              </div>
+              {options[list].length === 0 && <div className="flex h-9 items-center px-3 text-small text-smoke">{`${none} "${query.trim()}"`}</div>}
+              {options[list].map((type) => {
+                const optionIndex = flat.findIndex((option) => option.type === type);
+                const selected = optionIndex === active;
+                return (
+                  <div
+                    key={type}
+                    id={`${prefix}add-type-option-${optionIndex}`}
+                    role="option"
+                    aria-selected={selected}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={() => setActive(optionIndex)}
+                    onClick={() => add(optionIndex)}
+                    className={`flex min-h-9 cursor-pointer items-center justify-between px-3 text-small text-ink ${selected ? "bg-vellum" : ""}`}
+                  >
+                    {type}
+                    {selected && <span className="font-mono text-caption text-smoke">Enter</span>}
+                  </div>
+                );
+              })}
             </div>
-            {options[list].length === 0 && <div className="flex h-9 items-center px-3 text-small text-smoke">{`${none} "${query.trim()}"`}</div>}
-            {options[list].map((type) => {
-              const optionIndex = flat.findIndex((option) => option.type === type);
-              const selected = optionIndex === active;
-              return (
-                <div
-                  key={type}
-                  id={`add-type-option-${optionIndex}`}
-                  role="option"
-                  aria-selected={selected}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onMouseEnter={() => setActive(optionIndex)}
-                  onClick={() => add(optionIndex)}
-                  className={`flex min-h-9 cursor-pointer items-center justify-between px-3 text-small text-ink ${selected ? "bg-vellum" : ""}`}
-                >
-                  {type}
-                  {selected && <span className="font-mono text-caption text-smoke">Enter</span>}
-                </div>
-              );
-            })}
-          </div>
-        ))}
+          ))}
+        </div>
+        <div role="status" className={listed.length > 0 ? "flex flex-col border-t border-vellum-line px-3 pt-2 pb-2.5 text-caption text-smoke" : "sr-only"}>
+          {listed.map((type) => <span key={type}>{type} is already on your list.</span>)}
+        </div>
       </div>
     </div>
   );

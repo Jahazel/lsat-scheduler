@@ -86,7 +86,7 @@ describe("WeeklyUpload", () => {
     expect((screen.getByLabelText("Current score") as HTMLInputElement).value).toBe("156");
     expect(screen.getAllByText("Waiting")).toHaveLength(4);
     expect(button("Read my screenshots").disabled).toBe(true);
-    expect(screen.getByText("Add all 6 screenshots to continue. You check every value before it counts.")).toBeDefined();
+    expect(screen.getByText("Add all 6 screenshots, or type your analytics and add the 4 sections. You check every value before it counts.")).toBeDefined();
     expect(screen.getByRole("heading", { name: "Where to find them" })).toBeDefined();
   });
 
@@ -161,7 +161,7 @@ describe("WeeklyUpload", () => {
     expect(screen.queryByLabelText("All 4 section screenshots file")).toBeNull();
     expect(screen.getByText("No practice test on this week's plan")).toBeDefined();
     expect(screen.getByRole("heading", { name: "Where to find it" })).toBeDefined();
-    expect(screen.getByText("Add both screenshots to continue. You check every value before it counts.")).toBeDefined();
+    expect(screen.getByText("Add both screenshots, or type your analytics. You check every value before it counts.")).toBeDefined();
 
     await addAnalytics(user);
     await user.click(button("Read my screenshots"));
@@ -447,4 +447,105 @@ describe("WeeklyUpload", () => {
     expect(retry).toHaveBeenCalledOnce();
     expect(button("Check the values").disabled).toBe(false);
   });
+});
+
+describe("WeeklyUpload · Type them", () => {
+  it("reads the analytics screenshots when the student switches back to them after the sections were read", async () => {
+    const fetchSpy = stubServer();
+    const { user } = setup();
+    await addAnalytics(user);
+    await user.click(screen.getByLabelText("Type them"));
+    await user.click(screen.getByRole("button", { name: "Add a question type" }));
+    await user.type(screen.getByRole("combobox", { name: "Search question types" }), "Necessary");
+    await user.keyboard("{Enter}");
+    await user.type(screen.getByRole("textbox", { name: "Necessary assumption accuracy" }), "76");
+    await addSections(user);
+    await user.click(button("Read my 4 sections"));
+    await queueEmpty();
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
+
+    await user.click(screen.getByLabelText("Screenshots"));
+    await user.click(screen.getByLabelText("Type them"));
+    await user.click(screen.getByLabelText("Screenshots"));
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
+    expect(screen.getByText("Read your analytics screenshots to continue.")).toBeDefined();
+
+    await user.click(button("Read my screenshots"));
+    await queueEmpty();
+
+    expect(fetchSpy).toHaveBeenCalledTimes(6);
+    expect(screen.getByText("lr-analytics.png · 3 question types")).toBeDefined();
+    expect(button("Check the values").disabled).toBe(false);
+  }, 15_000);
+
+  it("reads no analytics screenshot that is still waiting once the student switches to Type them", async () => {
+    let releaseLr: () => void = () => {};
+    const lrHeld = new Promise<void>((resolve) => { releaseLr = resolve; });
+    const fetchSpy = vi.fn(async (url: string, init: RequestInit) => {
+      const form = init.body as FormData;
+      if (url === "/api/analytics/extract") {
+        const section = form.get("section");
+        if (section === "LR") await lrHeld;
+        return Response.json({ rows: section === "LR" ? LR_ROWS : RC_ROWS });
+      }
+      return Response.json({ reading: sample(Number((form.get("image") as File).name.match(/s(\d)/)?.[1])) });
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+    const { user } = setup();
+    await addAnalytics(user);
+    await addSections(user);
+    await user.click(button("Read my screenshots"));
+    await screen.findByText("lr-analytics.png · Reading now");
+
+    await user.click(screen.getByLabelText("Type them"));
+    releaseLr();
+    await queueEmpty();
+
+    const analyticsSections = () => fetchSpy.mock.calls
+      .filter(([url]) => url === "/api/analytics/extract")
+      .map(([, init]) => (init.body as FormData).get("section"));
+    expect(analyticsSections()).toEqual(["LR"]);
+    expect(fetchSpy).toHaveBeenCalledTimes(5);
+
+    await user.click(screen.getByLabelText("Screenshots"));
+    expect(analyticsSections()).toEqual(["LR"]);
+    expect(screen.getByText("Read your analytics screenshots to continue.")).toBeDefined();
+    await user.click(button("Read my screenshots"));
+    await queueEmpty();
+    expect(analyticsSections()).toEqual(["LR", "RC"]);
+  }, 15_000);
+
+  it("names only the values when typed values are the one thing left to fix", async () => {
+    stubServer();
+    const { user } = setup(false);
+    await addAnalytics(user);
+    await user.click(button("Read my screenshots"));
+    await queueEmpty();
+
+    await user.click(screen.getByLabelText("Type them"));
+
+    expect(screen.getByText("Next week starts Monday, Oct 5. Fix the values marked below, then check them.")).toBeDefined();
+  });
+
+  it("names the typed values, not the screenshots, when a typed value breaks after reading", async () => {
+    stubServer();
+    const { user } = setup();
+    await user.click(screen.getByLabelText("Type them"));
+    await user.click(screen.getByRole("button", { name: "Add a question type" }));
+    await user.type(screen.getByRole("combobox", { name: "Search question types" }), "Necessary");
+    await user.keyboard("{Enter}");
+    await user.type(screen.getByRole("textbox", { name: "Necessary assumption accuracy" }), "76");
+    await addSections(user);
+    await user.click(button("Read my 4 sections"));
+    await queueEmpty();
+    const summary = screen.getByRole("heading", { name: "Screenshots" }).closest("section") as HTMLElement;
+    expect(within(summary).getByText("4 of 4 read")).toBeDefined();
+
+    await user.clear(screen.getByRole("textbox", { name: "Necessary assumption accuracy" }));
+    await user.type(screen.getByRole("textbox", { name: "Necessary assumption accuracy" }), "104");
+
+    expect(screen.getByText("Next week starts Monday, Oct 5. Fix the values marked below, then check them.")).toBeDefined();
+    expect(screen.getByText("Fix Necessary assumption above to continue.")).toBeDefined();
+    expect(button("Check the values").disabled).toBe(true);
+  }, 15_000);
 });

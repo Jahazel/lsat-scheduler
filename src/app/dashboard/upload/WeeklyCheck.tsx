@@ -4,11 +4,11 @@ import { useReducer, useState, useTransition } from "react";
 import SignInExpired from "@/components/SignInExpired";
 import {
   ConfirmBar, ListCaption, ReviewLine, ReviewStatements, ScreenshotCard, SnapshotReviewFields,
-  boxId, statementId, useFocusAfterRender,
+  boxId, statementId, tierId, useFocusAfterRender,
 } from "@/components/SnapshotReviewFields";
 import { DrillList } from "@/components/WeekPreview";
 import { FOCUS } from "@/components/ui/classes";
-import { accuracyError, reviewedRows, SECTIONS, snapshotApproval, type Statement } from "@/lib/analyticsReview";
+import { accuracyError, isTyped, reviewedRows, SECTIONS, snapshotApproval, type Statement } from "@/lib/analyticsReview";
 import { mostMissedType } from "@/lib/engine";
 import { mockRules } from "@/lib/mockData";
 import type { HiddenResult, PracticeTestResult } from "@/lib/practiceTestResult";
@@ -31,7 +31,13 @@ const LABEL = "grow whitespace-nowrap text-small text-ink";
 
 export type CheckSource = "7sage_screenshot" | "admin_sample";
 
-function statementsFor(source: CheckSource, hasPracticeTest: boolean, lastWeek: string): { statement: Statement; text: string }[] {
+function statementsFor(source: CheckSource, typed: boolean, hasPracticeTest: boolean, lastWeek: string): { statement: Statement; text: string }[] {
+  if (typed) {
+    return [
+      { statement: "extractedValuesMatch", text: "I copied these values from my 7Sage Analytics page." },
+      { statement: "isLatestAnalytics", text: hasPracticeTest ? `These are my latest analytics and ${lastWeek}'s practice test.` : "These are my latest 7Sage analytics." },
+    ];
+  }
   if (source === "admin_sample") {
     return [
       { statement: "extractedValuesMatch", text: "I reviewed and approved these sample values." },
@@ -113,7 +119,8 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
   const { review } = draft;
   const practiceTest = read.practiceTest;
   const text = planText(basis);
-  const statements = statementsFor(source, practiceTest !== null, text.lastWeek);
+  const typed = isTyped(read.analytics);
+  const statements = statementsFor(source, typed, practiceTest !== null, text.lastWeek);
 
   const score = parseScore(scoreText);
   const lock = confirmLock(review);
@@ -131,6 +138,7 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
     if (reason || score === null || !approval) {
       dispatch({ type: "confirmBlocked" });
       if (lock && lock.fix.at === "box") requestFocus(boxId(lock.fix.type));
+      else if (lock && lock.fix.at === "tier") requestFocus(tierId(lock.fix.type));
       else if (lock && lock.fix.at === "add-type") requestFocus("add-type-link");
       else if (score === null) requestFocus(SCORE_ID);
       else requestFocus(statementId(statements.findIndex(({ statement }) => !review.confirmation[statement])));
@@ -158,16 +166,22 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
     ? `Saving and building ${text.week}. This takes a few seconds.`
     : reply && "error" in reply
       ? <span className="text-danger-ink">{reply.error}</span>
-      : reason;
+      : reason ?? (typed && "Your weekly schedule uses these values like a scan.");
 
   return (
     <div className="bg-paper lg:grid lg:min-h-[calc(100vh-var(--spacing-18))] lg:grid-cols-[520px_minmax(0,1fr)] xl:grid-cols-[680px_minmax(0,1fr)]">
       <div className="flex justify-center px-5 py-8 lg:px-10 lg:py-16">
         <div className="flex w-full flex-col gap-8 lg:max-w-[440px]">
           <div className="flex flex-col gap-2">
-            <p className="font-mono text-label uppercase text-smoke">{text.title} · Check</p>
-            <h1 className="text-h3 font-semibold text-ink">Check what we read</h1>
-            <p className="text-body text-smoke">Compare each value with your screenshots. Nothing counts until you confirm.</p>
+            <p className="font-mono text-label uppercase text-smoke">{text.title} · {typed ? "Check your values" : "Check"}</p>
+            <h1 className="text-h3 font-semibold text-ink">{typed ? "Check your values" : "Check what we read"}</h1>
+            <p className="text-body text-smoke">
+              {!typed
+                ? "Compare each value with your screenshots. Nothing counts until you confirm."
+                : practiceTest
+                  ? `These are the values you typed and what we read from practice test ${practiceTest.result.prepTest}. Fix any value here. Nothing counts until you confirm.`
+                  : "These are the values you typed. Fix any value here. Nothing counts until you confirm."}
+            </p>
           </div>
           <div className="flex flex-col gap-5">
             <SnapshotReviewFields draft={draft} lrRead={read.lrRead} files={read.files} dispatch={dispatch} />

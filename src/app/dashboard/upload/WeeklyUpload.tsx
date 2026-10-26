@@ -1,15 +1,18 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useReducer, useRef, useState, type ReactNode } from "react";
 import SignInExpired from "@/components/SignInExpired";
+import { SnapshotReviewFields } from "@/components/SnapshotReviewFields";
 import { DrillList, WeekTiles } from "@/components/WeekPreview";
 import { Button } from "@/components/ui/Button";
 import { DropZone } from "@/components/ui/DropZone";
 import { FileRow, ProblemNote, WaitNote } from "@/components/ui/FileRow";
+import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
 import { CheckGlyph, ClockGlyph, InfoGlyph, ReadingGlyph } from "@/components/ui/StatusIcon";
 import { TextInput } from "@/components/ui/TextInput";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
-import { readSection as addAnalyticsSection, SECTION_NAME, SECTIONS, type SnapshotReview } from "@/lib/analyticsReview";
+import { accuracyError, readSection as addAnalyticsSection, reviewedRows, SECTION_NAME, SECTIONS, type SnapshotReview } from "@/lib/analyticsReview";
+import { ANALYTICS_INPUTS, reviewDraftReducer, startTypedDraft, typedEntryProblem, type AnalyticsInput } from "@/lib/reviewDraft";
 import {
   reviewPracticeTest, type HiddenPick, type PracticeTestProblem, type PracticeTestResult, type SectionReading, type SectionReview,
 } from "@/lib/practiceTestResult";
@@ -85,6 +88,10 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const started = startedAt !== null;
   const [picks, setPicks] = useState<UploadPick[]>([]);
+  const [input, setInput] = useState<AnalyticsInput>("screenshots");
+  const [typedDraft, dispatchTyped] = useReducer(reviewDraftReducer, null, () => startTypedDraft(new Date()));
+  const typed = input === "typed";
+  const typedProblem = typed ? typedEntryProblem(typedDraft.review) : null;
   const nextId = useRef(0);
 
   const reject = (key: string, message: string | null) =>
@@ -186,17 +193,26 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
     setSections((current) => current.map((entry) => (entry.id === id ? upload : entry)));
   }
 
-  function startReading() {
-    setStartedAt(new Date().toISOString());
+  function setAnalyticsReads(from: Read<unknown>["status"][], read: Read<never>) {
     setAnalytics((current) => {
       const next = { ...current };
       for (const section of SECTIONS) {
         const upload = current[section];
-        if (upload) next[section] = { ...upload, read: { status: "waiting" } };
+        if (upload && from.includes(upload.read.status)) next[section] = { ...upload, read };
       }
       return next;
     });
+  }
+
+  function startReading() {
+    setStartedAt(new Date().toISOString());
+    if (!typed) setAnalyticsReads(["added"], { status: "waiting" });
     setSections((current) => current.map((upload) => ({ ...upload, read: { status: "waiting" } })));
+  }
+
+  function chooseInput(next: AnalyticsInput) {
+    setInput(next);
+    if (next === "typed") setAnalyticsReads(["waiting"], { status: "added" });
   }
 
   function tryAgain(section: AnalyticsSection | null, id: number) {
@@ -231,41 +247,56 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
     ?? readings.find((reading): reading is Extract<SectionReading, { page: "section_review" }> => reading.page === "section_review")?.prepTest;
 
   const analyticsRead = SECTIONS.every((section) => analytics[section]?.read.status === "read");
-  const allAdded = SECTIONS.every((section) => analytics[section]) && (!needsSections || sections.length >= SECTION_COUNT);
-  const uploads = [...SECTIONS.flatMap((section) => analytics[section] ?? []), ...sections];
-  const anyReading = started && uploads.some(({ read }) => PENDING.includes(read.status));
+  const analyticsReady = typed ? typedProblem === null : started && analyticsRead;
+  const allAdded = (typed || SECTIONS.every((section) => analytics[section])) && (!needsSections || sections.length >= SECTION_COUNT);
+  const shownAnalytics = typed ? {} : analytics;
+  const uploads = [...SECTIONS.flatMap((section) => shownAnalytics[section] ?? []), ...sections];
+  const unreadAnalytics = started && !typed && SECTIONS.some((section) => analytics[section]?.read.status === "added");
+  const queuedOrDone = uploads.filter(({ read }) => read.status !== "added");
+  const anyReading = started && queuedOrDone.some(({ read }) => read.status === "waiting" || read.status === "reading");
+  const offerRead = unreadAnalytics && !anyReading;
   const readCount = (group: { read: Read<unknown> }[]) => `${group.filter(({ read }) => read.status === "read").length} of ${group.length} read`;
-  const settledCount = uploads.filter(({ read }) => !PENDING.includes(read.status)).length;
-  const found = started && analyticsRead && (!needsSections || (practiceTest !== null && !anyUnreadable));
-  const replacementRejected = SECTIONS.some((section) => rejections[section])
+  const settledCount = queuedOrDone.filter(({ read }) => !PENDING.includes(read.status)).length;
+  const found = analyticsReady && (!needsSections || (started && practiceTest !== null && !anyUnreadable));
+  const replacementRejected = SECTIONS.some((section) => !typed && rejections[section])
     || sections.some((upload) => rejections[`file-${upload.id}`]);
   const summarized = found && !replacementRejected;
   const ready = found && score !== null;
 
-  const analyticsRows = SECTIONS.flatMap((section) => {
-    const read = analytics[section]?.read;
-    return read?.status === "read" ? read.value.rows : [];
-  });
+  const analyticsRows = typed
+    ? reviewedRows(typedDraft.review).filter((row) => !accuracyError(row))
+    : SECTIONS.flatMap((section) => {
+      const read = analytics[section]?.read;
+      return read?.status === "read" ? read.value.rows : [];
+    });
   const trend = found ? plannedWeekAnalytics(basis, analyticsRows) : null;
   const goesFirst = trend ? mostMissedType(practiceTest?.missedStemTypeCounts, trend, mockRules) : undefined;
   const schedule = trend && score !== null ? previewPlannedWeek(basis, trend, score, practiceTest?.missedStemTypeCounts) : null;
 
   function checkValues() {
-    const lr = analytics.LR?.read;
-    const rc = analytics.RC?.read;
-    if (!ready || score === null || startedAt === null || lr?.status !== "read" || rc?.status !== "read") return;
-    const withLr = addAnalyticsSection(null, "LR", lr.value.rows, { source: "7sage_screenshot", extractedAt: lr.value.at });
-    onCheckValues?.({
+    if (!ready || score === null) return;
+    const checked = {
       currentScore: score,
-      analytics: addAnalyticsSection(withLr, "RC", rc.value.rows, { source: "7sage_screenshot", extractedAt: rc.value.at }),
-      lrRead: lr.value.rows,
-      files: { LR: analytics.LR?.file, RC: analytics.RC?.file },
-      practiceTest: practiceTest && {
+      practiceTest: practiceTest && startedAt !== null ? {
         result: practiceTest,
         readings: readings.flatMap((reading) => (reading.page === "section_review" ? [reading] : [])),
         picks: hiddenPicks,
         extractedAt: startedAt,
-      },
+      } : null,
+    };
+    if (typed) {
+      onCheckValues?.({ ...checked, analytics: typedDraft.review, lrRead: [], files: {} });
+      return;
+    }
+    const lr = analytics.LR?.read;
+    const rc = analytics.RC?.read;
+    if (lr?.status !== "read" || rc?.status !== "read") return;
+    const withLr = addAnalyticsSection(null, "LR", lr.value.rows, { source: "7sage_screenshot", extractedAt: lr.value.at });
+    onCheckValues?.({
+      ...checked,
+      analytics: addAnalyticsSection(withLr, "RC", rc.value.rows, { source: "7sage_screenshot", extractedAt: rc.value.at }),
+      lrRead: lr.value.rows,
+      files: { LR: analytics.LR?.file, RC: analytics.RC?.file },
     });
   }
 
@@ -273,26 +304,42 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   const lead = !started
     ? needsSections
       ? `${start} Add ${text.lastWeek}'s screenshots, and we build your weekly schedule from them.`
-      : `${start} ${text.LastWeek} had no practice test, so we need only your 2 analytics screenshots.`
+      : typed
+        ? `${start} ${text.LastWeek} had no practice test, so we need only your analytics.`
+        : `${start} ${text.LastWeek} had no practice test, so we need only your 2 analytics screenshots.`
     : found
-      ? `${start} We read ${needsSections ? "all 6 screenshots" : "both screenshots"}. Check them, then build your weekly schedule.`
+      ? `${start} We read ${typed ? "all 4 sections" : needsSections ? "all 6 screenshots" : "both screenshots"}. Check them, then build your weekly schedule.`
       : anyReading
-        ? `${start} We read your screenshots one at a time. You don't need to click anything.`
-        : `${start} Fix the screenshots marked below, then check them.`;
+        ? `${start} We read your screenshots one at a time.${unreadAnalytics ? "" : " You don't need to click anything."}`
+        : unreadAnalytics
+          ? `${start} Read your analytics screenshots, then check them.`
+          : typedProblem
+            ? `${start} Fix the ${needsSections && sectionsSettled && (anyUnreadable || problems.some(({ problem }) => problem !== "hidden-pick")) ? "values and screenshots" : "values"} marked below, then check them.`
+            : `${start} Fix the screenshots marked below, then check them.`;
 
-  const hint = !started
+  const hint = typed && !started
+    ? needsSections && !allAdded && typedDraft.review.rows.every(({ row }) => row.category === "passage")
+      ? "Add at least one Logical Reasoning type and all 4 section screenshots. Next, you check every value before it counts."
+      : typedProblem ?? (!allAdded
+        ? "Add all 4 section screenshots to continue. You check every value before it counts."
+        : score === null ? SCORE_HINT : "Next, you check every value before it counts.")
+    : !started
     ? !allAdded
-      ? `Add ${needsSections ? "all 6 screenshots" : "both screenshots"} to continue. You check every value before it counts.`
+      ? needsSections
+        ? "Add all 6 screenshots, or type your analytics and add the 4 sections. You check every value before it counts."
+        : "Add both screenshots, or type your analytics. You check every value before it counts."
       : score === null ? SCORE_HINT : "You check every value before it counts."
     : ready
       ? "Next, you check what we read. Nothing changes until you confirm."
-      : anyReading
-        ? "Each screenshot takes up to 30 seconds."
-        : found
-          ? SCORE_HINT
-          : pickQuestions.length > 0 && problems.every((problem) => problem.problem === "hidden-pick")
-            ? "Choose the question you missed to continue."
-            : "Fix the screenshots marked above to continue.";
+      : offerRead
+        ? "Read your analytics screenshots to continue."
+        : typedProblem ?? (anyReading
+          ? "Each screenshot takes up to 30 seconds."
+          : found
+            ? SCORE_HINT
+            : pickQuestions.length > 0 && problems.every((problem) => problem.problem === "hidden-pick")
+              ? "Choose the question you missed to continue."
+              : "Fix the screenshots marked above to continue.");
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] bg-paper lg:min-h-[calc(100vh-var(--spacing-18))] lg:grid-cols-[minmax(0,680px)_minmax(0,1fr)] lg:grid-rows-[auto_1fr]">
@@ -314,26 +361,35 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
             : "From your study settings. Type a new score if your latest practice test changed it. We save it there too."}
         />
 
-        {summarized && (
-          <ReadSummary analytics={analytics} sections={sections} onAnalytics={addAnalytics} onReplace={replaceSection} />
+        {summarized && (needsSections || !typed) && (
+          <ReadSummary analytics={shownAnalytics} sections={sections} onAnalytics={addAnalytics} onReplace={replaceSection} />
         )}
 
         <UploadGroup
           title="7Sage analytics"
-          count={started ? readCount(SECTIONS.flatMap((section) => analytics[section] ?? [])) : "2 screenshots"}
-          className={summarized ? "max-md:hidden" : undefined}
+          count={typed ? "Typed by you" : started ? readCount(SECTIONS.flatMap((section) => analytics[section] ?? [])) : "Screenshots or typed"}
+          className={summarized && !typed ? "max-md:hidden" : undefined}
         >
-          {SECTIONS.map((section) => (
-            <AnalyticsRow
-              key={section}
-              section={section}
-              upload={analytics[section]}
-              rejection={rejections[section]}
-              onFile={(file) => addAnalytics(section, file)}
-              onTryAgain={(id) => tryAgain(section, id)}
-            />
-          ))}
-          {!needsSections && !analytics.LR && !analytics.RC && <p className="text-small text-smoke">{LIMITS}</p>}
+          <SegmentedSwitch name="analyticsInput" label="How to add your analytics" options={ANALYTICS_INPUTS} value={input} onChange={chooseInput} />
+          {typed ? (
+            <div className="flex flex-col gap-5">
+              <SnapshotReviewFields idPrefix="typed-" draft={typedDraft} lrRead={[]} files={{}} dispatch={dispatchTyped} />
+            </div>
+          ) : (
+            <>
+              {SECTIONS.map((section) => (
+                <AnalyticsRow
+                  key={section}
+                  section={section}
+                  upload={analytics[section]}
+                  rejection={rejections[section]}
+                  onFile={(file) => addAnalytics(section, file)}
+                  onTryAgain={(id) => tryAgain(section, id)}
+                />
+              ))}
+              {!needsSections && !analytics.LR && !analytics.RC && <p className="text-small text-smoke">{LIMITS}</p>}
+            </>
+          )}
         </UploadGroup>
 
         {needsSections ? (
@@ -416,7 +472,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
           <WhatWeFound result={practiceTest} analytics={trend} goesFirst={goesFirst} score={score} week={text.week} />
         )}
         {trend && (schedule ? (
-          <PlannedWeek schedule={schedule} basis={basis} goesFirst={goesFirst} />
+          <PlannedWeek schedule={schedule} basis={basis} goesFirst={goesFirst} typed={typed} />
         ) : (
           <p className="text-small text-smoke">Enter a score from {MIN_SCORE} to {MAX_SCORE} to see {text.week}.</p>
         ))}
@@ -424,12 +480,16 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
       </aside>
 
       <div className="flex flex-col gap-4 px-5 pt-10 pb-12 lg:px-30 lg:pb-18">
-        {started ? (
+        {offerRead ? (
+          <Button className="w-full" onClick={() => setAnalyticsReads(["added"], { status: "waiting" })}>Read my screenshots</Button>
+        ) : started || (typed && !needsSections) ? (
           <Button className="w-full" disabled={!ready} onClick={checkValues}>
-            {anyReading ? `Reading ${Math.min(settledCount + 1, uploads.length)} of ${uploads.length}…` : "Check the values"}
+            {anyReading ? `Reading ${Math.min(settledCount + 1, queuedOrDone.length)} of ${queuedOrDone.length}…` : "Check the values"}
           </Button>
         ) : (
-          <Button className="w-full" disabled={!allAdded || score === null} onClick={startReading}>Read my screenshots</Button>
+          <Button className="w-full" disabled={!allAdded || score === null || typedProblem !== null} onClick={startReading}>
+            {typed ? `Read my ${SECTION_COUNT} sections` : "Read my screenshots"}
+          </Button>
         )}
         <p className="text-center text-small text-smoke">{hint}</p>
       </div>
@@ -475,7 +535,7 @@ function ReadSummary({ analytics, sections, onAnalytics, onReplace }: {
     }),
   ];
   return (
-    <UploadGroup title="Screenshots" count={`${rows.length} of ${SECTIONS.length + sections.length} read`} className="md:hidden">
+    <UploadGroup title="Screenshots" count={`${rows.length} of ${SECTIONS.filter((section) => analytics[section]).length + sections.length} read`} className="md:hidden">
       <ul className="flex flex-col rounded-md border border-vellum-line px-4">
         {rows.map(({ upload, label, value, onFile }) => (
           <li key={upload.id} className="flex h-12 items-center gap-2.5 border-b border-vellum-line last:border-b-0">
@@ -788,10 +848,11 @@ function WhatWeFound({ result, analytics, goesFirst, score, week }: {
   );
 }
 
-function PlannedWeek({ schedule, basis, goesFirst }: {
+function PlannedWeek({ schedule, basis, goesFirst, typed }: {
   schedule: WeeklySchedule;
   basis: WeeklyUploadBasis;
   goesFirst: LRStemType | undefined;
+  typed: boolean;
 }) {
   const drills = firstDrills(schedule, goesFirst);
   const { Week } = planText(basis);
@@ -806,7 +867,7 @@ function PlannedWeek({ schedule, basis, goesFirst }: {
         {drills ? (
           <DrillList
             title={<>{DAY_LABEL[drills.day]}&apos;s drills<span className="md:hidden"> · {drills.date}</span></>}
-            tag="Read from your screenshots · not confirmed"
+            tag={typed ? "From the values you typed · not confirmed" : "Read from your screenshots · not confirmed"}
             items={drills.items}
           />
         ) : (

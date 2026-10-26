@@ -779,3 +779,119 @@ it("leaves the real URL in place after a test", () => {
   vi.unstubAllGlobals();
   expect("createObjectURL" in URL && vi.isMockFunction(URL.createObjectURL)).toBe(false);
 });
+
+describe("OnboardingWizard · Type them", () => {
+  const box = (type: string) => screen.getByLabelText(`${type} accuracy`) as HTMLInputElement;
+
+  async function addType(user: ReturnType<typeof userEvent.setup>, search: string) {
+    await user.click(screen.getByRole("button", { name: "Add a question type" }));
+    await user.type(screen.getByRole("combobox", { name: "Search question types" }), search);
+    await user.keyboard("{Enter}");
+  }
+
+  it("types analytics on Step 3, checks them on Step 4, and saves them as manual_entry", async () => {
+    const extract = bySection();
+    const { user, onSave } = await fillGoalAndWeek(vi.fn(async () => {}), extract);
+
+    await user.click(screen.getByLabelText("Type them"));
+    expect(screen.getByText("No question types yet.")).toBeDefined();
+    expect(box("Law").value).toBe("");
+    expect(continueButton().disabled).toBe(true);
+    expect(screen.getByText("Add a Logical Reasoning type to continue.")).toBeDefined();
+
+    await addType(user, "Diagram");
+    await user.type(box("Diagram"), "64");
+    await addType(user, "Causal reasoning");
+    expect(continueButton().disabled).toBe(true);
+    await user.click(within(screen.getByRole("radiogroup", { name: "Causal reasoning tier" })).getByLabelText("Highest"));
+    await user.type(box("Law"), "58");
+    await user.click(continueButton());
+
+    expect(screen.getByText("Step 4 of 4 · Review")).toBeDefined();
+    expect(screen.getByRole("heading", { name: "Check your analytics" })).toBeDefined();
+    expect(box("Diagram").value).toBe("64");
+    const confirm = screen.getByRole("button", { name: "Confirm snapshot" });
+    for (const statement of ["I copied these values from my 7Sage Analytics page.", "These are my latest 7Sage analytics."]) {
+      await user.click(screen.getByLabelText(statement));
+    }
+    await user.click(confirm);
+
+    expect(extract).not.toHaveBeenCalled();
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      analyticsRows: [
+        { type: "Law", category: "passage", accuracy: 58 },
+        { type: "Comparative", category: "passage" },
+        { type: "Science", category: "passage" },
+        { type: "Humanities", category: "passage" },
+        { type: "Art", category: "passage" },
+        { type: "Diagram", category: "regular", accuracy: 64 },
+        { type: "Causal reasoning", category: "restricted", priorityTier: "highest", isTopPriority: true },
+      ],
+      analyticsApproval: {
+        extraction: { source: "manual_entry", extractedAt: expect.any(String) },
+        confirmation: { extractedValuesMatch: true, isLatestAnalytics: true, confirmedAt: expect.any(String) },
+      },
+    }));
+  });
+
+  it("shows each field error on its row", async () => {
+    const { user } = await fillGoalAndWeek();
+
+    await user.click(screen.getByLabelText("Type them"));
+    await addType(user, "Necessary assumption");
+    await user.type(box("Necessary assumption"), "104");
+    await user.tab();
+    expect(screen.getByText("Enter a percentage from 0 to 100.")).toBeDefined();
+    expect(box("Necessary assumption").getAttribute("aria-invalid")).toBe("true");
+    await addType(user, "Sufficient assumption");
+    await user.click(box("Sufficient assumption"));
+    await user.tab();
+    expect(screen.getByText("Type the percentage, or remove this row.")).toBeDefined();
+    await addType(user, "Causal reasoning");
+    expect(screen.queryByText("Pick the tier 7Sage shows, or remove this row.")).toBeNull();
+    await user.click(box("Law"));
+    expect(screen.getByText("Pick the tier 7Sage shows, or remove this row.")).toBeDefined();
+    expect(continueButton().disabled).toBe(true);
+    expect(screen.getByText("Fix 3 values above to continue.")).toBeDefined();
+    expect(preview().getByText("Typed · not confirmed")).toBeDefined();
+  });
+
+  it("shows no screenshot on the typed check page, even after one was uploaded", async () => {
+    const { user } = await fillGoalAndWeek();
+    await upload(user, rcScreenshot, "RC");
+    await screen.findByText("rc-analytics.png · 5 passage types");
+
+    await user.click(screen.getByLabelText("Type them"));
+    await addType(user, "Diagram");
+    await user.type(box("Diagram"), "64");
+    await user.click(continueButton());
+
+    expect(screen.getByRole("heading", { name: "Check your analytics" })).toBeDefined();
+    expect(screen.queryByRole("button", { name: /Show your RC screenshot/ })).toBeNull();
+    expect(screen.queryByRole("img", { name: /screenshot/ })).toBeNull();
+  });
+
+  it("says a type is already on the list instead of offering it twice", async () => {
+    const { user } = await fillGoalAndWeek();
+    await user.click(screen.getByLabelText("Type them"));
+    await addType(user, "Necessary assumption");
+    await user.click(screen.getByRole("button", { name: "Add a question type" }));
+    await user.type(screen.getByRole("combobox", { name: "Search question types" }), "assum");
+
+    const options = within(screen.getByRole("listbox", { name: "Question types" }));
+    expect(options.queryByRole("option", { name: "Necessary assumption" })).toBeNull();
+    expect(options.getByRole("option", { name: /Sufficient assumption/ })).toBeDefined();
+    expect(screen.getByText("Necessary assumption is already on your list.").closest("[role=status]")).not.toBeNull();
+  });
+
+  it("keeps typed values when the student switches to screenshots and back", async () => {
+    const { user } = await fillGoalAndWeek();
+
+    await user.click(screen.getByLabelText("Type them"));
+    await user.type(box("Law"), "58");
+    await user.click(screen.getByLabelText("Screenshots"));
+    expect(screen.getByLabelText("Logical Reasoning screenshot file")).toBeDefined();
+    await user.click(screen.getByLabelText("Type them"));
+    expect(box("Law").value).toBe("58");
+  });
+});
