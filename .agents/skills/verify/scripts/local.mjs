@@ -216,7 +216,10 @@ async function launch() {
       await delay(500);
     }
     throw new Error("DrillMap did not become ready. Read app.log.");
-  } catch (error) { console.error(error.message); await stop(1); }
+  } catch (error) {
+    console.error(error.cause?.message ? `${error.message}\nCause: ${error.cause.message}` : error.message);
+    await stop(1);
+  }
 }
 
 if (command === "launch") await launch();
