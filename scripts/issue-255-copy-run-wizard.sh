@@ -568,8 +568,12 @@ s_c2_site() {
 
 s_c2_stopped() {
   stage "C2: a place held by a stopped scan frees after 2 minutes"
-  show_sql "INSERT INTO running_scans (subject, started_at) SELECT id::text, now() - interval '100 seconds' FROM accounts WHERE email = '$TEST_EMAIL';"
-  pause "Press Enter right after INSERT 0 1"
+  # The student's earlier scans fill most of the 10-a-day limit. Clear today's count so this stage and C4 are not refused for it.
+  # The held place starts 60 seconds back, so the owner has a minute to press Enter before it frees.
+  show_sql "DELETE FROM action_counters WHERE action = 'scanInDay' AND subject = (SELECT id::text FROM accounts WHERE email = '$TEST_EMAIL');
+INSERT INTO running_scans (subject, started_at) SELECT id::text, now() - interval '60 seconds' FROM accounts WHERE email = '$TEST_EMAIL';"
+  warn "The held place frees 60 seconds after you run the SQL. Press Enter within 30 seconds."
+  pause "Press Enter right after the SQL runs"
   scan "C2-4 first" A student analytics
   local retry
   retry=$(grep -i '^retry-after:' "$RUN_DIR/scan-C2-4 first.headers" 2>/dev/null | tr -d '\r' | awk '{print $2}' || true)
