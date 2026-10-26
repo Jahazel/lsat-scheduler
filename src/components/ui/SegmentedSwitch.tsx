@@ -3,7 +3,7 @@
 import type { ChangeEvent } from "react";
 import { cx } from "./classes";
 
-export type SegmentedOption<V extends string> = { value: V; label: string };
+export type SegmentedOption<V extends string> = { value: V; label: string; disabled?: boolean };
 
 export type SegmentedSwitchProps<V extends string> = {
   name: string;
@@ -29,6 +29,7 @@ export function SegmentedSwitch<V extends string>({ name, label, options, value,
             "flex h-9 flex-1 cursor-pointer items-center justify-center rounded-[4px] px-2 text-center text-small text-smoke",
             "hover:bg-ink/faint hover:text-ink",
             "has-checked:bg-paper has-checked:font-medium has-checked:text-ink has-checked:shadow-control",
+            "has-disabled:cursor-not-allowed has-disabled:opacity-40 has-disabled:hover:bg-transparent has-disabled:hover:text-smoke",
             "has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent",
             "transition-colors duration-120 ease-out active:duration-200 has-focus-visible:duration-200 motion-reduce:transition-none",
           )}
@@ -39,6 +40,7 @@ export function SegmentedSwitch<V extends string>({ name, label, options, value,
             value={option.value}
             checked={value === undefined ? undefined : value === option.value}
             defaultChecked={defaultValue === undefined ? undefined : defaultValue === option.value}
+            disabled={option.disabled}
             onChange={change}
             className="sr-only"
           />

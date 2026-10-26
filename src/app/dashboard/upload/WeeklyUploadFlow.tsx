@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAdminTest, type SampleDraft } from "@/components/AdminTestContext";
 import { startReview } from "@/lib/analyticsReview";
 import { reviewPracticeTest } from "@/lib/practiceTestResult";
+import type { ScanningOff } from "@/lib/scanSpending";
 import type { WeeklyUploadBasis } from "@/lib/weeklyUpload";
 import { confirmWeeklyUpload } from "./actions";
 import WeeklyCheck, { type CheckSource } from "./WeeklyCheck";
@@ -22,9 +23,10 @@ function sampleRead(sample: SampleDraft, basis: WeeklyUploadBasis, currentScore:
   };
 }
 
-export default function WeeklyUploadFlow({ basis, initialScore, confirm = confirmWeeklyUpload }: {
+export default function WeeklyUploadFlow({ basis, initialScore, scanningOff, confirm = confirmWeeklyUpload }: {
   basis: WeeklyUploadBasis;
   initialScore: number;
+  scanningOff?: ScanningOff;
   confirm?: typeof confirmWeeklyUpload;
 }) {
   const { sample, setSample } = useAdminTest();
@@ -46,6 +48,7 @@ export default function WeeklyUploadFlow({ basis, initialScore, confirm = confir
         <WeeklyUpload
           basis={basis}
           initialScore={initialScore}
+          scanningOff={scanningOff}
           onCheckValues={(read) => {
             setChecking({ read, source: "7sage_screenshot", key: `${Date.now()}` });
             window.scrollTo(0, 0);

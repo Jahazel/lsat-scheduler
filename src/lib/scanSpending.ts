@@ -25,6 +25,23 @@ export async function isScanningOff(transaction: PostgresTransaction) {
   return settings?.scanningOff ?? true;
 }
 
+export type ScanningOff = Record<ScanKind, boolean>;
+
+export async function readScanningOff(realNow: Date): Promise<ScanningOff> {
+  const offAfter = (kind: ScanKind) =>
+    sql`settings.scanning_off or coalesce(spending.total_usd, 0) + ${COUNTED_USD[kind]}::numeric > settings.monthly_limit_usd`;
+  const result = await getPostgresDatabase().execute<{ analytics: boolean; practice_test_section: boolean }>(sql`
+    select ${offAfter("analytics")} as analytics, ${offAfter("practice-test-section")} as practice_test_section
+    from ${scanSettings} settings left join ${scanSpending} spending on spending.month_start = ${monthStartOf(realNow)}
+  `);
+  const [state] = result.rows;
+  if (!state) {
+    console.error(JSON.stringify({ event: "scan_settings_missing" }));
+    return { analytics: true, "practice-test-section": true };
+  }
+  return { analytics: state.analytics, "practice-test-section": state.practice_test_section };
+}
+
 export async function countScanSpend(kind: ScanKind, realNow: Date, transaction: PostgresTransaction) {
   const monthStart = monthStartOf(realNow);
   const count = sql`${COUNTED_USD[kind]}::numeric`;

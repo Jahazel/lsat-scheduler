@@ -1,6 +1,7 @@
 "use client";
 
 import { useReducer, useState, useTransition } from "react";
+import { PauseGlyph } from "@/components/ScanningOffNote";
 import SignInExpired from "@/components/SignInExpired";
 import {
   ConfirmBar, ListCaption, ReviewLine, ReviewStatements, ScreenshotCard, SnapshotReviewFields,
@@ -31,22 +32,26 @@ const LABEL = "grow whitespace-nowrap text-small text-ink";
 
 export type CheckSource = "7sage_screenshot" | "admin_sample";
 
-function statementsFor(source: CheckSource, typed: boolean, hasPracticeTest: boolean, lastWeek: string): { statement: Statement; text: string }[] {
+type PracticeTestPart = "read" | "skipped" | "none";
+
+function statementsFor(source: CheckSource, typed: boolean, part: PracticeTestPart, lastWeek: string): { statement: Statement; text: string }[] {
+  const latest = (withTest: string, alone: string) =>
+    part === "read" ? withTest : part === "skipped" ? `${alone} I'm skipping ${lastWeek}'s practice test.` : alone;
   if (typed) {
     return [
       { statement: "extractedValuesMatch", text: "I copied these values from my 7Sage Analytics page." },
-      { statement: "isLatestAnalytics", text: hasPracticeTest ? `These are my latest analytics and ${lastWeek}'s practice test.` : "These are my latest 7Sage analytics." },
+      { statement: "isLatestAnalytics", text: latest(`These are my latest analytics and ${lastWeek}'s practice test.`, "These are my latest 7Sage analytics.") },
     ];
   }
   if (source === "admin_sample") {
     return [
       { statement: "extractedValuesMatch", text: "I reviewed and approved these sample values." },
-      { statement: "isLatestAnalytics", text: hasPracticeTest ? `Use this sample as my latest analytics and ${lastWeek}'s practice test.` : "Use this sample as my latest analytics." },
+      { statement: "isLatestAnalytics", text: latest(`Use this sample as my latest analytics and ${lastWeek}'s practice test.`, "Use this sample as my latest analytics.") },
     ];
   }
   return [
     { statement: "extractedValuesMatch", text: "I reviewed these values and they match my screenshots." },
-    { statement: "isLatestAnalytics", text: hasPracticeTest ? `These are my latest analytics and ${lastWeek}'s practice test.` : "These screenshots show my latest 7Sage analytics." },
+    { statement: "isLatestAnalytics", text: latest(`These are my latest analytics and ${lastWeek}'s practice test.`, "These screenshots show my latest 7Sage analytics.") },
   ];
 }
 
@@ -103,6 +108,20 @@ function NoPracticeTestBlock({ text }: { text: ReturnType<typeof planText> }) {
   );
 }
 
+function SkippedPracticeTestBlock({ text }: { text: ReturnType<typeof planText> }) {
+  return (
+    <section aria-label="Practice test" className="flex flex-col">
+      <h2 className="px-3 pt-2 pb-3 text-body font-semibold text-ink">Practice test</h2>
+      <div className="flex gap-3 border-y border-vellum-line px-3 py-3">
+        <PauseGlyph className="mt-px" />
+        <p className="text-small text-smoke">
+          Skipped {text.lastWeek} because scanning is off. {text.Week}&apos;s schedule won&apos;t put a missed question type first.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, onSent }: {
   basis: WeeklyUploadBasis;
   read: WeeklyUploadRead;
@@ -120,7 +139,8 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
   const practiceTest = read.practiceTest;
   const text = planText(basis);
   const typed = isTyped(read.analytics);
-  const statements = statementsFor(source, typed, practiceTest !== null, text.lastWeek);
+  const part: PracticeTestPart = practiceTest ? "read" : basis.hadPracticeTest ? "skipped" : "none";
+  const statements = statementsFor(source, typed, part, text.lastWeek);
 
   const score = parseScore(scoreText);
   const lock = confirmLock(review);
@@ -185,7 +205,8 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
           </div>
           <div className="flex flex-col gap-5">
             <SnapshotReviewFields draft={draft} lrRead={read.lrRead} files={read.files} dispatch={dispatch} />
-            {practiceTest ? <PracticeTestBlock result={practiceTest.result} goesFirst={goesFirst} /> : <NoPracticeTestBlock text={text} />}
+            {practiceTest ? <PracticeTestBlock result={practiceTest.result} goesFirst={goesFirst} />
+              : part === "skipped" ? <SkippedPracticeTestBlock text={text} /> : <NoPracticeTestBlock text={text} />}
             <section aria-label="Current score" className="flex flex-col">
               <h2 className="px-3 pt-2 pb-3 text-body font-semibold text-ink">Current score</h2>
               <div className="flex flex-col border-y border-vellum-line">

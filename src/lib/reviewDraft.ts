@@ -111,6 +111,10 @@ export const ANALYTICS_INPUTS = [
 ] as const;
 export type AnalyticsInput = (typeof ANALYTICS_INPUTS)[number]["value"];
 
+export function analyticsInputs(scanningOff: boolean) {
+  return ANALYTICS_INPUTS.map((option) => ({ ...option, disabled: scanningOff && option.value === "screenshots" }));
+}
+
 function valueLock(review: SnapshotReview, action: LockAction): ReviewLock | null {
   const wrong = review.rows.filter(({ row }) => rowWrong(review, row));
   if (wrong.length > 0) {

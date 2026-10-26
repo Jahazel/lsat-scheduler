@@ -4,12 +4,11 @@ import { getPostgresDatabase } from "./postgres";
 import { runningScans } from "./postgresSchema";
 import { countScanSpend, isScanningOff, claimLimitAlert, replaceScanCount, type ScanKind, type SpendAlert } from "./scanSpending";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
+import { SCANNING_OFF } from "./screenshotUpload";
 
 const PLACE_HELD_MS = 2 * 60 * 1000;
 const SITE_PLACES = 5;
 const MONTH_DAY = new Intl.DateTimeFormat("en-US", { timeZone: SCHEDULE_TIMEZONE, month: "short", day: "numeric" });
-
-export const SCANNING_OFF = "Scanning is off right now. Enter your analytics by hand.";
 
 export type ScanRefusal = {
   refused: "scanning-off" | "daily-limit" | "monthly-limit" | "still-reading" | "site-busy";

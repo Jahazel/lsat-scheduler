@@ -53,6 +53,7 @@ export interface WeeklyUploadApprovalOptions {
   allowAdminSample: boolean;
   weekOf?: string;
   needsPracticeTest: boolean;
+  practiceTestSkippable?: boolean;
 }
 
 function preparePracticeTest(input: unknown, approvedAt: Date, realNow: Date, weekOf: string, allowAdminSample: boolean) {
@@ -97,7 +98,7 @@ export function prepareWeeklyUploadApproval(input: unknown, approvedAt: Date, re
     weekOf: options.weekOf,
   });
   const { practiceTest } = parsed.data;
-  if (options.needsPracticeTest && practiceTest == null) {
+  if (options.needsPracticeTest && practiceTest == null && !options.practiceTestSkippable) {
     throw new SnapshotApprovalError("Add this week's practice test before you confirm.");
   }
   if (!options.needsPracticeTest && practiceTest != null) {

@@ -780,6 +780,28 @@ it("leaves the real URL in place after a test", () => {
   expect("createObjectURL" in URL && vi.isMockFunction(URL.createObjectURL)).toBe(false);
 });
 
+describe("OnboardingWizard · scanning off", () => {
+  it("opens Type them on Step 3 with the scanning-off note and Screenshots turned off", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} scanningOff onSave={vi.fn()} extract={bySection()} />);
+    expect(screen.queryByText("Scanning is off right now. Enter your analytics by hand.")).toBeNull();
+    await user.type(screen.getByLabelText("Current PT score"), "150");
+    await user.type(screen.getByLabelText("Goal score"), "165");
+    await user.selectOptions(screen.getByLabelText("Goal test date"), "November 2026");
+    await user.click(continueButton());
+    await user.click(screen.getByLabelText("Practice test on Friday"));
+    await user.click(continueButton());
+
+    expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();
+    expect(screen.getByText("Scanning is off right now. Enter your analytics by hand.")).toBeDefined();
+    expect(screen.getByText("Type them below. Your first weekly schedule works the same way as with screenshots.")).toBeDefined();
+    expect((screen.getByLabelText("Type them") as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByLabelText("Screenshots") as HTMLInputElement).disabled).toBe(true);
+    expect(screen.getByText("No question types yet.")).toBeDefined();
+    expect(screen.queryByLabelText("Logical Reasoning screenshot file")).toBeNull();
+  });
+});
+
 describe("OnboardingWizard · Type them", () => {
   const box = (type: string) => screen.getByLabelText(`${type} accuracy`) as HTMLInputElement;
 
