@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PT158_FIXTURES } from "./practiceTestFixtures/pt158";
-import { prepareWeeklyUploadApproval } from "./weeklyUploadApproval";
+import { prepareWeeklyUploadApproval, type WeeklyUploadApprovalOptions } from "./weeklyUploadApproval";
 
 const now = new Date("2026-10-17T17:05:00.000Z");
 const extractedAt = "2026-10-17T17:00:00.000Z";
@@ -24,7 +24,7 @@ const practiceTest = () => ({
 });
 
 const options = { allowAdminSample: false, needsPracticeTest: true };
-const prepare = (input: object, overrides: Partial<typeof options> = {}) =>
+const prepare = (input: object, overrides: Partial<WeeklyUploadApprovalOptions> = {}) =>
   prepareWeeklyUploadApproval({ currentScore: 156, analytics, practiceTest: practiceTest(), ...input }, now, now, { ...options, ...overrides });
 
 describe("weekly upload approval", () => {
@@ -82,6 +82,12 @@ describe("weekly upload approval", () => {
   it("refuses a practice test in a week whose plan had none, and accepts analytics alone", () => {
     expect(() => prepare({}, { needsPracticeTest: false })).toThrow("This week's plan had no practice test.");
     expect(prepare({ practiceTest: null }, { needsPracticeTest: false }).practiceTest).toBeNull();
+  });
+
+  it("accepts no practice test in a practice-test week only when it is skippable", () => {
+    expect(() => prepare({ practiceTest: null })).toThrow("Add this week's practice test before you confirm.");
+    expect(prepare({ practiceTest: null }, { practiceTestSkippable: true }).practiceTest).toBeNull();
+    expect(prepare({}, { practiceTestSkippable: true }).practiceTest).toMatchObject({ prepTest: 158 });
   });
 
   it("accepts an admin's sample practice test", () => {

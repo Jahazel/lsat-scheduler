@@ -6,6 +6,7 @@ import { closePostgresDatabase } from "../../src/lib/postgres";
 import { actionCounters, runningScans, scanSpending } from "../../src/lib/postgresSchema";
 import { scanWithLimits } from "../../src/lib/scanGuard";
 import { freeScanPlace, takeScanPlace } from "../../src/lib/scanPlaces";
+import { readScanningOff } from "../../src/lib/scanSpending";
 
 const WARNING_URL = "https://hc-ping.com/00000000-0000-4000-8000-000000000010";
 const LIMIT_URL = "https://hc-ping.com/00000000-0000-4000-8000-000000000011";
@@ -147,6 +148,22 @@ it("deletes months before last month also when every scan is refused at the limi
 
   expect(await scanAndFinish("student-a", NOVEMBER)).toMatchObject({ refused: "scanning-off" });
   expect((await monthTotals()).map(({ monthStart }) => monthStart)).toEqual([NOVEMBER]);
+});
+
+it("reports scanning off for a scan type exactly when its next scan would be refused", async () => {
+  await setMonthTotal(SEPTEMBER, "10.00");
+  expect(await readScanningOff(MID_OCTOBER)).toEqual({ analytics: false, "practice-test-section": false });
+
+  await setMonthTotal(OCTOBER, "9.98");
+  expect(await readScanningOff(MID_OCTOBER)).toEqual({ analytics: false, "practice-test-section": true });
+  expect(await takeScanPlace("student-a", "practice-test-section", MID_OCTOBER)).toMatchObject({ refused: "scanning-off" });
+  expect(await takeScanPlace("student-b", "analytics", MID_OCTOBER)).toMatchObject({ subject: "student-b" });
+
+  expect(await readScanningOff(MID_OCTOBER)).toEqual({ analytics: true, "practice-test-section": true });
+  expect(await readScanningOff(NOVEMBER)).toEqual({ analytics: false, "practice-test-section": false });
+
+  await database.owner.execute(sql`update scan_settings set scanning_off = true`);
+  expect(await readScanningOff(NOVEMBER)).toEqual({ analytics: true, "practice-test-section": true });
 });
 
 it("applies the owner's switch and changed limit on the next scan", async () => {

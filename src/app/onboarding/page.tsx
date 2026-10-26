@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { readScanningOff } from "@/lib/scanSpending";
 import { studentSideToday } from "@/lib/studentClock";
 import { upcomingTestMonths } from "@/lib/studentProfile";
 import { initialsFor } from "@/lib/studentNav";
@@ -25,6 +26,7 @@ export default async function OnboardingPage() {
       initials={initialsFor(session.user.name, session.user.email)}
       today={today}
       goalTestDateOptions={upcomingTestMonths(today)}
+      scanningOff={(await readScanningOff(new Date())).analytics}
       onSave={createStudentProfile}
     />
   );

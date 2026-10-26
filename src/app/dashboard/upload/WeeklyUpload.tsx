@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useReducer, useRef, useState, type ReactNode } from "react";
+import { ScanningOffNote } from "@/components/ScanningOffNote";
 import SignInExpired from "@/components/SignInExpired";
 import { SnapshotReviewFields } from "@/components/SnapshotReviewFields";
 import { DrillList, WeekTiles } from "@/components/WeekPreview";
@@ -12,7 +13,7 @@ import { CheckGlyph, ClockGlyph, InfoGlyph, ReadingGlyph } from "@/components/ui
 import { TextInput } from "@/components/ui/TextInput";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { accuracyError, readSection as addAnalyticsSection, reviewedRows, SECTION_NAME, SECTIONS, type SnapshotReview } from "@/lib/analyticsReview";
-import { ANALYTICS_INPUTS, reviewDraftReducer, startTypedDraft, typedEntryProblem, type AnalyticsInput } from "@/lib/reviewDraft";
+import { analyticsInputs, reviewDraftReducer, startTypedDraft, typedEntryProblem, type AnalyticsInput } from "@/lib/reviewDraft";
 import {
   reviewPracticeTest, type HiddenPick, type PracticeTestProblem, type PracticeTestResult, type SectionReading, type SectionReview,
 } from "@/lib/practiceTestResult";
@@ -20,6 +21,7 @@ import {
   CANNOT_READ, MAX_SCREENSHOT_MB, SCREENSHOT_MEDIA_TYPES, TOOK_TOO_LONG, checkScreenshotType, extractPracticeTestScreenshot,
   readAnalyticsScreenshot, stopsLaterScans, type ScanRefused,
 } from "@/lib/screenshotUpload";
+import type { ScanKind, ScanningOff } from "@/lib/scanSpending";
 import { DAY_LABEL } from "@/lib/studentProfile";
 import { mostMissedType } from "@/lib/engine";
 import { mockRules } from "@/lib/mockData";
@@ -75,11 +77,16 @@ export interface WeeklyUploadRead {
 interface WeeklyUploadProps {
   basis: WeeklyUploadBasis;
   initialScore: number;
+  scanningOff?: ScanningOff;
   onCheckValues?: (read: WeeklyUploadRead) => void;
 }
 
-export default function WeeklyUpload({ basis, initialScore, onCheckValues }: WeeklyUploadProps) {
-  const needsSections = basis.hadPracticeTest;
+const SCANNING_ON: ScanningOff = { analytics: false, "practice-test-section": false };
+
+export default function WeeklyUpload({ basis, initialScore, scanningOff: serverScanningOff = SCANNING_ON, onCheckValues }: WeeklyUploadProps) {
+  const [scanningOff, setScanningOff] = useState(serverScanningOff);
+  const skipsPracticeTest = basis.hadPracticeTest && scanningOff["practice-test-section"];
+  const needsSections = basis.hadPracticeTest && !skipsPracticeTest;
   const text = planText(basis);
   const [scoreText, setScoreText] = useState(String(initialScore));
   const [analytics, setAnalytics] = useState<Partial<Record<AnalyticsSection, AnalyticsUpload>>>({});
@@ -88,7 +95,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const started = startedAt !== null;
   const [picks, setPicks] = useState<UploadPick[]>([]);
-  const [input, setInput] = useState<AnalyticsInput>("screenshots");
+  const [input, setInput] = useState<AnalyticsInput>(scanningOff.analytics ? "typed" : "screenshots");
   const [typedDraft, dispatchTyped] = useReducer(reviewDraftReducer, null, () => startTypedDraft(new Date()));
   const typed = input === "typed";
   const typedProblem = typed ? typedEntryProblem(typedDraft.review) : null;
@@ -110,7 +117,11 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
     const section = SECTIONS.find((key) => analytics[key]?.read.status === "waiting");
     const sectionUpload = sections.find(({ read }) => read.status === "waiting");
 
-    function stopWaiting(reply: ScanRefused) {
+    function stopWaiting(reply: ScanRefused, kind: ScanKind) {
+      if (reply.refused === "scanning-off") {
+        setScanningOff((current) => (kind === "analytics" ? { analytics: true, "practice-test-section": true } : { ...current, [kind]: true }));
+        if (kind === "analytics") setInput("typed");
+      }
       if (!stopsLaterScans(reply)) return;
       const stopped = refusedRead(reply);
       setAnalytics((current) => {
@@ -134,7 +145,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
         case "problem": return set({ status: "problem", message: result.message, tryAgain: result.tryAgain });
         case "refused":
           set(refusedRead(result));
-          return stopWaiting(result);
+          return stopWaiting(result, "analytics");
         case "signed-out": return set({ status: "signed-out" });
       }
     }
@@ -149,7 +160,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
         case "rejected": return set({ status: "problem", message: reply.message, tryAgain: false });
         case "refused":
           set(refusedRead(reply));
-          return stopWaiting(reply);
+          return stopWaiting(reply, "practice-test-section");
         case "signed-out": return set({ status: "signed-out" });
         case "timed-out": return set({ status: "problem", message: TOOK_TOO_LONG, tryAgain: true });
         case "cannot-read":
@@ -250,7 +261,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   const analyticsReady = typed ? typedProblem === null : started && analyticsRead;
   const allAdded = (typed || SECTIONS.every((section) => analytics[section])) && (!needsSections || sections.length >= SECTION_COUNT);
   const shownAnalytics = typed ? {} : analytics;
-  const uploads = [...SECTIONS.flatMap((section) => shownAnalytics[section] ?? []), ...sections];
+  const uploads = [...SECTIONS.flatMap((section) => shownAnalytics[section] ?? []), ...(needsSections ? sections : [])];
   const unreadAnalytics = started && !typed && SECTIONS.some((section) => analytics[section]?.read.status === "added");
   const queuedOrDone = uploads.filter(({ read }) => read.status !== "added");
   const anyReading = started && queuedOrDone.some(({ read }) => read.status === "waiting" || read.status === "reading");
@@ -259,7 +270,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   const settledCount = queuedOrDone.filter(({ read }) => !PENDING.includes(read.status)).length;
   const found = analyticsReady && (!needsSections || (started && practiceTest !== null && !anyUnreadable));
   const replacementRejected = SECTIONS.some((section) => !typed && rejections[section])
-    || sections.some((upload) => rejections[`file-${upload.id}`]);
+    || (needsSections && sections.some((upload) => rejections[`file-${upload.id}`]));
   const summarized = found && !replacementRejected;
   const ready = found && score !== null;
 
@@ -304,11 +315,15 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
   const lead = !started
     ? needsSections
       ? `${start} Add ${text.lastWeek}'s screenshots, and we build your weekly schedule from them.`
-      : typed
-        ? `${start} ${text.LastWeek} had no practice test, so we need only your analytics.`
-        : `${start} ${text.LastWeek} had no practice test, so we need only your 2 analytics screenshots.`
+      : scanningOff.analytics || skipsPracticeTest
+        ? `${start} ${typed ? "Type" : "Add"} ${text.lastWeek}'s analytics, and we build your weekly schedule from them.`
+        : typed
+          ? `${start} ${text.LastWeek} had no practice test, so we need only your analytics.`
+          : `${start} ${text.LastWeek} had no practice test, so we need only your 2 analytics screenshots.`
     : found
-      ? `${start} We read ${typed ? "all 4 sections" : needsSections ? "all 6 screenshots" : "both screenshots"}. Check them, then build your weekly schedule.`
+      ? typed && !needsSections
+        ? `${start} Check your values, then build your weekly schedule.`
+        : `${start} We read ${typed ? "all 4 sections" : needsSections ? "all 6 screenshots" : "both screenshots"}. Check them, then build your weekly schedule.`
       : anyReading
         ? `${start} We read your screenshots one at a time.${unreadAnalytics ? "" : " You don't need to click anything."}`
         : unreadAnalytics
@@ -362,7 +377,7 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
         />
 
         {summarized && (needsSections || !typed) && (
-          <ReadSummary analytics={shownAnalytics} sections={sections} onAnalytics={addAnalytics} onReplace={replaceSection} />
+          <ReadSummary analytics={shownAnalytics} sections={needsSections ? sections : []} onAnalytics={addAnalytics} onReplace={replaceSection} />
         )}
 
         <UploadGroup
@@ -370,7 +385,14 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
           count={typed ? "Typed by you" : started ? readCount(SECTIONS.flatMap((section) => analytics[section] ?? [])) : "Screenshots or typed"}
           className={summarized && !typed ? "max-md:hidden" : undefined}
         >
-          <SegmentedSwitch name="analyticsInput" label="How to add your analytics" options={ANALYTICS_INPUTS} value={input} onChange={chooseInput} />
+          {scanningOff.analytics && <ScanningOffNote>Type them below. Your plan works the same way as with screenshots.</ScanningOffNote>}
+          <SegmentedSwitch
+            name="analyticsInput"
+            label="How to add your analytics"
+            options={analyticsInputs(scanningOff.analytics)}
+            value={input}
+            onChange={chooseInput}
+          />
           {typed ? (
             <div className="flex flex-col gap-5">
               <SnapshotReviewFields idPrefix="typed-" draft={typedDraft} lrRead={[]} files={{}} dispatch={dispatchTyped} />
@@ -453,6 +475,14 @@ export default function WeeklyUpload({ basis, initialScore, onCheckValues }: Wee
               <p className="text-small text-smoke">Practice test {prepTest}. You can replace any screenshot before you confirm.</p>
             )}
             {anyReading && <p className="text-small text-smoke">You can replace a screenshot while you wait. It keeps its place in line.</p>}
+          </UploadGroup>
+        ) : skipsPracticeTest ? (
+          <UploadGroup title="Practice test review" count="Skipped">
+            <div className="flex flex-col gap-2 rounded-md border border-dashed border-ink/28 px-5 py-4.5">
+              <p className="text-body font-semibold text-ink">Practice test skipped {text.lastWeek}</p>
+              <p className="text-small text-smoke">We can&apos;t read practice test screenshots while scanning is off. You can confirm without them.</p>
+              <p className="text-small text-smoke">{text.Week}&apos;s schedule won&apos;t put a missed question type first. It does not use an older practice test.</p>
+            </div>
           </UploadGroup>
         ) : (
           <UploadGroup title="Practice test review" count="Not needed this week">

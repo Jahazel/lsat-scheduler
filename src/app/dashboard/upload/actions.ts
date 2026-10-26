@@ -6,6 +6,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { snapshotWeekOptions, SnapshotApprovalError } from "@/lib/analyticsSnapshots";
 import { requireCurrentAdmin } from "@/lib/requireAdmin";
+import { readScanningOff } from "@/lib/scanSpending";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { studentSideClock } from "@/lib/studentClock";
 import { findStudentByAccountId } from "@/lib/studentRepository";
@@ -50,10 +51,12 @@ export async function confirmWeeklyUpload(input: unknown): Promise<WeeklyUploadC
   ) {
     return { error: "This page is out of date. Open This week to continue." };
   }
+  const needsPracticeTest = weekHadPracticeTest(schedules, isoDateInWeek(target.data.weekOf, -7));
   try {
     await approveWeeklyUpload(student.id, prepareWeeklyUploadApproval(input, clock.now, clock.real, {
       allowAdminSample,
-      needsPracticeTest: weekHadPracticeTest(schedules, isoDateInWeek(target.data.weekOf, -7)),
+      needsPracticeTest,
+      practiceTestSkippable: needsPracticeTest && (await readScanningOff(clock.real))["practice-test-section"],
       ...snapshotWeekOptions(clock),
     }), { accountId: session.user.id, realNow: clock.real });
   } catch (error) {

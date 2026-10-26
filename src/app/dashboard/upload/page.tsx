@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { listApprovedAnalyticsSnapshots } from "@/lib/analyticsSnapshotRepository";
 import { approvedForWeek, currentWeekInTimezone, weeklyUploadIsOpen } from "@/lib/currentWeeklySchedule";
+import { readScanningOff } from "@/lib/scanSpending";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { studentSideClock } from "@/lib/studentClock";
 import { findStudentByAccountId } from "@/lib/studentRepository";
@@ -39,5 +40,5 @@ export default async function WeeklyUploadPage() {
     redirect("/dashboard");
   }
 
-  return <WeeklyUploadFlow basis={basis} initialScore={doc.currentScore} />;
+  return <WeeklyUploadFlow basis={basis} initialScore={doc.currentScore} scanningOff={await readScanningOff(clock.real)} />;
 }

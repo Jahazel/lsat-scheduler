@@ -15,6 +15,7 @@ import { resetTestWorkspace } from "../../src/lib/adminTestWorkspace";
 import { confirmWeeklyUpload } from "../../src/app/dashboard/upload/actions";
 import DashboardPage from "../../src/app/dashboard/page";
 import WeeklyUploadPage from "../../src/app/dashboard/upload/page";
+import ProgressPage from "../../src/app/progress/page";
 import type { Student } from "../../src/lib/types";
 
 const state = vi.hoisted((): { session: Session | null } => ({ session: null }));
@@ -38,6 +39,8 @@ beforeEach(async () => {
   state.session = null;
   vi.useFakeTimers({ toFake: ["Date"] });
   await database.owner.execute(sql`truncate accounts cascade`);
+  await database.owner.execute(sql`truncate scan_spending`);
+  await database.owner.execute(sql`update scan_settings set scanning_off = false, monthly_limit_usd = 10`);
 });
 afterAll(async () => {
   vi.useRealTimers();
@@ -57,6 +60,7 @@ const profile: Student = {
   dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 90, SUNDAY: 90 },
 };
 
+const progress = async () => renderToStaticMarkup(await ProgressPage({ searchParams: Promise.resolve({}) }));
 const dashboard = async () => renderToStaticMarkup(await DashboardPage({ searchParams: Promise.resolve({}) }));
 const uploadPage = async () => renderToStaticMarkup(await WeeklyUploadPage());
 
@@ -296,6 +300,65 @@ it("refuses an invalid score or a missing practice test without saving anything"
     .resolves.toEqual({ error: "Add this week's practice test before you confirm." });
 
   expect(await saved(studentId, accountId)).toEqual(before);
+});
+
+it("with the owner's switch on, a practice-test week confirms without the practice test, and next week does not reuse an older one", async () => {
+  const { studentId, accountId } = await studentWithThisWeek();
+  vi.setSystemTime(SATURDAY);
+  await expect(confirmWeeklyUpload(upload(SATURDAY))).rejects.toThrow("redirect:/dashboard");
+  vi.setSystemTime(NEXT_MONDAY);
+  await dashboard();
+  const [older] = await listApprovedPracticeTestResults(studentId);
+
+  const nextSaturday = new Date("2026-10-24T17:00:00Z");
+  vi.setSystemTime(nextSaturday);
+  await database.owner.execute(sql`update scan_settings set scanning_off = true`);
+  expect(await dashboard()).toContain("Plan next week");
+  expect(await progress()).toContain("Progress");
+  const page = await uploadPage();
+  expect(page).toContain("Scanning is off right now. Enter your analytics by hand.");
+  expect(page).toContain("Practice test skipped this week");
+
+  await expect(confirmWeeklyUpload({ ...upload(nextSaturday, { weekOf: "2026-10-26" }), practiceTest: null }))
+    .rejects.toThrow("redirect:/dashboard");
+  expect((await saved(studentId, accountId)).practiceTests).toEqual([older]);
+
+  vi.setSystemTime(new Date("2026-10-26T16:00:00Z"));
+  expect(await dashboard()).not.toContain("You missed it most on your last practice test.");
+  const weeks = await listWeeklySchedulesForStudent(studentId);
+  expect(weeks.find(({ weekStartDate }) => weekStartDate === "2026-10-19")?.generationInputs.practiceTestResultId).toBe(older.id);
+  expect(weeks.find(({ weekStartDate }) => weekStartDate === "2026-10-26")?.generationInputs).not.toHaveProperty("practiceTestResultId");
+});
+
+it("a later confirmation that skips the practice test keeps next week from using the same week's earlier result", async () => {
+  const { studentId } = await studentWithThisWeek();
+  vi.setSystemTime(SATURDAY);
+  await expect(confirmWeeklyUpload(upload(SATURDAY))).rejects.toThrow("redirect:/dashboard");
+
+  const sunday = new Date("2026-10-18T17:00:00Z");
+  vi.setSystemTime(sunday);
+  await database.owner.execute(sql`update scan_settings set scanning_off = true`);
+  await expect(confirmWeeklyUpload({ ...upload(sunday), practiceTest: null })).rejects.toThrow("redirect:/dashboard");
+
+  vi.setSystemTime(NEXT_MONDAY);
+  expect(await dashboard()).not.toContain("You missed it most on your last practice test.");
+  const [next] = await listWeeklySchedulesForStudent(studentId);
+  expect(next.weekStartDate).toBe("2026-10-19");
+  expect(next.generationInputs).not.toHaveProperty("practiceTestResultId");
+});
+
+it("at the monthly limit, a practice-test week confirms without the practice test; with scanning on, the old rule refuses it", async () => {
+  const { studentId, accountId } = await studentWithThisWeek();
+  vi.setSystemTime(SATURDAY);
+  const skipped = { ...upload(SATURDAY), practiceTest: null };
+  await database.owner.execute(sql`insert into scan_spending (month_start, total_usd) values ('2026-10-01T05:00:00Z', 9.98)`);
+  expect(await uploadPage()).not.toContain("Scanning is off right now.");
+  await expect(confirmWeeklyUpload(skipped)).rejects.toThrow("redirect:/dashboard");
+  expect((await saved(studentId, accountId)).practiceTests).toEqual([]);
+
+  await database.owner.execute(sql`update scan_settings set monthly_limit_usd = 15`);
+  await expect(confirmWeeklyUpload(skipped)).resolves.toEqual({ error: "Add this week's practice test before you confirm." });
+  expect(await uploadPage()).not.toContain("Practice test skipped");
 });
 
 it("lets only an admin confirm sample data, and Reset test data deletes the admin's practice-test results", async () => {

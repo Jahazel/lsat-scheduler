@@ -352,6 +352,36 @@ describe("Type them", () => {
     }));
   });
 
+  it("with scanning off, opens Type them, skips the practice test, and confirms without it", async () => {
+    const fetchSpy = stubSections();
+    const confirm = vi.fn<typeof confirmWeeklyUpload>(async () => REFUSED);
+    const user = userEvent.setup();
+    render(
+      <AdminTestProvider>
+        <WeeklyUploadFlow basis={basis()} initialScore={156} scanningOff={{ analytics: true, "practice-test-section": true }} confirm={confirm} />
+      </AdminTestProvider>,
+    );
+
+    expect(screen.getByText("Scanning is off right now. Enter your analytics by hand.")).toBeDefined();
+    expect(screen.getByText("Next week starts Monday, Oct 19. Type this week's analytics, and we build your weekly schedule from them.")).toBeDefined();
+    expect((screen.getByLabelText("Type them") as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByLabelText("Screenshots") as HTMLInputElement).disabled).toBe(true);
+    expect(screen.getByText("Practice test skipped this week")).toBeDefined();
+    expect(screen.queryByLabelText("All 4 section screenshots file")).toBeNull();
+
+    await typeAnalytics(user);
+    await user.click(screen.getByRole("button", { name: "Check the values" }));
+    expect(within(screen.getByRole("region", { name: "Practice test" }))
+      .getByText("Skipped this week because scanning is off. Next week's schedule won't put a missed question type first.")).toBeDefined();
+    await confirmTyped(user, "These are my latest 7Sage analytics. I'm skipping this week's practice test.");
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(confirm).toHaveBeenCalledWith(expect.objectContaining({
+      analytics: expect.objectContaining({ extraction: { source: "manual_entry", extractedAt: expect.any(String) } }),
+      practiceTest: null,
+    }));
+  });
+
   it("keeps the read button off until a typed value is fixed", async () => {
     const user = userEvent.setup();
     render(<AdminTestProvider><WeeklyUploadFlow basis={basis(false)} initialScore={156} confirm={vi.fn()} /></AdminTestProvider>);

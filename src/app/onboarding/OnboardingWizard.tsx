@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { DurationSelect } from "@/components/DailyCapacityFieldset";
+import { ScanningOffNote } from "@/components/ScanningOffNote";
 import { IconButton } from "@/components/ui/Button";
 import { DropZone } from "@/components/ui/DropZone";
 import { FileRow, WaitNote } from "@/components/ui/FileRow";
@@ -17,7 +18,7 @@ import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
 import { CheckGlyph, ClockGlyph, ReadingGlyph } from "@/components/ui/StatusIcon";
 import { DAY_ORDER } from "@/lib/engine";
 import { SECTION_NAME, SECTIONS, type Statement } from "@/lib/analyticsReview";
-import { ANALYTICS_INPUTS, confirmLock, type ReviewDraft } from "@/lib/reviewDraft";
+import { analyticsInputs, confirmLock, type ReviewDraft } from "@/lib/reviewDraft";
 import {
   ConfirmBar, ReviewStatements, STEP_PRIMARY as PRIMARY, STEP_SECONDARY as SECONDARY, SnapshotReviewFields,
   boxId, statementId, tierId, useDeferWhilePointerDown, useFocusAfterRender,
@@ -62,6 +63,7 @@ interface OnboardingWizardProps {
   initials: string;
   today: string;
   goalTestDateOptions: ReturnType<typeof upcomingTestMonths>;
+  scanningOff?: boolean;
   onSave: typeof createStudentProfile;
   extract?: typeof extractScreenshot;
 }
@@ -73,10 +75,13 @@ export default function OnboardingWizard({
   initials,
   today,
   goalTestDateOptions,
+  scanningOff = false,
   onSave,
   extract = extractScreenshot,
 }: OnboardingWizardProps) {
-  const [state, dispatch] = useReducer(wizardReducer, undefined, initialWizardState);
+  const [state, dispatch] = useReducer(wizardReducer, scanningOff, (off) => off
+    ? wizardReducer(initialWizardState(), { type: "chooseInput", input: "typed", at: new Date() })
+    : initialWizardState());
   const draft = activeDraft(state);
   const readInFlight = useRef(false);
   const [readsEnded, setReadsEnded] = useState(0);
@@ -138,7 +143,7 @@ export default function OnboardingWizard({
           {state.step === "goal" && <GoalStep state={state} dispatch={dispatch} goalTestDateOptions={goalTestDateOptions} today={today} />}
           {state.step === "week" && <WeekStep state={state} dispatch={dispatch} />}
           {state.step === "analytics" && (
-            <AnalyticsStep state={state} dispatch={dispatch} onSkip={skipForNow} onFile={readScreenshot} />
+            <AnalyticsStep state={state} scanningOff={scanningOff} dispatch={dispatch} onSkip={skipForNow} onFile={readScreenshot} />
           )}
           {state.step === "review" && draft && <ReviewStep state={state} draft={draft} dispatch={dispatch} onConfirm={confirmSnapshot} />}
         </div>
@@ -514,11 +519,13 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
 
 function AnalyticsStep({
   state,
+  scanningOff,
   dispatch,
   onSkip,
   onFile,
 }: {
   state: WizardState;
+  scanningOff: boolean;
   dispatch: Dispatch;
   onSkip: () => void;
   onFile: (section: AnalyticsSection, file: File) => void;
@@ -533,10 +540,11 @@ function AnalyticsStep({
   return (
     <div className="flex flex-col gap-8">
       <StepHeading state={state} title="Add your 7Sage analytics" lede="Two screenshots, or the same values typed by you, tell us what to drill first." />
+      {scanningOff && <ScanningOffNote>Type them below. Your first weekly schedule works the same way as with screenshots.</ScanningOffNote>}
       <SegmentedSwitch
         name="analyticsInput"
         label="How to add your analytics"
-        options={ANALYTICS_INPUTS}
+        options={analyticsInputs(scanningOff)}
         value={state.analyticsInput}
         onChange={(input) => dispatch({ type: "chooseInput", input, at: new Date() })}
       />
