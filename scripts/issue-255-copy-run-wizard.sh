@@ -423,7 +423,7 @@ s_migrations() {
     [[ -n "$run_id" ]] && break
   done
   if [[ -z "$run_id" ]]; then warn "No new run found after $tries tries. Open GitHub Actions and check."; record "A4" "Run not found"; return; fi
-  say "Watching run $run_id…"
+  say "Watching run ${run_id}…"
   gh run watch "$run_id" --repo "$REPO" --exit-status > /dev/null || warn "The run did not succeed."
   line=$(gh run view "$run_id" --repo "$REPO" --log 2>/dev/null | grep -oE 'Target: copy\..*|Migration .*' | tail -n1 || true)
   jobs=$(gh run view "$run_id" --repo "$REPO" --json jobs -q '[.jobs[] | .name + ": " + (.conclusion // "none")] | join("; ")')
