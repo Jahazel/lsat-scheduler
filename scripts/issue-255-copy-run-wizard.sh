@@ -732,7 +732,7 @@ s_c5_pages() {
 s_cleanup() {
   stage "Clean up"
   show_sql "SELECT scanning_off, monthly_limit_usd FROM scan_settings;
-DELETE FROM leads WHERE email = '$LEAD_TEST_EMAIL';"
+DELETE FROM leads WHERE email = '${LEAD_TEST_EMAIL:-none}';"
   ask_result "Z1" "Settings (expected false, 10.00) and the DELETE result:"
   step "Pause both Healthchecks.io checks again."
   step "Delete the Protection Bypass secret if you made one, and delete deployment B ($DEPLOYMENT_B)."
