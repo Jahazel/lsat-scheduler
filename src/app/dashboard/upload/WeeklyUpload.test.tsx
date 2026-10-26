@@ -418,6 +418,32 @@ describe("WeeklyUpload", () => {
     expect(button("Check the values").disabled).toBe(true);
   });
 
+  it("skips the practice test when the monthly limit stops a section scan, and checks the analytics already read", async () => {
+    const off = Response.json({ error: "Scanning is off right now. Enter your analytics by hand.", reason: "scanning-off" }, { status: 429 });
+    const server = stubServer({ "pt158-s1.png": off });
+    const { user, onCheckValues } = setup();
+    await readAll(user);
+
+    expect(server).toHaveBeenCalledTimes(3);
+    expect(screen.getByText("Practice test skipped this week")).toBeDefined();
+    expect(screen.queryByText("Scanning is off right now. Enter your analytics by hand.")).toBeNull();
+    await user.click(button("Check the values"));
+    expect(onCheckValues).toHaveBeenCalledWith(expect.objectContaining({ practiceTest: null }));
+  });
+
+  it("opens Type them and skips the practice test when scanning turns off during the analytics scans", async () => {
+    const off = Response.json({ error: "Scanning is off right now. Enter your analytics by hand.", reason: "scanning-off" }, { status: 429 });
+    const server = stubServer({}, { RC: off });
+    const { user } = setup();
+    await readAll(user);
+
+    expect(server).toHaveBeenCalledTimes(2);
+    expect(screen.getAllByText("Scanning is off right now. Enter your analytics by hand.")).toHaveLength(1);
+    expect((screen.getByLabelText("Type them") as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByLabelText("Screenshots") as HTMLInputElement).disabled).toBe(true);
+    expect(screen.getByText("Practice test skipped this week")).toBeDefined();
+  });
+
   it("offers Try again when the last screenshot is still being read, and reads it on the press", async () => {
     const server = stubServer({}, {
       LR: Response.json({ error: "We're still reading your last screenshot. Wait a moment, then try this one.", reason: "still-reading" }, { status: 429 }),

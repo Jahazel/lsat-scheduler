@@ -21,7 +21,7 @@ import {
   CANNOT_READ, MAX_SCREENSHOT_MB, SCREENSHOT_MEDIA_TYPES, TOOK_TOO_LONG, checkScreenshotType, extractPracticeTestScreenshot,
   readAnalyticsScreenshot, stopsLaterScans, type ScanRefused,
 } from "@/lib/screenshotUpload";
-import type { ScanningOff } from "@/lib/scanSpending";
+import type { ScanKind, ScanningOff } from "@/lib/scanSpending";
 import { DAY_LABEL } from "@/lib/studentProfile";
 import { mostMissedType } from "@/lib/engine";
 import { mockRules } from "@/lib/mockData";
@@ -83,7 +83,8 @@ interface WeeklyUploadProps {
 
 const SCANNING_ON: ScanningOff = { analytics: false, "practice-test-section": false };
 
-export default function WeeklyUpload({ basis, initialScore, scanningOff = SCANNING_ON, onCheckValues }: WeeklyUploadProps) {
+export default function WeeklyUpload({ basis, initialScore, scanningOff: serverScanningOff = SCANNING_ON, onCheckValues }: WeeklyUploadProps) {
+  const [scanningOff, setScanningOff] = useState(serverScanningOff);
   const skipsPracticeTest = basis.hadPracticeTest && scanningOff["practice-test-section"];
   const needsSections = basis.hadPracticeTest && !skipsPracticeTest;
   const text = planText(basis);
@@ -116,7 +117,11 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff = SCANNI
     const section = SECTIONS.find((key) => analytics[key]?.read.status === "waiting");
     const sectionUpload = sections.find(({ read }) => read.status === "waiting");
 
-    function stopWaiting(reply: ScanRefused) {
+    function stopWaiting(reply: ScanRefused, kind: ScanKind) {
+      if (reply.refused === "scanning-off") {
+        setScanningOff((current) => (kind === "analytics" ? { analytics: true, "practice-test-section": true } : { ...current, [kind]: true }));
+        if (kind === "analytics") setInput("typed");
+      }
       if (!stopsLaterScans(reply)) return;
       const stopped = refusedRead(reply);
       setAnalytics((current) => {
@@ -140,7 +145,7 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff = SCANNI
         case "problem": return set({ status: "problem", message: result.message, tryAgain: result.tryAgain });
         case "refused":
           set(refusedRead(result));
-          return stopWaiting(result);
+          return stopWaiting(result, "analytics");
         case "signed-out": return set({ status: "signed-out" });
       }
     }
@@ -155,7 +160,7 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff = SCANNI
         case "rejected": return set({ status: "problem", message: reply.message, tryAgain: false });
         case "refused":
           set(refusedRead(reply));
-          return stopWaiting(reply);
+          return stopWaiting(reply, "practice-test-section");
         case "signed-out": return set({ status: "signed-out" });
         case "timed-out": return set({ status: "problem", message: TOOK_TOO_LONG, tryAgain: true });
         case "cannot-read":
@@ -256,7 +261,7 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff = SCANNI
   const analyticsReady = typed ? typedProblem === null : started && analyticsRead;
   const allAdded = (typed || SECTIONS.every((section) => analytics[section])) && (!needsSections || sections.length >= SECTION_COUNT);
   const shownAnalytics = typed ? {} : analytics;
-  const uploads = [...SECTIONS.flatMap((section) => shownAnalytics[section] ?? []), ...sections];
+  const uploads = [...SECTIONS.flatMap((section) => shownAnalytics[section] ?? []), ...(needsSections ? sections : [])];
   const unreadAnalytics = started && !typed && SECTIONS.some((section) => analytics[section]?.read.status === "added");
   const queuedOrDone = uploads.filter(({ read }) => read.status !== "added");
   const anyReading = started && queuedOrDone.some(({ read }) => read.status === "waiting" || read.status === "reading");
@@ -265,7 +270,7 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff = SCANNI
   const settledCount = queuedOrDone.filter(({ read }) => !PENDING.includes(read.status)).length;
   const found = analyticsReady && (!needsSections || (started && practiceTest !== null && !anyUnreadable));
   const replacementRejected = SECTIONS.some((section) => !typed && rejections[section])
-    || sections.some((upload) => rejections[`file-${upload.id}`]);
+    || (needsSections && sections.some((upload) => rejections[`file-${upload.id}`]));
   const summarized = found && !replacementRejected;
   const ready = found && score !== null;
 
@@ -370,7 +375,7 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff = SCANNI
         />
 
         {summarized && (needsSections || !typed) && (
-          <ReadSummary analytics={shownAnalytics} sections={sections} onAnalytics={addAnalytics} onReplace={replaceSection} />
+          <ReadSummary analytics={shownAnalytics} sections={needsSections ? sections : []} onAnalytics={addAnalytics} onReplace={replaceSection} />
         )}
 
         <UploadGroup

@@ -330,6 +330,23 @@ it("with the owner's switch on, a practice-test week confirms without the practi
   expect(weeks.find(({ weekStartDate }) => weekStartDate === "2026-10-26")?.generationInputs).not.toHaveProperty("practiceTestResultId");
 });
 
+it("a later confirmation that skips the practice test keeps next week from using the same week's earlier result", async () => {
+  const { studentId } = await studentWithThisWeek();
+  vi.setSystemTime(SATURDAY);
+  await expect(confirmWeeklyUpload(upload(SATURDAY))).rejects.toThrow("redirect:/dashboard");
+
+  const sunday = new Date("2026-10-18T17:00:00Z");
+  vi.setSystemTime(sunday);
+  await database.owner.execute(sql`update scan_settings set scanning_off = true`);
+  await expect(confirmWeeklyUpload({ ...upload(sunday), practiceTest: null })).rejects.toThrow("redirect:/dashboard");
+
+  vi.setSystemTime(NEXT_MONDAY);
+  expect(await dashboard()).not.toContain("You missed it most on your last practice test.");
+  const [next] = await listWeeklySchedulesForStudent(studentId);
+  expect(next.weekStartDate).toBe("2026-10-19");
+  expect(next.generationInputs).not.toHaveProperty("practiceTestResultId");
+});
+
 it("at the monthly limit, a practice-test week confirms without the practice test; with scanning on, the old rule refuses it", async () => {
   const { studentId, accountId } = await studentWithThisWeek();
   vi.setSystemTime(SATURDAY);
