@@ -214,13 +214,13 @@ export async function loadOrGenerateCurrentWeek(
   }
 
   const eligibleSnapshots = await input.snapshots.listEligibleForStudent(input.studentId);
-  const [latestUpload] = newestApprovedSnapshots(approvedForWeek(eligibleSnapshots, weekStartDate, input.timezone));
-  if (!latestUpload) {
+  const [latestSnapshot] = newestApprovedSnapshots(approvedForWeek(eligibleSnapshots, weekStartDate, input.timezone));
+  if (!latestSnapshot) {
     return { kind: "analytics_required" };
   }
   const snapshots = newestApprovedSnapshots(approvedUpToWeek(eligibleSnapshots, weekStartDate, input.timezone)).slice(0, 3);
   const [practiceTest] = approvedForWeek(await input.practiceTestResults.listForStudent(input.studentId), weekStartDate, input.timezone)
-    .filter((result) => new Date(result.approvedAt) >= new Date(latestUpload.approvedAt))
+    .filter((result) => new Date(result.approvedAt) >= new Date(latestSnapshot.approvedAt))
     .sort((a, b) => b.approvedAt.localeCompare(a.approvedAt) || a.id.localeCompare(b.id));
 
   const analytics = analyticsTrend(snapshots, weekStartDate);

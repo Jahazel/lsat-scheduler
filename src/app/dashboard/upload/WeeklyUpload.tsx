@@ -321,7 +321,9 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
           ? `${start} ${text.LastWeek} had no practice test, so we need only your analytics.`
           : `${start} ${text.LastWeek} had no practice test, so we need only your 2 analytics screenshots.`
     : found
-      ? `${start} We read ${typed ? "all 4 sections" : needsSections ? "all 6 screenshots" : "both screenshots"}. Check them, then build your weekly schedule.`
+      ? typed && !needsSections
+        ? `${start} Check your values, then build your weekly schedule.`
+        : `${start} We read ${typed ? "all 4 sections" : needsSections ? "all 6 screenshots" : "both screenshots"}. Check them, then build your weekly schedule.`
       : anyReading
         ? `${start} We read your screenshots one at a time.${unreadAnalytics ? "" : " You don't need to click anything."}`
         : unreadAnalytics

@@ -442,6 +442,13 @@ describe("WeeklyUpload", () => {
     expect((screen.getByLabelText("Type them") as HTMLInputElement).checked).toBe(true);
     expect((screen.getByLabelText("Screenshots") as HTMLInputElement).disabled).toBe(true);
     expect(screen.getByText("Practice test skipped this week")).toBeDefined();
+
+    await user.click(screen.getByRole("button", { name: "Add a question type" }));
+    await user.type(screen.getByRole("combobox", { name: "Search question types" }), "Necessary");
+    await user.keyboard("{Enter}");
+    await user.type(screen.getByRole("textbox", { name: "Necessary assumption accuracy" }), "76");
+    expect(screen.getByText("Next week starts Monday, Oct 5. Check your values, then build your weekly schedule.")).toBeDefined();
+    expect(button("Check the values").disabled).toBe(false);
   });
 
   it("offers Try again when the last screenshot is still being read, and reads it on the press", async () => {
