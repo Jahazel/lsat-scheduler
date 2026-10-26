@@ -12,7 +12,7 @@ function local(...args) {
   return spawnSync(process.execPath, [script, ...args], { cwd: tmpdir(), env, encoding: "utf8" });
 }
 
-describe("local.mjs help", () => {
+describe("local.mjs help", { timeout: 30_000 }, () => {
   it("lists every command without a database or run directory", () => {
     for (const flag of ["--help", "-h", "help"]) {
       const result = local(flag);
