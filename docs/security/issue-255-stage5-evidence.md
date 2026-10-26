@@ -4,10 +4,9 @@ Record for [#255](https://github.com/Jahazel/lsat-scheduler/issues/255), under t
 This file holds no password, key, connection string, ping URL, cookie, email, or Google ID.
 It approves no release, exception, or launch. No launch checklist row passes because of this file.
 
-**Status: waiting for the owner's copy run.** The run sheet below lists the steps. The wizard
-[`scripts/issue-255-copy-run-wizard.sh`](../../scripts/issue-255-copy-run-wizard.sh) walks through them in order.
-Run it from this checkout on a Mac. Stop with Ctrl-C at any time, and go on later with `--from STAGE_NUMBER`.
-Every result reads `Pending` until the owner reports it.
+**Status: copy run done on 2026-10-26. Every step that ran passed, except the LR scan reads (see Findings).** The owner ran the steps with a wizard
+and reported each result. The agent recorded them below. Two steps did not run: C2-5 and C5-5. The wizard was removed after the run;
+its last version is `scripts/issue-255-copy-run-wizard.sh` at commit `49fddde`.
 
 ## Words in this file
 
@@ -131,15 +130,63 @@ It keeps cookies only in a mode-600 folder outside the repository, and it delete
 
 ## Results
 
+The owner ran every step on 2026-10-26 between about 14:30 and 17:20 US Central time. Each result is the owner's observation,
+or the HTTP reply that the wizard recorded. The agent saw pages, SQL results, the Anthropic Console, and the alert emails
+only in the owner's screenshots.
+
 | Step | Copy deployment | Result | Notes |
 | --- | --- | --- | --- |
-| A1 to A8 | Pending | Pending | |
-| C4-1 to C4-3 | Pending | Pending | |
-| C2-1 to C2-6 | Pending | Pending | |
-| C4-4 to C4-7 | Pending | Pending | |
-| C5-1 to C5-6 | Pending | Pending | |
-| Alert emails (80% and limit reached) | Pending | Pending | |
-| Z1 to Z4 | Pending | Pending | |
+| A1 | n/a | Pass | `origin/main` at `11660b0`. The bundle hash starts with `d8b24294`. Real site Production: `dpl_CAAk52hEdgNHEhxu2waHEQPUNMnp`. |
+| A2, A3 | n/a | Pass | Both checks paused, email on, both ping settings on copy Production only. Workspace `drillmap-copy`, $5 limit, key `drillmap-copy-vercel` in it. `SCREENSHOT_EXTRACTOR` not set. |
+| A4, A5 | n/a | Pass | Run `40391366888`: `Target: copy. Journal rows before: 12. After: 12. New migrations: 0.` The production job was skipped. An earlier start of the workflow had applied `0008` to `0011`. A5: `12`, `1792454400000`, then `false`, `10.00`. |
+| A6 | `dpl_564BVWxobwcr8hugH4Gf7Ce46a1p` | Pass | Built after the new settings were added, then promoted. `/login` answered HTTP 200. |
+| A7 | same | Pass | All 8 lines start with `PASS`, including `PASS: Admin role, disabled time, and Google ID changes refused`. See Findings for the connection string. |
+| A8 | same | Pass | Onboarding with **Type your analytics** ended on This week. |
+| C4-1 to C4-3 | same | Pass, with 502 reads | The month's total started at $0.02 (a scan on the fake extractor before the run). LR scans: HTTP 502 (see Findings). Each one still replaced the $0.02 hold with its real cost, $0.004514. The Console showed 1 request, 2,774 in and 348 out, which is exactly $0.004514: no retry. Practice-test section: HTTP 200, +$0.003266. The Admin scan counted. |
+| C2-1 | `dpl_B95StitUtuuBWeHAUTEkMxFyFRLD` (B) | Pass | B was behind Vercel Deployment Protection. The wizard used a Protection Bypass for Automation secret. `/login` answered HTTP 200. |
+| C2-2 | A and B | Pass | 6 at once, 3 to A and 3 to B: 1 ran, 5 got HTTP 429 `still-reading`, 3 of them from B. Places after: `0`. |
+| C2-3 | A and B | Pass | With 4 held places, the student on A took the 5th. The Admin on B got HTTP 429 `site-busy`. |
+| C2-4 | A | Pass | First: HTTP 429 `still-reading`, `Retry-After` 57. Second, after the wait: it ran. |
+| C2-5 | n/a | Not run | The home page has no email form. See Findings. |
+| C2-6 | A and B | Pass | Both captured tries were refused with the 5-a-day text. 10 at once, 5 to A and 5 to B: 5 carried the refusal, and the snapshot count went from 1 to 6. |
+| C4-4 | A | Pass | Limit $0.11. `warned` became `true`, and the "Copy: app spend at 80%" email arrived in about 1 minute. |
+| C4-5 | A | Pass | Limit $0.09, total $0.078604. Both scans got HTTP 429 `scanning-off` with the expected text. The total did not change. No new Console request. `limit_alerted` became `true`. The limit email arrived once. |
+| C4-6 | A | Pass | Limit back to $10. The next scan was allowed (HTTP 502 read, +$0.0051). |
+| C4-7 | `dpl_avN9rocpSwshS8YxpfTMXuKCR8FA`, then `dpl_6a9UTbg9do2jXCYLHtnBGkHou2cg` | Pass, with a shorter wait | HTTP 504 "Reading took too long and stopped. Try again." after 12.6 seconds, not 30. The $0.02 hold stayed: $0.083703 to $0.103703. No Console request. See Findings. `ANTHROPIC_BASE_URL` was removed and the restored deployment promoted. |
+| C5-1 | `dpl_6a9UTbg9do2jXCYLHtnBGkHou2cg` | Pass | HTTP 429 `scanning-off`. The total stayed $0.103703. No new Console request. |
+| C5-2 to C5-4 | same | Pass | The weekly upload showed the scanning-off text with **Type them** open and Screenshots off. The save worked: `manual_entry`, snapshots 6 to 7. This week loaded. Progress loaded with its empty state, because no week had finished. |
+| C5-5 | same | Not run | See Findings. |
+| C5-6 | same | Pass | Scanning back on. |
+| Alert emails | n/a | Pass | "DOWN \| Copy: app spend at 80%" and "DOWN \| Copy: app extraction limit reached", once each. |
+| Z1 to Z4 | n/a | Pass | `false`, `10.00`. Checks paused, bypass secret deleted, B deleted, test date reset, both Accounts signed out everywhere. Real site Production still `dpl_CAAk52hEdgNHEhxu2waHEQPUNMnp`. |
+
+### What differed from the run sheet
+
+- **Row counts.** The Neon SQL editor reports success, not a row count. Each count above comes from a `SELECT` that followed.
+- **C2-4 timing.** The first try started the held place 100 seconds back, and it freed before the owner pressed Enter. The redo started it 60 seconds back.
+  The redo also cleared the test student's `scanInDay` count, because the earlier scans had used 8 of the 10.
+- **C2-6 and C5-3 dates.** The Admin's date moved to 2026-10-31, then 2026-11-07, 2026-11-14, and 2026-11-21. Each weekly upload needs a Saturday in a week with a weekly schedule.
+- **C2-6 on B.** B's build has its own server action ID. The agent built B's request from A's request, with B's host, B's action ID, and the bypass header, and checked that B refused it once.
+- **Wizard faults.** The wizard stopped or misread a step five times: a variable name in stage 4, B's address in stage 10, the C2-4 timing, a skipped lead step in cleanup, and two SQL steps that shared the clipboard in C5-3. Each fault was fixed and the step redone. The commits are on this branch.
+
+### Findings
+
+- **LR scans fail on 7Sage's "HIGH" tier (launch blocker).** The owner's 7Sage LR page shows a "HIGH" tier, for example on Conditional reasoning.
+  DrillMap knows only Highest, Medium, and Low (`PriorityTier`). Every LR scan of that screenshot got HTTP 502 "Couldn't read that screenshot",
+  after a paid call that Anthropic answered with status OK. The likely cause: the model reported `HIGH`, and the reply check refused it.
+  The app does not log the model's reply, so this is not confirmed. A student whose page shows a HIGH row cannot scan LR analytics.
+- **No lead form on any page.** `EmailCaptureForm` and `captureLead` are imported by no page since commit `96ca5d2`. The leadCapture limit has no request
+  on the deployed site. Only the Postgres tests cover it. Either remove the form code and the limit, or put the form back and run C2-5.
+- **`db:check-copy` needs `sslmode=verify-full`.** Neon's connection string ends with `sslmode=require`. The check refuses it with
+  "Remote Postgres requires sslmode=verify-full.", which `check-neon` reports only as "Database foundation check failed." That was the A7 failure before this run.
+- **The 504 came from the connect timeout.** Node's fetch gives up on a TCP connect after 10 seconds. The SDK reads that as a timeout. So C4-7 proves the
+  timeout path, the kept hold, and no retry, but not the 30-second limit for a slow reply.
+- **The 80% warning counts the hold.** The warning fires when the total plus the $0.02 hold reaches 80%. After the real cost replaces the hold, the total can sit
+  below 80% with `warned` already `true`. In C4-4 it ended at 71%. This errs early, which is the safe side.
+- **Saturday-start schedules skip the week's practice test.** A weekly upload on a Saturday, in a week with no weekly schedule, plans the current week from Saturday.
+  Monday to Friday read "Not scheduled", so the Wednesday practice test was never on a plan, and the next upload asked for no practice test.
+  C5-5 could not run within four date moves. The `WeeklyCheck` test "with scanning off, opens Type them, skips the practice test, and confirms without it" covers it.
+- **Spend.** The copy's month's total ended at $0.103703. It includes the $0.02 fake-extractor hold and the $0.02 timeout hold.
 
 ## What the copy run cannot prove
 
@@ -155,4 +202,32 @@ Every launch checklist row stays `Not tested`. Stage 5 adds evidence only.
 
 ## Stage 6 handoff
 
-Written after the copy run.
+Stage 5 is proven on the copy, with real Anthropic calls and two server instances. Stage 6 builds on it. Do not rebuild these.
+
+**Proven on the copy (Stage 5).**
+
+- One student runs 1 scan at a time, and the site runs 5. Both limits hold across two deployments.
+- The 5-a-day Analytics snapshot save limit holds across two deployments: exactly 5 of 10 saved.
+- Each scan holds $0.02 before the call. The real cost replaces it, and it matches the Anthropic Console. A timeout keeps the hold. No call is retried.
+- At the money limit, and with the emergency switch on, scans get HTTP 429 with no Anthropic call. A changed limit works on the next scan, with no release.
+- The 80% and limit-reached alerts reach the owner's email once each, about 1 minute later.
+- With scanning off, hand-typed analytics save as `manual_entry`, and This week and Progress load.
+- The copy role cannot change `role`, the disabled time, or the Google ID, and cannot write the migration journal.
+
+**Stage 6 work.** Stage 6 is browser, data, and operations ([#79](https://github.com/Jahazel/lsat-scheduler/issues/79)):
+
+- Request origin checks, security headers, and no caching of private pages.
+- All-or-nothing Account deletion and onboarding. Deletion replay after each backup restore.
+- Data retention, safe error messages, security logs, and accurate privacy and AI pages with a working privacy contact.
+
+**Carried forward.**
+
+- **7Sage "HIGH" tier.** LR scans fail when the page shows HIGH. This blocks launch. It needs its own ticket.
+- **Lead form code.** Remove it, or restore the form and run C2-5.
+- **Model reply logging (Stage 6 security logs).** A refused model reply leaves no trace. Log its shape, never the screenshot's values.
+- **`db:check-copy` error text.** Show the `sslmode=verify-full` reason, which holds no secret, and say so in the release steps.
+- **30-second slow-reply limit.** Not proven on the copy. Only the unit tests cover it.
+- **Cancel shows as `Configuration`.** Carried from Stage 4: the sign-in event logs must not count a Google cancel as a setup fault.
+- **The real site is not on Stage 5.** It gets `0008` to `0011`, the grants, the two ping settings, and the Stage 5 build only through a release that the owner approves in writing.
+- **Password sign-in** waits for a domain ([#230](https://github.com/Jahazel/lsat-scheduler/issues/230)). **Admin 2** is not on the real site yet ([#216](https://github.com/Jahazel/lsat-scheduler/issues/216)).
+- **No promotion.** The no-promotion rule stays until launch approval.
