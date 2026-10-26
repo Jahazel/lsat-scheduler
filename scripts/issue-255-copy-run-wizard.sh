@@ -242,6 +242,29 @@ show_sql() {
   if printf '%s' "$1" | pbcopy 2>/dev/null; then note "Copied to the clipboard. Paste it in Neon's SQL Editor on the copy project."; fi
 }
 
+# ask_id KEY "Prompt" asks until the answer looks like a Vercel deployment ID.
+ask_id() {
+  while true; do
+    ask "$1" "$2"
+    printf -v "$1" '%s' "${!1#dpl_}"
+    if [[ "${!1}" =~ ^[A-Za-z0-9]{10,}$ ]]; then printf -v "$1" 'dpl_%s' "${!1}"; return 0; fi
+    warn "That is not a deployment ID. Copy only the part after the last / in the deployment's Vercel address."
+    printf -v "$1" '%s' ""; write_env "$1" "" > /dev/null
+  done
+}
+
+# ask_host KEY "Prompt" asks until the answer looks like a domain name.
+ask_host() {
+  local value
+  while true; do
+    ask "$1" "$2"
+    value="${!1#https://}"; value="${value%%/*}"
+    if [[ "$value" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$ ]]; then printf -v "$1" '%s' "$value"; return 0; fi
+    warn "That is not a domain. Copy it from the copy project's Domains list, for example something.vercel.app."
+    printf -v "$1" '%s' ""; write_env "$1" "" > /dev/null
+  done
+}
+
 clear_clipboard() { printf '' | pbcopy 2>/dev/null || true; }
 
 save_cookie() {
@@ -354,7 +377,7 @@ s_version() {
   record "A1 commit" "origin/main $(printf '%.7s' "$main"), bundle hash starts $bundle (expected $BUNDLE_SHA_PREFIX)"
   open_url "https://vercel.com/dashboard"
   step "Open the REAL site's Vercel project. Copy the ID of its current Production deployment (starts dpl_)."
-  ask REAL_DEPLOYMENT_BEFORE "Real site Production deployment ID:"
+  ask_id REAL_DEPLOYMENT_BEFORE "Real site Production deployment ID:"
   write_env REAL_DEPLOYMENT_BEFORE "$REAL_DEPLOYMENT_BEFORE"
   record "A1 real site before" "$REAL_DEPLOYMENT_BEFORE"
 }
@@ -423,8 +446,8 @@ s_deploy_a() {
   step "In the COPY project, deploy commit $(printf '%.7s' "$COMMIT") from main to Production."
   step "Copy builds are Staged. Open the new deployment and promote it."
   step "Check that the copy's domain now serves this deployment."
-  ask DEPLOYMENT_A "Deployment A ID (dpl_…):"
-  ask COPY_HOST "The copy's domain, without https:// (for example copy.example.com):"
+  ask_id DEPLOYMENT_A "Deployment A ID (dpl_…):"
+  ask_host COPY_HOST "The copy's domain, without https:// (for example copy.example.com):"
   write_env DEPLOYMENT_A "$DEPLOYMENT_A"
   write_env COPY_HOST "$COPY_HOST"
   local code
@@ -493,8 +516,8 @@ s_deploy_b() {
   open_url "https://vercel.com/dashboard"
   step "In the COPY project, open deployment A > ⋯ > Redeploy. Keep Production. Do not promote the result."
   step "When it is Ready, copy its own URL (…vercel.app) and its ID."
-  ask DEPLOYMENT_B "Deployment B ID (dpl_…):"
-  ask B_HOST "Deployment B host, without https://:"
+  ask_id DEPLOYMENT_B "Deployment B ID (dpl_…):"
+  ask_host B_HOST "Deployment B host, without https://:"
   write_env DEPLOYMENT_B "$DEPLOYMENT_B"
   write_env B_HOST "$B_HOST"
   local code
@@ -638,7 +661,7 @@ s_c4_timeout() {
   open_url "https://vercel.com/dashboard"
   step "COPY project > Settings > Environment Variables: add ANTHROPIC_BASE_URL = https://10.255.255.1 for Production."
   step "Redeploy deployment A to Production and promote the new deployment."
-  ask DEPLOYMENT_TIMEOUT "The new deployment's ID:"
+  ask_id DEPLOYMENT_TIMEOUT "The new deployment's ID:"
   write_env DEPLOYMENT_TIMEOUT "$DEPLOYMENT_TIMEOUT"
   pause "Press Enter when the copy's domain serves it"
   local out="$RUN_DIR/scan-C4-7"
@@ -656,7 +679,7 @@ SELECT count(*) FROM running_scans;"
   step "In the Anthropic Console, check that no request arrived for this scan."
   ask_result "C4-7 console" "Requests in the console:"
   step "Now delete ANTHROPIC_BASE_URL in the COPY project. Redeploy to Production and promote."
-  ask DEPLOYMENT_RESTORED "The restored deployment's ID:"
+  ask_id DEPLOYMENT_RESTORED "The restored deployment's ID:"
   write_env DEPLOYMENT_RESTORED "$DEPLOYMENT_RESTORED"
   record "C4-7 restore" "ANTHROPIC_BASE_URL removed, deployment $DEPLOYMENT_RESTORED promoted"
 }
@@ -703,7 +726,7 @@ DELETE FROM leads WHERE email = '$LEAD_TEST_EMAIL';"
   step "On the copy, press 'Sign out of all devices' for the test student and for the Admin."
   ask_result "Z3" "Done for both?"
   open_url "https://vercel.com/dashboard"
-  ask REAL_DEPLOYMENT_AFTER "Real site Production deployment ID now:"
+  ask_id REAL_DEPLOYMENT_AFTER "Real site Production deployment ID now:"
   record "Z4 real site after" "$REAL_DEPLOYMENT_AFTER (before: $REAL_DEPLOYMENT_BEFORE)"
   cp "$RESULTS" "$RESULTS_KEPT"
   rm -rf "$RUN_DIR"
