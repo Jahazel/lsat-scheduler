@@ -487,7 +487,13 @@ s_accounts() {
   ask ADMIN_EMAIL "Admin's email (used only to fill the SQL):"
   write_env TEST_EMAIL "$TEST_EMAIL"
   write_env ADMIN_EMAIL "$ADMIN_EMAIL"
-  ask LR_SCREENSHOT "Path to a 7Sage LR analytics screenshot (PNG, JPG, or WebP):"
+  while true; do
+    ask LR_SCREENSHOT "Path to a 7Sage LR analytics screenshot (PNG, JPG, or WebP):"
+    LR_SCREENSHOT="${LR_SCREENSHOT//\\/}"; LR_SCREENSHOT="${LR_SCREENSHOT//\'/}"; LR_SCREENSHOT="${LR_SCREENSHOT%"${LR_SCREENSHOT##*[! ]}"}"
+    LR_SCREENSHOT="${LR_SCREENSHOT/#\~/$HOME}"
+    [[ -f "$LR_SCREENSHOT" ]] && break
+    warn "No file at that path. Drag the screenshot from Finder into this window, then press Enter."
+  done
   write_env LR_SCREENSHOT "$LR_SCREENSHOT"
   ask_result "A8" "Did onboarding finish on This week with typed analytics? (yes/no and notes)"
 }
