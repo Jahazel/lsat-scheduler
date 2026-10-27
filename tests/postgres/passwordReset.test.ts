@@ -15,6 +15,8 @@ import { signUpWithPassword } from "../../src/app/signup/actions";
 import { verifyEmail } from "../../src/app/verify-email/actions";
 import { logInWithPassword } from "../../src/app/login/actions";
 import { handlers } from "../../src/auth";
+import { accountSessionToken } from "../../src/lib/accountSession";
+import { passwordSignInAccount } from "../../src/lib/passwordSignIn";
 
 const COOKIE = "authjs.session-token";
 const MINUTE_MS = 60 * 1000;
@@ -233,6 +235,19 @@ describe("reset link", () => {
     expect(await sessionUserId(newSignIn.cookie)).toBe(id);
   });
 
+  it("a login that checked the old password just before the save gets no session", async () => {
+    await passwordAccount();
+    await forgot(MAYA);
+    const checkedUser = await passwordSignInAccount({ email: MAYA, password: OLD_PASSWORD });
+    expect(checkedUser).not.toBeNull();
+    expect((await pressSave(lastResetToken())).redirectedTo).toBe("/login?notice=PasswordChanged");
+
+    const token = await accountSessionToken({
+      token: {}, user: checkedUser!, account: { provider: "credentials", type: "credentials", providerAccountId: checkedUser!.id },
+    });
+    expect(token).toBeNull();
+  });
+
   it("works once", async () => {
     await passwordAccount();
     await forgot(MAYA);
@@ -336,5 +351,20 @@ describe("reset limits", () => {
     expect(await ownerRows(sql`select token_hash from pending_signups`)).toEqual([pendingBefore]);
     expect(await signUpPat()).toEqual({ kind: "checkYourEmail", email: "pat.lee@fastmail.com" });
     expect(fakeEmails()).toHaveLength(3);
+  });
+
+  it("a pending signup's new link counts against the signup limit for the IP address", async () => {
+    await signUpPat();
+    for (let signup = 0; signup < 9; signup++) {
+      const form = patSignupForm();
+      form.set("email", `someone-${signup}@fastmail.com`);
+      await signUpWithPassword({ kind: "form", errors: {} }, form);
+    }
+    clearFakeEmails();
+    const [pendingBefore] = await ownerRows(sql`select token_hash from pending_signups where email = 'pat.lee@fastmail.com'`);
+
+    expect(await forgot("pat.lee@fastmail.com")).toEqual(sent("pat.lee@fastmail.com"));
+    expect(fakeEmails()).toEqual([]);
+    expect(await ownerRows(sql`select token_hash from pending_signups where email = 'pat.lee@fastmail.com'`)).toEqual([pendingBefore]);
   });
 });

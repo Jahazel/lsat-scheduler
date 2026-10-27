@@ -4,7 +4,7 @@ import { TransactionRollbackError } from "drizzle-orm";
 import { z } from "zod";
 import { resetYourPassword, verifyYourEmail, youSignInWithGoogle } from "@/lib/accountEmails";
 import { signInMethodForEmail } from "@/lib/accountRepository";
-import { countAction } from "@/lib/actionLimits";
+import { countAction, type LimitedAction } from "@/lib/actionLimits";
 import { clientIpAddress } from "@/lib/clientIpAddress";
 import { sendEmail } from "@/lib/email";
 import { newEmailToken } from "@/lib/emailToken";
@@ -25,8 +25,9 @@ export async function requestPasswordReset(_state: ForgotPasswordState, formData
   const sent: ForgotPasswordState = { kind: "sent", email };
 
   const realNow = new Date();
+  const ipAddress = await clientIpAddress();
   const emailCount = await countAction("resetEmailInHour", email, realNow);
-  const ipAddressCount = await countAction("resetFromIpAddress", await clientIpAddress(), realNow);
+  const ipAddressCount = await countAction("resetFromIpAddress", ipAddress, realNow);
   if (!emailCount.allowed || !ipAddressCount.allowed) return sent;
 
   const { token, tokenHash } = newEmailToken();
@@ -35,17 +36,20 @@ export async function requestPasswordReset(_state: ForgotPasswordState, formData
   } else if ((await signInMethodForEmail(email)) === "google") {
     await sendEmail(youSignInWithGoogle(email, "reset"));
   } else {
-    const name = await renewPendingSignupWithinLimits(email, tokenHash, realNow);
+    const name = await renewPendingSignupWithinLimits(email, ipAddress, tokenHash, realNow);
     if (name) await sendEmail(verifyYourEmail(email, name, token));
   }
   return sent;
 }
 
-async function renewPendingSignupWithinLimits(email: string, tokenHash: string, realNow: Date) {
+async function renewPendingSignupWithinLimits(email: string, ipAddress: string, tokenHash: string, realNow: Date) {
+  const counted: [LimitedAction, string][] = [
+    ["signupEmailInHour", email], ["signupEmailInDay", email], ["signupFromIpAddress", ipAddress],
+  ];
   try {
     return await getPostgresDatabase().transaction(async (tx) => {
-      for (const action of ["signupEmailInHour", "signupEmailInDay"] as const) {
-        if (!(await countAction(action, email, realNow, tx)).allowed) tx.rollback();
+      for (const [action, subject] of counted) {
+        if (!(await countAction(action, subject, realNow, tx)).allowed) tx.rollback();
       }
       return (await renewPendingSignupLink(email, tokenHash, realNow, tx)) ?? tx.rollback();
     });

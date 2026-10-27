@@ -8,5 +8,5 @@ export async function passwordSignInAccount(credentials: Partial<Record<"email" 
   const account = await findPasswordAccountByEmail(email.trim().toLowerCase());
   if (!(await passwordMatches(password, account?.passwordHash ?? null))) return null;
   if (!account || account.role === "admin" || account.disabledAt) return null;
-  return { id: account.id, email: account.email, name: account.name };
+  return { id: account.id, email: account.email, name: account.name, sessionVersion: account.sessionVersion };
 }
