@@ -1,9 +1,15 @@
 import { sql } from "drizzle-orm";
 import { NextRequest } from "next/server";
-import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { GET } from "../../src/app/api/cron/daily-cleanup/route";
+import { runDailyCleanup } from "../../src/lib/dailyCleanup";
 import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
 import { createAppTestDatabase } from "./appTestDatabase";
+
+vi.mock("../../src/lib/dailyCleanup", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/lib/dailyCleanup")>();
+  return { ...actual, runDailyCleanup: vi.fn(actual.runDailyCleanup) };
+});
 
 const CRON_SECRET = "test-cron-secret-value";
 const ROUTE = "http://localhost/api/cron/daily-cleanup";
@@ -96,4 +102,15 @@ it("gives the same result when the route runs twice", async () => {
     signups: ["fresh@example.test"],
     resets: ["reset-live"],
   });
+});
+
+it("answers a failed run with the plain message and a short code, and logs the same code", async () => {
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.mocked(runDailyCleanup).mockRejectedValueOnce(new Error("database down"));
+  const response = await GET(cronRequest(`Bearer ${CRON_SECRET}`));
+  const body = await response.json();
+  expect(response.status).toBe(500);
+  expect(body).toEqual({ error: "Something went wrong. Try again.", code: expect.stringMatching(/^[0-9a-f]{8}$/) });
+  expect(logged).toHaveBeenCalledWith(expect.stringContaining(`Daily cleanup failed (${body.code}): Error`));
+  logged.mockRestore();
 });
