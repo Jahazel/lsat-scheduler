@@ -14,6 +14,20 @@ const dailyCapacities = (student) => Object.entries(student)
   .filter(([key]) => key.endsWith("_capacity_minutes"))
   .map(([, value]) => Number(value));
 const PASSWORD = "a long phrase for the smoke run";
+const WRONG_EMAIL_OR_PASSWORD = "That email and password don't match. Check both and try again, or reset your password.";
+
+async function logInOnForm(page, email, password) {
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Log in", exact: true }).click();
+}
+
+async function refusedLogin(page, email, password, text) {
+  await logInOnForm(page, email, password);
+  await page.waitForFunction(() => document.querySelector("input[name=password]")?.value === "");
+  await page.getByText(text, { exact: true }).waitFor();
+  assert.equal(await page.getByLabel("Email", { exact: true }).inputValue(), email);
+}
 
 async function verificationLink(email) {
   for (let tries = 0; tries < 20; tries++) {
@@ -24,7 +38,7 @@ async function verificationLink(email) {
   }
   throw new Error(`No verification email for ${email} in app.log.`);
 }
-const LIMITATIONS = ["No nonempty analytics or schedule history in the deletion fixture", "Login refusal states are opened by their reason links; real Google sign-in and its refusals need the copy", "No capacity-notice settings entry, mobile navigation, or screenshot extraction"];
+const LIMITATIONS = ["No nonempty analytics or schedule history in the deletion fixture", "Google refusal and Disabled Account states are opened by their reason links; real Google sign-in and its refusals need the copy", "No capacity-notice settings entry, mobile navigation, or screenshot extraction"];
 
 const result = await drive(directory, "smoke", async ({ page, url, log, goto, signInAs, heading, capture, records, newSession }) => {
   const initial = records("records-before");
@@ -51,7 +65,7 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   assert.deepEqual(await page.locator("main").getByRole("button").allTextContents(), ["Continue with Google", "Log in"]);
   assert.deepEqual(await page.locator("main input").evaluateAll((inputs) => inputs.map((input) => input.type)), ["email", "password"]);
   await capture("login-default");
-  for (const [error, role, text] of [["AccessDenied", "alert", REFUSED], ["AccountDisabled", "alert", "This Account can't sign in."], ["SessionEnded", "status", "Your session ended. Log in again."]]) {
+  for (const [error, role, text] of [["AccessDenied", "alert", REFUSED], ["AccountDisabled", "alert", "This Account can't log in."], ["SessionEnded", "status", "Your session ended. Log in again."]]) {
     await goto(`/login?error=${error}`);
     assert.equal(await page.locator("main").getByRole(role).textContent(), text);
     await capture(`login-${error}`);
@@ -77,6 +91,12 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   await page.getByText(`We sent an email to ${email}. Open the link in it to finish signing up.`, { exact: true }).waitFor();
   await capture("check-your-email");
   assert.equal(records("records-pending-signup").accounts.length, 0, "A pending signup is not an Account.");
+  log("Log in with the pending signup's email and password");
+  await goto("/login");
+  await page.waitForLoadState("networkidle");
+  await refusedLogin(page, email, PASSWORD, "Verify your email first. We sent you a new link. Check your spam folder if you don't see it.");
+  assert.equal(await page.getByLabel("Password", { exact: true }).getAttribute("aria-invalid"), null);
+  await capture("login-verify-your-email");
   const link = await verificationLink(email);
   assert.equal(link.origin, url, "The email link uses this place's site address.");
   log("Open the logged verification link twice; opening it uses nothing");
@@ -98,11 +118,26 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   await page.getByRole("button", { name: "Verify my email", exact: true }).click();
   await heading("This link doesn't work");
   await capture("verify-email-link-doesnt-work");
-  log("Log in with the new password");
+  log("Log in with a wrong password");
   await goto("/login");
-  await page.getByLabel("Email", { exact: true }).fill(email);
-  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
-  await page.getByRole("button", { name: "Log in", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+  await refusedLogin(page, email, "a wrong phrase for the smoke run", WRONG_EMAIL_OR_PASSWORD);
+  for (const label of ["Email", "Password"]) assert.equal(await page.getByLabel(label, { exact: true }).getAttribute("aria-invalid"), null);
+  await capture("login-wrong-email-or-password");
+  log("Log in with an unknown email; the message is the same");
+  await refusedLogin(page, "verify-nobody@example.test", PASSWORD, WRONG_EMAIL_OR_PASSWORD);
+  log("Log in with a password over 72 bytes");
+  await refusedLogin(page, email, `${PASSWORD}${"x".repeat(72)}`, "That password is too long. Try a shorter one.");
+  assert.equal(await page.getByLabel("Password", { exact: true }).getAttribute("aria-invalid"), "true");
+  await capture("login-password-too-long");
+  log("Fail 9 more logins for the unknown email, then try once more");
+  for (let tries = 0; tries < 9; tries++) await refusedLogin(page, "verify-nobody@example.test", PASSWORD, WRONG_EMAIL_OR_PASSWORD);
+  await refusedLogin(page, "verify-nobody@example.test", PASSWORD, "Too many tries. Login is paused for a while. Try again later, or reset your password.");
+  await capture("login-paused");
+  const failedLogins = records("records-login-paused").action_counters.find((row) => row.action === "failedLoginForEmail" && row.subject === "verify-nobody@example.test");
+  assert.equal(failedLogins?.count, 10, "The paused try counted no failure.");
+  log("Log in with the new password");
+  await logInOnForm(page, email, PASSWORD);
   await heading("Set your target");
   assert.equal(new URL(page.url()).pathname, "/onboarding");
   const signedUp = records("records-signup");

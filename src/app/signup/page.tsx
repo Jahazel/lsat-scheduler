@@ -5,6 +5,7 @@ import { startTransition, useActionState, useState, type FormEvent } from "react
 import { GoogleButton } from "@/components/signIn/GoogleButton";
 import { OrWithEmail, SubmitButton } from "@/components/signIn/PasswordFormParts";
 import { SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";
+import { CheckEmailTips } from "@/components/signIn/CheckEmailTips";
 import { StepsPreview } from "@/components/signIn/StepsPreview";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { TextInput } from "@/components/ui/TextInput";
@@ -88,22 +89,7 @@ function CheckYourEmail({ email, onSignUpAgain }: { email: string; onSignUpAgain
       lead={`We sent an email to ${email}. Open the link in it to finish signing up.`}
       preview={<StepsPreview />}
     >
-      <div className="flex flex-col gap-3 rounded-md bg-vellum p-5">
-        <p className="flex items-start gap-3 text-small leading-[20px] text-ink">
-          <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" className="mt-0.5 shrink-0 stroke-smoke" fill="none" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="1.75" y="3.25" width="12.5" height="9.5" rx="1.5" />
-            <path d="M2.25 4.25L8 8.75l5.75-4.5" />
-          </svg>
-          No email after a few minutes? Check your spam or junk folder.
-        </p>
-        <p className="flex items-start gap-3 text-small leading-[20px] text-ink">
-          <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" className="mt-0.5 shrink-0 stroke-smoke" fill="none" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="8" cy="8" r="6.5" />
-            <path d="M8 4.75V8L10.25 9.5" />
-          </svg>
-          The link works for 24 hours.
-        </p>
-      </div>
+      <CheckEmailTips linkLife="The link works for 24 hours." />
       <p className="flex gap-1 text-small text-smoke">
         Wrong email?
         <button type="button" onClick={onSignUpAgain} className={cx("rounded-xs font-medium text-accent hover:text-ink", FOCUS)}>

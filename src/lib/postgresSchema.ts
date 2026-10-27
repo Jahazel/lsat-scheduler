@@ -123,6 +123,12 @@ export const pendingSignups = pgTable("pending_signups", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const resetTokens = pgTable("reset_tokens", {
+  accountId: uuid("account_id").primaryKey().references(() => accounts.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
 export const runningScans = pgTable("running_scans", {
   subject: text("subject").primaryKey(),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
