@@ -429,6 +429,37 @@ describe("Google sign-in with an email in use", () => {
     expect(before).toEqual([expect.objectContaining({ has_google: false, has_password: true })]);
   });
 
+  it("at the same moment as the verification press, one wins and neither fails", async () => {
+    await signUp();
+    const token = linkTokenIn(fakeEmails()[0].text);
+    const waitingOnLocks = async (count: number) => {
+      while (Number((await ownerRows(sql`select count(*) as waiting from pg_stat_activity
+        where datname = current_database() and wait_event_type = 'Lock'`))[0].waiting) < count) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+    };
+    let release = () => {};
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let locked = () => {};
+    const isLocked = new Promise<void>((resolve) => { locked = resolve; });
+    const holder = database.owner.transaction(async (tx) => {
+      await tx.execute(sql`select * from pending_signups for update`);
+      locked();
+      await held;
+    });
+    await isLocked;
+    const verified = pressVerify(token);
+    await waitingOnLocks(1);
+    const google = googleSignIn("google-maya", "maya.chen@fastmail.com");
+    await waitingOnLocks(2);
+    release();
+    await holder;
+
+    expect(await verified).toEqual({ redirectedTo: "/login?notice=EmailVerified" });
+    expect(await google).toBe("/login?error=EmailUsesPassword");
+    expect(await accountsNow()).toEqual([expect.objectContaining({ has_google: false, has_password: true })]);
+  });
+
   it("for a Google Account with a different Google ID, still refuses and moves nothing", async () => {
     expect(await googleSignIn("google-maya", "maya.chen@fastmail.com")).toBe(true);
     const before = await ownerRows(sql`select id, email, google_id from accounts`);

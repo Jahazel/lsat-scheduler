@@ -60,17 +60,17 @@ const createdAccount = z.object({ id: accountIdSchema, role: z.enum(accounts.rol
 
 /**
  * Returns null when another Account already has this email or Google ID.
- * Deletes any pending signup for the email.
+ * Deletes any pending signup for the email first, in the lock order that
+ * createAccountFromPendingSignup uses, so a verification press at the same moment cannot deadlock with it.
  */
 export async function createAccount({ email, name, googleId }: { email: string; name: string; googleId: string }) {
   return getPostgresDatabase().transaction(async (tx) => {
+    await tx.delete(pendingSignups).where(eq(pendingSignups.email, sql`normalized_email(${email})`));
     const result = await tx.execute(sql`
       insert into ${accounts} (email, name, google_id) values (${email}, ${name}, ${googleId})
       on conflict do nothing returning id, role
     `);
-    if (!result.rows[0]) return null;
-    await tx.delete(pendingSignups).where(eq(pendingSignups.email, sql`normalized_email(${email})`));
-    return createdAccount.parse(result.rows[0]);
+    return result.rows[0] ? createdAccount.parse(result.rows[0]) : null;
   });
 }
 
