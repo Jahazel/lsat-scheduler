@@ -1,6 +1,7 @@
 export const DISABLED_SIGN_IN_PATH = "/login?error=AccountDisabled";
 export const SESSION_ENDED_PATH = "/login?error=SessionEnded";
 export const EMAIL_VERIFIED_PATH = "/login?notice=EmailVerified";
+export const PASSWORD_CHANGED_PATH = "/login?notice=PasswordChanged";
 export const WRONG_PASSWORD_PATH = "/login?error=CredentialsSignin";
 export const EMAIL_USES_PASSWORD_PATH = "/login?error=EmailUsesPassword";
 
@@ -8,6 +9,7 @@ export type LoginNotice = { tone: "danger" | "info" | "success"; text: string; p
 
 export function loginNotice({ error, notice }: { error?: string | string[]; notice?: string | string[] }): LoginNotice | null {
   if (notice === "EmailVerified") return { tone: "success", text: "Email verified. Log in.", place: "aboveEmail" };
+  if (notice === "PasswordChanged") return { tone: "success", text: "Password changed. Log in with your new password.", place: "aboveEmail" };
   if (typeof error !== "string" || !error) return null;
   if (error === "SessionEnded") return { tone: "info", text: "Your session ended. Log in again.", place: "aboveGoogle" };
   if (error === "AccountDisabled") return { tone: "danger", text: "This Account can't sign in.", place: "aboveGoogle" };

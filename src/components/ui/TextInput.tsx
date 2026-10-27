@@ -1,23 +1,27 @@
 "use client";
 
-import { useId, type InputHTMLAttributes } from "react";
+import { useId, type InputHTMLAttributes, type ReactNode } from "react";
 import { FOCUS, MOTION, cx } from "./classes";
 
 export type TextInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "id"> & {
   label: string;
+  labelAside?: ReactNode;
   helper?: string;
   error?: string;
   inline?: boolean;
 };
 
-export function TextInput({ label, helper, error, inline = false, disabled, className, ...props }: TextInputProps) {
+export function TextInput({ label, labelAside, helper, error, inline = false, disabled, className, ...props }: TextInputProps) {
   const id = useId();
   const note = error ?? helper;
   return (
     <div className={cx("flex flex-col gap-2", disabled && "opacity-muted", className)}>
-      <label htmlFor={id} className="text-small font-medium text-ink">
-        {label}
-      </label>
+      <div className="flex items-baseline justify-between gap-4">
+        <label htmlFor={id} className="text-small font-medium text-ink">
+          {label}
+        </label>
+        {labelAside}
+      </div>
       <div className={cx("flex flex-col gap-2", inline && "md:flex-row md:items-center md:gap-4")}>
         <input
           id={id}

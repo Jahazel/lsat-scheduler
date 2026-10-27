@@ -19,6 +19,8 @@ const LIMITS = {
   signupEmailInHour: { max: 3, window: WINDOWS.hour },
   signupEmailInDay: { max: 5, window: WINDOWS.day },
   signupFromIpAddress: { max: 10, window: WINDOWS.hour },
+  resetEmailInHour: { max: 3, window: WINDOWS.hour },
+  resetFromIpAddress: { max: 10, window: WINDOWS.hour },
 } as const;
 
 export type LimitedAction = keyof typeof LIMITS;

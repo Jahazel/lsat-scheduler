@@ -46,7 +46,7 @@ describe("proxy route", () => {
     expect(hasSessionCookie(["authjs.csrf-token", "authjs.callback-url"])).toBe(false);
   });
 
-  it.each(["/", "/login", "/signup", "/verify-email", "/legal/terms", "/legal/privacy", "/legal/ai-disclosure"])(
+  it.each(["/", "/login", "/signup", "/verify-email", "/forgot-password", "/reset-password", "/legal/terms", "/legal/privacy", "/legal/ai-disclosure"])(
     "keeps the public page %s open when signed out",
     (pathname) => {
       expect(proxyRoute(pathname, null)).toEqual({ kind: "allow" });

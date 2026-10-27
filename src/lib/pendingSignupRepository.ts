@@ -1,5 +1,5 @@
 import { and, eq, gt, sql } from "drizzle-orm";
-import { getPostgresDatabase } from "./postgres";
+import { getPostgresDatabase, type PostgresTransaction } from "./postgres";
 import { accounts, pendingSignups } from "./postgresSchema";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -21,6 +21,15 @@ export async function savePendingSignup(
   };
   await getPostgresDatabase().insert(pendingSignups).values({ email, ...replacement })
     .onConflictDoUpdate({ target: pendingSignups.email, set: replacement });
+}
+
+/** Gives the email's pending signup a new verification link, which stops the older one. Returns null when it has none. */
+export async function renewPendingSignupLink(email: string, tokenHash: string, realNow: Date, tx: PostgresTransaction) {
+  const [renewed] = await tx.update(pendingSignups)
+    .set({ tokenHash, tokenExpiresAt: new Date(realNow.getTime() + VERIFICATION_LINK_HOURS * HOUR_MS) })
+    .where(and(eq(pendingSignups.email, sql`normalized_email(${email})`), stillPending(realNow)))
+    .returning({ name: pendingSignups.name });
+  return renewed?.name ?? null;
 }
 
 export type VerificationResult = "verified" | "accountExists" | "linkDoesNotWork";
