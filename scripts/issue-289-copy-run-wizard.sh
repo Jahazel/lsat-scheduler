@@ -376,13 +376,20 @@ s_migrations() {
   done
   if [[ -z "$run_id" ]]; then warn "No new run found after $tries tries. Open GitHub Actions and check."; record "2 migrations" "Run not found"; pause; return; fi
   say "Watching run ${run_id}…"
-  gh run watch "$run_id" --repo "$REPO" --exit-status > /dev/null || warn "The run did not succeed."
+  local failed=no
+  gh run watch "$run_id" --repo "$REPO" --exit-status > /dev/null || failed=yes
   line=$(gh run view "$run_id" --repo "$REPO" --log 2>/dev/null | grep -oE 'Target: copy\..*|Migration .*' | tail -n1 || true)
   jobs=$(gh run view "$run_id" --repo "$REPO" --json jobs -q '[.jobs[] | .name + ": " + (.conclusion // "none")] | join("; ")')
   say "Last line: $line"
   say "Jobs: $jobs"
   note "Expected: 'New migrations: 1' (0012), or 0 if 0012 is already on the copy. The production job must be skipped."
   record "2 migrations" "run $run_id. $line Jobs: $jobs"
+  if [[ "$failed" == yes ]]; then
+    warn "The run did not succeed. The copy cannot run the password pages without these tables."
+    warn "Stop here (Ctrl-C), fix the cause, and run again with: bash scripts/issue-289-copy-run-wizard.sh --from $_STAGE_INDEX"
+    pause "Press Ctrl-C to stop"
+    exit 1
+  fi
   pause
 }
 
