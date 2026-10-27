@@ -11,7 +11,7 @@ export const PASSWORD_MESSAGES = {
   tooCommon: "This password is too common. Choose a password that's harder to guess.",
 } as const;
 
-type PasswordProblem = keyof typeof PASSWORD_MESSAGES;
+export type PasswordProblem = keyof typeof PASSWORD_MESSAGES;
 
 export const passwordTooLong = (password: string) => Buffer.byteLength(password, "utf8") > MAX_PASSWORD_BYTES;
 

@@ -11,7 +11,7 @@ import { sendEmail } from "@/lib/email";
 import { newEmailToken } from "@/lib/emailToken";
 import { getPostgresDatabase } from "@/lib/postgres";
 import { hashPassword } from "@/lib/passwordHash";
-import { newPasswordProblem, PASSWORD_MESSAGES } from "@/lib/passwordRules";
+import { newPasswordProblem, PASSWORD_MESSAGES, type PasswordProblem } from "@/lib/passwordRules";
 import { savePendingSignup } from "@/lib/pendingSignupRepository";
 
 export type SignupState =
@@ -38,11 +38,10 @@ export async function signUpWithPassword(_state: SignupState, formData: FormData
   const { name, email, password } = parsed.data;
   const checkYourEmail: SignupState = { kind: "checkYourEmail", email };
 
-  const problem = newPasswordProblem(password, email);
-  if (problem) return { kind: "form", errors: { password: PASSWORD_MESSAGES[problem] } };
-
   const realNow = new Date();
-  if (!(await withinSignupLimits(email, await clientIpAddress(), realNow))) return checkYourEmail;
+  const refusal = await signupRefusal(email, await clientIpAddress(), password, realNow);
+  if (refusal === "overLimit") return checkYourEmail;
+  if (refusal) return { kind: "form", errors: { password: PASSWORD_MESSAGES[refusal] } };
 
   const method = await signInMethodForEmail(email);
   if (method === "password") {
@@ -57,20 +56,26 @@ export async function signUpWithPassword(_state: SignupState, formData: FormData
   return checkYourEmail;
 }
 
+// The limits come first, so a signup over a limit shows the same screen whatever its password.
 // A refused signup sends nothing, so it gives back every count it took.
-async function withinSignupLimits(email: string, ipAddress: string, realNow: Date) {
+async function signupRefusal(email: string, ipAddress: string, password: string, realNow: Date) {
   const counted: [LimitedAction, string][] = [
     ["signupEmailInHour", email], ["signupEmailInDay", email], ["signupFromIpAddress", ipAddress],
   ];
+  let refusal: PasswordProblem | "overLimit" | null = null;
   try {
     await getPostgresDatabase().transaction(async (tx) => {
       for (const [action, subject] of counted) {
-        if (!(await countAction(action, subject, realNow, tx)).allowed) tx.rollback();
+        if (!(await countAction(action, subject, realNow, tx)).allowed) {
+          refusal = "overLimit";
+          tx.rollback();
+        }
       }
+      refusal = newPasswordProblem(password, email);
+      if (refusal) tx.rollback();
     });
-    return true;
   } catch (error) {
-    if (error instanceof TransactionRollbackError) return false;
-    throw error;
+    if (!(error instanceof TransactionRollbackError)) throw error;
   }
+  return refusal;
 }

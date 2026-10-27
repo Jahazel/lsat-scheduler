@@ -211,7 +211,8 @@ describe("signup limits", () => {
     const savedLink = linkTokenIn(fakeEmails()[2].text);
     const [pendingBefore] = await ownerRows(sql`select * from pending_signups`);
 
-    expect(await signUp({ name: "Fourth", password: "a different long phrase" })).toEqual(checkYourEmail("maya.chen@fastmail.com"));
+    expect(await signUp({ name: "Fourth", password: "a".repeat(80) })).toEqual(checkYourEmail("maya.chen@fastmail.com"));
+    expect(await signUp({ name: "Fifth", password: "a different long phrase" })).toEqual(checkYourEmail("maya.chen@fastmail.com"));
     expect(fakeEmails()).toHaveLength(3);
     expect(await ownerRows(sql`select * from pending_signups`)).toEqual([pendingBefore]);
 
@@ -256,6 +257,18 @@ describe("signup limits", () => {
     request.ip = "198.51.100.7";
     for (let count = 0; count < 3; count++) await signUp({ email: "spare@example.test" });
     expect(fakeEmails().filter((email) => email.to === "spare@example.test")).toHaveLength(3);
+  });
+
+  it("a signup over its IP address limit shows Check your email even with a bad password", async () => {
+    for (let count = 0; count < 10; count++) await signUp({ email: `student${count}@example.test` });
+    expect(await signUp({ email: "spare@example.test", password: "short" })).toEqual(checkYourEmail("spare@example.test"));
+  });
+
+  it("a signup refused for its email leaves the IP address allowance for other emails", async () => {
+    for (let count = 0; count < 3; count++) await signUp();
+    for (let count = 0; count < 5; count++) await signUp();
+    for (let count = 0; count < 7; count++) await signUp({ email: `student${count}@example.test` });
+    expect(fakeEmails()).toHaveLength(10);
   });
 
   it("a refused signup for a Google Account's email sends nothing either", async () => {
