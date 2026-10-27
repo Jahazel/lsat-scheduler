@@ -1,13 +1,15 @@
 "use server";
 
+import { TransactionRollbackError } from "drizzle-orm";
 import { z } from "zod";
 import { signIn } from "@/auth";
 import { verifyYourEmail, youAlreadyHaveAnAccount, youSignInWithGoogle } from "@/lib/accountEmails";
 import { signInMethodForEmail } from "@/lib/accountRepository";
-import { countAction } from "@/lib/actionLimits";
+import { countAction, type LimitedAction } from "@/lib/actionLimits";
 import { clientIpAddress } from "@/lib/clientIpAddress";
 import { sendEmail } from "@/lib/email";
 import { newEmailToken } from "@/lib/emailToken";
+import { getPostgresDatabase } from "@/lib/postgres";
 import { hashPassword } from "@/lib/passwordHash";
 import { newPasswordProblem, PASSWORD_MESSAGES } from "@/lib/passwordRules";
 import { savePendingSignup } from "@/lib/pendingSignupRepository";
@@ -36,16 +38,11 @@ export async function signUpWithPassword(_state: SignupState, formData: FormData
   const { name, email, password } = parsed.data;
   const checkYourEmail: SignupState = { kind: "checkYourEmail", email };
 
-  const realNow = new Date();
-  const limits = [
-    await countAction("signupEmailInHour", email, realNow),
-    await countAction("signupEmailInDay", email, realNow),
-    await countAction("signupFromIpAddress", await clientIpAddress(), realNow),
-  ];
-  if (limits.some((limit) => !limit.allowed)) return checkYourEmail;
-
   const problem = newPasswordProblem(password, email);
   if (problem) return { kind: "form", errors: { password: PASSWORD_MESSAGES[problem] } };
+
+  const realNow = new Date();
+  if (!(await withinSignupLimits(email, await clientIpAddress(), realNow))) return checkYourEmail;
 
   const method = await signInMethodForEmail(email);
   if (method === "password") {
@@ -58,4 +55,22 @@ export async function signUpWithPassword(_state: SignupState, formData: FormData
     await sendEmail(verifyYourEmail(email, name, token));
   }
   return checkYourEmail;
+}
+
+// A refused signup sends nothing, so it gives back every count it took.
+async function withinSignupLimits(email: string, ipAddress: string, realNow: Date) {
+  const counted: [LimitedAction, string][] = [
+    ["signupEmailInHour", email], ["signupEmailInDay", email], ["signupFromIpAddress", ipAddress],
+  ];
+  try {
+    await getPostgresDatabase().transaction(async (tx) => {
+      for (const [action, subject] of counted) {
+        if (!(await countAction(action, subject, realNow, tx)).allowed) tx.rollback();
+      }
+    });
+    return true;
+  } catch (error) {
+    if (error instanceof TransactionRollbackError) return false;
+    throw error;
+  }
 }

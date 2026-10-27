@@ -211,7 +211,7 @@ describe("signup limits", () => {
     const savedLink = linkTokenIn(fakeEmails()[2].text);
     const [pendingBefore] = await ownerRows(sql`select * from pending_signups`);
 
-    expect(await signUp({ name: "Fourth", password: "a".repeat(80) })).toEqual(checkYourEmail("maya.chen@fastmail.com"));
+    expect(await signUp({ name: "Fourth", password: "a different long phrase" })).toEqual(checkYourEmail("maya.chen@fastmail.com"));
     expect(fakeEmails()).toHaveLength(3);
     expect(await ownerRows(sql`select * from pending_signups`)).toEqual([pendingBefore]);
 
@@ -240,6 +240,22 @@ describe("signup limits", () => {
     request.ip = "198.51.100.7";
     await signUp({ email: "eleventh@example.test" });
     expect(await pendingEmails()).toContain("eleventh@example.test");
+  });
+
+  it("a refused password uses none of the email's allowance", async () => {
+    for (let count = 0; count < 3; count++) await signUp({ password: "short" });
+    for (let count = 0; count < 3; count++) await signUp();
+    expect(fakeEmails()).toHaveLength(3);
+  });
+
+  it("a signup refused for its IP address uses none of the email's allowance", async () => {
+    for (let count = 0; count < 10; count++) await signUp({ email: `student${count}@example.test` });
+    for (let count = 0; count < 3; count++) await signUp({ email: "spare@example.test" });
+    expect(fakeEmails().filter((email) => email.to === "spare@example.test")).toEqual([]);
+
+    request.ip = "198.51.100.7";
+    for (let count = 0; count < 3; count++) await signUp({ email: "spare@example.test" });
+    expect(fakeEmails().filter((email) => email.to === "spare@example.test")).toHaveLength(3);
   });
 
   it("a refused signup for a Google Account's email sends nothing either", async () => {
