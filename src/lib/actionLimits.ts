@@ -1,4 +1,4 @@
-import { lte, sql } from "drizzle-orm";
+import { and, eq, lte, sql } from "drizzle-orm";
 import { getPostgresDatabase, type PostgresTransaction } from "./postgres";
 import { actionCounters } from "./postgresSchema";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
@@ -6,9 +6,10 @@ import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
 const ZONE_WITHOUT_A_REPEATED_HOUR = "UTC";
 
 const WINDOWS = {
-  hour: { unit: "hour", zone: ZONE_WITHOUT_A_REPEATED_HOUR },
-  day: { unit: "day", zone: SCHEDULE_TIMEZONE },
-  month: { unit: "month", zone: SCHEDULE_TIMEZONE },
+  quarterHour: { length: "15 minutes", zone: ZONE_WITHOUT_A_REPEATED_HOUR },
+  hour: { length: "1 hour", zone: ZONE_WITHOUT_A_REPEATED_HOUR },
+  day: { length: "1 day", zone: SCHEDULE_TIMEZONE },
+  month: { length: "1 month", zone: SCHEDULE_TIMEZONE },
 } as const;
 
 const LIMITS = {
@@ -19,7 +20,22 @@ const LIMITS = {
   signupEmailInHour: { max: 3, window: WINDOWS.hour },
   signupEmailInDay: { max: 5, window: WINDOWS.day },
   signupFromIpAddress: { max: 10, window: WINDOWS.hour },
+  failedLoginForEmail: { max: 10, window: WINDOWS.quarterHour },
+  failedLoginFromIpAddress: { max: 50, window: WINDOWS.hour },
 } as const;
+
+function windowAt(action: LimitedAction, realNow: Date) {
+  const { length, zone } = LIMITS[action].window;
+  const local = sql`${realNow.toISOString()}::timestamptz at time zone ${zone}`;
+  // date_bin cannot step by months.
+  const localStart = length === "1 month"
+    ? sql`date_trunc('month', ${local})`
+    : sql`date_bin(${length}::interval, ${local}, timestamp '2000-01-01')`;
+  return {
+    start: sql`${localStart} at time zone ${zone}`,
+    end: sql`(${localStart} + ${length}::interval) at time zone ${zone}`,
+  };
+}
 
 export type LimitedAction = keyof typeof LIMITS;
 export const limitOf = (action: LimitedAction) => LIMITS[action].max;
@@ -35,13 +51,12 @@ export async function countAction(
   realNow: Date,
   db: ReturnType<typeof getPostgresDatabase> | PostgresTransaction = getPostgresDatabase(),
 ): Promise<LimitResult> {
-  const { max, window: { unit, zone } } = LIMITS[action];
-  const localStart = sql`date_trunc(${unit}, ${realNow.toISOString()}::timestamptz at time zone ${zone})`;
+  const window = windowAt(action, realNow);
   const [counted] = await db.insert(actionCounters).values({
     action,
     subject,
-    windowStart: sql`${localStart} at time zone ${zone}`,
-    windowEnd: sql`(${localStart} + ${`1 ${unit}`}::interval) at time zone ${zone}`,
+    windowStart: window.start,
+    windowEnd: window.end,
     count: 1,
   }).onConflictDoUpdate({
     target: [actionCounters.action, actionCounters.subject, actionCounters.windowStart],
@@ -50,5 +65,15 @@ export async function countAction(
   await db.execute(sql`delete from ${actionCounters} where ctid in (
     select ctid from ${actionCounters} where ${lte(actionCounters.windowEnd, realNow)} for update skip locked
   )`);
-  return counted.count <= max ? { allowed: true } : { allowed: false, windowEnd: counted.windowEnd };
+  return counted.count <= LIMITS[action].max ? { allowed: true } : { allowed: false, windowEnd: counted.windowEnd };
+}
+
+/** Says whether earlier counts in the current window already reached the limit. It counts nothing. */
+export async function limitReached(action: LimitedAction, subject: string, realNow: Date) {
+  const [counted] = await getPostgresDatabase().select({ count: actionCounters.count }).from(actionCounters).where(and(
+    eq(actionCounters.action, action),
+    eq(actionCounters.subject, subject),
+    eq(actionCounters.windowStart, windowAt(action, realNow).start),
+  ));
+  return (counted?.count ?? 0) >= LIMITS[action].max;
 }

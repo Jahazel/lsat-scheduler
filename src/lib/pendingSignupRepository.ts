@@ -23,6 +23,14 @@ export async function savePendingSignup(
     .onConflictDoUpdate({ target: pendingSignups.email, set: replacement });
 }
 
+export async function findPendingSignup(email: string, realNow: Date) {
+  const [pending] = await getPostgresDatabase()
+    .select({ email: pendingSignups.email, name: pendingSignups.name, passwordHash: pendingSignups.passwordHash })
+    .from(pendingSignups)
+    .where(and(eq(pendingSignups.email, email), stillPending(realNow)));
+  return pending ?? null;
+}
+
 export type VerificationResult = "verified" | "accountExists" | "linkDoesNotWork";
 
 export async function createAccountFromPendingSignup(tokenHash: string, realNow: Date): Promise<VerificationResult> {

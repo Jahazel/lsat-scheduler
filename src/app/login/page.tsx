@@ -1,10 +1,10 @@
 import { GoogleButton } from "@/components/signIn/GoogleButton";
-import { OrWithEmail, SubmitButton } from "@/components/signIn/PasswordFormParts";
+import { OrWithEmail } from "@/components/signIn/PasswordFormParts";
 import { Notice, PreviewHeader, SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";
-import { TextInput } from "@/components/ui/TextInput";
 import { cx } from "@/components/ui/classes";
 import { loginNotice } from "@/lib/loginNotice";
-import { logInWithPassword, signInWithGoogle } from "./actions";
+import { signInWithGoogle } from "./actions";
+import { PasswordLoginForm } from "./PasswordLoginForm";
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { error, notice: noticeKey } = await searchParams;
@@ -16,14 +16,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <GoogleButton look="light" />
       </form>
       <OrWithEmail />
-      <form action={logInWithPassword} className="flex flex-col gap-8">
-        <div className="flex flex-col gap-4">
-          {notice?.tone === "success" && <Notice notice={notice} />}
-          <TextInput label="Email" name="email" type="email" autoComplete="email" required />
-          <TextInput label="Password" name="password" type="password" autoComplete="current-password" required />
-        </div>
-        <SubmitButton label="Log in" />
-      </form>
+      <PasswordLoginForm urlNotice={notice?.tone === "success" ? notice : null} />
       <SwitchPageLink question="New to DrillMap?" href="/signup" label="Sign up" />
     </SignInFrame>
   );
