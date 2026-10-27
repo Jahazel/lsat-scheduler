@@ -111,3 +111,68 @@ same check page as for screenshots: the student checks the values there and conf
 
 `17b-scan-refusals` holds every refusal message: daily and monthly scan limits and "We're still reading your last
 screenshot." (#250), the file checks (#248), and scanning turned off during an upload (#251).
+
+## Password sign-in (`password-sign-in/`)
+
+Exported on 2026-10-26 for #281. The states come from #278, "Pages for the owner to design in Paper". In Paper, the
+boards are on the Approved page under "Password sign-in · Chosen design". Every board name ends in "(password)".
+
+These boards replace the `accounts/` Login and Signup boards when password sign-in ships. The `accounts/` Account
+boards stay right for a Google Account.
+
+| File | Paper board | Screen ticket |
+| --- | --- | --- |
+| `login-default` | Login · default (password) | #283 |
+| `login-wrong-email-or-password` | Login · wrong email or password (password) | #284 |
+| `login-paused` | Login · login paused (password) | #284 |
+| `login-password-too-long` | Login · password too long (password) | #284 |
+| `login-verify-your-email` | Login · verify your email (password) | #284 |
+| `login-email-verified` | Login · email verified (password) | #283 |
+| `login-password-changed` | Login · password changed (password) | #286, #287 |
+| `login-email-uses-a-password` | Login · email uses a password (password) | #285 |
+| `login-google-refused` | Login · Google refused (password) | #283 |
+| `login-account-disabled` | Login · Account disabled (password) | #284 |
+| `login-session-ended` | Login · session ended (password) | #283 |
+| `signup-default` | Signup · default (password) | #283 |
+| `signup-box-not-ticked` | Signup · box not ticked (password) | #283 |
+| `signup-password-too-short` | Signup · password too short (password) | #283 |
+| `signup-password-too-long` | Signup · password too long (password) | #283 |
+| `signup-password-too-common` | Signup · password too common (password) | #283 |
+| `check-your-email` | Check your email (password) | #283 |
+| `verify-email-ready` | Verify my email · ready (password) | #283 |
+| `verify-email-working` | Verify my email · working (password) | #283 |
+| `verify-email-link-doesnt-work` | Verify my email · link doesn't work (password) | #283 |
+| `forgot-password-default` | Forgot password · default (password) | #286 |
+| `forgot-password-sent` | Forgot password · sent (password) | #286 |
+| `set-new-password-ready` | Set a new password · ready (password) | #286 |
+| `set-new-password-refused` | Set a new password · password refused (password) | #286 |
+| `set-new-password-link-doesnt-work` | Set a new password · link doesn't work (password) | #286 |
+| `account-change-password-default` | Account · change password · default (password) | #287 |
+| `account-change-password-wrong-current` | Account · change password · wrong current password (password) | #287 |
+| `account-change-password-refused` | Account · change password · new password refused (password) | #287 |
+| `account-change-password-working` | Account · change password · working (password) | #287 |
+| `account-deletion-default` | Account · deletion · default (password) | #287 |
+| `account-deletion-wrong-password` | Account · deletion · wrong password (password) | #287 |
+| `account-deletion-wrong-text` | Account · deletion · wrong confirmation text (password) | #287 |
+| `account-deletion-working` | Account · deletion · working (password) | #287 |
+
+The deletion "Admin" state has no password board. An Admin signs in with Google only, so an Admin never sees the
+password form. `accounts/account-deletion-admin` stays the Admin board.
+
+### Owner choices that change the spec's text
+
+The owner chose these while designing on 2026-10-26. The boards win over the spec's wording.
+
+- Login messages say "Log in", not "Sign in": "Email verified. Log in.", "Password changed. Log in with your new
+  password.", "This email uses a password. Log in with your password.", "This Account can't log in.", and "Your
+  session ended. Log in again."
+- "Continue with Google" is a white button with a gray border. The black button is the password form's submit.
+- Signup puts the Terms box just above "Create account". The box applies to the email signup only. Under the Google
+  button, a line says "By continuing with Google, you agree to the Terms of Service and Privacy Policy." Pressing the
+  Google button counts as agreement, so Google signup no longer waits for the box.
+- Password messages, the same on Signup, "Set a new password", and "Change password":
+  - Too short: "That password is too short. Use at least 8 characters."
+  - Too long: "That password is too long. Try a shorter one." It gives no byte count.
+  - Too common, the student's own email, or "drillmap": "This password is too common. Choose a password that's
+    harder to guess."
+- A wrong current password on "Change password" or on deletion: "That's not your current password. Try again."
