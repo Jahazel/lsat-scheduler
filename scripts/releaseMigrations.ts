@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { sql } from "drizzle-orm";
 import type { getPostgresDatabase } from "../src/lib/postgres";
+import { knownMigrationRefusal } from "../src/lib/postgresMigrations";
 import copyDatabaseHosts from "./copyDatabaseHosts.json";
 import { migrationBundle, readMigrations } from "./migrationBundle.mjs";
 import productionDatabaseHosts from "./productionDatabaseHosts.json";
@@ -9,13 +10,6 @@ const targetHosts = { copy: copyDatabaseHosts, production: productionDatabaseHos
 export type ReleaseTarget = keyof typeof targetHosts;
 
 export class ReleaseRefusal extends Error {}
-
-const knownDatabaseMessages = new Set([
-  "Migration history does not match this version. Stop.",
-  "Migration history is not an ordered prefix. Stop.",
-  "The app role does not exist. Run sql/app-role.sql as the Neon owner first.",
-  "The app role must have no administration rights, memberships, or owned objects.",
-]);
 
 export function requireReleaseTarget(
   environment: Record<string, string | undefined>,
@@ -63,10 +57,9 @@ export async function applyReleaseMigrations(
 
 export function publicFailureMessage(error: unknown) {
   if (error instanceof ReleaseRefusal) return error.message;
+  const refusal = knownMigrationRefusal(error);
+  if (refusal) return `Migration refused: ${refusal}`;
   const cause = error instanceof Error && error.cause instanceof Error ? error.cause : error;
-  if (cause instanceof Error && knownDatabaseMessages.has(cause.message)) {
-    return `Migration refused: ${cause.message}`;
-  }
   const code = cause instanceof Error && "code" in cause && typeof cause.code === "string" && /^[0-9A-Z]{5}$/.test(cause.code)
     ? cause.code : undefined;
   return code

@@ -1,10 +1,7 @@
 DO $$
-DECLARE
-  without_google integer;
 BEGIN
-  SELECT count(*) INTO without_google FROM accounts WHERE google_id IS NULL;
-  IF without_google > 0 THEN
-    RAISE EXCEPTION '% Account has no Google ID. Each Account must keep exactly one sign-in method, so the owner decides by hand what happens to it. This migration deletes no Account.', without_google;
+  IF EXISTS (SELECT FROM accounts WHERE google_id IS NULL) THEN
+    RAISE EXCEPTION 'An Account has no Google ID. Each Account needs exactly one sign-in method, so the owner decides by hand what happens to it. This migration deletes no Account. Stop.';
   END IF;
 END;
 $$;

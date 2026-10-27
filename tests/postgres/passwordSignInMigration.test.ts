@@ -1,8 +1,12 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { createPostgresConnection } from "../../src/lib/postgres";
 import { migrateUpTo } from "./partialMigrations";
 import { createPostgresTestDatabase } from "./testDatabase";
+
+const exec = promisify(execFile);
 
 let database: Awaited<ReturnType<typeof createPostgresTestDatabase>>;
 let connection: ReturnType<typeof createPostgresConnection>;
@@ -50,8 +54,13 @@ it.each([
       ('google@example.test', 'Google', 'old-hash', 'google-id')
   `);
 
-  await expect(migrateRest()).rejects.toMatchObject({
-    cause: { message: expect.stringContaining("1 Account has no Google ID") },
+  const refused = await exec(process.execPath, ["--import", "tsx", "scripts/migrate-postgres.mts"], {
+    env: { ...process.env, DATABASE_URL: database.setting },
+  }).then(() => null, (error: { code: number; stderr: string }) => error);
+  expect(refused).toMatchObject({
+    code: 1,
+    stderr: "An Account has no Google ID. Each Account needs exactly one sign-in method, so the owner decides by hand"
+      + " what happens to it. This migration deletes no Account. Stop.\n",
   });
 
   expect(await accountRows()).toEqual([

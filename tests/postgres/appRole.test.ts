@@ -253,8 +253,9 @@ it("sets a password Account's hash and manages pending signups and reset tokens 
   `)).rows).toEqual([{ password_hash: "new-hash", signup_token: "token-2", reset_token: "reset-2" }]);
   await db.execute(sql`delete from pending_signups`);
   await db.execute(sql`delete from reset_tokens`);
-  expect((await db.execute(sql`select count(*)::integer as count from pending_signups, reset_tokens`)).rows)
-    .toEqual([{ count: 0 }]);
+  expect((await db.execute(sql`
+    select (select count(*)::integer from pending_signups) as signups, (select count(*)::integer from reset_tokens) as resets
+  `)).rows).toEqual([{ signups: 0, resets: 0 }]);
 });
 
 it("refuses an Admin role or both sign-in methods on a password Account through the app login", async () => {
