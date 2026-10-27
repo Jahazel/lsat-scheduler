@@ -73,7 +73,9 @@ export function SwitchPageLink({ question, href, label }: { question: string; hr
 
 const NOTICE_LOOKS = {
   danger: { icon: "stroke-danger-ink", text: "text-danger-ink", role: "alert" },
+  warning: { icon: "stroke-warning-ink", text: "text-warning-ink", role: "alert" },
   info: { icon: "stroke-smoke", text: "text-ink", role: "status" },
+  emailSent: { icon: "stroke-accent", text: "text-accent", role: "status" },
   success: { icon: "stroke-success-ink", text: "text-success-ink", role: "status" },
 } as const;
 
@@ -82,14 +84,21 @@ export function Notice({ notice }: { notice: LoginNotice }) {
   return (
     <div className="flex items-start gap-2">
       <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" className={cx("mt-0.5 shrink-0", look.icon)} fill="none" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="8" cy="8" r="6.5" />
+        {notice.tone === "emailSent" ? (
+          <>
+            <rect x="1.75" y="3.25" width="12.5" height="9.5" rx="1.5" />
+            <path d="M2.25 4.25L8 8.75l5.75-4.5" />
+          </>
+        ) : (
+          <circle cx="8" cy="8" r="6.5" />
+        )}
         {notice.tone === "danger" && (
           <>
             <path d="M8 4.75V8.75" />
             <circle cx="8" cy="11" r="0.8" className="fill-danger-ink stroke-none" />
           </>
         )}
-        {notice.tone === "info" && <path d="M8 4.75V8L10.25 9.5" />}
+        {(notice.tone === "info" || notice.tone === "warning") && <path d="M8 4.75V8L10.25 9.5" />}
         {notice.tone === "success" && <path d="M5.25 8.25l1.85 1.85 3.65-3.85" />}
       </svg>
       <p role={look.role} className={cx("text-small leading-[20px]", look.text)}>

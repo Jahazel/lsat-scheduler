@@ -1,17 +1,15 @@
 "use server";
 
-import { TransactionRollbackError } from "drizzle-orm";
 import { z } from "zod";
 import { signIn } from "@/auth";
 import { verifyYourEmail, youAlreadyHaveAnAccount, youSignInWithGoogle } from "@/lib/accountEmails";
 import { signInMethodForEmail } from "@/lib/accountRepository";
-import { countAction, type LimitedAction } from "@/lib/actionLimits";
+import { countAll, signupCounts } from "@/lib/actionLimits";
 import { clientIpAddress } from "@/lib/clientIpAddress";
 import { sendEmail } from "@/lib/email";
 import { newEmailToken } from "@/lib/emailToken";
-import { getPostgresDatabase } from "@/lib/postgres";
 import { hashPassword } from "@/lib/passwordHash";
-import { newPasswordProblem, PASSWORD_MESSAGES, type PasswordProblem } from "@/lib/passwordRules";
+import { newPasswordProblem, PASSWORD_MESSAGES } from "@/lib/passwordRules";
 import { savePendingSignup } from "@/lib/pendingSignupRepository";
 
 export type SignupState =
@@ -39,7 +37,7 @@ export async function signUpWithPassword(_state: SignupState, formData: FormData
   const checkYourEmail: SignupState = { kind: "checkYourEmail", email };
 
   const realNow = new Date();
-  const refusal = await signupRefusal(email, await clientIpAddress(), password, realNow);
+  const refusal = await countAll(signupCounts(email, await clientIpAddress()), realNow, () => newPasswordProblem(password, email));
   if (refusal === "overLimit") return checkYourEmail;
   if (refusal) return { kind: "form", errors: { password: PASSWORD_MESSAGES[refusal] } };
 
@@ -54,30 +52,4 @@ export async function signUpWithPassword(_state: SignupState, formData: FormData
     await sendEmail(verifyYourEmail(email, name, token));
   }
   return checkYourEmail;
-}
-
-// The limits come first, so a signup over a limit shows the same screen whatever its password.
-// A refused signup sends nothing, so it gives back every count it took.
-async function signupRefusal(
-  email: string, ipAddress: string, password: string, realNow: Date,
-): Promise<PasswordProblem | "overLimit" | null> {
-  const counted: [LimitedAction, string][] = [
-    ["signupEmailInHour", email], ["signupEmailInDay", email], ["signupFromIpAddress", ipAddress],
-  ];
-  let refusal: Awaited<ReturnType<typeof signupRefusal>> = null;
-  try {
-    await getPostgresDatabase().transaction(async (tx) => {
-      for (const [action, subject] of counted) {
-        if (!(await countAction(action, subject, realNow, tx)).allowed) {
-          refusal = "overLimit";
-          tx.rollback();
-        }
-      }
-      refusal = newPasswordProblem(password, email);
-      if (refusal) tx.rollback();
-    });
-  } catch (error) {
-    if (!(error instanceof TransactionRollbackError)) throw error;
-  }
-  return refusal;
 }
