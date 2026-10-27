@@ -101,7 +101,7 @@ type LockAction = "confirm" | "continue";
 function emptyReason(review: SnapshotReview, action: LockAction) {
   if (!isTyped(review)) return `Add an accuracy value or tick a flag to ${action}.`;
   return review.rows.some(({ row }) => row.category !== "passage")
-    ? `Add a percentage or a Highest tier to ${action}.`
+    ? `Add a percentage or a Highest or High tier to ${action}.`
     : `Add a Logical Reasoning type to ${action}.`;
 }
 

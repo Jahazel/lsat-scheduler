@@ -7,7 +7,7 @@ import {
   accuracyMessage, addTypeOptions, boxText, emptyListNote, listedTypes, tierMessage,
   type AnalyticsType, type ReviewAction, type ReviewDraft, type ReviewList,
 } from "@/lib/reviewDraft";
-import type { AnalyticsExtractedRow, AnalyticsSection, LRType, PriorityTier } from "@/lib/types";
+import { isTopPriorityTier, PRIORITY_TIERS, type AnalyticsExtractedRow, type AnalyticsSection, type LRType, type PriorityTier } from "@/lib/types";
 import { FOCUS } from "./ui/classes";
 
 
@@ -263,7 +263,7 @@ function ReviewFields({ draft, lrRead, files, dispatch }: {
         )}
         {flagRows.length > 0 && (
           <div className="flex flex-col">
-            <ListCaption>Priority tier · types 7Sage ranks instead · Highest goes first in your plan</ListCaption>
+            <ListCaption>Priority tier · types 7Sage ranks instead · Highest and High go first in your plan</ListCaption>
             {flagRows.map(({ row }) => row.category === "restricted" && (
               <TierRow
                 key={row.type}
@@ -413,8 +413,7 @@ function RemoveButton({ type, onRemove }: { type: LRType; onRemove: () => void }
   );
 }
 
-const TIER_LABEL: Record<PriorityTier, string> = { highest: "Highest", medium: "Medium", low: "Low" };
-const TIERS: PriorityTier[] = ["highest", "medium", "low"];
+const TIER_LABEL: Record<PriorityTier, string> = { highest: "Highest", high: "High", medium: "Medium", low: "Low" };
 
 function TierRow({ type, tier, message, onTier, onRemove, onLeave }: {
   type: LRType;
@@ -441,11 +440,11 @@ function TierRow({ type, tier, message, onTier, onRemove, onLeave }: {
           aria-describedby={message ? `${id}-message` : undefined}
           className={`flex w-[196px] shrink-0 gap-0.5 rounded-sm border bg-vellum p-0.5 ${message ? "border-danger" : "border-transparent"}`}
         >
-          {TIERS.map((option, index) => (
+          {PRIORITY_TIERS.map((option, index) => (
             <label
               key={option}
               className={`flex h-[26px] flex-1 cursor-pointer items-center justify-center rounded-[4px] text-caption has-checked:bg-paper has-checked:font-semibold has-checked:shadow-control has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent ${
-                tier === option ? (option === "highest" ? "text-accent" : "text-ink") : "text-smoke hover:text-ink"
+                tier === option ? (isTopPriorityTier(option) ? "text-accent" : "text-ink") : "text-smoke hover:text-ink"
               }`}
             >
               <input
@@ -473,14 +472,14 @@ function TierRow({ type, tier, message, onTier, onRemove, onLeave }: {
 }
 
 function TierPill({ tier }: { tier: PriorityTier }) {
-  const highest = tier === "highest";
+  const top = isTopPriorityTier(tier);
   return (
     <span
       className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border border-dashed px-2 py-0.5 text-caption font-medium ${
-        highest ? "border-accent text-accent" : "border-fog text-smoke"
+        top ? "border-accent text-accent" : "border-fog text-smoke"
       }`}
     >
-      {highest && (
+      {top && (
         <svg aria-hidden viewBox="0 0 10 10" className="size-2.5" fill="currentColor" stroke="currentColor" strokeLinejoin="round">
           <path d="M2 9V1.5h5.5L6.5 3.5l1 2H2" />
         </svg>
@@ -495,7 +494,7 @@ const ADD_TYPE_GROUPS: { list: ReviewList; label: string; typedLabel: string; no
   {
     list: "flags",
     label: "Priority flags · added unticked",
-    typedLabel: "Tier · Stimulus Logic, you pick Highest, Medium, or Low",
+    typedLabel: "Tier · Stimulus Logic, you pick Highest, High, Medium, or Low",
     none: "No priority flags match",
   },
 ];

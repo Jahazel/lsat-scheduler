@@ -1,6 +1,6 @@
 import { mockRules } from "@/lib/mockData";
 import type { SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
-import type { AnalyticsExtractedRow, AnalyticsSection, LRExtractedRow, LRType, PassageExtractedRow, PriorityTier, RCType } from "@/lib/types";
+import { isTopPriorityTier, type AnalyticsExtractedRow, type AnalyticsSection, type LRExtractedRow, type LRType, type PassageExtractedRow, type PriorityTier, type RCType } from "@/lib/types";
 
 // Every type a reviewer can add by hand, tagged with the same "regular" /
 // "restricted" split the engine uses.
@@ -120,7 +120,7 @@ export function toggleTopPriority(review: SnapshotReview, index: number) {
 }
 
 export function setTier(review: SnapshotReview, index: number, priorityTier: PriorityTier) {
-  return updateRow(review, index, (row) => (row.category === "restricted" ? { ...row, priorityTier, isTopPriority: priorityTier === "highest" } : row));
+  return updateRow(review, index, (row) => (row.category === "restricted" ? { ...row, priorityTier, isTopPriority: isTopPriorityTier(priorityTier) } : row));
 }
 
 export function tierMissing(review: SnapshotReview, row: AnalyticsExtractedRow) {

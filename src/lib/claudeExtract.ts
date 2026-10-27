@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { SectionReading } from "./practiceTestResult";
 import type { ScreenshotMediaType } from "./screenshotUpload";
-import type { AnalyticsExtractedRow, AnalyticsSection, LRLogicType, LRType, PriorityTier, RCType, RulesConfig } from "./types";
+import { isTopPriorityTier, type AnalyticsExtractedRow, type AnalyticsSection, type LRLogicType, type LRType, type PriorityTier, type RCType, type RulesConfig } from "./types";
 
 const TOOL_NAME = "record_analytics_rows";
 const MODEL = "claude-haiku-4-5-20251001";
@@ -15,10 +15,10 @@ export function categoryFor(type: LRType, rules: RulesConfig): "regular" | "rest
   return rules.lrLogicExceptions.includes(type as LRLogicType) ? "regular" : "restricted";
 }
 
-const PRIORITY_TIER: Record<"HIGHEST" | "MEDIUM" | "LOW", PriorityTier> = { HIGHEST: "highest", MEDIUM: "medium", LOW: "low" };
+const PRIORITY_TIER: Record<Uppercase<PriorityTier>, PriorityTier> = { HIGHEST: "highest", HIGH: "high", MEDIUM: "medium", LOW: "low" };
 
 const Accuracy = z.number().min(0).max(100);
-const Priority = z.enum(["HIGHEST", "MEDIUM", "LOW"]);
+const Priority = z.enum(["HIGHEST", "HIGH", "MEDIUM", "LOW"]);
 
 const lrToolInput = (types: LRType[]) => z.object({
   rows: z.array(z.object({ type: z.enum(types), accuracy: Accuracy.optional(), priority: Priority.optional() })).max(types.length),
@@ -123,7 +123,7 @@ async function extractLRRows(
           imageBlock(imageBuffer, mediaType),
           {
             type: "text",
-            text: `This is a screenshot of a 7Sage LSAT analytics dashboard listing Logical Reasoning question types. Each row shows either an accuracy percentage or a priority tier (HIGHEST, MEDIUM, or LOW).
+            text: `This is a screenshot of a 7Sage LSAT analytics dashboard listing Logical Reasoning question types. Each row shows either an accuracy percentage or a priority tier (HIGHEST, HIGH, MEDIUM, or LOW).
 
 For every row visible in the image, call ${TOOL_NAME} with one entry per row. Use the exact type name from the allowed list — match it to the closest valid name even if the screenshot's rendering is imperfect. Only report accuracy for rows that show a percentage. Only report priority for rows that show a tier. Do not include rows that aren't visible in the image.`,
           },
@@ -137,7 +137,7 @@ For every row visible in the image, call ${TOOL_NAME} with one entry per row. Us
     const row: AnalyticsExtractedRow = { type, category: categoryFor(type, rules), accuracy };
     const priorityTier = priority && PRIORITY_TIER[priority];
     if (!priorityTier) return row;
-    return { ...row, isTopPriority: priorityTier === "highest", priorityTier };
+    return { ...row, isTopPriority: isTopPriorityTier(priorityTier), priorityTier };
   });
 }
 
