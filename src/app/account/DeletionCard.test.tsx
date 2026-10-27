@@ -120,7 +120,7 @@ describe("Account deletion card", () => {
       actions.deleteAccount.mockResolvedValue("paused");
       render(<DeletionCard mode={{ kind: "password" }} />);
       fillAndDelete("guess", "DELETE");
-      expect(await screen.findByText("Too many tries. Try again later.")).toBeTruthy();
+      expect(await screen.findByText("Too many tries. Login is paused for a while. Try again later, or reset your password.")).toBeTruthy();
     });
 
     it("locks both fields while deletion runs", async () => {

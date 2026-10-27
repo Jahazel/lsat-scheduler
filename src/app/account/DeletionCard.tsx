@@ -104,7 +104,7 @@ function ConfirmationFields({ refusal, currentPassword }: {
           autoComplete="current-password"
           {...currentPassword}
           readOnly={pending}
-          error={shown === "wrong-password" ? CURRENT_PASSWORD_MESSAGES.wrong : shown === "paused" ? CURRENT_PASSWORD_MESSAGES.paused : undefined}
+          error={shown === "wrong-password" || shown === "paused" ? CURRENT_PASSWORD_MESSAGES[shown] : undefined}
         />
       )}
       <div className="flex flex-col gap-2">

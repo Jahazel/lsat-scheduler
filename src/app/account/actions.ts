@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { getPostgresDatabase } from "@/lib/postgres";
 import { accounts } from "@/lib/postgresSchema";
 import {
-  changePassword as saveNewPassword, deletePasswordAccount, endAllSessions, findPasswordAccountById, isAccountId,
+  deletePasswordAccount, endAllSessions, findPasswordAccountById, isAccountId, replacePasswordHash,
 } from "@/lib/accountRepository";
 import { updateStudentByAccountId } from "@/lib/studentRepository";
 import { studentSideToday } from "@/lib/studentClock";
@@ -54,7 +54,7 @@ export async function deleteAccount(_previous: DeletionRefusal, formData: FormDa
   if (formData.get("confirmation") !== "DELETE") return "wrong-text";
   if (passwordAccount) {
     const check = await proveCurrentPassword(passwordAccount, formData.get("currentPassword"));
-    if (check.kind !== "proven") return check.kind === "wrong" ? "wrong-password" : "paused";
+    if (check.kind !== "proven") return check.kind;
     if (!(await deletePasswordAccount(check.proof))) return "wrong-password";
   } else {
     await getPostgresDatabase().delete(accounts).where(eq(accounts.id, session.user.id));
@@ -81,8 +81,8 @@ export async function changePassword(_previous: PasswordChangeRefusal, formData:
   const problem = newPasswordProblem(newPassword, account.email);
   if (problem) return { field: "newPassword", message: PASSWORD_MESSAGES[problem] };
 
-  if (!(await saveNewPassword(check.proof, await hashPassword(newPassword)))) {
-    return { field: "currentPassword", message: CURRENT_PASSWORD_MESSAGES.wrong };
+  if (!(await replacePasswordHash(check.proof, await hashPassword(newPassword)))) {
+    return { field: "currentPassword", message: CURRENT_PASSWORD_MESSAGES["wrong-password"] };
   }
   await signOut({ redirectTo: PASSWORD_CHANGED_PATH });
   return null;

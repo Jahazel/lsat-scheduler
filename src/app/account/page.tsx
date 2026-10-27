@@ -18,7 +18,7 @@ export default async function AccountPage() {
   if (!doc) {
     redirect("/onboarding");
   }
-  const passwordAccount = isAccountId(session.user.id) && !!(await findPasswordAccountById(session.user.id));
+  const isPasswordAccount = isAccountId(session.user.id) && !!(await findPasswordAccountById(session.user.id));
 
   return (
     <div className="min-h-screen bg-vellum">
@@ -28,17 +28,17 @@ export default async function AccountPage() {
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-body text-ink md:text-lead">{session.user.email}</p>
             <span className="flex h-7 items-center rounded-pill border border-vellum-line px-3 text-small text-smoke">
-              {passwordAccount ? "Password sign-in" : "Google sign-in"}
+              {isPasswordAccount ? "Password sign-in" : "Google sign-in"}
             </span>
           </div>
         </div>
       </header>
       <div className="mx-auto box-content flex max-w-content flex-col gap-6 px-5 py-10 md:px-18 md:pt-16 md:pb-24">
         <SessionsCard />
-        {passwordAccount && <ChangePasswordCard />}
+        {isPasswordAccount && <ChangePasswordCard />}
         <DeletionCard
           mode={isAdminUser(session.user) ? { kind: "admin" }
-            : passwordAccount ? { kind: "password" }
+            : isPasswordAccount ? { kind: "password" }
             : { kind: "google", signedInRecently: signedInRecently(session.signedInAt) }}
         />
       </div>

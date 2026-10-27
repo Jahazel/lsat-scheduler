@@ -63,7 +63,7 @@ export async function findPasswordAccountById(id: AccountId) {
 const passwordUnchangedSinceProof = (proof: CurrentPasswordProof) => and(eq(accounts.id, proof.id), eq(accounts.passwordHash, proof.passwordHash));
 
 /** Sets the new password and signs out every device. Returns false when the password changed after the check. */
-export async function changePassword(proof: CurrentPasswordProof, newHash: string) {
+export async function replacePasswordHash(proof: CurrentPasswordProof, newHash: string) {
   const changed = await getPostgresDatabase()
     .update(accounts)
     .set({ passwordHash: newHash, sessionVersion: sql`${accounts.sessionVersion} + 1` })

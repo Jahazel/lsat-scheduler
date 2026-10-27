@@ -13,7 +13,7 @@ import { changePassword, deleteAccount } from "../../src/app/account/actions";
 import AccountPage from "../../src/app/account/page";
 import { handlers } from "../../src/auth";
 import { PASSWORD_LOGIN_NOTICES } from "../../src/lib/loginNotice";
-import { changePassword as saveNewPassword, deletePasswordAccount, findPasswordAccountById, isAccountId } from "../../src/lib/accountRepository";
+import { deletePasswordAccount, findPasswordAccountById, isAccountId, replacePasswordHash } from "../../src/lib/accountRepository";
 import { proveCurrentPassword } from "../../src/lib/currentPassword";
 
 const COOKIE = "authjs.session-token";
@@ -22,7 +22,7 @@ const OLD_PASSWORD = "correct horse battery staple";
 const NEW_PASSWORD = "purple walrus dances at noon";
 const MAYA = "maya.chen@fastmail.com";
 const WRONG = "That's not your current password. Try again.";
-const PAUSED = "Too many tries. Try again later.";
+const PAUSED = PASSWORD_LOGIN_NOTICES.paused.text;
 
 const { originalSecret, request } = vi.hoisted(() => {
   // Auth.js reads its secret when src/auth loads, before any hook runs.
@@ -293,7 +293,7 @@ describe("a reset between the password check and the write", () => {
     const resetHash = await hashPassword("a password set by a reset link");
     await database.owner.execute(sql`update accounts set password_hash = ${resetHash} where id = ${id}`);
 
-    expect(await saveNewPassword(check.proof, await hashPassword(NEW_PASSWORD))).toBe(false);
+    expect(await replacePasswordHash(check.proof, await hashPassword(NEW_PASSWORD))).toBe(false);
     expect(await deletePasswordAccount(check.proof)).toBe(false);
     expect(await passwordHashOf(id)).toBe(resetHash);
     expect(await accountCount(id)).toEqual({ accounts: 1, students: 1 });

@@ -14,13 +14,13 @@ export type CurrentPasswordProof = Pick<PasswordAccount, "id" | "passwordHash"> 
 export async function proveCurrentPassword(
   account: PasswordAccount,
   typed: FormDataEntryValue | null,
-): Promise<{ kind: "proven"; proof: CurrentPasswordProof } | { kind: "wrong" | "paused" }> {
+): Promise<{ kind: "proven"; proof: CurrentPasswordProof } | { kind: "wrong-password" | "paused" }> {
   const realNow = new Date();
   const tries = loginTryCounts(account.email, await clientIpAddress());
   if (await countAll(tries, realNow)) return { kind: "paused" };
   // bcrypt reads only the first 72 bytes, so a longer try could match a password that starts the same way.
   const password = typeof typed === "string" && !passwordTooLong(typed) ? typed : null;
-  if (password === null || !(await passwordMatches(password, account.passwordHash))) return { kind: "wrong" };
+  if (password === null || !(await passwordMatches(password, account.passwordHash))) return { kind: "wrong-password" };
   await giveBack(tries, realNow);
   return { kind: "proven", proof: { id: account.id, passwordHash: account.passwordHash } as CurrentPasswordProof };
 }
