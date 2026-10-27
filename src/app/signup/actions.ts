@@ -58,11 +58,13 @@ export async function signUpWithPassword(_state: SignupState, formData: FormData
 
 // The limits come first, so a signup over a limit shows the same screen whatever its password.
 // A refused signup sends nothing, so it gives back every count it took.
-async function signupRefusal(email: string, ipAddress: string, password: string, realNow: Date) {
+async function signupRefusal(
+  email: string, ipAddress: string, password: string, realNow: Date,
+): Promise<PasswordProblem | "overLimit" | null> {
   const counted: [LimitedAction, string][] = [
     ["signupEmailInHour", email], ["signupEmailInDay", email], ["signupFromIpAddress", ipAddress],
   ];
-  let refusal: PasswordProblem | "overLimit" | null = null;
+  let refusal: Awaited<ReturnType<typeof signupRefusal>> = null;
   try {
     await getPostgresDatabase().transaction(async (tx) => {
       for (const [action, subject] of counted) {
