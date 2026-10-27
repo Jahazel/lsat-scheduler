@@ -15,6 +15,11 @@ describe("proxy route", () => {
     expect(proxyRoute("/api/auth/callback/google", null)).toEqual({ kind: "allow" });
   });
 
+  it("lets the daily cleanup cron call through to its route, which checks the secret itself", () => {
+    expect(proxyRoute("/api/cron/daily-cleanup", null)).toEqual({ kind: "allow" });
+    expect(proxyRoute("/api/cron/other", null)).toEqual({ kind: "unauthorized" });
+  });
+
   it("sends a signed-out visit to a protected page to the login page", () => {
     expect(proxyRoute("/dashboard", null)).toEqual({ kind: "redirect", to: "/login" });
     expect(proxyRoute("/onboarding", null)).toEqual({ kind: "redirect", to: "/login" });
