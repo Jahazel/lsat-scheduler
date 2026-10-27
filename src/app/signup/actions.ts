@@ -5,7 +5,7 @@ import { z } from "zod";
 import { signIn } from "@/auth";
 import { verifyYourEmail, youAlreadyHaveAnAccount, youSignInWithGoogle } from "@/lib/accountEmails";
 import { signInMethodForEmail } from "@/lib/accountRepository";
-import { countAction, type LimitedAction } from "@/lib/actionLimits";
+import { countAction, signupLimits } from "@/lib/actionLimits";
 import { clientIpAddress } from "@/lib/clientIpAddress";
 import { sendEmail } from "@/lib/email";
 import { newEmailToken } from "@/lib/emailToken";
@@ -61,13 +61,10 @@ export async function signUpWithPassword(_state: SignupState, formData: FormData
 async function signupRefusal(
   email: string, ipAddress: string, password: string, realNow: Date,
 ): Promise<PasswordProblem | "overLimit" | null> {
-  const counted: [LimitedAction, string][] = [
-    ["signupEmailInHour", email], ["signupEmailInDay", email], ["signupFromIpAddress", ipAddress],
-  ];
   let refusal: Awaited<ReturnType<typeof signupRefusal>> = null;
   try {
     await getPostgresDatabase().transaction(async (tx) => {
-      for (const [action, subject] of counted) {
+      for (const [action, subject] of signupLimits(email, ipAddress)) {
         if (!(await countAction(action, subject, realNow, tx)).allowed) {
           refusal = "overLimit";
           tx.rollback();

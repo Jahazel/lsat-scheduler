@@ -4,7 +4,7 @@ import { TransactionRollbackError } from "drizzle-orm";
 import { z } from "zod";
 import { resetYourPassword, verifyYourEmail, youSignInWithGoogle } from "@/lib/accountEmails";
 import { signInMethodForEmail } from "@/lib/accountRepository";
-import { countAction, type LimitedAction } from "@/lib/actionLimits";
+import { countAction, signupLimits } from "@/lib/actionLimits";
 import { clientIpAddress } from "@/lib/clientIpAddress";
 import { sendEmail } from "@/lib/email";
 import { newEmailToken } from "@/lib/emailToken";
@@ -43,12 +43,9 @@ export async function requestPasswordReset(_state: ForgotPasswordState, formData
 }
 
 async function renewPendingSignupWithinLimits(email: string, ipAddress: string, tokenHash: string, realNow: Date) {
-  const counted: [LimitedAction, string][] = [
-    ["signupEmailInHour", email], ["signupEmailInDay", email], ["signupFromIpAddress", ipAddress],
-  ];
   try {
     return await getPostgresDatabase().transaction(async (tx) => {
-      for (const [action, subject] of counted) {
+      for (const [action, subject] of signupLimits(email, ipAddress)) {
         if (!(await countAction(action, subject, realNow, tx)).allowed) tx.rollback();
       }
       return (await renewPendingSignupLink(email, tokenHash, realNow, tx)) ?? tx.rollback();

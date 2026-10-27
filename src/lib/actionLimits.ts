@@ -25,6 +25,10 @@ const LIMITS = {
 
 export type LimitedAction = keyof typeof LIMITS;
 export const limitOf = (action: LimitedAction) => LIMITS[action].max;
+/** Every signup email, first or resent, counts against all three signup limits. */
+export const signupLimits = (email: string, ipAddress: string): [LimitedAction, string][] => [
+  ["signupEmailInHour", email], ["signupEmailInDay", email], ["signupFromIpAddress", ipAddress],
+];
 export type LimitResult = { allowed: true } | { allowed: false; windowEnd: Date };
 
 /**
