@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { setTimeout as sleep } from "node:timers/promises";
+import { resolve } from "node:path";
 import { drive } from "./browser.mjs";
 
 const directory = process.argv[2];
@@ -10,9 +13,20 @@ const WEEKLY_UPLOAD = /^Plan (this|next) week$/;
 const dailyCapacities = (student) => Object.entries(student)
   .filter(([key]) => key.endsWith("_capacity_minutes"))
   .map(([, value]) => Number(value));
+const PASSWORD = "a long phrase for the smoke run";
+
+async function verificationLink(email) {
+  for (let tries = 0; tries < 20; tries++) {
+    const log = readFileSync(resolve(directory, "app.log"), "utf8");
+    const sent = [...log.matchAll(/Fake email to (\S+)\n[\s\S]*?(http:\/\/\S+\/verify-email\?token=[\w-]+)/g)].filter((match) => match[1] === email);
+    if (sent.length) return new URL(sent.at(-1)[2]);
+    await sleep(250);
+  }
+  throw new Error(`No verification email for ${email} in app.log.`);
+}
 const LIMITATIONS = ["No nonempty analytics or schedule history in the deletion fixture", "Login refusal states are opened by their reason links; real Google sign-in and its refusals need the copy", "No capacity-notice settings entry, mobile navigation, or screenshot extraction"];
 
-const result = await drive(directory, "smoke", async ({ page, url, log, goto, signInAs, heading, capture, records, local, newSession }) => {
+const result = await drive(directory, "smoke", async ({ page, url, log, goto, signInAs, heading, capture, records, newSession }) => {
   const initial = records("records-before");
   assert.equal(initial.accounts.length, 0, "Smoke requires an empty disposable database.");
   await goto("/");
@@ -34,27 +48,63 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   log("Choose the public Log in navigation link");
   await page.locator("header").getByRole("link", { name: "Log in", exact: true }).click();
   await heading("Log in to DrillMap");
-  assert.deepEqual(await page.locator("main").getByRole("button").allTextContents(), ["Continue with Google"]);
-  assert.equal(await page.locator("main input").count(), 0);
+  assert.deepEqual(await page.locator("main").getByRole("button").allTextContents(), ["Continue with Google", "Log in"]);
+  assert.deepEqual(await page.locator("main input").evaluateAll((inputs) => inputs.map((input) => input.type)), ["email", "password"]);
   await capture("login-default");
-  for (const [error, role, text] of [["AccessDenied", "alert", REFUSED], ["AccountDisabled", "alert", "This Account can't sign in."], ["SessionEnded", "status", "Your session ended. Sign in again."]]) {
+  for (const [error, role, text] of [["AccessDenied", "alert", REFUSED], ["AccountDisabled", "alert", "This Account can't sign in."], ["SessionEnded", "status", "Your session ended. Log in again."]]) {
     await goto(`/login?error=${error}`);
     assert.equal(await page.locator("main").getByRole(role).textContent(), text);
     await capture(`login-${error}`);
   }
   await goto("/signup");
   await capture("signup-default");
-  log("Continue with Google without ticking the Terms and Privacy box");
-  await page.getByRole("button", { name: "Continue with Google", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+  log("Fill in name, email, and password, and press Create account without ticking the Terms and Privacy box");
+  await page.getByLabel("Name", { exact: true }).fill("Smoke Student");
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+  await page.getByRole("button", { name: "Create account", exact: true }).click();
   await page.getByText("Tick the box to continue.", { exact: true }).waitFor();
   assert.equal(new URL(page.url()).pathname, "/signup");
   assert.equal(await page.getByRole("checkbox").getAttribute("aria-invalid"), "true");
+  assert.equal(await page.getByLabel("Password", { exact: true }).inputValue(), PASSWORD);
   assert.equal(records("records-consent-refused").accounts.length, 0);
   await capture("signup-box-not-ticked");
-  local("seed", "student", email, "--not-onboarded");
-  await signInAs(email);
-  await goto("/onboarding");
+  log("Tick the box and press Create account");
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Create account", exact: true }).click();
+  await heading("Check your email");
+  await page.getByText(`We sent an email to ${email}. Open the link in it to finish signing up.`, { exact: true }).waitFor();
+  await capture("check-your-email");
+  assert.equal(records("records-pending-signup").accounts.length, 0, "A pending signup is not an Account.");
+  const link = await verificationLink(email);
+  assert.equal(link.origin, url, "The email link uses this place's site address.");
+  log("Open the logged verification link twice; opening it uses nothing");
+  await goto(link.pathname + link.search);
+  await heading("Verify your email");
+  await page.reload();
+  await heading("Verify your email");
+  await capture("verify-email-ready");
+  log("Press Verify my email");
+  await page.getByRole("button", { name: "Verify my email", exact: true }).click();
+  await page.getByText("Email verified. Log in.", { exact: true }).waitFor();
+  assert.equal(new URL(page.url()).pathname + new URL(page.url()).search, "/login?notice=EmailVerified");
+  await capture("login-email-verified");
+  const verified = records("records-verified");
+  assert.equal(verified.accounts.length, 1);
+  log("Open the used link again");
+  await goto(link.pathname + link.search);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Verify my email", exact: true }).click();
+  await heading("This link doesn't work");
+  await capture("verify-email-link-doesnt-work");
+  log("Log in with the new password");
+  await goto("/login");
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+  await page.getByRole("button", { name: "Log in", exact: true }).click();
   await heading("Set your target");
+  assert.equal(new URL(page.url()).pathname, "/onboarding");
   const signedUp = records("records-signup");
   assert.equal(signedUp.accounts.length, 1);
   assert.equal(signedUp.accounts[0].email, email);
@@ -140,7 +190,7 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   for (const collection of ["accounts", "students", "analytics_snapshots", "weekly_schedules", "activity_check_ins"]) assert.equal(deleted[collection].length, 0);
   log("Reload Account in the second browser after the deletion");
   await second.page.reload();
-  await second.page.getByText("Your session ended. Sign in again.", { exact: true }).waitFor();
+  await second.page.getByText("Your session ended. Log in again.", { exact: true }).waitFor();
   assert.equal(new URL(second.page.url()).pathname + new URL(second.page.url()).search, "/login?error=SessionEnded");
   await second.capture("deleted-account-second-browser");
 });
