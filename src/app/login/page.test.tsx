@@ -42,9 +42,32 @@ describe("Login", () => {
     [{ error: "SessionEnded" }, "status", "Your session ended. Log in again."],
     [{ error: "CredentialsSignin" }, "alert", "That email and password don't match. Check both and try again, or reset your password."],
     [{ notice: "EmailVerified" }, "status", "Email verified. Log in."],
+    [{ error: "EmailUsesPassword" }, "alert", "This email uses a password. Log in with your password."],
   ])("explains %o", async (params, role, text) => {
     await renderLogin(params);
     expect(screen.getByRole(role).textContent).toBe(text);
+  });
+
+  const follows = (earlier: Node, later: Node) => Boolean(earlier.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+  it.each([
+    [{ error: "AccessDenied" }, "alert"],
+    [{ error: "AccountDisabled" }, "alert"],
+    [{ error: "SessionEnded" }, "status"],
+  ])("puts %o above Continue with Google", async (params, role) => {
+    await renderLogin(params);
+    expect(follows(screen.getByRole(role), screen.getByRole("button", { name: "Continue with Google" }))).toBe(true);
+  });
+
+  it.each([
+    [{ error: "EmailUsesPassword" }, "alert"],
+    [{ error: "CredentialsSignin" }, "alert"],
+    [{ notice: "EmailVerified" }, "status"],
+  ])("puts %o between Continue with Google and the Email field", async (params, role) => {
+    await renderLogin(params);
+    const notice = screen.getByRole(role);
+    expect(follows(screen.getByRole("button", { name: "Continue with Google" }), notice)).toBe(true);
+    expect(follows(notice, screen.getByLabelText("Email"))).toBe(true);
   });
 
   it.each([
@@ -57,6 +80,8 @@ describe("Login", () => {
     await logInAs("maya.chen@fastmail.com", "a long phrase that works");
 
     await waitFor(() => expect(screen.getByRole(role).textContent).toBe(notice.text));
+    expect(follows(screen.getByRole(role), field("Email"))).toBe(true);
+    expect(follows(screen.getByRole("button", { name: "Continue with Google" }), screen.getByRole(role))).toBe(true);
     expect(screen.queryByText("Email verified. Log in.")).toBeNull();
     expect(field("Email").value).toBe("maya.chen@fastmail.com");
     expect(field("Password").value).toBe("");
