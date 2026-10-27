@@ -4,13 +4,13 @@ import { z } from "zod";
 import { signIn } from "@/auth";
 import { verifyYourEmail, youAlreadyHaveAnAccount, youSignInWithGoogle } from "@/lib/accountEmails";
 import { signInMethodForEmail } from "@/lib/accountRepository";
+import { countAll, signupCounts } from "@/lib/actionLimits";
 import { clientIpAddress } from "@/lib/clientIpAddress";
 import { sendEmail } from "@/lib/email";
 import { newEmailToken } from "@/lib/emailToken";
 import { hashPassword } from "@/lib/passwordHash";
 import { newPasswordProblem, PASSWORD_MESSAGES } from "@/lib/passwordRules";
 import { savePendingSignup } from "@/lib/pendingSignupRepository";
-import { signupLimitRefusal } from "@/lib/signupLimits";
 
 export type SignupState =
   | { kind: "form"; errors: { name?: string; email?: string; password?: string; terms?: string } }
@@ -37,7 +37,7 @@ export async function signUpWithPassword(_state: SignupState, formData: FormData
   const checkYourEmail: SignupState = { kind: "checkYourEmail", email };
 
   const realNow = new Date();
-  const refusal = await signupLimitRefusal(email, await clientIpAddress(), realNow, () => newPasswordProblem(password, email));
+  const refusal = await countAll(signupCounts(email, await clientIpAddress()), realNow, () => newPasswordProblem(password, email));
   if (refusal === "overLimit") return checkYourEmail;
   if (refusal) return { kind: "form", errors: { password: PASSWORD_MESSAGES[refusal] } };
 

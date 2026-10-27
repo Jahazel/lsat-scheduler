@@ -63,6 +63,15 @@ describe("Login", () => {
     expect([field("Email"), field("Password")].map((input) => input.getAttribute("aria-invalid"))).toEqual([null, null]);
   });
 
+  it("replaces a notice from the address with the form's refusal", async () => {
+    actions.logInWithPassword.mockResolvedValue({ email: "maya.chen@fastmail.com", notice: PASSWORD_LOGIN_NOTICES.paused, passwordError: null });
+    await renderLogin({ error: "AccountDisabled" });
+    await logInAs("maya.chen@fastmail.com", "a long phrase that works");
+
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toBe(PASSWORD_LOGIN_NOTICES.paused.text));
+    expect(screen.queryByText("This Account can't log in.")).toBeNull();
+  });
+
   it("shows a too-long password beside the Password field", async () => {
     actions.logInWithPassword.mockResolvedValue({
       email: "maya.chen@fastmail.com", notice: null, passwordError: "That password is too long. Try a shorter one.",

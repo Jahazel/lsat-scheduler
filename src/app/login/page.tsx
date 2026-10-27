@@ -1,22 +1,13 @@
-import { GoogleButton } from "@/components/signIn/GoogleButton";
-import { OrWithEmail } from "@/components/signIn/PasswordFormParts";
-import { Notice, PreviewHeader, SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";
+import { PreviewHeader, SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";
 import { cx } from "@/components/ui/classes";
 import { loginNotice } from "@/lib/loginNotice";
-import { signInWithGoogle } from "./actions";
-import { PasswordLoginForm } from "./PasswordLoginForm";
+import { LoginForms } from "./LoginForms";
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
-  const { error, notice: noticeKey } = await searchParams;
-  const notice = loginNotice({ error, notice: noticeKey });
+  const { error, notice } = await searchParams;
   return (
     <SignInFrame title="Log in to DrillMap" lead="Your plan for this week is ready." preview={<TodayPreview />}>
-      {notice && notice.tone !== "success" && <Notice notice={notice} />}
-      <form action={signInWithGoogle}>
-        <GoogleButton look="light" />
-      </form>
-      <OrWithEmail />
-      <PasswordLoginForm urlNotice={notice?.tone === "success" ? notice : null} />
+      <LoginForms urlNotice={loginNotice({ error, notice })} />
       <SwitchPageLink question="New to DrillMap?" href="/signup" label="Sign up" />
     </SignInFrame>
   );

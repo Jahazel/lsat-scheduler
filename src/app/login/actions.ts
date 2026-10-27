@@ -12,7 +12,7 @@ export async function signInWithGoogle() {
   await signIn("google", { redirectTo: "/login" });
 }
 
-export async function logInWithPassword(_state: LoginState, formData: FormData): Promise<LoginState> {
+export async function logInWithPassword(_state: LoginState | null, formData: FormData): Promise<LoginState> {
   const email = formData.get("email");
   try {
     await signIn("credentials", { email, password: formData.get("password"), redirectTo: "/login" });

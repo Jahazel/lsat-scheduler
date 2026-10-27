@@ -450,6 +450,47 @@ describe("password login", () => {
     expect((await logIn(EMAIL, PASSWORD)).redirectedTo).toBe("http://localhost:3000/login");
   });
 
+  it("lets only the allowed tries reach bcrypt when guesses arrive at the same moment", async () => {
+    await verifiedStudent();
+    await failLogins(8, () => EMAIL);
+    const compare = vi.spyOn(bcrypt, "compare");
+    const results = await Promise.all(Array.from({ length: 5 }, () => logIn(EMAIL, WRONG)));
+    expect(compare).toHaveBeenCalledTimes(2);
+    expect(results.map((result) => result.state?.notice?.text).sort()).toEqual([
+      MESSAGES.paused, MESSAGES.paused, MESSAGES.paused, MESSAGES.wrongEmailOrPassword, MESSAGES.wrongEmailOrPassword,
+    ].sort());
+  });
+
+  it("a right password gives its try back, so it never adds to a pause", async () => {
+    await verifiedStudent();
+    await failLogins(9, () => EMAIL);
+    for (let index = 0; index < 3; index++) expect((await logIn(EMAIL, PASSWORD)).redirectedTo).toBe("http://localhost:3000/login");
+    expect((await logIn(EMAIL, WRONG)).state?.notice?.text).toBe(MESSAGES.wrongEmailOrPassword);
+    expect((await logIn(EMAIL, PASSWORD)).state?.notice?.text).toBe(MESSAGES.paused);
+  });
+
+  it("a newer signup made during the login's password check keeps its own password, and the login sends no link", async () => {
+    await signUp();
+    const realCompare = bcrypt.compare.bind(bcrypt) as (password: string, hash: string) => Promise<boolean>;
+    vi.spyOn(bcrypt, "compare").mockImplementationOnce((async (password: string, hash: string) => {
+      const matches = await realCompare(password, hash);
+      await signUp({ password: "a newer phrase that also works" });
+      return matches;
+    }) as typeof bcrypt.compare);
+    expect((await logIn(EMAIL, PASSWORD)).state?.notice?.text).toBe(MESSAGES.verifyYourEmail);
+    expect(fakeEmails()).toHaveLength(2);
+    await pressVerify(linkTokenIn(fakeEmails()[1].text));
+    expect((await logIn(EMAIL, "a newer phrase that also works")).redirectedTo).toBe("http://localhost:3000/login");
+  });
+
+  it("a new link does not keep a pending signup past 7 days", async () => {
+    await signUp();
+    advance(6 * 24 * HOUR_MS);
+    expect((await logIn(EMAIL, PASSWORD)).state?.notice?.text).toBe(MESSAGES.verifyYourEmail);
+    advance(24 * HOUR_MS);
+    expect(await pressVerify(linkTokenIn(fakeEmails()[1].text))).toEqual({ linkDoesNotWork: true });
+  });
+
   it("for a pending signup with a wrong password, shows the wrong-email-or-password message and sends nothing", async () => {
     await signUp();
     expect((await logIn(EMAIL, WRONG)).state?.notice?.text).toBe(MESSAGES.wrongEmailOrPassword);
@@ -472,6 +513,21 @@ describe("password login", () => {
     await database.owner.execute(sql`update accounts set disabled_at = now() where id = ${id}`);
     expect((await logIn(EMAIL, WRONG)).state?.notice?.text).toBe(MESSAGES.wrongEmailOrPassword);
     expect(await logIn(EMAIL, PASSWORD)).toEqual({ redirectedTo: "/login?error=AccountDisabled", state: null, cookie: "" });
+  });
+
+  it("refuses an Admin with the right password, should the database ever hold an Admin password hash", async () => {
+    const id = await verifiedStudent();
+    const [{ definition }] = await ownerRows(sql`
+      select pg_get_constraintdef(oid) as definition from pg_constraint where conname = 'accounts_admin_without_password'
+    `);
+    await database.owner.execute(sql`alter table accounts drop constraint accounts_admin_without_password`);
+    try {
+      await database.owner.execute(sql`update accounts set role = 'admin' where id = ${id}`);
+      expect(await logIn(EMAIL, PASSWORD)).toEqual({ redirectedTo: null, state: refused(EMAIL, "wrongEmailOrPassword"), cookie: "" });
+    } finally {
+      await database.owner.execute(sql`delete from accounts`);
+      await database.owner.execute(sql.raw(`alter table accounts add constraint accounts_admin_without_password ${definition}`));
+    }
   });
 
   it("can never sign in an Admin with a password: the database refuses an Admin with a password hash", async () => {

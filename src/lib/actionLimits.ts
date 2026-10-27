@@ -1,4 +1,4 @@
-import { and, eq, lte, sql } from "drizzle-orm";
+import { and, eq, gt, lte, sql, TransactionRollbackError } from "drizzle-orm";
 import { getPostgresDatabase, type PostgresTransaction } from "./postgres";
 import { actionCounters } from "./postgresSchema";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
@@ -68,12 +68,53 @@ export async function countAction(
   return counted.count <= LIMITS[action].max ? { allowed: true } : { allowed: false, windowEnd: counted.windowEnd };
 }
 
-/** Says whether earlier counts in the current window already reached the limit. It counts nothing. */
-export async function limitReached(action: LimitedAction, subject: string, realNow: Date) {
-  const [counted] = await getPostgresDatabase().select({ count: actionCounters.count }).from(actionCounters).where(and(
-    eq(actionCounters.action, action),
-    eq(actionCounters.subject, subject),
-    eq(actionCounters.windowStart, windowAt(action, realNow).start),
-  ));
-  return (counted?.count ?? 0) >= LIMITS[action].max;
+type Counted = [LimitedAction, string][];
+
+export const signupCounts = (email: string, ipAddress: string): Counted => [
+  ["signupEmailInHour", email], ["signupEmailInDay", email], ["signupFromIpAddress", ipAddress],
+];
+
+// A try counts before its bcrypt check, so tries at the same moment cannot pass a paused limit. A right password gives it back.
+export const loginTryCounts = (email: string, ipAddress: string): Counted => [
+  ["failedLoginForEmail", email], ["failedLoginFromIpAddress", ipAddress],
+];
+
+/**
+ * Counts one request against several limits at once.
+ * `problemAfterCounting` runs after the limits, so a request over a limit gets the same answer whatever it holds.
+ * A refused request gives back every count it took.
+ */
+export async function countAll<Problem extends string>(
+  counted: Counted, realNow: Date, problemAfterCounting: () => Problem | null = () => null,
+): Promise<Problem | "overLimit" | null> {
+  let refusal: Problem | "overLimit" | null = null;
+  try {
+    await getPostgresDatabase().transaction(async (tx) => {
+      for (const [action, subject] of counted) {
+        if (!(await countAction(action, subject, realNow, tx)).allowed) {
+          refusal = "overLimit";
+          tx.rollback();
+        }
+      }
+      refusal = problemAfterCounting();
+      if (refusal) tx.rollback();
+    });
+  } catch (error) {
+    if (!(error instanceof TransactionRollbackError)) throw error;
+  }
+  return refusal;
+}
+
+/** Gives back the counts that `countAll` took at the same `realNow`. */
+export async function giveBack(counted: Counted, realNow: Date) {
+  const db = getPostgresDatabase();
+  for (const [action, subject] of counted) {
+    const sameWindow = and(
+      eq(actionCounters.action, action),
+      eq(actionCounters.subject, subject),
+      eq(actionCounters.windowStart, windowAt(action, realNow).start),
+    );
+    await db.delete(actionCounters).where(and(sameWindow, eq(actionCounters.count, 1)));
+    await db.update(actionCounters).set({ count: sql`${actionCounters.count} - 1` }).where(and(sameWindow, gt(actionCounters.count, 1)));
+  }
 }
