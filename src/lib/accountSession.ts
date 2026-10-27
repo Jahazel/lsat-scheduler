@@ -25,9 +25,9 @@ export async function accountSessionToken({ token, user, account }: {
 }): Promise<JWT | null> {
   const now = Math.floor(Date.now() / 1000);
   if (!user) return checkedToken(token, await findAccountById(token.id), now);
-  if (account?.provider !== "google") return null;
-
-  const current = await findAccountByGoogleId(account.providerAccountId);
+  const current = account?.provider === "google" ? await findAccountByGoogleId(account.providerAccountId)
+    : account?.provider === "credentials" ? await findAccountById(user.id)
+    : null;
   if (!current) return null;
   return checkedToken({ ...token, id: current.id, sessionVersion: current.sessionVersion, signedInAt: now }, current, now);
 }

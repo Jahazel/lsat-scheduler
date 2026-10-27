@@ -1,7 +1,7 @@
 import { landingPathForRole } from "./landingPath";
 import { SESSION_ENDED_PATH } from "./loginNotice";
 
-const PUBLIC_ROUTES = ["/", "/login", "/signup", "/legal/terms", "/legal/privacy", "/legal/ai-disclosure"];
+const PUBLIC_ROUTES = ["/", "/login", "/signup", "/verify-email", "/legal/terms", "/legal/privacy", "/legal/ai-disclosure"];
 
 export type ProxyRoute = { kind: "allow" } | { kind: "redirect"; to: string } | { kind: "unauthorized" };
 

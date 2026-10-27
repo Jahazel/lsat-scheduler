@@ -7,6 +7,7 @@ export async function createGoogleAccountOnSignIn({ user, account, profile }: {
   account?: Account | null;
   profile?: Profile;
 }) {
+  if (account?.provider === "credentials") return true;
   if (account?.provider !== "google") return false;
 
   const googleId = account.providerAccountId;

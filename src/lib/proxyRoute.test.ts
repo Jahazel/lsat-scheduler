@@ -37,6 +37,7 @@ describe("proxy route", () => {
   it("keeps Login open when it already shows a reason, so a cookie that stays cannot loop", () => {
     expect(proxyRoute("/login", null, { sentSessionCookie: true, loginReason: "SessionEnded" })).toEqual({ kind: "allow" });
     expect(proxyRoute("/login", null, { sentSessionCookie: true, loginReason: "AccessDenied" })).toEqual({ kind: "allow" });
+    expect(proxyRoute("/login", null, { sentSessionCookie: true, loginReason: "EmailVerified" })).toEqual({ kind: "allow" });
   });
 
   it("reads the Auth.js session cookie on http and https, chunked or whole", () => {
@@ -45,7 +46,7 @@ describe("proxy route", () => {
     expect(hasSessionCookie(["authjs.csrf-token", "authjs.callback-url"])).toBe(false);
   });
 
-  it.each(["/", "/login", "/signup", "/legal/terms", "/legal/privacy", "/legal/ai-disclosure"])(
+  it.each(["/", "/login", "/signup", "/verify-email", "/legal/terms", "/legal/privacy", "/legal/ai-disclosure"])(
     "keeps the public page %s open when signed out",
     (pathname) => {
       expect(proxyRoute(pathname, null)).toEqual({ kind: "allow" });

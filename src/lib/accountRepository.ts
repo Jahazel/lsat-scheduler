@@ -34,6 +34,23 @@ export async function findAccountByEmail(email: string) {
   return account ?? null;
 }
 
+export async function signInMethodForEmail(email: string) {
+  const [account] = await getPostgresDatabase()
+    .select({ googleId: accounts.googleId })
+    .from(accounts)
+    .where(eq(accounts.email, sql`normalized_email(${email})`));
+  if (!account) return null;
+  return account.googleId === null ? "password" : "google";
+}
+
+export async function findPasswordAccountByEmail(email: string) {
+  const [account] = await getPostgresDatabase()
+    .select({ ...publicColumns, passwordHash: accounts.passwordHash })
+    .from(accounts)
+    .where(eq(accounts.email, sql`normalized_email(${email})`));
+  return account?.passwordHash ? { ...account, passwordHash: account.passwordHash } : null;
+}
+
 export async function findAccountByGoogleId(googleId: string) {
   const [account] = await getPostgresDatabase().select(publicColumns).from(accounts).where(eq(accounts.googleId, googleId));
   return account ?? null;

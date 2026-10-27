@@ -1,43 +1,34 @@
 import { GoogleButton } from "@/components/signIn/GoogleButton";
-import { PreviewHeader, SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";
+import { OrWithEmail, SubmitButton } from "@/components/signIn/PasswordFormParts";
+import { Notice, PreviewHeader, SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";
+import { TextInput } from "@/components/ui/TextInput";
 import { cx } from "@/components/ui/classes";
-import { loginNotice, type LoginNotice } from "@/lib/loginNotice";
-import { signInWithGoogle } from "./actions";
+import { loginNotice } from "@/lib/loginNotice";
+import { logInWithPassword, signInWithGoogle } from "./actions";
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
-  const notice = loginNotice((await searchParams).error);
+  const { error, notice: noticeKey } = await searchParams;
+  const notice = loginNotice({ error, notice: noticeKey });
   return (
     <SignInFrame title="Log in to DrillMap" lead="Your plan for this week is ready." preview={<TodayPreview />}>
-      {notice && <Notice notice={notice} />}
+      {notice && notice.tone !== "success" && <Notice notice={notice} />}
       <form action={signInWithGoogle}>
-        <GoogleButton />
+        <GoogleButton look="light" />
+      </form>
+      <OrWithEmail />
+      <form action={logInWithPassword} className="flex flex-col gap-8">
+        <div className="flex flex-col gap-4">
+          {notice?.tone === "success" && <Notice notice={notice} />}
+          <TextInput label="Email" name="email" type="email" autoComplete="email" required />
+          <TextInput label="Password" name="password" type="password" autoComplete="current-password" required />
+        </div>
+        <SubmitButton label="Log in" />
       </form>
       <SwitchPageLink question="New to DrillMap?" href="/signup" label="Sign up" />
     </SignInFrame>
   );
 }
 
-function Notice({ notice }: { notice: LoginNotice }) {
-  const danger = notice.tone === "danger";
-  return (
-    <div className="flex items-start gap-2">
-      <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" className={cx("mt-0.5 shrink-0", danger ? "stroke-danger-ink" : "stroke-smoke")} fill="none" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="8" cy="8" r="6.5" />
-        {danger ? (
-          <>
-            <path d="M8 4.75V8.75" />
-            <circle cx="8" cy="11" r="0.8" className="fill-danger-ink stroke-none" />
-          </>
-        ) : (
-          <path d="M8 4.75V8L10.25 9.5" />
-        )}
-      </svg>
-      <p role={danger ? "alert" : "status"} className={cx("text-small leading-[20px]", danger ? "text-danger-ink" : "text-ink")}>
-        {notice.text}
-      </p>
-    </div>
-  );
-}
 
 const TODAY = [
   { label: "Flaw questions · 12 drills", minutes: "35 min", done: true },

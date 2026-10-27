@@ -114,6 +114,15 @@ export const actionCounters = pgTable("action_counters", {
   count: integer("count").notNull(),
 }, (table) => [primaryKey({ columns: [table.action, table.subject, table.windowStart] })]);
 
+export const pendingSignups = pgTable("pending_signups", {
+  email: text("email").primaryKey(),
+  name: text("name").notNull(),
+  passwordHash: text("password_hash").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const runningScans = pgTable("running_scans", {
   subject: text("subject").primaryKey(),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
