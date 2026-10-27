@@ -1,40 +1,19 @@
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import { sql } from "drizzle-orm";
-import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { expect, it } from "vitest";
 import { createPostgresConnection } from "../../src/lib/postgres";
+import { migrateUpTo } from "./partialMigrations";
 import { createPostgresTestDatabase } from "./testDatabase";
-
-const MIGRATIONS = { migrationsSchema: "drillmap_migrations", migrationsTable: "applied" };
-
-// A copy of the migration folder that stops before the check-off migration.
-async function migrationsBeforeCheckOff() {
-  const folder = await mkdtemp(path.join(tmpdir(), "drillmap-migrations-"));
-  await cp(path.resolve("migrations"), folder, { recursive: true });
-  const journalPath = path.join(folder, "meta", "_journal.json");
-  const journal = JSON.parse(await readFile(journalPath, "utf8")) as { entries: { tag: string }[] };
-  const stop = journal.entries.findIndex(({ tag }) => tag === "0003_check_off_only");
-  expect(stop).toBeGreaterThan(0);
-  await writeFile(journalPath, JSON.stringify({ ...journal, entries: journal.entries.slice(0, stop) }));
-  return folder;
-}
 
 it("turns skipped check-ins into not started and drops actual minutes", async () => {
   const database = await createPostgresTestDatabase();
   const connection = createPostgresConnection({ database: database.name });
   const db = connection.db;
-  const folder = await migrationsBeforeCheckOff();
   try {
-    await db.execute(sql`drop schema public cascade`);
-    await db.execute(sql`create schema public`);
-    await db.execute(sql`drop schema drillmap_migrations cascade`);
-    await migrate(db, { migrationsFolder: folder, ...MIGRATIONS });
+    const migrateRest = await migrateUpTo(db, "0003_check_off_only");
 
     const { rows: [schedule] } = await db.execute<{ id: string }>(sql`
       with account as (
-        insert into accounts (email, name) values ('check-off@example.test', 'Student') returning id
+        insert into accounts (email, name, google_id) values ('check-off@example.test', 'Student', 'google-check-off') returning id
       ), student as (
         insert into students (
           account_id, platform, current_score, goal_score, goal_test_date, preferred_practice_test_day, accommodation,
@@ -54,7 +33,7 @@ it("turns skipped check-ins into not started and drops actual minutes", async ()
         (${schedule!.id}, 'MONDAY:2', 'not_started', null)
     `);
 
-    await migrate(db, { migrationsFolder: path.resolve("migrations"), ...MIGRATIONS });
+    await migrateRest();
 
     expect((await db.execute(sql`
       select activity_id, status from activity_check_ins order by activity_id
@@ -72,7 +51,6 @@ it("turns skipped check-ins into not started and drops actual minutes", async ()
         .rejects.toMatchObject({ cause: { code: "23514", constraint: "activity_check_ins_status_check" } });
     }
   } finally {
-    await rm(folder, { recursive: true, force: true });
     await connection.close();
     await database.cleanup();
   }

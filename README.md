@@ -129,6 +129,12 @@ credential is a secret that gives access, such as a password or an API key.
    analytics snapshots for their student side. An Admin reviews and approves
    each Sample analytics snapshot like an uploaded snapshot.
 
+   Leave `RESEND_API_KEY` and `EMAIL_FROM` unset. Without them, the app uses
+   the fake email sender: it writes each email to the terminal log and sends
+   nothing. Email links use `SITE_URL`, or `http://localhost:3000` when it is
+   unset. On Vercel, each place sets its own `RESEND_API_KEY`, `EMAIL_FROM`, and
+   `SITE_URL`. Without a key, a Vercel deployment logs the failed send instead.
+
 4. Start the app from the repository folder:
 
    ```bash
@@ -147,7 +153,7 @@ credential is a secret that gives access, such as a password or an API key.
 
 5. Sign in once with Google locally. Then, in
    another terminal, make that local Account an Admin. `make-admin` refuses an
-   Account that has not signed in with Google, and it clears any password. It reads
+   Account that has not signed in with Google. It reads
    `DATABASE_URL` from the terminal environment, so pass the local value explicitly:
 
    ```bash

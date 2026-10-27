@@ -58,7 +58,7 @@ export async function checkPostgresFoundation(connection: Connection) {
       async function createOwnedRecords() {
         return ids.parse((await tx.execute(sql`
           with account as (
-            insert into accounts (email, name) values (${`${randomUUID()}@example.test`}, 'Foundation check') returning id
+            insert into accounts (email, name, google_id) values (${`${randomUUID()}@example.test`}, 'Foundation check', ${randomUUID()}) returning id
           ), student as (
             insert into students (
               account_id, platform, current_score, goal_score, goal_test_date, preferred_practice_test_day, accommodation,
