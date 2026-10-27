@@ -15,6 +15,7 @@ import { signUpWithPassword } from "../../src/app/signup/actions";
 import { verifyEmail } from "../../src/app/verify-email/actions";
 import { logInWithPassword } from "../../src/app/login/actions";
 import { handlers } from "../../src/auth";
+import { PASSWORD_LOGIN_NOTICES } from "../../src/lib/loginNotice";
 import { accountSessionToken } from "../../src/lib/accountSession";
 import { passwordSignInAccount } from "../../src/lib/passwordSignIn";
 
@@ -123,9 +124,9 @@ async function logIn(email: string, password: string) {
   form.set("email", email);
   form.set("password", password);
   request.setCookie.mockReset();
-  const redirectedTo = await logInWithPassword(form).then(() => null, (error: Error) => error.message.replace(/^redirect:/, ""));
+  const refused = await logInWithPassword({ email: "", notice: null, passwordError: null }, form).catch(() => null);
   const cookie = request.setCookie.mock.calls.findLast(([name]) => name === COOKIE)?.[1] ?? "";
-  return { redirectedTo, cookie: cookie as string };
+  return { refused, cookie: cookie as string };
 }
 
 const SessionBody = z.object({ user: z.object({ id: z.string() }) }).nullable();
@@ -230,7 +231,7 @@ describe("reset link", () => {
     expect(await resetTokenRows()).toEqual([]);
     expect(await sessionUserId(firstDevice.cookie)).toBeNull();
     expect(await sessionUserId(secondDevice.cookie)).toBeNull();
-    expect((await logIn(MAYA, OLD_PASSWORD)).redirectedTo).toBe("/login?error=CredentialsSignin");
+    expect((await logIn(MAYA, OLD_PASSWORD)).refused?.notice).toEqual(PASSWORD_LOGIN_NOTICES.wrongEmailOrPassword);
     const newSignIn = await logIn(MAYA, NEW_PASSWORD);
     expect(await sessionUserId(newSignIn.cookie)).toBe(id);
   });

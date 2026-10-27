@@ -3,7 +3,7 @@ import type { Session } from "next-auth";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { createAppTestDatabase } from "./appTestDatabase";
 import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
-import { countAction } from "../../src/lib/actionLimits";
+import { countAction, countAll, giveBack, loginTryCounts } from "../../src/lib/actionLimits";
 import { actionCounters } from "../../src/lib/postgresSchema";
 import { findStudentByAccountId } from "../../src/lib/studentRepository";
 
@@ -65,6 +65,49 @@ it("ends the Chicago day at local midnight across a daylight time change", async
   await countTimes(5, "analyticsSnapshotSave", "account-a", new Date("2026-11-01T12:00:00Z"));
   expect(await countAction("analyticsSnapshotSave", "account-a", new Date("2026-11-01T12:00:00Z")))
     .toEqual({ allowed: false, windowEnd: new Date("2026-11-02T06:00:00Z") });
+});
+
+it("counts failed logins for an email in 15-minute windows", async () => {
+  const at = new Date("2026-10-24T15:44:59Z");
+  expect(await countTimes(10, "failedLoginForEmail", "maya.chen@fastmail.com", at)).toEqual(Array(10).fill({ allowed: true }));
+  expect(await countAction("failedLoginForEmail", "maya.chen@fastmail.com", at))
+    .toEqual({ allowed: false, windowEnd: new Date("2026-10-24T15:45:00Z") });
+  expect(await countAction("failedLoginForEmail", "maya.chen@fastmail.com", new Date("2026-10-24T15:45:00Z"))).toEqual({ allowed: true });
+});
+
+it("a refused countAll gives back every count it took, and giveBack returns a count taken at the same time", async () => {
+  const at = new Date("2026-10-24T15:10:00Z");
+  const tries = loginTryCounts("maya.chen@fastmail.com", "203.0.113.7");
+  await countTimes(50, "failedLoginFromIpAddress", "203.0.113.7", at);
+  expect(await countAll(tries, at)).toBe("overLimit");
+  expect((await counterRows()).map((row) => [row.action, row.count])).toEqual([["failedLoginFromIpAddress", 50]]);
+
+  const later = new Date("2026-10-24T16:10:00Z");
+  expect(await countAll(tries, later)).toBeNull();
+  expect(await countAll(tries, later)).toBeNull();
+  await giveBack(tries, later);
+  expect((await counterRows()).map((row) => [row.action, row.count]).sort()).toEqual([["failedLoginForEmail", 1], ["failedLoginFromIpAddress", 1]]);
+  await giveBack(tries, later);
+  expect(await counterRows()).toEqual([]);
+});
+
+it("two give-backs at the same moment each take one count off", async () => {
+  const at = new Date("2026-10-24T15:10:00Z");
+  const tries = loginTryCounts("maya.chen@fastmail.com", "203.0.113.7");
+  await countAll(tries, at);
+  await countAll(tries, at);
+  let both: Promise<unknown> = Promise.resolve();
+  await database.owner.transaction(async (tx) => {
+    await tx.execute(sql`select * from action_counters for update`);
+    both = Promise.all([giveBack(tries, at), giveBack(tries, at)]);
+    for (let waiting = 0; waiting < 2;) {
+      [{ waiting }] = (await database.owner.execute(sql`
+        select count(*)::int as waiting from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'
+      `)).rows as [{ waiting: number }];
+    }
+  });
+  await both;
+  expect(await counterRows()).toEqual([]);
 });
 
 it("allows 5 lead captures in one hour and refuses the 6th until the hour ends", async () => {

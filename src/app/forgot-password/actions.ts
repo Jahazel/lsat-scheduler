@@ -1,16 +1,15 @@
 "use server";
 
-import { TransactionRollbackError } from "drizzle-orm";
 import { z } from "zod";
-import { resetYourPassword, verifyYourEmail, youSignInWithGoogle } from "@/lib/accountEmails";
+import { resetYourPassword, youSignInWithGoogle } from "@/lib/accountEmails";
 import { signInMethodForEmail } from "@/lib/accountRepository";
-import { countAction, signupLimits } from "@/lib/actionLimits";
+import { countAll } from "@/lib/actionLimits";
 import { clientIpAddress } from "@/lib/clientIpAddress";
 import { sendEmail } from "@/lib/email";
 import { newEmailToken } from "@/lib/emailToken";
 import { saveResetToken } from "@/lib/passwordResetRepository";
-import { renewPendingSignupLink } from "@/lib/pendingSignupRepository";
-import { getPostgresDatabase } from "@/lib/postgres";
+import { findPendingSignup } from "@/lib/pendingSignupRepository";
+import { resendVerificationLink } from "@/lib/verificationResend";
 
 export type ForgotPasswordState = { kind: "form"; error?: string } | { kind: "sent"; email: string };
 
@@ -26,9 +25,7 @@ export async function requestPasswordReset(_state: ForgotPasswordState, formData
 
   const realNow = new Date();
   const ipAddress = await clientIpAddress();
-  const emailCount = await countAction("resetEmailInHour", email, realNow);
-  const ipAddressCount = await countAction("resetFromIpAddress", ipAddress, realNow);
-  if (!emailCount.allowed || !ipAddressCount.allowed) return sent;
+  if (await countAll([["resetEmailInHour", email], ["resetFromIpAddress", ipAddress]], realNow)) return sent;
 
   const { token, tokenHash } = newEmailToken();
   if (await saveResetToken(email, tokenHash, realNow)) {
@@ -36,22 +33,8 @@ export async function requestPasswordReset(_state: ForgotPasswordState, formData
   } else if ((await signInMethodForEmail(email)) === "google") {
     await sendEmail(youSignInWithGoogle(email, "reset"));
   } else {
-    const name = await renewPendingSignupWithinLimits(email, ipAddress, tokenHash, realNow);
-    if (name) await sendEmail(verifyYourEmail(email, name, token));
+    const pending = await findPendingSignup(email, realNow);
+    if (pending) await resendVerificationLink(email, ipAddress, pending, realNow);
   }
   return sent;
-}
-
-async function renewPendingSignupWithinLimits(email: string, ipAddress: string, tokenHash: string, realNow: Date) {
-  try {
-    return await getPostgresDatabase().transaction(async (tx) => {
-      for (const [action, subject] of signupLimits(email, ipAddress)) {
-        if (!(await countAction(action, subject, realNow, tx)).allowed) tx.rollback();
-      }
-      return (await renewPendingSignupLink(email, tokenHash, realNow, tx)) ?? tx.rollback();
-    });
-  } catch (error) {
-    if (error instanceof TransactionRollbackError) return null;
-    throw error;
-  }
 }
