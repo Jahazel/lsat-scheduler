@@ -448,12 +448,16 @@ describe("Google sign-in with an email in use", () => {
       await held;
     });
     await isLocked;
-    const verified = pressVerify(token);
-    await waitingOnLocks(1);
-    const google = googleSignIn("google-maya", "maya.chen@fastmail.com");
-    await waitingOnLocks(2);
-    release();
-    await holder;
+    let verified, google;
+    try {
+      verified = pressVerify(token);
+      await waitingOnLocks(1);
+      google = googleSignIn("google-maya", "maya.chen@fastmail.com");
+      await waitingOnLocks(2);
+    } finally {
+      release();
+      await holder;
+    }
 
     expect(await verified).toEqual({ redirectedTo: "/login?notice=EmailVerified" });
     expect(await google).toBe("/login?error=EmailUsesPassword");
