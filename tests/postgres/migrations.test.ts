@@ -20,7 +20,7 @@ it("applies the migration command once and leaves the applied list unchanged on 
     const first = await exec(process.execPath, ["--import", "tsx", "scripts/migrate-postgres.mts"], options);
     expect(first.stdout).toContain("Postgres migrations are up to date.");
     const applied = await db.execute(sql`select * from drillmap_migrations.applied order by id`);
-    expect(applied.rows).toHaveLength(12);
+    expect(applied.rows).toHaveLength(13);
     const second = await exec(process.execPath, ["--import", "tsx", "scripts/migrate-postgres.mts"], options);
     expect(second.stdout).toContain("Postgres migrations are up to date.");
     expect((await db.execute(sql`select * from drillmap_migrations.applied order by id`)).rows).toEqual(applied.rows);

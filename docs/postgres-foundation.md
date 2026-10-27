@@ -109,6 +109,13 @@ All seven tables create UUID ids with Postgres `gen_random_uuid()`. Accounts
 keep the current email, name, optional password hash, role, and optional
 Simulated date. Later migrations can add Stage 4 fields with `ALTER TABLE`.
 
+Since `0012_password_sign_in.sql`, each Account has exactly one sign-in
+method: a password hash or a Google ID, never both and never neither. An Admin
+never has a password hash. Two more tables serve password sign-in. A pending
+signup is keyed by its normalized email and is not an Account. A reset token
+belongs to one Account and is deleted with it. Both store only a hash of the
+emailed token. See [ADR 0006](adr/0006-pending-signups-live-outside-the-accounts-table.md).
+
 | Table | Owner link and uniqueness |
 | --- | --- |
 | `accounts` | Unique normalized email |
@@ -194,8 +201,9 @@ Stage 2 copy-database setup ticket.
 The role can connect, use the `public` schema, and select, insert, and delete
 rows in all seven domain tables. It can update every domain table except
 `weekly_schedules` and most of `accounts`. On `accounts`, it inserts only
-`email`, `name`, and `google_id`, and updates only `simulated_date` and
-`session_version`. Only the owner may give the Admin role, disable an
+`email`, `name`, `google_id`, and `password_hash`, and updates only
+`simulated_date`, `session_version`, and `password_hash`. It reads, inserts,
+updates, and deletes pending signups and reset tokens. Only the owner may give the Admin role, disable an
 Account, or change its Google ID. The Weekly schedule trigger stays in place as a second
 protection for the database owner. The app role cannot create roles,
 databases, schemas, tables, temporary tables, or other schema objects.

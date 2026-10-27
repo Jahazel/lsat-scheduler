@@ -39,7 +39,7 @@ export async function createAppTestDatabase() {
     setting.searchParams.delete("user");
     setting.searchParams.delete("password");
     async function createAccountAsOwner(values: typeof accounts.$inferInsert) {
-      const [account] = await owner.db.insert(accounts).values(values).onConflictDoNothing()
+      const [account] = await owner.db.insert(accounts).values({ googleId: `google-${values.email}`, ...values }).onConflictDoNothing()
         .returning({ id: accounts.id, role: accounts.role });
       return account ?? null;
     }

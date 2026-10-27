@@ -36,7 +36,7 @@ async function rows(query: ReturnType<typeof sql>) {
 }
 
 async function seedStudentWithRecords(email: string) {
-  const [account] = await rows(sql`insert into accounts (email, name) values (${email}, ${email}) returning id`);
+  const [account] = await rows(sql`insert into accounts (email, name, google_id) values (${email}, ${email}, ${`google-${email}`}) returning id`);
   const [student] = await rows(sql`
     insert into students (
       account_id, platform, current_score, goal_score, goal_test_date, preferred_practice_test_day, accommodation,
@@ -79,7 +79,7 @@ async function recordCounts() {
 it("reset deletes every student and its records and keeps Accounts and leads", async () => {
   await seedStudentWithRecords("first@test.local");
   await seedStudentWithRecords("second@test.local");
-  await owner.db.execute(sql`insert into accounts (email, name) values ('no-student@test.local', 'No Student')`);
+  await owner.db.execute(sql`insert into accounts (email, name, google_id) values ('no-student@test.local', 'No Student', 'google-no-student')`);
   await owner.db.execute(sql`insert into leads (email) values ('lead@test.local')`);
 
   const unconfirmed = await runScript("reset-dev-data", []);
@@ -107,9 +107,9 @@ it("make-admin refuses an Account that never signed in with Google", async () =>
     .toEqual([{ role: "student", has_password: true }]);
 });
 
-it("make-admin promotes a Google Account and clears any password", async () => {
-  await owner.db.execute(sql`insert into accounts (email, name, password_hash, google_id)
-    values ('promote@test.local', 'Promote', 'old-hash', 'throwaway-google')`);
+it("make-admin promotes a Google Account", async () => {
+  await owner.db.execute(sql`insert into accounts (email, name, google_id)
+    values ('promote@test.local', 'Promote', 'throwaway-google')`);
 
   const promoted = await runScript("make-admin", ["Promote@Test.Local"]);
   expect(promoted.code).toBe(0);

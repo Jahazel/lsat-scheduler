@@ -34,6 +34,11 @@ it("logs only known refusals and error codes, never data or connection details",
   const refusal = Object.assign(new Error("Migration history does not match this version. Stop."), { code: "P0001" });
   expect(publicFailureMessage(new Error("Failed query: BEGIN; ...", { cause: refusal })))
     .toBe("Migration refused: Migration history does not match this version. Stop.");
+  const noGoogleId = Object.assign(new Error(
+    "An Account has no Google ID. Each Account needs exactly one sign-in method, so the owner decides by hand what happens to it. This migration deletes no Account. Stop.",
+  ), { code: "P0001" });
+  expect(publicFailureMessage(new Error("Failed query: BEGIN; ...", { cause: noGoogleId })))
+    .toBe(`Migration refused: ${noGoogleId.message}`);
   const constraint = Object.assign(new Error('duplicate key value violates unique constraint "accounts_email_key"'), {
     code: "23505", detail: "Key (email)=(student@example.test) already exists.",
   });

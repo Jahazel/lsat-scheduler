@@ -29,7 +29,7 @@ function expectNoSecret(output: string, setting = database.setting) {
 }
 
 it("checks the foundation as the limited login and leaves existing records untouched on repeated runs", async () => {
-  await database.owner.execute(sql`insert into accounts (email, name) values ('keep@example.test', 'Keep')`);
+  await database.owner.execute(sql`insert into accounts (email, name, google_id) values ('keep@example.test', 'Keep', 'google-keep')`);
   await database.owner.execute(sql`insert into leads (email) values ('keep@example.test')`);
   const before = await database.owner.execute(sql`select * from accounts`);
   for (let attempt = 0; attempt < 2; attempt++) {

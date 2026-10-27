@@ -196,13 +196,15 @@ it("the Google callback never grants the Admin role", async () => {
   expect((await accountRows()).map((row) => row.role)).toEqual(["student"]);
 });
 
-it("owner Admin grant needs a Google identity, clears the password, and a fresh Google sign-in opens Admin access", async () => {
+it("owner Admin grant needs a Google identity, and a fresh Google sign-in opens Admin access", async () => {
   await leftoverPasswordAccount("admin@example.test");
   const refused = await makeAdmin("admin@example.test").then(() => null, (error: unknown) => error);
   expect(refused).toMatchObject({ code: 1, stderr: expect.stringContaining("has not signed in with Google") });
   expect((await accountRows())[0]).toMatchObject({ role: "student", has_password: true });
 
-  await database.owner.execute(sql`update accounts set google_id = 'google-admin' where email = 'admin@example.test'`);
+  await database.owner.execute(sql`
+    update accounts set google_id = 'google-admin', password_hash = null where email = 'admin@example.test'
+  `);
   const before = await findAccountByEmail("admin@example.test");
   expect(await googleToken("google-admin", "admin@example.test")).toMatchObject({ id: before?.id, role: "student" });
   expect((await makeAdmin(" ADMIN@example.test ")).stdout).toContain("Made admin@example.test an admin");

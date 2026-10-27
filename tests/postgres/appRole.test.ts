@@ -87,7 +87,7 @@ async function applyAppRoleSql() {
 }
 
 beforeEach(async () => {
-  await ownerDb().execute(sql`truncate public.accounts, public.leads, public.action_counters cascade`);
+  await ownerDb().execute(sql`truncate public.accounts, public.leads, public.action_counters, public.pending_signups cascade`);
 });
 
 const ownedRecords = z.object({
@@ -102,7 +102,7 @@ const ownedRecords = z.object({
 async function createOwnedRecords() {
   const result = await appDb().execute(sql`
     with account as (
-      insert into accounts (email, name) values (${`${randomUUID()}@example.test`}, 'Student') returning id
+      insert into accounts (email, name, password_hash) values (${`${randomUUID()}@example.test`}, 'Student', 'hash') returning id
     ), student as (
       insert into students (
         account_id, platform, current_score, goal_score, goal_test_date,
@@ -142,7 +142,7 @@ it("connects as the SQL-created app role and reads and writes Accounts", async (
   const db = appDb();
   expect((await db.execute(sql`select current_user, session_user`)).rows)
     .toEqual([{ current_user: role, session_user: role }]);
-  await db.execute(sql`insert into accounts (email, name) values ('role@example.test', 'Student')`);
+  await db.execute(sql`insert into accounts (email, name, google_id) values ('role@example.test', 'Student', 'google-role')`);
   expect((await db.execute(sql`select email, name from accounts`)).rows)
     .toEqual([{ email: "role@example.test", name: "Student" }]);
 });
@@ -232,6 +232,44 @@ it("refuses Admin role, disabled time, and Google ID changes through the app log
   }
   expect((await appDb().execute(sql`select role, google_id from accounts`)).rows)
     .toEqual([{ role: "student", google_id: null }]);
+});
+
+it("sets a password Account's hash and manages pending signups and reset tokens through the app login", async () => {
+  const db = appDb();
+  const records = await createOwnedRecords();
+  await db.execute(sql`update accounts set password_hash = 'new-hash' where id = ${records.account_id}`);
+  await db.execute(sql`
+    insert into pending_signups (email, name, password_hash, token_hash, token_expires_at)
+    values ('pending@example.test', 'Pending', 'hash', 'token-1', now() + interval '1 day')
+  `);
+  await db.execute(sql`update pending_signups set token_hash = 'token-2' where email = 'pending@example.test'`);
+  await db.execute(sql`
+    insert into reset_tokens (account_id, token_hash, expires_at) values (${records.account_id}, 'reset-1', now())
+  `);
+  await db.execute(sql`update reset_tokens set token_hash = 'reset-2' where account_id = ${records.account_id}`);
+  expect((await db.execute(sql`
+    select accounts.password_hash, pending_signups.token_hash as signup_token, reset_tokens.token_hash as reset_token
+    from accounts, pending_signups, reset_tokens where accounts.id = ${records.account_id}
+  `)).rows).toEqual([{ password_hash: "new-hash", signup_token: "token-2", reset_token: "reset-2" }]);
+  await db.execute(sql`delete from pending_signups`);
+  await db.execute(sql`delete from reset_tokens`);
+  expect((await db.execute(sql`
+    select (select count(*)::integer from pending_signups) as signups, (select count(*)::integer from reset_tokens) as resets
+  `)).rows).toEqual([{ signups: 0, resets: 0 }]);
+});
+
+it("refuses an Admin role or both sign-in methods on a password Account through the app login", async () => {
+  const records = await createOwnedRecords();
+  await expect(appDb().execute(sql`update accounts set role = 'admin' where id = ${records.account_id}`))
+    .rejects.toMatchObject({ cause: { code: "42501" } });
+  await expect(appDb().execute(sql`
+    insert into accounts (email, name, password_hash, google_id) values ('both@example.test', 'Both', 'hash', 'google-both')
+  `)).rejects.toMatchObject({ cause: { code: "23514", constraint: "accounts_one_sign_in_method" } });
+  const google = await asApp(() => createAccount({ email: "google@example.test", name: "Google", googleId: "google-id" }));
+  await expect(appDb().execute(sql`update accounts set password_hash = 'hash' where id = ${google!.id}`))
+    .rejects.toMatchObject({ cause: { code: "23514", constraint: "accounts_one_sign_in_method" } });
+  expect((await appDb().execute(sql`select role, password_hash from accounts order by password_hash nulls first`)).rows)
+    .toEqual([{ role: "student", password_hash: null }, { role: "student", password_hash: "hash" }]);
 });
 
 it("creates a student Account, moves and resets the test date, ends sessions, and deletes the Account through the app login", async () => {

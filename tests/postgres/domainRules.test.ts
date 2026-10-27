@@ -22,7 +22,7 @@ type WeeklyScheduleId = z.infer<typeof scheduleRow>["id"];
 
 async function createAccount() {
   return accountRow.parse((await db.execute(sql`
-    insert into accounts (email, name) values (${`${randomUUID()}@example.test`}, 'Student') returning id
+    insert into accounts (email, name, google_id) values (${`${randomUUID()}@example.test`}, 'Student', ${randomUUID()}) returning id
   `)).rows[0]).id;
 }
 
@@ -84,7 +84,7 @@ async function createCheckIn({ scheduleId, activityId = "MONDAY:0" }: {
 }
 
 beforeEach(async () => {
-  await db.execute(sql`truncate accounts, leads cascade`);
+  await db.execute(sql`truncate accounts, leads, pending_signups cascade`);
 });
 
 it("reads Daily capacity and Accommodation as numbers", async () => {
@@ -263,7 +263,9 @@ it("deleting an Account removes its student, Analytics snapshots, Weekly schedul
 });
 
 it.each(["owner", "ADMIN", "", null])("refuses an unknown or missing Account role %s", async (role) => {
-  await expect(db.execute(sql`insert into accounts (email, name, role) values ('invalid@example.test', 'Student', ${role})`))
+  await expect(db.execute(sql`
+    insert into accounts (email, name, google_id, role) values ('invalid@example.test', 'Student', 'google-invalid', ${role})
+  `))
     .rejects.toMatchObject({ cause: role === null
       ? { code: "23502", table: "accounts", column: "role" }
       : { code: "23514", constraint: "accounts_role_check" } });
@@ -336,7 +338,7 @@ it("refuses any check-in status but not started and completed on insert and upda
 
 it("creates an Account with a database UUID and stores a normalized, unique email", async () => {
   const result = await db.execute(sql`
-    insert into accounts (email, name) values ('  Student@Example.test  ', 'Student')
+    insert into accounts (email, name, google_id) values ('  Student@Example.test  ', 'Student', 'google-student')
     returning id, email, role, password_hash, simulated_date
   `);
   const account = accountRow.parse(result.rows[0]);
@@ -344,11 +346,11 @@ it("creates an Account with a database UUID and stores a normalized, unique emai
     email: "student@example.test", role: "student", password_hash: null, simulated_date: null,
   });
   await expect(db.execute(sql`
-    insert into accounts (email, name) values ('STUDENT@example.test', 'Duplicate')
+    insert into accounts (email, name, password_hash) values ('STUDENT@example.test', 'Duplicate', 'hash')
   `)).rejects.toMatchObject({ cause: { code: "23505", constraint: "accounts_email_key" } });
   await db.execute(sql`
     update accounts set email = ' Changed@Example.test ', role = 'admin',
-      password_hash = 'fake-hash', simulated_date = '2026-10-12' where id = ${account.id}
+      simulated_date = '2026-10-12' where id = ${account.id}
   `);
   expect((await db.execute(sql`select email, role from accounts where id = ${account.id}`)).rows)
     .toEqual([{ email: "changed@example.test", role: "admin" }]);
@@ -356,7 +358,7 @@ it("creates an Account with a database UUID and stores a normalized, unique emai
 
 it("keeps leads separate from Accounts with their own normalized, unique emails", async () => {
   const account = accountRow.parse((await db.execute(sql`
-    insert into accounts (email, name) values ('lead@example.test', 'Account') returning id
+    insert into accounts (email, name, password_hash) values ('lead@example.test', 'Account', 'hash') returning id
   `)).rows[0]);
   const lead = await db.execute(sql`
     insert into leads (email) values (${"\t Lead@Example.test \n"}) returning id, email, created_at, updated_at
@@ -380,10 +382,77 @@ it.each(["accounts", "leads"])("refuses empty or missing email on %s insert and 
       ? { code: "23502", table, column: "email" }
       : { code: "23514", constraint: `${table}_email_normalized` };
     const insert = table === "accounts"
-      ? sql`insert into accounts (email, name) values (${email}, 'Student')`
+      ? sql`insert into accounts (email, name, password_hash) values (${email}, 'Student', 'hash')`
       : sql`insert into leads (email) values (${email})`;
     await expect(db.execute(insert)).rejects.toMatchObject({ cause });
     await expect(db.execute(sql`update ${sql.identifier(table)} set email = ${email} where id = ${id}`))
       .rejects.toMatchObject({ cause });
   }
+});
+
+it("requires each Account to have exactly one sign-in method", async () => {
+  const constraint = "accounts_one_sign_in_method";
+  for (const methods of [sql`'hash', 'google-both'`, sql`null, null`]) {
+    await expect(db.execute(sql`
+      insert into accounts (email, name, password_hash, google_id) values ('refused@example.test', 'Student', ${methods})
+    `)).rejects.toMatchObject({ cause: { code: "23514", constraint } });
+  }
+  const googleAccount = await createAccount();
+  await expect(db.execute(sql`update accounts set password_hash = 'hash' where id = ${googleAccount}`))
+    .rejects.toMatchObject({ cause: { code: "23514", constraint } });
+  await expect(db.execute(sql`update accounts set google_id = null where id = ${googleAccount}`))
+    .rejects.toMatchObject({ cause: { code: "23514", constraint } });
+  await expect(db.execute(sql`insert into accounts (email, name, password_hash) values ('empty@example.test', 'Student', '')`))
+    .rejects.toMatchObject({ cause: { code: "23514", constraint: "accounts_password_hash_not_empty" } });
+
+  await db.execute(sql`insert into accounts (email, name, password_hash) values ('password@example.test', 'Student', 'hash')`);
+  expect((await db.execute(sql`
+    select email, password_hash is not null as has_password, google_id is not null as has_google
+    from accounts order by has_password desc
+  `)).rows).toEqual([
+    { email: "password@example.test", has_password: true, has_google: false },
+    { email: expect.stringMatching(/@example\.test$/), has_password: false, has_google: true },
+  ]);
+});
+
+it("refuses an Admin with a password", async () => {
+  const constraint = "accounts_admin_without_password";
+  await expect(db.execute(sql`
+    insert into accounts (email, name, password_hash, role) values ('admin@example.test', 'Admin', 'hash', 'admin')
+  `)).rejects.toMatchObject({ cause: { code: "23514", constraint } });
+  const { rows: [passwordAccount] } = await db.execute<{ id: string }>(sql`
+    insert into accounts (email, name, password_hash) values ('student@example.test', 'Student', 'hash') returning id
+  `);
+  await expect(db.execute(sql`update accounts set role = 'admin' where id = ${passwordAccount!.id}`))
+    .rejects.toMatchObject({ cause: { code: "23514", constraint } });
+  expect((await db.execute(sql`select role from accounts`)).rows).toEqual([{ role: "student" }]);
+});
+
+it("keeps one pending signup per normalized email and refuses empty fields", async () => {
+  const expires = "2026-10-28T12:00:00Z";
+  await db.execute(sql`
+    insert into pending_signups (email, name, password_hash, token_hash, token_expires_at)
+    values (' New@Example.test ', 'New', 'hash', 'token-1', ${expires})
+  `);
+  expect((await db.execute(sql`select email, created_at is not null as dated from pending_signups`)).rows)
+    .toEqual([{ email: "new@example.test", dated: true }]);
+  await expect(db.execute(sql`
+    insert into pending_signups (email, name, password_hash, token_hash, token_expires_at)
+    values ('NEW@example.test', 'Again', 'hash', 'token-2', ${expires})
+  `)).rejects.toMatchObject({ cause: { code: "23505", constraint: "pending_signups_pkey" } });
+  for (const [column, value] of [["email", " "], ["password_hash", ""], ["token_hash", ""]] as const) {
+    await expect(db.execute(sql`update pending_signups set ${sql.identifier(column)} = ${value}`))
+      .rejects.toMatchObject({ cause: { code: "23514" } });
+  }
+});
+
+it("keeps one reset token per Account and deletes it with the Account", async () => {
+  const { rows: [account] } = await db.execute<{ id: string }>(sql`
+    insert into accounts (email, name, password_hash) values ('reset@example.test', 'Student', 'hash') returning id
+  `);
+  await db.execute(sql`insert into reset_tokens (account_id, token_hash, expires_at) values (${account!.id}, 'token-1', now())`);
+  await expect(db.execute(sql`insert into reset_tokens (account_id, token_hash, expires_at) values (${account!.id}, 'token-2', now())`))
+    .rejects.toMatchObject({ cause: { code: "23505", constraint: "reset_tokens_pkey" } });
+  await db.execute(sql`delete from accounts where id = ${account!.id}`);
+  expect((await db.execute(sql`select * from reset_tokens`)).rows).toEqual([]);
 });
