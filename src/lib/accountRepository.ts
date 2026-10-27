@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getPostgresDatabase } from "./postgres";
-import { accounts } from "./postgresSchema";
+import { accounts, pendingSignups } from "./postgresSchema";
 
 const accountIdSchema = z.guid().brand<"AccountId">();
 type AccountId = z.infer<typeof accountIdSchema>;
@@ -58,13 +58,20 @@ export async function findAccountByGoogleId(googleId: string) {
 
 const createdAccount = z.object({ id: accountIdSchema, role: z.enum(accounts.role.enumValues) });
 
-/** Returns null when another Account already has this email or Google ID. */
+/**
+ * Returns null when another Account already has this email or Google ID.
+ * Deletes any pending signup for the email.
+ */
 export async function createAccount({ email, name, googleId }: { email: string; name: string; googleId: string }) {
-  const result = await getPostgresDatabase().execute(sql`
-    insert into accounts (email, name, google_id) values (${email}, ${name}, ${googleId})
-    on conflict do nothing returning id, role
-  `);
-  return result.rows[0] ? createdAccount.parse(result.rows[0]) : null;
+  return getPostgresDatabase().transaction(async (tx) => {
+    const result = await tx.execute(sql`
+      insert into ${accounts} (email, name, google_id) values (${email}, ${name}, ${googleId})
+      on conflict do nothing returning id, role
+    `);
+    if (!result.rows[0]) return null;
+    await tx.delete(pendingSignups).where(eq(pendingSignups.email, sql`normalized_email(${email})`));
+    return createdAccount.parse(result.rows[0]);
+  });
 }
 
 export async function endAllSessions(id: AccountId) {

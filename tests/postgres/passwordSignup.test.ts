@@ -10,6 +10,7 @@ import { verifyEmail } from "../../src/app/verify-email/actions";
 import VerifyEmailPage from "../../src/app/verify-email/page";
 import { logInWithPassword } from "../../src/app/login/actions";
 import { handlers } from "../../src/auth";
+import { createGoogleAccountOnSignIn } from "../../src/lib/authAccounts";
 import proxy from "../../src/proxy";
 
 const COOKIE = "authjs.session-token";
@@ -395,5 +396,44 @@ describe("first password sign-in", () => {
     }
     advance(24 * HOUR_MS);
     expect((await readSession(cookie)).user).toBeNull();
+  });
+});
+
+describe("Google sign-in with an email in use", () => {
+  const googleSignIn = (googleId: string, email: string) => createGoogleAccountOnSignIn({
+    user: { email, name: "Maya on Google" },
+    account: { provider: "google", providerAccountId: googleId, type: "oidc" },
+    profile: { sub: googleId, email, email_verified: true },
+  });
+
+  it("for a pending signup, deletes it and makes a Google Account, and the old link then makes nothing", async () => {
+    await signUp();
+    const token = linkTokenIn(fakeEmails()[0].text);
+
+    expect(await googleSignIn("google-maya", "Maya.Chen@Fastmail.com")).toBe(true);
+    expect(await pendingEmails()).toEqual([]);
+    const googleAccount = [{ email: "maya.chen@fastmail.com", name: "Maya on Google", role: "student", has_google: true, has_password: false }];
+    expect(await accountsNow()).toEqual(googleAccount);
+
+    expect(await pressVerify(token)).toEqual({ linkDoesNotWork: true });
+    expect(await accountsNow()).toEqual(googleAccount);
+  });
+
+  it("for a password Account, refuses with the email-uses-a-password notice and changes nothing", async () => {
+    await signUp();
+    await pressVerify(linkTokenIn(fakeEmails()[0].text));
+    const before = await accountsNow();
+
+    expect(await googleSignIn("google-maya", "Maya.Chen@Fastmail.com")).toBe("/login?error=EmailUsesPassword");
+    expect(await accountsNow()).toEqual(before);
+    expect(before).toEqual([expect.objectContaining({ has_google: false, has_password: true })]);
+  });
+
+  it("for a Google Account with a different Google ID, still refuses and moves nothing", async () => {
+    expect(await googleSignIn("google-maya", "maya.chen@fastmail.com")).toBe(true);
+    const before = await ownerRows(sql`select id, email, google_id from accounts`);
+
+    expect(await googleSignIn("google-someone-else", "Maya.Chen@Fastmail.com")).toBe(false);
+    expect(await ownerRows(sql`select id, email, google_id from accounts`)).toEqual(before);
   });
 });

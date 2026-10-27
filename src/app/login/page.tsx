@@ -11,14 +11,14 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const notice = loginNotice({ error, notice: noticeKey });
   return (
     <SignInFrame title="Log in to DrillMap" lead="Your plan for this week is ready." preview={<TodayPreview />}>
-      {notice && notice.tone !== "success" && <Notice notice={notice} />}
+      {notice?.place === "aboveGoogle" && <Notice notice={notice} />}
       <form action={signInWithGoogle}>
         <GoogleButton look="light" />
       </form>
       <OrWithEmail />
       <form action={logInWithPassword} className="flex flex-col gap-8">
         <div className="flex flex-col gap-4">
-          {notice?.tone === "success" && <Notice notice={notice} />}
+          {notice?.place === "aboveEmail" && <Notice notice={notice} />}
           <TextInput label="Email" name="email" type="email" autoComplete="email" required />
           <TextInput label="Password" name="password" type="password" autoComplete="current-password" required />
         </div>
