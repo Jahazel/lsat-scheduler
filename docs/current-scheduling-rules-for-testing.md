@@ -14,7 +14,7 @@ The first visit that creates a week's schedule fixes it. Reloading, confirming m
 ## Analytics and priority
 
 - The generator uses the three newest eligible approved snapshots that count for this week or an earlier week, provided at least one counts for this week. Their accuracy weights are 60%, 30%, and 10%, newest first. With fewer snapshots, it rescales the available weights. If a question type is missing from a snapshot, it uses only snapshots that report that type.
-- The newest snapshot alone supplies the restricted Stimulus Logic types flagged `HIGHEST` priority. A `MEDIUM` or `LOW` flag does not qualify. Missing accuracy rows are not invented.
+- The newest snapshot alone supplies the restricted Stimulus Logic types flagged `HIGHEST` or `HIGH` priority. The tutor counts both as top priority (#305). A `MEDIUM` or `LOW` flag does not qualify. Missing accuracy rows are not invented.
 - RC passage-type accuracy is weighted the same way. It orders RC passage types from lowest to highest accuracy; equal accuracies use the fixed order Art, Humanities, Science, Law, Comparative, and a type with no accuracy goes last.
 - LR accuracy orders eligible question types from weakest to strongest. Equal accuracies use the fixed type-list order. The student's goal score does not directly change drill selection; the **current** score controls the full-section and LR difficulty rules below.
 - The schedule is a shopping list of type, quantity, difficulty, and source range. It does not select individual LSAT question numbers. Ordinary drills use material below PT 130; regular weekly practice tests use PT 130 or later. Near-test practice tests use LawHub.
@@ -45,7 +45,7 @@ Every drilling day lands in its **fill window**: no more than 10 minutes under i
 
 **LR lines.** The first pass gives each type one 5-question line. After that, each line is 10 questions of one type. There is never an LR line of 25 questions of one type. First-time LR lines use difficulty L2–4 below a current score of 165, or L3–5 at 165 or higher. Every line after the first pass uses L3–5.
 
-**LR type order.** The six starred LR types are Conditional reasoning, Flaw or descriptive weakening, Necessary assumption, Strengthen, Sufficient assumption, and Weaken. They come first, weakest accuracy first. Next come restricted Stimulus Logic types marked `HIGHEST` in the newest snapshot. Other reported Question Stem types and the regular Logic exceptions, Diagram, Math, and Conditional reasoning, follow from weakest to strongest. Unreported regular types do not enter that later pool.
+**LR type order.** The six starred LR types are Conditional reasoning, Flaw or descriptive weakening, Necessary assumption, Strengthen, Sufficient assumption, and Weaken. They come first, weakest accuracy first. Next come restricted Stimulus Logic types marked `HIGHEST` or `HIGH` in the newest snapshot. Other reported Question Stem types and the regular Logic exceptions, Diagram, Math, and Conditional reasoning, follow from weakest to strongest. Unreported regular types do not enter that later pool.
 
 When the week cannot fit one line for every starred type, the generator schedules only starred types. It puts the least recently scheduled types first, then uses accuracy and fixed list order to break ties. Every line in a saved schedule counts as scheduled, whether or not it was checked off. Both types of a paired LR drill count. A full section does not.
 

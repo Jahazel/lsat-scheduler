@@ -896,7 +896,7 @@ function RowValue({ row }: { row: AnalyticsExtractedRow }) {
       <svg aria-hidden viewBox="0 0 10 10" className="size-2.5" fill="currentColor" stroke="currentColor" strokeLinejoin="round">
         <path d="M2 9V1.5h5.5L6.5 3.5l1 2H2" />
       </svg>
-      Highest priority
+      {row.priorityTier === "high" ? "High" : "Highest"} priority
     </span>
   );
 }

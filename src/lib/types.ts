@@ -101,8 +101,6 @@ export interface AnalyticsSnapshot {
   // the 3 Stimulus Logic exceptions. Restricted logic types are gated by
   // lrTopPriorityLogicTypes below, not accuracy.
   lrAccuracyByType: Partial<Record<LRType, number>>;
-  // Restricted Stimulus Logic types flagged HIGHEST priority this week —
-  // mirrors 7Sage's own priority indicator, not calculated by us.
   lrTopPriorityLogicTypes: LRLogicType[];
   rcAccuracyByType?: Partial<Record<RCType, number>>;
 }
@@ -129,7 +127,10 @@ export interface AnalyticsSnapshotRecord extends AnalyticsSnapshot {
   };
 }
 
-export type PriorityTier = "highest" | "medium" | "low";
+export const PRIORITY_TIERS = ["highest", "high", "medium", "low"] as const;
+export type PriorityTier = (typeof PRIORITY_TIERS)[number];
+
+export const isTopPriorityTier = (tier: PriorityTier) => tier === "highest" || tier === "high";
 
 export type AnalyticsSection = "LR" | "RC";
 
