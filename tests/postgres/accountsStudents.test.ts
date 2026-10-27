@@ -140,7 +140,7 @@ it("Google sign-in refuses a missing email or stable ID", async () => {
 
 it("Google sign-in cannot take over a password Account or another Google Account by email", async () => {
   await leftoverPasswordAccount("password@example.test");
-  expect(await googleSignIn("google-attacker", "Password@example.test")).toBe(false);
+  expect(await googleSignIn("google-attacker", "Password@example.test")).toBe("/login?error=EmailUsesPassword");
   expect(await googleSignIn("google-1", "owner@example.test")).toBe(true);
   expect(await googleSignIn("google-2", "OWNER@example.test")).toBe(false);
   expect(await accountRows()).toEqual([
@@ -155,7 +155,7 @@ it("a password Account cannot sign in through Google or without a provider", asy
   const user = { id: saved?.id, email: "password@example.test" };
   expect(await createGoogleAccountOnSignIn({ user, account: null })).toBe(false);
   expect(await accountSessionToken({ token: {}, user, account: null })).toBeNull();
-  expect(await googleSignIn("google-1", "password@example.test")).toBe(false);
+  expect(await googleSignIn("google-1", "password@example.test")).toBe("/login?error=EmailUsesPassword");
   expect(await accountRows()).toEqual([{ email: "password@example.test", role: "student", google_id: null, has_password: true }]);
 });
 
