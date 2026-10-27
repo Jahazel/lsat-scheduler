@@ -17,6 +17,8 @@ import { logInWithPassword } from "../../src/app/login/actions";
 import { handlers } from "../../src/auth";
 import { PASSWORD_LOGIN_NOTICES } from "../../src/lib/loginNotice";
 import { accountSessionToken } from "../../src/lib/accountSession";
+import { findPendingSignup } from "../../src/lib/pendingSignupRepository";
+import { resendVerificationLink } from "../../src/lib/verificationResend";
 import { passwordSignInAccount } from "../../src/lib/passwordSignIn";
 
 const COOKIE = "authjs.session-token";
@@ -367,5 +369,16 @@ describe("reset limits", () => {
     expect(await forgot("pat.lee@fastmail.com")).toEqual(sent("pat.lee@fastmail.com"));
     expect(fakeEmails()).toEqual([]);
     expect(await ownerRows(sql`select token_hash from pending_signups where email = 'pat.lee@fastmail.com'`)).toEqual([pendingBefore]);
+  });
+
+  it("a new link that loses to a newer signup gives back its signup counts", async () => {
+    await signUpPat();
+    const pending = await findPendingSignup("pat.lee@fastmail.com", new Date());
+    await signUpPat();
+    const countsBefore = await ownerRows(sql`select action, count from action_counters where action like 'signup%' order by action`);
+
+    await resendVerificationLink("pat.lee@fastmail.com", request.ip, pending!, new Date());
+    expect(fakeEmails()).toHaveLength(2);
+    expect(await ownerRows(sql`select action, count from action_counters where action like 'signup%' order by action`)).toEqual(countsBefore);
   });
 });

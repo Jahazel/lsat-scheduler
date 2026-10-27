@@ -1,5 +1,5 @@
 import { verifyYourEmail } from "./accountEmails";
-import { countAll, signupCounts } from "./actionLimits";
+import { countAll, giveBack, signupCounts } from "./actionLimits";
 import { sendEmail } from "./email";
 import { newEmailToken } from "./emailToken";
 import { replaceVerificationToken } from "./pendingSignupRepository";
@@ -8,9 +8,12 @@ import { replaceVerificationToken } from "./pendingSignupRepository";
 export async function resendVerificationLink(
   email: string, ipAddress: string, pending: { name: string; passwordHash: string }, realNow: Date,
 ) {
-  if (await countAll(signupCounts(email, ipAddress), realNow)) return;
+  const counted = signupCounts(email, ipAddress);
+  if (await countAll(counted, realNow)) return;
   const { token, tokenHash } = newEmailToken();
   if (await replaceVerificationToken({ email, passwordHash: pending.passwordHash, tokenHash }, realNow)) {
     await sendEmail(verifyYourEmail(email, pending.name, token));
+  } else {
+    await giveBack(counted, realNow);
   }
 }
