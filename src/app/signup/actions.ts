@@ -45,7 +45,7 @@ export async function signUpWithPassword(_state: SignupState, formData: FormData
   if (method === "password") {
     await sendEmail(youAlreadyHaveAnAccount(email));
   } else if (method === "google") {
-    await sendEmail(youSignInWithGoogle(email));
+    await sendEmail(youSignInWithGoogle(email, "signup"));
   } else {
     const { token, tokenHash } = newEmailToken();
     await savePendingSignup({ email, name, passwordHash: await hashPassword(password), tokenHash }, realNow);

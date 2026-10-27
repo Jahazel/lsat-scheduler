@@ -29,7 +29,9 @@ export async function accountSessionToken({ token, user, account }: {
     : account?.provider === "credentials" ? await findAccountById(user.id)
     : null;
   if (!current) return null;
-  return checkedToken({ ...token, id: current.id, sessionVersion: current.sessionVersion, signedInAt: now }, current, now);
+  // A password sign-in keeps the version it checked the password against, so a reset during the check ends it.
+  const sessionVersion = account?.provider === "credentials" ? user.sessionVersion : current.sessionVersion;
+  return checkedToken({ ...token, id: current.id, sessionVersion, signedInAt: now }, current, now);
 }
 
 function checkedToken(token: JWT, current: SessionAccount | null, now: number): JWT | null {

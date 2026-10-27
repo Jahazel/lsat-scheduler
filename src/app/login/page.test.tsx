@@ -31,6 +31,7 @@ describe("Login", () => {
     expect(field("Email").getAttribute("type")).toBe("email");
     expect(field("Password").getAttribute("type")).toBe("password");
     expect(screen.getByRole("link", { name: "Sign up" }).getAttribute("href")).toBe("/signup");
+    expect(screen.getByRole("link", { name: "Forgot password?" }).getAttribute("href")).toBe("/forgot-password");
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByRole("status")).toBeNull();
   });
@@ -42,6 +43,7 @@ describe("Login", () => {
     [{ error: "SessionEnded" }, "status", "Your session ended. Log in again."],
     [{ error: "CredentialsSignin" }, "alert", "That email and password don't match. Check both and try again, or reset your password."],
     [{ notice: "EmailVerified" }, "status", "Email verified. Log in."],
+    [{ notice: "PasswordChanged" }, "status", "Password changed. Log in with your new password."],
     [{ error: "EmailUsesPassword" }, "alert", "This email uses a password. Log in with your password."],
   ])("explains %o", async (params, role, text) => {
     await renderLogin(params);
@@ -63,6 +65,7 @@ describe("Login", () => {
     [{ error: "EmailUsesPassword" }, "alert"],
     [{ error: "CredentialsSignin" }, "alert"],
     [{ notice: "EmailVerified" }, "status"],
+    [{ notice: "PasswordChanged" }, "status"],
   ])("puts %o between Continue with Google and the Email field", async (params, role) => {
     await renderLogin(params);
     const notice = screen.getByRole(role);

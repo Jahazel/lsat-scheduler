@@ -1,13 +1,11 @@
 import { CredentialsSignin } from "next-auth";
-import { verifyYourEmail } from "./accountEmails";
 import { findPasswordAccountByEmail } from "./accountRepository";
-import { countAll, giveBack, loginTryCounts, signupCounts } from "./actionLimits";
+import { countAll, giveBack, loginTryCounts } from "./actionLimits";
 import { clientIpAddress } from "./clientIpAddress";
-import { sendEmail } from "./email";
-import { newEmailToken } from "./emailToken";
 import { passwordMatches } from "./passwordHash";
 import { passwordTooLong } from "./passwordRules";
-import { findPendingSignup, replaceVerificationToken } from "./pendingSignupRepository";
+import { findPendingSignup } from "./pendingSignupRepository";
+import { resendVerificationLink } from "./verificationResend";
 
 export type LoginRefusal = "wrongEmailOrPassword" | "paused" | "tooLong" | "verifyYourEmail" | "accountDisabled";
 
@@ -36,14 +34,10 @@ export async function passwordSignInAccount(credentials: Partial<Record<"email" 
   }
   await giveBack(tries, realNow);
   if (pending) {
-    const { token, tokenHash } = newEmailToken();
-    if (!(await countAll(signupCounts(email, ipAddress), realNow))
-      && await replaceVerificationToken({ email, passwordHash: pending.passwordHash, tokenHash }, realNow)) {
-      await sendEmail(verifyYourEmail(email, pending.name, token));
-    }
+    await resendVerificationLink(email, ipAddress, pending, realNow);
     throw new LoginRefused("verifyYourEmail");
   }
   if (!account || account.role === "admin") throw new LoginRefused("wrongEmailOrPassword");
   if (account.disabledAt) throw new LoginRefused("accountDisabled");
-  return { id: account.id, email: account.email, name: account.name };
+  return { id: account.id, email: account.email, name: account.name, sessionVersion: account.sessionVersion };
 }

@@ -22,6 +22,8 @@ const LIMITS = {
   signupFromIpAddress: { max: 10, window: WINDOWS.hour },
   failedLoginForEmail: { max: 10, window: WINDOWS.quarterHour },
   failedLoginFromIpAddress: { max: 50, window: WINDOWS.hour },
+  resetEmailInHour: { max: 3, window: WINDOWS.hour },
+  resetFromIpAddress: { max: 10, window: WINDOWS.hour },
 } as const;
 
 function windowAt(action: LimitedAction, realNow: Date) {
