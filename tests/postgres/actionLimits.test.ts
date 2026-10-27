@@ -91,6 +91,25 @@ it("a refused countAll gives back every count it took, and giveBack returns a co
   expect(await counterRows()).toEqual([]);
 });
 
+it("two give-backs at the same moment each take one count off", async () => {
+  const at = new Date("2026-10-24T15:10:00Z");
+  const tries = loginTryCounts("maya.chen@fastmail.com", "203.0.113.7");
+  await countAll(tries, at);
+  await countAll(tries, at);
+  let both: Promise<unknown> = Promise.resolve();
+  await database.owner.transaction(async (tx) => {
+    await tx.execute(sql`select * from action_counters for update`);
+    both = Promise.all([giveBack(tries, at), giveBack(tries, at)]);
+    for (let waiting = 0; waiting < 2;) {
+      [{ waiting }] = (await database.owner.execute(sql`
+        select count(*)::int as waiting from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'
+      `)).rows as [{ waiting: number }];
+    }
+  });
+  await both;
+  expect(await counterRows()).toEqual([]);
+});
+
 it("allows 5 lead captures in one hour and refuses the 6th until the hour ends", async () => {
   const at = new Date("2026-10-24T15:59:59Z");
   expect(await countTimes(5, "leadCapture", "203.0.113.7", at)).toEqual(Array(5).fill({ allowed: true }));

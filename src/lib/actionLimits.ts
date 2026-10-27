@@ -1,4 +1,4 @@
-import { and, eq, gt, lte, sql, TransactionRollbackError } from "drizzle-orm";
+import { and, eq, lte, sql, TransactionRollbackError } from "drizzle-orm";
 import { getPostgresDatabase, type PostgresTransaction } from "./postgres";
 import { actionCounters } from "./postgresSchema";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
@@ -107,14 +107,16 @@ export async function countAll<Problem extends string>(
 
 /** Gives back the counts that `countAll` took at the same `realNow`. */
 export async function giveBack(counted: Counted, realNow: Date) {
-  const db = getPostgresDatabase();
-  for (const [action, subject] of counted) {
-    const sameWindow = and(
-      eq(actionCounters.action, action),
-      eq(actionCounters.subject, subject),
-      eq(actionCounters.windowStart, windowAt(action, realNow).start),
-    );
-    await db.delete(actionCounters).where(and(sameWindow, eq(actionCounters.count, 1)));
-    await db.update(actionCounters).set({ count: sql`${actionCounters.count} - 1` }).where(and(sameWindow, gt(actionCounters.count, 1)));
-  }
+  await getPostgresDatabase().transaction(async (tx) => {
+    for (const [action, subject] of counted) {
+      const sameWindow = and(
+        eq(actionCounters.action, action),
+        eq(actionCounters.subject, subject),
+        eq(actionCounters.windowStart, windowAt(action, realNow).start),
+      );
+      const [row] = await tx.select({ count: actionCounters.count }).from(actionCounters).where(sameWindow).for("update");
+      if (row?.count === 1) await tx.delete(actionCounters).where(sameWindow);
+      else if (row) await tx.update(actionCounters).set({ count: row.count - 1 }).where(sameWindow);
+    }
+  });
 }
