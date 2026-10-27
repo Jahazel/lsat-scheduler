@@ -1,6 +1,7 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getPostgresDatabase } from "./postgres";
+import type { CurrentPasswordProof } from "./currentPassword";
 import { accounts, pendingSignups } from "./postgresSchema";
 
 const accountIdSchema = z.guid().brand<"AccountId">();
@@ -49,6 +50,32 @@ export async function findPasswordAccountByEmail(email: string) {
     .from(accounts)
     .where(eq(accounts.email, sql`normalized_email(${email})`));
   return account?.passwordHash ? { ...account, passwordHash: account.passwordHash } : null;
+}
+
+export async function findPasswordAccountById(id: AccountId) {
+  const [account] = await getPostgresDatabase()
+    .select({ id: accounts.id, email: accounts.email, passwordHash: accounts.passwordHash })
+    .from(accounts)
+    .where(eq(accounts.id, id));
+  return account?.passwordHash ? { id, email: account.email, passwordHash: account.passwordHash } : null;
+}
+
+const passwordUnchangedSinceProof = (proof: CurrentPasswordProof) => and(eq(accounts.id, proof.id), eq(accounts.passwordHash, proof.passwordHash));
+
+/** Sets the new password and signs out every device. Returns false when the password changed after the check. */
+export async function changePassword(proof: CurrentPasswordProof, newHash: string) {
+  const changed = await getPostgresDatabase()
+    .update(accounts)
+    .set({ passwordHash: newHash, sessionVersion: sql`${accounts.sessionVersion} + 1` })
+    .where(passwordUnchangedSinceProof(proof))
+    .returning({ id: accounts.id });
+  return changed.length === 1;
+}
+
+/** Returns false when the password changed after the check. */
+export async function deletePasswordAccount(proof: CurrentPasswordProof) {
+  const deleted = await getPostgresDatabase().delete(accounts).where(passwordUnchangedSinceProof(proof)).returning({ id: accounts.id });
+  return deleted.length === 1;
 }
 
 export async function findAccountByGoogleId(googleId: string) {

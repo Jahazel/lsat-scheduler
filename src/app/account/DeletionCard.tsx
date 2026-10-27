@@ -5,11 +5,15 @@ import { useFormStatus } from "react-dom";
 import { GoogleButton } from "@/components/signIn/GoogleButton";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { ADMIN_RESTRICTED_ACTION_MESSAGE } from "@/lib/accessControl";
-import { deleteAccount, signInAgainToDelete } from "./actions";
+import { CURRENT_PASSWORD_MESSAGES } from "@/lib/currentPasswordMessages";
+import { deleteAccount, signInAgainToDelete, type DeletionRefusal } from "./actions";
+import { PasswordField } from "./PasswordField";
 
 const REMOVED = ["Your profile", "Approved and legacy analytics snapshots", "Weekly schedules", "Activity check-ins"];
 
-export function DeletionCard({ admin, signedInRecently }: { admin: boolean; signedInRecently: boolean }) {
+export type DeletionMode = { kind: "admin" } | { kind: "google"; signedInRecently: boolean } | { kind: "password" };
+
+export function DeletionCard({ mode }: { mode: DeletionMode }) {
   return (
     <section
       id="delete-account"
@@ -29,7 +33,7 @@ export function DeletionCard({ admin, signedInRecently }: { admin: boolean; sign
         </ul>
       </div>
       <div className="flex shrink-0 flex-col justify-end md:w-[360px]">
-        {admin ? <AdminNotice /> : <DeletionForm signedInRecently={signedInRecently} />}
+        {mode.kind === "admin" ? <AdminNotice /> : <DeletionForm mode={mode} />}
       </div>
     </section>
   );
@@ -51,10 +55,15 @@ function AdminNotice() {
   );
 }
 
-function DeletionForm({ signedInRecently }: { signedInRecently: boolean }) {
-  const [refusal, formAction] = useActionState(deleteAccount, null);
+function DeletionForm({ mode }: { mode: Exclude<DeletionMode, { kind: "admin" }> }) {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [refusal, formAction] = useActionState(async (previous: DeletionRefusal, formData: FormData) => {
+    const result = await deleteAccount(previous, formData);
+    if (result === "wrong-password" || result === "paused") setCurrentPassword("");
+    return result;
+  }, null);
 
-  if (!signedInRecently || refusal === "sign-in-too-old") {
+  if (mode.kind === "google" && (!mode.signedInRecently || refusal === "sign-in-too-old")) {
     return (
       <form action={signInAgainToDelete} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
@@ -70,17 +79,34 @@ function DeletionForm({ signedInRecently }: { signedInRecently: boolean }) {
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
-      <ConfirmationFields wrongText={refusal === "wrong-text"} />
+      <ConfirmationFields
+        refusal={refusal}
+        currentPassword={mode.kind === "password" ? { value: currentPassword, onChange: setCurrentPassword } : null}
+      />
     </form>
   );
 }
 
-function ConfirmationFields({ wrongText }: { wrongText: boolean }) {
+function ConfirmationFields({ refusal, currentPassword }: {
+  refusal: DeletionRefusal;
+  currentPassword: { value: string; onChange: (value: string) => void } | null;
+}) {
   const { pending } = useFormStatus();
   const [confirmation, setConfirmation] = useState("");
-  const invalid = wrongText && !pending;
+  const shown = pending ? null : refusal;
+  const invalid = shown === "wrong-text";
   return (
     <>
+      {currentPassword && (
+        <PasswordField
+          label="Current password"
+          name="currentPassword"
+          autoComplete="current-password"
+          {...currentPassword}
+          readOnly={pending}
+          error={shown === "wrong-password" ? CURRENT_PASSWORD_MESSAGES.wrong : shown === "paused" ? CURRENT_PASSWORD_MESSAGES.paused : undefined}
+        />
+      )}
       <div className="flex flex-col gap-2">
         <label htmlFor="deletion-confirmation" className="text-small font-medium text-ink">
           Type DELETE to confirm

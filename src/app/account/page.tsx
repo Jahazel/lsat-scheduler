@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { findStudentByAccountId } from "@/lib/studentRepository";
 import { signedInRecently } from "@/lib/accountSession";
+import { findPasswordAccountById, isAccountId } from "@/lib/accountRepository";
+import { ChangePasswordCard } from "./ChangePasswordCard";
 import { DeletionCard } from "./DeletionCard";
 import { SessionsCard } from "./SessionsCard";
 
@@ -16,6 +18,7 @@ export default async function AccountPage() {
   if (!doc) {
     redirect("/onboarding");
   }
+  const passwordAccount = isAccountId(session.user.id) && !!(await findPasswordAccountById(session.user.id));
 
   return (
     <div className="min-h-screen bg-vellum">
@@ -25,14 +28,19 @@ export default async function AccountPage() {
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-body text-ink md:text-lead">{session.user.email}</p>
             <span className="flex h-7 items-center rounded-pill border border-vellum-line px-3 text-small text-smoke">
-              Google sign-in
+              {passwordAccount ? "Password sign-in" : "Google sign-in"}
             </span>
           </div>
         </div>
       </header>
       <div className="mx-auto box-content flex max-w-content flex-col gap-6 px-5 py-10 md:px-18 md:pt-16 md:pb-24">
         <SessionsCard />
-        <DeletionCard admin={isAdminUser(session.user)} signedInRecently={signedInRecently(session.signedInAt)} />
+        {passwordAccount && <ChangePasswordCard />}
+        <DeletionCard
+          mode={isAdminUser(session.user) ? { kind: "admin" }
+            : passwordAccount ? { kind: "password" }
+            : { kind: "google", signedInRecently: signedInRecently(session.signedInAt) }}
+        />
       </div>
     </div>
   );
