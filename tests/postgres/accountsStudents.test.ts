@@ -149,14 +149,11 @@ it("Google sign-in cannot take over a password Account or another Google Account
   ]);
 });
 
-it("a password Account left in the database cannot sign in by any provider", async () => {
+it("a password Account cannot sign in through Google or without a provider", async () => {
   await leftoverPasswordAccount("password@example.test");
   const saved = await findAccountByEmail("password@example.test");
-  const credentials = { provider: "credentials", providerAccountId: String(saved?.id), type: "credentials" as const };
   const user = { id: saved?.id, email: "password@example.test" };
-  expect(await createGoogleAccountOnSignIn({ user, account: credentials })).toBe(false);
   expect(await createGoogleAccountOnSignIn({ user, account: null })).toBe(false);
-  expect(await accountSessionToken({ token: {}, user, account: credentials })).toBeNull();
   expect(await accountSessionToken({ token: {}, user, account: null })).toBeNull();
   expect(await googleSignIn("google-1", "password@example.test")).toBe(false);
   expect(await accountRows()).toEqual([{ email: "password@example.test", role: "student", google_id: null, has_password: true }]);

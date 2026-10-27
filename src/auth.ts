@@ -1,6 +1,8 @@
 import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { createGoogleAccountOnSignIn } from "@/lib/authAccounts";
+import { passwordSignInAccount } from "@/lib/passwordSignIn";
 import { accountSessionToken, SESSION_IDLE_SECONDS } from "@/lib/accountSession";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -9,7 +11,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
     error: "/login",
   },
-  providers: [Google],
+  providers: [Google, Credentials({ credentials: { email: {}, password: {} }, authorize: passwordSignInAccount })],
   callbacks: {
     signIn: createGoogleAccountOnSignIn,
     jwt: accountSessionToken,

@@ -16,6 +16,9 @@ const LIMITS = {
   analyticsSnapshotSave: { max: 5, window: WINDOWS.day },
   scanInDay: { max: 10, window: WINDOWS.day },
   scanInMonth: { max: 40, window: WINDOWS.month },
+  signupEmailInHour: { max: 3, window: WINDOWS.hour },
+  signupEmailInDay: { max: 5, window: WINDOWS.day },
+  signupFromIpAddress: { max: 10, window: WINDOWS.hour },
 } as const;
 
 export type LimitedAction = keyof typeof LIMITS;

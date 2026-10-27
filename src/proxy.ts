@@ -7,7 +7,7 @@ import { hasSessionCookie, proxyRoute } from "@/lib/proxyRoute";
 export default auth((req) => {
   const route = proxyRoute(req.nextUrl.pathname, req.auth?.user ?? null, {
     sentSessionCookie: hasSessionCookie(req.cookies.getAll().map((cookie) => cookie.name)),
-    loginReason: req.nextUrl.searchParams.get("error"),
+    loginReason: req.nextUrl.searchParams.get("error") ?? req.nextUrl.searchParams.get("notice"),
   });
   switch (route.kind) {
     case "allow":

@@ -28,8 +28,8 @@ function config() {
 describe("issue 70 authentication evidence", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("fixed in issue 226: offers Google as the only sign-in provider, so no password can sign in", () => {
-    expect(config().providers.map((provider) => typeof provider === "function" ? provider().id : provider.id)).toEqual(["google"]);
+  it("changed in issue 283: offers Google and the email-verified password sign-in", () => {
+    expect(config().providers.map((provider) => typeof provider === "function" ? provider().id : provider.id)).toEqual(["google", "credentials"]);
   });
 
   it("fixed in issue 140: refuses an unverified Google email and never looks an Account up by email", async () => {
