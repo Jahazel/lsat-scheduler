@@ -105,7 +105,7 @@ application tables. Issue #96 adds the six domain tables in
 
 ## Domain tables
 
-All seven tables create UUID ids with Postgres `gen_random_uuid()`. Accounts
+All six tables create UUID ids with Postgres `gen_random_uuid()`. Accounts
 keep the current email, name, optional password hash, role, and optional
 Simulated date. Later migrations can add Stage 4 fields with `ALTER TABLE`.
 
@@ -198,7 +198,7 @@ password when it runs again. Neon setup and checks belong to the later
 Stage 2 copy-database setup ticket.
 
 The role can connect, use the `public` schema, and select, insert, and delete
-rows in all seven domain tables. It can update every domain table except
+rows in all six domain tables. It can update every domain table except
 `weekly_schedules` and most of `accounts`. On `accounts`, it inserts only
 `email`, `name`, `google_id`, and `password_hash`, and updates only
 `simulated_date`, `session_version`, and `password_hash`. It reads, inserts,
@@ -213,7 +213,7 @@ Future migrations must grant any new app-table permissions explicitly.
 
 `PUBLIC` is Postgres's group of every role. Its permissions also apply to
 the app role. The SQL removes `PUBLIC`'s database creation and temporary-table
-permissions, schema creation permission, and permissions on the seven domain
+permissions, schema creation permission, and permissions on the six domain
 tables. Other logins that need those rights must receive explicit grants.
 The database owner keeps its ownership rights. See [Postgres's grant rules](https://www.postgresql.org/docs/17/sql-grant.html).
 
@@ -304,7 +304,7 @@ encrypted connection before forwarding it to Postgres, so `pg_stat_ssl` inside
 Postgres does not prove whether the client connection is encrypted.
 Local runs explicitly report that remote encryption remains untested.
 
-The command checks app reads and writes on all seven tables, refused role,
+The command checks app reads and writes on all six tables, refused role,
 database, and table creation, immutable Weekly schedules, owner links,
 uniqueness, invalid values, fixed Activity check-in ownership, and Account
 deletion. Each run uses randomly named throwaway records. Every record change
