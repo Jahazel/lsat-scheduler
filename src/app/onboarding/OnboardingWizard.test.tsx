@@ -392,7 +392,7 @@ describe("OnboardingWizard", () => {
       reject({ kind: "rejected", message });
 
       expect((await screen.findByRole("alert")).textContent).toBe(message);
-      expect(document.activeElement).toBe(screen.getByRole("button", { name: /Logical Reasoning screenshot/ }));
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: /Logical Reasoning screenshot/ })));
     });
 
     it("leaves focus where the student moved it when the server rejects the file", async () => {
