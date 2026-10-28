@@ -13,7 +13,6 @@ const studentRow = z.object({ id: studentIdSchema });
 const snapshotRow = z.object({ id: snapshotIdSchema });
 const scheduleRow = z.object({ id: z.uuid().brand<"WeeklyScheduleId">() });
 const checkInRow = z.object({ id: z.uuid().brand<"ActivityCheckInId">() });
-const leadRow = z.object({ id: z.uuid().brand<"LeadId">() });
 
 type AccountId = z.infer<typeof accountIdSchema>;
 type StudentId = z.infer<typeof studentIdSchema>;
@@ -84,7 +83,7 @@ async function createCheckIn({ scheduleId, activityId = "MONDAY:0" }: {
 }
 
 beforeEach(async () => {
-  await db.execute(sql`truncate accounts, leads, pending_signups cascade`);
+  await db.execute(sql`truncate accounts, pending_signups cascade`);
 });
 
 it("reads Daily capacity and Accommodation as numbers", async () => {
@@ -214,16 +213,12 @@ it("refuses changes to an Activity check-in's Weekly schedule or Schedule activi
   `)).rows).toEqual([{ schedule_id: scheduleId, activity_id: "MONDAY:0", status: "completed" }]);
 });
 
-it("advances the update time on leads, Analytics snapshots, and Activity check-ins", async () => {
+it("advances the update time on Analytics snapshots and Activity check-ins", async () => {
   const studentId = await createStudent({ accountId: await createAccount() });
   const snapshotId = await createSnapshot({ studentId });
   const checkInId = await createCheckIn({ scheduleId: await createSchedule({ studentId }) });
-  const leadId = leadRow.parse((await db.execute(sql`
-    insert into leads (email) values ('original@example.test') returning id
-  `)).rows[0]).id;
   const timestampRow = z.object({ created_at: z.string(), updated_at: z.string() });
   const cases = [
-    { table: "leads", id: leadId, update: sql`email = 'changed@example.test'` },
     { table: "analytics_snapshots", id: snapshotId, update: sql`lr_accuracy_by_type = '{"Weaken": 60}'::jsonb` },
     { table: "activity_check_ins", id: checkInId, update: sql`status = 'completed'` },
   ];
@@ -253,9 +248,8 @@ it("deleting an Account removes its student, Analytics snapshots, Weekly schedul
   const otherStudentId = await createStudent({ accountId: otherAccountId });
   await createSnapshot({ studentId: otherStudentId });
   await createCheckIn({ scheduleId: await createSchedule({ studentId: otherStudentId }) });
-  await db.execute(sql`insert into leads (email) values ('independent@example.test')`);
   await db.execute(sql`delete from accounts where id = ${accountId}`);
-  for (const table of ["accounts", "students", "analytics_snapshots", "weekly_schedules", "activity_check_ins", "leads"]) {
+  for (const table of ["accounts", "students", "analytics_snapshots", "weekly_schedules", "activity_check_ins"]) {
     expect((await db.execute(sql`select count(*)::integer as count from ${sql.identifier(table)}`)).rows).toEqual([{ count: 1 }]);
   }
   expect((await db.execute(sql`select id from accounts`)).rows).toEqual([{ id: otherAccountId }]);
@@ -356,36 +350,15 @@ it("creates an Account with a database UUID and stores a normalized, unique emai
     .toEqual([{ email: "changed@example.test", role: "admin" }]);
 });
 
-it("keeps leads separate from Accounts with their own normalized, unique emails", async () => {
-  const account = accountRow.parse((await db.execute(sql`
-    insert into accounts (email, name, password_hash) values ('lead@example.test', 'Account', 'hash') returning id
-  `)).rows[0]);
-  const lead = await db.execute(sql`
-    insert into leads (email) values (${"\t Lead@Example.test \n"}) returning id, email, created_at, updated_at
-  `);
-  leadRow.parse(lead.rows[0]);
-  expect(lead.rows[0]).toMatchObject({ email: "lead@example.test", created_at: expect.any(String), updated_at: expect.any(String) });
-  await expect(db.execute(sql`insert into leads (email) values ('LEAD@example.test')`))
-    .rejects.toMatchObject({ cause: { code: "23505", constraint: "leads_email_key" } });
-  const leadId = leadRow.parse(lead.rows[0]).id;
-  await db.execute(sql`update leads set email = ${"\n Changed@Example.test \t"} where id = ${leadId}`);
-  await db.execute(sql`delete from accounts where id = ${account.id}`);
-  expect((await db.execute(sql`select email from leads`)).rows).toEqual([{ email: "changed@example.test" }]);
-});
-
-it.each(["accounts", "leads"])("refuses empty or missing email on %s insert and update", async (table) => {
-  const id = table === "accounts" ? await createAccount() : leadRow.parse((await db.execute(sql`
-    insert into leads (email) values ('valid@example.test') returning id
-  `)).rows[0]).id;
+it("refuses empty or missing email on Account insert and update", async () => {
+  const id = await createAccount();
   for (const email of ["", " \t\n ", null]) {
     const cause = email === null
-      ? { code: "23502", table, column: "email" }
-      : { code: "23514", constraint: `${table}_email_normalized` };
-    const insert = table === "accounts"
-      ? sql`insert into accounts (email, name, password_hash) values (${email}, 'Student', 'hash')`
-      : sql`insert into leads (email) values (${email})`;
-    await expect(db.execute(insert)).rejects.toMatchObject({ cause });
-    await expect(db.execute(sql`update ${sql.identifier(table)} set email = ${email} where id = ${id}`))
+      ? { code: "23502", table: "accounts", column: "email" }
+      : { code: "23514", constraint: "accounts_email_normalized" };
+    await expect(db.execute(sql`insert into accounts (email, name, password_hash) values (${email}, 'Student', 'hash')`))
+      .rejects.toMatchObject({ cause });
+    await expect(db.execute(sql`update accounts set email = ${email} where id = ${id}`))
       .rejects.toMatchObject({ cause });
   }
 });

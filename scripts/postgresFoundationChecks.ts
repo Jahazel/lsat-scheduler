@@ -93,12 +93,6 @@ export async function checkPostgresFoundation(connection: Connection) {
       }
       const records = await createOwnedRecords();
       const other = await createOwnedRecords();
-      const leadId = z.object({ id: z.uuid() }).parse((await tx.execute(sql`
-        insert into leads (email) values (${`${randomUUID()}@example.test`}) returning id
-      `)).rows[0]).id;
-      const leadEmail = `${randomUUID()}@example.test`;
-      await tx.execute(sql`update leads set email = ${leadEmail} where id = ${leadId}`);
-      deepStrictEqual((await tx.execute(sql`select email from leads where id = ${leadId}`)).rows, [{ email: leadEmail }]);
       await tx.execute(sql`update accounts set simulated_date = '2026-11-02', session_version = session_version + 1
         where id = ${records.account_id}`);
       await tx.execute(sql`update students set current_score = 155 where id = ${records.student_id}`);
@@ -190,11 +184,10 @@ export async function checkPostgresFoundation(connection: Connection) {
         deepStrictEqual((await tx.execute(sql`select id from ${sql.identifier(table)} where id = ${deletedId}`)).rows, []);
         deepStrictEqual((await tx.execute(sql`select id from ${sql.identifier(table)} where id = ${keptId}`)).rows, [{ id: keptId }]);
       }
-      deepStrictEqual((await tx.execute(sql`select email from leads where id = ${leadId}`)).rows, [{ email: leadEmail }]);
       messages.push("PASS: Account deletion");
       for (const [table, id] of [
         ["activity_check_ins", other.check_in_id], ["weekly_schedules", other.schedule_id],
-        ["analytics_snapshots", other.snapshot_id], ["practice_test_results", other.practice_test_id], ["students", other.student_id], ["accounts", other.account_id], ["leads", leadId],
+        ["analytics_snapshots", other.snapshot_id], ["practice_test_results", other.practice_test_id], ["students", other.student_id], ["accounts", other.account_id],
       ]) {
         deepStrictEqual((await tx.execute(sql`delete from ${sql.identifier(table)} where id = ${id} returning id`)).rows, [{ id }]);
       }

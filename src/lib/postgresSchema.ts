@@ -48,13 +48,6 @@ export const students = pgTable("students", {
   officialAttempts: jsonb("official_attempts").$type<OfficialAttempt[]>().notNull().default([]),
 });
 
-export const leads = pgTable("leads", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  email: text("email").notNull().unique(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
-
 export const analyticsSnapshots = pgTable("analytics_snapshots", {
   id: uuid("id").primaryKey().defaultRandom(),
   studentId: uuid("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),

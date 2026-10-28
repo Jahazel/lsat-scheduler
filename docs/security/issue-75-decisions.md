@@ -10,7 +10,7 @@ Decisions for [issue 75](https://github.com/Jahazel/lsat-scheduler/issues/75), u
 - **"Forgot password" for a pending signup sends a new verification link.** That email counts against the signup limits and shares their counters (rules 8 and 10). The request also counts against the reset limits (rule 15).
 - **A refused send changes nothing on screen.** If Resend refuses an email, for example at the free plan's 100-a-day cap, the screen stays the same and the app logs the failure.
 
-**Update, October 27, 2026:** The owner removed the unused lead form, its server action, and the lead capture limit ([issue 303](https://github.com/Jahazel/lsat-scheduler/issues/303)). No page had used the form since commit `96ca5d2`, so the limit had no request on the deployed site. Rules 17 to 19 no longer apply, and the launch checklist no longer tests them. The `leads` table and its data stay, unused, until the owner decides on that data separately.
+**Update, October 27, 2026:** The owner removed the unused lead form, its server action, and the lead capture limit ([issue 303](https://github.com/Jahazel/lsat-scheduler/issues/303)). No page had used the form since commit `96ca5d2`, so the limit had no request on the deployed site. Rules 17 to 19 no longer apply, and the launch checklist no longer tests them. The owner dropped the `leads` table and its data on October 28, 2026 ([issue 349](https://github.com/Jahazel/lsat-scheduler/issues/349)).
 
 **Status: decided.** These are rules for later work. None of them is built yet. The checks in [release-gate.md](release-gate.md#c-abuse-limits-and-spending) still fail until the code passes them.
 
