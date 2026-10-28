@@ -35,6 +35,20 @@ it.each([
   expect(result.output).not.toContain("Test stopped at the Postgres connection boundary.");
 });
 
+const copyHost = "ep-restless-tooth-b42czg5d-pooler.c-6.us-east-2.aws.neon.tech";
+
+it("names the sslmode reason for a copy host without exposing credentials", async () => {
+  const result = await run(`postgresql://private-user:private-password@${copyHost}/neondb?sslmode=require&channel_binding=require`);
+  expect(result.code).toBe(1);
+  expect(result.output.trim()).toBe("Remote Postgres requires sslmode=verify-full.");
+});
+
+it("prints only the generic message for another copy host failure", async () => {
+  const result = await run(`postgresql://private-user:private-password@${copyHost}/neondb?sslmode=verify-full&options=private-password`);
+  expect(result.code).toBe(1);
+  expect(result.output.trim()).toBe("Database foundation check failed.");
+});
+
 it("allows loopback through the check guard", async () => {
   const result = await run("postgresql://postgres:local-only@127.0.0.1:5432/drillmap");
   expect(result.code).toBe(86);
