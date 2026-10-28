@@ -1,28 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
-import { createAppTestDatabase } from "./appTestDatabase";
-import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
+import { beforeEach, expect, it } from "vitest";
+import { setUpAppTestDatabase } from "./appTestDatabase";
+import { getPostgresDatabase } from "../../src/lib/postgres";
 import { createStudent } from "../../src/lib/studentRepository";
 import { practiceTestResults } from "../../src/lib/postgresSchema";
 import { PT158_FIXTURES } from "../../src/lib/practiceTestFixtures/pt158";
 import { reviewPracticeTest } from "../../src/lib/practiceTestResult";
 import type { Student } from "../../src/lib/types";
 
-let database: Awaited<ReturnType<typeof createAppTestDatabase>>;
-const originalSetting = process.env.DATABASE_URL;
-beforeAll(async () => {
-  await closePostgresDatabase();
-  database = await createAppTestDatabase();
-  process.env.DATABASE_URL = database.setting;
-});
+const database = setUpAppTestDatabase();
 beforeEach(async () => {
   await database.owner.execute(sql`truncate accounts cascade`);
-});
-afterAll(async () => {
-  await closePostgresDatabase();
-  process.env.DATABASE_URL = originalSetting;
-  await database?.cleanup();
 });
 
 const profile: Student = {

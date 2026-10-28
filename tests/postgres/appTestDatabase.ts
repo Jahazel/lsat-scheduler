@@ -1,7 +1,8 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { sql } from "drizzle-orm";
-import { createPostgresConnection } from "../../src/lib/postgres";
+import { afterAll, beforeAll } from "vitest";
+import { closePostgresDatabase, createPostgresConnection } from "../../src/lib/postgres";
 import { accounts } from "../../src/lib/postgresSchema";
 import { createPostgresTestDatabase } from "./testDatabase";
 
@@ -48,4 +49,32 @@ export async function createAppTestDatabase() {
     await cleanup();
     throw error;
   }
+}
+
+type AppTestDatabase = Awaited<ReturnType<typeof createAppTestDatabase>>;
+
+export function setUpAppTestDatabase() {
+  let current: AppTestDatabase | undefined;
+  function ready() {
+    if (!current) throw new Error("The app test database exists only inside hooks and tests");
+    return current;
+  }
+  const originalSetting = process.env.DATABASE_URL;
+  beforeAll(async () => {
+    await closePostgresDatabase();
+    current = await createAppTestDatabase();
+    process.env.DATABASE_URL = current.setting;
+  });
+  afterAll(async () => {
+    await closePostgresDatabase();
+    process.env.DATABASE_URL = originalSetting;
+    await current?.cleanup();
+  });
+  return {
+    get setting() { return ready().setting; },
+    get ownerSetting() { return ready().ownerSetting; },
+    get role() { return ready().role; },
+    get owner() { return ready().owner; },
+    get createAccountAsOwner() { return ready().createAccountAsOwner; },
+  };
 }

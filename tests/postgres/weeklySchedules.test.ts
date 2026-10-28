@@ -1,9 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { sql } from "drizzle-orm";
 import type { Session } from "next-auth";
-import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
-import { createAppTestDatabase } from "./appTestDatabase";
-import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
+import { afterAll, beforeEach, expect, it, vi } from "vitest";
+import { setUpAppTestDatabase } from "./appTestDatabase";
+import { getPostgresDatabase } from "../../src/lib/postgres";
 import { createStudent } from "../../src/lib/studentRepository";
 import { createApprovedAnalyticsSnapshot } from "../../src/lib/analyticsSnapshotRepository";
 import { listWeeklySchedulesForStudent, postgresCurrentWeekRepositories } from "../../src/lib/weeklyScheduleRepository";
@@ -18,25 +18,14 @@ vi.mock("@/auth", () => ({ auth: async () => state.session }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }), redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
 
-let database: Awaited<ReturnType<typeof createAppTestDatabase>>;
-const originalSetting = process.env.DATABASE_URL;
-beforeAll(async () => {
-  await closePostgresDatabase();
-  database = await createAppTestDatabase();
-  process.env.DATABASE_URL = database.setting;
-});
+const database = setUpAppTestDatabase();
 beforeEach(async () => {
   state.session = null;
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-10-12T16:00:00Z"));
   await database.owner.execute(sql`truncate accounts cascade`);
 });
-afterAll(async () => {
-  vi.useRealTimers();
-  await closePostgresDatabase();
-  process.env.DATABASE_URL = originalSetting;
-  await database?.cleanup();
-});
+afterAll(() => vi.useRealTimers());
 async function student(email = "student@example.test", role: "student" | "admin" = "student") {
   const account = await database.createAccountAsOwner({ email, name: "Student", role });
   if (!account) throw new Error("Account fixture already exists");
