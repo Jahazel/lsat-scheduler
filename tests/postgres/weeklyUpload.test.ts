@@ -7,7 +7,7 @@ import { createStudent, findStudentByAccountId } from "../../src/lib/studentRepo
 import { createApprovedAnalyticsSnapshot, listApprovedAnalyticsSnapshots } from "../../src/lib/analyticsSnapshotRepository";
 import { listWeeklySchedulesForStudent } from "../../src/lib/weeklyScheduleRepository";
 import { approveWeeklyUpload, listApprovedPracticeTestResults } from "../../src/lib/weeklyUploadRepository";
-import { prepareWeeklyUploadApproval } from "../../src/lib/weeklyUploadApproval";
+import { prepareWeeklyUpload } from "../../src/lib/weeklyUpload";
 import { PT158_FIXTURES } from "../../src/lib/practiceTestFixtures/pt158";
 import { postgresAdminTestRepositories } from "../../src/lib/adminTestRepositories";
 import { resetTestWorkspace } from "../../src/lib/adminTestWorkspace";
@@ -268,7 +268,12 @@ it("rolls back the snapshot, the score, and the day's save count when the practi
   const { studentId, accountId } = await studentWithThisWeek();
   vi.setSystemTime(SATURDAY);
   const before = await saved(studentId, accountId);
-  const prepared = prepareWeeklyUploadApproval(upload(SATURDAY), SATURDAY, SATURDAY, { allowAdminSample: false, needsPracticeTest: true });
+  const prepared = prepareWeeklyUpload(upload(SATURDAY), {
+    clock: { now: SATURDAY, real: SATURDAY, simulated: false },
+    schedules: await listWeeklySchedulesForStudent(studentId),
+    allowAdminSample: false,
+    scanningOff: { analytics: false, "practice-test-section": false },
+  });
   if (!prepared.practiceTest) throw new Error("Expected a practice test");
 
   for (let index = 0; index < 5; index += 1) {

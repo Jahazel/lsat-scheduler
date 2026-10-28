@@ -3,7 +3,7 @@ import { approvedSnapshotColumns, countSnapshotSave, type SnapshotSaver } from "
 import { getPostgresDatabase } from "./postgres";
 import { analyticsSnapshots, practiceTestResults, students } from "./postgresSchema";
 import type { ApprovedPracticeTestResult } from "./practiceTestResult";
-import type { PreparedWeeklyUpload } from "./weeklyUploadApproval";
+import type { PreparedWeeklyUpload } from "./weeklyUpload";
 
 export async function approveWeeklyUpload(studentId: string, upload: PreparedWeeklyUpload, saver: SnapshotSaver) {
   await getPostgresDatabase().transaction(async (transaction) => {

@@ -5,7 +5,7 @@ import { useAdminTest, type SampleDraft } from "@/components/AdminTestContext";
 import { startReview } from "@/lib/analyticsReview";
 import { reviewPracticeTest } from "@/lib/practiceTestResult";
 import type { ScanningOff } from "@/lib/scanSpending";
-import type { WeeklyUploadBasis } from "@/lib/weeklyUpload";
+import type { WeeklyUploadBasis } from "@/lib/weeklyUploadPreview";
 import { confirmWeeklyUpload } from "./actions";
 import WeeklyCheck, { type CheckSource } from "./WeeklyCheck";
 import WeeklyUpload, { type WeeklyUploadRead } from "./WeeklyUpload";

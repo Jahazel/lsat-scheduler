@@ -6,7 +6,7 @@ import WeeklyUpload from "./WeeklyUpload";
 import { mockStudent } from "@/lib/mockData";
 import { PT158_FIXTURES } from "@/lib/practiceTestFixtures/pt158";
 import type { LRSectionReading, SectionReading } from "@/lib/practiceTestResult";
-import type { WeeklyUploadBasis } from "@/lib/weeklyUpload";
+import type { WeeklyUploadBasis } from "@/lib/weeklyUploadPreview";
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
