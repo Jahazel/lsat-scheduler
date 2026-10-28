@@ -168,7 +168,7 @@ export async function deleteAccount(
   request: PasswordRequest,
 ): Promise<"deleted" | DeletionRefusal> {
   const passwordAccount = await findPasswordAccountById(id);
-  if (!passwordAccount && !signedInRecently(signedInAt, request.realNow)) return "sign-in-too-old";
+  if (!passwordAccount && !signedInRecently(signedInAt)) return "sign-in-too-old";
   if (confirmation !== "DELETE") return "wrong-text";
   if (!passwordAccount) {
     await deleteGoogleAccount(id);
