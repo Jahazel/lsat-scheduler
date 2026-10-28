@@ -119,6 +119,12 @@ async function postgres(work) {
   try { return await work(connection.db); } finally { await connection.close(); }
 }
 function listener(port) {
+  if (process.platform === "linux") {
+    // Linux lsof skips Next's server: its process name "next-server (v1" has an unclosed bracket.
+    const pids = [...execFileSync("ss", ["-ltnpH", `sport = :${port}`], { encoding: "utf8" }).matchAll(/pid=(\d+)/g)].map((match) => Number(match[1]));
+    if (pids.length === 0) throw new Error(`Nothing listens on port ${port}.`);
+    return pids;
+  }
   return execFileSync("lsof", ["-t", "-nP", `-iTCP:${port}`, "-sTCP:LISTEN"], { encoding: "utf8" })
     .trim().split(/\s+/).map(Number);
 }
