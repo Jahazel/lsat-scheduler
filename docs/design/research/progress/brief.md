@@ -57,7 +57,7 @@ A student opens Progress to look back at their past weekly schedules: what each 
 5. What motion moves the student from the list into a week, and between older and newer weeks?
 
 ## Directions
-The owner asked for all three on 2026-10-28, as 1440 px desktop boards, and will pick one.
+The owner asked for all three on 2026-10-28, as 1440 px desktop boards. **The owner picked Direction 3 on 2026-10-28.** Its past-week page is the Direction 1 past-week page.
 
 1. **Rows and a week page.** Month headings over one row per week. A past week opens as its own page with "Past week", Older/Newer links at the top and bottom, and a plan with no check-off boxes.
 2. **Split view.** The week list sits in a column on the left, and the chosen week opens on the right. A phone falls back to Direction 1.
