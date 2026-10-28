@@ -3,7 +3,10 @@ import { SESSION_ENDED_PATH } from "./loginNotice";
 
 const PUBLIC_ROUTES = ["/", "/login", "/signup", "/verify-email", "/forgot-password", "/reset-password", "/legal/terms", "/legal/privacy", "/legal/ai-disclosure"];
 
-export type ProxyRoute = { kind: "allow" } | { kind: "redirect"; to: string } | { kind: "unauthorized" };
+export type ProxyRoute =
+  | { kind: "allow" }
+  | { kind: "redirect"; to: string; refused?: "student_data_refused" | "admin_action_refused" }
+  | { kind: "unauthorized" };
 
 const SESSION_COOKIE = /^(__Secure-)?authjs\.session-token(\.\d+)?$/;
 
@@ -27,6 +30,8 @@ export function proxyRoute(
   }
 
   if (pathname === "/login" || pathname === "/signup") return { kind: "redirect", to: landingPathForRole(user.role) };
-  if (pathname.startsWith("/admin") && user.role !== "admin") return { kind: "redirect", to: "/dashboard" };
+  if (pathname.startsWith("/admin") && user.role !== "admin") {
+    return { kind: "redirect", to: "/dashboard", refused: pathname.startsWith("/admin/students") ? "student_data_refused" : "admin_action_refused" };
+  }
   return { kind: "allow" };
 }

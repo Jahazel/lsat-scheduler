@@ -4,7 +4,7 @@ import { getPostgresDatabase } from "./postgres";
 import type { CurrentPasswordProof } from "./passwordAccount";
 import { accounts, pendingSignups } from "./postgresSchema";
 
-const accountIdSchema = z.guid().brand<"AccountId">();
+export const accountIdSchema = z.guid().brand<"AccountId">();
 export type AccountId = z.infer<typeof accountIdSchema>;
 
 export function isAccountId(id: string | null | undefined): id is AccountId {

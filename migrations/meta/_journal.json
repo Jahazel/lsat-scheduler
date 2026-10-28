@@ -99,6 +99,13 @@
       "when": 1792627200000,
       "tag": "0013_security_log",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792713600000,
+      "tag": "0014_security_log_events",
+      "breakpoints": true
     }
   ]
 }

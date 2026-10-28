@@ -59,8 +59,8 @@ describe("proxy route", () => {
   });
 
   it("sends a non-admin away from admin pages to This week", () => {
-    expect(proxyRoute("/admin", student)).toEqual({ kind: "redirect", to: "/dashboard" });
-    expect(proxyRoute("/admin/students/1", student)).toEqual({ kind: "redirect", to: "/dashboard" });
+    expect(proxyRoute("/admin", student)).toEqual({ kind: "redirect", to: "/dashboard", refused: "admin_action_refused" });
+    expect(proxyRoute("/admin/students/1", student)).toEqual({ kind: "redirect", to: "/dashboard", refused: "student_data_refused" });
     expect(proxyRoute("/admin", admin)).toEqual({ kind: "allow" });
   });
 

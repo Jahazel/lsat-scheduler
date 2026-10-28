@@ -426,22 +426,22 @@ it("refuses to reuse an existing role that can switch to an administration role"
 it("adds security log entries but cannot read, change, or erase them, and prunes only entries older than 90 days", async () => {
   await ownerDb().execute(sql`truncate security_log`);
   await appDb().execute(sql`
-    insert into security_log (event, route, error_code, error_type)
-    values ('unexpected_failure', '/api/cron/daily-cleanup', 'abcdef12', 'Error')
+    insert into security_log (event, result, route, error_code, error_type)
+    values ('unexpected_failure', 'failed', '/api/cron/daily-cleanup', 'abcdef12', 'Error')
   `);
   for (const query of [
     sql`select * from security_log`,
     sql`update security_log set error_type = 'Changed'`,
     sql`delete from security_log`,
     sql`truncate security_log`,
-    sql`insert into security_log (logged_at, event, route, error_code, error_type)
-      values (now() - interval '1 year', 'unexpected_failure', '/', 'abcdef13', 'Error')`,
+    sql`insert into security_log (logged_at, event, result, route, error_code, error_type)
+      values (now() - interval '1 year', 'unexpected_failure', 'failed', '/', 'abcdef13', 'Error')`,
   ]) {
     await expect(appDb().execute(query)).rejects.toMatchObject({ cause: { code: "42501" } });
   }
   await ownerDb().execute(sql`
-    insert into security_log (logged_at, event, route, error_code, error_type)
-    values (now() - interval '91 days', 'unexpected_failure', '/', 'abcdef14', 'Error')
+    insert into security_log (logged_at, event, result, route, error_code, error_type)
+    values (now() - interval '91 days', 'unexpected_failure', 'failed', '/', 'abcdef14', 'Error')
   `);
   const pruned = await appDb().execute<{ removed: string }>(sql`select prune_security_log() as removed`);
   expect(Number(pruned.rows[0]?.removed)).toBe(1);
@@ -456,7 +456,7 @@ it("refuses a security log entry that could hold free text", async () => {
     ["https://example.test/api?token=abc", "abcdef12", "Error"],
   ]) {
     await expect(appDb().execute(sql`
-      insert into security_log (event, route, error_code, error_type) values ('unexpected_failure', ${route}, ${code}, ${type})
+      insert into security_log (event, result, route, error_code, error_type) values ('unexpected_failure', 'failed', ${route}, ${code}, ${type})
     `)).rejects.toMatchObject({ cause: { code: "23514" } });
   }
 });
