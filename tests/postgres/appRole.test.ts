@@ -87,7 +87,7 @@ async function applyAppRoleSql() {
 }
 
 beforeEach(async () => {
-  await ownerDb().execute(sql`truncate public.accounts, public.leads, public.action_counters, public.pending_signups cascade`);
+  await ownerDb().execute(sql`truncate public.accounts, public.action_counters, public.pending_signups cascade`);
 });
 
 const ownedRecords = z.object({
@@ -147,7 +147,7 @@ it("connects as the SQL-created app role and reads and writes Accounts", async (
     .toEqual([{ email: "role@example.test", name: "Student" }]);
 });
 
-it("reads, inserts, corrects, and deletes the seven app tables with the allowed permissions", async () => {
+it("reads, inserts, corrects, and deletes the six app tables with the allowed permissions", async () => {
   const db = appDb();
   const records = await createOwnedRecords();
   await db.execute(sql`update accounts set simulated_date = '2026-11-02' where id = ${records.account_id}`);
@@ -155,8 +155,6 @@ it("reads, inserts, corrects, and deletes the seven app tables with the allowed 
   await db.execute(sql`update analytics_snapshots set lr_accuracy_by_type = '{"Weaken":60}' where id = ${records.snapshot_id}`);
   await db.execute(sql`update practice_test_results set prep_test = 157 where id = ${records.practice_test_id}`);
   await db.execute(sql`update activity_check_ins set status = 'completed' where id = ${records.check_in_id}`);
-  await db.execute(sql`insert into leads (email) values ('lead@example.test')`);
-  await db.execute(sql`update leads set email = 'updated-lead@example.test'`);
   expect((await db.execute(sql`
     select accounts.simulated_date, students.current_score, analytics_snapshots.lr_accuracy_by_type,
       weekly_schedules.policy_version, activity_check_ins.status
@@ -169,9 +167,8 @@ it("reads, inserts, corrects, and deletes the seven app tables with the allowed 
     simulated_date: "2026-11-02", current_score: 155, lr_accuracy_by_type: { Weaken: 60 },
     policy_version: "adaptive-weekly-schedule-v2", status: "completed",
   }]);
-  expect((await db.execute(sql`select email from leads`)).rows).toEqual([{ email: "updated-lead@example.test" }]);
   expect((await db.execute(sql`select prep_test from practice_test_results`)).rows).toEqual([{ prep_test: 157 }]);
-  for (const table of ["activity_check_ins", "weekly_schedules", "analytics_snapshots", "practice_test_results", "students", "accounts", "leads"]) {
+  for (const table of ["activity_check_ins", "weekly_schedules", "analytics_snapshots", "practice_test_results", "students", "accounts"]) {
     await db.execute(sql`delete from ${sql.identifier(table)}`);
     expect((await db.execute(sql`select * from ${sql.identifier(table)}`)).rows).toEqual([]);
   }
@@ -188,9 +185,9 @@ it.each([
   ["a function", sql`create function public.role_probe() returns integer language sql as 'select 1'`],
   ["a view", sql`create view public.role_probe as select id from accounts`],
   ["an index", sql`create index role_probe on accounts (name)`],
-  ["a dropped table", sql`drop table leads`],
+  ["a dropped table", sql`drop table students`],
   ["a disabled trigger", sql`alter table weekly_schedules disable trigger weekly_schedules_refuse_update`],
-  ["a truncated table", sql`truncate leads`],
+  ["a truncated table", sql`truncate students`],
 ])("refuses %s through the app login", async (_description, query) => {
   await expect(appDb().execute(query)).rejects.toMatchObject({ cause: { code: "42501" } });
 });
@@ -366,11 +363,10 @@ it("refuses orphan students, Analytics snapshots, Practice-test results, Weekly 
   }
 });
 
-it("deletes all records owned by an Account and keeps other Accounts and leads", async () => {
+it("deletes all records owned by an Account and keeps other Accounts", async () => {
   const db = appDb();
   const records = await createOwnedRecords();
   const other = await createOwnedRecords();
-  await db.execute(sql`insert into leads (email) values ('unrelated@example.test')`);
   await db.execute(sql`delete from accounts where id = ${records.account_id}`);
   for (const [table, deletedId, keptId] of [
     ["accounts", records.account_id, other.account_id],
@@ -383,7 +379,6 @@ it("deletes all records owned by an Account and keeps other Accounts and leads",
     expect((await db.execute(sql`select id from ${sql.identifier(table)} where id = ${deletedId}`)).rows).toEqual([]);
     expect((await db.execute(sql`select id from ${sql.identifier(table)} where id = ${keptId}`)).rows).toEqual([{ id: keptId }]);
   }
-  expect((await db.execute(sql`select email from leads`)).rows).toEqual([{ email: "unrelated@example.test" }]);
 });
 
 it("runs the role SQL twice without changing grants, data, or the working login", async () => {

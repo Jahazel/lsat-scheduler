@@ -188,7 +188,7 @@ npm run reset:dev-data -- --yes
 ```
 
 The reset removes all students and their Analytics snapshots, Weekly schedules,
-and Activity check-ins in one transaction. Accounts and leads stay, so each
+and Activity check-ins in one transaction. Accounts stay, so each
 person signs in and goes through onboarding again. Without `--yes`, it stops
 and names what it would delete. It refuses `NODE_ENV=production` before connecting.
 

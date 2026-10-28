@@ -18,7 +18,7 @@ The evidence comes from issue 70 findings F11, F12, F13, and F15, and from issue
 - **Cache** means a saved copy of a response, in the browser or on a CDN server between the site and the browser.
 - **Transaction** means a group of database changes that succeed together or fail together.
 - **Restore** means copying an old backup back into the database after a failure.
-- **Lead** means an email address from the form on the landing page. A lead is not an Account. The form was removed on [issue 303](https://github.com/Jahazel/lsat-scheduler/issues/303). The `leads` table stays, unused: the app no longer writes to it.
+- **Lead** means an email address from the form on the landing page. A lead is not an Account. The form was removed on [issue 303](https://github.com/Jahazel/lsat-scheduler/issues/303). The `leads` table and every old lead were dropped on [issue 349](https://github.com/Jahazel/lsat-scheduler/issues/349). DrillMap keeps no leads.
 - **Security log** means the list of security events that the app records.
 - **Hash** means a one-way scramble of a value. Nobody can read the value back from it.
 - **Private response** means any page or API response that reads a session.
@@ -81,7 +81,7 @@ The evidence comes from issue 70 findings F11, F12, F13, and F15, and from issue
 ### Account deletion
 
 15. Step 1 marks the Account as "deleting." From then on, every protected request is refused, through the session check in issue 74 rule 24.
-16. Step 2 deletes, in one transaction, the Account, the Student, its analytics snapshots, weekly schedules, activity check-ins, and the lead with the same email.
+16. Step 2 deletes, in one transaction, the Account, the Student, its analytics snapshots, weekly schedules, and activity check-ins.
 17. Step 2 also adds a row to the deletion list (rule 30).
 18. If step 2 fails, the student sees a message that deletion will finish. A retry by the student or a daily job finishes every Account marked "deleting."
 19. A retry never removes the mark and never restores access.
@@ -90,11 +90,17 @@ The evidence comes from issue 70 findings F11, F12, F13, and F15, and from issue
 
 20. Account data stays until the student deletes the Account.
 21. An Account with no sign-in for 2 years gets a warning email. If there is still no sign-in 30 days later, the app deletes it with rules 15 to 19.
-22. A lead is deleted 12 months after it is saved, or when an Account with the same email is deleted.
+22. DrillMap keeps no leads. The `leads` table is dropped.
 23. Security log entries are deleted 90 days after they are written.
 24. Deletion list rows are deleted 30 days after they are written.
 
 **Why:** LSAT study usually lasts months. Two years keeps data for students who come back after a break.
+
+Changed by the owner on October 28, 2026 (owner decision 2 on [issue 348](https://github.com/Jahazel/lsat-scheduler/issues/348)), built on [issue 349](https://github.com/Jahazel/lsat-scheduler/issues/349):
+
+- The `leads` table is dropped. Migration `0015_drop_leads` deletes the table and every old lead.
+- This replaces rule 22. It also replaces the lead parts of rule 16 (delete the lead with the same email) and rule 31 (delete each restored lead).
+- No lead retention or lead matching is built. The privacy page does not name leads.
 
 ### Security log
 
@@ -131,7 +137,7 @@ Added by the owner on October 28, 2026, on [issue 316](https://github.com/Jahaze
 ### Restores
 
 30. The deletion list holds the Account ID, a hash of the email, and the date. It holds nothing else.
-31. After every restore, the app runs the deletion list again before the site opens. This deletes each restored Account, its records, and its lead.
+31. After every restore, the app runs the deletion list again before the site opens. This deletes each restored Account and its records.
 32. No backup is kept longer than a deletion list row (rule 24).
 
 **Why:** Without rule 31, a restore from a backup made before a deletion brings the deleted Account back. Atlas Flex keeps backups for 8 days, so 30 days leaves a wide margin.
@@ -239,7 +245,7 @@ The owner made each decision in the issue 76 discussion.
 | Private responses | `private, no-store`. Sign-out clears the browser cache. |
 | Account deletion | Mark first, then one transaction. A retry or a daily job finishes it. |
 | Account data | Kept until deletion, or 2 years with no sign-in after a warning email. |
-| Leads | 12 months, and deleted with the matching Account. |
+| Leads | None kept. The owner dropped the `leads` table on October 28, 2026 (rule 22). |
 | Security log | A database collection, kept 90 days. |
 | Logged events and fields | As in rules 26 to 28. |
 | Restores | A deletion list, kept 30 days, runs again after every restore. |

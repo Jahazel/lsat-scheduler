@@ -30,7 +30,6 @@ function expectNoSecret(output: string, setting = database.setting) {
 
 it("checks the foundation as the limited login and leaves existing records untouched on repeated runs", async () => {
   await database.owner.execute(sql`insert into accounts (email, name, google_id) values ('keep@example.test', 'Keep', 'google-keep')`);
-  await database.owner.execute(sql`insert into leads (email) values ('keep@example.test')`);
   const before = await database.owner.execute(sql`select * from accounts`);
   for (let attempt = 0; attempt < 2; attempt++) {
     const result = await run();
@@ -44,7 +43,6 @@ it("checks the foundation as the limited login and leaves existing records untou
     expect(result.output).toContain("Loopback connection uses no encryption");
     expectNoSecret(result.output);
     expect((await database.owner.execute(sql`select * from accounts`)).rows).toEqual(before.rows);
-    expect((await database.owner.execute(sql`select email from leads`)).rows).toEqual([{ email: "keep@example.test" }]);
     for (const table of ["students", "analytics_snapshots", "practice_test_results", "weekly_schedules", "activity_check_ins"]) {
       expect((await database.owner.execute(sql`select * from ${sql.identifier(table)}`)).rows).toEqual([]);
     }

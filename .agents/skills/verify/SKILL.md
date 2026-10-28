@@ -107,7 +107,7 @@ All proof survives at `.verification/evidence/<run-name>/`, ignored by Git. Save
 ./.agents/skills/verify/scripts/local.mjs inspect "$VERIFY_RUN_DIR" > "$VERIFY_RUN_DIR/records-after.json"
 ```
 
-`inspect` checks Doctor first, then reads Accounts, students, Analytics snapshots, practice-test results, Weekly schedules, Activity check-ins, leads, and action counters from this run's Postgres database. Evidence uses the SQL table and column names. It never reads password hashes. Capture `records-before.json` before a mutation when proving absence, immutability, or deletion. Compare the affected IDs and values. Do not equate a success notice with persistence.
+`inspect` checks Doctor first, then reads Accounts, students, Analytics snapshots, practice-test results, Weekly schedules, Activity check-ins, and action counters from this run's Postgres database. Evidence uses the SQL table and column names. It never reads password hashes. Capture `records-before.json` before a mutation when proving absence, immutability, or deletion. Compare the affected IDs and values. Do not equate a success notice with persistence.
 
 For a browser proof, save a before snapshot, the actions and their locators, an after snapshot, and screenshots with DrillMap visible. In T3, start `preview_recording_start` before the action and call `preview_recording_stop` afterward. Copy the returned recording file into the run directory. Use `preview_snapshot` with `save: true` for each screenshot and copy its returned `screenshotPath` there. Save text snapshots separately with `includeImage: false`. Tool-result images alone are not files. Use a read-only `preview_evaluate` to inspect DOM values or browser state when needed.
 

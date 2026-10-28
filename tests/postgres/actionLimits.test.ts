@@ -19,7 +19,7 @@ beforeEach(async () => {
   request.ip = "203.0.113.7";
   request.session = null;
   vi.useRealTimers();
-  await database.owner.execute(sql`truncate accounts, leads, action_counters cascade`);
+  await database.owner.execute(sql`truncate accounts, action_counters cascade`);
 });
 afterAll(() => {
   vi.useRealTimers();

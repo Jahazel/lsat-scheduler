@@ -41,7 +41,7 @@ const database = setUpAppTestDatabase();
 beforeEach(async () => {
   request.session = null;
   request.signIn.mockClear();
-  await database.owner.execute(sql`truncate accounts, leads cascade`);
+  await database.owner.execute(sql`truncate accounts cascade`);
 });
 
 async function onboard() {

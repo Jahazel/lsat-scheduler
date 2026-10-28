@@ -12,7 +12,7 @@ beforeAll(async () => {
   owner = createPostgresConnection({ database: database.name });
 });
 beforeEach(async () => {
-  await owner.db.execute(sql`truncate accounts, leads cascade`);
+  await owner.db.execute(sql`truncate accounts cascade`);
 });
 afterAll(async () => {
   await owner?.close();
@@ -67,7 +67,6 @@ async function recordCounts() {
   const [counts] = await rows(sql`
     select
       (select count(*) from accounts)::int as accounts,
-      (select count(*) from leads)::int as leads,
       (select count(*) from students)::int as students,
       (select count(*) from analytics_snapshots)::int as analytics_snapshots,
       (select count(*) from weekly_schedules)::int as weekly_schedules,
@@ -76,11 +75,10 @@ async function recordCounts() {
   return counts;
 }
 
-it("reset deletes every student and its records and keeps Accounts and leads", async () => {
+it("reset deletes every student and its records and keeps Accounts", async () => {
   await seedStudentWithRecords("first@test.local");
   await seedStudentWithRecords("second@test.local");
   await owner.db.execute(sql`insert into accounts (email, name, google_id) values ('no-student@test.local', 'No Student', 'google-no-student')`);
-  await owner.db.execute(sql`insert into leads (email) values ('lead@test.local')`);
 
   const unconfirmed = await runScript("reset-dev-data", []);
   expect(unconfirmed.code).toBe(1);
@@ -93,7 +91,7 @@ it("reset deletes every student and its records and keeps Accounts and leads", a
     /^Reset dev data on [^:]+(?::\d+)?: {"activityCheckIns":2,"weeklySchedules":2,"analyticsSnapshots":2,"students":2}\n$/,
   );
   expect(await recordCounts()).toEqual({
-    accounts: 3, leads: 1, students: 0, analytics_snapshots: 0, weekly_schedules: 0, activity_check_ins: 0,
+    accounts: 3, students: 0, analytics_snapshots: 0, weekly_schedules: 0, activity_check_ins: 0,
   });
 });
 

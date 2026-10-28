@@ -1,7 +1,7 @@
 # Postgres foundation
 
 Stage 2 moves the app to Postgres on throwaway data.
-Accounts, students, leads, Analytics snapshots, Weekly schedules, and Activity
+Accounts, students, Analytics snapshots, Weekly schedules, and Activity
 check-ins now use Postgres. This week, Progress, and the Admin area use these
 records. Deployment and the real-site database move remain Stage 3 work.
 
@@ -120,7 +120,6 @@ emailed token. See [ADR 0006](adr/0006-pending-signups-live-outside-the-accounts
 | --- | --- |
 | `accounts` | Unique normalized email |
 | `students` | One student per Account through unique `account_id` |
-| `leads` | Separate from Accounts, with its own unique normalized email |
 | `analytics_snapshots` | Each Analytics snapshot belongs to a student |
 | `practice_test_results` | Each Practice-test result belongs to a student |
 | `weekly_schedules` | One Weekly schedule per student and `week_start_date` |
@@ -128,10 +127,10 @@ emailed token. See [ADR 0006](adr/0006-pending-signups-live-outside-the-accounts
 
 Every owner link deletes its child records when the owner is deleted.
 Deleting an Account therefore removes its student, Analytics snapshots,
-Practice-test results, Weekly schedules, and Activity check-ins. It keeps leads and other Accounts.
+Practice-test results, Weekly schedules, and Activity check-ins. It keeps other Accounts.
 An Account can exist before onboarding creates its student.
 
-Accounts and leads normalize emails on insert and update. Database checks
+Accounts normalize emails on insert and update. Database checks
 enforce the allowed role, platform, Accommodation, Preferred practice-test
 day, and Activity check-in status. Seven student columns store Daily capacity.
 They use the `daily_capacity_minutes` domain, a shared SQL value rule that
@@ -157,7 +156,7 @@ Admin rebuild behavior in ADR 0003. A second trigger refuses changes to an
 Activity check-in's Weekly schedule or Schedule activity, while allowing
 status and actual-minutes corrections.
 
-Typed queries now serve Accounts, students, leads, Analytics snapshots, Weekly
+Typed queries now serve Accounts, students, Analytics snapshots, Weekly
 schedules, and Activity check-ins.
 Snapshot-dependent Account deletion and Admin resets also use Postgres, so
 they remove related records in one atomic operation or transaction. All
