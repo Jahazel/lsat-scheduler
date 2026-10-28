@@ -9,7 +9,6 @@ docker run --detach --name factory-postgres \
 until docker exec factory-postgres pg_isready --username postgres >/dev/null 2>&1; do sleep 1; done
 echo "DATABASE_URL=postgresql://postgres:local-only@127.0.0.1:5432/postgres" >> "$GITHUB_ENV"
 
-command -v lsof >/dev/null || sudo apt-get install --yes lsof
 
 npm ci
 
