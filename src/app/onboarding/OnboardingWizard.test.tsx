@@ -274,7 +274,7 @@ describe("OnboardingWizard", () => {
 
       expect(screen.getByRole("button", { name: /Logical Reasoning screenshot/ })).toBeDefined();
       expect(screen.getByRole("button", { name: /Reading Comprehension screenshot/ })).toBeDefined();
-      expect(screen.getByText(/Show the passage types: Law, Comparative, Science, Humanities, and Art\./)).toBeDefined();
+      expect(screen.getByText(/Show every passage type it lists\./)).toBeDefined();
       expect(screen.getByText(/Your schedule starts after you add both\./)).toBeDefined();
     });
 

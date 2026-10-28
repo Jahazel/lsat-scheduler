@@ -643,7 +643,7 @@ function WhereToFindIt() {
   const steps = [
     "In 7Sage, open the Analytics page you checked most recently.",
     "Screenshot the Logical Reasoning section. Show every question type with its percentage or priority tier.",
-    "Screenshot the Reading Comprehension section. Show the passage types: Law, Comparative, Science, Humanities, and Art.",
+    "Screenshot the Reading Comprehension section. Show every passage type it lists.",
   ];
   return (
     <div className="flex flex-col gap-3">
