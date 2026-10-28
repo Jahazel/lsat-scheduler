@@ -9,7 +9,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const session = await auth();
   if (session?.user?.role !== "admin") {
     await recordSecurityEvent({
-      event: "student_data_refused", result: "refused", route: `/api/students/${(await params).id}`,
+      event: "student_data_refused", result: "refused", route: "/api/students/[id]",
       who: session?.user?.id ? { account: session.user.id } : NOBODY,
     });
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

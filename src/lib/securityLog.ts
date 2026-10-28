@@ -14,7 +14,7 @@ type AppEvents = {
   sign_in: "signedIn" | LoginRefusal | "usesPassword" | "googleRefused";
   sign_out_all_devices: "done";
   email_verification: VerificationResult;
-  password_reset_request: "requested";
+  password_reset_request: "sent" | "googleAccount" | "pendingSignup" | "noAccount" | "paused";
   password_reset: "changed" | "linkDoesNotWork";
   password_change: "changed" | "wrong-password" | "paused";
   account_deletion: "deleted" | DeletionRefusal;
@@ -38,9 +38,10 @@ export type SecurityEntry = {
   };
 }[keyof AppEvents];
 
+export type SecurityEvent = SecurityEntry["event"];
+
 const SAFE_ERROR_TYPE = /^[A-Za-z0-9_.:]{1,80}$/;
 const SAFE_IP_ADDRESS = /^[0-9A-Fa-f:.]{2,45}$/;
-const SAFE_ROUTE_START = /^\/[A-Za-z0-9/_-]{0,99}/;
 
 export function errorTypeOf(error: unknown) {
   if (!(error instanceof Error)) return "unknown";
@@ -67,7 +68,7 @@ export async function recordSecurityEvent({ event, result, route, who, ipAddress
     const ip = ipAddress ?? await clientIpAddress().catch(() => "unknown");
     await getPostgresDatabase().execute(sql`
       insert into security_log (event, result, route, account_id, ip_address, email_hash) values (
-        ${event}, ${result}, ${SAFE_ROUTE_START.exec(route)?.[0] ?? "/"}, (select id from accounts where id = ${accountId}::uuid),
+        ${event}, ${result}, ${route}, (select id from accounts where id = ${accountId}::uuid),
         ${SAFE_IP_ADDRESS.test(ip) ? ip : "unknown"},
         ${"unknownEmail" in who ? emailHash(who.unknownEmail) : null}
       )

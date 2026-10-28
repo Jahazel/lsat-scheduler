@@ -1,6 +1,14 @@
 ALTER TABLE security_log DROP CONSTRAINT security_log_event_check;
 --> statement-breakpoint
-ALTER TABLE security_log ADD CONSTRAINT security_log_event_check CHECK (event ~ '^[a-z][a-z_]{0,39}$');
+ALTER TABLE security_log ADD CONSTRAINT security_log_event_check CHECK (event IN (
+  'unexpected_failure', 'sign_in', 'sign_out_all_devices', 'email_verification', 'password_reset_request', 'password_reset',
+  'password_change', 'account_deletion', 'student_data_refused', 'admin_action_refused', 'limit_refused', 'budget_cutoff',
+  'admin_role_change', 'emergency_switch'
+));
+--> statement-breakpoint
+ALTER TABLE security_log DROP CONSTRAINT security_log_route_check;
+--> statement-breakpoint
+ALTER TABLE security_log ADD CONSTRAINT security_log_route_check CHECK (route ~ '^/[][A-Za-z0-9/_-]{0,99}$');
 --> statement-breakpoint
 ALTER TABLE security_log ADD COLUMN result text NOT NULL DEFAULT 'failed' CHECK (result ~ '^[a-zA-Z][a-zA-Z-]{0,39}$');
 --> statement-breakpoint

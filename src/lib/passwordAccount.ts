@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import { resetYourPassword, verifyYourEmail, youAlreadyHaveAnAccount, youSignInWithGoogle } from "./accountEmails";
 import {
-  deleteGoogleAccount, deletePasswordAccount, findPasswordAccountByEmail, findPasswordAccountById, replacePasswordHash,
+  deleteGoogleAccount, deletePasswordAccount, findAccountByEmail, findPasswordAccountByEmail, findPasswordAccountById, replacePasswordHash,
   signInMethodForEmail, type AccountId,
 } from "./accountRepository";
 import { signedInRecently } from "./accountSession";
@@ -76,17 +76,25 @@ export async function resendVerificationLink(
 
 export async function requestPasswordReset(email: string, request: PasswordRequest) {
   const { ipAddress, realNow } = request;
-  if (await countAll([["resetEmailInHour", email], ["resetFromIpAddress", ipAddress]], request)) return;
+  const known = await findAccountByEmail(email);
+  const who = known ? { account: known.id } : NOBODY;
+  const log = (result: "sent" | "googleAccount" | "pendingSignup" | "noAccount" | "paused") =>
+    recordSecurityEvent({ event: "password_reset_request", result, route: request.route, who, ipAddress });
+  if (await countAll([["resetEmailInHour", email], ["resetFromIpAddress", ipAddress]], request, undefined, who)) {
+    await log("paused");
+    return;
+  }
 
   const { token, tokenHash } = newEmailToken();
-  const accountId = await saveResetToken(email, tokenHash, realNow);
-  if (accountId) {
-    await recordSecurityEvent({ event: "password_reset_request", result: "requested", route: request.route, who: { account: accountId }, ipAddress });
+  if (await saveResetToken(email, tokenHash, realNow)) {
+    await log("sent");
     await sendEmail(resetYourPassword(email, token));
   } else if ((await signInMethodForEmail(email)) === "google") {
+    await log("googleAccount");
     await sendEmail(youSignInWithGoogle(email, "reset"));
   } else {
     const pending = await findPendingSignup(email, realNow);
+    await log(pending ? "pendingSignup" : "noAccount");
     if (pending) await resendVerificationLink(email, pending, request);
   }
 }
@@ -131,11 +139,12 @@ export async function logIn(
   const email = normalizeEmail(typedEmail);
   const { realNow } = request;
   const tries = loginTryCounts(email, request.ipAddress);
-  if (passwordTooLong(password)) return refused("tooLong", NOBODY);
-  if (await countAll(tries, request)) return refused("paused", NOBODY);
+  const known = await findAccountByEmail(email);
+  const who = known ? { account: known.id } : { unknownEmail: email };
+  if (passwordTooLong(password)) return refused("tooLong", who);
+  if (await countAll(tries, request, undefined, known ? { account: known.id } : NOBODY)) return refused("paused", who);
 
   const account = await findPasswordAccountByEmail(email);
-  const who = account ? { account: account.id } : { unknownEmail: email };
   const pending = account ? null : await findPendingSignup(email, realNow);
   if (!(await passwordMatches(password, account?.passwordHash ?? pending?.passwordHash ?? null))) {
     return refused("wrongEmailOrPassword", who);
@@ -147,7 +156,7 @@ export async function logIn(
   }
   if (!account || account.role === "admin") return refused("wrongEmailOrPassword", who);
   if (account.disabledAt) return refused("accountDisabled", who);
-  await recordSecurityEvent({ event: "sign_in", result: "signedIn", route: request.route, who, ipAddress: request.ipAddress });
+  await recordSecurityEvent({ event: "sign_in", result: "signedIn", route: request.route, who: { account: account.id }, ipAddress: request.ipAddress });
   const user = { id: account.id, email: account.email, name: account.name, sessionVersion: account.sessionVersion };
   return { kind: "signedIn", user } as const;
 }

@@ -1,5 +1,5 @@
 import type { Account, Profile, User } from "next-auth";
-import { createAccount, findAccountByGoogleId, signInMethodForEmail } from "./accountRepository";
+import { createAccount, findAccountByEmail, findAccountByGoogleId, signInMethodForEmail } from "./accountRepository";
 import { normalizeEmail } from "./email";
 import { DISABLED_SIGN_IN_PATH, EMAIL_USES_PASSWORD_PATH } from "./loginNotice";
 import { NOBODY, recordSecurityEvent, type Subject } from "./securityLog";
@@ -33,6 +33,7 @@ export async function createGoogleAccountOnSignIn({ user, account, profile }: {
     return true;
   }
   const usesPassword = (await signInMethodForEmail(email)) === "password";
-  await log(usesPassword ? "usesPassword" : "googleRefused", NOBODY);
+  const holder = await findAccountByEmail(email);
+  await log(usesPassword ? "usesPassword" : "googleRefused", holder ? { account: holder.id } : NOBODY);
   return usesPassword ? EMAIL_USES_PASSWORD_PATH : false;
 }

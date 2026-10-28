@@ -59,9 +59,20 @@ describe("proxy route", () => {
   });
 
   it("sends a non-admin away from admin pages to This week", () => {
-    expect(proxyRoute("/admin", student)).toEqual({ kind: "redirect", to: "/dashboard", refused: "admin_action_refused" });
-    expect(proxyRoute("/admin/students/1", student)).toEqual({ kind: "redirect", to: "/dashboard", refused: "student_data_refused" });
+    expect(proxyRoute("/admin", student)).toEqual({ kind: "redirect", to: "/dashboard", refused: { event: "admin_action_refused", route: "/admin" } });
+    expect(proxyRoute("/admin/students/1", student)).toEqual({ kind: "redirect", to: "/dashboard", refused: { event: "student_data_refused", route: "/admin/students/[id]" } });
     expect(proxyRoute("/admin", admin)).toEqual({ kind: "allow" });
+  });
+
+  it("names a signed-out refusal of Admin pages and student data by route template, never by the typed path", () => {
+    expect(proxyRoute("/api/students/reset-token-0123456789", null))
+      .toEqual({ kind: "unauthorized", refused: { event: "student_data_refused", route: "/api/students/[id]" } });
+    expect(proxyRoute("/api/students", null)).toEqual({ kind: "unauthorized", refused: { event: "student_data_refused", route: "/api/students" } });
+    expect(proxyRoute("/admin/test", null))
+      .toEqual({ kind: "redirect", to: "/login", refused: { event: "admin_action_refused", route: "/admin/test" } });
+    expect(proxyRoute("/admin/anything-else", student))
+      .toEqual({ kind: "redirect", to: "/dashboard", refused: { event: "admin_action_refused", route: "/admin" } });
+    expect(proxyRoute("/dashboard", null)).toEqual({ kind: "redirect", to: "/login" });
   });
 
   it("lets a signed-in student reach their pages and API routes", () => {
