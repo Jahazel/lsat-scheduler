@@ -6,6 +6,8 @@ Decisions for [issue 74](https://github.com/Jahazel/lsat-scheduler/issues/74), u
 
 **Update, October 22, 2026:** The owner chose Google sign-in only until DrillMap has its own domain ([ADR 0005](../adr/0005-google-sign-in-only-until-drillmap-has-a-domain.md), [issue 222](https://github.com/Jahazel/lsat-scheduler/issues/222)). Password signup and password login leave the app. Rules 6 to 21 wait for the password sign-in issue ([issue 230](https://github.com/Jahazel/lsat-scheduler/issues/230)) and are not built in Stage 4. Rule 29 applies to Account deletion only; its password-change part waits for issue 230. Recent sign-in for deletion means a fresh Google sign-in, with the account chooser shown, within 10 minutes. The rules below keep their original text.
 
+**Update, October 27, 2026:** [Issue 230](https://github.com/Jahazel/lsat-scheduler/issues/230) brought password sign-in back and replaced ADR 0005. Rules 6 to 21 and all of rule 29 apply again. See the [issue 289 copy run](issue-289-copy-run-evidence.md).
+
 **Update, October 25, 2026:** The owner bought `drillmap.xyz` and decided the password sign-in rules for [issue 230](https://github.com/Jahazel/lsat-scheduler/issues/230) ([spec #278](https://github.com/Jahazel/lsat-scheduler/issues/278)). These items replace or add to the rules below:
 
 - **Pending signup replaces "pending Account."** A password signup whose email is not verified yet is a pending signup, not an Account. It lives in its own table, and the verification step makes the Account ([ADR 0006](../adr/0006-pending-signups-live-outside-the-accounts-table.md)). This replaces "pending Account" in rules 7 to 9 and the Google sign-in table, and "unverified Account" in rule 16. The rules' behavior does not change.

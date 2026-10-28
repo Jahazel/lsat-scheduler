@@ -16,7 +16,8 @@ export default function PrivacyPage() {
           </p>
           <p>
             These companies handle your data for us. Vercel runs the website. Neon stores the database. Google handles
-            sign-in if you choose &ldquo;Continue with Google.&rdquo; Anthropic, an AI company, reads the analytics
+            sign-in if you choose &ldquo;Continue with Google.&rdquo; Resend sends DrillMap&rsquo;s email, such as the
+            link to verify your email or reset your password. Anthropic, an AI company, reads the analytics
             screenshots you upload. Anthropic keeps each screenshot for up to 30 days and then deletes it. DrillMap does
             not store the screenshot. Crop out anything you do not want to share before you upload.
           </p>

@@ -167,7 +167,7 @@ Updated on October 19, 2026 (#145) for the move to Neon ([issue 78](issue-78-dat
 > - Neon stores the database.
 > - Google handles sign-in if you choose "Sign in with Google."
 > - Anthropic reads screenshots, as described above.
-> - [Email provider] sends verification, password reset, and account notices.
+> - Resend sends verification, password reset, and account notices.
 >
 > **Security records**
 > To protect your Account, we record security events, for example sign-ins, failed sign-ins, and password resets. Each record holds the time, the event, your Account ID, and the IP address of the request. It never holds your password or your screenshots. We delete these records after 90 days.
