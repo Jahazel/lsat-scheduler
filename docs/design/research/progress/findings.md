@@ -2,7 +2,7 @@
 
 Brief: [brief.md](brief.md). Tracking ticket: #334.
 
-Progress is designed desktop-first: step 4 compares directions on 1440 px boards. So the examples are desktop web screens from Mobbin, in [refs/](refs/), named `<question>-<app>-<short>.png`. Phone app screens from the first pass are in [refs/phone/](refs/phone/), for each direction's phone-fit note. Mobbin shows still frames only, so every motion read from Mobbin is marked **inferred**.
+Progress is designed desktop-first: step 4 compares directions on 1440 px boards. So the examples are desktop web screens from Mobbin, linked below. The screenshots stay out of this public repository because they show other companies' apps; the owner keeps a local copy. Phone app screens from the first pass informed each direction's phone-fit note. Mobbin shows still frames only, so every motion read from Mobbin is marked **inferred**.
 
 Mark each pattern on its `Owner:` line: like, dislike, or leave it blank.
 
