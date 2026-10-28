@@ -1,0 +1,453 @@
+<!doctype html>
+<!--
+  PROTOTYPE, throw away. Progress · Direction 3 (month cards).
+  Question: do the flow and its transitions feel right at 1440, 768, and 390?
+  Open this file in a browser. No build, no server, no saved data.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE · Progress D3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --vellum: #F6F6F6; --paper: #FFFFFF; --line: #E4E4E4; --ink: #0A0A0A;
+  --fog: #8A8A8A; --smoke: #5C5C5C; --accent: #123A94;
+  --fast: 120ms; --base: 200ms; --slow: 320ms;
+  --standard: cubic-bezier(0.2, 0, 0, 1); --exit: cubic-bezier(0.4, 0, 1, 1);
+  font-family: Geist, ui-sans-serif, system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #2A2A2A; color: var(--ink); }
+button { font: inherit; color: inherit; }
+
+/* ---------- stage and device frame ---------- */
+#stage { position: fixed; inset: 0 0 132px 0; display: flex; justify-content: center; align-items: flex-start; padding-top: 16px; overflow: hidden; }
+#scaler { transform-origin: top center; }
+#frame { background: var(--vellum); overflow-y: auto; overflow-x: hidden; container-type: inline-size; container-name: app; border-radius: 6px; box-shadow: 0 0 0 1px #000; }
+
+/* ---------- app ---------- */
+.nav { position: sticky; top: 0; z-index: 2; height: 72px; display: flex; align-items: center; gap: 32px; padding: 0 72px; background: var(--paper); border-bottom: 1px solid var(--line); }
+.wordmark { font-weight: 600; font-size: 20px; letter-spacing: -0.02em; }
+.tabs { display: flex; gap: 4px; }
+.tab { border: 0; background: none; color: inherit; text-decoration: none; padding: 10px 16px; border-radius: 999px; font-size: 16px; cursor: pointer; transition: background var(--fast) var(--standard); }
+.tab:hover { background: var(--vellum); }
+.tab[aria-current="page"] { background: var(--vellum); font-weight: 500; }
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 24px; color: var(--smoke); }
+.avatar { width: 40px; height: 40px; border-radius: 999px; background: var(--vellum); display: grid; place-items: center; font-size: 13px; font-weight: 500; color: var(--ink); }
+.phone-tab { display: none; }
+
+#main { min-height: calc(100% - 72px); background: var(--vellum); }
+.band { background: var(--paper); border-bottom: 1px solid var(--line); padding: 48px 72px 44px; }
+.h1 { font-size: 48px; line-height: 52px; letter-spacing: -0.035em; font-weight: 500; margin: 0; outline: none; }
+.lead { font-size: 20px; line-height: 30px; color: var(--smoke); margin: 12px 0 0; }
+.body { padding: 48px 72px 72px; }
+
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.card + .card { margin-top: 24px; }
+.month-head { display: flex; justify-content: space-between; align-items: baseline; padding: 20px 24px; font-size: 18px; font-weight: 500; letter-spacing: -0.02em; }
+.month-head h2 { all: unset; }
+.month-head span { font-size: 14px; font-weight: 400; color: var(--smoke); letter-spacing: 0; }
+.row { display: grid; grid-template-columns: 200px minmax(0, 320px) 1fr 24px; align-items: center; gap: 24px; width: 100%; min-height: 64px; padding: 0 24px; border: 0; border-top: 1px solid var(--line); background: var(--paper); text-align: left; cursor: pointer; text-decoration: none; color: inherit;
+  transition: background var(--fast) var(--standard); }
+@media (hover: hover) { .row:hover { background: var(--vellum); } }
+.row:active { background: var(--line); }
+.row:focus-visible, .pill:focus-visible, .link:focus-visible, .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row-dates { font-size: 16px; }
+.bar { height: 4px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.row-count { justify-self: end; font-size: 14px; color: var(--smoke); }
+.chev { color: var(--smoke); justify-self: end; }
+
+.empty { padding: 48px 24px; text-align: center; color: var(--smoke); font-size: 16px; }
+.link { color: var(--accent); text-decoration: none; font-weight: 500; font-size: 14px; display: inline-flex; gap: 4px; align-items: center; cursor: pointer; border-radius: 4px; }
+.link:hover { text-decoration: underline; }
+
+.week-band { padding-top: 32px; }
+.week-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
+.meta { display: flex; gap: 12px; align-items: center; margin: 24px 0 8px; font-size: 14px; color: var(--smoke); }
+.chip { background: var(--vellum); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: 12px; color: var(--ink); }
+.reasons { margin: 12px 0 0; padding: 0; list-style: none; font-size: 14px; line-height: 22px; color: var(--smoke); }
+.reasons li { display: flex; gap: 10px; }
+.reasons svg { flex: none; margin-top: 4px; }
+.pills { display: flex; gap: 8px; flex: none; }
+.pill { height: 40px; padding: 0 16px; border: 1px solid var(--line); background: var(--paper); border-radius: 999px; font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; color: var(--ink);
+  transition: background var(--fast) var(--standard); }
+.pill:hover { background: var(--vellum); }
+
+.day { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 22px 28px; }
+.day + .day { margin-top: 16px; }
+.day-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.day-name { font-size: 17px; font-weight: 500; }
+.day-name small { font-size: 14px; font-weight: 400; color: var(--smoke); margin-left: 8px; }
+.day-sum { font-size: 14px; color: var(--smoke); display: flex; gap: 16px; align-items: center; }
+.alldone { color: var(--ink); display: inline-flex; gap: 6px; align-items: center; }
+.day-note { font-size: 14px; color: var(--smoke); margin-top: 8px; }
+.acts { list-style: none; margin: 16px 0 0; padding: 0; }
+.acts li { display: flex; gap: 10px; align-items: center; font-size: 14px; min-height: 36px; }
+.acts li.done span { text-decoration: line-through; color: var(--smoke); }
+.foot { display: flex; justify-content: space-between; gap: 16px; margin-top: 40px; font-size: 14px; color: var(--smoke); }
+.foot div:last-child { text-align: right; margin-left: auto; }
+.foot .link { margin-bottom: 4px; }
+
+.placeholder { padding: 96px 72px; color: var(--smoke); }
+
+/* ---------- tablet 768 ---------- */
+@container app (max-width: 1023px) {
+  .nav, .band, .body { padding-left: 32px; padding-right: 32px; }
+  .row { grid-template-columns: 140px minmax(0, 200px) 1fr 24px; gap: 16px; }
+  .week-top { flex-direction: column; align-items: flex-start; }
+}
+/* ---------- phone 390 ---------- */
+@container app (max-width: 639px) {
+  .nav { height: 56px; padding: 0 20px; background: var(--vellum); }
+  #main { min-height: calc(100% - 56px); }
+  .tabs, .days-left { display: none; }
+  .phone-tab { display: inline; color: var(--ink); font-size: 15px; }
+  .avatar { width: 32px; height: 32px; font-size: 12px; }
+  .band { padding: 24px 20px; }
+  .body { padding: 16px 16px 40px; }
+  .h1 { font-size: 28px; line-height: 34px; letter-spacing: -0.02em; }
+  .lead { font-size: 16px; line-height: 24px; }
+  .month-head { padding: 16px; }
+  .row { grid-template-columns: 1fr auto; grid-template-areas: "d c" "b b"; gap: 10px 12px; padding: 14px 16px; min-height: 64px; }
+  .row-dates { grid-area: d; } .row-count { grid-area: c; } .bar { grid-area: b; } .chev { display: none; }
+  .week-band { padding-top: 16px; }
+  .meta { margin-top: 16px; }
+  .pills { width: 100%; margin-top: 8px; }
+  .pill { flex: 1; height: 44px; }
+  .day { padding: 18px 24px; }
+  .day-head { flex-direction: column; gap: 4px; }
+  .foot .link { font-size: 14px; }
+}
+
+/* ---------- prototype controls ---------- */
+#bar { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); width: min(1100px, calc(100% - 24px)); background: #111; color: #eee; border-radius: 12px; padding: 10px 14px; font: 12px/1.4 "Geist Mono", ui-monospace, monospace; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+#bar .grp { display: inline-flex; align-items: center; gap: 4px; margin: 2px 14px 2px 0; }
+#bar b { color: #FFB23F; font-weight: 400; margin-right: 4px; }
+#bar button { background: #222; border: 1px solid #333; color: #ddd; border-radius: 6px; padding: 3px 8px; cursor: pointer; font: inherit; }
+#bar button[aria-pressed="true"] { background: #FFB23F; color: #111; border-color: #FFB23F; }
+#state { margin-top: 6px; color: #9a9a9a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#state em { color: #fff; font-style: normal; }
+</style>
+</head>
+<body>
+<div id="stage"><div id="scaler"><div id="frame">
+  <header class="nav">
+    <span class="wordmark">DrillMap</span>
+    <nav class="tabs" aria-label="Main">
+      <a class="tab" href="#/this-week">This week</a>
+      <a class="tab" href="#/progress" aria-current="page">Progress</a>
+      <a class="tab" href="#/settings">Study settings</a>
+    </nav>
+    <div class="nav-right">
+      <span class="phone-tab" id="phoneTab">Progress</span>
+      <span class="days-left">125 days to test</span>
+      <span class="avatar">AB</span>
+    </div>
+  </header>
+  <main id="main"></main>
+</div></div></div>
+
+<div id="bar" aria-label="Prototype controls">
+  <span class="grp"><b>WIDTH</b><button data-w="1440">1440</button><button data-w="768">768</button><button data-w="390">390</button></span>
+  <span class="grp"><b>DATA</b><button data-d="board">6 weeks</button><button data-d="many">20 weeks</button><button data-d="one">1 week</button><button data-d="none">No weeks</button></span>
+  <span class="grp"><b>MOTION</b><button data-m="system">Follow system</button><button data-m="full">Full</button><button data-m="reduced">Reduced</button><button id="slowmo">Slow ×5</button></span>
+  <br>
+  <span class="grp"><b>LINKS</b><button data-go="#/dashboard?historyWeek=2026-09-28">Old bookmark</button><button data-go="#/progress?week=2026-08-17">Week with no schedule</button><button data-go="#/progress?week=2026-10-26">Current week</button></span>
+  <div id="state"></div>
+</div>
+
+<script>
+// ---------- dates ----------
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAY = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const d = s => new Date(s + "T00:00:00Z");
+const add = (dt, n) => new Date(dt.getTime() + n * 864e5);
+const iso = dt => dt.toISOString().slice(0, 10);
+const md = dt => `${MON[dt.getUTCMonth()]} ${dt.getUTCDate()}`;
+function range(a, b) {
+  return a.getUTCMonth() === b.getUTCMonth() ? `${md(a)} – ${b.getUTCDate()}` : `${md(a)} – ${md(b)}`;
+}
+const CURRENT_WEEK = "2026-10-26";
+
+// ---------- data ----------
+const DRILLS = ["10 Necessary + Sufficient assumption (L2-4)", "5 Most strongly supported (L2-4)", "5 Parallel method of reasoning (L2-4)",
+  "5 Flaw or descriptive weakening (L2-4)", "5 Strengthen (L2-4)", "5 Inference (L2-4)", "5 Must be true (L2-4)",
+  "1 Humanities + 1 Science passage (L3-4)", "1 Full LR Section", "1 Law passage (L3)", "5 Principle (L2-4)", "5 Main point (L1-3)"];
+const REASONS = [
+  ["Sufficient assumption comes first this week. You missed it most on your last practice test.", "Weaken sits out this week in the starred rotation."],
+  ["Your practice test is on Thursday, your preferred day.", "Rest moved to Wednesday so the test is not the day after a long drill day."],
+  ["Inference leads this week. It was your slowest type last week.", "RC passages stay at level 3–4 until your accuracy is above 80%."],
+];
+const fmtMin = m => m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`;
+
+function buildDays(w) {
+  const mon = d(w.monday), start = w.startDay ?? 0, full = start === 0;
+  const kinds = DAY.map((_, i) => i < start ? "off" : full && i === 2 ? "rest" : full && i === 3 ? "pt" : full && i === 4 ? "review" : "drill");
+  const drillIdx = kinds.map((k, i) => k === "drill" ? i : -1).filter(i => i >= 0);
+  const acts = kinds.map(() => []);
+  let left = w.total - kinds.filter(k => k === "pt" || k === "review").length, n = 0, seed = mon.getUTCDate();
+  while (left-- > 0) acts[drillIdx[n++ % drillIdx.length]].push(DRILLS[(seed + n) % DRILLS.length]);
+  kinds.forEach((k, i) => { if (k === "pt") acts[i].push("Practice Test (from PT 130+)"); if (k === "review") acts[i].push("PT Review + Blind Review"); });
+  let undone = w.total - w.done;
+  const flat = acts.map((a, i) => a.map((name, j) => ({ name, i, j }))).flat();
+  const marks = acts.map(a => a.map(() => true));
+  for (let k = flat.length - 1; k >= 0 && undone > 0; k -= 2) { marks[flat[k].i][flat[k].j] = false; undone--; }
+  for (let k = flat.length - 2; k >= 0 && undone > 0; k -= 2) { marks[flat[k].i][flat[k].j] = false; undone--; }
+  return kinds.map((kind, i) => {
+    const items = acts[i].map((name, j) => ({ name, done: marks[i][j] }));
+    const mins = kind === "pt" || kind === "review" ? 188 : items.length * 23 + (items.length ? 5 : 0);
+    const label = { off: "Not scheduled", rest: "Rest day", pt: "Practice test", review: "Practice-test review", drill: "Drilling" }[kind];
+    const startName = DAY[start];
+    return { date: add(mon, i), name: DAY[i], kind, items, sum: `${label} · ${fmtMin(kind === "off" || kind === "rest" ? 0 : mins)} of 1 h 30 min`,
+      note: kind === "off" ? `Not scheduled because this weekly schedule started ${startName}.` : kind === "rest" ? "Rest day. Nothing planned." : null };
+  });
+}
+
+const BOARD = [
+  ["2026-10-19", 9, 14], ["2026-10-12", 12, 12], ["2026-10-05", 4, 13], ["2026-09-28", 10, 12, 1], ["2026-09-21", 7, 14], ["2026-09-07", 3, 6, 2],
+];
+const MANY = [
+  ["2026-10-19", 9, 14], ["2026-10-12", 12, 12], ["2026-10-05", 4, 13], ["2026-09-28", 10, 12, 1], ["2026-09-21", 7, 14], ["2026-09-14", 9, 12],
+  ["2026-09-07", 8, 12], ["2026-08-31", 6, 12], ["2026-08-24", 0, 12], /* Aug 17: skipped week, no upload */ ["2026-08-10", 12, 12],
+  ["2026-08-03", 9, 13], ["2026-07-27", 11, 14], ["2026-07-20", 5, 12], ["2026-07-13", 13, 13], ["2026-07-06", 7, 12],
+  ["2026-06-29", 10, 14], ["2026-06-22", 8, 12], ["2026-06-15", 12, 14], ["2026-06-08", 3, 12], ["2026-06-01", 2, 5, 3],
+];
+const SETS = { board: BOARD, many: MANY, one: [BOARD[0]], none: [] };
+function weeksFor(set) {
+  return SETS[set].map(([monday, done, total, startDay], k) => {
+    const w = { monday, done, total, startDay, reasons: REASONS[k % REASONS.length] };
+    const mon = d(monday);
+    w.label = range(mon, add(mon, 6));
+    w.days = buildDays(w);
+    return w;
+  });
+}
+
+// ---------- prototype state ----------
+const S = { width: 1440, set: "board", motion: "system", slow: false, route: null, listScroll: 0, lastWeek: null, transition: "—", focus: "—" };
+let weeks = weeksFor(S.set);
+const sysReduced = matchMedia("(prefers-reduced-motion: reduce)");
+const reduced = () => S.motion === "reduced" || (S.motion === "system" && sysReduced.matches);
+const ms = t => t * (S.slow ? 5 : 1);
+
+// ---------- routing ----------
+function parse(hash) {
+  const [path, q = ""] = (hash || "#/progress").slice(1).split("?");
+  const p = new URLSearchParams(q);
+  if (path === "/dashboard" && p.get("historyWeek")) return { redirect: `#/progress?week=${p.get("historyWeek")}` };
+  if (path === "/this-week") return { page: "this-week" };
+  if (path === "/settings") return { page: "settings" };
+  const wk = p.get("week");
+  if (wk === CURRENT_WEEK) return { redirect: "#/this-week" };
+  if (wk) return weeks.some(w => w.monday === wk) ? { page: "week", week: wk } : { redirect: "#/progress" };
+  return { page: "list" };
+}
+
+// ---------- icons ----------
+const I = {
+  chev: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3.5 10.5 8 6 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  info: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.75" stroke="currentColor" stroke-width="1.2"/><path d="M7 6.2v3.6M7 4.3v.1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+  done: '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="#0A0A0A"/><path d="m4.8 8.2 2.1 2.1 4.3-4.4" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  todo: '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7.25" fill="none" stroke="#8A8A8A" stroke-width="1.3"/></svg>',
+  alldone: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.75" stroke="currentColor" stroke-width="1.2"/><path d="m4.6 7.1 1.7 1.7 3.2-3.3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+const pct = w => `${Math.round((w.done / w.total) * 100)}%`;
+
+// ---------- views ----------
+function listView() {
+  if (!weeks.length) return `
+    <section class="band"><h1 class="h1" tabindex="-1">Progress</h1><p class="lead">Your past weekly schedules. Open one to see what you planned and checked off.</p></section>
+    <div class="body"><div class="card empty">No past weeks yet. Each week shows up here after it ends.<br><br><a class="link" href="#/this-week">Go to This week →</a></div></div>`;
+  const groups = [];
+  for (const w of weeks) {
+    const m = d(w.monday), key = `${MONTH[m.getUTCMonth()]} ${m.getUTCFullYear()}`;
+    if (groups.at(-1)?.key !== key) groups.push({ key, weeks: [] });
+    groups.at(-1).weeks.push(w);
+  }
+  return `
+    <section class="band"><h1 class="h1" tabindex="-1">Progress</h1><p class="lead">Your past weekly schedules. Open one to see what you planned and checked off.</p></section>
+    <div class="body">${groups.map(g => `
+      <section class="card" aria-label="${g.key}">
+        <div class="month-head"><h2>${g.key}</h2><span>${g.weeks.length} week${g.weeks.length > 1 ? "s" : ""}</span></div>
+        ${g.weeks.map(w => `
+          <a class="row" href="#/progress?week=${w.monday}" data-week="${w.monday}" aria-label="Week of ${w.label}, ${w.done} of ${w.total} done">
+            <span class="row-dates">${w.label}</span>
+            <span class="bar"><i style="width:${pct(w)}"></i></span>
+            <span class="row-count">${w.done} of ${w.total} done</span>
+            <span class="chev">${I.chev}</span>
+          </a>`).join("")}
+      </section>`).join("")}
+    </div>`;
+}
+
+function weekView(id) {
+  const k = weeks.findIndex(w => w.monday === id), w = weeks[k];
+  const older = weeks[k + 1], newer = weeks[k - 1];
+  return `
+    <section class="band week-band">
+      <a class="link" href="#/progress" data-back>← All weeks</a>
+      <div class="meta"><span class="chip">Past week</span>${w.done} of ${w.total} done</div>
+      <div class="week-top">
+        <div>
+          <h1 class="h1" id="weekTitle" tabindex="-1">Week of ${md(d(w.monday))}</h1>
+          <ul class="reasons">${w.reasons.map(r => `<li>${I.info}<span>${r}</span></li>`).join("")}</ul>
+        </div>
+        ${older || newer ? `<div class="pills">
+          ${older ? `<a class="pill" href="#/progress?week=${older.monday}">← Older week</a>` : ""}
+          ${newer ? `<a class="pill" href="#/progress?week=${newer.monday}">Newer week →</a>` : ""}
+        </div>` : ""}
+      </div>
+    </section>
+    <div class="body">
+      ${w.days.map(day => `
+        <section class="day">
+          <div class="day-head">
+            <div class="day-name">${day.name}<small>${md(day.date)}</small></div>
+            <div class="day-sum">${day.sum}${day.items.length && day.items.every(x => x.done) ? `<span class="alldone">${I.alldone}All done</span>` : ""}</div>
+          </div>
+          ${day.note ? `<div class="day-note">${day.note}</div>` : ""}
+          ${day.items.length ? `<ul class="acts">${day.items.map(x => `<li class="${x.done ? "done" : ""}">${x.done ? I.done : I.todo}<span>${x.name}</span><span class="sr" hidden>${x.done ? "done" : "not done"}</span></li>`).join("")}</ul>` : ""}
+        </section>`).join("")}
+      <div class="foot">
+        ${older ? `<div><a class="link" href="#/progress?week=${older.monday}">← Older week</a><div>${older.label} · ${older.done} of ${older.total} done</div></div>` : ""}
+        ${newer ? `<div><a class="link" href="#/progress?week=${newer.monday}">Newer week →</a><div>${newer.label} · ${newer.done} of ${newer.total} done</div></div>` : ""}
+      </div>
+    </div>`;
+}
+
+const placeholder = name => `<div class="placeholder"><h1 class="h1" tabindex="-1">${name}</h1><p class="lead">Not part of this prototype. Use the Progress tab to go back.</p></div>`;
+
+// ---------- transitions ----------
+const main = document.getElementById("main"), frame = document.getElementById("frame");
+let navToken = 0;
+
+function render(route) {
+  main.innerHTML = route.page === "list" ? listView() : route.page === "week" ? weekView(route.week)
+    : placeholder(route.page === "this-week" ? "This week" : "Study settings");
+  const tabFor = { list: "/progress", week: "/progress", "this-week": "/this-week", settings: "/settings" }[route.page];
+  document.querySelectorAll(".tab").forEach(t => t.getAttribute("href") === "#" + tabFor
+    ? t.setAttribute("aria-current", "page") : t.removeAttribute("aria-current"));
+  document.getElementById("phoneTab").textContent = { list: "Progress", week: "Progress", "this-week": "This week", settings: "Study settings" }[route.page];
+}
+
+function kindOf(from, to) {
+  if (!from || from.page === to.page && from.week === to.week) return { kind: "none" };
+  const fromP = from.page === "list" || from.page === "week", toP = to.page === "list" || to.page === "week";
+  if (!fromP || !toP) return { kind: "none", why: "nav tab: same as other tabs today" };
+  if (from.page === "week" && to.page === "week") return { kind: "axis", dir: to.week < from.week ? -1 : 1 };
+  return { kind: "fade" };
+}
+
+async function go(to) {
+  const from = S.route, t = kindOf(from, to), token = ++navToken;
+  // An interrupted transition continues from where it is, instead of popping back to full opacity.
+  main.getAnimations().forEach(a => { a.commitStyles(); a.cancel(); });
+  if (from?.page === "list") S.listScroll = frame.scrollTop;
+  if (from?.page === "week") S.lastWeek = from.week;
+  const red = reduced();
+  const after = () => {
+    main.getAnimations().forEach(a => a.cancel());
+    main.style.opacity = main.style.transform = "";
+    render(to);
+    S.route = to;
+    if (to.page === "list" && from?.page === "week") {
+      frame.scrollTop = S.listScroll;
+      const row = main.querySelector(`[data-week="${S.lastWeek}"]`);
+      row?.focus({ preventScroll: true });
+      S.focus = row ? `row "${row.querySelector(".row-dates").textContent}" · scroll restored to ${S.listScroll}px` : "—";
+    } else {
+      frame.scrollTop = 0;
+      const h = main.querySelector(".h1");
+      if (from) { h?.focus({ preventScroll: true }); S.focus = `page title "${h?.textContent}" · scroll top`; }
+    }
+  };
+
+  if (t.kind === "none") {
+    after(); S.transition = t.why ? `instant (${t.why})` : "instant";
+  } else if (red) {
+    after();
+    main.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms(120), easing: "linear" });
+    S.transition = `reduced: 120 ms fade, no movement`;
+  } else if (t.kind === "fade") {
+    await main.animate([{ opacity: 0 }], { duration: ms(120), easing: "cubic-bezier(0.4,0,1,1)", fill: "forwards" }).finished.catch(() => {});
+    if (token !== navToken) return;
+    after();
+    main.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms(200), easing: "cubic-bezier(0.2,0,0,1)" });
+    S.transition = "fade through: out 120 ms (fast, exit) → in 200 ms (base, standard)";
+  } else {
+    const x = 8 * t.dir; // older (dir -1) comes in from the left, where its link sits
+    await main.animate([{ opacity: 0, transform: `translateX(${-x}px)` }],
+      { duration: ms(120), easing: "cubic-bezier(0.4,0,1,1)", fill: "forwards" }).finished.catch(() => {});
+    if (token !== navToken) return;
+    after();
+    main.animate([{ opacity: 0, transform: `translateX(${x}px)` }, { opacity: 1, transform: "none" }], { duration: ms(200), easing: "cubic-bezier(0.2,0,0,1)" });
+    S.transition = `shared axis ${t.dir < 0 ? "← older" : "newer →"}: 8 px slide + fade, out 120 ms (exit) → in 200 ms (standard); nav bar stays still`;
+  }
+  showState();
+}
+
+// In-app links use pushState: a plain hash change resets the frame's scroll before any handler can save it.
+function nav(href, replace) {
+  if (!replace && href === location.hash) return;
+  history[replace ? "replaceState" : "pushState"](null, "", href);
+  onHash();
+}
+function onHash() {
+  const r = parse(location.hash);
+  if (r.redirect) { S.redirected = location.hash; nav(r.redirect, true); return; }
+  go(r);
+}
+addEventListener("popstate", onHash);
+document.addEventListener("click", e => {
+  const a = e.target.closest('a[href^="#/"]');
+  if (a) { e.preventDefault(); nav(a.getAttribute("href")); }
+});
+
+// ---------- controls ----------
+function fit() {
+  const stage = document.getElementById("stage"), sc = document.getElementById("scaler");
+  const availW = stage.clientWidth - 32, availH = stage.clientHeight - 16;
+  const scale = Math.min(1, availW / S.width);
+  frame.style.width = S.width + "px";
+  frame.style.height = availH / scale + "px";
+  sc.style.transform = `scale(${scale})`;
+  S.scale = scale;
+}
+function press() {
+  document.querySelectorAll("[data-w]").forEach(b => b.setAttribute("aria-pressed", +b.dataset.w === S.width));
+  document.querySelectorAll("[data-d]").forEach(b => b.setAttribute("aria-pressed", b.dataset.d === S.set));
+  document.querySelectorAll("[data-m]").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === S.motion));
+  document.getElementById("slowmo").setAttribute("aria-pressed", S.slow);
+}
+function showState() {
+  const r = S.route || {};
+  const url = r.page === "week" ? `/progress?week=${r.week}` : r.page === "list" ? "/progress" : r.page === "this-week" ? "/dashboard" : "/settings";
+  const redir = S.redirected ? ` (redirected from ${S.redirected.slice(1)})` : "";
+  S.redirected = null;
+  document.getElementById("state").innerHTML =
+    `url <em>${url}</em>${redir} · motion <em>${reduced() ? "reduced" : "full"}</em>${S.slow ? " ×5 slow" : ""} · scale ${Math.round(S.scale * 100)}%<br>` +
+    `last transition <em>${S.transition}</em> · focus <em>${S.focus}</em>`;
+  document.getElementById("state").style.whiteSpace = "normal";
+}
+document.querySelectorAll("[data-w]").forEach(b => b.onclick = () => { S.width = +b.dataset.w; fit(); press(); showState(); });
+document.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { S.motion = b.dataset.m; press(); showState(); });
+document.getElementById("slowmo").onclick = () => { S.slow = !S.slow; press(); showState(); };
+document.querySelectorAll("[data-d]").forEach(b => b.onclick = () => {
+  S.set = b.dataset.d; weeks = weeksFor(S.set); S.route = null; S.listScroll = 0; S.transition = "—"; S.focus = "—"; press();
+  nav("#/progress", true);
+});
+document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => nav(b.dataset.go));
+sysReduced.addEventListener("change", showState);
+addEventListener("resize", () => { fit(); showState(); });
+
+fit(); press();
+if (!location.hash) history.replaceState(null, "", "#/progress");
+onHash();
+</script>
+</body>
+</html>
