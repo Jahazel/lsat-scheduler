@@ -290,8 +290,9 @@ and evidence files. Never paste it into an issue or commit it.
 Neon's connection string ends with `sslmode=require`. Change it to
 `sslmode=verify-full` before the run. Otherwise the check stops with
 "Remote Postgres requires sslmode=verify-full." That message holds no secret.
-Every other failure prints only "Database foundation check failed." so no
-connection string, password, or host detail reaches the output.
+A host guard refusal names the refused host but no user or password. Every
+other failure prints only "Database foundation check failed." so no connection
+string, password, or host detail reaches the output.
 
 The script runs the host guard before it connects. Loopback and exact copy-site
 hosts in `scripts/copyDatabaseHosts.json` are the only allowed targets. The list
