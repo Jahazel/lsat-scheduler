@@ -266,6 +266,19 @@ describe("onboarding wizard", () => {
     expect(wizardReducer(rejected, { type: "readQueued", section: "LR", file }).rejections.LR).toBeNull();
   });
 
+  it("refuses an RC read that is not a passage-type page and keeps its rows out of the review", () => {
+    const file = new File(["png"], "lr-in-rc-box.png", { type: "image/png" });
+    const reading = run({ type: "readQueued", section: "RC", file }, { type: "readStarted", id: 0 });
+
+    const refused = wizardReducer(reading, {
+      type: "readEnded", section: "RC", id: 0, reply: { kind: "rows", rows: [{ type: "Law", category: "passage", accuracy: 58 }], showsPassageTypes: false }, at: READ_AT,
+    });
+
+    expect(screenshot(refused, "RC")).toBeUndefined();
+    expect(refused.rejections.RC).toBe("No passage types in this one.");
+    expect(refused.draft).toBeNull();
+  });
+
   it("keeps a read that ends while Skip for now is saving", () => {
     const ready = run(validGoal, { type: "continue" }, { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } }, { type: "continue" });
     const queued = wizardReducer(ready, { type: "readQueued", section: "LR", file: new File(["png"], "a.png", { type: "image/png" }) });
@@ -302,7 +315,7 @@ describe("onboarding wizard", () => {
         { type: "readQueued", section: "LR", file: new File(["png"], "lr-analytics.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
         { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows }, at: READ_AT },
         { type: "readQueued", section: "RC", file: new File(["png"], "rc-analytics.png", { type: "image/png" }) }, { type: "readStarted", id: 1 },
-        { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: passageRows }, at: READ_AT },
+        { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: passageRows, showsPassageTypes: true }, at: READ_AT },
         { type: "continue" },
         ...actions,
       );
@@ -483,7 +496,7 @@ describe("onboarding wizard", () => {
         { type: "readQueued", section: "LR", file: new File(["png"], "lr.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
         { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows: readRows }, at: READ_AT },
         { type: "readQueued", section: "RC", file: new File(["png"], "rc.png", { type: "image/png" }) }, { type: "readStarted", id: 1 },
-        { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: [] }, at: READ_AT },
+        { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: [], showsPassageTypes: true }, at: READ_AT },
         { type: "continue" },
         ...tickBoth,
       );
@@ -502,7 +515,7 @@ describe("onboarding wizard", () => {
         { type: "readQueued", section: "LR", file: new File(["png"], "lr.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
         { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows: readRows }, at: READ_AT },
         { type: "readQueued", section: "RC", file: new File(["png"], "rc.png", { type: "image/png" }) }, { type: "readStarted", id: 1 },
-        { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: passageRows.slice(0, 4) }, at: READ_AT },
+        { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: passageRows.slice(0, 4), showsPassageTypes: true }, at: READ_AT },
         { type: "continue" },
         ...tickBoth,
       );
@@ -654,7 +667,7 @@ describe("onboarding wizard", () => {
       const state = read(
         { type: "edit", values: { dailyCapacityMinutes: { ...initialWizardState().values.dailyCapacityMinutes, MONDAY: 480 } } },
         { type: "readQueued", section: "RC", file: new File(["png"], "rc.png", { type: "image/png" }) }, { type: "readStarted", id: 1 },
-        { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: passages }, at: READ_AT },
+        { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: passages, showsPassageTypes: true }, at: READ_AT },
       );
       const rc = previewDrills(state, TODAY)?.items.find(({ activity }) => activity.kind === "RC" && !activity.isFullSection);
 

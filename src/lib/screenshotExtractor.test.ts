@@ -88,13 +88,17 @@ it.each([
 it("reads LR and RC analytics rows that fit the tool's format", async () => {
   expect(await claudeReadsAnalytics("LR", [toolUse("record_analytics_rows", {
     rows: [{ type: "Strengthen", accuracy: 100 }, { type: "Causal reasoning", priority: "HIGHEST" }, { type: "Weaken", accuracy: 0 }],
-  })])).toEqual([
+  })])).toEqual({ rows: [
     { type: "Strengthen", category: "regular", accuracy: 100 },
     { type: "Causal reasoning", category: "restricted", isTopPriority: true, priorityTier: "highest" },
     { type: "Weaken", category: "regular", accuracy: 0 },
-  ]);
-  expect(await claudeReadsAnalytics("RC", [toolUse("record_analytics_rows", { rows: [{ type: "Law", accuracy: 58 }] })]))
-    .toEqual([{ type: "Law", category: "passage", accuracy: 58 }]);
+  ] });
+  expect(await claudeReadsAnalytics("RC", [toolUse("record_analytics_rows", { showsPassageTypes: true, rows: [{ type: "Law", accuracy: 58 }] })]))
+    .toEqual({ rows: [{ type: "Law", category: "passage", accuracy: 58 }], showsPassageTypes: true });
+  expect(await claudeReadsAnalytics("RC", [toolUse("record_analytics_rows", { showsPassageTypes: true, rows: [] })]))
+    .toEqual({ rows: [], showsPassageTypes: true });
+  expect(await claudeReadsAnalytics("RC", [toolUse("record_analytics_rows", { showsPassageTypes: false, rows: [] })]))
+    .toEqual({ rows: [], showsPassageTypes: false });
 });
 
 it.each([
@@ -110,15 +114,16 @@ it.each([
   ["LR", "no rows list", [toolUse("record_analytics_rows", { types: ["Strengthen"] })]],
   ["LR", "another tool", [toolUse("record_practice_test_section", { rows: [] })]],
   ["LR", "no tool", [{ type: "text", text: "I can't see any rows." }]],
-  ["RC", "an LR type", [toolUse("record_analytics_rows", { rows: [{ type: "Strengthen", accuracy: 70 }] })]],
-  ["RC", "accuracy over 100", [toolUse("record_analytics_rows", { rows: [{ type: "Law", accuracy: 101 }] })]],
-  ["RC", "6 rows", [toolUse("record_analytics_rows", { rows: Array.from({ length: 6 }, () => ({ type: "Law", accuracy: 50 })) })]],
+  ["RC", "an LR type", [toolUse("record_analytics_rows", { showsPassageTypes: true, rows: [{ type: "Strengthen", accuracy: 70 }] })]],
+  ["RC", "accuracy over 100", [toolUse("record_analytics_rows", { showsPassageTypes: true, rows: [{ type: "Law", accuracy: 101 }] })]],
+  ["RC", "6 rows", [toolUse("record_analytics_rows", { showsPassageTypes: true, rows: Array.from({ length: 6 }, () => ({ type: "Law", accuracy: 50 })) })]],
+  ["RC", "no page flag", [toolUse("record_analytics_rows", { rows: [] })]],
 ] as const)("refuses an %s analytics reply with %s", async (section, _case, content) => {
   await expect(claudeReadsAnalytics(section, [...content])).rejects.toThrow("does not fit its format");
 });
 
 it("records each Claude reply's cost from its token usage, also when the reply does not fit its format", async () => {
-  await claudeReadsAnalytics("RC", [toolUse("record_analytics_rows", { rows: [{ type: "Law", accuracy: 58 }] })]);
+  await claudeReadsAnalytics("RC", [toolUse("record_analytics_rows", { showsPassageTypes: true, rows: [{ type: "Law", accuracy: 58 }] })]);
   await expect(claudeReads({ page: "unknown" })).rejects.toThrow("does not fit its format");
 
   expect(recordCost.mock.calls).toEqual([[0.0025], [0.0025]]);
@@ -127,4 +132,14 @@ it("records each Claude reply's cost from its token usage, also when the reply d
 it("records no cost from the fake extractor", async () => {
   await extractAnalyticsRows(Buffer.from("x"), "image/png", mockRules, "LR", recordCost);
   expect(recordCost).not.toHaveBeenCalled();
+});
+
+it("reports a wrong RC page with the wrong-page fake extractor", async () => {
+  vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake-wrong-page");
+  expect(await extractAnalyticsRows(Buffer.from("x"), "image/png", mockRules, "RC", recordCost)).toEqual({ rows: [], showsPassageTypes: false });
+});
+
+it("reports a passage-type page with no percentages from the no-percentages fake extractor", async () => {
+  vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake-no-percentages");
+  expect(await extractAnalyticsRows(Buffer.from("x"), "image/png", mockRules, "RC", recordCost)).toEqual({ rows: [], showsPassageTypes: true });
 });

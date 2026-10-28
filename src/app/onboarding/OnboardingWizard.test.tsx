@@ -40,6 +40,7 @@ const rows: ExtractReply = {
 };
 const rcRows: ExtractReply = {
   kind: "rows",
+  showsPassageTypes: true,
   rows: [
     { type: "Law", category: "passage", accuracy: 58 },
     { type: "Comparative", category: "passage", accuracy: 70 },
@@ -714,7 +715,7 @@ describe("OnboardingWizard", () => {
     });
 
     it("saves only the passage types with a value when the RC screenshot misses some", async () => {
-      const missingArt: ExtractReply = { kind: "rows", rows: rcRows.kind === "rows" ? rcRows.rows.slice(0, 4) : [] };
+      const missingArt: ExtractReply = { kind: "rows", showsPassageTypes: true, rows: rcRows.kind === "rows" ? rcRows.rows.slice(0, 4) : [] };
       const { user, onSave } = await openReview(undefined, read, missingArt);
       expect(box("Art").value).toBe("");
       expect(screen.queryByText("not found")).toBeNull();
@@ -729,7 +730,7 @@ describe("OnboardingWizard", () => {
     });
 
     it("approves an RC screenshot with no passage-type percentage", async () => {
-      const { user, onSave } = await openReview(undefined, read, { kind: "rows", rows: [] });
+      const { user, onSave } = await openReview(undefined, read, { kind: "rows", showsPassageTypes: true, rows: [] });
       for (const type of ["Law", "Comparative", "Science", "Humanities", "Art"]) expect(box(type).value).toBe("");
       expect(screen.queryByText("Goes first")).toBeNull();
 
@@ -739,7 +740,7 @@ describe("OnboardingWizard", () => {
     });
 
     it("blocks a typed RC value outside 0 to 100 with its error", async () => {
-      const missingArt: ExtractReply = { kind: "rows", rows: rcRows.kind === "rows" ? rcRows.rows.slice(0, 4) : [] };
+      const missingArt: ExtractReply = { kind: "rows", showsPassageTypes: true, rows: rcRows.kind === "rows" ? rcRows.rows.slice(0, 4) : [] };
       const { user, onSave } = await openReview(undefined, read, missingArt);
       await user.type(box("Art"), "177");
       for (const statement of statements) await user.click(screen.getByLabelText(statement));

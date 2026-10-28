@@ -24,8 +24,11 @@ const lrToolInput = (types: LRType[]) => z.object({
   rows: z.array(z.object({ type: z.enum(types), accuracy: Accuracy.optional(), priority: Priority.optional() })).max(types.length),
 });
 const passageToolInput = (types: RCType[]) => z.object({
+  showsPassageTypes: z.boolean(),
   rows: z.array(z.object({ type: z.enum(types), accuracy: Accuracy })).max(types.length),
 });
+
+export type AnalyticsExtraction = { rows: AnalyticsExtractedRow[]; showsPassageTypes?: boolean };
 
 function anthropicClient() {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -66,7 +69,7 @@ export function extractAnalyticsRowsFromImage(
   rules: RulesConfig,
   section: AnalyticsSection,
   recordCost: RecordCost,
-): Promise<AnalyticsExtractedRow[]> {
+): Promise<AnalyticsExtraction> {
   return section === "LR" ? extractLRRows(imageBuffer, mediaType, rules, recordCost) : extractPassageRows(imageBuffer, mediaType, rules, recordCost);
 }
 
@@ -75,7 +78,7 @@ async function extractLRRows(
   mediaType: ScreenshotMediaType,
   rules: RulesConfig,
   recordCost: RecordCost,
-): Promise<AnalyticsExtractedRow[]> {
+): Promise<AnalyticsExtraction> {
   const allTypes: LRType[] = [...rules.lrStemTypes, ...rules.lrLogicTypes];
 
   const response = await askClaude({
@@ -133,12 +136,14 @@ For every row visible in the image, call ${TOOL_NAME} with one entry per row. Us
   }, recordCost);
 
   const { rows } = parseToolInput(response.content, TOOL_NAME, lrToolInput(allTypes));
-  return rows.map(({ type, accuracy, priority }) => {
-    const row: AnalyticsExtractedRow = { type, category: categoryFor(type, rules), accuracy };
-    const priorityTier = priority && PRIORITY_TIER[priority];
-    if (!priorityTier) return row;
-    return { ...row, isTopPriority: isTopPriorityTier(priorityTier), priorityTier };
-  });
+  return {
+    rows: rows.map(({ type, accuracy, priority }) => {
+      const row: AnalyticsExtractedRow = { type, category: categoryFor(type, rules), accuracy };
+      const priorityTier = priority && PRIORITY_TIER[priority];
+      if (!priorityTier) return row;
+      return { ...row, isTopPriority: isTopPriorityTier(priorityTier), priorityTier };
+    }),
+  };
 }
 
 async function extractPassageRows(
@@ -146,7 +151,7 @@ async function extractPassageRows(
   mediaType: ScreenshotMediaType,
   rules: RulesConfig,
   recordCost: RecordCost,
-): Promise<AnalyticsExtractedRow[]> {
+): Promise<AnalyticsExtraction> {
   const response = await askClaude({
     max_tokens: 512,
     tool_choice: { type: "tool", name: TOOL_NAME },
@@ -157,6 +162,10 @@ async function extractPassageRows(
         input_schema: {
           type: "object",
           properties: {
+            showsPassageTypes: {
+              type: "boolean",
+              description: "True when the screenshot is a 7Sage Reading Comprehension passage-type page, even if no row shows a percentage. False for any other page, such as a Logical Reasoning page.",
+            },
             rows: {
               type: "array",
               items: {
@@ -169,7 +178,7 @@ async function extractPassageRows(
               },
             },
           },
-          required: ["rows"],
+          required: ["showsPassageTypes", "rows"],
         },
       },
     ],
@@ -182,15 +191,18 @@ async function extractPassageRows(
             type: "text",
             text: `This is a screenshot of a 7Sage LSAT analytics dashboard. Find the Reading Comprehension passage types: ${rules.rcTypes.join(", ")}. Each row shows an accuracy percentage.
 
-Call ${TOOL_NAME} with one entry per passage-type row that is visible and shows a percentage. Do not report Logical Reasoning question types, and do not include rows that aren't visible in the image.`,
+Call ${TOOL_NAME} once. Set showsPassageTypes to true if the screenshot is the Reading Comprehension passage-type page, even when no row shows a percentage. Set it to false for any other page, such as a Logical Reasoning page. Then list one entry per passage-type row that is visible and shows a percentage. The percentage is the "Your accuracy" value. The number on the Review button is a question count, not an accuracy, so leave out a row that shows no accuracy percentage. Do not report Logical Reasoning question types, and do not include rows that aren't visible in the image.`,
           },
         ],
       },
     ],
   }, recordCost);
 
-  const { rows } = parseToolInput(response.content, TOOL_NAME, passageToolInput(rules.rcTypes));
-  return rows.map(({ type, accuracy }) => ({ type, category: "passage", accuracy }));
+  const { rows, showsPassageTypes } = parseToolInput(response.content, TOOL_NAME, passageToolInput(rules.rcTypes));
+  return {
+    rows: rows.map(({ type, accuracy }) => ({ type, category: "passage", accuracy })),
+    showsPassageTypes,
+  };
 }
 
 const SECTION_TOOL_NAME = "record_practice_test_section";
