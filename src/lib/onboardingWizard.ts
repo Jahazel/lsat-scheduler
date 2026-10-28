@@ -19,7 +19,11 @@ import { currentWeekInTimezone } from "./currentWeeklySchedule";
 import { DAY_ORDER, generateWeek } from "./engine";
 import { formatDuration, shortDuration } from "./formatDuration";
 import { mockRules } from "./mockData";
-import { stopsLaterScans, type ExtractReply } from "./screenshotUpload";
+import type { ExtractReply } from "./screenshotUpload";
+import {
+  addFile, analyticsRead, emptyReadQueue, endRead, removeFile, slotFile, startRead,
+  type AnalyticsReading, type QueuedFile, type ReadQueue,
+} from "./screenshotReadQueue";
 import {
   DAY_LABEL,
   MAX_OFFICIAL_ATTEMPTS,
@@ -56,11 +60,8 @@ export interface AttemptsDraft {
   nextId: number;
 }
 
-export type Screenshot =
-  | { status: "none" }
-  | { status: "waiting" | "reading" | "connection-lost" | "cannot-read" | "timed-out" | "signed-out" | "no-rows"; file: File }
-  | { status: "refused"; file: File; message: string; tryAgain: boolean }
-  | { status: "read"; file: File; rows: AnalyticsExtractedRow[] };
+type ScreenshotReads = Record<AnalyticsSection, AnalyticsReading>;
+export type Screenshot = QueuedFile<ScreenshotReads>;
 
 export interface WizardState {
   step: WizardStep;
@@ -68,9 +69,8 @@ export interface WizardState {
   values: WizardValues;
   attempts: AttemptsDraft;
   leftScoreBoxes: Record<ScoreBox, boolean>;
-  screenshots: Record<AnalyticsSection, Screenshot>;
+  screenshots: ReadQueue<ScreenshotReads>;
   rejections: Record<AnalyticsSection, string | null>;
-  readAttempts: Record<AnalyticsSection, number>;
   draft: ReviewDraft | null;
   analyticsInput: AnalyticsInput;
   typedDraft: ReviewDraft | null;
@@ -90,8 +90,8 @@ export type WizardAction =
   | { type: "back" }
   | { type: "screenshotRejected"; section: AnalyticsSection; message: string }
   | { type: "readQueued"; section: AnalyticsSection; file: File }
-  | { type: "readStarted"; section: AnalyticsSection }
-  | { type: "readEnded"; section: AnalyticsSection; attempt: number; reply: ExtractReply; at: Date }
+  | { type: "readStarted"; id: number }
+  | { type: "readEnded"; section: AnalyticsSection; id: number; reply: ExtractReply; at: Date }
   | { type: "chooseInput"; input: AnalyticsInput; at: Date }
   | ReviewAction
   | { type: "saveStarted" }
@@ -131,9 +131,8 @@ export function initialWizardState(): WizardState {
     },
     attempts: { taken: false, rows: [], nextId: 0 },
     leftScoreBoxes: { currentScore: false, goalScore: false },
-    screenshots: { LR: { status: "none" }, RC: { status: "none" } },
+    screenshots: emptyReadQueue(),
     rejections: { LR: null, RC: null },
-    readAttempts: { LR: 0, RC: 0 },
     draft: null,
     analyticsInput: "screenshots",
     typedDraft: null,
@@ -371,8 +370,12 @@ export function toProfileInput(values: WizardValues): StudentProfileInput | null
   };
 }
 
+export function screenshot(state: WizardState, section: AnalyticsSection): Screenshot | undefined {
+  return slotFile(state.screenshots, section);
+}
+
 export function bothRead(state: WizardState) {
-  return SECTIONS.every((section) => state.screenshots[section].status === "read");
+  return SECTIONS.every((section) => screenshot(state, section)?.read.status === "read");
 }
 
 function analyticsReady(state: WizardState) {
@@ -401,10 +404,6 @@ export function confirmSnapshotInput(state: WizardState): ConfirmSnapshotInput |
   return analyticsApproval && !confirmLock(review) ? { ...profile, analyticsRows: reviewedRows(review), analyticsApproval } : null;
 }
 
-function withScreenshot(state: WizardState, section: AnalyticsSection, screenshot: Screenshot): WizardState {
-  return { ...state, screenshots: { ...state.screenshots, [section]: screenshot } };
-}
-
 function withoutSectionDraft(draft: ReviewDraft, review: SnapshotReview | null, section: AnalyticsSection): ReviewDraft | null {
   if (!review) return null;
   const inSection = (type: AnalyticsType) => draft.review.rows.some(({ row }) => row.type === type && sectionOf(row) === section);
@@ -415,54 +414,26 @@ function withoutSectionDraft(draft: ReviewDraft, review: SnapshotReview | null, 
 function readQueued(state: WizardState, section: AnalyticsSection, file: File): WizardState {
   const { draft } = state;
   return {
-    ...withScreenshot(state, section, { status: "waiting", file }),
+    ...state,
+    screenshots: addFile(state.screenshots, { slot: section, file, status: "waiting", replacing: screenshot(state, section)?.id }),
     rejections: { ...state.rejections, [section]: null },
-    readAttempts: { ...state.readAttempts, [section]: state.readAttempts[section] + 1 },
     draft: draft && withoutSectionDraft(draft, dropSection(draft.review, section), section),
   };
 }
 
-function readStarted(state: WizardState, section: AnalyticsSection): WizardState {
-  const screenshot = state.screenshots[section];
-  if (screenshot.status !== "waiting") return state;
-  return withScreenshot(state, section, { status: "reading", file: screenshot.file });
-}
-
-function stopWaitingReads(state: WizardState, message: string): WizardState {
-  return SECTIONS.reduce((next, section) => {
-    const waiting = next.screenshots[section];
-    return waiting.status === "waiting"
-      ? withScreenshot(next, section, { status: "refused", message, tryAgain: false, file: waiting.file })
-      : next;
-  }, state);
-}
-
-function readEnded(state: WizardState, section: AnalyticsSection, attempt: number, reply: ExtractReply, at: Date): WizardState {
-  const stopped = reply.kind === "refused" && stopsLaterScans(reply) ? stopWaitingReads(state, reply.message) : state;
-  const screenshot = stopped.screenshots[section];
-  if (screenshot.status !== "reading" || attempt !== stopped.readAttempts[section]) return stopped;
-  const { file } = screenshot;
-  switch (reply.kind) {
-    case "rows": {
-      const rows = reply.rows.filter((row) => sectionOf(row) === section);
-      if (section === "LR" && rows.length === 0) return withScreenshot(state, section, { status: "no-rows", file });
-      const review = readSection(state.draft?.review ?? null, section, rows, { source: "7sage_screenshot", extractedAt: at.toISOString() });
-      const draft = { ...startDraft(review), ...state.draft, review };
-      return { ...withScreenshot(state, section, { status: "read", file, rows }), draft };
+function readEnded(state: WizardState, section: AnalyticsSection, id: number, reply: ExtractReply, at: Date): WizardState {
+  const read = analyticsRead(reply, section, at);
+  const screenshots = endRead(state.screenshots, id, read);
+  if (screenshot(state, section)?.id !== id) return { ...state, screenshots };
+  switch (read.status) {
+    case "read": {
+      const review = readSection(state.draft?.review ?? null, section, read.value.rows, { source: "7sage_screenshot", extractedAt: read.value.at });
+      return { ...state, screenshots, draft: { ...startDraft(review), ...state.draft, review } };
     }
     case "rejected":
-      return { ...withScreenshot(state, section, { status: "none" }), rejections: { ...state.rejections, [section]: reply.message } };
-    case "refused":
-      return withScreenshot(stopped, section, { status: "refused", message: reply.message, tryAgain: !stopsLaterScans(reply), file });
-    case "connection-lost":
-    case "cannot-read":
-    case "timed-out":
-    case "signed-out":
-      return withScreenshot(state, section, { status: reply.kind, file });
-    default: {
-      const _exhaustive: never = reply;
-      return _exhaustive;
-    }
+      return { ...state, screenshots: removeFile(screenshots, id), rejections: { ...state.rejections, [section]: read.message } };
+    default:
+      return { ...state, screenshots };
   }
 }
 
@@ -505,9 +476,9 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
     case "readQueued":
       return readQueued(state, action.section, action.file);
     case "readStarted":
-      return readStarted(state, action.section);
+      return { ...state, screenshots: startRead(state.screenshots, action.id) };
     case "readEnded":
-      return readEnded(state, action.section, action.attempt, action.reply, action.at);
+      return readEnded(state, action.section, action.id, action.reply, action.at);
     case "chooseInput":
       return { ...state, analyticsInput: action.input, typedDraft: state.typedDraft ?? (action.input === "typed" ? startTypedDraft(action.at) : null) };
     case "editAccuracy":

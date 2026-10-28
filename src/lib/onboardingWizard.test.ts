@@ -12,6 +12,7 @@ import {
   previewDrills,
   previewWeek,
   scoreMessages,
+  screenshot,
   toProfileInput,
   stepLabel,
   wizardReducer,
@@ -29,7 +30,10 @@ function draftOf(state: WizardState) {
   return state.draft;
 }
 
-const lrRead = ({ screenshots: { LR } }: WizardState) => (LR.status === "read" ? LR.rows : []);
+const lrRead = (state: WizardState) => {
+  const read = screenshot(state, "LR")?.read;
+  return read?.status === "read" ? read.value.rows : [];
+};
 
 function run(...actions: WizardAction[]): WizardState {
   return actions.reduce(wizardReducer, initialWizardState());
@@ -237,27 +241,27 @@ describe("onboarding wizard", () => {
     const rc = new File(["png"], "rc.png", { type: "image/png" });
     const message = "You've read 10 screenshots today. You can scan again tomorrow, after midnight Central time.";
     const replaced = run(
-      { type: "readQueued", section: "LR", file: lr }, { type: "readStarted", section: "LR" },
+      { type: "readQueued", section: "LR", file: lr }, { type: "readStarted", id: 0 },
       { type: "readQueued", section: "RC", file: rc },
       { type: "readQueued", section: "LR", file: new File(["png"], "lr-2.png", { type: "image/png" }) },
     );
 
     const ended = wizardReducer(replaced, {
-      type: "readEnded", section: "LR", attempt: 1, reply: { kind: "refused", refused: "daily-limit", message }, at: READ_AT,
+      type: "readEnded", section: "LR", id: 0, reply: { kind: "refused", refused: "daily-limit", message }, at: READ_AT,
     });
 
-    expect(ended.screenshots.LR).toMatchObject({ status: "refused", message, tryAgain: false, file: { name: "lr-2.png" } });
-    expect(ended.screenshots.RC).toMatchObject({ status: "refused", message, tryAgain: false, file: rc });
+    expect(screenshot(ended, "LR")).toMatchObject({ read: { status: "refused", message, tryAgain: false }, file: { name: "lr-2.png" } });
+    expect(screenshot(ended, "RC")).toMatchObject({ read: { status: "refused", message, tryAgain: false }, file: rc });
   });
 
   it("returns to the drop zone with the server's message when it rejects the file", () => {
     const file = new File(["png"], "huge.png", { type: "image/png" });
-    const reading = run({ type: "readQueued", section: "LR", file }, { type: "readStarted", section: "LR" });
+    const reading = run({ type: "readQueued", section: "LR", file }, { type: "readStarted", id: 0 });
     const message = "That file is 4.2 MB. Choose one that is 4 MB or less.";
 
-    const rejected = wizardReducer(reading, { type: "readEnded", section: "LR", attempt: 1, reply: { kind: "rejected", message }, at: READ_AT });
+    const rejected = wizardReducer(reading, { type: "readEnded", section: "LR", id: 0, reply: { kind: "rejected", message }, at: READ_AT });
 
-    expect(rejected.screenshots.LR).toEqual({ status: "none" });
+    expect(screenshot(rejected, "LR")).toBeUndefined();
     expect(rejected.rejections).toEqual({ LR: message, RC: null });
     expect(wizardReducer(rejected, { type: "readQueued", section: "LR", file }).rejections.LR).toBeNull();
   });
@@ -265,12 +269,12 @@ describe("onboarding wizard", () => {
   it("keeps a read that ends while Skip for now is saving", () => {
     const ready = run(validGoal, { type: "continue" }, { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } }, { type: "continue" });
     const queued = wizardReducer(ready, { type: "readQueued", section: "LR", file: new File(["png"], "a.png", { type: "image/png" }) });
-    const reading = wizardReducer(queued, { type: "readStarted", section: "LR" });
+    const reading = wizardReducer(queued, { type: "readStarted", id: 0 });
     const saving = wizardReducer(reading, { type: "saveStarted" });
 
-    const ended = wizardReducer(saving, { type: "readEnded", section: "LR", attempt: 1, reply: { kind: "connection-lost" }, at: READ_AT });
+    const ended = wizardReducer(saving, { type: "readEnded", section: "LR", id: 0, reply: { kind: "connection-lost" }, at: READ_AT });
 
-    expect(ended.screenshots.LR.status).toBe("connection-lost");
+    expect(screenshot(ended, "LR")?.read.status).toBe("connection-lost");
   });
 
   describe("Step 4 · Review", () => {
@@ -295,10 +299,10 @@ describe("onboarding wizard", () => {
         { type: "continue" },
         { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
         { type: "continue" },
-        { type: "readQueued", section: "LR", file: new File(["png"], "lr-analytics.png", { type: "image/png" }) }, { type: "readStarted", section: "LR" },
-        { type: "readEnded", section: "LR", attempt: 1, reply: { kind: "rows", rows }, at: READ_AT },
-        { type: "readQueued", section: "RC", file: new File(["png"], "rc-analytics.png", { type: "image/png" }) }, { type: "readStarted", section: "RC" },
-        { type: "readEnded", section: "RC", attempt: 1, reply: { kind: "rows", rows: passageRows }, at: READ_AT },
+        { type: "readQueued", section: "LR", file: new File(["png"], "lr-analytics.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
+        { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows }, at: READ_AT },
+        { type: "readQueued", section: "RC", file: new File(["png"], "rc-analytics.png", { type: "image/png" }) }, { type: "readStarted", id: 1 },
+        { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: passageRows }, at: READ_AT },
         { type: "continue" },
         ...actions,
       );
@@ -447,9 +451,9 @@ describe("onboarding wizard", () => {
         { type: "editAccuracy", rowType: "Law", text: "60" },
         { type: "editAccuracy", rowType: "Diagram", text: "50" },
         { type: "back" },
-        { type: "readQueued", section: "LR", file: new File(["png"], "b.png", { type: "image/png" }) }, { type: "readStarted", section: "LR" },
+        { type: "readQueued", section: "LR", file: new File(["png"], "b.png", { type: "image/png" }) }, { type: "readStarted", id: 2 },
       );
-      expect(state.screenshots.LR.status).toBe("reading");
+      expect(screenshot(state, "LR")?.read.status).toBe("reading");
       expect(blockedReason(state)).toBe("Add both screenshots to check the values.");
       expect(state.draft?.review.rows.map(({ row }) => row.type)).toEqual(["Law", "Comparative", "Science", "Humanities", "Art"]);
       expect(boxText(draftOf(state), "Law")).toBe("60");
@@ -462,8 +466,8 @@ describe("onboarding wizard", () => {
         { type: "continue" },
         { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
         { type: "continue" },
-        { type: "readQueued", section: "LR", file: new File(["png"], "lr.png", { type: "image/png" }) }, { type: "readStarted", section: "LR" },
-        { type: "readEnded", section: "LR", attempt: 1, reply: { kind: "rows", rows: readRows }, at: READ_AT },
+        { type: "readQueued", section: "LR", file: new File(["png"], "lr.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
+        { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows: readRows }, at: READ_AT },
         { type: "continue" },
       );
       expect(lrOnly.step).toBe("analytics");
@@ -476,14 +480,14 @@ describe("onboarding wizard", () => {
         { type: "continue" },
         { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
         { type: "continue" },
-        { type: "readQueued", section: "LR", file: new File(["png"], "lr.png", { type: "image/png" }) }, { type: "readStarted", section: "LR" },
-        { type: "readEnded", section: "LR", attempt: 1, reply: { kind: "rows", rows: readRows }, at: READ_AT },
-        { type: "readQueued", section: "RC", file: new File(["png"], "rc.png", { type: "image/png" }) }, { type: "readStarted", section: "RC" },
-        { type: "readEnded", section: "RC", attempt: 1, reply: { kind: "rows", rows: [] }, at: READ_AT },
+        { type: "readQueued", section: "LR", file: new File(["png"], "lr.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
+        { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows: readRows }, at: READ_AT },
+        { type: "readQueued", section: "RC", file: new File(["png"], "rc.png", { type: "image/png" }) }, { type: "readStarted", id: 1 },
+        { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: [] }, at: READ_AT },
         { type: "continue" },
         ...tickBoth,
       );
-      expect(noPercentages.screenshots.RC.status).toBe("read");
+      expect(screenshot(noPercentages, "RC")?.read.status).toBe("read");
       expect(PASSAGE_TYPES.map((type) => boxText(draftOf(noPercentages), type))).toEqual(["", "", "", "", ""]);
       expect(blockedReason(noPercentages)).toBeNull();
       expect(confirmSnapshotInput(noPercentages)?.analyticsRows.filter((row) => row.category === "passage" && row.accuracy !== undefined)).toEqual([]);
@@ -495,10 +499,10 @@ describe("onboarding wizard", () => {
         { type: "continue" },
         { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
         { type: "continue" },
-        { type: "readQueued", section: "LR", file: new File(["png"], "lr.png", { type: "image/png" }) }, { type: "readStarted", section: "LR" },
-        { type: "readEnded", section: "LR", attempt: 1, reply: { kind: "rows", rows: readRows }, at: READ_AT },
-        { type: "readQueued", section: "RC", file: new File(["png"], "rc.png", { type: "image/png" }) }, { type: "readStarted", section: "RC" },
-        { type: "readEnded", section: "RC", attempt: 1, reply: { kind: "rows", rows: passageRows.slice(0, 4) }, at: READ_AT },
+        { type: "readQueued", section: "LR", file: new File(["png"], "lr.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
+        { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows: readRows }, at: READ_AT },
+        { type: "readQueued", section: "RC", file: new File(["png"], "rc.png", { type: "image/png" }) }, { type: "readStarted", id: 1 },
+        { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: passageRows.slice(0, 4) }, at: READ_AT },
         { type: "continue" },
         ...tickBoth,
       );
@@ -585,8 +589,8 @@ describe("onboarding wizard", () => {
         { type: "continue" },
         { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
         { type: "continue" },
-        { type: "readQueued", section: "LR", file: new File(["png"], "7sage-analytics.png", { type: "image/png" }) }, { type: "readStarted", section: "LR" },
-        { type: "readEnded", section: "LR", attempt: 1, reply: { kind: "rows", rows }, at: READ_AT },
+        { type: "readQueued", section: "LR", file: new File(["png"], "7sage-analytics.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
+        { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows }, at: READ_AT },
         ...actions,
       );
     }
@@ -649,8 +653,8 @@ describe("onboarding wizard", () => {
       ];
       const state = read(
         { type: "edit", values: { dailyCapacityMinutes: { ...initialWizardState().values.dailyCapacityMinutes, MONDAY: 480 } } },
-        { type: "readQueued", section: "RC", file: new File(["png"], "rc.png", { type: "image/png" }) }, { type: "readStarted", section: "RC" },
-        { type: "readEnded", section: "RC", attempt: 1, reply: { kind: "rows", rows: passages }, at: READ_AT },
+        { type: "readQueued", section: "RC", file: new File(["png"], "rc.png", { type: "image/png" }) }, { type: "readStarted", id: 1 },
+        { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: passages }, at: READ_AT },
       );
       const rc = previewDrills(state, TODAY)?.items.find(({ activity }) => activity.kind === "RC" && !activity.isFullSection);
 
