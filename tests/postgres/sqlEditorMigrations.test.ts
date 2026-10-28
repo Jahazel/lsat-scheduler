@@ -18,6 +18,7 @@ it("applies owner SQL twice and the ordinary migration command skips the recorde
     await owner.db.execute(sql.raw(bundle.stdout));
     const applied = await owner.db.execute(sql`select * from drillmap_migrations.applied order by id`);
     expect(applied.rows).toHaveLength(16);
+    expect((await owner.db.execute(sql`select to_regclass('public.leads') as leads`)).rows).toEqual([{ leads: null }]);
     await owner.db.execute(sql`insert into accounts (email, name, google_id) values ('retained@example.test', 'Retained', 'google-retained')`);
     await owner.db.execute(sql.raw(bundle.stdout));
     const result = await exec(process.execPath, ["--import", "tsx", "scripts/migrate-postgres.mts"], {
