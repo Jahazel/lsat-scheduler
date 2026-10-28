@@ -115,7 +115,7 @@ it("does not break the action when an entry cannot be written, and keeps an odd 
 
 it("accepts every event the app can record, and refuses an event name it does not know", async () => {
   const sample: { [E in SecurityEvent]: Extract<SecurityEntry, { event: E }>["result"] } = {
-    sign_in: "signedIn", sign_out_all_devices: "done", email_verification: "verified", password_reset_request: "sent",
+    sign_in: "signedIn", sign_out_all_devices: "done", email_verification: "verified", password_reset_request: "passwordAccount",
     password_reset: "changed", password_change: "changed", account_deletion: "deleted", student_data_refused: "refused",
     admin_action_refused: "refused", limit_refused: "scanInDay", budget_cutoff: "limitReached",
   };
@@ -141,7 +141,7 @@ it("records every password reset request, with the Account ID when the email has
   await requestPasswordReset("nobody@fastmail.com", reset);
 
   expect((await entries()).map(({ event, result, account_id }) => ({ event, result, account_id }))).toEqual([
-    { event: "password_reset_request", result: "sent", account_id: id },
+    { event: "password_reset_request", result: "passwordAccount", account_id: id },
     { event: "password_reset_request", result: "noAccount", account_id: null },
   ]);
   vi.unstubAllEnvs();

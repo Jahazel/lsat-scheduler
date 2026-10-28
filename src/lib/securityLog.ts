@@ -1,6 +1,6 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { sql } from "drizzle-orm";
-import { isAccountId } from "./accountRepository";
+import { findAccountByEmail, isAccountId } from "./accountRepository";
 import { clientIpAddress } from "./clientIpAddress";
 import type { LimitedAction } from "./actionLimits";
 import type { DeletionRefusal, LoginRefusal } from "./passwordAccount";
@@ -14,7 +14,7 @@ type AppEvents = {
   sign_in: "signedIn" | LoginRefusal | "usesPassword" | "googleRefused";
   sign_out_all_devices: "done";
   email_verification: VerificationResult;
-  password_reset_request: "sent" | "googleAccount" | "pendingSignup" | "noAccount" | "paused";
+  password_reset_request: "passwordAccount" | "googleAccount" | "pendingSignup" | "noAccount" | "paused";
   password_reset: "changed" | "linkDoesNotWork";
   password_change: "changed" | "wrong-password" | "paused";
   account_deletion: "deleted" | DeletionRefusal;
@@ -32,13 +32,22 @@ export type SecurityEntry = {
     event: E;
     result: AppEvents[E];
     route: SecurityLogRoute;
-    who: E extends "sign_in" ? Subject | { unknownEmail: string } : Subject;
+    who: E extends "sign_in" ? SignInSubject : Subject;
     /** Read from the request when not given. */
     ipAddress?: string;
   };
 }[keyof AppEvents];
 
 export type SecurityEvent = SecurityEntry["event"];
+export type SecurityResult<E extends SecurityEvent> = Extract<SecurityEntry, { event: E }>["result"];
+export type SignInSubject = Subject | { unknownEmail: string };
+
+/** Who a sign-in names: its Account when the email has one, or else the email itself, which the log stores only as a hash. */
+export async function signInSubject(email: string | null): Promise<SignInSubject> {
+  if (email === null) return NOBODY;
+  const account = await findAccountByEmail(email);
+  return account ? { account: account.id } : { unknownEmail: email };
+}
 
 const SAFE_ERROR_TYPE = /^[A-Za-z0-9_.:]{1,80}$/;
 const SAFE_IP_ADDRESS = /^[0-9A-Fa-f:.]{2,45}$/;

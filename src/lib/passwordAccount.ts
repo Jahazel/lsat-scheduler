@@ -14,7 +14,7 @@ import { newPasswordProblem, passwordTooLong, type PasswordProblem } from "./pas
 import {
   createAccountFromPendingSignup, findPendingSignup, replaceVerificationToken, savePendingSignup, type VerificationResult,
 } from "./pendingSignupRepository";
-import { NOBODY, recordSecurityEvent, type SecurityLogRoute, type Subject } from "./securityLog";
+import { NOBODY, recordSecurityEvent, signInSubject, type SecurityLogRoute, type SecurityResult } from "./securityLog";
 
 export type PasswordRequest = { route: SecurityLogRoute; ipAddress: string; realNow: Date };
 
@@ -78,7 +78,7 @@ export async function requestPasswordReset(email: string, request: PasswordReque
   const { ipAddress, realNow } = request;
   const known = await findAccountByEmail(email);
   const who = known ? { account: known.id } : NOBODY;
-  const log = (result: "sent" | "googleAccount" | "pendingSignup" | "noAccount" | "paused") =>
+  const log = (result: SecurityResult<"password_reset_request">) =>
     recordSecurityEvent({ event: "password_reset_request", result, route: request.route, who, ipAddress });
   if (await countAll([["resetEmailInHour", email], ["resetFromIpAddress", ipAddress]], request, undefined, who)) {
     await log("paused");
@@ -87,7 +87,7 @@ export async function requestPasswordReset(email: string, request: PasswordReque
 
   const { token, tokenHash } = newEmailToken();
   if (await saveResetToken(email, tokenHash, realNow)) {
-    await log("sent");
+    await log("passwordAccount");
     await sendEmail(resetYourPassword(email, token));
   } else if ((await signInMethodForEmail(email)) === "google") {
     await log("googleAccount");
@@ -131,31 +131,30 @@ export async function logIn(
   credentials: Partial<Record<"email" | "password", unknown>>, request: PasswordRequest,
 ) {
   const { email: typedEmail, password } = credentials;
-  const refused = async (code: LoginRefusal, who: Subject | { unknownEmail: string }) => {
+  const email = typeof typedEmail === "string" ? normalizeEmail(typedEmail) : null;
+  const who = await signInSubject(email);
+  const refused = async (code: LoginRefusal) => {
     await recordSecurityEvent({ event: "sign_in", result: code, route: request.route, who, ipAddress: request.ipAddress });
     return { kind: "refused", code } as const;
   };
-  if (typeof typedEmail !== "string" || typeof password !== "string") return refused("wrongEmailOrPassword", NOBODY);
-  const email = normalizeEmail(typedEmail);
+  if (email === null || typeof password !== "string") return refused("wrongEmailOrPassword");
   const { realNow } = request;
   const tries = loginTryCounts(email, request.ipAddress);
-  const known = await findAccountByEmail(email);
-  const who = known ? { account: known.id } : { unknownEmail: email };
-  if (passwordTooLong(password)) return refused("tooLong", who);
-  if (await countAll(tries, request, undefined, known ? { account: known.id } : NOBODY)) return refused("paused", who);
+  if (passwordTooLong(password)) return refused("tooLong");
+  if (await countAll(tries, request, undefined, "account" in who ? who : NOBODY)) return refused("paused");
 
   const account = await findPasswordAccountByEmail(email);
   const pending = account ? null : await findPendingSignup(email, realNow);
   if (!(await passwordMatches(password, account?.passwordHash ?? pending?.passwordHash ?? null))) {
-    return refused("wrongEmailOrPassword", who);
+    return refused("wrongEmailOrPassword");
   }
   await giveBack(tries, realNow);
   if (pending) {
     await resendVerificationLink(email, pending, request);
-    return refused("verifyYourEmail", who);
+    return refused("verifyYourEmail");
   }
-  if (!account || account.role === "admin") return refused("wrongEmailOrPassword", who);
-  if (account.disabledAt) return refused("accountDisabled", who);
+  if (!account || account.role === "admin") return refused("wrongEmailOrPassword");
+  if (account.disabledAt) return refused("accountDisabled");
   await recordSecurityEvent({ event: "sign_in", result: "signedIn", route: request.route, who: { account: account.id }, ipAddress: request.ipAddress });
   const user = { id: account.id, email: account.email, name: account.name, sessionVersion: account.sessionVersion };
   return { kind: "signedIn", user } as const;
