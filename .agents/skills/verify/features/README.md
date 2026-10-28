@@ -27,4 +27,4 @@ Capture the action, resulting UI, and persisted records. Retain evidence through
 - [Progress](progress.md): empty state, finished-week summaries, past-week details, and legacy deep links.
 - [Admin](admin.md): all-student read-only views, workspace switching, Simulated date, Sample analytics snapshots, and resets.
 
-Public `/legal/terms`, `/legal/privacy`, and `/legal/ai-disclosure` pages remain accessible while signed out. The landing page's sample study plan and signup links are part of the sign-up recipe. Billing is deferred in the README. `EmailCaptureForm.tsx` exists but the current landing page does not mount it, so this map does not claim a reachable notification signup.
+Public `/legal/terms`, `/legal/privacy`, and `/legal/ai-disclosure` pages remain accessible while signed out. The landing page's sample study plan and signup links are part of the sign-up recipe. Billing is deferred in the README. The app has no notification signup: the unused lead form was removed on issue 303.

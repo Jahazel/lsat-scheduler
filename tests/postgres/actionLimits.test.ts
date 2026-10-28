@@ -13,7 +13,6 @@ vi.mock("@/auth", () => ({ auth: async () => request.session }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
 
-import { captureLead } from "../../src/app/actions";
 import { createStudentProfile } from "../../src/app/onboarding/actions";
 
 let database: Awaited<ReturnType<typeof createAppTestDatabase>>;
@@ -110,23 +109,21 @@ it("two give-backs at the same moment each take one count off", async () => {
   expect(await counterRows()).toEqual([]);
 });
 
-it("allows 5 lead captures in one hour and refuses the 6th until the hour ends", async () => {
+it("allows 10 signups from one IP address in one hour and refuses the 11th until the hour ends", async () => {
   const at = new Date("2026-10-24T15:59:59Z");
-  expect(await countTimes(5, "leadCapture", "203.0.113.7", at)).toEqual(Array(5).fill({ allowed: true }));
-  expect(await countAction("leadCapture", "203.0.113.7", at)).toEqual({ allowed: false, windowEnd: new Date("2026-10-24T16:00:00Z") });
-  expect(await countAction("leadCapture", "203.0.113.7", new Date("2026-10-24T16:00:00Z"))).toEqual({ allowed: true });
+  expect(await countTimes(10, "signupFromIpAddress", "203.0.113.7", at)).toEqual(Array(10).fill({ allowed: true }));
+  expect(await countAction("signupFromIpAddress", "203.0.113.7", at)).toEqual({ allowed: false, windowEnd: new Date("2026-10-24T16:00:00Z") });
+  expect(await countAction("signupFromIpAddress", "203.0.113.7", new Date("2026-10-24T16:00:00Z"))).toEqual({ allowed: true });
 });
 
 it("lets exactly 5 of 10 requests at the same time through", async () => {
   const at = new Date("2026-10-24T15:00:00Z");
   const results = await Promise.all(Array.from({ length: 10 }, () => countAction("analyticsSnapshotSave", "account-a", at)));
   expect(results.filter(({ allowed }) => allowed)).toHaveLength(5);
-  const leads = await Promise.all(Array.from({ length: 10 }, () => countAction("leadCapture", "203.0.113.7", at)));
-  expect(leads.filter(({ allowed }) => allowed)).toHaveLength(5);
 });
 
 it("does not wait for an ended counter row that another save holds", async () => {
-  await countAction("leadCapture", "203.0.113.7", new Date("2026-10-24T14:30:00Z"));
+  await countAction("signupFromIpAddress", "203.0.113.7", new Date("2026-10-24T14:30:00Z"));
   let release = () => {};
   const held = new Promise<void>((resolve) => { release = resolve; });
   let locked = () => {};
@@ -149,29 +146,6 @@ it("does not wait for an ended counter row that another save holds", async () =>
   }
   await countAction("analyticsSnapshotSave", "account-a", new Date("2026-10-24T16:00:00Z"));
   expect((await counterRows()).map(({ action }) => action)).toEqual(["analyticsSnapshotSave"]);
-});
-
-it("lead capture refuses the 6th submission in an hour from one IP address and writes nothing", async () => {
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(new Date("2026-10-24T15:10:00Z"));
-  const form = (email: string) => {
-    const data = new FormData();
-    data.set("email", email);
-    return data;
-  };
-  expect(await captureLead({}, form("LEAD@example.test"))).toEqual({ success: true });
-  for (let index = 0; index < 4; index += 1) expect(await captureLead({}, form("lead@example.test"))).toEqual({ success: true });
-  expect(await captureLead({}, form("new@example.test")))
-    .toEqual({ error: "Too many tries from this network. Try again after 11:00 AM Central time." });
-  expect((await getPostgresDatabase().execute(sql`select email from leads`)).rows).toEqual([{ email: "lead@example.test" }]);
-
-  request.ip = "198.51.100.4";
-  expect(await captureLead({}, form("other@example.test"))).toEqual({ success: true });
-  request.ip = "203.0.113.7";
-  vi.setSystemTime(new Date("2026-10-24T16:00:00Z"));
-  expect(await captureLead({}, form("new@example.test"))).toEqual({ success: true });
-  expect((await getPostgresDatabase().execute(sql`select email from leads order by email`)).rows)
-    .toEqual([{ email: "lead@example.test" }, { email: "new@example.test" }, { email: "other@example.test" }]);
 });
 
 it("onboarding shares the snapshot save counter and refuses before any write", async () => {
