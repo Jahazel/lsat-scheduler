@@ -2,7 +2,7 @@
 
 import { DAY_LABEL } from "@/lib/studentProfile";
 import { SECTIONS } from "@/lib/analyticsReview";
-import { activeDraft, previewDrills, previewHeader, previewWeek, type PreviewDrill, type WizardState } from "@/lib/onboardingWizard";
+import { activeDraft, previewDrills, previewHeader, previewWeek, screenshot, type PreviewDrill, type WizardState } from "@/lib/onboardingWizard";
 import type { DayOfWeek } from "@/lib/types";
 import { DrillList, WeekTiles, type DrillItem } from "@/components/WeekPreview";
 import { ScreenshotCard } from "@/components/SnapshotReviewFields";
@@ -26,8 +26,8 @@ export default function LivePreview({ state, firstName, initials, today }: LiveP
     return (
       <aside aria-label="Preview of This week" className="hidden flex-col gap-4 bg-vellum px-8 pb-12 pt-32 lg:flex xl:px-18">
         {!typed && SECTIONS.map((section) => {
-          const screenshot = state.screenshots[section];
-          return screenshot.status === "none" ? null : <ScreenshotCard key={section} section={section} file={screenshot.file} />;
+          const file = screenshot(state, section)?.file;
+          return file && <ScreenshotCard key={section} section={section} file={file} />;
         })}
         <div className="flex flex-col gap-2.5 rounded-sm border border-vellum-line bg-paper p-4">
           {drills ? (

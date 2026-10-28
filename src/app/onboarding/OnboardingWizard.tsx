@@ -5,7 +5,6 @@ import {
   useId,
   useReducer,
   useRef,
-  useState,
   type FormEvent,
   type ReactNode,
 } from "react";
@@ -30,11 +29,13 @@ import {
   activeDraft,
   attemptMessage,
   blockedReason,
+  bothRead,
   confirmSnapshotInput,
   initialWizardState,
   practiceTestFact,
   profileWithAttempts,
   scoreMessages,
+  screenshot,
   stepLabel,
   weeklyTotalMinutes,
   wizardReducer,
@@ -45,6 +46,7 @@ import {
   type WizardState,
 } from "@/lib/onboardingWizard";
 import { SIGN_IN_EXPIRED, SignInAgainLink } from "@/components/SignInExpired";
+import { nextRead } from "@/lib/screenshotReadQueue";
 import { SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, checkScreenshotType, extractScreenshot } from "@/lib/screenshotUpload";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "@/lib/types";
 import { DAY_LABEL, MAX_OFFICIAL_ATTEMPTS, attemptMonths, type upcomingTestMonths } from "@/lib/studentProfile";
@@ -83,27 +85,14 @@ export default function OnboardingWizard({
     ? wizardReducer(initialWizardState(), { type: "chooseInput", input: "typed", at: new Date() })
     : initialWizardState());
   const draft = activeDraft(state);
-  const readInFlight = useRef(false);
-  const [readsEnded, setReadsEnded] = useState(0);
-  const { screenshots, readAttempts } = state;
+  const { screenshots } = state;
 
   useEffect(() => {
-    if (readInFlight.current) return;
-    const section = SECTIONS.find((key) => screenshots[key].status === "waiting");
-    const screenshot = section && screenshots[section];
-    if (!section || screenshot?.status !== "waiting") return;
-    const attempt = readAttempts[section];
-    async function read(section: AnalyticsSection, file: File) {
-      dispatch({ type: "readStarted", section });
-      const reply = await extract(file, section);
-      dispatch({ type: "readEnded", section, attempt, reply, at: new Date() });
-    }
-    readInFlight.current = true;
-    void read(section, screenshot.file).finally(() => {
-      readInFlight.current = false;
-      setReadsEnded((count) => count + 1);
-    });
-  }, [screenshots, readAttempts, extract, readsEnded]);
+    const next = nextRead(screenshots, SECTIONS);
+    if (!next) return;
+    dispatch({ type: "readStarted", id: next.id });
+    void extract(next.file, next.slot).then((reply) => dispatch({ type: "readEnded", section: next.slot, id: next.id, reply, at: new Date() }));
+  }, [screenshots, extract]);
 
   function readScreenshot(section: AnalyticsSection, file: File) {
     const rejection = checkScreenshotType(file);
@@ -531,10 +520,10 @@ function AnalyticsStep({
   onFile: (section: AnalyticsSection, file: File) => void;
 }) {
   const saving = state.save === "saving";
-  const { screenshots, typedDraft } = state;
+  const { typedDraft } = state;
   const typed = state.analyticsInput === "typed";
-  const anyAdded = !typed && SECTIONS.some((section) => screenshots[section].status !== "none");
-  const lrRead = screenshots.LR.status === "read" ? screenshots.LR : null;
+  const anyAdded = !typed && state.screenshots.files.length > 0;
+  const lrRead = readRows(state, "LR");
   const reason = blockedReason(state);
 
   return (
@@ -559,14 +548,14 @@ function AnalyticsStep({
               <SectionUpload
                 key={section}
                 section={section}
-                screenshot={screenshots[section]}
+                screenshot={screenshot(state, section)}
                 rejection={state.rejections[section]}
                 onFile={(file) => onFile(section, file)}
               />
             ))}
             {!anyAdded && <p className="text-small text-smoke">{SCREENSHOT_LIMITS} each.</p>}
           </div>
-          {lrRead && <RowsFound rows={lrRead.rows} complete={screenshots.RC.status === "read"} />}
+          {screenshot(state, "LR")?.read.status === "read" && <RowsFound rows={lrRead} complete={bothRead(state)} />}
           {!anyAdded && <WhereToFindIt />}
         </div>
       )}
@@ -608,7 +597,7 @@ function SectionUpload({
   onFile,
 }: {
   section: AnalyticsSection;
-  screenshot: Screenshot;
+  screenshot: Screenshot | undefined;
   rejection: string | null;
   onFile: (file: File) => void;
 }) {
@@ -618,7 +607,7 @@ function SectionUpload({
   useEffect(() => {
     if (rejection && document.activeElement === document.body) zone.current?.querySelector("button")?.focus();
   }, [rejection]);
-  if (screenshot.status === "none") {
+  if (!screenshot) {
     return (
       <div ref={zone}>
         <DropZone label={`${SECTION_NAME[section]} screenshot`} accept={accept} error={rejection ?? undefined} onFile={onFile} />
@@ -673,7 +662,8 @@ function WhereToFindIt() {
   );
 }
 
-const FILE_STATUS: Record<Exclude<Screenshot["status"], "none" | "read">, { text: string; problem: boolean }> = {
+const FILE_STATUS: Record<Exclude<Screenshot["read"]["status"], "read" | "rejected">, { text: string; problem: boolean }> = {
+  added: { text: "Waiting to read", problem: false },
   waiting: { text: "Waiting to read", problem: false },
   reading: { text: "Reading now", problem: false },
   refused: { text: "not read", problem: false },
@@ -697,20 +687,21 @@ function ScreenshotFileRow({
   onTryAgain,
 }: {
   section: AnalyticsSection;
-  screenshot: Exclude<Screenshot, { status: "none" }>;
+  screenshot: Screenshot;
   rejection: string | null;
   onChoose: () => void;
   onTryAgain: () => void;
 }) {
-  const { status } = screenshot;
+  const { read } = screenshot;
+  const { status } = read;
   const row = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (document.activeElement === document.body) row.current?.focus();
   }, [status]);
-  const problem = status !== "read" && FILE_STATUS[status].problem;
-  const statusText = status === "read"
-    ? readSummary(section, screenshot.rows.length)
-    : FILE_STATUS[status].text;
+  const problem = read.status === "rejected" || (read.status !== "read" && FILE_STATUS[read.status].problem);
+  const statusText = read.status === "read"
+    ? readSummary(section, read.value.rows.length)
+    : read.status === "rejected" ? read.message : FILE_STATUS[read.status].text;
 
   return (
     <div className="flex flex-col gap-3">
@@ -766,10 +757,10 @@ function ScreenshotFileRow({
             )}
           </div>
         )}
-        {screenshot.status === "refused" && (
+        {read.status === "refused" && (
           <div className="flex flex-col gap-2.5">
-            <WaitNote>{screenshot.message}</WaitNote>
-            {screenshot.tryAgain && (
+            <WaitNote>{read.message}</WaitNote>
+            {read.tryAgain && (
               <button type="button" onClick={onTryAgain} className={`self-start pl-5.5 text-small ${LINK_BUTTON}`}>
                 Try again
               </button>
@@ -981,11 +972,10 @@ function ReviewStep({
 }
 
 function screenshotFile(state: WizardState, section: AnalyticsSection) {
-  const screenshot = state.screenshots[section];
-  return screenshot.status === "none" ? undefined : screenshot.file;
+  return screenshot(state, section)?.file;
 }
 
 function readRows(state: WizardState, section: AnalyticsSection) {
-  const screenshot = state.screenshots[section];
-  return screenshot.status === "read" ? screenshot.rows : [];
+  const read = screenshot(state, section)?.read;
+  return read?.status === "read" ? read.value.rows : [];
 }

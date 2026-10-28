@@ -115,31 +115,3 @@ export const CANNOT_READ = "Couldn't read that screenshot. Try again or a cleare
 export const TOOK_TOO_LONG = "Reading took too long and stopped. Try again.";
 
 export const stopsLaterScans = ({ refused }: ScanRefused) => refused === "scanning-off" || refused === "daily-limit" || refused === "monthly-limit";
-
-const NO_LR_ROWS = "We found no LR question types in that screenshot. Choose your Logical Reasoning screenshot.";
-
-export type AnalyticsRead =
-  | { kind: "rows"; rows: AnalyticsExtractedRow[] }
-  | { kind: "problem"; message: string; tryAgain: boolean }
-  | ScanRefused
-  | { kind: "signed-out" };
-
-export async function readAnalyticsScreenshot(file: File, section: AnalyticsSection): Promise<AnalyticsRead> {
-  const rejection = checkScreenshotType(file);
-  if (rejection) return { kind: "problem", message: rejection.message, tryAgain: false };
-  const reply = await extractScreenshot(file, section);
-  switch (reply.kind) {
-    case "rows":
-      return section === "LR" && reply.rows.length === 0 ? { kind: "problem", message: NO_LR_ROWS, tryAgain: false } : reply;
-    case "rejected":
-      return { kind: "problem", message: reply.message, tryAgain: false };
-    case "refused":
-    case "signed-out":
-      return reply;
-    case "timed-out":
-      return { kind: "problem", message: TOOK_TOO_LONG, tryAgain: true };
-    case "cannot-read":
-    case "connection-lost":
-      return { kind: "problem", message: CANNOT_READ, tryAgain: true };
-  }
-}
