@@ -72,9 +72,9 @@ describe("issue 70 request boundary evidence", () => {
     mocks.auth.mockResolvedValue({ user: { id: "synthetic-admin", role: "admin" } });
     expect((await roster()).status).toBe(200);
     expect((await student(new Request("http://localhost/api/students/synthetic-student"), { params: Promise.resolve({ id: "synthetic-student" }) })).status).toBe(200);
-    expect(await requireCurrentAdmin()).toBe("synthetic-admin");
+    expect(await requireCurrentAdmin("/admin/test")).toBe("synthetic-admin");
     mocks.auth.mockResolvedValue({ user: { id: "synthetic-student", role: "student" } });
-    await expect(requireCurrentAdmin()).rejects.toThrow("Admin access required");
+    await expect(requireCurrentAdmin("/admin/test")).rejects.toThrow("Admin access required");
     expect(mocks.findAccountById).not.toHaveBeenCalled();
   });
 

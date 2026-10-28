@@ -274,7 +274,7 @@ describe("reset link", () => {
     const atExpiry = new Date(Date.now() + 30 * MINUTE_MS);
     const clockReads = [beforeExpiry, atExpiry];
 
-    expect(await setPasswordWithLink(lastResetToken(), NEW_PASSWORD, () => clockReads.shift()!)).toBe("linkDoesNotWork");
+    expect(await setPasswordWithLink(lastResetToken(), NEW_PASSWORD, "/reset-password", () => clockReads.shift()!)).toBe("linkDoesNotWork");
     expect(await ownerRows(sql`select password_hash from accounts where id = ${id}`)).toEqual([{ password_hash: oldPasswordHash }]);
   });
 
@@ -381,7 +381,7 @@ describe("reset limits", () => {
     await signUpPat();
     const countsBefore = await ownerRows(sql`select action, count from action_counters where action like 'signup%' order by action`);
 
-    await resendVerificationLink("pat.lee@fastmail.com", pending!, { ipAddress: request.ip, realNow: new Date() });
+    await resendVerificationLink("pat.lee@fastmail.com", pending!, { route: "/forgot-password", ipAddress: request.ip, realNow: new Date() });
     expect(fakeEmails()).toHaveLength(2);
     expect(await ownerRows(sql`select action, count from action_counters where action like 'signup%' order by action`)).toEqual(countsBefore);
   });

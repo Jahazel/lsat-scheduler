@@ -1,14 +1,22 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { ipAddressFrom } from "@/lib/clientIpAddress";
 import { hasSessionCookie, proxyRoute } from "@/lib/proxyRoute";
+import { NOBODY, recordSecurityEvent } from "@/lib/securityLog";
 
 // Whether a signed-in student has completed onboarding yet is checked in
 // the page components themselves (they need the Student record anyway).
-export default auth((req) => {
+export default auth(async (req) => {
   const route = proxyRoute(req.nextUrl.pathname, req.auth?.user ?? null, {
     sentSessionCookie: hasSessionCookie(req.cookies.getAll().map((cookie) => cookie.name)),
     loginReason: req.nextUrl.searchParams.get("error") ?? req.nextUrl.searchParams.get("notice"),
   });
+  if (route.kind !== "allow" && route.refused) {
+    const accountId = req.auth?.user?.id;
+    await recordSecurityEvent({
+      ...route.refused, result: "refused", who: accountId ? { account: accountId } : NOBODY, ipAddress: ipAddressFrom(req.headers),
+    });
+  }
   switch (route.kind) {
     case "allow":
       return NextResponse.next();

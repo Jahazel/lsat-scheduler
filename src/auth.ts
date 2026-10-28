@@ -2,7 +2,7 @@ import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { createGoogleAccountOnSignIn } from "@/lib/authAccounts";
-import { clientIpAddress } from "@/lib/clientIpAddress";
+import { passwordRequest } from "@/lib/clientIpAddress";
 import { logIn, type LoginRefusal } from "@/lib/passwordAccount";
 import { accountSessionToken, SESSION_IDLE_SECONDS } from "@/lib/accountSession";
 
@@ -14,7 +14,7 @@ export class LoginRefused extends CredentialsSignin {
 }
 
 export async function passwordSignInAccount(credentials: Partial<Record<"email" | "password", unknown>>) {
-  const result = await logIn(credentials, { ipAddress: await clientIpAddress(), realNow: new Date() });
+  const result = await logIn(credentials, await passwordRequest("/login"));
   if (result.kind === "refused") throw new LoginRefused(result.code);
   return result.user;
 }

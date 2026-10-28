@@ -116,6 +116,12 @@ The evidence comes from issue 70 findings F11, F12, F13, and F15, and from issue
     - Unexpected errors (rule 29)
 28. An entry never holds a password, token, cookie, reset link, screenshot, model output, request body, or full email address.
 
+Added by the owner on October 28, 2026, on [issue 316](https://github.com/Jahazel/lsat-scheduler/issues/316):
+
+- When an Account is deleted, its security log entries stay until their 90 days end. The Account ID in them becomes empty. The time, event, result, route, and IP address stay.
+- The Admin role change and the emergency switch change are made outside the app, with `npm run make-admin` or SQL. Database triggers record them, so every path makes an entry.
+- Refused forged requests are recorded when the check for rules 2 to 5 is built ([issue 337](https://github.com/Jahazel/lsat-scheduler/issues/337)).
+
 **Why:** Vercel Hobby keeps logs for 1 hour, which is too short to look into an attack. A database collection needs no new provider, as with the issue 75 counters. Ninety days is long enough to find slow attacks.
 
 ### Errors
