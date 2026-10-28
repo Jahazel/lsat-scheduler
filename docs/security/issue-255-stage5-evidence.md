@@ -147,7 +147,7 @@ only in the owner's screenshots.
 | C2-2 | A and B | Pass | 6 at once, 3 to A and 3 to B: 1 ran, 5 got HTTP 429 `still-reading`, 3 of them from B. Places after: `0`. |
 | C2-3 | A and B | Pass | With 4 held places, the student on A took the 5th. The Admin on B got HTTP 429 `site-busy`. |
 | C2-4 | A | Pass | First: HTTP 429 `still-reading`, `Retry-After` 57. Second, after the wait: it ran. |
-| C2-5 | n/a | Not run | The home page has no email form. See Findings. |
+| C2-5 | n/a | Not run | The home page has no email form. See Findings. The form and its limit were removed on #303, so this step no longer applies. |
 | C2-6 | A and B | Pass | Both captured tries were refused with the 5-a-day text. 10 at once, 5 to A and 5 to B: 5 carried the refusal, and the snapshot count went from 1 to 6. |
 | C4-4 | A | Pass | Limit $0.11. `warned` became `true`, and the "Copy: app spend at 80%" email arrived in about 1 minute. |
 | C4-5 | A | Pass | Limit $0.09, total $0.078604. Both scans got HTTP 429 `scanning-off` with the expected text. The total did not change. No new Console request. `limit_alerted` became `true`. The limit email arrived once. |
@@ -177,6 +177,7 @@ only in the owner's screenshots.
   The app does not log the model's reply, so this is not confirmed. A student whose page shows a HIGH row cannot scan LR analytics.
 - **No lead form on any page.** `EmailCaptureForm` and `captureLead` are imported by no page since commit `96ca5d2`. The leadCapture limit has no request
   on the deployed site. Only the Postgres tests cover it. Either remove the form code and the limit, or put the form back and run C2-5.
+  Resolved on #303: the owner chose removal (2026-10-27).
 - **`db:check-copy` needs `sslmode=verify-full`.** Neon's connection string ends with `sslmode=require`. The check refuses it with
   "Remote Postgres requires sslmode=verify-full.", which `check-neon` reports only as "Database foundation check failed." That was the A7 failure before this run.
 - **The 504 came from the connect timeout.** Node's fetch gives up on a TCP connect after 10 seconds. The SDK reads that as a timeout. So C4-7 proves the
@@ -223,7 +224,7 @@ Stage 5 is proven on the copy, with real Anthropic calls and two server instance
 **Carried forward.**
 
 - **7Sage "HIGH" tier.** LR scans fail when the page shows HIGH. This blocks launch. It needs its own ticket.
-- **Lead form code.** Remove it, or restore the form and run C2-5.
+- **Lead form code.** Removed on #303. The `leads` table stays, unused.
 - **Model reply logging (Stage 6 security logs).** A refused model reply leaves no trace. Log its shape, never the screenshot's values.
 - **`db:check-copy` error text.** Show the `sslmode=verify-full` reason, which holds no secret, and say so in the release steps.
 - **30-second slow-reply limit.** Not proven on the copy. Only the unit tests cover it.

@@ -13,7 +13,6 @@ const WINDOWS = {
 } as const;
 
 const LIMITS = {
-  leadCapture: { max: 5, window: WINDOWS.hour },
   analyticsSnapshotSave: { max: 5, window: WINDOWS.day },
   scanInDay: { max: 10, window: WINDOWS.day },
   scanInMonth: { max: 40, window: WINDOWS.month },

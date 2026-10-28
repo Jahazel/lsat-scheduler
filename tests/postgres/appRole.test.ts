@@ -199,9 +199,9 @@ it("counts, refuses, and deletes ended action counters through the app login", a
   vi.stubEnv("DATABASE_URL", appSetting);
   try {
     const at = new Date("2026-10-24T15:00:00Z");
-    for (let index = 0; index < 5; index += 1) expect(await countAction("leadCapture", "203.0.113.7", at)).toEqual({ allowed: true });
-    expect(await countAction("leadCapture", "203.0.113.7", at)).toMatchObject({ allowed: false });
-    expect(await countAction("leadCapture", "203.0.113.7", new Date("2026-10-24T16:00:00Z"))).toEqual({ allowed: true });
+    for (let index = 0; index < 10; index += 1) expect(await countAction("signupFromIpAddress", "203.0.113.7", at)).toEqual({ allowed: true });
+    expect(await countAction("signupFromIpAddress", "203.0.113.7", at)).toMatchObject({ allowed: false });
+    expect(await countAction("signupFromIpAddress", "203.0.113.7", new Date("2026-10-24T16:00:00Z"))).toEqual({ allowed: true });
     expect((await appDb().execute(sql`select window_start from action_counters`)).rows).toHaveLength(1);
   } finally {
     await closePostgresDatabase();

@@ -18,7 +18,7 @@ The evidence comes from issue 70 findings F11, F12, F13, and F15, and from issue
 - **Cache** means a saved copy of a response, in the browser or on a CDN server between the site and the browser.
 - **Transaction** means a group of database changes that succeed together or fail together.
 - **Restore** means copying an old backup back into the database after a failure.
-- **Lead** means an email address from the form on the landing page. A lead is not an Account.
+- **Lead** means an email address from the form on the landing page. A lead is not an Account. The form was removed on [issue 303](https://github.com/Jahazel/lsat-scheduler/issues/303). The `leads` table stays, unused: the app no longer writes to it.
 - **Security log** means the list of security events that the app records.
 - **Hash** means a one-way scramble of a value. Nobody can read the value back from it.
 - **Private response** means any page or API response that reads a session.
