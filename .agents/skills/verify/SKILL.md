@@ -15,7 +15,7 @@ Keep a healthy isolated run and suitable fixture Accounts through implementation
 
 ## Launch
 
-Run from the repository root. Prerequisites are installed npm dependencies, Node.js, a loopback Postgres 17 server, and the macOS `lsof` and `ps` commands. Use the README's local setup if a prerequisite is missing. All app paths use Postgres. There is no existing end-to-end browser suite. Vitest tests cover components and scheduling rules, and do not replace this browser proof.
+Run from the repository root. Prerequisites are installed npm dependencies, Node.js, a loopback Postgres 17 server, and the `ps` command with `lsof` on macOS or `ss` on Linux. Use the README's local setup if a prerequisite is missing. All app paths use Postgres. There is no existing end-to-end browser suite. Vitest tests cover components and scheduling rules, and do not replace this browser proof.
 
 Set `DATABASE_URL` to a loopback Postgres owner connection in the shell. The README's `postgres` user is the Docker container's owner. A Homebrew Postgres install has no `postgres` role; its owner is the macOS user, for example `postgresql://$USER@127.0.0.1:5432/postgres`. The helper refuses remote hosts, creates a random database, applies migrations, and drops only that database on cleanup. It overrides the app connection before Next loads `.env.local`. No connection setting is written into evidence. Use the same shell setting for launch, Doctor, inspect, and cleanup.
 
