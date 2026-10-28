@@ -1,9 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { sql } from "drizzle-orm";
 import type { Session } from "next-auth";
-import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
-import { createAppTestDatabase } from "./appTestDatabase";
-import { closePostgresDatabase } from "../../src/lib/postgres";
+import { afterAll, beforeEach, expect, it, vi } from "vitest";
+import { setUpAppTestDatabase } from "./appTestDatabase";
 import { findAccountById } from "../../src/lib/accountRepository";
 import { createStudent, updateStudentByAccountId } from "../../src/lib/studentRepository";
 import { listWeeklySchedulesForStudent } from "../../src/lib/weeklyScheduleRepository";
@@ -31,24 +30,15 @@ vi.mock("next/navigation", () => ({
   notFound: () => { throw new Error("not-found"); },
 }));
 
-let database: Awaited<ReturnType<typeof createAppTestDatabase>>;
-const originalSetting = process.env.DATABASE_URL;
-beforeAll(async () => {
-  await closePostgresDatabase();
-  database = await createAppTestDatabase();
-  process.env.DATABASE_URL = database.setting;
-});
+const database = setUpAppTestDatabase();
 beforeEach(async () => {
   state.session = null;
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-10-12T16:00:00Z"));
   await database.owner.execute(sql`truncate accounts cascade`);
 });
-afterAll(async () => {
+afterAll(() => {
   vi.useRealTimers();
-  await closePostgresDatabase();
-  process.env.DATABASE_URL = originalSetting;
-  await database?.cleanup();
 });
 
 const profile: Student = {

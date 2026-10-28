@@ -1,9 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { sql } from "drizzle-orm";
 import type { Session } from "next-auth";
-import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
-import { createAppTestDatabase } from "./appTestDatabase";
-import { closePostgresDatabase } from "../../src/lib/postgres";
+import { afterAll, beforeEach, expect, it, vi } from "vitest";
+import { setUpAppTestDatabase } from "./appTestDatabase";
 import { createStudent, findStudentByAccountId } from "../../src/lib/studentRepository";
 import { createApprovedAnalyticsSnapshot, listApprovedAnalyticsSnapshots } from "../../src/lib/analyticsSnapshotRepository";
 import { listWeeklySchedulesForStudent } from "../../src/lib/weeklyScheduleRepository";
@@ -28,13 +27,7 @@ vi.mock("next/navigation", () => ({
   notFound: () => { throw new Error("not-found"); },
 }));
 
-let database: Awaited<ReturnType<typeof createAppTestDatabase>>;
-const originalSetting = process.env.DATABASE_URL;
-beforeAll(async () => {
-  await closePostgresDatabase();
-  database = await createAppTestDatabase();
-  process.env.DATABASE_URL = database.setting;
-});
+const database = setUpAppTestDatabase();
 beforeEach(async () => {
   state.session = null;
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -42,11 +35,8 @@ beforeEach(async () => {
   await database.owner.execute(sql`truncate scan_spending`);
   await database.owner.execute(sql`update scan_settings set scanning_off = false, monthly_limit_usd = 10`);
 });
-afterAll(async () => {
+afterAll(() => {
   vi.useRealTimers();
-  await closePostgresDatabase();
-  process.env.DATABASE_URL = originalSetting;
-  await database?.cleanup();
 });
 
 const MONDAY = new Date("2026-10-12T16:00:00Z");

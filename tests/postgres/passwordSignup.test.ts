@@ -3,8 +3,7 @@ import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createAppTestDatabase } from "./appTestDatabase";
-import { closePostgresDatabase } from "../../src/lib/postgres";
+import { setUpAppTestDatabase } from "./appTestDatabase";
 import { countAction } from "../../src/lib/actionLimits";
 import { clearFakeEmails, fakeEmails } from "../../src/lib/email";
 import { signUpWithPassword, type SignupState } from "../../src/app/signup/actions";
@@ -31,11 +30,8 @@ vi.mock("next/headers", () => ({
 }));
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
 
-let database: Awaited<ReturnType<typeof createAppTestDatabase>>;
-beforeAll(async () => {
-  await closePostgresDatabase();
-  database = await createAppTestDatabase();
-  vi.stubEnv("DATABASE_URL", database.setting);
+const database = setUpAppTestDatabase();
+beforeAll(() => {
   for (const name of ["RESEND_API_KEY", "EMAIL_FROM", "SITE_URL", "VERCEL"]) vi.stubEnv(name, "");
 });
 beforeEach(async () => {
@@ -51,11 +47,9 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
-afterAll(async () => {
-  await closePostgresDatabase();
+afterAll(() => {
   vi.unstubAllEnvs();
   process.env.AUTH_SECRET = originalSecret;
-  await database?.cleanup();
 });
 
 const advance = (ms: number) => vi.setSystemTime(Date.now() + ms);
