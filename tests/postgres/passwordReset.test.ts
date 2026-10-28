@@ -16,7 +16,7 @@ import { logInWithPassword } from "../../src/app/login/actions";
 import { PASSWORD_LOGIN_NOTICES } from "../../src/lib/loginNotice";
 import { accountSessionToken } from "../../src/lib/accountSession";
 import { findPendingSignup } from "../../src/lib/pendingSignupRepository";
-import { resendVerificationLink } from "../../src/lib/passwordAccount";
+import { resendVerificationLink, resetPassword as setPasswordWithLink } from "../../src/lib/passwordAccount";
 import { handlers, passwordSignInAccount } from "../../src/auth";
 
 const COOKIE = "authjs.session-token";
@@ -265,6 +265,17 @@ describe("reset link", () => {
     const fresh = lastResetToken();
     advance(30 * MINUTE_MS - 1000);
     expect((await pressSave(fresh)).redirectedTo).toBe("/login?notice=PasswordChanged");
+  });
+
+  it("does not work when it expires while the new password is hashed", async () => {
+    const id = await passwordAccount();
+    await forgot(MAYA);
+    const beforeExpiry = new Date(Date.now() + 30 * MINUTE_MS - 1000);
+    const atExpiry = new Date(Date.now() + 30 * MINUTE_MS);
+    const clockReads = [beforeExpiry, atExpiry];
+
+    expect(await setPasswordWithLink(lastResetToken(), NEW_PASSWORD, () => clockReads.shift()!)).toBe("linkDoesNotWork");
+    expect(await ownerRows(sql`select password_hash from accounts where id = ${id}`)).toEqual([{ password_hash: oldPasswordHash }]);
   });
 
   it("stops working when a newer link is requested", async () => {

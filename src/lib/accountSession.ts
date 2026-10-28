@@ -8,8 +8,8 @@ export const SESSION_IDLE_SECONDS = 14 * DAY_SECONDS;
 const SIGN_IN_LIMIT_SECONDS = { student: 30 * DAY_SECONDS, admin: DAY_SECONDS } as const;
 const RECENT_SIGN_IN_SECONDS = 10 * 60;
 
-export function signedInRecently(signedInAt: number | undefined) {
-  return signedInAt !== undefined && Math.floor(Date.now() / 1000) - signedInAt <= RECENT_SIGN_IN_SECONDS;
+export function signedInRecently(signedInAt: number | undefined, realNow: Date) {
+  return signedInAt !== undefined && Math.floor(realNow.getTime() / 1000) - signedInAt <= RECENT_SIGN_IN_SECONDS;
 }
 
 type SessionAccount = NonNullable<Awaited<ReturnType<typeof findAccountById>>>;

@@ -39,7 +39,7 @@ export default async function AccountPage() {
         <DeletionCard
           mode={isAdminUser(session.user) ? { kind: "admin" }
             : isPasswordAccount ? { kind: "password" }
-            : { kind: "google", signedInRecently: signedInRecently(session.signedInAt) }}
+            : { kind: "google", signedInRecently: signedInRecently(session.signedInAt, new Date()) }}
         />
       </div>
     </div>

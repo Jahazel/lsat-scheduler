@@ -86,15 +86,17 @@ export async function resetLinkWorks(token: string, realNow: Date) {
   return (await findResetLinkEmail(hashEmailToken(token), realNow)) !== null;
 }
 
+/** Reads the clock again after hashing, so a link that expires during the hash does not work. */
 export async function resetPassword(
-  token: string, password: string, realNow: Date,
+  token: string, password: string, clock: () => Date,
 ): Promise<"changed" | "linkDoesNotWork" | PasswordProblem> {
   const tokenHash = hashEmailToken(token);
-  const email = await findResetLinkEmail(tokenHash, realNow);
+  const email = await findResetLinkEmail(tokenHash, clock());
   if (!email) return "linkDoesNotWork";
   const problem = newPasswordProblem(password, email);
   if (problem) return problem;
-  return (await setPasswordWithResetLink(tokenHash, await hashPassword(password), realNow)) ? "changed" : "linkDoesNotWork";
+  const passwordHash = await hashPassword(password);
+  return (await setPasswordWithResetLink(tokenHash, passwordHash, clock())) ? "changed" : "linkDoesNotWork";
 }
 
 export type LoginRefusal = "wrongEmailOrPassword" | "paused" | "tooLong" | "verifyYourEmail" | "accountDisabled";
@@ -166,7 +168,7 @@ export async function deleteAccount(
   request: PasswordRequest,
 ): Promise<"deleted" | DeletionRefusal> {
   const passwordAccount = await findPasswordAccountById(id);
-  if (!passwordAccount && !signedInRecently(signedInAt)) return "sign-in-too-old";
+  if (!passwordAccount && !signedInRecently(signedInAt, request.realNow)) return "sign-in-too-old";
   if (confirmation !== "DELETE") return "wrong-text";
   if (!passwordAccount) {
     await deleteGoogleAccount(id);

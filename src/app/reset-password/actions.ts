@@ -12,7 +12,7 @@ export async function resetPassword(_state: ResetPasswordState, formData: FormDa
   const password = formData.get("password");
   if (typeof token !== "string" || !token || typeof password !== "string") return { kind: "linkDoesNotWork" };
 
-  const result = await passwordAccount.resetPassword(token, password, new Date());
+  const result = await passwordAccount.resetPassword(token, password, () => new Date());
   if (result === "linkDoesNotWork") return { kind: "linkDoesNotWork" };
   if (result !== "changed") return { kind: "form", error: PASSWORD_MESSAGES[result] };
   redirect(PASSWORD_CHANGED_PATH);
