@@ -252,7 +252,7 @@ it("Admin checks and simulated dates use the current Account role", async () => 
   const admin = await account("admin@example.test", "admin");
   const student = await account("student@example.test");
   session(admin);
-  expect(await requireCurrentAdmin()).toBe(admin.id);
+  expect(await requireCurrentAdmin("/admin/test")).toBe(admin.id);
   expect(await postgresAdminClock.moveDate(admin.id, null, "2026-10-19")).toBe(true);
   expect(await postgresAdminClock.moveDate(admin.id, null, "2026-10-20")).toBe(false);
   const real = new Date("2026-10-15T12:00:00Z");
@@ -261,9 +261,9 @@ it("Admin checks and simulated dates use the current Account role", async () => 
   await database.owner.execute(sql`update accounts set role = 'student' where id = ${admin.id}`);
   expect(await postgresAdminClock.moveDate(admin.id, "2026-10-19", "2026-10-20")).toBe(false);
   session(student);
-  await expect(requireCurrentAdmin()).rejects.toThrow("Admin access required");
+  await expect(requireCurrentAdmin("/admin/test")).rejects.toThrow("Admin access required");
   request.session = null;
-  await expect(requireCurrentAdmin()).rejects.toThrow("Admin access required");
+  await expect(requireCurrentAdmin("/admin/test")).rejects.toThrow("Admin access required");
 });
 
 it("onboarding saves approved analytics with its student and refuses a partial write", async () => {

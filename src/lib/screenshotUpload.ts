@@ -73,7 +73,7 @@ type ScreenshotFailure =
   | { kind: "signed-out" }
   | { kind: "connection-lost" };
 
-export type ExtractReply = { kind: "rows"; rows: AnalyticsExtractedRow[] } | ScreenshotFailure;
+export type ExtractReply = { kind: "rows"; rows: AnalyticsExtractedRow[]; showsPassageTypes?: boolean } | ScreenshotFailure;
 export type SectionReply = { kind: "reading"; reading: SectionReading } | ScreenshotFailure;
 
 const REFUSED_FILE_STATUSES = [413, 415, 422];
@@ -103,7 +103,9 @@ async function postScreenshot(url: string, file: File, fields: Record<string, st
 
 export async function extractScreenshot(file: File, section: AnalyticsSection): Promise<ExtractReply> {
   const reply = await postScreenshot("/api/analytics/extract", file, { section });
-  return reply.kind === "ok" ? { kind: "rows", rows: (reply.body as { rows: AnalyticsExtractedRow[] }).rows } : reply;
+  if (reply.kind !== "ok") return reply;
+  const { rows, showsPassageTypes } = reply.body as { rows: AnalyticsExtractedRow[]; showsPassageTypes?: boolean };
+  return { kind: "rows", rows, showsPassageTypes };
 }
 
 export async function extractPracticeTestScreenshot(file: File): Promise<SectionReply> {

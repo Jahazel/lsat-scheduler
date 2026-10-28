@@ -282,7 +282,7 @@ describe("a reset between the password check and the write", () => {
     const id = await passwordStudent();
     if (!isAccountId(id)) throw new Error("The fixture should make an Account ID.");
     const account = await findPasswordAccountById(id);
-    const check = await proveCurrentPassword(account!, OLD_PASSWORD, { ipAddress: request.ip, realNow: new Date() });
+    const check = await proveCurrentPassword(account!, OLD_PASSWORD, { route: "/account", ipAddress: request.ip, realNow: new Date() });
     if (check.kind !== "proven") throw new Error("The old password should match.");
     const resetHash = await hashPassword("a password set by a reset link");
     await database.owner.execute(sql`update accounts set password_hash = ${resetHash} where id = ${id}`);

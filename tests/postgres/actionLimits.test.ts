@@ -68,12 +68,12 @@ it("a refused countAll gives back every count it took, and giveBack returns a co
   const at = new Date("2026-10-24T15:10:00Z");
   const tries = loginTryCounts("maya.chen@fastmail.com", "203.0.113.7");
   await countTimes(50, "failedLoginFromIpAddress", "203.0.113.7", at);
-  expect(await countAll(tries, at)).toBe("overLimit");
+  expect(await countAll(tries, { route: "/login", ipAddress: "203.0.113.7", realNow: at })).toBe("overLimit");
   expect((await counterRows()).map((row) => [row.action, row.count])).toEqual([["failedLoginFromIpAddress", 50]]);
 
   const later = new Date("2026-10-24T16:10:00Z");
-  expect(await countAll(tries, later)).toBeNull();
-  expect(await countAll(tries, later)).toBeNull();
+  expect(await countAll(tries, { route: "/login", ipAddress: "203.0.113.7", realNow: later })).toBeNull();
+  expect(await countAll(tries, { route: "/login", ipAddress: "203.0.113.7", realNow: later })).toBeNull();
   await giveBack(tries, later);
   expect((await counterRows()).map((row) => [row.action, row.count]).sort()).toEqual([["failedLoginForEmail", 1], ["failedLoginFromIpAddress", 1]]);
   await giveBack(tries, later);
@@ -83,8 +83,8 @@ it("a refused countAll gives back every count it took, and giveBack returns a co
 it("two give-backs at the same moment each take one count off", async () => {
   const at = new Date("2026-10-24T15:10:00Z");
   const tries = loginTryCounts("maya.chen@fastmail.com", "203.0.113.7");
-  await countAll(tries, at);
-  await countAll(tries, at);
+  await countAll(tries, { route: "/login", ipAddress: "203.0.113.7", realNow: at });
+  await countAll(tries, { route: "/login", ipAddress: "203.0.113.7", realNow: at });
   let both: Promise<unknown> = Promise.resolve();
   await database.owner.transaction(async (tx) => {
     await tx.execute(sql`select * from action_counters for update`);

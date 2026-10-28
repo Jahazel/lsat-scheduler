@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import { resetYourPassword, verifyYourEmail, youAlreadyHaveAnAccount, youSignInWithGoogle } from "./accountEmails";
 import {
-  deleteGoogleAccount, deletePasswordAccount, findPasswordAccountByEmail, findPasswordAccountById, replacePasswordHash,
+  deleteGoogleAccount, deletePasswordAccount, findAccountByEmail, findPasswordAccountByEmail, findPasswordAccountById, replacePasswordHash,
   signInMethodForEmail, type AccountId,
 } from "./accountRepository";
 import { signedInRecently } from "./accountSession";
@@ -14,8 +14,9 @@ import { newPasswordProblem, passwordTooLong, type PasswordProblem } from "./pas
 import {
   createAccountFromPendingSignup, findPendingSignup, replaceVerificationToken, savePendingSignup, type VerificationResult,
 } from "./pendingSignupRepository";
+import { NOBODY, recordSecurityEvent, signInSubject, type SecurityLogRoute, type SecurityResult } from "./securityLog";
 
-export type PasswordRequest = { ipAddress: string; realNow: Date };
+export type PasswordRequest = { route: SecurityLogRoute; ipAddress: string; realNow: Date };
 
 export const EmailField = z.string().transform(normalizeEmail)
   .pipe(z.string().max(254, "Enter a valid email.").pipe(z.email("Enter a valid email.")));
@@ -31,9 +32,10 @@ function hashEmailToken(token: string) {
 
 export async function signUp(
   { name, email, password }: { name: string; email: string; password: string },
-  { ipAddress, realNow }: PasswordRequest,
+  request: PasswordRequest,
 ): Promise<"checkYourEmail" | PasswordProblem> {
-  const refusal = await countAll(signupCounts(email, ipAddress), realNow, () => newPasswordProblem(password, email));
+  const { ipAddress, realNow } = request;
+  const refusal = await countAll(signupCounts(email, ipAddress), request, () => newPasswordProblem(password, email));
   if (refusal === "overLimit") return "checkYourEmail";
   if (refusal) return refusal;
 
@@ -50,15 +52,20 @@ export async function signUp(
   return "checkYourEmail";
 }
 
-export function verifyEmail(token: string, realNow: Date): Promise<VerificationResult> {
-  return createAccountFromPendingSignup(hashEmailToken(token), realNow);
+export async function verifyEmail(token: string, request: PasswordRequest): Promise<VerificationResult> {
+  const { result, accountId } = await createAccountFromPendingSignup(hashEmailToken(token), request.realNow);
+  await recordSecurityEvent({
+    event: "email_verification", result, route: request.route, who: accountId ? { account: accountId } : NOBODY, ipAddress: request.ipAddress,
+  });
+  return result;
 }
 
 export async function resendVerificationLink(
-  email: string, pending: { name: string; passwordHash: string }, { ipAddress, realNow }: PasswordRequest,
+  email: string, pending: { name: string; passwordHash: string }, request: PasswordRequest,
 ) {
+  const { ipAddress, realNow } = request;
   const counted = signupCounts(email, ipAddress);
-  if (await countAll(counted, realNow)) return;
+  if (await countAll(counted, request)) return;
   const { token, tokenHash } = newEmailToken();
   if (await replaceVerificationToken({ email, passwordHash: pending.passwordHash, tokenHash }, realNow)) {
     await sendEmail(verifyYourEmail(email, pending.name, token));
@@ -69,15 +76,25 @@ export async function resendVerificationLink(
 
 export async function requestPasswordReset(email: string, request: PasswordRequest) {
   const { ipAddress, realNow } = request;
-  if (await countAll([["resetEmailInHour", email], ["resetFromIpAddress", ipAddress]], realNow)) return;
+  const known = await findAccountByEmail(email);
+  const who = known ? { account: known.id } : NOBODY;
+  const log = (result: SecurityResult<"password_reset_request">) =>
+    recordSecurityEvent({ event: "password_reset_request", result, route: request.route, who, ipAddress });
+  if (await countAll([["resetEmailInHour", email], ["resetFromIpAddress", ipAddress]], request, undefined, who)) {
+    await log("paused");
+    return;
+  }
 
   const { token, tokenHash } = newEmailToken();
   if (await saveResetToken(email, tokenHash, realNow)) {
+    await log("passwordAccount");
     await sendEmail(resetYourPassword(email, token));
   } else if ((await signInMethodForEmail(email)) === "google") {
+    await log("googleAccount");
     await sendEmail(youSignInWithGoogle(email, "reset"));
   } else {
     const pending = await findPendingSignup(email, realNow);
+    await log(pending ? "pendingSignup" : "noAccount");
     if (pending) await resendVerificationLink(email, pending, request);
   }
 }
@@ -88,15 +105,24 @@ export async function resetLinkWorks(token: string, realNow: Date) {
 
 /** Reads the clock again after hashing, so a link that expires during the hash does not work. */
 export async function resetPassword(
-  token: string, password: string, clock: () => Date,
+  token: string, password: string, route: SecurityLogRoute, clock: () => Date,
 ): Promise<"changed" | "linkDoesNotWork" | PasswordProblem> {
+  const log = (result: "changed" | "linkDoesNotWork", accountId: AccountId | null) => recordSecurityEvent({
+    event: "password_reset", result, route, who: accountId ? { account: accountId } : NOBODY,
+  });
   const tokenHash = hashEmailToken(token);
   const email = await findResetLinkEmail(tokenHash, clock());
-  if (!email) return "linkDoesNotWork";
+  if (!email) {
+    await log("linkDoesNotWork", null);
+    return "linkDoesNotWork";
+  }
   const problem = newPasswordProblem(password, email);
   if (problem) return problem;
   const passwordHash = await hashPassword(password);
-  return (await setPasswordWithResetLink(tokenHash, passwordHash, clock())) ? "changed" : "linkDoesNotWork";
+  const accountId = await setPasswordWithResetLink(tokenHash, passwordHash, clock());
+  const result = accountId ? "changed" : "linkDoesNotWork";
+  await log(result, accountId);
+  return result;
 }
 
 export type LoginRefusal = "wrongEmailOrPassword" | "paused" | "tooLong" | "verifyYourEmail" | "accountDisabled";
@@ -104,15 +130,18 @@ export type LoginRefusal = "wrongEmailOrPassword" | "paused" | "tooLong" | "veri
 export async function logIn(
   credentials: Partial<Record<"email" | "password", unknown>>, request: PasswordRequest,
 ) {
-  const refused = (code: LoginRefusal) => ({ kind: "refused", code }) as const;
   const { email: typedEmail, password } = credentials;
-  if (typeof typedEmail !== "string" || typeof password !== "string") return refused("wrongEmailOrPassword");
-  if (passwordTooLong(password)) return refused("tooLong");
-
-  const email = normalizeEmail(typedEmail);
+  const email = typeof typedEmail === "string" ? normalizeEmail(typedEmail) : null;
+  const who = await signInSubject(email);
+  const refused = async (code: LoginRefusal) => {
+    await recordSecurityEvent({ event: "sign_in", result: code, route: request.route, who, ipAddress: request.ipAddress });
+    return { kind: "refused", code } as const;
+  };
+  if (email === null || typeof password !== "string") return refused("wrongEmailOrPassword");
   const { realNow } = request;
   const tries = loginTryCounts(email, request.ipAddress);
-  if (await countAll(tries, realNow)) return refused("paused");
+  if (passwordTooLong(password)) return refused("tooLong");
+  if (await countAll(tries, request, undefined, "account" in who ? who : NOBODY)) return refused("paused");
 
   const account = await findPasswordAccountByEmail(email);
   const pending = account ? null : await findPendingSignup(email, realNow);
@@ -126,6 +155,7 @@ export async function logIn(
   }
   if (!account || account.role === "admin") return refused("wrongEmailOrPassword");
   if (account.disabledAt) return refused("accountDisabled");
+  await recordSecurityEvent({ event: "sign_in", result: "signedIn", route: request.route, who: { account: account.id }, ipAddress: request.ipAddress });
   const user = { id: account.id, email: account.email, name: account.name, sessionVersion: account.sessionVersion };
   return { kind: "signedIn", user } as const;
 }
@@ -136,10 +166,11 @@ declare const proven: unique symbol;
 export type CurrentPasswordProof = Pick<PasswordAccount, "id" | "passwordHash"> & { readonly [proven]: true };
 
 export async function proveCurrentPassword(
-  account: PasswordAccount, typed: unknown, { ipAddress, realNow }: PasswordRequest,
+  account: PasswordAccount, typed: unknown, request: PasswordRequest,
 ): Promise<{ kind: "proven"; proof: CurrentPasswordProof } | { kind: "wrong-password" | "paused" }> {
+  const { ipAddress, realNow } = request;
   const tries = loginTryCounts(account.email, ipAddress);
-  if (await countAll(tries, realNow)) return { kind: "paused" };
+  if (await countAll(tries, request, undefined, { account: account.id })) return { kind: "paused" };
   // bcrypt reads only the first 72 bytes, so a longer try could match a password that starts the same way.
   const password = typeof typed === "string" && !passwordTooLong(typed) ? typed : null;
   if (password === null || !(await passwordMatches(password, account.passwordHash))) return { kind: "wrong-password" };
@@ -152,17 +183,34 @@ export async function changePassword(
 ): Promise<"changed" | "noPassword" | "wrong-password" | "paused" | PasswordProblem> {
   const account = await findPasswordAccountById(id);
   if (!account) return "noPassword";
+  const log = (result: "changed" | "wrong-password" | "paused") =>
+    recordSecurityEvent({ event: "password_change", result, route: request.route, who: { account: id }, ipAddress: request.ipAddress });
   const check = await proveCurrentPassword(account, currentPassword, request);
-  if (check.kind !== "proven") return check.kind;
+  if (check.kind !== "proven") {
+    await log(check.kind);
+    return check.kind;
+  }
   const typed = typeof newPassword === "string" ? newPassword : "";
   const problem = newPasswordProblem(typed, account.email);
   if (problem) return problem;
-  return (await replacePasswordHash(check.proof, await hashPassword(typed))) ? "changed" : "wrong-password";
+  const result = (await replacePasswordHash(check.proof, await hashPassword(typed))) ? "changed" : "wrong-password";
+  await log(result);
+  return result;
 }
 
 export type DeletionRefusal = "sign-in-too-old" | "wrong-text" | "wrong-password" | "paused";
 
 export async function deleteAccount(
+  id: AccountId,
+  { confirmation, currentPassword, signedInAt }: { confirmation: unknown; currentPassword: unknown; signedInAt: number | undefined },
+  request: PasswordRequest,
+): Promise<"deleted" | DeletionRefusal> {
+  const result = await tryDeleteAccount(id, { confirmation, currentPassword, signedInAt }, request);
+  await recordSecurityEvent({ event: "account_deletion", result, route: request.route, who: { account: id }, ipAddress: request.ipAddress });
+  return result;
+}
+
+async function tryDeleteAccount(
   id: AccountId,
   { confirmation, currentPassword, signedInAt }: { confirmation: unknown; currentPassword: unknown; signedInAt: number | undefined },
   request: PasswordRequest,

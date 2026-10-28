@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { createStudent, findStudentByAccountId } from "@/lib/studentRepository";
 import { SnapshotSaveLimitReached, snapshotWeekOptions, prepareApprovedSnapshot, summarizeApprovedRows, type SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
+import { recordSecurityEvent } from "@/lib/securityLog";
 import { parseOfficialAttempts, parseStudentProfile, type OfficialAttempt, type StudentProfileInput } from "@/lib/studentProfile";
 import type { AnalyticsExtractedRow } from "@/lib/types";
 
@@ -44,7 +45,10 @@ export async function createStudentProfile(
       officialAttempts: attempts,
     });
   } catch (error) {
-    if (error instanceof SnapshotSaveLimitReached) return { error: error.message };
+    if (error instanceof SnapshotSaveLimitReached) {
+      await recordSecurityEvent({ event: "limit_refused", result: "analyticsSnapshotSave", route: "/onboarding", who: { account: session.user.id } });
+      return { error: error.message };
+    }
     throw error;
   }
   if (!student) redirect("/dashboard");
