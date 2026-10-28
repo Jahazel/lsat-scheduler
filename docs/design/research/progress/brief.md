@@ -62,3 +62,26 @@ The owner asked for all three on 2026-10-28, as 1440 px desktop boards. **The ow
 1. **Rows and a week page.** Month headings over one row per week. A past week opens as its own page with "Past week", Older/Newer links at the top and bottom, and a plan with no check-off boxes.
 2. **Split view.** The week list sits in a column on the left, and the chosen week opens on the right. A phone falls back to Direction 1.
 3. **Month cards.** One boxed card per month holds that month's week rows. The past-week page is the same as in Direction 1.
+
+## Prototype
+The owner approved the Direction 3 boards at 1440, 768, and 390 on 2026-10-28.
+
+A throwaway clickable prototype is at `prototype/index.html`. Open the file in a browser. It has no build step and no saved data. Its control bar switches the width, the data set, and the motion mode, and has a ×5 slow-motion switch. It also opens the three deep links from the flow map.
+
+Motion in the prototype:
+- List row to past week, and "← All weeks" back to the list: fade through. The old page fades out in 120 ms (fast, exit easing). The new page fades in in 200 ms (base, standard easing).
+- "← Older week" and "Newer week →": the same timing with an 8 px slide toward the link's side. The nav bar stays still.
+- Nav tabs: no animation, the same as the other tabs today.
+- Reduced motion: a 120 ms fade only, with no movement.
+- After a row, Older, or Newer, the page scrolls to the top and focus moves to the page title. After "← All weeks", the list returns to the saved scroll spot and focus returns to the row the student left.
+
+Impeccable motion review, 2026-10-28 (two isolated reviewers):
+- Fixed: an interrupted transition jumped back to full opacity. It now continues from where it is.
+- Fixed: a fast double click on Older added a second history entry, so one Back press did nothing.
+- Fixed: the page faded to white. It now fades to the page's gray background.
+- Fixed: the row press color used 200 ms and felt slower than the hover. Both use 120 ms. Hover color applies only on devices that can hover.
+- Kept: the page title takes focus with no ring. This is the usual pattern for focus that the page moves; the next Tab stop shows a ring.
+- Kept: the horizontal slide for Older and Newer. The two links sit left and right, so the slide follows them.
+- Detector: two findings, both false positives. The Geist font is the design-system font. The cramped padding is on the prototype's control bar, not on Progress.
+
+Change from the boards: week rows and titles always use the week's Monday to Sunday dates. The board's first-week row read "Sep 9 – 13"; the prototype reads "Sep 7 – 13". Step 5 checks this against the live app.
