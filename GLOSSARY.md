@@ -85,7 +85,7 @@ The page where a student adds two analytics screenshots, four practice-test sect
 _Avoid_: weekly check-in, analytics upload
 
 **Progress**:
-The student's history across finished weeks: completion stats and each past weekly schedule, opened read-in-place.
+The student's history across finished weeks: each past weekly schedule, newest first, opened read-in-place and read-only.
 _Avoid_: history, past plans
 
 **Official LSAT attempt**:
