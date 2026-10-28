@@ -1,6 +1,8 @@
 export type Email = { to: string; subject: string; text: string };
 export type SendResult = { sent: true } | { sent: false };
 
+export const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
 const LOCAL_SITE_URL = "http://localhost:3000";
 const RESEND_TIMEOUT_MS = 10_000;
 const fakeOutbox: Email[] = [];

@@ -1,5 +1,6 @@
 import type { Account, Profile, User } from "next-auth";
 import { createAccount, findAccountByGoogleId, signInMethodForEmail } from "./accountRepository";
+import { normalizeEmail } from "./email";
 import { DISABLED_SIGN_IN_PATH, EMAIL_USES_PASSWORD_PATH } from "./loginNotice";
 
 export async function createGoogleAccountOnSignIn({ user, account, profile }: {
@@ -11,7 +12,7 @@ export async function createGoogleAccountOnSignIn({ user, account, profile }: {
   if (account?.provider !== "google") return false;
 
   const googleId = account.providerAccountId;
-  const email = user.email?.toLowerCase().trim();
+  const email = user.email ? normalizeEmail(user.email) : undefined;
   if (!googleId || !email || profile?.email_verified !== true) return false;
 
   const existing = await findAccountByGoogleId(googleId);

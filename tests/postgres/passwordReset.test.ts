@@ -13,12 +13,11 @@ import ResetPasswordPage from "../../src/app/reset-password/page";
 import { signUpWithPassword } from "../../src/app/signup/actions";
 import { verifyEmail } from "../../src/app/verify-email/actions";
 import { logInWithPassword } from "../../src/app/login/actions";
-import { handlers } from "../../src/auth";
 import { PASSWORD_LOGIN_NOTICES } from "../../src/lib/loginNotice";
 import { accountSessionToken } from "../../src/lib/accountSession";
 import { findPendingSignup } from "../../src/lib/pendingSignupRepository";
-import { resendVerificationLink } from "../../src/lib/verificationResend";
-import { passwordSignInAccount } from "../../src/lib/passwordSignIn";
+import { resendVerificationLink, resetPassword as setPasswordWithLink } from "../../src/lib/passwordAccount";
+import { handlers, passwordSignInAccount } from "../../src/auth";
 
 const COOKIE = "authjs.session-token";
 const MINUTE_MS = 60 * 1000;
@@ -268,6 +267,17 @@ describe("reset link", () => {
     expect((await pressSave(fresh)).redirectedTo).toBe("/login?notice=PasswordChanged");
   });
 
+  it("does not work when it expires while the new password is hashed", async () => {
+    const id = await passwordAccount();
+    await forgot(MAYA);
+    const beforeExpiry = new Date(Date.now() + 30 * MINUTE_MS - 1000);
+    const atExpiry = new Date(Date.now() + 30 * MINUTE_MS);
+    const clockReads = [beforeExpiry, atExpiry];
+
+    expect(await setPasswordWithLink(lastResetToken(), NEW_PASSWORD, () => clockReads.shift()!)).toBe("linkDoesNotWork");
+    expect(await ownerRows(sql`select password_hash from accounts where id = ${id}`)).toEqual([{ password_hash: oldPasswordHash }]);
+  });
+
   it("stops working when a newer link is requested", async () => {
     await passwordAccount();
     await forgot(MAYA);
@@ -371,7 +381,7 @@ describe("reset limits", () => {
     await signUpPat();
     const countsBefore = await ownerRows(sql`select action, count from action_counters where action like 'signup%' order by action`);
 
-    await resendVerificationLink("pat.lee@fastmail.com", request.ip, pending!, new Date());
+    await resendVerificationLink("pat.lee@fastmail.com", pending!, { ipAddress: request.ip, realNow: new Date() });
     expect(fakeEmails()).toHaveLength(2);
     expect(await ownerRows(sql`select action, count from action_counters where action like 'signup%' order by action`)).toEqual(countsBefore);
   });

@@ -3,22 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth, signIn, signOut } from "@/auth";
-import { eq } from "drizzle-orm";
-import { getPostgresDatabase } from "@/lib/postgres";
-import { accounts } from "@/lib/postgresSchema";
-import {
-  deletePasswordAccount, endAllSessions, findPasswordAccountById, isAccountId, replacePasswordHash,
-} from "@/lib/accountRepository";
+import { endAllSessions, isAccountId } from "@/lib/accountRepository";
 import { updateStudentByAccountId } from "@/lib/studentRepository";
 import { studentSideToday } from "@/lib/studentClock";
 import { parseStudentProfile, type StudentProfileInput } from "@/lib/studentProfile";
 import { ADMIN_RESTRICTED_ACTION_MESSAGE, isAdminUser } from "@/lib/accessControl";
-import { signedInRecently } from "@/lib/accountSession";
-import { proveCurrentPassword } from "@/lib/currentPassword";
+import { clientIpAddress } from "@/lib/clientIpAddress";
 import { PASSWORD_CHANGED_PATH } from "@/lib/loginNotice";
-import { hashPassword } from "@/lib/passwordHash";
 import { CURRENT_PASSWORD_MESSAGES } from "@/lib/currentPasswordMessages";
-import { newPasswordProblem, PASSWORD_MESSAGES } from "@/lib/passwordRules";
+import * as passwordAccount from "@/lib/passwordAccount";
+import { PASSWORD_MESSAGES } from "@/lib/passwordRules";
 
 export async function updateStudentProfile(input: StudentProfileInput) {
   const session = await auth();
@@ -38,7 +32,7 @@ export async function updateStudentProfile(input: StudentProfileInput) {
   redirect("/dashboard");
 }
 
-export type DeletionRefusal = "sign-in-too-old" | "wrong-text" | "wrong-password" | "paused" | null;
+export type DeletionRefusal = passwordAccount.DeletionRefusal | null;
 
 export async function deleteAccount(_previous: DeletionRefusal, formData: FormData): Promise<DeletionRefusal> {
   const session = await auth();
@@ -49,16 +43,12 @@ export async function deleteAccount(_previous: DeletionRefusal, formData: FormDa
     throw new Error(ADMIN_RESTRICTED_ACTION_MESSAGE);
   }
   if (!isAccountId(session.user.id)) throw new Error("Account record not found");
-  const passwordAccount = await findPasswordAccountById(session.user.id);
-  if (!passwordAccount && !signedInRecently(session.signedInAt)) return "sign-in-too-old";
-  if (formData.get("confirmation") !== "DELETE") return "wrong-text";
-  if (passwordAccount) {
-    const check = await proveCurrentPassword(passwordAccount, formData.get("currentPassword"));
-    if (check.kind !== "proven") return check.kind;
-    if (!(await deletePasswordAccount(check.proof))) return "wrong-password";
-  } else {
-    await getPostgresDatabase().delete(accounts).where(eq(accounts.id, session.user.id));
-  }
+  const result = await passwordAccount.deleteAccount(
+    session.user.id,
+    { confirmation: formData.get("confirmation"), currentPassword: formData.get("currentPassword"), signedInAt: session.signedInAt },
+    { ipAddress: await clientIpAddress(), realNow: new Date() },
+  );
+  if (result !== "deleted") return result;
   await signOut({ redirectTo: "/" });
   return null;
 }
@@ -71,19 +61,15 @@ export async function changePassword(_previous: PasswordChangeRefusal, formData:
     throw new Error("Not authenticated");
   }
   if (!isAccountId(session.user.id)) throw new Error("Account record not found");
-  const account = await findPasswordAccountById(session.user.id);
-  if (!account) throw new Error("This Account signs in with Google and has no password.");
 
-  const check = await proveCurrentPassword(account, formData.get("currentPassword"));
-  if (check.kind !== "proven") return { field: "currentPassword", message: CURRENT_PASSWORD_MESSAGES[check.kind] };
-  const typed = formData.get("newPassword");
-  const newPassword = typeof typed === "string" ? typed : "";
-  const problem = newPasswordProblem(newPassword, account.email);
-  if (problem) return { field: "newPassword", message: PASSWORD_MESSAGES[problem] };
-
-  if (!(await replacePasswordHash(check.proof, await hashPassword(newPassword)))) {
-    return { field: "currentPassword", message: CURRENT_PASSWORD_MESSAGES["wrong-password"] };
-  }
+  const result = await passwordAccount.changePassword(
+    session.user.id,
+    { currentPassword: formData.get("currentPassword"), newPassword: formData.get("newPassword") },
+    { ipAddress: await clientIpAddress(), realNow: new Date() },
+  );
+  if (result === "noPassword") throw new Error("This Account signs in with Google and has no password.");
+  if (result === "wrong-password" || result === "paused") return { field: "currentPassword", message: CURRENT_PASSWORD_MESSAGES[result] };
+  if (result !== "changed") return { field: "newPassword", message: PASSWORD_MESSAGES[result] };
   await signOut({ redirectTo: PASSWORD_CHANGED_PATH });
   return null;
 }

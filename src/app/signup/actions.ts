@@ -2,15 +2,9 @@
 
 import { z } from "zod";
 import { signIn } from "@/auth";
-import { verifyYourEmail, youAlreadyHaveAnAccount, youSignInWithGoogle } from "@/lib/accountEmails";
-import { signInMethodForEmail } from "@/lib/accountRepository";
-import { countAll, signupCounts } from "@/lib/actionLimits";
 import { clientIpAddress } from "@/lib/clientIpAddress";
-import { sendEmail } from "@/lib/email";
-import { newEmailToken } from "@/lib/emailToken";
-import { hashPassword } from "@/lib/passwordHash";
-import { newPasswordProblem, PASSWORD_MESSAGES } from "@/lib/passwordRules";
-import { savePendingSignup } from "@/lib/pendingSignupRepository";
+import { EmailField, signUp } from "@/lib/passwordAccount";
+import { PASSWORD_MESSAGES } from "@/lib/passwordRules";
 
 export type SignupState =
   | { kind: "form"; errors: { name?: string; email?: string; password?: string; terms?: string } }
@@ -18,7 +12,7 @@ export type SignupState =
 
 const SignupFields = z.object({
   name: z.string().trim().min(1, "Enter your name.").max(200, "Use a shorter name."),
-  email: z.string().trim().toLowerCase().max(254, "Enter a valid email.").pipe(z.email("Enter a valid email.")),
+  email: EmailField,
   password: z.string(),
 });
 
@@ -33,23 +27,7 @@ export async function signUpWithPassword(_state: SignupState, formData: FormData
     const { name, email } = z.flattenError(parsed.error).fieldErrors;
     return { kind: "form", errors: { name: name?.[0], email: email?.[0] } };
   }
-  const { name, email, password } = parsed.data;
-  const checkYourEmail: SignupState = { kind: "checkYourEmail", email };
-
-  const realNow = new Date();
-  const refusal = await countAll(signupCounts(email, await clientIpAddress()), realNow, () => newPasswordProblem(password, email));
-  if (refusal === "overLimit") return checkYourEmail;
-  if (refusal) return { kind: "form", errors: { password: PASSWORD_MESSAGES[refusal] } };
-
-  const method = await signInMethodForEmail(email);
-  if (method === "password") {
-    await sendEmail(youAlreadyHaveAnAccount(email));
-  } else if (method === "google") {
-    await sendEmail(youSignInWithGoogle(email, "signup"));
-  } else {
-    const { token, tokenHash } = newEmailToken();
-    await savePendingSignup({ email, name, passwordHash: await hashPassword(password), tokenHash }, realNow);
-    await sendEmail(verifyYourEmail(email, name, token));
-  }
-  return checkYourEmail;
+  const result = await signUp(parsed.data, { ipAddress: await clientIpAddress(), realNow: new Date() });
+  if (result !== "checkYourEmail") return { kind: "form", errors: { password: PASSWORD_MESSAGES[result] } };
+  return { kind: "checkYourEmail", email: parsed.data.email };
 }

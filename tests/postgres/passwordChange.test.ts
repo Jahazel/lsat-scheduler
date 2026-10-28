@@ -13,7 +13,7 @@ import AccountPage from "../../src/app/account/page";
 import { handlers } from "../../src/auth";
 import { PASSWORD_LOGIN_NOTICES } from "../../src/lib/loginNotice";
 import { deletePasswordAccount, findPasswordAccountById, isAccountId, replacePasswordHash } from "../../src/lib/accountRepository";
-import { proveCurrentPassword } from "../../src/lib/currentPassword";
+import { proveCurrentPassword } from "../../src/lib/passwordAccount";
 
 const COOKIE = "authjs.session-token";
 const MINUTE_MS = 60 * 1000;
@@ -282,7 +282,7 @@ describe("a reset between the password check and the write", () => {
     const id = await passwordStudent();
     if (!isAccountId(id)) throw new Error("The fixture should make an Account ID.");
     const account = await findPasswordAccountById(id);
-    const check = await proveCurrentPassword(account!, OLD_PASSWORD);
+    const check = await proveCurrentPassword(account!, OLD_PASSWORD, { ipAddress: request.ip, realNow: new Date() });
     if (check.kind !== "proven") throw new Error("The old password should match.");
     const resetHash = await hashPassword("a password set by a reset link");
     await database.owner.execute(sql`update accounts set password_hash = ${resetHash} where id = ${id}`);

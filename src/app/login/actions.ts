@@ -1,10 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { signIn } from "@/auth";
+import { LoginRefused, signIn } from "@/auth";
 import { DISABLED_SIGN_IN_PATH, PASSWORD_LOGIN_NOTICES, type LoginNotice } from "@/lib/loginNotice";
 import { PASSWORD_MESSAGES } from "@/lib/passwordRules";
-import { LoginRefused } from "@/lib/passwordSignIn";
 
 export type LoginState = { email: string; notice: LoginNotice | null; passwordError: string | null };
 

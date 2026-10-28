@@ -1,11 +1,11 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getPostgresDatabase } from "./postgres";
-import type { CurrentPasswordProof } from "./currentPassword";
+import type { CurrentPasswordProof } from "./passwordAccount";
 import { accounts, pendingSignups } from "./postgresSchema";
 
 const accountIdSchema = z.guid().brand<"AccountId">();
-type AccountId = z.infer<typeof accountIdSchema>;
+export type AccountId = z.infer<typeof accountIdSchema>;
 
 export function isAccountId(id: string | null | undefined): id is AccountId {
   return accountIdSchema.safeParse(id).success;
@@ -76,6 +76,10 @@ export async function replacePasswordHash(proof: CurrentPasswordProof, newHash: 
 export async function deletePasswordAccount(proof: CurrentPasswordProof) {
   const deleted = await getPostgresDatabase().delete(accounts).where(passwordUnchangedSinceProof(proof)).returning({ id: accounts.id });
   return deleted.length === 1;
+}
+
+export async function deleteGoogleAccount(id: AccountId) {
+  await getPostgresDatabase().delete(accounts).where(and(eq(accounts.id, id), isNotNull(accounts.googleId)));
 }
 
 export async function findAccountByGoogleId(googleId: string) {

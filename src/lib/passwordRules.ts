@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { normalizeEmail } from "./email";
 
 const MIN_PASSWORD_CHARACTERS = 8;
 // bcrypt reads only the first 72 bytes, so a longer password would share its hash with its own prefix.
@@ -28,6 +29,6 @@ export function newPasswordProblem(password: string, email: string): PasswordPro
   if ([...password].length < MIN_PASSWORD_CHARACTERS) return "tooShort";
   if (passwordTooLong(password)) return "tooLong";
   const lowercased = password.toLowerCase();
-  if (lowercased === "drillmap" || lowercased === email.trim().toLowerCase() || isCommon(lowercased)) return "tooCommon";
+  if (lowercased === "drillmap" || lowercased === normalizeEmail(email) || isCommon(lowercased)) return "tooCommon";
   return null;
 }
