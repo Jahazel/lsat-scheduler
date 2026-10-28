@@ -191,7 +191,7 @@ async function extractPassageRows(
             type: "text",
             text: `This is a screenshot of a 7Sage LSAT analytics dashboard. Find the Reading Comprehension passage types: ${rules.rcTypes.join(", ")}. Each row shows an accuracy percentage.
 
-Call ${TOOL_NAME} once. Set showsPassageTypes to true if the screenshot is the Reading Comprehension passage-type page, even when no row shows a percentage. Set it to false for any other page, such as a Logical Reasoning page. Then list one entry per passage-type row that is visible and shows a percentage. The percentage is the "Your accuracy" value. The number on the Review button is a question count, not an accuracy, so leave out a row that shows no accuracy percentage. Do not report Logical Reasoning question types, and do not include rows that aren't visible in the image.`,
+Call ${TOOL_NAME} once. Set showsPassageTypes to true if the screenshot is the Reading Comprehension passage-type page, even when no row shows a percentage. Set it to false for any other page, such as a Logical Reasoning page. Then list one entry per passage-type row that is visible, shows a percentage, and is named exactly as one of the passage types above. 7Sage also lists other passage types, such as Critique or debate, Implied, and Single position. Leave those rows out; never record one under a listed type. The percentage is the "Your accuracy" value. The number on the Review button is a question count, not an accuracy, so leave out a row that shows no accuracy percentage. Do not report Logical Reasoning question types, and do not include rows that aren't visible in the image.`,
           },
         ],
       },
