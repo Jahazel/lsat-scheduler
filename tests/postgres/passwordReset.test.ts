@@ -13,12 +13,11 @@ import ResetPasswordPage from "../../src/app/reset-password/page";
 import { signUpWithPassword } from "../../src/app/signup/actions";
 import { verifyEmail } from "../../src/app/verify-email/actions";
 import { logInWithPassword } from "../../src/app/login/actions";
-import { handlers } from "../../src/auth";
 import { PASSWORD_LOGIN_NOTICES } from "../../src/lib/loginNotice";
 import { accountSessionToken } from "../../src/lib/accountSession";
 import { findPendingSignup } from "../../src/lib/pendingSignupRepository";
-import { resendVerificationLink } from "../../src/lib/verificationResend";
-import { passwordSignInAccount } from "../../src/lib/passwordSignIn";
+import { resendVerificationLink } from "../../src/lib/passwordAccount";
+import { handlers, passwordSignInAccount } from "../../src/auth";
 
 const COOKIE = "authjs.session-token";
 const MINUTE_MS = 60 * 1000;
@@ -371,7 +370,7 @@ describe("reset limits", () => {
     await signUpPat();
     const countsBefore = await ownerRows(sql`select action, count from action_counters where action like 'signup%' order by action`);
 
-    await resendVerificationLink("pat.lee@fastmail.com", request.ip, pending!, new Date());
+    await resendVerificationLink("pat.lee@fastmail.com", pending!, { ipAddress: request.ip, realNow: new Date() });
     expect(fakeEmails()).toHaveLength(2);
     expect(await ownerRows(sql`select action, count from action_counters where action like 'signup%' order by action`)).toEqual(countsBefore);
   });

@@ -23,6 +23,13 @@ export async function savePendingSignup(
     .onConflictDoUpdate({ target: pendingSignups.email, set: replacement });
 }
 
+export async function deleteOldPendingSignups() {
+  const removed = await getPostgresDatabase().execute(
+    sql`delete from ${pendingSignups} where created_at < now() - make_interval(days => ${PENDING_SIGNUP_DAYS})`,
+  );
+  return removed.rowCount ?? 0;
+}
+
 export async function findPendingSignup(email: string, realNow: Date) {
   const [pending] = await getPostgresDatabase()
     .select({ name: pendingSignups.name, passwordHash: pendingSignups.passwordHash })

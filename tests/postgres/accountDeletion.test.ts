@@ -11,6 +11,7 @@ import { ADMIN_RESTRICTED_ACTION_MESSAGE } from "../../src/lib/accessControl";
 const state = vi.hoisted((): { session: Session | null } => ({ session: null }));
 vi.mock("@/auth", () => ({ auth: async () => state.session, signOut: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-vercel-forwarded-for": "203.0.113.1" }) }));
 
 const database = setUpAppTestDatabase();
 beforeEach(async () => {
