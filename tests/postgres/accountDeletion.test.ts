@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
 import type { Session } from "next-auth";
-import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
-import { createAppTestDatabase } from "./appTestDatabase";
-import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { setUpAppTestDatabase } from "./appTestDatabase";
+import { getPostgresDatabase } from "../../src/lib/postgres";
 import { createStudent } from "../../src/lib/studentRepository";
 import type { Student } from "../../src/lib/types";
 import { deleteAccount } from "../../src/app/account/actions";
@@ -12,13 +12,7 @@ const state = vi.hoisted((): { session: Session | null } => ({ session: null }))
 vi.mock("@/auth", () => ({ auth: async () => state.session, signOut: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-let database: Awaited<ReturnType<typeof createAppTestDatabase>>;
-const originalSetting = process.env.DATABASE_URL;
-beforeAll(async () => {
-  await closePostgresDatabase();
-  database = await createAppTestDatabase();
-  process.env.DATABASE_URL = database.setting;
-});
+const database = setUpAppTestDatabase();
 beforeEach(async () => {
   state.session = null;
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -26,11 +20,6 @@ beforeEach(async () => {
   await database.owner.execute(sql`truncate accounts cascade`);
 });
 afterEach(() => vi.useRealTimers());
-afterAll(async () => {
-  await closePostgresDatabase();
-  process.env.DATABASE_URL = originalSetting;
-  await database?.cleanup();
-});
 
 const profile: Student = {
   currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01",
