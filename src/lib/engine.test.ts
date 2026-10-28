@@ -309,11 +309,15 @@ describe("adaptive weekly schedule v3", () => {
     expect(schedule.days.FRIDAY.totalMinutes).toBe(105);
   });
 
-  it("pairs RC passages of two types in lowest-accuracy order, unmeasured types last, and keeps a 1-passage daily minimum", () => {
-    for (const [analytics, order] of [
-      [{ ...mockAnalytics, rcAccuracyByType: rcAccuracy }, ["Law", "Science", "Art", "Humanities", "Comparative"]],
-      [mockAnalytics, mockRules.rcTypes],
-      [{ ...mockAnalytics, rcAccuracyByType: { Comparative: 1, Law: 0.5 } }, ["Law", "Comparative", "Art", "Humanities", "Science"]],
+  it("gives each RC type one passage, lowest accuracy first, then repeats only types with an accuracy", () => {
+    for (const [analytics, firstPass, repeats] of [
+      [{ ...mockAnalytics, rcAccuracyByType: rcAccuracy }, ["Law", "Science", "Art", "Humanities", "Comparative"],
+        ["Law", "Science", "Art", "Humanities", "Comparative"]],
+      [mockAnalytics, mockRules.rcTypes, mockRules.rcTypes],
+      [{ ...mockAnalytics, rcAccuracyByType: { Art: 0.7, Science: 0.5, Comparative: 0.6 } },
+        ["Science", "Comparative", "Art", "Humanities", "Law"], ["Science", "Comparative", "Art"]],
+      [{ ...mockAnalytics, rcAccuracyByType: { Comparative: 1, Law: 0.5 } }, ["Law", "Comparative", "Art", "Humanities", "Science"],
+        ["Law", "Comparative"]],
     ] as const) {
       const schedule = generateWeek({ ...mockStudent, dailyCapacityMinutes: everyDay(90) }, analytics, mockRules, mockStudentName);
       const rcByDay = DAY_ORDER.map((day) => schedule.days[day].activities.filter(isRC));
@@ -324,9 +328,22 @@ describe("adaptive weekly schedule v3", () => {
         if (activity.passages.length === 2) expect(activity.passages[0].type).not.toBe(activity.passages[1].type);
       }
       const types = rcByDay.flat().flatMap((activity) => activity.passages.map((passage) => passage.type));
-      expect(types.length).toBeGreaterThan(5);
-      types.forEach((type, index) => expect(type).toBe(order[index % order.length]));
+      expect(types.length).toBeGreaterThan(firstPass.length + 1);
+      expect(types.slice(0, firstPass.length)).toEqual(firstPass);
+      types.slice(firstPass.length).forEach((type, index) => expect(type).toBe(repeats[index % repeats.length]));
     }
+  });
+
+  it("gives RC passages after the first 5 only to types with an accuracy, in 1- and 2-passage drills", () => {
+    const analytics = { ...mockAnalytics, rcAccuracyByType: { Art: 0.7, Science: 0.5, Comparative: 0.6 } };
+    const schedule = generateWeek({ ...mockStudent, dailyCapacityMinutes: everyDay(210) }, analytics, mockRules,
+      mockStudentName);
+    const rc = DAY_ORDER.flatMap((day) => schedule.days[day].activities.filter(isRC));
+    const types = rc.flatMap((activity) => activity.passages.map((passage) => passage.type));
+    expect(types.length).toBeGreaterThan(10);
+    expect(new Set(types.slice(0, 5))).toEqual(new Set(mockRules.rcTypes));
+    expect(new Set(types.slice(5))).toEqual(new Set(["Science", "Comparative", "Art"]));
+    expect(rc.some((activity) => activity.passages.length === 2)).toBe(true);
   });
 
   it("puts the most-missed stem type first for one week with a week note", () => {

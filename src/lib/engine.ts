@@ -96,6 +96,7 @@ function pairedUnit(order: LRType[], score: number, rules: RulesConfig): LRUnit 
 interface DrillStream {
   lrOrder: LRType[];
   rcOrder: RCType[];
+  rcRepeatOrder: RCType[];
   lrIndex: number;
   rcIndex: number;
   rcComboIndex: number;
@@ -111,7 +112,11 @@ function nextLRUnit(stream: DrillStream, score: number, rules: RulesConfig): LRU
 }
 
 function takeRCPassages(stream: DrillStream, count: 1 | 2, rules: RulesConfig): RCDrill["passages"] {
-  const typeAt = (offset: number) => stream.rcOrder[(stream.rcIndex + offset) % stream.rcOrder.length];
+  const typeAt = (offset: number) => {
+    const index = stream.rcIndex + offset;
+    if (index < stream.rcOrder.length) return stream.rcOrder[index];
+    return stream.rcRepeatOrder[(index - stream.rcOrder.length) % stream.rcRepeatOrder.length];
+  };
   let passages: RCDrill["passages"];
   if (count === 1) {
     passages = [{ type: typeAt(0), difficultyLevel: stream.rcIndex % 4 + 2 }];
@@ -298,7 +303,9 @@ export function generateWeek(
   const fillWith = (rotate: boolean) => {
     const lrOrder = lrTypeOrder(analytics, rules, history, rotate, missedType);
     const paired = pairedUnit(lrOrder, student.currentScore, rules);
-    const stream: DrillStream = { lrOrder, rcOrder: rcTypeOrder(analytics, rules),
+    const rcOrder = rcTypeOrder(analytics, rules);
+    const rcMeasured = rcOrder.filter((type) => analytics.rcAccuracyByType?.[type] !== undefined);
+    const stream: DrillStream = { lrOrder, rcOrder, rcRepeatOrder: rcMeasured.length > 0 ? rcMeasured : rcOrder,
       lrIndex: 0, rcIndex: 0, rcComboIndex: 0, lrQuestions: 0, rcPassages: 0 };
     const plans = {} as Partial<Record<DayOfWeek, DayPlan>>;
     let pairsPlaced = 0;
