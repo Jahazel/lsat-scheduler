@@ -129,6 +129,13 @@ credential is a secret that gives access, such as a password or an API key.
    analytics snapshots for their student side. An Admin reviews and approves
    each Sample analytics snapshot like an uploaded snapshot.
 
+   For a real scan, use the testing key. It is the Anthropic key
+   `drillmap-testing` in the `drillmap-copy` workspace, which has a $5 monthly
+   spend limit. The copy site uses it as its `ANTHROPIC_API_KEY`. On your Mac,
+   keep it in `.env.local` as `ANTHROPIC_TEST_API_KEY`. The app never reads that
+   name, so local runs stay free. Pass it to a scan only on purpose. The owner
+   shares the key through a password manager. Production keeps its own key.
+
    Leave `RESEND_API_KEY` and `EMAIL_FROM` unset. Without them, the app uses
    the fake email sender: it writes each email to the terminal log and sends
    nothing. Email links use `SITE_URL`, or `http://localhost:3000` when it is
