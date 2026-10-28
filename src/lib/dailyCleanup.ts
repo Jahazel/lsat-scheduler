@@ -12,7 +12,12 @@ export function isCronRequestAuthorized(authorization: string | null, secret: st
 
 export async function runDailyCleanup() {
   const db = getPostgresDatabase();
+  const securityLog = await db.execute<{ removed: string }>(sql`select prune_security_log() as removed`);
   const signups = await db.execute(sql`delete from pending_signups where created_at < now() - interval '7 days'`);
   const resets = await db.execute(sql`delete from reset_tokens where expires_at < now()`);
-  return { pendingSignupsRemoved: signups.rowCount ?? 0, resetTokensRemoved: resets.rowCount ?? 0 };
+  return {
+    securityLogRemoved: Number(securityLog.rows[0]?.removed),
+    pendingSignupsRemoved: signups.rowCount ?? 0,
+    resetTokensRemoved: resets.rowCount ?? 0,
+  };
 }

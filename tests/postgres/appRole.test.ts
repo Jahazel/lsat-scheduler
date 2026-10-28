@@ -423,6 +423,44 @@ it("refuses to reuse an existing role that can switch to an administration role"
   }
 });
 
+it("adds security log entries but cannot read, change, or erase them, and prunes only entries older than 90 days", async () => {
+  await ownerDb().execute(sql`truncate security_log`);
+  await appDb().execute(sql`
+    insert into security_log (event, route, error_code, error_type)
+    values ('unexpected_failure', '/api/cron/daily-cleanup', 'abcdef12', 'Error')
+  `);
+  for (const query of [
+    sql`select * from security_log`,
+    sql`update security_log set error_type = 'Changed'`,
+    sql`delete from security_log`,
+    sql`truncate security_log`,
+    sql`insert into security_log (logged_at, event, route, error_code, error_type)
+      values (now() - interval '1 year', 'unexpected_failure', '/', 'abcdef13', 'Error')`,
+  ]) {
+    await expect(appDb().execute(query)).rejects.toMatchObject({ cause: { code: "42501" } });
+  }
+  await ownerDb().execute(sql`
+    insert into security_log (logged_at, event, route, error_code, error_type)
+    values (now() - interval '91 days', 'unexpected_failure', '/', 'abcdef14', 'Error')
+  `);
+  const pruned = await appDb().execute<{ removed: string }>(sql`select prune_security_log() as removed`);
+  expect(Number(pruned.rows[0]?.removed)).toBe(1);
+  const left = await ownerDb().execute<{ error_code: string }>(sql`select error_code from security_log`);
+  expect(left.rows).toEqual([{ error_code: "abcdef12" }]);
+});
+
+it("refuses a security log entry that could hold free text", async () => {
+  for (const [route, code, type] of [
+    ["/api/cron/daily-cleanup", "abcdef123", "Error"],
+    ["/api/cron/daily-cleanup", "abcdef12", "Error: token=abc"],
+    ["https://example.test/api?token=abc", "abcdef12", "Error"],
+  ]) {
+    await expect(appDb().execute(sql`
+      insert into security_log (event, route, error_code, error_type) values ('unexpected_failure', ${route}, ${code}, ${type})
+    `)).rejects.toMatchObject({ cause: { code: "23514" } });
+  }
+});
+
 it("grants no read or write permission on migration bookkeeping or unrelated tables", async () => {
   await ownerDb().execute(sql`create table owner_only_probe (value integer)`);
   try {
