@@ -16,7 +16,7 @@ DrillMap fit is judged against the design system folder `docs/design/design-syst
 - Works when: there are many items, and each item shows the same two or three facts.
 - Tradeoffs: it is plain and gives little visual reward.
 - DrillMap fit: strong. Today's Progress rows already use this shape, so it needs no new component.
-- Owner:
+- Owner: like (accepted the recommendation, 2026-10-28)
 
 ### 1B. One card per week
 - Desktop web: [Vanta audits](https://mobbin.com/screens/289ef10a-361a-4b7b-aabd-2e219e57ef2a) (one card per record, with a progress bar). Ref: `1-vanta-record-cards.png`.
@@ -24,7 +24,7 @@ DrillMap fit is judged against the design system folder `docs/design/design-syst
 - Works when: each item carries a picture or several facts.
 - Tradeoffs: each card is 80 to 120 px tall, and most of it would be empty with only the dates and a done count. 30 weeks become a long scroll.
 - DrillMap fit: medium. Cards can make Progress look like This week. On a 1440 px screen, cards in one column leave wide empty sides; cards in a grid break the newest-first reading order.
-- Owner:
+- Owner: —
 
 ### 1C. Compact calendar-style grid
 - Desktop web: none found for a past-record list.
@@ -32,14 +32,14 @@ DrillMap fit is judged against the design system folder `docs/design/design-syst
 - Works when: the goal is streaks or a habit pattern.
 - Tradeoffs: it invites streak reading, and stats are out of scope. The cells are small to tap. A skipped week looks like a failure, and the brief chose to hide skipped weeks.
 - DrillMap fit: weak.
-- Owner:
+- Owner: —
 
 ### 1D. List beside the open week (split view, desktop only)
 - Desktop web: [Gamma snapshots](https://mobbin.com/screens/ce22f342-a787-4724-ab0a-63cc5b446426), [Wix post history](https://mobbin.com/screens/d5106a4c-ae11-40de-871c-d551c4989dab), [Hume AI generation history](https://mobbin.com/screens/dd296764-8ff1-4f8d-9a8f-86349b84a006), [Plane version history](https://mobbin.com/screens/afc55a5a-4236-4f12-859d-9d38a55bd06d). Refs: `6-gamma-version-list-split.png`, `6-wix-version-list-split.png`, `6-hume-history-split.png`.
 - Works when: the student compares records one after another. A click on the side list swaps the week on the right, so "All weeks", "Older", and "Newer" are not needed on desktop.
 - Tradeoffs: the week plan gets less width, about 1000 px of 1440. A phone cannot show both, so the phone falls back to 1A with a separate week page. That is two layouts to build and test. All four examples are version-history panels, not a main page.
 - DrillMap fit: medium. It is a new layout shape; the design system has no side panel today.
-- Owner:
+- Owner: —
 
 Researcher's view: 1A for the first build. 1D is the strongest desktop-only option, if comparing weeks matters more than simplicity.
 
@@ -51,7 +51,7 @@ Researcher's view: 1A for the first build. 1D is the strongest desktop-only opti
 - Works when: each group is short. A month holds about four weeks, so a heading is always close.
 - Tradeoffs: deep in a long list, the student can lose track of the month.
 - DrillMap fit: strong. It uses the existing caption or small heading styles.
-- Owner:
+- Owner: like (accepted the recommendation, 2026-10-28)
 
 ### 2B. Sticky heading pinned under the nav bar
 - Desktop web: none found in this search.
@@ -59,7 +59,7 @@ Researcher's view: 1A for the first build. 1D is the strongest desktop-only opti
 - Works when: groups are long and the student scrolls far.
 - Tradeoffs: NN/g says a sticky header must earn its space and should be small and opaque ([NN/g, Sticky Headers](https://www.nngroup.com/articles/sticky-headers/)). That article covers page headers, so it applies here only by analogy. On a phone, a sticky nav and a sticky month heading together take a lot of space.
 - DrillMap fit: medium.
-- Owner:
+- Owner: —
 
 ### 2C. Heading with a count on the right
 - Desktop web: [Klarna](https://mobbin.com/screens/cbdef76e-14d6-4f9c-a216-d2faf94003e8) (month total after the heading), [Better Stack](https://mobbin.com/screens/d79fb8b1-ca26-459a-944c-c49768189741) (one boxed card per month, with a month-range pager). Refs: `1-klarna-month-groups.png`, `1-betterstack-month-cards-pager.png`.
@@ -67,7 +67,7 @@ Researcher's view: 1A for the first build. 1D is the strongest desktop-only opti
 - Works when: a month total is useful.
 - Tradeoffs: only a neutral count like "4 weeks" is safe. A done total for the month is a completion stat, and stats are out of scope.
 - DrillMap fit: medium.
-- Owner:
+- Owner: —
 
 Also seen, not recommended: a month tab strip ([Gymshark](https://mobbin.com/screens/71873f8b-4464-4342-b03a-fb6d1c3892ea), `phone/2-gymshark-month-tab.png`) and a year list that opens months ([PayPal](https://mobbin.com/screens/64c0ed49-09e6-4881-a421-04f12f85a542), `phone/2-paypal-statements-year.png`). Both hide weeks behind an extra tap.
 
@@ -81,7 +81,7 @@ Researcher's view: 2A.
 - Works when: one word explains the state.
 - Tradeoffs: a chip is easy to overlook if it is the only signal.
 - DrillMap fit: strong. It reuses the system's pill and caption styles.
-- Owner:
+- Owner: like (accepted the recommendation, 2026-10-28)
 
 ### 3B. Calmer page with no check-off controls
 - Desktop web: [Pipedrive](https://mobbin.com/screens/08bd1ad3-b515-4a42-8c75-300425eb65ea) (the add-activity area says "Can't add activities to an archived deal").
@@ -89,7 +89,7 @@ Researcher's view: 2A.
 - Works when: the page has no actions, so having no controls says "read only".
 - Tradeoffs: if the ticks get too faint, the week looks disabled instead of done. Keep full tick contrast.
 - DrillMap fit: medium to strong. `07-this-week-patterns` already defines this rule for past weeks.
-- Owner:
+- Owner: like (accepted the recommendation, 2026-10-28)
 
 ### 3C. A banner above the plan
 - Desktop web: [Mistral](https://mobbin.com/screens/e3ea7439-9dac-441f-95a9-25a7f03aebd3) ("You are currently looking at an earlier version"), [Pipedrive](https://mobbin.com/screens/08bd1ad3-b515-4a42-8c75-300425eb65ea) ("You can't edit details of an archived deal"). Both banners offer an action: Restore or Unarchive. DrillMap has no such action. Refs: `3-mistral-earlier-version-banner.png`, `3-pipedrive-archived-banner.png`.
@@ -97,7 +97,7 @@ Researcher's view: 2A.
 - Works when: the student might try to act and needs a warning.
 - Tradeoffs: it costs about 48 px and repeats the header. DrillMap's notice strip means "action needed", so using it here blurs that meaning.
 - DrillMap fit: medium.
-- Owner:
+- Owner: —
 
 Researcher's view: 3A, plus the no-controls rule from 3B.
 
@@ -109,7 +109,7 @@ Researcher's view: 3A, plus the no-controls rule from 3B.
 - Works when: the student moves between items of the same kind.
 - Tradeoffs: bare arrows are unclear, because the list runs newest first. Text labels fix this. On a phone, each link needs a 44 px tap height.
 - DrillMap fit: strong.
-- Owner:
+- Owner: like (accepted the recommendation, 2026-10-28)
 
 ### 4B. The same pair repeated at the end of the plan
 - Desktop web: none found.
@@ -117,7 +117,7 @@ Researcher's view: 3A, plus the no-controls rule from 3B.
 - Works when: the page is long and the student reads to the bottom. A full week on a phone is long.
 - Tradeoffs: the links show twice. No Mobbin example shows this on a past-record page, so its fit there is unverified.
 - DrillMap fit: strong, as plain links above the footer.
-- Owner:
+- Owner: like (accepted the recommendation, 2026-10-28)
 
 ### 4C. Swipe between weeks on a phone, with the links kept
 - Desktop web: not applicable; desktop has no swipe.
@@ -125,7 +125,7 @@ Researcher's view: 3A, plus the no-controls rule from 3B.
 - Works when: students flip through many weeks in a row.
 - Tradeoffs: a gesture alone is hard to discover, so the links must stay. The helper found no NN/g page on this. Its sources are secondary ([LogRocket](https://blog.logrocket.com/?p=200171)). A sideways swipe can clash with the iOS back swipe, and it needs a clear stop at the oldest week.
 - DrillMap fit: medium.
-- Owner:
+- Owner: —
 
 Researcher's view: 4A on both sizes, with 4B at the end. Leave swipe out of the first build.
 
@@ -137,21 +137,21 @@ Researcher's view: 4A on both sizes, with 4B at the end. Leave swipe out of the 
 - Works when: the move is to a different kind of page.
 - Tradeoffs: it gives no sense of direction.
 - DrillMap fit: strong. It is close to the reduced-motion path, so there is less to test.
-- Owner:
+- Owner: like (accepted the recommendation, 2026-10-28)
 
 ### 5B. Shared axis for Older and Newer
 - Material: "used for transitions between UI elements that have a spatial or navigational relationship… a shared transformation on the x, y, or z axis" (same source). Older and newer weeks are peers on a time axis.
 - Works when: the student steps between items of the same kind.
 - Tradeoffs: the slide direction must match the link side ("← Older" slides one way, "Newer →" the other). Apple: motion that "doesn't make sense can make them feel disoriented" ([Apple HIG, Motion](https://developer.apple.com/design/human-interface-guidelines/motion)).
 - DrillMap fit: medium. Keep the slide small, about 8 px, like the existing 8 px rise.
-- Owner:
+- Owner: like (accepted the recommendation, 2026-10-28)
 
 ### 5C. Container transform: the row grows into the page
 - Material: "designed for transitions between UI elements that include a container… creates a visible connection between two UI elements" (same source).
 - Works when: a card opens into its own detail.
 - Tradeoffs: a slim row and a seven-day page share almost nothing to grow between. DrillMap has no scale or morph motion today.
 - DrillMap fit: weak.
-- Owner:
+- Owner: —
 
 Researcher's view: 5A for list to week and back. A small 5B slide for Older and Newer only.
 
