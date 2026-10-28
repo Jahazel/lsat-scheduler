@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { summarizeApprovedRows } from "./analyticsSnapshots";
 import { DAY_ORDER, generateWeek } from "./engine";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "./mockData";
 import type { Activity, DayOfWeek, LRDrill, RCDrill, WeeklySchedule } from "./types";
@@ -167,6 +168,19 @@ describe("daily capacity filler", () => {
       expect(activity.questionCount).toBe(10);
       expect(arePairedTypes(activity.types[0], activity.types[1] ?? "")).toBe(true);
     }
+  });
+
+  it("drills a type 7Sage marks High as top priority, like Highest", () => {
+    const { lrTopPriorityLogicTypes } = summarizeApprovedRows([
+      { type: "Sampling", category: "restricted", priorityTier: "high", isTopPriority: true },
+      { type: "Causal reasoning", category: "restricted", priorityTier: "medium", isTopPriority: false },
+    ]);
+    const schedule = generateWeek({ ...mockStudent, dailyCapacityMinutes: everyDay(1200) },
+      { ...mockAnalytics, lrTopPriorityLogicTypes }, mockRules, mockStudentName);
+    const drilled = drills(schedule).filter(isLR).flatMap((activity) => activity.types);
+
+    expect(drilled).toContain("Sampling");
+    expect(drilled).not.toContain("Causal reasoning");
   });
 
   it("uses L2-4 for a type's first drill below the cutoff and L3-5 after that", () => {

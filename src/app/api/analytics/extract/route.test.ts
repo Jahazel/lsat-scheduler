@@ -200,6 +200,7 @@ describe("POST /api/analytics/extract", () => {
           rows: [
             { type: "Strengthen", accuracy: 72 },
             { type: "Causal reasoning", priority: "HIGHEST" },
+            { type: "Sampling", priority: "HIGH" },
             { type: "Link assumption", priority: "MEDIUM" },
             { type: "Phenomenon-hypothesis (LR)", priority: "LOW" },
             { type: "Conditional reasoning", accuracy: 85 },
@@ -218,6 +219,7 @@ describe("POST /api/analytics/extract", () => {
       rows: [
         { type: "Strengthen", category: "regular", accuracy: 72 },
         { type: "Causal reasoning", category: "restricted", isTopPriority: true, priorityTier: "highest" },
+        { type: "Sampling", category: "restricted", isTopPriority: true, priorityTier: "high" },
         { type: "Link assumption", category: "restricted", isTopPriority: false, priorityTier: "medium" },
         { type: "Phenomenon-hypothesis (LR)", category: "restricted", isTopPriority: false, priorityTier: "low" },
         { type: "Conditional reasoning", category: "regular", accuracy: 85 },

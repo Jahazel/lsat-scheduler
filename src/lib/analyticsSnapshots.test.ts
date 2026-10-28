@@ -127,6 +127,14 @@ describe("summarizeApprovedRows", () => {
     expect(() => summarizeApprovedRows([...rows, row])).toThrow(new SnapshotApprovalError(message));
   });
 
+  it("accepts every 7Sage tier, and refuses an unknown one", () => {
+    for (const priorityTier of ["highest", "high", "medium", "low"]) {
+      expect(() => summarizeApprovedRows([...rows, { type: "Sampling", category: "restricted", priorityTier }])).not.toThrow();
+    }
+    expect(() => summarizeApprovedRows([...rows, { type: "Sampling", category: "restricted", priorityTier: "top" }]))
+      .toThrow("Confirm that the reviewed extraction matches your latest analytics.");
+  });
+
   it("refuses a row whose accuracy is not a number", () => {
     expect(() => summarizeApprovedRows([{ type: "Strengthen", category: "regular", accuracy: "70" }]))
       .toThrow("Confirm that the reviewed extraction matches your latest analytics.");

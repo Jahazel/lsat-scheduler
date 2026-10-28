@@ -2,7 +2,7 @@ import { dateInScheduleTimezone, type StudentClock } from "./adminTestWorkspace"
 import { z } from "zod";
 import { summarizeAnalyticsRows } from "./analytics";
 import { mockRules } from "./mockData";
-import type { AnalyticsExtractedRow, LRLogicType, RCType } from "@/lib/types";
+import { PRIORITY_TIERS, type AnalyticsExtractedRow, type LRLogicType, type RCType } from "@/lib/types";
 
 const MAX_EXTRACTION_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -68,6 +68,7 @@ const ReviewedRowsSchema = z.array(z.looseObject({
   category: z.enum(["regular", "restricted", "passage"]),
   accuracy: z.number().optional(),
   isTopPriority: z.boolean().optional(),
+  priorityTier: z.enum(PRIORITY_TIERS).optional(),
 }));
 
 export function summarizeApprovedRows(rows: unknown) {

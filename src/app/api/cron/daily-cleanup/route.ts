@@ -1,6 +1,6 @@
-import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { isCronRequestAuthorized, runDailyCleanup } from "@/lib/dailyCleanup";
+import { recordUnexpectedFailure } from "@/lib/securityLog";
 
 // Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` on each daily run.
 export async function GET(request: NextRequest) {
@@ -10,8 +10,6 @@ export async function GET(request: NextRequest) {
   try {
     return NextResponse.json(await runDailyCleanup());
   } catch (error) {
-    const code = randomUUID().slice(0, 8);
-    console.error(`Daily cleanup failed (${code}): ${error instanceof Error ? error.name : "unknown error"}`);
-    return NextResponse.json({ error: "Something went wrong. Try again.", code }, { status: 500 });
+    return NextResponse.json(await recordUnexpectedFailure("/api/cron/daily-cleanup", error), { status: 500 });
   }
 }

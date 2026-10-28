@@ -70,13 +70,26 @@ describe("typed analytics", () => {
     expect(accuracyMessage(draft, "Sufficient assumption")).toBe("Type the percentage, or remove this row.");
   });
 
-  it("needs a percentage or a Highest tier, like the server", () => {
+  it("counts a High tier as top priority, like Highest", () => {
+    const draft = apply(
+      startTypedDraft(startedAt),
+      { type: "addType", rowType: "Sampling" },
+      { type: "setTier", rowType: "Sampling", tier: "high" },
+      ...confirmBoth,
+    );
+
+    expect(confirmLock(draft.review)).toBeNull();
+    expect(reviewedRows(draft.review)).toContainEqual(
+      { type: "Sampling", category: "restricted", priorityTier: "high", isTopPriority: true });
+  });
+
+  it("needs a percentage or a Highest or High tier, like the server", () => {
     const draft = apply(
       startTypedDraft(startedAt),
       { type: "addType", rowType: "Link assumption" },
       { type: "setTier", rowType: "Link assumption", tier: "medium" },
     );
 
-    expect(confirmLock(draft.review)?.reason).toBe("Add a percentage or a Highest tier to confirm.");
+    expect(confirmLock(draft.review)?.reason).toBe("Add a percentage or a Highest or High tier to confirm.");
   });
 });

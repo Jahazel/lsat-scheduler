@@ -505,6 +505,21 @@ describe("OnboardingWizard", () => {
     const confirmButton = () => screen.getByRole("button", { name: "Confirm snapshot" });
     const statements = ["I reviewed these values and they match my screenshots.", "These screenshots show my latest 7Sage analytics."];
 
+    it("shows a scanned High row as top priority on Step 3 and ticked on Step 4", async () => {
+      const highRead: ExtractReply = {
+        kind: "rows",
+        rows: [{ type: "Sampling", category: "restricted", isTopPriority: true, priorityTier: "high" }],
+      };
+      const steps = await fillGoalAndWeek(undefined, bySection(highRead));
+      await upload(steps.user);
+      await upload(steps.user, rcScreenshot, "RC");
+      expect(await screen.findByText("High priority")).toBeDefined();
+
+      await steps.user.click(await screen.findByRole("button", { name: "Check the values" }));
+      expect((screen.getByLabelText("Sampling") as HTMLInputElement).checked).toBe(true);
+      expect(screen.getByText("High on 7Sage")).toBeDefined();
+    });
+
     it("walks Goal → Week → Analytics → Review → Confirm and sends the edited values and ticked flags", async () => {
       const { user, onSave } = await openReview();
 
@@ -825,7 +840,7 @@ describe("OnboardingWizard · Type them", () => {
     await user.type(box("Diagram"), "64");
     await addType(user, "Causal reasoning");
     expect(continueButton().disabled).toBe(true);
-    await user.click(within(screen.getByRole("radiogroup", { name: "Causal reasoning tier" })).getByLabelText("Highest"));
+    await user.click(within(screen.getByRole("radiogroup", { name: "Causal reasoning tier" })).getByLabelText("High"));
     await user.type(box("Law"), "58");
     await user.click(continueButton());
 
@@ -847,7 +862,7 @@ describe("OnboardingWizard · Type them", () => {
         { type: "Humanities", category: "passage" },
         { type: "Art", category: "passage" },
         { type: "Diagram", category: "regular", accuracy: 64 },
-        { type: "Causal reasoning", category: "restricted", priorityTier: "highest", isTopPriority: true },
+        { type: "Causal reasoning", category: "restricted", priorityTier: "high", isTopPriority: true },
       ],
       analyticsApproval: {
         extraction: { source: "manual_entry", extractedAt: expect.any(String) },

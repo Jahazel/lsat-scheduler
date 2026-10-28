@@ -239,8 +239,9 @@ See [Postgres ALTER ROLE](https://www.postgresql.org/docs/17/sql-alterrole.html)
 Follow [the release checklist](../security/release-gate.md). No check below is passed
 merely because this document exists.
 
-- [ ] Keep automatic custom production domain assignment off. Prove a new build
-  does not move the real domain on the copy rehearsal and in real-project settings.
+- [ ] Keep automatic custom production domain assignment off on the real project.
+  Prove in the real project's settings that a new build does not move the real domain.
+  The copy project switches by itself after its copy migration passes (#318).
 - [ ] Assemble the exact commit and deployment ID, green required checks, hosted
   copy results, fresh inventory, role/identity proof, production backup proof,
   provider access evidence, exact direct and pooled production-host refusal results
