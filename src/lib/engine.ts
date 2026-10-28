@@ -1,5 +1,5 @@
 import type {
-  Activity, AnalyticsSnapshot, DayOfWeek, DayPlan, LRActivity, LRDrill, LRStemType, LRType,
+  Activity, AnalyticsSnapshot, DayOfWeek, DayPlan, LRActivity, LRDrill, LRStemType, LRType, PlanningAnalytics,
   RCActivity, RCDrill, RCType, RulesConfig, ScheduleReason, Student, WeeklySchedule,
 } from "./types";
 import {
@@ -75,12 +75,15 @@ function lrTypeOrder(analytics: AnalyticsSnapshot, rules: RulesConfig, history: 
   return missedType ? [missedType, ...order.filter((type) => type !== missedType)] : order;
 }
 
-function rcTypeOrder(analytics: AnalyticsSnapshot, rules: RulesConfig): RCType[] {
+function rcPassageOrder(analytics: PlanningAnalytics, rules: RulesConfig): { first: RCType[]; repeat: RCType[] } {
   const accuracy = analytics.rcAccuracyByType ?? {};
-  return [...rules.rcTypes].sort((a, b) =>
+  const first = [...rules.rcTypes].sort((a, b) =>
     Number(accuracy[a] === undefined) - Number(accuracy[b] === undefined)
     || (accuracy[a] ?? 0) - (accuracy[b] ?? 0)
     || rules.rcTypes.indexOf(a) - rules.rcTypes.indexOf(b));
+  const shown = analytics.rcTypesInNewestSnapshot ?? Object.keys(accuracy);
+  const repeat = first.filter((type) => shown.includes(type));
+  return { first, repeat: repeat.length > 0 ? repeat : first };
 }
 
 type LRUnit = Pick<LRDrill, "types" | "questionCount" | "difficultyRange">;
@@ -207,7 +210,7 @@ function fullSectionActivity(subject: "LR" | "RC", rules: RulesConfig, timeMult:
 
 export function generateWeek(
   student: Student,
-  analytics: AnalyticsSnapshot,
+  analytics: PlanningAnalytics,
   rules: RulesConfig,
   studentName: string,
   options: WeekShapeOptions = {}
@@ -303,9 +306,8 @@ export function generateWeek(
   const fillWith = (rotate: boolean) => {
     const lrOrder = lrTypeOrder(analytics, rules, history, rotate, missedType);
     const paired = pairedUnit(lrOrder, student.currentScore, rules);
-    const rcOrder = rcTypeOrder(analytics, rules);
-    const rcMeasured = rcOrder.filter((type) => analytics.rcAccuracyByType?.[type] !== undefined);
-    const stream: DrillStream = { lrOrder, rcOrder, rcRepeatOrder: rcMeasured.length > 0 ? rcMeasured : rcOrder,
+    const { first: rcOrder, repeat: rcRepeatOrder } = rcPassageOrder(analytics, rules);
+    const stream: DrillStream = { lrOrder, rcOrder, rcRepeatOrder,
       lrIndex: 0, rcIndex: 0, rcComboIndex: 0, lrQuestions: 0, rcPassages: 0 };
     const plans = {} as Partial<Record<DayOfWeek, DayPlan>>;
     let pairsPlaced = 0;

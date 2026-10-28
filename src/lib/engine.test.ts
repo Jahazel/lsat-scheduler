@@ -340,9 +340,8 @@ describe("adaptive weekly schedule v3", () => {
       mockStudentName);
     const rc = DAY_ORDER.flatMap((day) => schedule.days[day].activities.filter(isRC));
     const types = rc.flatMap((activity) => activity.passages.map((passage) => passage.type));
-    expect(types.length).toBeGreaterThan(10);
-    expect(new Set(types.slice(0, 5))).toEqual(new Set(mockRules.rcTypes));
-    expect(new Set(types.slice(5))).toEqual(new Set(["Science", "Comparative", "Art"]));
+    expect(types.slice(0, 14)).toEqual(["Science", "Comparative", "Art", "Humanities", "Law",
+      "Science", "Comparative", "Art", "Science", "Comparative", "Art", "Science", "Comparative", "Art"]);
     expect(rc.some((activity) => activity.passages.length === 2)).toBe(true);
   });
 

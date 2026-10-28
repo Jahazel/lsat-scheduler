@@ -3,10 +3,13 @@ import type { ApprovedPracticeTestResult } from "./practiceTestResult";
 import { isoDateInWeek, unscheduledDaySentence } from "./scheduleReasonText";
 import type {
   AnalyticsSnapshot,
+  AnalyticsTrend,
   Activity,
   ApprovedAnalyticsSnapshot,
   DayOfWeek,
   PersistedWeeklySchedule,
+  PlanningAnalytics,
+  RCType,
   RulesConfig,
   Student,
   WeeklySchedule,
@@ -147,11 +150,11 @@ function weightedAccuracy<Type extends string>(maps: (Partial<Record<Type, numbe
   return trend;
 }
 
-export function analyticsTrend(snapshots: ApprovedAnalyticsSnapshot[], weekOf: string): AnalyticsSnapshot {
+export function analyticsTrend(snapshots: ApprovedAnalyticsSnapshot[], weekOf: string): AnalyticsTrend {
   return weightedTrend(newestApprovedSnapshots(snapshots), weekOf);
 }
 
-export function weightedTrend(newestFirst: Omit<AnalyticsSnapshot, "weekOf">[], weekOf: string): AnalyticsSnapshot {
+export function weightedTrend(newestFirst: Omit<AnalyticsSnapshot, "weekOf">[], weekOf: string): AnalyticsTrend {
   const window = newestFirst.slice(0, TREND_WEIGHTS.length);
   const rcAccuracyByType = weightedAccuracy(window.map((snapshot) => snapshot.rcAccuracyByType));
   return {
@@ -159,12 +162,13 @@ export function weightedTrend(newestFirst: Omit<AnalyticsSnapshot, "weekOf">[], 
     lrAccuracyByType: weightedAccuracy(window.map((snapshot) => snapshot.lrAccuracyByType)),
     lrTopPriorityLogicTypes: window[0].lrTopPriorityLogicTypes,
     ...(Object.keys(rcAccuracyByType).length > 0 && { rcAccuracyByType }),
+    rcTypesInNewestSnapshot: Object.keys(window[0].rcAccuracyByType ?? {}) as RCType[],
   };
 }
 
 export function generateRemainingWeek(
   student: Student,
-  analytics: AnalyticsSnapshot,
+  analytics: PlanningAnalytics,
   rules: RulesConfig,
   studentName: string,
   options: WeekShapeOptions & { createdOn: DayOfWeek },
