@@ -43,6 +43,10 @@ The copy follows `main`. Nobody needs to act.
    same commit (Vercel Deployment Checks). When it passes, Vercel switches the copy site to the
    new build. If it fails, the copy site keeps its old build.
 
+Copy jobs run one at a time. When several merges land close together, GitHub cancels the older
+waiting copy job, and the copy site skips to the newest build. A production run waiting for
+approval does not hold up copy jobs.
+
 If the copy site did not change after a merge, open the run in **Actions > Release migrations**
 and read the copy job's last line (see [What the workflow refuses](#what-the-workflow-refuses)).
 

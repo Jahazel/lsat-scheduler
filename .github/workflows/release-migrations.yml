@@ -13,13 +13,12 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: release-migrations
-  cancel-in-progress: false
-
 jobs:
   copy:
     name: Apply migrations to the copy
+    concurrency:
+      group: release-migrations-copy
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: migrations-copy
@@ -42,6 +41,9 @@ jobs:
     name: Apply migrations to production
     needs: copy
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && !inputs.copy_only
+    concurrency:
+      group: release-migrations-production
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: migrations-production
