@@ -105,6 +105,12 @@ export interface AnalyticsSnapshot {
   rcAccuracyByType?: Partial<Record<RCType, number>>;
 }
 
+export interface AnalyticsTrend extends AnalyticsSnapshot {
+  rcTypesInNewestSnapshot: RCType[];
+}
+
+export type PlanningAnalytics = AnalyticsSnapshot & Partial<Pick<AnalyticsTrend, "rcTypesInNewestSnapshot">>;
+
 // A persisted Analytics Snapshot, as returned by the API — adds the
 // database id and which student it belongs to.
 export interface AnalyticsSnapshotRecord extends AnalyticsSnapshot {
@@ -297,7 +303,7 @@ export interface PersistedWeeklySchedule {
     student: Student;
     timezone: string;
     remainingDays: DayOfWeek[];
-    analytics: AnalyticsSnapshot;
+    analytics: PlanningAnalytics;
     // Saved v1 and v2 schedules only: v3 has no skip reduction.
     priorWeekProgress?: PriorWeekProgressFacts;
     priorWeekPracticeTestReviewMinutes?: number;

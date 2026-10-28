@@ -1,5 +1,5 @@
 import type {
-  Activity, AnalyticsSnapshot, DayOfWeek, DayPlan, LRActivity, LRDrill, LRStemType, LRType,
+  Activity, AnalyticsSnapshot, DayOfWeek, DayPlan, LRActivity, LRDrill, LRStemType, LRType, PlanningAnalytics,
   RCActivity, RCDrill, RCType, RulesConfig, ScheduleReason, Student, WeeklySchedule,
 } from "./types";
 import {
@@ -75,12 +75,15 @@ function lrTypeOrder(analytics: AnalyticsSnapshot, rules: RulesConfig, history: 
   return missedType ? [missedType, ...order.filter((type) => type !== missedType)] : order;
 }
 
-function rcTypeOrder(analytics: AnalyticsSnapshot, rules: RulesConfig): RCType[] {
+function rcPassageOrder(analytics: PlanningAnalytics, rules: RulesConfig): { first: RCType[]; repeat: RCType[] } {
   const accuracy = analytics.rcAccuracyByType ?? {};
-  return [...rules.rcTypes].sort((a, b) =>
+  const first = [...rules.rcTypes].sort((a, b) =>
     Number(accuracy[a] === undefined) - Number(accuracy[b] === undefined)
     || (accuracy[a] ?? 0) - (accuracy[b] ?? 0)
     || rules.rcTypes.indexOf(a) - rules.rcTypes.indexOf(b));
+  const shown = analytics.rcTypesInNewestSnapshot ?? Object.keys(accuracy);
+  const repeat = first.filter((type) => shown.includes(type));
+  return { first, repeat: repeat.length > 0 ? repeat : first };
 }
 
 type LRUnit = Pick<LRDrill, "types" | "questionCount" | "difficultyRange">;
@@ -96,6 +99,7 @@ function pairedUnit(order: LRType[], score: number, rules: RulesConfig): LRUnit 
 interface DrillStream {
   lrOrder: LRType[];
   rcOrder: RCType[];
+  rcRepeatOrder: RCType[];
   lrIndex: number;
   rcIndex: number;
   rcComboIndex: number;
@@ -111,7 +115,11 @@ function nextLRUnit(stream: DrillStream, score: number, rules: RulesConfig): LRU
 }
 
 function takeRCPassages(stream: DrillStream, count: 1 | 2, rules: RulesConfig): RCDrill["passages"] {
-  const typeAt = (offset: number) => stream.rcOrder[(stream.rcIndex + offset) % stream.rcOrder.length];
+  const typeAt = (offset: number) => {
+    const index = stream.rcIndex + offset;
+    if (index < stream.rcOrder.length) return stream.rcOrder[index];
+    return stream.rcRepeatOrder[(index - stream.rcOrder.length) % stream.rcRepeatOrder.length];
+  };
   let passages: RCDrill["passages"];
   if (count === 1) {
     passages = [{ type: typeAt(0), difficultyLevel: stream.rcIndex % 4 + 2 }];
@@ -202,7 +210,7 @@ function fullSectionActivity(subject: "LR" | "RC", rules: RulesConfig, timeMult:
 
 export function generateWeek(
   student: Student,
-  analytics: AnalyticsSnapshot,
+  analytics: PlanningAnalytics,
   rules: RulesConfig,
   studentName: string,
   options: WeekShapeOptions = {}
@@ -298,7 +306,8 @@ export function generateWeek(
   const fillWith = (rotate: boolean) => {
     const lrOrder = lrTypeOrder(analytics, rules, history, rotate, missedType);
     const paired = pairedUnit(lrOrder, student.currentScore, rules);
-    const stream: DrillStream = { lrOrder, rcOrder: rcTypeOrder(analytics, rules),
+    const { first: rcOrder, repeat: rcRepeatOrder } = rcPassageOrder(analytics, rules);
+    const stream: DrillStream = { lrOrder, rcOrder, rcRepeatOrder,
       lrIndex: 0, rcIndex: 0, rcComboIndex: 0, lrQuestions: 0, rcPassages: 0 };
     const plans = {} as Partial<Record<DayOfWeek, DayPlan>>;
     let pairsPlaced = 0;

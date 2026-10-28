@@ -8,9 +8,9 @@ import {
   weeklyUploadIsOpen,
 } from "./currentWeeklySchedule";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "./mockData";
-import { generateWeek } from "./engine";
+import { DAY_ORDER, generateWeek } from "./engine";
 import type { ApprovedPracticeTestResult } from "./practiceTestResult";
-import type { ApprovedAnalyticsSnapshot, PersistedWeeklySchedule } from "./types";
+import type { AnalyticsSnapshot, ApprovedAnalyticsSnapshot, DayOfWeek, PersistedWeeklySchedule } from "./types";
 
 const monday = new Date("2026-09-14T14:00:00.000Z");
 
@@ -184,6 +184,30 @@ describe("loadOrGenerateCurrentWeek", () => {
     expect(trend.rcAccuracyByType?.Law).toBeCloseTo(0.6, 5);
     expect(trend.rcAccuracyByType?.Art).toBeCloseTo(0.5, 5);
     expect(analyticsTrend([oldest], "2026-09-14").rcAccuracyByType).toBeUndefined();
+  });
+
+  it("gives RC passages after the first 5 only to passage types in the newest snapshot", () => {
+    const rcTypesFrom = (trend: AnalyticsSnapshot) => {
+      const student = { ...mockStudent,
+        dailyCapacityMinutes: Object.fromEntries(DAY_ORDER.map((day) => [day, 210])) as Record<DayOfWeek, number> };
+      const schedule = generateWeek(student, trend, mockRules, mockStudentName);
+      return DAY_ORDER.flatMap((day) => schedule.days[day].activities)
+        .flatMap((activity) => activity.kind === "RC" && !activity.isFullSection ? activity.passages : [])
+        .map((passage) => passage.type);
+    };
+    const newest = approvedSnapshot("newest", "2026-09-14T13:00:00.000Z");
+    newest.rcAccuracyByType = { Science: 0.5, Comparative: 0.6, Art: 0.7 };
+    const previous = approvedSnapshot("previous", "2026-09-14T12:00:00.000Z");
+    previous.rcAccuracyByType = { Law: 0.3, Humanities: 0.4 };
+
+    expect(rcTypesFrom(analyticsTrend([newest, previous], "2026-09-14")).slice(0, 11)).toEqual([
+      "Law", "Humanities", "Science", "Comparative", "Art",
+      "Science", "Comparative", "Art", "Science", "Comparative", "Art"]);
+
+    const newestWithoutRC = approvedSnapshot("newest", "2026-09-14T13:00:00.000Z");
+    expect(rcTypesFrom(analyticsTrend([newestWithoutRC, previous], "2026-09-14")).slice(0, 10)).toEqual([
+      "Law", "Humanities", "Art", "Science", "Comparative",
+      "Law", "Humanities", "Art", "Science", "Comparative"]);
   });
 
   it("orders an unsorted repository result by approval time before weighting and saving source references", async () => {
