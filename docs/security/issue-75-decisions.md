@@ -10,6 +10,8 @@ Decisions for [issue 75](https://github.com/Jahazel/lsat-scheduler/issues/75), u
 - **"Forgot password" for a pending signup sends a new verification link.** That email counts against the signup limits and shares their counters (rules 8 and 10). The request also counts against the reset limits (rule 15).
 - **A refused send changes nothing on screen.** If Resend refuses an email, for example at the free plan's 100-a-day cap, the screen stays the same and the app logs the failure.
 
+**Update, October 27, 2026:** The owner removed the unused lead form, its server action, and the lead capture limit ([issue 303](https://github.com/Jahazel/lsat-scheduler/issues/303)). No page had used the form since commit `96ca5d2`, so the limit had no request on the deployed site. Rules 17 to 19 no longer apply, and the launch checklist no longer tests them. The `leads` table and its data stay, unused, until the owner decides on that data separately.
+
 **Status: decided.** These are rules for later work. None of them is built yet. The checks in [release-gate.md](release-gate.md#c-abuse-limits-and-spending) still fail until the code passes them.
 
 The evidence comes from issue 70 findings F05, F07, F08, and F09. The $10 monthly extraction limit and the manual entry fallback come from [issue 72](issue-72-decisions.md). The signup, verification, and reset flows that these limits protect come from [issue 74](issue-74-decisions.md).
@@ -71,6 +73,8 @@ The evidence comes from issue 70 findings F05, F07, F08, and F09. The $10 monthl
 16. Over a limit, the reset screen still shows the same message, as issue 74 rule 17 requires. No email goes out.
 
 ### Lead capture
+
+Removed on [issue 303](https://github.com/Jahazel/lsat-scheduler/issues/303). Rules 17 to 19 keep their original text below.
 
 17. The Lead collection stores each email one time, with a unique index.
 18. A repeat email gets the normal success message and writes nothing.
@@ -185,7 +189,7 @@ The owner made each decision in the issue 75 discussion.
 | Where counters live | The main database, behind one module. They move if the database changes. |
 | Signup limits | As in rules 8 to 11. |
 | Login and reset limits | As in rules 12 to 16. |
-| Lead capture | One record for each email, and 5 submissions in 1 hour for each IP address. |
+| Lead capture | One record for each email, and 5 submissions in 1 hour for each IP address. Removed with the form on [issue 303](https://github.com/Jahazel/lsat-scheduler/issues/303). |
 | Analytics snapshot saves | 5 in 1 day for each student. |
 | Upload files | As in rules 22 to 28. |
 | Extraction limit for each student | 5 in 1 day and 20 in 1 month. Admins have the same limit. Replaced by [issue 245](https://github.com/Jahazel/lsat-scheduler/issues/245): 10 in 1 day and 40 in 1 month. |
