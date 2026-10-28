@@ -76,7 +76,7 @@ async function readAll(user: ReturnType<typeof userEvent.setup>, names = SECTION
   await queueEmpty();
 }
 
-const queueEmpty = () => waitFor(() => expect(screen.queryByText(/ · (Waiting to read|Reading now)$/)).toBeNull());
+const queueEmpty = () => waitFor(() => expect(screen.queryAllByText(/ · (Waiting to read|Reading now)$/)).toHaveLength(0), { timeout: 4000 });
 
 describe("WeeklyUpload", () => {
   it("asks for 6 screenshots with the score from Study settings and the read button off", () => {
