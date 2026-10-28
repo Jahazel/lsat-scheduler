@@ -85,3 +85,31 @@ Impeccable motion review, 2026-10-28 (two isolated reviewers):
 - Detector: two findings, both false positives. The Geist font is the design-system font. The cramped padding is on the prototype's control bar, not on Progress.
 
 Change from the boards: week rows and titles always use the week's Monday to Sunday dates. The board's first-week row read "Sep 9 – 13"; the prototype reads "Sep 7 – 13". Step 5 checks this against the live app.
+
+## State boards
+The owner approved the prototype's flow and motion on 2026-10-28. Every state is in Paper on the Explorations page, under "Progress · D3 states", at desktop 1440, tablet 768, and phone 390. Exports are in `states/`, one image per state with the three sizes side by side. The motion rows are in `motion.md`.
+
+| Brief state or data case | Board |
+| --- | --- |
+| List · empty | `states/list-empty.png` |
+| List · weeks | `states/list-6-weeks.png` (approved), `states/list-20-weeks.png` |
+| List · loading, Past week · loading | `states/loading-list-and-past-week.png`, the app's shared loading skeleton |
+| Past week · middle | `states/past-week-middle.png` (approved) |
+| Past week · newest | `states/past-week-newest.png` |
+| Past week · oldest | `states/past-week-oldest-started-thursday.png` |
+| Past week · only one | `states/past-week-only-one-all-done.png`, with `states/list-one-week.png` |
+| One past week | `states/list-one-week.png` |
+| Many weeks, month headings repeat | `states/list-20-weeks.png` (20 weeks, June to October) |
+| A week that crosses two months | Sep 28 – Oct 4 under September, and Aug 31 – Sep 6 under August |
+| A skipped week | Aug 17 has no row in `list-20-weeks`. Older from Aug 24 goes to Aug 10 in `past-week-near-test-0-done`. |
+| A partial week that started midweek | `past-week-oldest-started-thursday` (Mon–Wed not scheduled) and `past-week-only-one-all-done` (Monday not scheduled) |
+| Practice test, review day, moved rest day, with reasons | `past-week-middle` and `past-week-near-test-0-done` |
+| Near-test week with two practice tests | `past-week-near-test-0-done` |
+| 0 done, all done, partly done | `past-week-near-test-0-done`, `past-week-only-one-all-done`, `past-week-newest` |
+
+Decisions made while building the states:
+- Every week row and title uses the week's Monday to Sunday dates, as the app does (`weekStartDate`). A week that started midweek still reads "Jun 1 – 7".
+- A day whose activities are all done shows "All done", including one-activity days such as a practice test. The approved middle board now does this too.
+- When only Newer remains at the bottom of a week, it stays on the right.
+- On the phone, the bottom Older and Newer links put the week's dates and its done count on two lines, so long dates do not collide. "All done" drops under the day's time line when the line is long.
+- On the phone, the "not scheduled" day card now has the same 16 px side padding as the other day cards.
