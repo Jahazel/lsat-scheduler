@@ -32,19 +32,34 @@ These protections stay in place:
 - The workflow installs packages without their install scripts. No install script runs in
   the job that reads the password.
 
-## Release order
+## After every merge to `main` (automatic)
 
-1. Merge the release candidate to `main`. Required checks pass.
+The copy follows `main`. Nobody needs to act.
+
+1. The merge starts a **Release migrations** run. Its copy job applies new migrations to the copy
+   and reapplies the app role's table permissions. Its production job is skipped.
+2. Vercel builds the merged code for both sites. Neither site switches yet.
+3. The `drillmap-copy` project waits for the GitHub check **Apply migrations to the copy** on the
+   same commit (Vercel Deployment Checks). When it passes, Vercel switches the copy site to the
+   new build. If it fails, the copy site keeps its old build.
+
+If the copy site did not change after a merge, open the run in **Actions > Release migrations**
+and read the copy job's last line (see [What the workflow refuses](#what-the-workflow-refuses)).
+
+## Release order (production, by hand)
+
+Production never changes on a merge. The `lsat-scheduler` project keeps automatic domain
+assignment off, and the production job runs only from a manual run.
+
+1. Confirm the commit to release is on `main`, its required checks pass, and the copy site serves it.
 2. In GitHub, open **Actions > Release migrations > Run workflow**. Select `main`. Leave
    **Stop after the copy** off. Start the run.
-3. The copy job applies new migrations to the copy and reapplies the app role's table permissions.
+3. The copy job runs again. It reports `New migrations: 0` when the merge run already applied them.
    If it fails, the run stops. Production is not touched.
-4. Read the copy job's last line, for example
-   `Target: copy. Journal rows before: 8. After: 9. New migrations: 1.`
-5. The production job waits. Open the run and click **Review deployments > Approve**. Approve only
+4. The production job waits. Open the run and click **Review deployments > Approve**. Approve only
    the commit you will release.
-6. Read the production job's last line. The journal row count must match the copy.
-7. Assign the real domain to the deployment of the same commit in Vercel. Follow the
+5. Read the production job's last line. The journal row count must match the copy.
+6. Assign the real domain to the deployment of the same commit in Vercel. Follow the
    [controlled move runbook](controlled-neon-move.md#release-gate-and-manual-domain-assignment).
 
 A run with no new migrations is safe. It changes nothing and reports `New migrations: 0`.
@@ -100,7 +115,7 @@ Save it as the environment secret `MIGRATION_DATABASE_URL`:
 
 | Database | GitHub environment | Who can read the secret |
 | --- | --- | --- |
-| Copy | `migrations-copy` | Runs from `main` and `migration-proof/*` branches, no approval |
+| Copy | `migrations-copy` | Runs from `main` (each merge and each manual run) and `migration-proof/*` branches, no approval |
 | Production | `migrations-production` | Runs from `main` only, after the owner approves |
 
 Run `gh secret set MIGRATION_DATABASE_URL --env <environment>` and paste the value at the hidden
