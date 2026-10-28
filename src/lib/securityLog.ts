@@ -1,10 +1,56 @@
-import { randomBytes } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 import { sql } from "drizzle-orm";
+import { findAccountByEmail, isAccountId } from "./accountRepository";
+import { clientIpAddress } from "./clientIpAddress";
+import type { LimitedAction } from "./actionLimits";
+import type { DeletionRefusal, LoginRefusal } from "./passwordAccount";
+import type { VerificationResult } from "./pendingSignupRepository";
 import { getPostgresDatabase } from "./postgres";
+import type { ScanRefusal } from "./scanPlaces";
 
-type SecurityLogRoute = `/${string}`;
+export type SecurityLogRoute = `/${string}`;
+
+type AppEvents = {
+  sign_in: "signedIn" | LoginRefusal | "usesPassword" | "googleRefused";
+  sign_out_all_devices: "done";
+  email_verification: VerificationResult;
+  password_reset_request: "passwordAccount" | "googleAccount" | "pendingSignup" | "noAccount" | "paused";
+  password_reset: "changed" | "linkDoesNotWork";
+  password_change: "changed" | "wrong-password" | "paused";
+  account_deletion: "deleted" | DeletionRefusal;
+  student_data_refused: "refused";
+  admin_action_refused: "refused";
+  limit_refused: LimitedAction | ScanRefusal["refused"];
+  budget_cutoff: "limitReached";
+};
+
+export type Subject = { account: string } | { nobody: true };
+export const NOBODY: Subject = { nobody: true };
+
+export type SecurityEntry = {
+  [E in keyof AppEvents]: {
+    event: E;
+    result: AppEvents[E];
+    route: SecurityLogRoute;
+    who: E extends "sign_in" ? SignInSubject : Subject;
+    /** Read from the request when not given. */
+    ipAddress?: string;
+  };
+}[keyof AppEvents];
+
+export type SecurityEvent = SecurityEntry["event"];
+export type SecurityResult<E extends SecurityEvent> = Extract<SecurityEntry, { event: E }>["result"];
+export type SignInSubject = Subject | { unknownEmail: string };
+
+/** Who a sign-in names: its Account when the email has one, or else the email itself, which the log stores only as a hash. */
+export async function signInSubject(email: string | null): Promise<SignInSubject> {
+  if (email === null) return NOBODY;
+  const account = await findAccountByEmail(email);
+  return account ? { account: account.id } : { unknownEmail: email };
+}
 
 const SAFE_ERROR_TYPE = /^[A-Za-z0-9_.:]{1,80}$/;
+const SAFE_IP_ADDRESS = /^[0-9A-Fa-f:.]{2,45}$/;
 
 export function errorTypeOf(error: unknown) {
   if (!(error instanceof Error)) return "unknown";
@@ -15,13 +61,39 @@ export function errorTypeOf(error: unknown) {
   return SAFE_ERROR_TYPE.test(type) ? type : "unknown";
 }
 
+function emailHash(email: string) {
+  const key = process.env.AUTH_SECRET;
+  if (!key) throw new Error("AUTH_SECRET is not set");
+  return createHmac("sha256", key).update(email).digest("hex");
+}
+
+/**
+ * Writes one entry after the action's own change is saved. Never throws: a failed write goes to the server log.
+ * An Account deleted a moment before, as in account deletion itself, leaves the Account ID empty.
+ */
+export async function recordSecurityEvent({ event, result, route, who, ipAddress }: SecurityEntry) {
+  try {
+    const accountId = "account" in who && isAccountId(who.account) ? who.account : null;
+    const ip = ipAddress ?? await clientIpAddress().catch(() => "unknown");
+    await getPostgresDatabase().execute(sql`
+      insert into security_log (event, result, route, account_id, ip_address, email_hash) values (
+        ${event}, ${result}, ${route}, (select id from accounts where id = ${accountId}::uuid),
+        ${SAFE_IP_ADDRESS.test(ip) ? ip : "unknown"},
+        ${"unknownEmail" in who ? emailHash(who.unknownEmail) : null}
+      )
+    `);
+  } catch (logError) {
+    console.error(`Security log write failed (${event}): ${errorTypeOf(logError)}`);
+  }
+}
+
 export async function recordUnexpectedFailure(route: SecurityLogRoute, error: unknown) {
   const code = randomBytes(4).toString("hex");
   const errorType = errorTypeOf(error);
   console.error(`Unexpected failure on ${route} (${code}): ${errorType}`);
   try {
     await getPostgresDatabase().execute(sql`
-      insert into security_log (event, route, error_code, error_type) values ('unexpected_failure', ${route}, ${code}, ${errorType})
+      insert into security_log (event, result, route, error_code, error_type) values ('unexpected_failure', 'failed', ${route}, ${code}, ${errorType})
     `);
   } catch (logError) {
     console.error(`Security log write failed (${code}): ${errorTypeOf(logError)}`);

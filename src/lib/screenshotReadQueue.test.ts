@@ -71,7 +71,12 @@ describe("screenshot read queue", () => {
 describe("reply to file status", () => {
   it("asks for another LR screenshot when it shows no question types, and accepts an RC one with none", () => {
     expect(analyticsRead({ kind: "rows", rows: [] }, "LR", AT)).toEqual({ status: "no-rows" });
-    expect(analyticsRead({ kind: "rows", rows: [] }, "RC", AT)).toEqual({ status: "read", value: { rows: [], at: AT.toISOString() } });
+    expect(analyticsRead({ kind: "rows", showsPassageTypes: true, rows: [] }, "RC", AT)).toEqual({ status: "read", value: { rows: [], at: AT.toISOString() } });
+  });
+
+  it("rejects an RC screenshot that is not a passage-type page, and accepts one with no percentages", () => {
+    expect(analyticsRead({ kind: "rows", showsPassageTypes: false, rows: [] }, "RC", AT)).toEqual({ status: "rejected", message: "No passage types in this one." });
+    expect(analyticsRead({ kind: "rows", rows: [] }, "RC", AT)).toEqual({ status: "rejected", message: "No passage types in this one." });
   });
 
   it("keeps only the rows of the section the screenshot was added for", () => {

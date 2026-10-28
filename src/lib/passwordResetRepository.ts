@@ -1,4 +1,5 @@
 import { and, eq, gt, sql } from "drizzle-orm";
+import { accountIdSchema } from "./accountRepository";
 import { getPostgresDatabase } from "./postgres";
 import { accounts, resetTokens } from "./postgresSchema";
 
@@ -28,14 +29,14 @@ export async function findResetLinkEmail(tokenHash: string, realNow: Date) {
   return link?.email ?? null;
 }
 
-/** Uses the reset link: sets the password and signs out every device. Returns false for a link that doesn't work. */
+/** Uses the reset link: sets the password and signs out every device. Returns null for a link that doesn't work. */
 export async function setPasswordWithResetLink(tokenHash: string, passwordHash: string, realNow: Date) {
   return getPostgresDatabase().transaction(async (tx) => {
     const [used] = await tx.delete(resetTokens).where(working(tokenHash, realNow)).returning({ accountId: resetTokens.accountId });
-    if (!used) return false;
+    if (!used) return null;
     await tx.update(accounts)
       .set({ passwordHash, sessionVersion: sql`${accounts.sessionVersion} + 1` })
       .where(eq(accounts.id, used.accountId));
-    return true;
+    return accountIdSchema.parse(used.accountId);
   });
 }

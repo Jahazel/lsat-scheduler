@@ -18,7 +18,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Say which section the screenshot shows: LR or RC" }, { status: 400 });
   }
 
-  return scanWithLimits(session.user.id, "analytics", async (recordCost) => ({
-    rows: await extractAnalyticsRows(read.screenshot.bytes, read.screenshot.mediaType, mockRules, section, recordCost),
-  }));
+  return scanWithLimits(session.user.id, "analytics", (recordCost) =>
+    extractAnalyticsRows(read.screenshot.bytes, read.screenshot.mediaType, mockRules, section, recordCost));
 }

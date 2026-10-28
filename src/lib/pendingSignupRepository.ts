@@ -1,4 +1,5 @@
 import { and, eq, gt, sql } from "drizzle-orm";
+import { accountIdSchema, type AccountId } from "./accountRepository";
 import { getPostgresDatabase } from "./postgres";
 import { accounts, pendingSignups } from "./postgresSchema";
 
@@ -52,16 +53,19 @@ export async function replaceVerificationToken(
 
 export type VerificationResult = "verified" | "accountExists" | "linkDoesNotWork";
 
-export async function createAccountFromPendingSignup(tokenHash: string, realNow: Date): Promise<VerificationResult> {
+export async function createAccountFromPendingSignup(
+  tokenHash: string, realNow: Date,
+): Promise<{ result: VerificationResult; accountId: AccountId | null }> {
   return getPostgresDatabase().transaction(async (tx) => {
     const [pending] = await tx.delete(pendingSignups)
       .where(and(eq(pendingSignups.tokenHash, tokenHash), gt(pendingSignups.tokenExpiresAt, realNow), stillPending(realNow)))
       .returning();
-    if (!pending) return "linkDoesNotWork";
+    if (!pending) return { result: "linkDoesNotWork", accountId: null };
     const created = await tx.execute(sql`
       insert into ${accounts} (email, name, password_hash) values (${pending.email}, ${pending.name}, ${pending.passwordHash})
       on conflict do nothing returning id
     `);
-    return created.rows.length ? "verified" : "accountExists";
+    const [account] = created.rows;
+    return account ? { result: "verified", accountId: accountIdSchema.parse(account.id) } : { result: "accountExists", accountId: null };
   });
 }

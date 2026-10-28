@@ -130,7 +130,7 @@ describe("POST /api/analytics/extract", () => {
       content: [{
         type: "tool_use",
         name: "record_analytics_rows",
-        input: { rows: [{ type: "Law", accuracy: 58 }, { type: "Art", accuracy: 77 }] },
+        input: { showsPassageTypes: true, rows: [{ type: "Law", accuracy: 58 }, { type: "Art", accuracy: 77 }] },
       }],
     });
 
@@ -143,6 +143,7 @@ describe("POST /api/analytics/extract", () => {
         { type: "Law", category: "passage", accuracy: 58 },
         { type: "Art", category: "passage", accuracy: 77 },
       ],
+      showsPassageTypes: true,
     });
     expect(mocks.createMessage.mock.calls[0][0].tools[0].input_schema.properties.rows.items.properties.type.enum)
       .toEqual(["Art", "Humanities", "Science", "Law", "Comparative"]);

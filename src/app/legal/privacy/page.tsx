@@ -22,6 +22,11 @@ export default function PrivacyPage() {
             not store the screenshot. Crop out anything you do not want to share before you upload.
           </p>
           <p>
+            To protect your Account, we record security events, for example sign-ins, failed sign-ins, and password
+            resets. Each record holds the time, the event, your Account ID, and the IP address of the request. It never
+            holds your password or your screenshots. We delete these records after 90 days.
+          </p>
+          <p>
             Neon keeps daily backups of the database for 14 days, so deleted data can remain in a backup until it
             expires. We use backups only to recover the service after a failure. They are not used to restore a deleted
             account except when required to recover the service as a whole.

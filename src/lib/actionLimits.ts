@@ -1,6 +1,8 @@
 import { and, eq, lte, sql, TransactionRollbackError } from "drizzle-orm";
+import type { PasswordRequest } from "./passwordAccount";
 import { getPostgresDatabase, type PostgresTransaction } from "./postgres";
 import { actionCounters } from "./postgresSchema";
+import { NOBODY, recordSecurityEvent, type Subject } from "./securityLog";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
 
 const ZONE_WITHOUT_A_REPEATED_HOUR = "UTC";
@@ -83,17 +85,19 @@ export const loginTryCounts = (email: string, ipAddress: string): Counted => [
 /**
  * Counts one request against several limits at once.
  * `problemAfterCounting` runs after the limits, so a request over a limit gets the same answer whatever it holds.
- * A refused request gives back every count it took.
+ * A refused request gives back every count it took. A request over a limit goes in the security log.
  */
 export async function countAll<Problem extends string>(
-  counted: Counted, realNow: Date, problemAfterCounting: () => Problem | null = () => null,
+  counted: Counted, request: PasswordRequest, problemAfterCounting: () => Problem | null = () => null, who: Subject = NOBODY,
 ): Promise<Problem | "overLimit" | null> {
   let refusal: Problem | "overLimit" | null = null;
+  let overLimit = null as LimitedAction | null;
   try {
     await getPostgresDatabase().transaction(async (tx) => {
       for (const [action, subject] of counted) {
-        if (!(await countAction(action, subject, realNow, tx)).allowed) {
+        if (!(await countAction(action, subject, request.realNow, tx)).allowed) {
           refusal = "overLimit";
+          overLimit = action;
           tx.rollback();
         }
       }
@@ -102,6 +106,9 @@ export async function countAll<Problem extends string>(
     });
   } catch (error) {
     if (!(error instanceof TransactionRollbackError)) throw error;
+  }
+  if (overLimit) {
+    await recordSecurityEvent({ event: "limit_refused", result: overLimit, route: request.route, who, ipAddress: request.ipAddress });
   }
   return refusal;
 }

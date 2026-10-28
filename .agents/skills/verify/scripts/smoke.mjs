@@ -217,7 +217,9 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   await second.heading("Account");
   await goto("/account");
   await heading("Account");
-  await page.locator('input[name="confirmation"]').fill("DELETE");
+  const deletion = page.locator("form").filter({ has: page.locator('input[name="confirmation"]') });
+  await deletion.getByLabel("Current password", { exact: true }).fill(PASSWORD);
+  await deletion.getByLabel("Type DELETE to confirm", { exact: true }).fill("DELETE");
   log("Delete the disposable student's Account");
   await page.getByRole("button", { name: "Delete account", exact: true }).click();
   await page.getByRole("link", { name: "Build my first plan", exact: true }).waitFor();
