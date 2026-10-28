@@ -91,8 +91,11 @@ function failedRead(reply: ScreenshotFailure): FileRead<never> {
   }
 }
 
+export const NOT_PASSAGE_PAGE = "No passage types in this one.";
+
 export function analyticsRead(reply: ExtractReply, section: AnalyticsSection, at: Date): FileRead<AnalyticsReading> {
   if (reply.kind !== "rows") return failedRead(reply);
+  if (section === "RC" && reply.showsPassageTypes !== true) return { status: "rejected", message: NOT_PASSAGE_PAGE };
   const rows = reply.rows.filter((row) => sectionOf(row) === section);
   return section === "LR" && rows.length === 0 ? { status: "no-rows" } : { status: "read", value: { rows, at: at.toISOString() } };
 }

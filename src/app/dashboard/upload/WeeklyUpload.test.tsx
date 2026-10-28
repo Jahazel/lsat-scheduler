@@ -39,7 +39,7 @@ function stubServer(sections: Record<string, SectionReading | Response> = {}, an
     const file = form.get("image") as File;
     if (url === "/api/analytics/extract") {
       const section = form.get("section") as "LR" | "RC";
-      return analytics[section] ?? Response.json({ rows: section === "LR" ? LR_ROWS : RC_ROWS });
+      return analytics[section] ?? Response.json(section === "LR" ? { rows: LR_ROWS } : { rows: RC_ROWS, showsPassageTypes: true });
     }
     const reading = readings[file.name] ?? { page: "other" };
     return reading instanceof Response ? reading : Response.json({ reading });
@@ -173,7 +173,7 @@ describe("WeeklyUpload", () => {
   });
 
   it("reads an RC screenshot with no passage-type percentage and lets the student check the values", async () => {
-    stubServer({}, { RC: Response.json({ rows: [] }) });
+    stubServer({}, { RC: Response.json({ rows: [], showsPassageTypes: true }) });
     const { user } = setup(false);
 
     await addAnalytics(user);
@@ -374,6 +374,17 @@ describe("WeeklyUpload", () => {
     expect(button("Check the values").disabled).toBe(true);
   });
 
+  it("refuses a wrong page in the RC box on its row and keeps the button off", async () => {
+    stubServer({}, { RC: Response.json({ rows: [], showsPassageTypes: false }) });
+    const { user } = setup();
+    await addAnalytics(user);
+    await addSections(user);
+    await user.click(button("Read my screenshots"));
+    expect(await screen.findByText("No passage types in this one.")).toBeDefined();
+    await queueEmpty();
+    expect(button("Check the values").disabled).toBe(true);
+  });
+
   it("reads one screenshot at a time, in page order, with the rest waiting", async () => {
     const order: string[] = [];
     let running = 0;
@@ -519,7 +530,7 @@ describe("WeeklyUpload · Type them", () => {
       if (url === "/api/analytics/extract") {
         const section = form.get("section");
         if (section === "LR") await lrHeld;
-        return Response.json({ rows: section === "LR" ? LR_ROWS : RC_ROWS });
+        return Response.json(section === "LR" ? { rows: LR_ROWS } : { rows: RC_ROWS, showsPassageTypes: true });
       }
       return Response.json({ reading: sample(Number((form.get("image") as File).name.match(/s(\d)/)?.[1])) });
     });
