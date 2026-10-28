@@ -1,6 +1,8 @@
 # Google sign-in only until DrillMap has its own domain
 
-Status: accepted. This ADR pauses [Account rules](../security/issue-74-decisions.md) 6 to 21, and the password-change part of rule 29, until [issue 230](https://github.com/Jahazel/lsat-scheduler/issues/230) brings password sign-in back.
+Status: replaced by [issue 230](https://github.com/Jahazel/lsat-scheduler/issues/230) on 2026-10-27. DrillMap owns `drillmap.xyz`, and the code has password sign-in again, with verified email through Resend. The owner decides when it ships to the real site. Account rules 6 to 21 and all of rule 29 apply again. The [issue 289 copy run](../security/issue-289-copy-run-evidence.md) proved password sign-in on the copy with real email. The text below is the original decision.
+
+Original status: accepted. This ADR paused [Account rules](../security/issue-74-decisions.md) 6 to 21, and the password-change part of rule 29, until [issue 230](https://github.com/Jahazel/lsat-scheduler/issues/230) brings password sign-in back.
 
 The owner decided on 2026-10-22 ([Stage 4, issue 222](https://github.com/Jahazel/lsat-scheduler/issues/222)) that DrillMap signs people in with Google only. Password signup and password login leave the app. Password Accounts need email for verification and reset, and an email provider sends only from a domain that the sender owns and proves with DNS records. DrillMap runs on `lsat-scheduler.vercel.app` and owns no domain, so it cannot send that email.
 
