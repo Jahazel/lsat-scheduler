@@ -8,11 +8,12 @@ import { updateStudentByAccountId } from "@/lib/studentRepository";
 import { studentSideToday } from "@/lib/studentClock";
 import { parseStudentProfile, type StudentProfileInput } from "@/lib/studentProfile";
 import { ADMIN_RESTRICTED_ACTION_MESSAGE, isAdminUser } from "@/lib/accessControl";
-import { clientIpAddress } from "@/lib/clientIpAddress";
+import { passwordRequest } from "@/lib/clientIpAddress";
 import { PASSWORD_CHANGED_PATH } from "@/lib/loginNotice";
 import { CURRENT_PASSWORD_MESSAGES } from "@/lib/currentPasswordMessages";
 import * as passwordAccount from "@/lib/passwordAccount";
 import { PASSWORD_MESSAGES } from "@/lib/passwordRules";
+import { recordSecurityEvent } from "@/lib/securityLog";
 
 export async function updateStudentProfile(input: StudentProfileInput) {
   const session = await auth();
@@ -46,7 +47,7 @@ export async function deleteAccount(_previous: DeletionRefusal, formData: FormDa
   const result = await passwordAccount.deleteAccount(
     session.user.id,
     { confirmation: formData.get("confirmation"), currentPassword: formData.get("currentPassword"), signedInAt: session.signedInAt },
-    { ipAddress: await clientIpAddress(), realNow: new Date() },
+    await passwordRequest("/account"),
   );
   if (result !== "deleted") return result;
   await signOut({ redirectTo: "/" });
@@ -65,7 +66,7 @@ export async function changePassword(_previous: PasswordChangeRefusal, formData:
   const result = await passwordAccount.changePassword(
     session.user.id,
     { currentPassword: formData.get("currentPassword"), newPassword: formData.get("newPassword") },
-    { ipAddress: await clientIpAddress(), realNow: new Date() },
+    await passwordRequest("/account"),
   );
   if (result === "noPassword") throw new Error("This Account signs in with Google and has no password.");
   if (result === "wrong-password" || result === "paused") return { field: "currentPassword", message: CURRENT_PASSWORD_MESSAGES[result] };
@@ -85,5 +86,6 @@ export async function signOutAllDevices() {
   }
   if (!isAccountId(session.user.id)) throw new Error("Account record not found");
   await endAllSessions(session.user.id);
+  await recordSecurityEvent({ event: "sign_out_all_devices", result: "done", route: "/account", who: { account: session.user.id } });
   await signOut({ redirectTo: "/login" });
 }

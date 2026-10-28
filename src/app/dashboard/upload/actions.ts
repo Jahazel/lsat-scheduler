@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { SnapshotApprovalError } from "@/lib/analyticsSnapshots";
+import { SnapshotApprovalError, SnapshotSaveLimitReached } from "@/lib/analyticsSnapshots";
 import { requireCurrentAdmin } from "@/lib/requireAdmin";
+import { recordSecurityEvent } from "@/lib/securityLog";
 import { readScanningOff } from "@/lib/scanSpending";
 import { studentSideClock } from "@/lib/studentClock";
 import { findStudentByAccountId } from "@/lib/studentRepository";
@@ -20,7 +21,7 @@ export async function confirmWeeklyUpload(input: unknown): Promise<WeeklyUploadC
 
   const allowAdminSample = usesAdminSample(input);
   if (allowAdminSample) {
-    try { await requireCurrentAdmin(); }
+    try { await requireCurrentAdmin("/dashboard/upload"); }
     catch { return { error: "Admin access required for sample analytics." }; }
   }
 
@@ -36,6 +37,9 @@ export async function confirmWeeklyUpload(input: unknown): Promise<WeeklyUploadC
       { accountId: session.user.id, realNow: clock.real },
     );
   } catch (error) {
+    if (error instanceof SnapshotSaveLimitReached) {
+      await recordSecurityEvent({ event: "limit_refused", result: "analyticsSnapshotSave", route: "/dashboard/upload", who: { account: session.user.id } });
+    }
     if (error instanceof SnapshotApprovalError) return { error: error.message };
     throw error;
   }

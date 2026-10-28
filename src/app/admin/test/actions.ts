@@ -14,7 +14,7 @@ import {
 import type { SampleDirection } from "@/lib/sampleAnalytics";
 
 export async function setSimulatedDate(date: string) {
-  const userId = await requireCurrentAdmin();
+  const userId = await requireCurrentAdmin("/admin/test");
   await moveSimulatedDate(
     userId,
     z.string().parse(date),
@@ -25,7 +25,7 @@ export async function setSimulatedDate(date: string) {
 }
 
 export async function generateTestSample(direction: SampleDirection) {
-  const userId = await requireCurrentAdmin();
+  const userId = await requireCurrentAdmin("/admin/test");
   const rows = await generateTestAnalytics(
     userId,
     z.enum(["improving", "steady", "slipping"]).parse(direction),
@@ -35,19 +35,19 @@ export async function generateTestSample(direction: SampleDirection) {
 }
 
 export async function rebuildThisWeek() {
-  const userId = await requireCurrentAdmin();
+  const userId = await requireCurrentAdmin("/admin/test");
   await rebuildTestWeek(userId, new Date(), repositories);
   revalidatePath("/", "layout");
 }
 
 export async function resetTestData() {
-  const userId = await requireCurrentAdmin();
+  const userId = await requireCurrentAdmin("/admin/test");
   await resetTestWorkspace(userId, "test-data", repositories);
   revalidatePath("/", "layout");
 }
 
 export async function resetEverything() {
-  const userId = await requireCurrentAdmin();
+  const userId = await requireCurrentAdmin("/admin/test");
   await resetTestWorkspace(userId, "everything", repositories);
   revalidatePath("/", "layout");
 }

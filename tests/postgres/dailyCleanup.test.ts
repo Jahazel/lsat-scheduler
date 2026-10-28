@@ -38,9 +38,9 @@ beforeEach(async () => {
       (${second.id}, 'reset-live', now() + interval '1 hour')
   `);
   await database.owner.execute(sql`
-    insert into security_log (logged_at, event, route, error_code, error_type) values
-      (now() - interval '91 days', 'unexpected_failure', '/api/cron/daily-cleanup', '00000091', 'Error'),
-      (now() - interval '89 days', 'unexpected_failure', '/api/cron/daily-cleanup', '00000089', 'Error')
+    insert into security_log (logged_at, event, result, route, error_code, error_type) values
+      (now() - interval '91 days', 'unexpected_failure', 'failed', '/api/cron/daily-cleanup', '00000091', 'Error'),
+      (now() - interval '89 days', 'unexpected_failure', 'failed', '/api/cron/daily-cleanup', '00000089', 'Error')
   `);
 });
 
@@ -120,7 +120,11 @@ it("answers a failed run with the plain message and a short code, and stores the
     logged_at: expect.anything(),
     recent: true,
     event: "unexpected_failure",
+    result: "failed",
     route: "/api/cron/daily-cleanup",
+    account_id: null,
+    ip_address: null,
+    email_hash: null,
     error_code: body.code,
     error_type: "TypeError",
   }]);

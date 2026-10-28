@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { signIn } from "@/auth";
-import { clientIpAddress } from "@/lib/clientIpAddress";
+import { passwordRequest } from "@/lib/clientIpAddress";
 import { EmailField, signUp } from "@/lib/passwordAccount";
 import { PASSWORD_MESSAGES } from "@/lib/passwordRules";
 
@@ -27,7 +27,7 @@ export async function signUpWithPassword(_state: SignupState, formData: FormData
     const { name, email } = z.flattenError(parsed.error).fieldErrors;
     return { kind: "form", errors: { name: name?.[0], email: email?.[0] } };
   }
-  const result = await signUp(parsed.data, { ipAddress: await clientIpAddress(), realNow: new Date() });
+  const result = await signUp(parsed.data, await passwordRequest("/signup"));
   if (result !== "checkYourEmail") return { kind: "form", errors: { password: PASSWORD_MESSAGES[result] } };
   return { kind: "checkYourEmail", email: parsed.data.email };
 }
