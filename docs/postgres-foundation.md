@@ -287,6 +287,12 @@ Supply `DATABASE_URL` through the shell session. The command does not read an
 environment file. The owner must enter the Neon credential outside agent chat
 and evidence files. Never paste it into an issue or commit it.
 
+Neon's connection string ends with `sslmode=require`. Change it to
+`sslmode=verify-full` before the run. Otherwise the check stops with
+"Remote Postgres requires sslmode=verify-full." That message holds no secret.
+Every other failure prints only "Database foundation check failed." so no
+connection string, password, or host detail reaches the output.
+
 The script runs the host guard before it connects. Loopback and exact copy-site
 hosts in `scripts/copyDatabaseHosts.json` are the only allowed targets. The list
 contains only owner-approved copy-site hosts. It has no bypass setting.

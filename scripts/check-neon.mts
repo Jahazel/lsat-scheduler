@@ -10,7 +10,8 @@ try {
   connection = undefined;
   process.stdout.write(`${messages.join("\n")}\n`);
 } catch (error) {
-  const message = error instanceof Error && error.message.startsWith("Refusing database host ")
+  const message = error instanceof Error && (error.message.startsWith("Refusing database host ")
+    || error.message === "Remote Postgres requires sslmode=verify-full.")
     ? error.message : "Database foundation check failed.";
   process.stderr.write(`${message}\n`);
   process.exitCode = 1;
