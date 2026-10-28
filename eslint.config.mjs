@@ -10,19 +10,6 @@ const eslintConfig = defineConfig([
     ignores: [
       "tests/postgres/appTestDatabase.ts",
       "tests/postgres/globalSetup.ts",
-      "tests/postgres/accountSessions.test.ts",
-      "tests/postgres/accountsStudents.test.ts",
-      "tests/postgres/actionLimits.test.ts",
-      "tests/postgres/admin.test.ts",
-      "tests/postgres/analyticsSnapshots.test.ts",
-      "tests/postgres/dailyCleanup.test.ts",
-      "tests/postgres/passwordChange.test.ts",
-      "tests/postgres/passwordReset.test.ts",
-      "tests/postgres/passwordSignup.test.ts",
-      "tests/postgres/scanLimits.test.ts",
-      "tests/postgres/scanSpending.test.ts",
-      "tests/postgres/snapshotSources.test.ts",
-      "tests/postgres/weeklyUpload.test.ts",
     ],
     rules: {
       "no-restricted-syntax": [

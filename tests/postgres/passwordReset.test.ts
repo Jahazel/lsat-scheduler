@@ -4,8 +4,7 @@ import { NextRequest } from "next/server";
 import { renderToStaticMarkup } from "react-dom/server";
 import { z } from "zod";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createAppTestDatabase } from "./appTestDatabase";
-import { closePostgresDatabase } from "../../src/lib/postgres";
+import { setUpAppTestDatabase } from "./appTestDatabase";
 import { clearFakeEmails, fakeEmails } from "../../src/lib/email";
 import { hashPassword } from "../../src/lib/passwordHash";
 import { requestPasswordReset, type ForgotPasswordState } from "../../src/app/forgot-password/actions";
@@ -39,12 +38,9 @@ vi.mock("next/headers", () => ({
 }));
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
 
-let database: Awaited<ReturnType<typeof createAppTestDatabase>>;
+const database = setUpAppTestDatabase();
 let oldPasswordHash: string;
 beforeAll(async () => {
-  await closePostgresDatabase();
-  database = await createAppTestDatabase();
-  vi.stubEnv("DATABASE_URL", database.setting);
   for (const name of ["RESEND_API_KEY", "EMAIL_FROM", "SITE_URL", "VERCEL"]) vi.stubEnv(name, "");
   oldPasswordHash = await hashPassword(OLD_PASSWORD);
 });
@@ -61,11 +57,9 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
-afterAll(async () => {
-  await closePostgresDatabase();
+afterAll(() => {
   vi.unstubAllEnvs();
   process.env.AUTH_SECRET = originalSecret;
-  await database?.cleanup();
 });
 
 const advance = (ms: number) => vi.setSystemTime(Date.now() + ms);

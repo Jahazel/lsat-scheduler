@@ -1,8 +1,7 @@
 import { sql } from "drizzle-orm";
 import type { Session } from "next-auth";
-import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
-import { createAppTestDatabase } from "./appTestDatabase";
-import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
+import { afterAll, beforeEach, expect, it, vi } from "vitest";
+import { setUpAppTestDatabase } from "./appTestDatabase";
 import { countAction, countAll, giveBack, loginTryCounts } from "../../src/lib/actionLimits";
 import { actionCounters } from "../../src/lib/postgresSchema";
 import { findStudentByAccountId } from "../../src/lib/studentRepository";
@@ -15,24 +14,15 @@ vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Erro
 
 import { createStudentProfile } from "../../src/app/onboarding/actions";
 
-let database: Awaited<ReturnType<typeof createAppTestDatabase>>;
-const originalSetting = process.env.DATABASE_URL;
-beforeAll(async () => {
-  await closePostgresDatabase();
-  database = await createAppTestDatabase();
-  process.env.DATABASE_URL = database.setting;
-});
+const database = setUpAppTestDatabase();
 beforeEach(async () => {
   request.ip = "203.0.113.7";
   request.session = null;
   vi.useRealTimers();
   await database.owner.execute(sql`truncate accounts, leads, action_counters cascade`);
 });
-afterAll(async () => {
+afterAll(() => {
   vi.useRealTimers();
-  await closePostgresDatabase();
-  process.env.DATABASE_URL = originalSetting;
-  await database?.cleanup();
 });
 
 const counterRows = () => database.owner.select().from(actionCounters);

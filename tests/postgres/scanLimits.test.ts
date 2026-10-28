@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
-import { createAppTestDatabase } from "./appTestDatabase";
+import { afterAll, beforeEach, expect, it, vi } from "vitest";
+import { setUpAppTestDatabase } from "./appTestDatabase";
 import { png, screenshotRequest } from "../../src/lib/screenshotFixtures/files";
-import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
+import { getPostgresDatabase } from "../../src/lib/postgres";
 import { actionCounters, runningScans } from "../../src/lib/postgresSchema";
 import { freeScanPlace, takeScanPlace, type ScanPlace, type ScanRefusal } from "../../src/lib/scanPlaces";
 
@@ -16,13 +16,7 @@ vi.mock("@/lib/screenshotExtractor", async (importOriginal) => {
 
 import { POST } from "../../src/app/api/analytics/extract/route";
 
-let database: Awaited<ReturnType<typeof createAppTestDatabase>>;
-const originalSetting = process.env.DATABASE_URL;
-beforeAll(async () => {
-  await closePostgresDatabase();
-  database = await createAppTestDatabase();
-  process.env.DATABASE_URL = database.setting;
-});
+const database = setUpAppTestDatabase();
 beforeEach(async () => {
   vi.useRealTimers();
   vi.unstubAllEnvs();
@@ -30,11 +24,8 @@ beforeEach(async () => {
   request.extractor.mockClear();
   await database.owner.execute(sql`truncate action_counters, running_scans, scan_spending`);
 });
-afterAll(async () => {
+afterAll(() => {
   vi.useRealTimers();
-  await closePostgresDatabase();
-  process.env.DATABASE_URL = originalSetting;
-  await database?.cleanup();
 });
 
 const counts = async () => (await database.owner.select().from(actionCounters))

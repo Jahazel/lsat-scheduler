@@ -4,9 +4,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Session } from "next-auth";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createAppTestDatabase } from "./appTestDatabase";
-import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { setUpAppTestDatabase } from "./appTestDatabase";
+import { getPostgresDatabase } from "../../src/lib/postgres";
 import { findAccountByEmail } from "../../src/lib/accountRepository";
 import { createGoogleAccountOnSignIn } from "../../src/lib/authAccounts";
 import { accountSessionToken } from "../../src/lib/accountSession";
@@ -37,22 +37,11 @@ import { requireCurrentAdmin } from "../../src/lib/requireAdmin";
 import { postgresAdminClock, studentSideClock } from "../../src/lib/studentClock";
 import { loadStudentNavState } from "../../src/lib/studentNav";
 
-let database: Awaited<ReturnType<typeof createAppTestDatabase>>;
-const originalSetting = process.env.DATABASE_URL;
-beforeAll(async () => {
-  await closePostgresDatabase();
-  database = await createAppTestDatabase();
-  process.env.DATABASE_URL = database.setting;
-});
+const database = setUpAppTestDatabase();
 beforeEach(async () => {
   request.session = null;
   request.signIn.mockClear();
   await database.owner.execute(sql`truncate accounts, leads cascade`);
-});
-afterAll(async () => {
-  await closePostgresDatabase();
-  process.env.DATABASE_URL = originalSetting;
-  await database?.cleanup();
 });
 
 async function onboard() {

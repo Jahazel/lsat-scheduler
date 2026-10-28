@@ -1,8 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { sql } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
-import { createAppTestDatabase } from "./appTestDatabase";
-import { closePostgresDatabase } from "../../src/lib/postgres";
+import { afterAll, beforeEach, expect, it, vi } from "vitest";
+import { setUpAppTestDatabase } from "./appTestDatabase";
 import { actionCounters, runningScans, scanSpending } from "../../src/lib/postgresSchema";
 import { scanWithLimits } from "../../src/lib/scanGuard";
 import { freeScanPlace, takeScanPlace } from "../../src/lib/scanPlaces";
@@ -15,15 +14,9 @@ const OCTOBER = new Date("2026-10-01T05:00:00Z");
 const NOVEMBER = new Date("2026-11-01T05:00:00Z");
 const MID_OCTOBER = new Date("2026-10-24T15:00:00Z");
 
-let database: Awaited<ReturnType<typeof createAppTestDatabase>>;
-const originalSetting = process.env.DATABASE_URL;
+const database = setUpAppTestDatabase();
 const pings = vi.fn<typeof fetch>(async () => new Response("OK"));
 
-beforeAll(async () => {
-  await closePostgresDatabase();
-  database = await createAppTestDatabase();
-  process.env.DATABASE_URL = database.setting;
-});
 beforeEach(async () => {
   vi.useRealTimers();
   vi.unstubAllEnvs();
@@ -38,12 +31,9 @@ beforeEach(async () => {
   await database.owner.execute(sql`truncate action_counters, running_scans, scan_spending`);
   await database.owner.execute(sql`update scan_settings set scanning_off = false, monthly_limit_usd = 10`);
 });
-afterAll(async () => {
+afterAll(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
-  await closePostgresDatabase();
-  process.env.DATABASE_URL = originalSetting;
-  await database?.cleanup();
 });
 
 const monthTotals = async () => (await database.owner.select().from(scanSpending))

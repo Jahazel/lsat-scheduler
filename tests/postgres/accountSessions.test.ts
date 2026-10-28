@@ -3,8 +3,7 @@ import { encode, type JWT } from "next-auth/jwt";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
-import { createAppTestDatabase } from "./appTestDatabase";
-import { closePostgresDatabase } from "../../src/lib/postgres";
+import { setUpAppTestDatabase } from "./appTestDatabase";
 import { accountSessionToken } from "../../src/lib/accountSession";
 import { createGoogleAccountOnSignIn } from "../../src/lib/authAccounts";
 import { DISABLED_SIGN_IN_PATH } from "../../src/lib/loginNotice";
@@ -49,11 +48,8 @@ vi.mock("@anthropic-ai/sdk", () => ({
   },
 }));
 
-let database: Awaited<ReturnType<typeof createAppTestDatabase>>;
-beforeAll(async () => {
-  await closePostgresDatabase();
-  database = await createAppTestDatabase();
-  vi.stubEnv("DATABASE_URL", database.setting);
+const database = setUpAppTestDatabase();
+beforeAll(() => {
   vi.stubEnv("SCREENSHOT_EXTRACTOR", "");
   vi.stubEnv("ANTHROPIC_API_KEY", "test-key-never-sent");
 });
@@ -66,11 +62,9 @@ beforeEach(async () => {
   await database.owner.execute(sql`truncate accounts cascade`);
 });
 afterEach(() => vi.useRealTimers());
-afterAll(async () => {
-  await closePostgresDatabase();
+afterAll(() => {
   vi.unstubAllEnvs();
   process.env.AUTH_SECRET = originalSecret;
-  await database?.cleanup();
 });
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);

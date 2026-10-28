@@ -1,10 +1,10 @@
 import { sql } from "drizzle-orm";
 import { NextRequest } from "next/server";
-import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, expect, it, vi } from "vitest";
 import { GET } from "../../src/app/api/cron/daily-cleanup/route";
 import { runDailyCleanup } from "../../src/lib/dailyCleanup";
-import { closePostgresDatabase, getPostgresDatabase } from "../../src/lib/postgres";
-import { createAppTestDatabase } from "./appTestDatabase";
+import { getPostgresDatabase } from "../../src/lib/postgres";
+import { setUpAppTestDatabase } from "./appTestDatabase";
 
 vi.mock("../../src/lib/dailyCleanup", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/lib/dailyCleanup")>();
@@ -14,21 +14,11 @@ vi.mock("../../src/lib/dailyCleanup", async (importOriginal) => {
 const CRON_SECRET = "test-cron-secret-value";
 const ROUTE = "http://localhost/api/cron/daily-cleanup";
 
-let database: Awaited<ReturnType<typeof createAppTestDatabase>>;
-const originalSetting = process.env.DATABASE_URL;
+const database = setUpAppTestDatabase();
 const originalSecret = process.env.CRON_SECRET;
 
-beforeAll(async () => {
-  await closePostgresDatabase();
-  database = await createAppTestDatabase();
-  process.env.DATABASE_URL = database.setting;
-});
-
-afterAll(async () => {
-  await closePostgresDatabase();
-  process.env.DATABASE_URL = originalSetting;
+afterAll(() => {
   process.env.CRON_SECRET = originalSecret;
-  await database?.cleanup();
 });
 
 beforeEach(async () => {
