@@ -9,7 +9,7 @@ import { samplePracticeTestSections } from "@/lib/adminTestWorkspace";
 import { mockStudent } from "@/lib/mockData";
 import { reviewPracticeTest } from "@/lib/practiceTestResult";
 import type { AnalyticsExtractedRow } from "@/lib/types";
-import type { WeeklyUploadBasis } from "@/lib/weeklyUpload";
+import type { WeeklyUploadBasis } from "@/lib/weeklyUploadPreview";
 import type { confirmWeeklyUpload, WeeklyUploadConfirmResult } from "./actions";
 import type { WeeklyUploadRead } from "./WeeklyUpload";
 

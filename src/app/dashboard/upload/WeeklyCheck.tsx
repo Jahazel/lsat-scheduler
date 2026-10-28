@@ -16,13 +16,13 @@ import type { HiddenResult, PracticeTestResult } from "@/lib/practiceTestResult"
 import { confirmLock, reviewDraftReducer, startDraft } from "@/lib/reviewDraft";
 import { DAY_LABEL } from "@/lib/studentProfile";
 import type { LRStemType } from "@/lib/types";
+import type { PracticeTestApprovalInput } from "@/lib/weeklyUpload";
 import {
-  checkPreviewDrills, formatSectionScore, parseScore, planText, plannedWeekAnalytics, previewPlannedWeek, MAX_SCORE, MIN_SCORE,
-  type WeeklyUploadBasis,
-} from "@/lib/weeklyUpload";
-import type { PracticeTestApprovalInput } from "@/lib/weeklyUploadApproval";
+  plannedWeekAnalytics, previewPlannedWeek, MAX_SCORE, MIN_SCORE, type WeeklyUploadBasis,
+} from "@/lib/weeklyUploadPreview";
 import type { confirmWeeklyUpload, WeeklyUploadConfirmResult } from "./actions";
 import type { WeeklyUploadRead } from "./WeeklyUpload";
+import { checkPreviewDrills, formatSectionScore, parseScore, planText } from "./weeklyUploadText";
 
 const SCORE_ID = "current-score";
 const SCORE_MESSAGE = `Enter a score from ${MIN_SCORE} to ${MAX_SCORE}.`;

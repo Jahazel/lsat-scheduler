@@ -1,57 +1,59 @@
-import { summarizeAnalyticsRows } from "./analytics";
+import { z } from "zod";
+import type { StudentClock } from "./adminTestWorkspace";
 import {
-  currentDayInTimezone, currentWeekInTimezone, generateRemainingWeek, newestApprovedSnapshots, uploadWeekOf, weightedTrend,
+  checkApprovalTimes, prepareApprovedSnapshot, SnapshotApprovalError, snapshotWeekOptions, summarizeApprovedRows,
+} from "./analyticsSnapshots";
+import {
+  approvedForWeek, currentDayInTimezone, currentWeekInTimezone, newestApprovedSnapshots, uploadWeekOf, weeklyUploadIsOpen,
 } from "./currentWeeklySchedule";
 import { DAY_ORDER } from "./engine";
-import { activityLabel } from "./activityLabel";
-import { formatDuration, shortDuration } from "./formatDuration";
-import { mockRules } from "./mockData";
-import type { MissedStemType, Miss, PracticeTestProblem } from "./practiceTestResult";
+import { reviewPracticeTest, type SectionReview } from "./practiceTestResult";
+import type { ScanningOff } from "./scanSpending";
 import { isoDateInWeek } from "./scheduleReasonText";
-import { DAY_LABEL } from "./studentProfile";
-import type {
-  Activity, AnalyticsExtractedRow, AnalyticsSnapshot, ApprovedAnalyticsSnapshot, DayOfWeek, LRStemType,
-  PersistedWeeklySchedule, Student, WeeklySchedule,
-} from "./types";
+import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
+import type { ApprovedAnalyticsSnapshot, PersistedWeeklySchedule, Student } from "./types";
+import { MAX_SCORE, MIN_SCORE, type WeeklyUploadBasis } from "./weeklyUploadPreview";
 
 const TREND_WINDOW = 3;
-
-export interface WeeklyUploadBasis {
-  weekOf: string;
-  plans: "this_week" | "next_week";
-  startsOn: DayOfWeek;
-  student: Student;
-  hadPracticeTest: boolean;
-  priorSnapshots: ApprovedAnalyticsSnapshot[];
-  priorWeekPracticeTestReviewMinutes?: number;
-  priorSchedules: WeeklySchedule[];
-}
+const STALE_PAGE = "This page is out of date. Open This week to continue.";
 
 const scheduleForWeek = (schedules: PersistedWeeklySchedule[], weekStartDate: string) =>
   schedules.find((record) => record.weekStartDate === weekStartDate)?.schedule;
 
-export function weekHadPracticeTest(schedules: PersistedWeeklySchedule[], weekStartDate: string) {
+function weekHadPracticeTest(schedules: PersistedWeeklySchedule[], weekStartDate: string) {
   const schedule = scheduleForWeek(schedules, weekStartDate);
   return DAY_ORDER.some((day) => schedule?.days[day].activities.some((activity) => activity.kind === "PT") ?? false);
 }
 
-export function weeklyUploadBasis({ now, timezone, student, schedules, snapshots }: {
-  now: Date;
-  timezone: string;
+function uploadNeeds(now: Date, schedules: PersistedWeeklySchedule[]) {
+  const currentWeek = currentWeekInTimezone(now, SCHEDULE_TIMEZONE);
+  if (!weeklyUploadIsOpen(now, SCHEDULE_TIMEZONE, schedules.some((record) => record.weekStartDate === currentWeek))) return null;
+  const weekOf = uploadWeekOf(now, SCHEDULE_TIMEZONE);
+  const lastWeek = isoDateInWeek(weekOf, -7);
+  const plansThisWeek = weekOf === currentWeek;
+  return {
+    weekOf,
+    lastWeek,
+    plans: plansThisWeek ? "this_week" as const : "next_week" as const,
+    startsOn: plansThisWeek ? currentDayInTimezone(now, SCHEDULE_TIMEZONE) : "MONDAY" as const,
+    hadPracticeTest: weekHadPracticeTest(schedules, lastWeek),
+  };
+}
+
+export function openWeeklyUpload({ clock, student, schedules, snapshots }: {
+  clock: StudentClock;
   student: Student;
   schedules: PersistedWeeklySchedule[];
   snapshots: ApprovedAnalyticsSnapshot[];
-}): WeeklyUploadBasis {
-  const weekOf = uploadWeekOf(now, timezone);
-  const plansThisWeek = weekOf === currentWeekInTimezone(now, timezone);
-  const lastWeek = isoDateInWeek(weekOf, -7);
+}): WeeklyUploadBasis | null {
+  const needs = uploadNeeds(clock.now, schedules);
+  if (!needs) return null;
+  const { lastWeek, ...basis } = needs;
+  if (basis.plans === "this_week" && approvedForWeek(snapshots, basis.weekOf, SCHEDULE_TIMEZONE).length > 0) return null;
   const sunday = scheduleForWeek(schedules, lastWeek)?.days.SUNDAY;
   return {
-    weekOf,
-    plans: plansThisWeek ? "this_week" : "next_week",
-    startsOn: plansThisWeek ? currentDayInTimezone(now, timezone) : "MONDAY",
+    ...basis,
     student,
-    hadPracticeTest: weekHadPracticeTest(schedules, lastWeek),
     priorSnapshots: newestApprovedSnapshots(snapshots)
       .slice(0, TREND_WINDOW - 1)
       .map(({ id, approvedAt, weekOf, lrAccuracyByType, lrTopPriorityLogicTypes, rcAccuracyByType }) =>
@@ -59,188 +61,125 @@ export function weeklyUploadBasis({ now, timezone, student, schedules, snapshots
     priorWeekPracticeTestReviewMinutes: sunday?.type === "practice_test"
       ? sunday.activities.find((activity) => activity.kind === "PT")?.minutes
       : undefined,
-    priorSchedules: schedules.filter((record) => record.weekStartDate < weekOf).map((record) => record.schedule),
+    priorSchedules: schedules.filter((record) => record.weekStartDate < basis.weekOf).map((record) => record.schedule),
   };
 }
 
-export function plannedWeekAnalytics(basis: WeeklyUploadBasis, rows: AnalyticsExtractedRow[]): AnalyticsSnapshot {
-  const read = summarizeAnalyticsRows(rows);
-  return weightedTrend([read, ...basis.priorSnapshots], basis.weekOf);
-}
-
-export function previewPlannedWeek(
-  basis: WeeklyUploadBasis,
-  analytics: AnalyticsSnapshot,
-  currentScore: number,
-  missedStemTypeCounts?: Partial<Record<LRStemType, number>>,
-): WeeklySchedule {
-  return generateRemainingWeek({ ...basis.student, currentScore }, analytics, mockRules, "", {
-    createdOn: basis.startsOn,
-    priorWeekPracticeTestReviewMinutes: basis.priorWeekPracticeTestReviewMinutes,
-    priorSchedules: basis.priorSchedules,
-    missedStemTypeCounts,
-  });
-}
-
-const SHORT_DAY: Record<DayOfWeek, string> = {
-  MONDAY: "Mon", TUESDAY: "Tue", WEDNESDAY: "Wed", THURSDAY: "Thu", FRIDAY: "Fri", SATURDAY: "Sat", SUNDAY: "Sun",
+const SectionHeader = {
+  page: z.literal("section_review"),
+  prepTest: z.number().int().positive(),
+  section: z.number().int().min(1).max(4),
+  score: z.number().int().max(0),
+  reachesEnd: z.boolean(),
 };
 
-const utcDate = (isoDate: string) => new Date(`${isoDate}T00:00:00.000Z`);
-const dayOfMonth = (isoDate: string) => utcDate(isoDate).getUTCDate();
-const monthShort = (isoDate: string) => utcDate(isoDate).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+const SectionReviewSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ ...SectionHeader, kind: z.literal("RC") }),
+  z.strictObject({
+    ...SectionHeader,
+    kind: z.literal("LR"),
+    rows: z.array(z.strictObject({
+      question: z.number().int().positive(),
+      result: z.enum(["correct", "wrong", "unanswered", "hidden"]),
+      tags: z.array(z.string().max(40)).max(12),
+    })).max(30),
+  }),
+]) satisfies z.ZodType<SectionReview>;
 
-const longDate = (isoDate: string) =>
-  utcDate(isoDate).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" });
+const PracticeTestApprovalSchema = z.strictObject({
+  readings: z.array(SectionReviewSchema).length(4),
+  picks: z.array(z.strictObject({ section: z.number().int(), missed: z.array(z.number().int()) })).max(4),
+  extraction: z.strictObject({
+    source: z.enum(["7sage_screenshot", "admin_sample"]),
+    extractedAt: z.iso.datetime(),
+  }),
+  confirmation: z.strictObject({
+    extractedValuesMatch: z.literal(true),
+    isThisWeeksPracticeTest: z.literal(true),
+    confirmedAt: z.iso.datetime(),
+  }),
+});
 
-const PLAN_TEXT = {
-  next_week: { title: "Plan next week", week: "next week", Week: "Next week", lastWeek: "this week", LastWeek: "This week", previewDay: "Next", preview: "next Monday" },
-  this_week: { title: "Plan this week", week: "this week", Week: "This week", lastWeek: "last week", LastWeek: "Last week", previewDay: "This", preview: "this week" },
-} as const;
+const WeeklyUploadApprovalSchema = z.object({
+  currentScore: z.unknown(),
+  analytics: z.object({ rows: z.unknown(), extraction: z.unknown(), confirmation: z.unknown() }),
+  practiceTest: z.unknown(),
+});
 
-export function planText(basis: WeeklyUploadBasis) {
-  return {
-    ...PLAN_TEXT[basis.plans],
-    startSentence: basis.plans === "next_week"
-      ? `Next week starts ${longDate(basis.weekOf)}.`
-      : `Your plan starts today and runs to ${longDate(isoDateInWeek(basis.weekOf, 6))}.`,
-  };
+const ScoreSchema = z.number().int().min(MIN_SCORE).max(MAX_SCORE);
+
+export type PracticeTestApprovalInput = z.input<typeof PracticeTestApprovalSchema>;
+
+const TargetWeek = z.object({ weekOf: z.iso.date() });
+const Parts = z.object({ analytics: z.unknown(), practiceTest: z.unknown() });
+const Sample = z.object({ extraction: z.object({ source: z.literal("admin_sample") }) });
+
+export function usesAdminSample(input: unknown) {
+  const parts = Parts.safeParse(input);
+  return parts.success && [parts.data.analytics, parts.data.practiceTest].some((part) => Sample.safeParse(part).success);
 }
 
-function weekRange(weekOf: string, startsOn: DayOfWeek) {
-  const start = isoDateInWeek(weekOf, DAY_ORDER.indexOf(startsOn));
-  const sunday = isoDateInWeek(weekOf, 6);
-  const end = monthShort(sunday) === monthShort(start) ? `${dayOfMonth(sunday)}` : `${monthShort(sunday)} ${dayOfMonth(sunday)}`;
-  return `${monthShort(start)} ${dayOfMonth(start)}–${end}`;
-}
-
-export function weekSummary(schedule: WeeklySchedule, startsOn: DayOfWeek) {
-  const total = Math.round(DAY_ORDER.reduce((sum, day) => sum + schedule.days[day].totalMinutes, 0));
-  const practiceTestDays = DAY_ORDER.filter((day) => schedule.days[day].type === "practice_test").map((day) => DAY_LABEL[day]);
-  const practiceTest = practiceTestDays.length > 0 ? `practice test on ${practiceTestDays.join(" and ")}` : "no practice test";
-  return `${weekRange(schedule.weekOf, startsOn)} · ${formatDuration(total)} of study · ${practiceTest}`;
-}
-
-export function weekTiles(schedule: WeeklySchedule, startsOn: DayOfWeek) {
-  const longest = Math.max(1, ...DAY_ORDER.map((day) => schedule.days[day].totalMinutes));
-  return DAY_ORDER.map((day, index) => {
-    const plan = schedule.days[day];
-    return {
-      day,
-      label: `${SHORT_DAY[day]} ${dayOfMonth(isoDateInWeek(schedule.weekOf, index))}`,
-      time: plan.type === "rest" ? "Rest" : shortDuration(Math.round(plan.totalMinutes)),
-      practiceTest: plan.type === "practice_test",
-      barShare: plan.totalMinutes / longest,
-    };
-  }).slice(DAY_ORDER.indexOf(startsOn));
-}
-
-function firstDrillDay(schedule: WeeklySchedule, goesFirst: LRStemType | undefined) {
-  const day = DAY_ORDER.find((weekday) => schedule.days[weekday].type === "drill" && schedule.days[weekday].activities.length > 0);
-  if (!day) return null;
-  const activities = schedule.days[day].activities;
-  const goesFirstIndex = activities.findIndex((activity) =>
-    goesFirst !== undefined && activity.kind === "LR" && !activity.isFullSection && activity.types.includes(goesFirst));
-  return { day, activities, goesFirstIndex };
-}
-
-export function firstDrills(schedule: WeeklySchedule, goesFirst: LRStemType | undefined) {
-  const first = firstDrillDay(schedule, goesFirst);
-  if (!first) return null;
-  const { day, activities, goesFirstIndex: flagged } = first;
-  const date = isoDateInWeek(schedule.weekOf, DAY_ORDER.indexOf(day));
-  return {
-    day,
-    date: `${monthShort(date)} ${dayOfMonth(date)}`,
-    items: activities.map((activity, index) => ({
-      label: activityLabel(activity),
-      detail: index === flagged ? { kind: "flag" as const, text: "Goes first" } : null,
-    })),
-  };
-}
-
-export function checkPreviewDrills(schedule: WeeklySchedule, goesFirst: LRStemType | undefined, analytics: AnalyticsSnapshot) {
-  const first = firstDrillDay(schedule, goesFirst);
-  if (!first) return null;
-  const { day, activities, goesFirstIndex } = first;
-  const rcAccuracy = analytics.rcAccuracyByType ?? {};
-  const lowest = mockRules.rcTypes
-    .filter((type) => rcAccuracy[type] !== undefined)
-    .sort((a, b) => rcAccuracy[a]! - rcAccuracy[b]!)[0];
-  const detail = (activity: Activity, index: number): string | null => {
-    if (index === goesFirstIndex) return "goes first";
-    if (activity.kind === "LR" && !activity.isFullSection && activity.types.length === 2) return "paired";
-    if (activity.kind === "RC" && !activity.isFullSection && lowest && activity.passages.some(({ type }) => type === lowest)) {
-      return `${Math.round(rcAccuracy[lowest]! * 100)}% · lowest`;
-    }
-    return null;
-  };
-  return {
-    day,
-    items: activities.map((activity, index) => {
-      const text = detail(activity, index);
-      return { label: activityLabel(activity), detail: text ? { kind: "accuracy" as const, text } : null };
-    }),
-  };
-}
-
-export const formatSectionScore = (score: number) => (score < 0 ? `−${Math.abs(score)}` : `${score}`);
-
-export const missLabel = ({ section, question, result }: Miss) =>
-  `S${section} Q${question}${result === "unanswered" ? " unanswered" : ""}`;
-
-const times = (count: number) => (count === 1 ? "once" : `${count} times`);
-
-export function missedTypesInOrder(types: MissedStemType[], goesFirst: LRStemType | undefined) {
-  const first = types.find(({ type }) => type === goesFirst);
-  return first ? [first, ...types.filter((type) => type !== first)] : types;
-}
-
-export function missedCountSentence(types: MissedStemType[], analytics: AnalyticsSnapshot): string {
-  const [first, ...others] = types;
-  const count = first.misses.length;
-  const tied = others.filter(({ misses }) => misses.length === count);
-  if (tied.length > 0) {
-    const accuracy = (type: LRStemType) => analytics.lrAccuracyByType[type] ?? 1;
-    const breaker = tied.every(({ type }) => accuracy(type) > accuracy(first.type))
-      ? "It has the lowest accuracy in your analytics."
-      : "It comes first in the tutor's type order.";
-    return `You missed it ${times(count)}, as often as ${tied.map(({ type }) => type).join(" and ")}. ${breaker}`;
+function preparePracticeTest(input: unknown, approvedAt: Date, realNow: Date, weekOf: string, allowAdminSample: boolean) {
+  const parsed = PracticeTestApprovalSchema.safeParse(input);
+  if (!parsed.success) throw new SnapshotApprovalError("Confirm that the practice-test values match your screenshots.");
+  const { readings, picks, extraction } = parsed.data;
+  if (extraction.source === "admin_sample" && !allowAdminSample) {
+    throw new SnapshotApprovalError("Admin access required for sample analytics.");
   }
-  if (others.length === 0) return `You missed it ${times(count)}. You missed no other question type.`;
-  return `You missed it ${times(count)}. No other type was missed more than ${times(others[0].misses.length)}.`;
+  const { extractedAt, confirmedAt } = checkApprovalTimes(parsed.data, realNow, {
+    stale: "Upload fresh practice-test screenshots before saving.",
+    early: "Confirm the practice test after reviewing it.",
+  });
+  const review = reviewPracticeTest(readings, picks);
+  if (!review.ok) throw new SnapshotApprovalError("Fix your practice-test screenshots before you confirm.");
+  const { prepTest, sections, hiddenResults, missedStemTypeCounts } = review.result;
+  return {
+    weekOf,
+    prepTest,
+    sections,
+    hiddenResults,
+    missedStemTypeCounts,
+    approvedAt,
+    extractionSource: extraction.source,
+    extractedAt,
+    extractedValuesMatch: true as const,
+    isThisWeeksPracticeTest: true as const,
+    confirmedAt,
+  };
 }
 
-const KIND_NAME = { LR: "Logical Reasoning", RC: "Reading Comprehension" } as const;
-export const sectionTitle = (section: number, kind: "LR" | "RC") => `Section ${section} · ${KIND_NAME[kind]}`;
+export type PreparedWeeklyUpload = ReturnType<typeof prepareWeeklyUpload>;
 
-export function problemMessage(problem: Exclude<PracticeTestProblem, { problem: "section-missing" | "hidden-pick" }>): string {
-  switch (problem.problem) {
-    case "wrong-page":
-      return problem.shows === "analytics"
-        ? "This shows your Analytics page. Add the Review page of your practice test, one section per screenshot."
-        : "This is not a practice test Review page. Add the Review page of your practice test, one section per screenshot.";
-    case "different-prep-test":
-      return `This is practice test ${problem.prepTest}. Your other sections are from practice test ${problem.expected}. Add the 4 sections of one practice test.`;
-    case "same-section-twice":
-      return problem.missingSection === null
-        ? `Section ${problem.section} is already added. Remove this one.`
-        : `Section ${problem.section} is already added. Remove this one, then add Section ${problem.missingSection}.`;
-    case "cut-off":
-      return problem.lastQuestion !== null && problem.lastQuestion < 24
-        ? `Section ${problem.section} stops at Q${problem.lastQuestion}. A Logical Reasoning section has 24 to 26 questions. Take the screenshot again, down to the last one.`
-        : `Section ${problem.section} stops before its last question. Take the screenshot again, from the section title down to the last one.`;
-    case "score-mismatch":
-      return `The score of ${formatSectionScore(problem.score)} does not match the ${problem.missed} missed ${problem.missed === 1 ? "question" : "questions"} we read. Take the screenshot again with every result in view.`;
+export function prepareWeeklyUpload(input: unknown, { clock, schedules, allowAdminSample, scanningOff }: {
+  clock: StudentClock;
+  schedules: PersistedWeeklySchedule[];
+  allowAdminSample: boolean;
+  scanningOff: ScanningOff;
+}) {
+  const needs = uploadNeeds(clock.now, schedules);
+  const target = TargetWeek.safeParse(input);
+  if (!needs || !target.success || target.data.weekOf !== needs.weekOf) throw new SnapshotApprovalError(STALE_PAGE);
+  const parsed = WeeklyUploadApprovalSchema.safeParse(input);
+  if (!parsed.success) throw new SnapshotApprovalError("Confirm that the reviewed values match your screenshots.");
+  const score = ScoreSchema.safeParse(parsed.data.currentScore);
+  if (!score.success) throw new SnapshotApprovalError(`Enter a score from ${MIN_SCORE} to ${MAX_SCORE}.`);
+  const { rows, extraction, confirmation } = parsed.data.analytics;
+  const snapshot = prepareApprovedSnapshot({ ...summarizeApprovedRows(rows), extraction, confirmation }, clock.now, clock.real, {
+    allowAdminSample,
+    ...snapshotWeekOptions(clock),
+  });
+  const { practiceTest } = parsed.data;
+  if (needs.hadPracticeTest && practiceTest == null && !scanningOff["practice-test-section"]) {
+    throw new SnapshotApprovalError("Add this week's practice test before you confirm.");
   }
-}
-
-export const MIN_SCORE = 120;
-export const MAX_SCORE = 180;
-
-export function parseScore(text: string): number | null {
-  const trimmed = text.trim();
-  if (!/^\d+$/.test(trimmed)) return null;
-  const score = Number(trimmed);
-  return score >= MIN_SCORE && score <= MAX_SCORE ? score : null;
+  if (!needs.hadPracticeTest && practiceTest != null) {
+    throw new SnapshotApprovalError("This week's plan had no practice test. Confirm your analytics only.");
+  }
+  return {
+    snapshot,
+    practiceTest: practiceTest == null
+      ? null
+      : preparePracticeTest(practiceTest, clock.now, clock.real, snapshot.weekOf, allowAdminSample),
+    currentScore: score.data,
+  };
 }

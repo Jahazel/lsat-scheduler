@@ -27,9 +27,12 @@ import { mostMissedType } from "@/lib/engine";
 import { mockRules } from "@/lib/mockData";
 import type { AnalyticsExtractedRow, AnalyticsSection, AnalyticsSnapshot, LRStemType, WeeklySchedule } from "@/lib/types";
 import {
-  firstDrills, formatSectionScore, missLabel, missedCountSentence, missedTypesInOrder, parseScore, planText, plannedWeekAnalytics, previewPlannedWeek,
-  problemMessage, sectionTitle, weekSummary, weekTiles, MAX_SCORE, MIN_SCORE, type WeeklyUploadBasis,
-} from "@/lib/weeklyUpload";
+  plannedWeekAnalytics, previewPlannedWeek, MAX_SCORE, MIN_SCORE, type WeeklyUploadBasis,
+} from "@/lib/weeklyUploadPreview";
+import {
+  firstDrills, formatSectionScore, missLabel, missedCountSentence, missedTypesInOrder, parseScore, planText, problemMessage, sectionTitle,
+  weekSummary, weekTiles,
+} from "./weeklyUploadText";
 
 const ACCEPT = SCREENSHOT_MEDIA_TYPES.join(",");
 const SECTION_COUNT = 4;
