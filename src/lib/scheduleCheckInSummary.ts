@@ -10,6 +10,10 @@ export function formatScheduleWeekOf(weekOf: string) {
   }).format(new Date(`${weekOf}T00:00:00.000Z`));
 }
 
+export function weekNotes(schedule: WeeklySchedule) {
+  return schedule.reasons?.filter((reason) => reason.placement.scope === "week").map((reason) => reason.sentence) ?? [];
+}
+
 export function scheduledActivityCount(schedule: WeeklySchedule) {
   return DAY_ORDER.reduce((total, day) => total + schedule.days[day].activities.length, 0);
 }

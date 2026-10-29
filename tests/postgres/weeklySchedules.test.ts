@@ -94,7 +94,7 @@ it("shows finished weeks in Progress and refuses check-in changes to them", asyn
   expect(markup).toContain("Oct 12 – 18");
   expect(markup).toMatch(/1 of \d+ done/);
   expect(markup).not.toContain("No past weeks yet.");
-  expect(renderToStaticMarkup(await progress("2026-10-12"))).toContain("Your past plan");
+  expect(renderToStaticMarkup(await progress("2026-10-12"))).toContain("Week of Oct 12");
   await expectUnexpectedFailure(database, saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "not_started" }), "Error");
   expect(await postgresActivityCheckIns.listForSchedule(schedule.id))
     .toContainEqual(expect.objectContaining({ activityId: "MONDAY:0", status: "completed" }));

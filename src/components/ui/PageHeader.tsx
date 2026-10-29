@@ -12,6 +12,20 @@ export type PageHeaderProps = {
   className?: string;
 };
 
+export function HeaderNotes({ notes }: { notes: string[] }) {
+  if (notes.length === 0) return null;
+  return (
+    <ul className="flex flex-col gap-1">
+      {notes.map((note) => (
+        <li key={note} className="flex items-center gap-2 text-small text-smoke">
+          <InfoGlyph />
+          {note}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function PageHeader({ eyebrow, title, lead, notes = [], aside, gutter = "px-5 md:px-18", className }: PageHeaderProps) {
   return (
     <header className={cx("border-b border-vellum-line bg-paper pt-6 pb-6 md:pt-12 md:pb-10", gutter, className)}>
@@ -20,16 +34,7 @@ export function PageHeader({ eyebrow, title, lead, notes = [], aside, gutter = "
           {eyebrow && <p className="text-caption text-smoke md:text-small">{eyebrow}</p>}
           <h1 className="text-h3 font-medium text-ink md:text-h2">{title}</h1>
           {lead && <p className="text-body text-smoke md:text-lead">{lead}</p>}
-          {notes.length > 0 && (
-            <ul className="flex flex-col gap-1">
-              {notes.map((note) => (
-                <li key={note} className="flex items-center gap-2 text-small text-smoke">
-                  <InfoGlyph />
-                  {note}
-                </li>
-              ))}
-            </ul>
-          )}
+          <HeaderNotes notes={notes} />
         </div>
         {aside && <div className="shrink-0 lg:w-90">{aside}</div>}
       </div>
