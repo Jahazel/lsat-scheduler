@@ -26,6 +26,7 @@ vi.mock("@/lib/screenshotExtractor", async (importOriginal) => {
 
 vi.mock("@anthropic-ai/sdk", () => ({
   default: class {
+    static APIError = class extends Error {};
     static APIConnectionTimeoutError = class extends Error {};
 
     messages = { create: mocks.createMessage };
@@ -163,20 +164,23 @@ describe("POST /api/analytics/extract", () => {
     expect(await response.json()).toEqual({ error: "Couldn't read that screenshot" });
   });
 
-  it.each(["fake-failure", "anthropic"])("returns the plain failure for extractor setting %j without calling Anthropic", async (setting) => {
+  it.each([
+    ["fake-failure", 502, { error: "Couldn't read that screenshot" }],
+    ["anthropic", 500, { error: "Something went wrong. Try again.", code: expect.stringMatching(/^[0-9a-f]{8}$/) }],
+  ])("answers extractor setting %j without calling Anthropic", async (setting, status, body) => {
     vi.stubEnv("SCREENSHOT_EXTRACTOR", setting);
     vi.stubEnv("ANTHROPIC_API_KEY", "synthetic-anthropic-key");
 
     const { POST } = await import("./route");
     const response = await POST(await imageRequest());
 
-    expect(response.status).toBe(502);
-    expect(await response.json()).toEqual({ error: "Couldn't read that screenshot" });
+    expect(response.status).toBe(status);
+    expect(await response.json()).toEqual(body);
     expect(mocks.constructClient).not.toHaveBeenCalled();
     expect(mocks.createMessage).not.toHaveBeenCalled();
   });
 
-  it.each([undefined, ""])("loads with key %j and rejects a screenshot without sending a request", async (apiKey) => {
+  it.each([undefined, ""])("loads with key %j and answers a screenshot with an error code without sending a request", async (apiKey) => {
     vi.stubEnv("ANTHROPIC_API_KEY", apiKey);
 
     const { POST } = await import("./route");
@@ -184,8 +188,8 @@ describe("POST /api/analytics/extract", () => {
 
     const response = await POST(await imageRequest());
 
-    expect(response.status).toBe(502);
-    expect(await response.json()).toEqual({ error: "Couldn't read that screenshot" });
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "Something went wrong. Try again.", code: expect.stringMatching(/^[0-9a-f]{8}$/) });
     expect(mocks.createMessage).not.toHaveBeenCalled();
   });
 
@@ -301,7 +305,7 @@ describe("POST /api/analytics/extract", () => {
     expect(mocks.takeScanPlace).not.toHaveBeenCalled();
   });
 
-  it("handles a client creation failure as a plain screenshot error", async () => {
+  it("answers a client creation failure with an error code", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "synthetic-anthropic-key");
     mocks.constructClient.mockImplementation(() => {
       throw new Error("synthetic client configuration failure");
@@ -310,8 +314,8 @@ describe("POST /api/analytics/extract", () => {
     const { POST } = await import("./route");
     const response = await POST(await imageRequest());
 
-    expect(response.status).toBe(502);
-    expect(await response.json()).toEqual({ error: "Couldn't read that screenshot" });
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "Something went wrong. Try again.", code: expect.stringMatching(/^[0-9a-f]{8}$/) });
     expect(mocks.createMessage).not.toHaveBeenCalled();
   });
 

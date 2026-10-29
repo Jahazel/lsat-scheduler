@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { DAY_ORDER } from "@/lib/engine";
 import { activityLabel } from "@/lib/activityLabel";
 import { formatDuration } from "@/lib/formatDuration";
@@ -76,6 +76,7 @@ export default function ScheduleCheckInView({
 }: ScheduleCheckInViewProps) {
   const [savedCheckIns, setSavedCheckIns] = useState(checkIns);
   const [failure, setFailure] = useState<UnexpectedFailure | null>(null);
+  const confirmedCheckIns = useRef(checkIns);
   const [, startTransition] = useTransition();
   const doneIds = doneActivityIds(savedCheckIns);
   const totalActivities = scheduledActivityCount(schedule);
@@ -89,14 +90,17 @@ export default function ScheduleCheckInView({
 
   function toggle(activityId: string) {
     const status = doneIds.has(activityId) ? "not_started" : "completed";
-    const before = savedCheckIns.filter((checkIn) => checkIn.activityId === activityId);
     const others = (checkIns: ActivityCheckIn[]) => checkIns.filter((checkIn) => checkIn.activityId !== activityId);
     setFailure(null);
     setSavedCheckIns((previous) => [...others(previous), { scheduleId, activityId, status }]);
     startTransition(async () => {
       const answer = await saveActivityCheckIn({ scheduleId, activityId, status });
-      if (!isUnexpectedFailure(answer)) return;
-      setSavedCheckIns((previous) => [...others(previous), ...before]);
+      if (!isUnexpectedFailure(answer)) {
+        confirmedCheckIns.current = [...others(confirmedCheckIns.current), answer];
+        return;
+      }
+      const confirmed = confirmedCheckIns.current.filter((checkIn) => checkIn.activityId === activityId);
+      setSavedCheckIns((previous) => [...others(previous), ...confirmed]);
       setFailure(answer);
     });
   }

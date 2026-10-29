@@ -12,7 +12,8 @@ export type Answer<T> = T | UnexpectedFailure;
 export type FormState = UnexpectedFailure | null;
 
 export function isUnexpectedFailure(value: unknown): value is UnexpectedFailure {
-  return typeof value === "object" && value !== null && "unexpectedFailure" in value;
+  return typeof value === "object" && value !== null && "unexpectedFailure" in value
+    && typeof value.unexpectedFailure === "string" && /^[0-9a-f]{8}$/.test(value.unexpectedFailure);
 }
 
 export const failureText = ({ unexpectedFailure }: UnexpectedFailure) =>

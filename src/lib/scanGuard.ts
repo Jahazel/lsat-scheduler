@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
-import type { RecordCost } from "./claudeExtract";
+import { ModelReplyRefused, type RecordCost } from "./claudeExtract";
 import { freeScanPlace, takeScanPlace } from "./scanPlaces";
 import { trySendSpendAlert, type ScanKind } from "./scanSpending";
 import { recordSecurityEvent } from "./securityLog";
@@ -27,9 +27,13 @@ export async function scanWithLimits(accountId: string, kind: ScanKind, read: (r
   try {
     return NextResponse.json(await read((usd) => { realCostUsd = usd; }));
   } catch (error) {
-    return error instanceof Anthropic.APIConnectionTimeoutError
-      ? NextResponse.json({ error: "Reading took too long and stopped. Try again." }, { status: 504 })
-      : NextResponse.json({ error: "Couldn't read that screenshot" }, { status: 502 });
+    if (error instanceof Anthropic.APIConnectionTimeoutError) {
+      return NextResponse.json({ error: "Reading took too long and stopped. Try again." }, { status: 504 });
+    }
+    if (error instanceof Anthropic.APIError || (error instanceof Error && error.name === ModelReplyRefused.name)) {
+      return NextResponse.json({ error: "Couldn't read that screenshot" }, { status: 502 });
+    }
+    throw error;
   } finally {
     await Promise.all([
       alertSent,

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { SnapshotApprovalError, SnapshotSaveLimitReached } from "@/lib/analyticsSnapshots";
-import { requireCurrentAdmin } from "@/lib/requireAdmin";
+import { AdminAccessRequired, requireCurrentAdmin } from "@/lib/requireAdmin";
 import { answerAction, recordSecurityEvent } from "@/lib/securityLog";
 import { readScanningOff } from "@/lib/scanSpending";
 import { studentSideClock } from "@/lib/studentClock";
@@ -23,8 +23,12 @@ export async function confirmWeeklyUpload(input: unknown): Promise<Answer<Weekly
 
     const allowAdminSample = usesAdminSample(input);
     if (allowAdminSample) {
-      try { await requireCurrentAdmin("/dashboard/upload"); }
-      catch { return { error: "Admin access required for sample analytics." }; }
+      try {
+        await requireCurrentAdmin("/dashboard/upload");
+      } catch (error) {
+        if (error instanceof AdminAccessRequired) return { error: "Admin access required for sample analytics." };
+        throw error;
+      }
     }
 
     const student = await findStudentByAccountId(session.user.id);

@@ -64,6 +64,9 @@ describe("extractScreenshot", () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
     expect(await extractScreenshot(file, "LR")).toEqual({ kind: "connection-lost" });
 
+    replyWith(500, {});
+    expect(await extractScreenshot(file, "LR")).toEqual({ kind: "connection-lost" });
+
     replyWith(503, {});
     expect(await extractScreenshot(file, "LR")).toEqual({ kind: "connection-lost" });
   });

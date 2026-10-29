@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   auth: vi.fn(), connectDB: vi.fn(), findAccountById: vi.fn(), findStudent: vi.fn(),
   listStudents: vi.fn(), getStudent: vi.fn(),
   messages: vi.fn(),
+  APIError: class extends Error {},
 }));
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
 vi.mock("@/lib/db", () => ({ connectDB: mocks.connectDB }));
@@ -16,6 +17,7 @@ vi.mock("@/lib/studentRepository", () => ({ listStudentsWithOwners: mocks.listSt
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@anthropic-ai/sdk", () => ({
   default: class {
+    static APIError = mocks.APIError;
     static APIConnectionTimeoutError = class extends Error {};
 
     messages = { create: mocks.messages };
@@ -102,7 +104,7 @@ describe("issue 70 request boundary evidence", () => {
   });
 
   it("returns a generic extraction error rather than the SDK error message", async () => {
-    mocks.messages.mockRejectedValue(new Error("synthetic provider detail"));
+    mocks.messages.mockRejectedValue(new mocks.APIError("synthetic provider detail"));
     const response = await extract(await imageRequest(8));
     expect(response.status).toBe(502);
     expect(await response.json()).toEqual({ error: "Couldn't read that screenshot" });

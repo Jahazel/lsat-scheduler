@@ -1,7 +1,7 @@
 import type { SectionReading } from "./practiceTestResult";
 import type { ScanRefusal } from "./scanPlaces";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "./types";
-import type { UnexpectedFailure } from "./unexpectedFailure";
+import { isUnexpectedFailure, type UnexpectedFailure } from "./unexpectedFailure";
 
 export const SCREENSHOT_MEDIA_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 export type ScreenshotMediaType = (typeof SCREENSHOT_MEDIA_TYPES)[number];
@@ -97,8 +97,8 @@ async function postScreenshot(url: string, file: File, fields: Record<string, st
     if (res.status === 502) return { kind: "cannot-read" };
     if (res.status === 504) return { kind: "timed-out" };
     if (res.status === 500) {
-      const { code } = await res.json();
-      return { kind: "failed", failure: { unexpectedFailure: code } };
+      const failure = { unexpectedFailure: (await res.json()).code };
+      return isUnexpectedFailure(failure) ? { kind: "failed", failure } : { kind: "connection-lost" };
     }
     if (!res.ok) return { kind: "connection-lost" };
     return { kind: "ok", body: await res.json() };

@@ -50,6 +50,21 @@ describe("ScheduleCheckInView", () => {
     expect(screen.getByText("18 remaining")).toBeTruthy();
   });
 
+  it("shows the last saved state when two quick presses both fail", async () => {
+    const replies: ((answer: unknown) => void)[] = [];
+    saveActivityCheckIn.mockImplementation(() => new Promise((resolve) => replies.push(resolve)));
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />);
+    const row = within(dayCard("Monday")).getByRole("checkbox", { name: "1 Full LR Section" });
+
+    await userEvent.click(row);
+    await userEvent.click(row);
+    replies[0]({ unexpectedFailure: "3f9a01c2" });
+    replies[1]({ unexpectedFailure: "0d2d95eb" });
+    expect((await screen.findByRole("alert")).textContent).toContain("Error code:");
+    expect(row.getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByText("0 of 18 done")).toBeTruthy();
+  });
+
   it("toggles a focused line with Space or Enter and moves on with Tab", async () => {
     render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />);
     const [first, second] = within(dayCard("Monday")).getAllByRole("checkbox");

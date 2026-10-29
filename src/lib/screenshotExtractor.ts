@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { categoryFor, extractAnalyticsRowsFromImage, readPracticeTestSectionFromImage, type AnalyticsExtraction, type RecordCost } from "./claudeExtract";
+import { categoryFor, extractAnalyticsRowsFromImage, ModelReplyRefused, readPracticeTestSectionFromImage, type AnalyticsExtraction, type RecordCost } from "./claudeExtract";
 import { PT158_FIXTURES } from "./practiceTestFixtures/pt158";
 import type { SectionReading } from "./practiceTestResult";
 import type { ScreenshotMediaType } from "./screenshotUpload";
@@ -47,7 +47,7 @@ export async function extractAnalyticsRows(
       if (section === "RC") return { rows: [], showsPassageTypes: true };
       return { rows: fakeLRRows(rules) };
     case "fake-failure":
-      throw new Error("Fake screenshot extractor failed on request");
+      throw new ModelReplyRefused("Fake screenshot extractor failed on request");
     default:
       throw new Error(`Unknown SCREENSHOT_EXTRACTOR value: ${setting}`);
   }
@@ -68,7 +68,7 @@ export async function extractPracticeTestSection(
       return PT158_FIXTURES.find((fixture) => fixture.sha256 === sha256)?.reading ?? { page: "other" };
     }
     case "fake-failure":
-      throw new Error("Fake screenshot extractor failed on request");
+      throw new ModelReplyRefused("Fake screenshot extractor failed on request");
     default:
       throw new Error(`Unknown SCREENSHOT_EXTRACTOR value: ${setting}`);
   }
