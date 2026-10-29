@@ -17,12 +17,7 @@ import type { AnalyticsExtractedRow, Student } from "../../src/lib/types";
 const state = vi.hoisted((): { session: Session | null } => ({ session: null }));
 vi.mock("@/auth", () => ({ auth: async () => state.session }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
-  usePathname: () => "/dashboard",
-  redirect: (path: string) => { throw new Error(`redirect:${path}`); },
-  notFound: () => { throw new Error("not-found"); },
-}));
+vi.mock("next/navigation", () => import("./fakeNavigation"));
 
 const database = setUpAppTestDatabase();
 beforeEach(async () => {
@@ -90,9 +85,9 @@ describe.each(SOURCES)("onboarding with a %s snapshot", (source) => {
   it.each(ROW_REFUSALS)("refuses %s and saves no student", async (_name, analyticsRows, message) => {
     vi.setSystemTime(MONDAY);
     const account = await signIn(source === "admin_sample" ? "admin" : "student");
-    await expect(createStudentProfile({
+    expect(await createStudentProfile({
       ...profile, officialAttempts: [], analyticsRows: untrusted(analyticsRows), analyticsApproval: approval(source, MONDAY),
-    })).rejects.toThrow(message);
+    })).toEqual({ error: message });
     expect(await findStudentByAccountId(account.id)).toBeNull();
   });
 });
@@ -100,8 +95,8 @@ describe.each(SOURCES)("onboarding with a %s snapshot", (source) => {
 it("onboarding refuses a sample snapshot even from an Admin", async () => {
   vi.setSystemTime(MONDAY);
   const account = await signIn("admin");
-  await expect(createStudentProfile({ ...profile, officialAttempts: [], analyticsRows: untrusted(rows), analyticsApproval: approval("admin_sample", MONDAY) }))
-    .rejects.toThrow("Admin access required for sample analytics.");
+  expect(await createStudentProfile({ ...profile, officialAttempts: [], analyticsRows: untrusted(rows), analyticsApproval: approval("admin_sample", MONDAY) }))
+    .toEqual({ error: "Admin access required for sample analytics." });
   expect(await findStudentByAccountId(account.id)).toBeNull();
 });
 

@@ -6,7 +6,7 @@ import { getPostgresDatabase } from "../../src/lib/postgres";
 import { createStudent } from "../../src/lib/studentRepository";
 import type { Student } from "../../src/lib/types";
 import { deleteAccount } from "../../src/app/account/actions";
-import { ADMIN_RESTRICTED_ACTION_MESSAGE } from "../../src/lib/accessControl";
+import { expectUnexpectedFailure } from "./plannedAnswer";
 
 const state = vi.hoisted((): { session: Session | null } => ({ session: null }));
 vi.mock("@/auth", () => ({ auth: async () => state.session, signOut: vi.fn() }));
@@ -113,7 +113,7 @@ it.each([
 
 it("refuses an Admin with a recent sign-in and keeps every record", async () => {
   const admin = await studentWithRecords("admin@example.test", "admin");
-  await expect(deleteWith("DELETE")).rejects.toThrow(ADMIN_RESTRICTED_ACTION_MESSAGE);
+  await expectUnexpectedFailure(database, deleteWith("DELETE"), "Error");
   expect(await ownedRecords(admin.account.id, admin.student.id)).toEqual(allRecords);
 });
 
@@ -133,7 +133,7 @@ it("keeps every record when the last cascading delete fails", async () => {
   await database.owner.execute(sql`create trigger reject_check_in_delete_test before delete on activity_check_ins
     for each row execute function reject_check_in_delete_test()`);
   try {
-    await expect(deleteWith("DELETE")).rejects.toThrow();
+    await expectUnexpectedFailure(database, deleteWith("DELETE"), "Error:P0001");
     expect(await ownedRecords(owner.account.id, owner.student.id)).toEqual(allRecords);
     expect(await ownedRecords(other.account.id, other.student.id)).toEqual(allRecords);
   } finally {

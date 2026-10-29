@@ -16,6 +16,7 @@ import { generateTestSample, resetEverything, resetTestData } from "../../src/ap
 import { deleteAccount } from "../../src/app/account/actions";
 import { postgresAdminTestRepositories } from "../../src/lib/adminTestRepositories";
 import { findAccountById } from "../../src/lib/accountRepository";
+import { planned } from "./plannedAnswer";
 import { rebuildThisWeek } from "../../src/app/admin/test/actions";
 
 const state = vi.hoisted((): { session: Session | null } => ({ session: null }));
@@ -113,15 +114,15 @@ it("reads a snapshot approved before RC analytics without RC accuracy", async ()
 
 it("generates an admin Sample analytics snapshot with all five passage types", async () => {
   await student("admin@example.test", "admin");
-  const sample = await generateTestSample("improving");
+  const sample = planned(await generateTestSample("improving"));
   expect(sample.rows.length).toBeGreaterThan(0);
   expect(Object.keys(summarizeAnalyticsRows(sample.rows).rcAccuracyByType ?? {}).sort()).toEqual(["Art", "Comparative", "Humanities", "Law", "Science"]);
-  const next = await generateTestSample("steady");
+  const next = planned(await generateTestSample("steady"));
   expect(next.rows.length).toBeGreaterThan(0);
 });
 it("refuses to generate Sample analytics snapshots for a student", async () => {
   await student("student@example.test");
-  await expect(generateTestSample("steady")).rejects.toThrow();
+  expect(await generateTestSample("steady")).toEqual({ unexpectedFailure: expect.stringMatching(/^[0-9a-f]{8}$/) });
 });
 it("resets only the admin's test snapshots and keeps the other student's approved snapshots", async () => {
   const other = await student("other@example.test");
@@ -152,7 +153,7 @@ it("deletes the signed-in student's Account and cascades snapshots while refusin
   expect(await listApprovedAnalyticsSnapshots(other.saved.id)).toHaveLength(1);
   const admin = await student("admin@example.test", "admin");
   await approve(admin.saved.id);
-  await expect(deleteAccount(null, form)).rejects.toThrow();
+  expect(await deleteAccount(null, form)).toEqual({ unexpectedFailure: expect.stringMatching(/^[0-9a-f]{8}$/) });
   expect(await listApprovedAnalyticsSnapshots(admin.saved.id)).toHaveLength(1);
 });
 

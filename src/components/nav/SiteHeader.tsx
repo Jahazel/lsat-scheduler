@@ -4,6 +4,7 @@ import { currentWeekInTimezone, isUploadWeekend } from "@/lib/currentWeeklySched
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { postgresAdminClock, studentSideNow } from "@/lib/studentClock";
 import { auth } from "@/auth";
+import { ActionForm } from "@/components/FailureNotice";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { initialsFor, loadStudentNavState } from "@/lib/studentNav";
 import AdminNav from "./AdminNav";
@@ -13,9 +14,9 @@ import { BAR, HEADER, Logo } from "./shared";
 
 function LogOutButton() {
   return (
-    <form action={logOut}>
+    <ActionForm action={logOut}>
       <Button type="submit" variant="text" size="md">Log out</Button>
-    </form>
+    </ActionForm>
   );
 }
 

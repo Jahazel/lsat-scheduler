@@ -1,9 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
-import type { RecordCost } from "./claudeExtract";
+import { MODEL_REPLY_REFUSED, type RecordCost } from "./claudeExtract";
 import { freeScanPlace, takeScanPlace } from "./scanPlaces";
 import { trySendSpendAlert, type ScanKind } from "./scanSpending";
 import { recordSecurityEvent } from "./securityLog";
+
+/** Anthropic refused our key, account, or model: a setup fault for the owner, not an unreadable screenshot. */
+const SETUP_FAULT_STATUSES = [401, 403, 404];
 
 const SCAN_ROUTES = { analytics: "/api/analytics/extract", "practice-test-section": "/api/practice-test/extract" } as const;
 
@@ -27,9 +30,15 @@ export async function scanWithLimits(accountId: string, kind: ScanKind, read: (r
   try {
     return NextResponse.json(await read((usd) => { realCostUsd = usd; }));
   } catch (error) {
-    return error instanceof Anthropic.APIConnectionTimeoutError
-      ? NextResponse.json({ error: "Reading took too long and stopped. Try again." }, { status: 504 })
-      : NextResponse.json({ error: "Couldn't read that screenshot" }, { status: 502 });
+    if (error instanceof Anthropic.APIConnectionTimeoutError) {
+      return NextResponse.json({ error: "Reading took too long and stopped. Try again." }, { status: 504 });
+    }
+    const unreadable = error instanceof Error && error.name === MODEL_REPLY_REFUSED;
+    const serviceFault = error instanceof Anthropic.APIError && !SETUP_FAULT_STATUSES.includes(error.status ?? 0);
+    if (unreadable || serviceFault) {
+      return NextResponse.json({ error: "Couldn't read that screenshot" }, { status: 502 });
+    }
+    throw error;
   } finally {
     await Promise.all([
       alertSent,

@@ -66,6 +66,14 @@ describe("extractScreenshot", () => {
 
     replyWith(500, {});
     expect(await extractScreenshot(file, "LR")).toEqual({ kind: "connection-lost" });
+
+    replyWith(503, {});
+    expect(await extractScreenshot(file, "LR")).toEqual({ kind: "connection-lost" });
+  });
+
+  it("keeps the error code from a server failure", async () => {
+    replyWith(500, { error: "Something went wrong. Try again.", code: "3f9a01c2" });
+    expect(await extractScreenshot(file, "LR")).toEqual({ kind: "failed", failure: { unexpectedFailure: "3f9a01c2" } });
   });
 });
 

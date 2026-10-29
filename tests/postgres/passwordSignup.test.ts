@@ -12,6 +12,7 @@ import VerifyEmailPage from "../../src/app/verify-email/page";
 import { logInWithPassword } from "../../src/app/login/actions";
 import { handlers } from "../../src/auth";
 import { createGoogleAccountOnSignIn } from "../../src/lib/authAccounts";
+import { planned } from "./plannedAnswer";
 import proxy from "../../src/proxy";
 
 const COOKIE = "authjs.session-token";
@@ -28,7 +29,7 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers({ host: "localhost:3000", "x-forwarded-proto": "http", "x-vercel-forwarded-for": request.ip }),
   cookies: async () => ({ set: request.setCookie }),
 }));
-vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
+vi.mock("next/navigation", () => import("./fakeNavigation"));
 
 const database = setUpAppTestDatabase();
 beforeAll(() => {
@@ -68,7 +69,7 @@ function signupForm({ name = "Maya Chen", email = "maya.chen@fastmail.com", pass
   return form;
 }
 
-const signUp = (fields?: Parameters<typeof signupForm>[0]) => signUpWithPassword({ kind: "form", errors: {} }, signupForm(fields));
+const signUp = (fields?: Parameters<typeof signupForm>[0]) => signUpWithPassword({ kind: "form", errors: {} }, signupForm(fields)).then(planned);
 const checkYourEmail = (email: string): SignupState => ({ kind: "checkYourEmail", email });
 
 function linkTokenIn(text: string) {
@@ -81,7 +82,7 @@ async function pressVerify(token: string) {
   const form = new FormData();
   form.set("token", token);
   try {
-    return await verifyEmail({ linkDoesNotWork: false }, form);
+    return planned(await verifyEmail({ linkDoesNotWork: false }, form));
   } catch (error) {
     return { redirectedTo: (error as Error).message.replace(/^redirect:/, "") };
   }
@@ -92,7 +93,7 @@ async function logIn(email: string, password: string) {
   form.set("email", email);
   form.set("password", password);
   const outcome = await logInWithPassword({ email: "", notice: null, passwordError: null }, form).then(
-    (state) => ({ redirectedTo: null, state }),
+    (state) => ({ redirectedTo: null, state: planned(state) }),
     (error: Error) => ({ redirectedTo: error.message.replace(/^redirect:/, ""), state: null }),
   );
   const cookie = request.setCookie.mock.calls.findLast(([name]) => name === COOKIE)?.[1] ?? "";

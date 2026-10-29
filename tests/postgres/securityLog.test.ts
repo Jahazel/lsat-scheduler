@@ -4,7 +4,8 @@ import { setUpAppTestDatabase } from "./appTestDatabase";
 import { isAccountId } from "../../src/lib/accountRepository";
 import { hashPassword } from "../../src/lib/passwordHash";
 import { deleteAccount, logIn, requestPasswordReset, type PasswordRequest } from "../../src/lib/passwordAccount";
-import { recordSecurityEvent, type SecurityEntry, type SecurityEvent } from "../../src/lib/securityLog";
+import { redirect } from "next/navigation";
+import { answerAction, answerRequest, recordSecurityEvent, type SecurityEntry, type SecurityEvent } from "../../src/lib/securityLog";
 
 const MAYA = "maya.chen@fastmail.com";
 const PASSWORD = "correct horse battery staple";
@@ -32,6 +33,9 @@ afterAll(() => {
 const request: PasswordRequest = { route: "/login", ipAddress: "203.0.113.9", realNow: new Date() };
 const entries = async () => (await database.owner.execute(sql`
   select event, result, route, account_id, ip_address, email_hash, error_code from security_log order by logged_at, event
+`)).rows;
+const failures = async () => (await database.owner.execute(sql`
+  select route, error_code, error_type from security_log where event = 'unexpected_failure'
 `)).rows;
 
 async function passwordAccount() {
@@ -145,4 +149,25 @@ it("records every password reset request, with the Account ID when the email has
     { event: "password_reset_request", result: "noAccount", account_id: null },
   ]);
   vi.unstubAllEnvs();
+});
+
+it("answers a failed action with a code that matches its log entry, and leaves its answers and redirects alone", async () => {
+  expect(await answerAction("/dashboard", async () => ({ saved: true }))).toEqual({ saved: true });
+  const failure = await answerAction("/dashboard", async () => { throw new TypeError("token abc"); });
+  expect(failure).toEqual({ unexpectedFailure: expect.stringMatching(/^[0-9a-f]{8}$/) });
+  expect(await failures()).toEqual([
+    { route: "/dashboard", error_code: (failure as { unexpectedFailure: string }).unexpectedFailure, error_type: "TypeError" },
+  ]);
+  await expect(answerAction("/login", async () => redirect("/dashboard"))).rejects.toMatchObject({ digest: expect.stringContaining("NEXT_REDIRECT") });
+  expect(await failures()).toHaveLength(1);
+});
+
+it("answers a failed request with HTTP 500 and the code in the log, and passes a planned answer through", async () => {
+  const planned = Response.json({ error: "Student not found" }, { status: 404 });
+  expect(await answerRequest("/api/students/[id]", async () => planned)).toBe(planned);
+  const response = await answerRequest("/api/students/[id]", async () => { throw new Error("connection lost"); });
+  expect(response.status).toBe(500);
+  const body = await response.json();
+  expect(body).toEqual({ error: "Something went wrong. Try again.", code: expect.stringMatching(/^[0-9a-f]{8}$/) });
+  expect(await failures()).toEqual([{ route: "/api/students/[id]", error_code: body.code, error_type: "Error" }]);
 });

@@ -2,10 +2,12 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { ActionForm, FailureNotice } from "@/components/FailureNotice";
 import { GoogleButton } from "@/components/signIn/GoogleButton";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { ADMIN_RESTRICTED_ACTION_MESSAGE } from "@/lib/accessControl";
 import { CURRENT_PASSWORD_MESSAGES } from "@/lib/currentPasswordMessages";
+import type { Answer } from "@/lib/unexpectedFailure";
 import { deleteAccount, signInAgainToDelete, type DeletionRefusal } from "./actions";
 import { PasswordField } from "./PasswordField";
 
@@ -57,7 +59,7 @@ function AdminNotice() {
 
 function DeletionForm({ mode }: { mode: Exclude<DeletionMode, { kind: "admin" }> }) {
   const [currentPassword, setCurrentPassword] = useState("");
-  const [refusal, formAction] = useActionState(async (previous: DeletionRefusal, formData: FormData) => {
+  const [refusal, formAction] = useActionState(async (previous: Answer<DeletionRefusal>, formData: FormData) => {
     const result = await deleteAccount(previous, formData);
     if (result === "wrong-password" || result === "paused") setCurrentPassword("");
     return result;
@@ -65,7 +67,7 @@ function DeletionForm({ mode }: { mode: Exclude<DeletionMode, { kind: "admin" }>
 
   if (mode.kind === "google" && (!mode.signedInRecently || refusal === "sign-in-too-old")) {
     return (
-      <form action={signInAgainToDelete} className="flex flex-col gap-4">
+      <ActionForm action={signInAgainToDelete} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <p className="text-body font-medium text-ink">Sign in again to delete</p>
           <p className="text-small leading-[20px] text-smoke">
@@ -73,7 +75,7 @@ function DeletionForm({ mode }: { mode: Exclude<DeletionMode, { kind: "admin" }>
           </p>
         </div>
         <GoogleButton />
-      </form>
+      </ActionForm>
     );
   }
 
@@ -88,7 +90,7 @@ function DeletionForm({ mode }: { mode: Exclude<DeletionMode, { kind: "admin" }>
 }
 
 function ConfirmationFields({ refusal, currentPassword }: {
-  refusal: DeletionRefusal;
+  refusal: Answer<DeletionRefusal>;
   currentPassword: { value: string; onChange: (value: string) => void } | null;
 }) {
   const { pending } = useFormStatus();
@@ -146,6 +148,7 @@ function ConfirmationFields({ refusal, currentPassword }: {
         {pending ? "Deleting…" : "Delete account"}
       </button>
       {pending && <p className="text-small text-smoke">Deleting your account. This takes a few seconds.</p>}
+      <FailureNotice answer={shown} />
     </>
   );
 }

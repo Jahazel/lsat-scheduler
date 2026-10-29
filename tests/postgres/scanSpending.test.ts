@@ -5,6 +5,7 @@ import { setUpAppTestDatabase } from "./appTestDatabase";
 import { actionCounters, runningScans, scanSpending } from "../../src/lib/postgresSchema";
 import { scanWithLimits } from "../../src/lib/scanGuard";
 import { freeScanPlace, takeScanPlace } from "../../src/lib/scanPlaces";
+import { ModelReplyRefused } from "../../src/lib/claudeExtract";
 import { readScanningOff } from "../../src/lib/scanSpending";
 
 const WARNING_URL = "https://hc-ping.com/00000000-0000-4000-8000-000000000010";
@@ -75,10 +76,10 @@ it("counts $0.02 before an analytics scan and $0.03 before a practice-test secti
 
 it("keeps the count after a timeout or an error with no reply, and uses the real cost when a reply did not fit its format", async () => {
   const timedOut = await scanWithLimits("student-a", "analytics", async () => { throw new Anthropic.APIConnectionTimeoutError(); });
-  const failed = await scanWithLimits("student-a", "practice-test-section", async () => { throw new Error("synthetic network loss"); });
+  const failed = await scanWithLimits("student-a", "practice-test-section", async () => { throw new Anthropic.APIConnectionError({ message: "synthetic network loss" }); });
   const unreadable = await scanWithLimits("student-a", "analytics", async (recordCost) => {
     recordCost(0.005);
-    throw new Error("The model's reply does not fit its format");
+    throw new ModelReplyRefused("The model's reply does not fit its format");
   });
 
   expect([timedOut.status, failed.status, unreadable.status]).toEqual([504, 502, 502]);

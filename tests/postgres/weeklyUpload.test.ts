@@ -20,12 +20,7 @@ import type { Student } from "../../src/lib/types";
 const state = vi.hoisted((): { session: Session | null } => ({ session: null }));
 vi.mock("@/auth", () => ({ auth: async () => state.session }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
-  usePathname: () => "/dashboard",
-  redirect: (path: string) => { throw new Error(`redirect:${path}`); },
-  notFound: () => { throw new Error("not-found"); },
-}));
+vi.mock("next/navigation", () => import("./fakeNavigation"));
 
 const database = setUpAppTestDatabase();
 beforeEach(async () => {

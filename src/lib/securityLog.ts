@@ -1,5 +1,7 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { sql } from "drizzle-orm";
+import { unstable_rethrow } from "next/navigation";
+import { NextResponse } from "next/server";
 import { findAccountByEmail, isAccountId } from "./accountRepository";
 import { clientIpAddress } from "./clientIpAddress";
 import type { LimitedAction } from "./actionLimits";
@@ -7,6 +9,7 @@ import type { DeletionRefusal, LoginRefusal } from "./passwordAccount";
 import type { VerificationResult } from "./pendingSignupRepository";
 import { getPostgresDatabase } from "./postgres";
 import type { ScanRefusal } from "./scanPlaces";
+import { UNEXPECTED_FAILURE_MESSAGE, type Answer, type FailureCode } from "./unexpectedFailure";
 
 export type SecurityLogRoute = `/${string}`;
 
@@ -87,8 +90,28 @@ export async function recordSecurityEvent({ event, result, route, who, ipAddress
   }
 }
 
-export async function recordUnexpectedFailure(route: SecurityLogRoute, error: unknown) {
-  const code = randomBytes(4).toString("hex");
+/** Runs a Server Action's work. Redirects and other Next.js control flow pass through; any other error is logged and answered with its code. */
+export async function answerAction<T>(route: SecurityLogRoute, work: () => Promise<T>): Promise<Answer<T>> {
+  try {
+    return await work();
+  } catch (error) {
+    unstable_rethrow(error);
+    return { unexpectedFailure: (await recordUnexpectedFailure(route, error)).code };
+  }
+}
+
+/** Runs a Route Handler's work. Any error is logged and answered with HTTP 500 and its code. */
+export async function answerRequest(route: SecurityLogRoute, work: () => Promise<Response>): Promise<Response> {
+  try {
+    return await work();
+  } catch (error) {
+    unstable_rethrow(error);
+    return NextResponse.json(await recordUnexpectedFailure(route, error), { status: 500 });
+  }
+}
+
+async function recordUnexpectedFailure(route: SecurityLogRoute, error: unknown) {
+  const code = randomBytes(4).toString("hex") as FailureCode;
   const errorType = errorTypeOf(error);
   console.error(`Unexpected failure on ${route} (${code}): ${errorType}`);
   try {
@@ -98,5 +121,5 @@ export async function recordUnexpectedFailure(route: SecurityLogRoute, error: un
   } catch (logError) {
     console.error(`Security log write failed (${code}): ${errorTypeOf(logError)}`);
   }
-  return { error: "Something went wrong. Try again.", code };
+  return { error: UNEXPECTED_FAILURE_MESSAGE, code };
 }

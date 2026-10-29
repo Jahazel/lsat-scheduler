@@ -24,12 +24,12 @@ const actions = [
 describe("admin test actions", () => {
   beforeEach(() => vi.clearAllMocks());
   it.each(actions)(
-    "rejects a non-admin before database access",
+    "refuses a non-admin with an error code before database access",
     async (action) => {
       mocks.auth.mockResolvedValue({
         user: { id: "student", role: "student" },
       });
-      await expect(action()).rejects.toThrow("Admin access required");
+      expect(await action()).toEqual({ unexpectedFailure: expect.stringMatching(/^[0-9a-f]{8}$/) });
       expect(mocks.findAccount).not.toHaveBeenCalled();
     },
   );

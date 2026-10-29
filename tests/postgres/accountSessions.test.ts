@@ -18,6 +18,7 @@ import AdminPage from "../../src/app/admin/page";
 import { setSimulatedDate } from "../../src/app/admin/test/actions";
 import { deleteAccount, signOutAllDevices } from "../../src/app/account/actions";
 import { logOut } from "../../src/components/nav/actions";
+import { expectUnexpectedFailure } from "./plannedAnswer";
 import type { Student } from "../../src/lib/types";
 
 const COOKIE = "authjs.session-token";
@@ -29,7 +30,7 @@ const { SECRET, originalSecret, request } = vi.hoisted(() => {
   const originalSecret = process.env.AUTH_SECRET;
   process.env.AUTH_SECRET = "account-sessions-test-secret-0123456789";
   return {
-    SECRET: process.env.AUTH_SECRET, originalSecret, request: { cookie: "", createMessage: vi.fn(), setCookie: vi.fn() },
+    SECRET: process.env.AUTH_SECRET, originalSecret, request: { cookie: "", createMessage: vi.fn(), setCookie: vi.fn(), APIError: class extends Error {} },
   };
 });
 vi.mock("next/headers", () => ({
@@ -39,9 +40,10 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ set: request.setCookie }),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
+vi.mock("next/navigation", () => import("./fakeNavigation"));
 vi.mock("@anthropic-ai/sdk", () => ({
   default: class {
+    static APIError = request.APIError;
     static APIConnectionTimeoutError = class extends Error {};
 
     messages = { create: request.createMessage };
@@ -56,7 +58,7 @@ beforeAll(() => {
 beforeEach(async () => {
   request.cookie = "";
   request.setCookie.mockReset();
-  request.createMessage.mockReset().mockRejectedValue(new Error("no network in tests"));
+  request.createMessage.mockReset().mockRejectedValue(new request.APIError("no network in tests"));
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-10-22T12:00:00Z"));
   await database.owner.execute(sql`truncate accounts cascade`);
@@ -273,7 +275,7 @@ it("a refused session reaches no onboarding, weekly upload, or extraction and sa
 
   await ownerSql(sql`update accounts set disabled_at = now() where id = ${student.id}`);
   request.cookie = cookie;
-  await expect(createStudentProfile(profileInput)).rejects.toThrow("Not authenticated");
+  await expectUnexpectedFailure(database, createStudentProfile(profileInput), "Error");
   expect(await confirmWeeklyUpload({ weekOf: "2026-10-19", analytics: {}, practiceTest: {} })).toEqual({ signedOut: true });
   expect((await extractPracticeTest(await screenshotRequest("/api/practice-test/extract", cookie))).status).toBe(401);
   expect((await extractAnalytics(await screenshotRequest("/api/analytics/extract", cookie))).status).toBe(401);
@@ -326,7 +328,7 @@ it("a demoted Admin reaches no Admin page or Admin action on the next request", 
 
   await ownerSql(sql`update accounts set role = 'student' where id = ${admin.id}`);
   await expect(AdminPage()).rejects.toThrow("redirect:/dashboard");
-  await expect(setSimulatedDate("2026-10-24")).rejects.toThrow("Admin access required");
+  await expectUnexpectedFailure(database, setSimulatedDate("2026-10-24"), "AdminAccessRequired");
   expect(await proxyResponse("/admin", request.cookie)).toMatchObject({ status: 307, location: "http://localhost:3000/login?error=SessionEnded" });
   expect((await ownerSql(sql`select simulated_date::text from accounts`)).rows).toEqual([{ simulated_date: "2026-10-23" }]);
 });

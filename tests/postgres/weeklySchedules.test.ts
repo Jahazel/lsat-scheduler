@@ -11,12 +11,13 @@ import { saveActivityCheckIn } from "../../src/app/dashboard/actions";
 import { postgresActivityCheckIns } from "../../src/lib/activityCheckInRepository";
 import { SCHEDULING_POLICY_VERSION } from "../../src/lib/currentWeeklySchedule";
 import ProgressPage from "../../src/app/progress/page";
+import { expectUnexpectedFailure } from "./plannedAnswer";
 import DashboardPage from "../../src/app/dashboard/page";
 
 const state = vi.hoisted((): { session: Session | null } => ({ session: null }));
 vi.mock("@/auth", () => ({ auth: async () => state.session }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }), redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
+vi.mock("next/navigation", () => import("./fakeNavigation"));
 
 const database = setUpAppTestDatabase();
 beforeEach(async () => {
@@ -93,8 +94,7 @@ it("shows finished weeks in Progress and refuses check-in changes to them", asyn
   expect(markup).toContain("Avg. done");
   expect(markup).not.toContain("No finished weeks yet.");
   expect(renderToStaticMarkup(await progress("2026-10-12"))).toContain("Your past plan");
-  await expect(saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "not_started" }))
-    .rejects.toThrow("Only this week's check-ins can change");
+  await expectUnexpectedFailure(database, saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "not_started" }), "Error");
   expect(await postgresActivityCheckIns.listForSchedule(schedule.id))
     .toContainEqual(expect.objectContaining({ activityId: "MONDAY:0", status: "completed" }));
   expect(await listWeeklySchedulesForStudent(saved.id)).toEqual([schedule]);
@@ -110,31 +110,31 @@ it.each(["student", "admin"] as const)("refuses another student's check-in for a
   await dashboard();
   const [schedule] = await listWeeklySchedulesForStudent(owner.saved.id);
   await student("other@example.test", role);
-  await expect(saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "completed" }))
-    .rejects.toThrow("Weekly schedule not found");
+  await expectUnexpectedFailure(database, saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "completed" }), "Error");
   expect((await postgresActivityCheckIns.listForSchedule(schedule.id)).every((row) => row.status === "not_started")).toBe(true);
   expect(renderToStaticMarkup(await ProgressPage({ searchParams: Promise.resolve({}) }))).toContain("No finished weeks yet.");
 });
 
 it("requires a session and a Student, and rejects malformed or missing activities", async () => {
   const input = { scheduleId: "00000000-0000-4000-8000-000000000000", activityId: "MONDAY:0", status: "completed" as const };
-  await expect(saveActivityCheckIn(input)).rejects.toThrow("Not authenticated");
+  await expectUnexpectedFailure(database, saveActivityCheckIn(input), "Error");
   await expect(dashboard()).rejects.toThrow("redirect:/login");
   const account = await database.createAccountAsOwner({ email: "new@example.test", name: "New" });
   if (!account) throw new Error("Missing fixture");
   state.session = { user: account, expires: "2099-01-01" };
-  await expect(saveActivityCheckIn(input)).rejects.toThrow("Student record not found");
+  await expectUnexpectedFailure(database, saveActivityCheckIn(input), "Error");
   await expect(dashboard()).rejects.toThrow("redirect:/onboarding");
   const { saved } = await student();
   await approve(saved.id);
   await dashboard();
   const [schedule] = await listWeeklySchedulesForStudent(saved.id);
-  for (const activityId of ["MONDAY:999", "MONDAY:00", "INVALID:0"]) {
-    await expect(saveActivityCheckIn({ ...input, scheduleId: schedule.id, activityId })).rejects.toThrow();
+  for (const activityId of ["MONDAY:999", "MONDAY:00"]) {
+    await expectUnexpectedFailure(database, saveActivityCheckIn({ ...input, scheduleId: schedule.id, activityId }), "Error");
   }
+  await expectUnexpectedFailure(database, saveActivityCheckIn({ ...input, scheduleId: schedule.id, activityId: "INVALID:0" }), "ZodError");
   // @ts-expect-error A check-in is checked off or not; there is no Skip.
-  await expect(saveActivityCheckIn({ ...input, scheduleId: schedule.id, status: "skipped" })).rejects.toThrow();
-  await expect(saveActivityCheckIn({ ...input, scheduleId: "not-a-uuid" })).rejects.toThrow();
+  await expectUnexpectedFailure(database, saveActivityCheckIn({ ...input, scheduleId: schedule.id, status: "skipped" }), "ZodError");
+  await expectUnexpectedFailure(database, saveActivityCheckIn({ ...input, scheduleId: "not-a-uuid" }), "ZodError");
 });
 
 it("ensures only missing check-ins under parallel visits and preserves existing reports", async () => {

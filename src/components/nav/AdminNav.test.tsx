@@ -16,7 +16,7 @@ import StudentNav from "./StudentNav";
 
 const props = {
   initials: "QA", email: "qa@example.test", countdownLabel: "30 days to test",
-  isTestDay: false, uploadNeeded: true, logOut: async () => {},
+  isTestDay: false, uploadNeeded: true, logOut: async () => null,
 };
 
 describe("admin navigation", () => {

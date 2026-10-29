@@ -1,6 +1,7 @@
 import type { SectionReading } from "./practiceTestResult";
 import type { ScanRefusal } from "./scanPlaces";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "./types";
+import { isUnexpectedFailure, type UnexpectedFailure } from "./unexpectedFailure";
 
 export const SCREENSHOT_MEDIA_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 export type ScreenshotMediaType = (typeof SCREENSHOT_MEDIA_TYPES)[number];
@@ -73,7 +74,8 @@ type ScreenshotFailure =
   | { kind: "cannot-read" }
   | { kind: "timed-out" }
   | { kind: "signed-out" }
-  | { kind: "connection-lost" };
+  | { kind: "connection-lost" }
+  | { kind: "failed"; failure: UnexpectedFailure };
 
 export type ExtractReply = { kind: "rows"; rows: AnalyticsExtractedRow[]; showsPassageTypes?: boolean } | ScreenshotFailure;
 export type SectionReply = { kind: "reading"; reading: SectionReading } | ScreenshotFailure;
@@ -96,6 +98,10 @@ async function postScreenshot(url: string, file: File, fields: Record<string, st
     if (res.status === 401) return { kind: "signed-out" };
     if (res.status === 502) return { kind: "cannot-read" };
     if (res.status === 504) return { kind: "timed-out" };
+    if (res.status === 500) {
+      const failure = { unexpectedFailure: (await res.json()).code };
+      return isUnexpectedFailure(failure) ? { kind: "failed", failure } : { kind: "connection-lost" };
+    }
     if (!res.ok) return { kind: "connection-lost" };
     return { kind: "ok", body: await res.json() };
   } catch {

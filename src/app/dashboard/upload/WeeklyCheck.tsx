@@ -22,6 +22,7 @@ import {
 } from "@/lib/weeklyUploadPreview";
 import type { confirmWeeklyUpload, WeeklyUploadConfirmResult } from "./actions";
 import type { WeeklyUploadRead } from "./WeeklyUpload";
+import { failureText, isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
 import { checkPreviewDrills, formatSectionScore, parseScore, planText } from "./weeklyUploadText";
 
 const SCORE_ID = "current-score";
@@ -132,7 +133,7 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
 }) {
   const [draft, dispatch] = useReducer(reviewDraftReducer, read.analytics, startDraft);
   const [scoreText, setScoreText] = useState(String(read.currentScore));
-  const [reply, setReply] = useState<WeeklyUploadConfirmResult | null>(null);
+  const [reply, setReply] = useState<Answer<WeeklyUploadConfirmResult> | null>(null);
   const [saving, startSaving] = useTransition();
   const requestFocus = useFocusAfterRender();
   const { review } = draft;
@@ -184,7 +185,9 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
 
   const note = saving
     ? `Saving and building ${text.week}. This takes a few seconds.`
-    : reply && "error" in reply
+    : isUnexpectedFailure(reply)
+      ? <span className="text-danger-ink">{failureText(reply)}</span>
+      : reply && "error" in reply
       ? <span className="text-danger-ink">{reply.error}</span>
       : reason ?? (typed && "Your weekly schedule uses these values like a scan.");
 

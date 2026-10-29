@@ -2,23 +2,26 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { ActionForm, FailureNotice } from "@/components/FailureNotice";
 import { GoogleButton } from "@/components/signIn/GoogleButton";
 import { OrWithEmail, SubmitButton } from "@/components/signIn/PasswordFormParts";
 import { Notice } from "@/components/signIn/SignInFrame";
 import { TextInput } from "@/components/ui/TextInput";
 import { FOCUS, cx } from "@/components/ui/classes";
 import type { LoginNotice } from "@/lib/loginNotice";
+import { isUnexpectedFailure } from "@/lib/unexpectedFailure";
 import { logInWithPassword, signInWithGoogle } from "./actions";
 
 export function LoginForms({ urlNotice }: { urlNotice: LoginNotice | null }) {
-  const [refused, logInAction] = useActionState(logInWithPassword, null);
-  const notice = refused ? refused.notice : urlNotice;
+  const [answer, logInAction] = useActionState(logInWithPassword, null);
+  const refused = isUnexpectedFailure(answer) ? null : answer;
+  const notice = answer ? refused?.notice ?? null : urlNotice;
   return (
     <>
       {notice?.place === "aboveGoogle" && <Notice notice={notice} />}
-      <form action={signInWithGoogle}>
+      <ActionForm action={signInWithGoogle}>
         <GoogleButton look="light" />
-      </form>
+      </ActionForm>
       <OrWithEmail />
       <form action={logInAction} className="flex flex-col gap-8">
         <div className="flex flex-col gap-4">
@@ -34,6 +37,7 @@ export function LoginForms({ urlNotice }: { urlNotice: LoginNotice | null }) {
             error={refused?.passwordError ?? undefined}
           />
         </div>
+        <FailureNotice answer={answer} />
         <SubmitButton label="Log in" />
       </form>
     </>

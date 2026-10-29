@@ -30,6 +30,7 @@ import { DAY_LABEL } from "@/lib/studentProfile";
 import { mostMissedType } from "@/lib/engine";
 import { mockRules } from "@/lib/mockData";
 import type { AnalyticsExtractedRow, AnalyticsSection, AnalyticsSnapshot, LRStemType, WeeklySchedule } from "@/lib/types";
+import { failureText } from "@/lib/unexpectedFailure";
 import {
   plannedWeekAnalytics, previewPlannedWeek, MAX_SCORE, MIN_SCORE, type WeeklyUploadBasis,
 } from "@/lib/weeklyUploadPreview";
@@ -59,6 +60,7 @@ function readProblem(read: Read): { message: string; tryAgain: boolean } | null 
   switch (read.status) {
     case "rejected": return { message: read.message, tryAgain: false };
     case "no-rows": return { message: NO_LR_ROWS, tryAgain: false };
+    case "failed": return { message: failureText(read.failure), tryAgain: true };
     case "timed-out": return { message: TOOK_TOO_LONG, tryAgain: true };
     case "cannot-read":
     case "connection-lost": return { message: CANNOT_READ, tryAgain: true };

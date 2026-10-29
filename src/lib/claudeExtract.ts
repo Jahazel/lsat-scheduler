@@ -56,10 +56,16 @@ function imageBlock(imageBuffer: Buffer, mediaType: ScreenshotMediaType) {
   return { type: "image" as const, source: { type: "base64" as const, media_type: mediaType, data: imageBuffer.toString("base64") } };
 }
 
+export const MODEL_REPLY_REFUSED = "ModelReplyRefused";
+
+export class ModelReplyRefused extends Error {
+  name = MODEL_REPLY_REFUSED;
+}
+
 function parseToolInput<T>(content: Anthropic.ContentBlock[], name: string, schema: z.ZodType<T>): T {
   const toolUse = content.find((block) => block.type === "tool_use");
   const parsed = schema.safeParse(toolUse?.type === "tool_use" && toolUse.name === name ? toolUse.input : null);
-  if (!parsed.success) throw new Error(`The model's ${name} reply does not fit its format`);
+  if (!parsed.success) throw new ModelReplyRefused(`The model's ${name} reply does not fit its format`);
   return parsed.data;
 }
 

@@ -13,6 +13,8 @@ import AccountPage from "../../src/app/account/page";
 import { handlers } from "../../src/auth";
 import { PASSWORD_LOGIN_NOTICES } from "../../src/lib/loginNotice";
 import { deletePasswordAccount, findPasswordAccountById, isAccountId, replacePasswordHash } from "../../src/lib/accountRepository";
+import type { Answer } from "../../src/lib/unexpectedFailure";
+import { planned } from "./plannedAnswer";
 import { proveCurrentPassword } from "../../src/lib/passwordAccount";
 
 const COOKIE = "authjs.session-token";
@@ -38,7 +40,7 @@ vi.mock("next/headers", () => ({
   }),
   cookies: async () => ({ set: request.setCookie }),
 }));
-vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
+vi.mock("next/navigation", () => import("./fakeNavigation"));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 const database = setUpAppTestDatabase();
@@ -80,7 +82,7 @@ async function logIn(email: string, password: string) {
   form.set("email", email);
   form.set("password", password);
   request.setCookie.mockReset();
-  const refused = await logInWithPassword({ email: "", notice: null, passwordError: null }, form).catch(() => null);
+  const refused = await logInWithPassword({ email: "", notice: null, passwordError: null }, form).then(planned, () => null);
   const cookie = request.setCookie.mock.calls.findLast(([name]) => name === COOKIE)?.[1] ?? "";
   return { refused, cookie: cookie as string };
 }
@@ -93,11 +95,11 @@ async function sessionUserId(cookie: string) {
   return SessionBody.parse(await response.json())?.user.id ?? null;
 }
 
-async function inBrowser<T>(cookie: string, action: () => Promise<T>) {
+async function inBrowser<T>(cookie: string, action: () => Promise<Answer<T>>) {
   request.cookie = cookie;
   request.setCookie.mockReset();
   return action().then(
-    (state) => ({ state, redirectedTo: null }),
+    (state) => ({ state: planned(state), redirectedTo: null }),
     (error: Error) => {
       if (!error.message.startsWith("redirect:")) throw error;
       const { pathname, search } = new URL(error.message.slice("redirect:".length), "http://localhost:3000");
@@ -152,7 +154,7 @@ describe("the Account page", () => {
     expect(page).not.toContain('name="currentPassword"');
     expect(page).toContain("Sign in again to delete");
     await expect(inBrowser(cookie, () => changePassword(null, form({ currentPassword: "x", newPassword: NEW_PASSWORD }))))
-      .rejects.toThrow("This Account signs in with Google and has no password.");
+      .rejects.toThrow("The action failed unexpectedly");
   });
 });
 

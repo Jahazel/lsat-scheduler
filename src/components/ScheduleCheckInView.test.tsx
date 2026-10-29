@@ -39,6 +39,49 @@ describe("ScheduleCheckInView", () => {
     expect(await screen.findByText("18 remaining")).toBeTruthy();
   });
 
+  it("undoes a check-off that fails and shows the error code", async () => {
+    saveActivityCheckIn.mockResolvedValue({ unexpectedFailure: "3f9a01c2" });
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />);
+    const row = within(dayCard("Monday")).getByRole("checkbox", { name: "1 Full LR Section" });
+
+    await userEvent.click(row);
+    expect((await screen.findByRole("alert")).textContent).toBe("Something went wrong. Try again. Error code: 3f9a01c2");
+    expect(row.getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByText("18 remaining")).toBeTruthy();
+  });
+
+  it("shows the last saved state when two quick presses both fail", async () => {
+    const replies: ((answer: unknown) => void)[] = [];
+    saveActivityCheckIn.mockImplementation(() => new Promise((resolve) => replies.push(resolve)));
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />);
+    const row = within(dayCard("Monday")).getByRole("checkbox", { name: "1 Full LR Section" });
+
+    await userEvent.click(row);
+    await userEvent.click(row);
+    replies[0]({ unexpectedFailure: "3f9a01c2" });
+    replies[1]({ unexpectedFailure: "0d2d95eb" });
+    expect((await screen.findByRole("alert")).textContent).toContain("Error code:");
+    expect(row.getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByText("0 of 18 done")).toBeTruthy();
+  });
+
+  it("shows the last press once it saves, even after earlier presses failed", async () => {
+    const replies: ((answer: unknown) => void)[] = [];
+    saveActivityCheckIn.mockImplementation((input: Omit<ActivityCheckIn, "id">) =>
+      new Promise((resolve) => replies.push((answer) => resolve(answer ?? { id: "saved", ...input }))));
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />);
+    const row = within(dayCard("Monday")).getByRole("checkbox", { name: "1 Full LR Section" });
+
+    await userEvent.click(row);
+    await userEvent.click(row);
+    await userEvent.click(row);
+    replies[0]({ unexpectedFailure: "3f9a01c2" });
+    replies[1]({ unexpectedFailure: "0d2d95eb" });
+    replies[2](undefined);
+    expect(await screen.findByText("1 of 18 done")).toBeTruthy();
+    expect(row.getAttribute("aria-checked")).toBe("true");
+  });
+
   it("toggles a focused line with Space or Enter and moves on with Tab", async () => {
     render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />);
     const [first, second] = within(dayCard("Monday")).getAllByRole("checkbox");
