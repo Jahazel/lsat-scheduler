@@ -58,6 +58,7 @@ export default async function ProgressPage({
           student={selected.generationInputs.student}
           checkIns={checkInsFor(selected.id)}
           heading="Your past plan"
+          readOnly
         />
       </div>
     );

@@ -79,7 +79,7 @@ it("checks off and clears a line across reloads without changing the planned sch
   expect(await listWeeklySchedulesForStudent(saved.id)).toEqual([schedule]);
 });
 
-it("shows finished weeks in Progress and permits corrections without changing planned work", async () => {
+it("shows finished weeks in Progress and refuses check-in changes to them", async () => {
   const { saved } = await student();
   await approve(saved.id);
   await dashboard();
@@ -93,8 +93,10 @@ it("shows finished weeks in Progress and permits corrections without changing pl
   expect(markup).toContain("Avg. done");
   expect(markup).not.toContain("No finished weeks yet.");
   expect(renderToStaticMarkup(await progress("2026-10-12"))).toContain("Your past plan");
-  await saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "not_started" });
-  expect(renderToStaticMarkup(await progress("2026-10-12"))).toContain("0 of");
+  await expect(saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "not_started" }))
+    .rejects.toThrow("Only this week's check-ins can change");
+  expect(await postgresActivityCheckIns.listForSchedule(schedule.id))
+    .toContainEqual(expect.objectContaining({ activityId: "MONDAY:0", status: "completed" }));
   expect(await listWeeklySchedulesForStudent(saved.id)).toEqual([schedule]);
   await expect(DashboardPage({ searchParams: Promise.resolve({ historyWeek: "2026-10-12" }) }))
     .rejects.toThrow("redirect:/progress?week=2026-10-12");

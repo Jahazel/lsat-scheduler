@@ -98,11 +98,16 @@ describe("ScheduleCheckInView", () => {
     expect(within(dayCard("Monday")).getByText("Aug 24")).toBeTruthy();
   });
 
-  it("shows a read-only plan without check-off controls", () => {
+  it("shows a read-only plan whose lines ignore clicks, Space, and Enter", async () => {
     render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent}
-      checkIns={[done("MONDAY:0")]} readOnly />);
+      checkIns={[done("MONDAY:0")]} heading="Your past plan" readOnly />);
     expect(screen.queryByRole("checkbox")).toBeNull();
     const [doneRow, openRow] = within(dayCard("Monday")).getAllByRole("listitem");
+    await userEvent.click(doneRow!);
+    await userEvent.click(openRow!);
+    await userEvent.tab();
+    await userEvent.keyboard(" {Enter}");
+    expect(saveActivityCheckIn).not.toHaveBeenCalled();
     expect(doneRow!.textContent).toBe("1 Full LR Section, done");
     expect(openRow!.textContent).toMatch(/, not done$/);
     expect(within(dayCard("Monday")).getByText("1 Full LR Section").className).toContain("line-through");
