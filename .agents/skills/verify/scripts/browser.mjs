@@ -5,6 +5,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const helper = resolve(root, ".agents/skills/verify/scripts/local.mjs");
+// The dev-only Next devtools overlay inserts <style> elements without the CSP nonce.
+const NEXT_DEVTOOLS_CHUNK = /\/_next\/static\/chunks\/node_modules_next_dist_compiled_next-devtools_[^/?#]*\.js(?:[?#]|$)/;
+
+export function isAppCspViolation(text, sourceUrl) {
+  return text.includes("Content Security Policy") && !NEXT_DEVTOOLS_CHUNK.test(sourceUrl);
+}
 
 export async function drive(directory, name, steps) {
   if (!directory || !/^[a-z0-9-]+$/.test(name ?? "")) throw new Error("Usage: drive(.verification/evidence/<run-name>, <lowercase-drive-name>, steps)");
@@ -32,7 +38,7 @@ export async function drive(directory, name, steps) {
     page.on("pageerror", (error) => found.pageErrors.push(error.message));
     page.on("console", (message) => {
       if (message.type() === "error") found.consoleErrors.push(message.text());
-      if (message.text().includes("Content Security Policy")) found.cspViolations.push(message.text());
+      if (isAppCspViolation(message.text(), message.location().url)) found.cspViolations.push(message.text());
     });
     page.on("requestfailed", (request) => {
       const reason = request.failure()?.errorText;
