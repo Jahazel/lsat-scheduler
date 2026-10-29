@@ -33,9 +33,9 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-function List() {
+function List({ requested = null }: { requested?: string | null }) {
   return (
-    <ProgressScreen>
+    <ProgressScreen requested={requested}>
       <h1>Progress</h1>
       <a href="/progress?week=2026-10-19">Oct 19 – 25</a>
       <a href="/progress?week=2026-10-12">Oct 12 – 18</a>
@@ -45,7 +45,7 @@ function List() {
 
 function Week({ week }: { week: string }) {
   return (
-    <ProgressScreen week={week}>
+    <ProgressScreen week={week} requested={week}>
       <a href="/progress">← All weeks</a>
       <h1 tabIndex={-1}>Week of {week}</h1>
       <a href="/progress?week=2026-10-05">← Older week</a>
@@ -118,6 +118,23 @@ describe("ProgressMotion", () => {
     expect(document.activeElement).toBe(screen.getByRole("link", { name: "Oct 12 – 18" }));
   });
 
+  it("keeps Back when a page from an earlier click arrives during Back's exit", async () => {
+    const { rerender } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
+    fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
+    finishExits();
+    await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByRole("link", { name: "← All weeks" }));
+
+    const router = vi.fn();
+    addEventListener("popstate", router);
+    history.replaceState(null, "", "/progress?week=2026-10-19");
+    dispatchEvent(new PopStateEvent("popstate"));
+    show("/progress?week=2026-10-19", <Week week="2026-10-05" />, rerender);
+    finishExits();
+    await vi.waitFor(() => expect(router).toHaveBeenCalledOnce());
+    removeEventListener("popstate", router);
+  });
+
   it("still opens the newest target when an earlier page arrives during its exit", async () => {
     const { rerender } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
     fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
@@ -135,7 +152,7 @@ describe("ProgressMotion", () => {
     history.replaceState(null, "", "/progress?week=2001-01-01");
     dispatchEvent(new PopStateEvent("popstate"));
     finishExits();
-    show("/progress?week=2001-01-01", <List />, rerender);
+    show("/progress?week=2001-01-01", <List requested="2001-01-01" />, rerender);
     expect(live.some((a) => a.options.fill === "forwards")).toBe(false);
     expect(keyframes(animate.mock.calls.length - 1).at(-1)).toMatchObject({ opacity: 1 });
   });

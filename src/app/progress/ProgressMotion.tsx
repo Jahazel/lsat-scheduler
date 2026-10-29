@@ -34,13 +34,14 @@ function fadeIn(el: HTMLElement, x: number, from: Keyframe = { opacity: 0, trans
   else el.animate([from, { opacity: 1, transform: "none" }], { duration: BASE, easing: STANDARD });
 }
 
-const PageShown = createContext<(shown: WeekOrList, page: HTMLElement) => void>(() => {});
+const PageShown = createContext<(shown: WeekOrList, requested: string | null, page: HTMLElement) => void>(() => {});
 
 // Next updates search params on Back before the page content changes, so each page reports when it is on screen.
-export function ProgressScreen({ week = null, children }: { week?: string | null; children: ReactNode }) {
+// `requested` is the week the address asked for; an unknown week shows the list.
+export function ProgressScreen({ week = null, requested = null, children }: { week?: string | null; requested?: string | null; children: ReactNode }) {
   const pageShown = useContext(PageShown);
   const ref = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => pageShown(week, ref.current!));
+  useLayoutEffect(() => pageShown(week, requested, ref.current!));
   return <div ref={ref} className="min-h-screen">{children}</div>;
 }
 
@@ -65,10 +66,10 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     fadeIn(el, 0, stopAtCurrentFrame(el));
   }
 
-  const pageShown = useCallback((to: WeekOrList, page: HTMLElement) => {
+  const pageShown = useCallback((to: WeekOrList, requested: string | null, page: HTMLElement) => {
     const from = shown.current;
     shown.current = to;
-    if (target.current !== null && target.current !== hrefFor(to)) return;
+    if (target.current !== null && target.current !== hrefFor(requested)) return;
     target.current = null;
     if (from === undefined) return;
 
@@ -96,8 +97,9 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     function holdPopStateUntilFadedOut(event: PopStateEvent) {
       if (replaying || location.pathname !== "/progress") return;
       if (hrefOf(location) === committed()) return returnToCommitted();
-      target.current = null;
-      const exit = leave(new URLSearchParams(location.search).get("week"));
+      const to = new URLSearchParams(location.search).get("week");
+      target.current = hrefFor(to);
+      const exit = leave(to);
       if (!exit) return;
       event.stopImmediatePropagation();
       const mine = ++latest;
@@ -126,8 +128,9 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
       navigate();
       return returnToCommitted();
     }
-    target.current = href;
-    const exit = leave(url.searchParams.get("week"));
+    const week = url.searchParams.get("week");
+    target.current = hrefFor(week);
+    const exit = leave(week);
     if (exit) exit.finished.then(navigate, () => {});
     else navigate();
   }

@@ -17,6 +17,7 @@ export default async function ProgressPage({
   searchParams: Promise<{ week?: string | string[] }>;
 }) {
   const { week } = await searchParams;
+  const requestedWeek = Array.isArray(week) ? week[0] : week;
   const session = await auth();
   if (!session?.user) redirect("/login");
 
@@ -29,18 +30,18 @@ export default async function ProgressPage({
     schedules: history,
     checkIns: await postgresActivityCheckIns.listForSchedules(history.map((schedule) => schedule.id)),
     currentWeekStartDate,
-    requestedWeek: Array.isArray(week) ? week[0] : week,
+    requestedWeek,
   });
 
   switch (route.kind) {
     case "this_week": redirect("/dashboard");
     case "week": return (
-      <ProgressScreen week={route.week.weekStartDate}>
+      <ProgressScreen week={route.week.weekStartDate} requested={requestedWeek}>
         <PastWeekView schedule={route.schedule} checkIns={route.checkIns} week={route.week} older={route.older} newer={route.newer} />
       </ProgressScreen>
     );
     case "list": return (
-      <ProgressScreen>
+      <ProgressScreen requested={requestedWeek}>
         <ProgressOverview months={route.months} />
       </ProgressScreen>
     );
