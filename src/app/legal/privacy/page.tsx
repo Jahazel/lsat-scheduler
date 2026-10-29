@@ -13,7 +13,7 @@ export default function PrivacyPage() {
             You may delete your account from the Account page at any time. Deletion removes your user account,
             profile, approved and legacy analytics snapshots, weekly schedules, and activity check-ins from active
             storage. Deletion requests are not used to rewrite records belonging to other students. We keep only a short
-            record that holds your Account ID and a scrambled form of your email. We delete it after 30 days.
+            record that holds your Account ID and a scrambled form of your email.
           </p>
           <p>
             These companies handle your data for us. Vercel runs the website. Neon stores the database. Google handles

@@ -117,7 +117,7 @@ Built on [issue 351](https://github.com/Jahazel/lsat-scheduler/issues/351):
 - If step 2 fails, the student is signed out to Login, which shows the "deletion will finish" message. The failure is in the security log with its code, and the `account_deletion` entry has the result `willFinish`.
 - The student retry is a sign-in, because a marked Account has no session. A Google sign-in, or a password sign-in with the right password, runs step 2 and is always refused. Login then says the Account is deleted, or shows the "will finish" message again. The `sign_in` entry has the result `accountDeleted` or `deletionWillFinish`.
 - Waiting for owner approval on issue 351's pull request: the two Login texts, "Your Account is being deleted and can't log in. DrillMap will finish the deletion." and "Your Account is deleted."
-- The privacy page states the deletion list and its 30 days. The sentence about restores waits for deletion replay ([issue 353](https://github.com/Jahazel/lsat-scheduler/issues/353)), as above for rule 36.
+- The privacy page states the first approved deletion list sentence: "We keep only a short record that holds your Account ID and a scrambled form of your email." The second sentence, which names the 30 days and restores, waits for deletion replay ([issue 353](https://github.com/Jahazel/lsat-scheduler/issues/353)), as above for rule 36.
 - The daily job runs step 2 for every marked Account, then deletes deletion list rows older than 30 days (rule 24).
 
 ### How long data is kept

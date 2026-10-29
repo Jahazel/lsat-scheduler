@@ -109,7 +109,7 @@ An Account whose student asked to delete it, while the deletion is not finished.
 _Avoid_: pending deletion, soft-deleted account
 
 **Deletion list**:
-A short record of each deleted Account: its Account ID, a keyed hash of its email, and the date. It holds nothing else and is deleted after 30 days.
+A short record of each deleted Account: its Account ID, a keyed hash of its email, and the date. It holds nothing else. Each row is deleted once it is more than 30 days old.
 _Avoid_: tombstone, deleted accounts table
 
 **Sign out of all devices**:

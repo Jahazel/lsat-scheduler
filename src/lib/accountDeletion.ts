@@ -17,6 +17,7 @@ export async function finishDeletion(id: string, route: SecurityLogRoute): Promi
         .where(and(eq(accounts.id, id), isNotNull(accounts.deletingSince)))
         .returning({ email: accounts.email });
       if (deleted) {
+        // Drizzle's insert names every column, and the app role may write only these two.
         await tx.execute(sql`
           insert into ${deletionList} (account_id, email_hash) values (${id}, ${emailHash(deleted.email)}) on conflict do nothing
         `);
