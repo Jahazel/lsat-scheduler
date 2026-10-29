@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ActionForm } from "@/components/FailureNotice";
+import { SignOutForm } from "@/components/FailureNotice";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { NavTab } from "@/components/ui/NavTab";
 import { NavIcon } from "./NavIcon";
 import { DESKTOP_BAR, Logo, MOBILE_BAR, TABS, isTabActive } from "./shared";
-import type { FormState } from "@/lib/unexpectedFailure";
+import type { SignOutAnswer } from "@/lib/unexpectedFailure";
 import { WORKSPACE_NAV_BREAKPOINT } from "./workspaceBreakpoint";
 
 export interface StudentNavProps {
@@ -17,7 +17,7 @@ export interface StudentNavProps {
   countdownLabel: string | null;
   isTestDay: boolean;
   uploadNeeded: boolean;
-  logOut: () => Promise<FormState>;
+  logOut: () => Promise<SignOutAnswer>;
 }
 
 function UploadDot({ className }: { className?: string }) {
@@ -84,11 +84,11 @@ function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<S
           <Link role="menuitem" href="/account" onClick={() => setOpen(false)} className={item}>
             Account
           </Link>
-          <ActionForm action={logOut}>
+          <SignOutForm action={logOut}>
             <button role="menuitem" type="submit" className={item}>
               Log out
             </button>
-          </ActionForm>
+          </SignOutForm>
         </div>
       )}
     </div>

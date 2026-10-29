@@ -11,6 +11,8 @@ export type Answer<T> = T | UnexpectedFailure;
 /** The state of a form whose action only redirects when it works. */
 export type FormState = UnexpectedFailure | null;
 
+export type SignOutAnswer = Answer<{ goTo: string }>;
+
 export function isFailureCode(value: unknown): value is FailureCode {
   return typeof value === "string" && /^[0-9a-f]{8}$/.test(value);
 }

@@ -46,7 +46,7 @@ describe("Verify my email", () => {
   it("sends no Referer header from the page", async () => {
     expect(metadata.referrer).toBe("no-referrer");
     const { responseHeaders } = requestPolicy({
-      method: "GET", pathname: "/verify-email", origin: null, contentType: null, siteUrl: undefined, enforceCsp: false, development: false,
+      method: "GET", pathname: "/verify-email", search: "", origin: null, contentType: null, siteUrl: undefined, enforceCsp: false, development: false,
     });
     expect(responseHeaders["Referrer-Policy"]).toBe("no-referrer");
   });
