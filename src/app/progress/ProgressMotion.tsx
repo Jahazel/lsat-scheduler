@@ -40,7 +40,7 @@ const PageShown = createContext<(shown: WeekOrList, page: HTMLElement) => void>(
 export function ProgressScreen({ week = null, children }: { week?: string | null; children: ReactNode }) {
   const pageShown = useContext(PageShown);
   const ref = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => pageShown(week, ref.current!), [pageShown, week]);
+  useLayoutEffect(() => pageShown(week, ref.current!));
   return <div ref={ref} className="min-h-screen">{children}</div>;
 }
 
@@ -68,10 +68,16 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
   const pageShown = useCallback((to: WeekOrList, page: HTMLElement) => {
     const from = shown.current;
     shown.current = to;
+    if (target.current !== null && target.current !== hrefFor(to)) return;
     target.current = null;
-    if (from === undefined || from === to) return;
+    if (from === undefined) return;
 
     const el = ref.current!;
+    // Back to an unknown-week bookmark faded out a list that comes back unchanged.
+    if (from === to) {
+      if (el.getAnimations().some((animation) => animation.effect?.getTiming().fill === "forwards")) fadeIn(el, 0, stopAtCurrentFrame(el));
+      return;
+    }
     for (const animation of el.getAnimations()) animation.cancel();
     if (to === null) {
       const saved = listScroll.current;
