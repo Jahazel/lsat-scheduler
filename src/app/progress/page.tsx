@@ -8,7 +8,7 @@ import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { listWeeklySchedulesForStudent } from "@/lib/weeklyScheduleRepository";
 import { postgresActivityCheckIns } from "@/lib/activityCheckInRepository";
 import { formatScheduleWeekOf } from "@/lib/scheduleCheckInSummary";
-import { groupCheckInsByScheduleId, summarizeScheduleHistoryWeek } from "@/lib/scheduleHistorySummary";
+import { countWeekDone, listPastWeekMonths } from "@/lib/progressHistory";
 import ScheduleCheckInView from "@/components/ScheduleCheckInView";
 import ProgressOverview from "./ProgressOverview";
 
@@ -29,18 +29,12 @@ export default async function ProgressPage({
   if (requestedWeek === currentWeekStartDate) redirect("/dashboard");
 
   const history = await listWeeklySchedulesForStudent(student.id);
-  const allCheckIns = await postgresActivityCheckIns.listForSchedules(history.map((schedule) => schedule.id));
-  const checkInsByScheduleId = groupCheckInsByScheduleId(allCheckIns);
-  const checkInsFor = (scheduleId: string) => checkInsByScheduleId.get(scheduleId) ?? [];
+  const checkIns = await postgresActivityCheckIns.listForSchedules(history.map((schedule) => schedule.id));
 
   const selected = requestedWeek ? history.find((schedule) => schedule.weekStartDate === requestedWeek) : undefined;
   if (selected) {
-    const summary = summarizeScheduleHistoryWeek({
-      weekStartDate: selected.weekStartDate,
-      schedule: selected.schedule,
-      checkIns: checkInsFor(selected.id),
-      isCurrent: false,
-    });
+    const selectedCheckIns = checkIns.filter((checkIn) => checkIn.scheduleId === selected.id);
+    const summary = countWeekDone(selected.schedule, selectedCheckIns);
     return (
       <div className="min-h-screen">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 bg-paper px-5 pt-6 md:px-18">
@@ -56,7 +50,7 @@ export default async function ProgressPage({
           scheduleId={selected.id}
           schedule={selected.schedule}
           student={selected.generationInputs.student}
-          checkIns={checkInsFor(selected.id)}
+          checkIns={selectedCheckIns}
           heading="Your past plan"
           readOnly
         />
@@ -64,20 +58,9 @@ export default async function ProgressPage({
     );
   }
 
-  const weeks = history.map((schedule) =>
-    summarizeScheduleHistoryWeek({
-      weekStartDate: schedule.weekStartDate,
-      schedule: schedule.schedule,
-      checkIns: checkInsFor(schedule.id),
-      isCurrent: schedule.weekStartDate === currentWeekStartDate,
-    }),
-  );
-
   return (
-    <div className="min-h-screen px-6 py-12">
-      <div className="mx-auto max-w-3xl">
-        <ProgressOverview weeks={weeks} />
-      </div>
+    <div className="min-h-screen">
+      <ProgressOverview months={listPastWeekMonths({ schedules: history, checkIns, currentWeekStartDate })} />
     </div>
   );
 }
