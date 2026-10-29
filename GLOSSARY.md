@@ -104,6 +104,14 @@ _Avoid_: settings
 An Account the owner has stopped without deleting its data. It cannot sign in, and its open sessions stop on their next request.
 _Avoid_: banned account, locked account, suspended account
 
+**Deleting Account**:
+An Account whose student asked to delete it, while the deletion is not finished. It cannot sign in, and its open sessions stop on their next request. A sign-in or the daily job finishes the deletion. Nothing returns it to a working Account.
+_Avoid_: pending deletion, soft-deleted account
+
+**Deletion list**:
+A short record of each deleted Account: its Account ID, a keyed hash of its email, and the date. It holds nothing else. Each row is deleted once it is more than 30 days old.
+_Avoid_: tombstone, deleted accounts table
+
 **Sign out of all devices**:
 Ending every session of an Account at once, on every browser and device, including the current one. The ordinary "Sign out" ends only the current browser.
 _Avoid_: sign out everywhere, global logout

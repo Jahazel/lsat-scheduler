@@ -12,7 +12,7 @@ import { changePassword, deleteAccount } from "../../src/app/account/actions";
 import AccountPage from "../../src/app/account/page";
 import { handlers } from "../../src/auth";
 import { PASSWORD_LOGIN_NOTICES } from "../../src/lib/loginNotice";
-import { deletePasswordAccount, findPasswordAccountById, isAccountId, replacePasswordHash } from "../../src/lib/accountRepository";
+import { findPasswordAccountById, markPasswordAccountDeleting, isAccountId, replacePasswordHash } from "../../src/lib/accountRepository";
 import type { Answer } from "../../src/lib/unexpectedFailure";
 import { planned } from "./plannedAnswer";
 import { proveCurrentPassword } from "../../src/lib/passwordAccount";
@@ -290,7 +290,8 @@ describe("a reset between the password check and the write", () => {
     await database.owner.execute(sql`update accounts set password_hash = ${resetHash} where id = ${id}`);
 
     expect(await replacePasswordHash(check.proof, await hashPassword(NEW_PASSWORD))).toBe(false);
-    expect(await deletePasswordAccount(check.proof)).toBe(false);
+    expect(await markPasswordAccountDeleting(check.proof)).toBe(false);
+    expect((await database.owner.execute(sql`select deleting_since from accounts where id = ${id}`)).rows).toEqual([{ deleting_since: null }]);
     expect(await passwordHashOf(id)).toBe(resetHash);
     expect(await accountCount(id)).toEqual({ accounts: 1, students: 1 });
   });

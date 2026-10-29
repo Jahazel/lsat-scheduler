@@ -444,6 +444,28 @@ it("adds security log entries but cannot read, change, or erase them, and prunes
   expect(left.rows).toEqual([{ error_code: "abcdef12" }]);
 });
 
+it("adds deletion list rows but cannot read, change, or erase them, and prunes only rows older than 30 days", async () => {
+  await ownerDb().execute(sql`truncate deletion_list`);
+  const accountId = randomUUID();
+  await appDb().execute(sql`insert into deletion_list (account_id, email_hash) values (${accountId}, repeat('c', 64))`);
+  for (const query of [
+    sql`select * from deletion_list`,
+    sql`update deletion_list set email_hash = repeat('d', 64)`,
+    sql`delete from deletion_list`,
+    sql`truncate deletion_list`,
+    sql`insert into deletion_list (account_id, email_hash, deleted_on) values (${randomUUID()}, repeat('e', 64), current_date - 31)`,
+  ]) {
+    await expect(appDb().execute(query)).rejects.toMatchObject({ cause: { code: "42501" } });
+  }
+  await ownerDb().execute(sql`
+    insert into deletion_list (account_id, email_hash, deleted_on) values
+      (${randomUUID()}, repeat('f', 64), current_date - 31), (${randomUUID()}, repeat('f', 64), current_date - 30)
+  `);
+  const pruned = await appDb().execute<{ removed: string }>(sql`select prune_deletion_list() as removed`);
+  expect(Number(pruned.rows[0]?.removed)).toBe(1);
+  expect((await ownerDb().execute(sql`select count(*)::integer as left from deletion_list`)).rows).toEqual([{ left: 2 }]);
+});
+
 it("refuses a security log entry that could hold free text", async () => {
   for (const [route, code, type] of [
     ["/api/cron/daily-cleanup", "abcdef123", "Error"],

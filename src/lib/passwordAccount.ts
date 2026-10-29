@@ -1,9 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
+import { finishDeletion, finishDeletionOnSignIn, type DeletingLoginRefusal, type DeletionOutcome } from "./accountDeletion";
 import { resetYourPassword, verifyYourEmail, youAlreadyHaveAnAccount, youSignInWithGoogle } from "./accountEmails";
 import {
-  deleteGoogleAccount, deletePasswordAccount, findAccountByEmail, findPasswordAccountByEmail, findPasswordAccountById, replacePasswordHash,
-  signInMethodForEmail, type AccountId,
+  findAccountByEmail, findPasswordAccountByEmail, findPasswordAccountById, markGoogleAccountDeleting, markPasswordAccountDeleting,
+  replacePasswordHash, signInMethodForEmail, type AccountId,
 } from "./accountRepository";
 import { signedInRecently } from "./accountSession";
 import { countAll, giveBack, loginTryCounts, signupCounts } from "./actionLimits";
@@ -125,7 +126,7 @@ export async function resetPassword(
   return result;
 }
 
-export type LoginRefusal = "wrongEmailOrPassword" | "paused" | "tooLong" | "verifyYourEmail" | "accountDisabled";
+export type LoginRefusal = "wrongEmailOrPassword" | "paused" | "tooLong" | "verifyYourEmail" | "accountDisabled" | DeletingLoginRefusal;
 
 export async function logIn(
   credentials: Partial<Record<"email" | "password", unknown>>, request: PasswordRequest,
@@ -154,6 +155,7 @@ export async function logIn(
     return refused("verifyYourEmail");
   }
   if (!account || account.role === "admin") return refused("wrongEmailOrPassword");
+  if (account.deletingSince) return refused(await finishDeletionOnSignIn(account.id, request.route));
   if (account.disabledAt) return refused("accountDisabled");
   await recordSecurityEvent({ event: "sign_in", result: "signedIn", route: request.route, who: { account: account.id }, ipAddress: request.ipAddress });
   const user = { id: account.id, email: account.email, name: account.name, sessionVersion: account.sessionVersion };
@@ -204,7 +206,7 @@ export async function deleteAccount(
   id: AccountId,
   { confirmation, currentPassword, signedInAt }: { confirmation: unknown; currentPassword: unknown; signedInAt: number | undefined },
   request: PasswordRequest,
-): Promise<"deleted" | DeletionRefusal> {
+): Promise<DeletionOutcome | DeletionRefusal> {
   const result = await tryDeleteAccount(id, { confirmation, currentPassword, signedInAt }, request);
   await recordSecurityEvent({ event: "account_deletion", result, route: request.route, who: { account: id }, ipAddress: request.ipAddress });
   return result;
@@ -214,15 +216,16 @@ async function tryDeleteAccount(
   id: AccountId,
   { confirmation, currentPassword, signedInAt }: { confirmation: unknown; currentPassword: unknown; signedInAt: number | undefined },
   request: PasswordRequest,
-): Promise<"deleted" | DeletionRefusal> {
+): Promise<DeletionOutcome | DeletionRefusal> {
   const passwordAccount = await findPasswordAccountById(id);
   if (!passwordAccount && !signedInRecently(signedInAt)) return "sign-in-too-old";
   if (confirmation !== "DELETE") return "wrong-text";
   if (!passwordAccount) {
-    await deleteGoogleAccount(id);
-    return "deleted";
+    if (!(await markGoogleAccountDeleting(id))) throw new Error("Account record not found");
+  } else {
+    const check = await proveCurrentPassword(passwordAccount, currentPassword, request);
+    if (check.kind !== "proven") return check.kind;
+    if (!(await markPasswordAccountDeleting(check.proof))) return "wrong-password";
   }
-  const check = await proveCurrentPassword(passwordAccount, currentPassword, request);
-  if (check.kind !== "proven") return check.kind;
-  return (await deletePasswordAccount(check.proof)) ? "deleted" : "wrong-password";
+  return finishDeletion(id, request.route);
 }

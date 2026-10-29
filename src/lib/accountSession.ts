@@ -36,7 +36,7 @@ export async function accountSessionToken({ token, user, account }: {
 }
 
 function checkedToken(token: JWT, current: SessionAccount | null, now: number): JWT | null {
-  if (!current || current.disabledAt || token.sessionVersion !== current.sessionVersion) return null;
+  if (!current || current.disabledAt || current.deletingSince || token.sessionVersion !== current.sessionVersion) return null;
   if (typeof token.signedInAt !== "number" || now - token.signedInAt >= SIGN_IN_LIMIT_SECONDS[current.role]) return null;
   return { ...token, role: current.role };
 }

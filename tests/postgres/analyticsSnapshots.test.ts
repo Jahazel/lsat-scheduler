@@ -142,6 +142,7 @@ it("resets only the admin's test snapshots and keeps the other student's approve
   expect(await listApprovedAnalyticsSnapshots(other.saved.id)).toHaveLength(1);
 });
 it("deletes the signed-in student's Account and cascades snapshots while refusing admin deletion", async () => {
+  vi.stubEnv("AUTH_SECRET", "analytics-snapshots-test-secret-0123456789");
   const other = await student("other@example.test");
   await approve(other.saved.id);
   const owner = await student("owner@example.test");
@@ -155,6 +156,7 @@ it("deletes the signed-in student's Account and cascades snapshots while refusin
   await approve(admin.saved.id);
   expect(await deleteAccount(null, form)).toEqual({ unexpectedFailure: expect.stringMatching(/^[0-9a-f]{8}$/) });
   expect(await listApprovedAnalyticsSnapshots(admin.saved.id)).toHaveLength(1);
+  vi.unstubAllEnvs();
 });
 
 async function schedule(studentId: string, week = "2026-10-12") {

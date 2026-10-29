@@ -1,7 +1,8 @@
 import type { Account, Profile, User } from "next-auth";
 import { createAccount, findAccountByGoogleId, signInMethodForEmail } from "./accountRepository";
 import { normalizeEmail } from "./email";
-import { DISABLED_SIGN_IN_PATH, EMAIL_USES_PASSWORD_PATH } from "./loginNotice";
+import { finishDeletionOnSignIn } from "./accountDeletion";
+import { DELETING_SIGN_IN_PATHS, DISABLED_SIGN_IN_PATH, EMAIL_USES_PASSWORD_PATH } from "./loginNotice";
 import { answerGoogleSignIn, NOBODY, recordSecurityEvent, signInSubject, type SecurityResult, type SignInSubject } from "./securityLog";
 
 export async function createGoogleAccountOnSignIn({ user, account, profile }: {
@@ -24,6 +25,11 @@ export async function createGoogleAccountOnSignIn({ user, account, profile }: {
     }
 
     const existing = await findAccountByGoogleId(googleId);
+    if (existing?.deletingSince) {
+      const refusal = await finishDeletionOnSignIn(existing.id, "/api/auth/callback/google");
+      await log(refusal, { account: existing.id });
+      return DELETING_SIGN_IN_PATHS[refusal];
+    }
     if (existing) {
       await log(existing.disabledAt ? "accountDisabled" : "signedIn", { account: existing.id });
       return existing.disabledAt ? DISABLED_SIGN_IN_PATH : true;
