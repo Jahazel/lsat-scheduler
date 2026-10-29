@@ -98,18 +98,7 @@ describe("ScheduleCheckInView", () => {
     expect(within(dayCard("Monday")).getByText("Aug 24")).toBeTruthy();
   });
 
-  it("shows a read-only plan without check-off controls", () => {
-    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent}
-      checkIns={[done("MONDAY:0")]} readOnly />);
-    expect(screen.queryByRole("checkbox")).toBeNull();
-    const [doneRow, openRow] = within(dayCard("Monday")).getAllByRole("listitem");
-    expect(doneRow!.textContent).toBe("1 Full LR Section, done");
-    expect(openRow!.textContent).toMatch(/, not done$/);
-    expect(within(dayCard("Monday")).getByText("1 Full LR Section").className).toContain("line-through");
-    expect(screen.getByText("1 of 18 done")).toBeTruthy();
-  });
-
-  it("ignores clicks, Space, and Enter on a read-only plan", async () => {
+  it("shows a read-only plan whose lines ignore clicks, Space, and Enter", async () => {
     render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent}
       checkIns={[done("MONDAY:0")]} heading="Your past plan" readOnly />);
     expect(screen.queryByRole("checkbox")).toBeNull();
@@ -121,6 +110,7 @@ describe("ScheduleCheckInView", () => {
     expect(saveActivityCheckIn).not.toHaveBeenCalled();
     expect(doneRow!.textContent).toBe("1 Full LR Section, done");
     expect(openRow!.textContent).toMatch(/, not done$/);
+    expect(within(dayCard("Monday")).getByText("1 Full LR Section").className).toContain("line-through");
     expect(screen.getByText("1 of 18 done")).toBeTruthy();
   });
 
