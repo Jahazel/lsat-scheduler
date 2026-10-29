@@ -4,10 +4,10 @@ import { loginNotice } from "@/lib/loginNotice";
 import { LoginForms } from "./LoginForms";
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
-  const { error, notice } = await searchParams;
+  const { error, notice, code } = await searchParams;
   return (
     <SignInFrame title="Log in to DrillMap" lead="Your plan for this week is ready." preview={<TodayPreview />}>
-      <LoginForms urlNotice={loginNotice({ error, notice })} />
+      <LoginForms urlNotice={loginNotice({ error, notice, code })} />
       <SwitchPageLink question="New to DrillMap?" href="/signup" label="Sign up" />
     </SignInFrame>
   );

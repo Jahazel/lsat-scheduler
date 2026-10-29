@@ -1,6 +1,7 @@
 import type { Account, User } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 import { findAccountByGoogleId, findAccountById } from "./accountRepository";
+import { answerGoogleSignIn } from "./securityLog";
 
 const DAY_SECONDS = 24 * 60 * 60;
 // Auth.js re-signs the cookie with this lifetime on every read, so it is the idle limit.
@@ -25,7 +26,7 @@ export async function accountSessionToken({ token, user, account }: {
 }): Promise<JWT | null> {
   const now = Math.floor(Date.now() / 1000);
   if (!user) return checkedToken(token, await findAccountById(token.id), now);
-  const current = account?.provider === "google" ? await findAccountByGoogleId(account.providerAccountId)
+  const current = account?.provider === "google" ? await answerGoogleSignIn(() => findAccountByGoogleId(account.providerAccountId))
     : account?.provider === "credentials" ? await findAccountById(user.id)
     : null;
   if (!current) return null;

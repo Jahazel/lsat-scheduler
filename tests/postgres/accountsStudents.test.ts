@@ -3,11 +3,14 @@ import { promisify } from "node:util";
 import { renderToStaticMarkup } from "react-dom/server";
 import { sql } from "drizzle-orm";
 import type { Session } from "next-auth";
+import { Auth, skipCSRFCheck } from "@auth/core";
+import Credentials from "@auth/core/providers/credentials";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { setUpAppTestDatabase } from "./appTestDatabase";
 import { getPostgresDatabase } from "../../src/lib/postgres";
 import { findAccountByEmail } from "../../src/lib/accountRepository";
 import { createGoogleAccountOnSignIn } from "../../src/lib/authAccounts";
+import { answerGoogleSignIn } from "../../src/lib/securityLog";
 import { accountSessionToken } from "../../src/lib/accountSession";
 import { findStudentByAccountId } from "../../src/lib/studentRepository";
 import type { Student } from "../../src/lib/types";
@@ -146,6 +149,51 @@ it("a password Account cannot sign in through Google or without a provider", asy
   expect(await accountSessionToken({ token: {}, user, account: null })).toBeNull();
   expect(await googleSignIn("google-1", "password@example.test")).toBe("/login?error=EmailUsesPassword");
   expect(await accountRows()).toEqual([{ email: "password@example.test", role: "student", google_id: null, has_password: true }]);
+});
+
+async function expectGoogleFailure(attempt: Promise<unknown>, errorType: string) {
+  const failure: unknown = await attempt.then(() => { throw new Error("The Google step should fail."); }, (error: unknown) => error);
+  expect(failure).toMatchObject({ type: "AccessDenied", code: expect.stringMatching(/^[0-9a-f]{8}$/) });
+  const { code } = failure as { code: string };
+  expect((await database.owner.execute(sql`select route, error_type from security_log where error_code = ${code}`)).rows)
+    .toEqual([{ route: "/api/auth/callback/google", error_type: errorType }]);
+}
+
+it("a database failure while Google sign-in creates the Account answers with a logged error code", async () => {
+  await database.owner.execute(sql`create function reject_account_test() returns trigger language plpgsql as
+    'BEGIN RAISE EXCEPTION ''forced account failure''; END;'`);
+  await database.owner.execute(sql`create trigger reject_account_test before insert on accounts
+    for each row execute function reject_account_test()`);
+  try {
+    await expectGoogleFailure(googleSignIn("google-1", "google@example.test"), "Error:P0001");
+  } finally {
+    await database.owner.execute(sql`drop trigger reject_account_test on accounts`);
+    await database.owner.execute(sql`drop function reject_account_test()`);
+  }
+  expect(await accountRows()).toEqual([]);
+});
+
+it("a database failure while Google sign-in starts the session answers with a logged error code", async () => {
+  expect(await googleSignIn("google-1", "google@example.test")).toBe(true);
+  await database.owner.execute(sql.raw(`revoke select on accounts from "${database.role}"`));
+  try {
+    await expectGoogleFailure(googleToken("google-1", "google@example.test"), "Error:42501");
+  } finally {
+    await database.owner.execute(sql.raw(`grant select on accounts to "${database.role}"`));
+  }
+});
+
+it("Auth.js sends a failed sign-in callback to Login with the logged error code", async () => {
+  const response = await Auth(new Request("http://localhost/api/auth/callback/credentials", { method: "POST", body: new URLSearchParams() }), {
+    secret: "auth-contract-test-secret", trustHost: true, skipCSRFCheck, basePath: "/api/auth",
+    pages: { signIn: "/login", error: "/login" },
+    providers: [Credentials({ authorize: () => ({ id: "contract-user" }) })],
+    callbacks: { signIn: () => answerGoogleSignIn(() => Promise.reject(new TypeError("forced"))) },
+  });
+  const location = new URL(response.headers.get("location") ?? "");
+  expect([location.pathname, location.searchParams.get("error")]).toEqual(["/login", "AccessDenied"]);
+  const logged = await database.owner.execute(sql`select error_type from security_log where error_code = ${location.searchParams.get("code")}`);
+  expect(logged.rows).toEqual([{ error_type: "TypeError" }]);
 });
 
 it("a changed Google email opens the same Account and leaves its DrillMap email alone", async () => {
