@@ -53,6 +53,16 @@ The evidence comes from issue 70 findings F11, F12, F13, and F15, and from issue
 
 **Why:** A secret token in each request adds little for a site with SameSite=Lax cookies and an Origin check.
 
+Built on [issue 337](https://github.com/Jahazel/lsat-scheduler/issues/337):
+
+- The proxy applies one pure function, `requestPolicy`, before any page, Server Action, or Route Handler runs.
+- "Changes data" means every method except GET, HEAD, and OPTIONS.
+- The site origin comes from `SITE_URL`, the same setting as the email links. A local run without it uses `http://localhost:3000`. A Vercel place without it refuses every request that changes data.
+- Server Actions accept the two content types that Next.js 16 sends: `text/plain` for encoded arguments and `multipart/form-data` for arguments that hold a file or form data. A plain HTML form's `application/x-www-form-urlencoded` gets HTTP 415.
+- The two extraction routes accept only `multipart/form-data`. Every other `/api/` route accepts only `application/json`.
+- Two routes are exempt. The Auth.js routes under `/api/auth/`: Google's redirect back is a GET, and Auth.js checks its own CSRF token on its POSTs. The daily cleanup cron route: Vercel calls it with a GET and the cron secret.
+- Each refusal writes one `forged_request_refused` entry with the result `wrongOrigin`, `noOrigin`, or `wrongContentType`. The entry names the route template, never the typed path. A path that is not an app route is logged as `/other`. Migration `0016_forged_request_event` adds the event to the check list.
+
 ### Content Security Policy
 
 6. Every page response sends a CSP with a fresh nonce for each request: `script-src 'self' 'nonce-…' 'strict-dynamic'` and `style-src 'self' 'nonce-…'`.
