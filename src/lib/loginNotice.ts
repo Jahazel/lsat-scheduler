@@ -40,9 +40,7 @@ type QueryValue = string | string[] | undefined;
 export function loginNotice({ error, notice, code }: { error?: QueryValue; notice?: QueryValue; code?: QueryValue }): LoginNotice | null {
   if (notice === "EmailVerified") return { tone: "success", text: "Email verified. Log in.", place: "aboveEmail" };
   if (notice === "AccountDeleted") return { tone: "info", text: "Your Account is deleted.", place: "aboveGoogle" };
-  if (notice === "DeletionWillFinish") {
-    return { tone: "info", text: "Your Account is being deleted and can't log in. DrillMap will finish the deletion.", place: "aboveGoogle" };
-  }
+  if (notice === "DeletionWillFinish") return { tone: "info", text: "Your Account is being deleted.", place: "aboveGoogle" };
   if (notice === "PasswordChanged") return { tone: "success", text: "Password changed. Log in with your new password.", place: "aboveEmail" };
   if (typeof error !== "string" || !error) return null;
   if (error === "SessionEnded") return { tone: "info", text: "Your session ended. Log in again.", place: "aboveGoogle" };
