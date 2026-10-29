@@ -305,6 +305,18 @@ describe("POST /api/analytics/extract", () => {
     expect(mocks.takeScanPlace).not.toHaveBeenCalled();
   });
 
+  it("answers a refused Anthropic key with an error code, not the planned scan message", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "synthetic-anthropic-key");
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    mocks.createMessage.mockRejectedValue(Object.assign(new Anthropic.APIError(401, undefined, "synthetic invalid key", undefined), { status: 401 }));
+
+    const { POST } = await import("./route");
+    const response = await POST(await imageRequest());
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "Something went wrong. Try again.", code: expect.stringMatching(/^[0-9a-f]{8}$/) });
+  });
+
   it("answers a client creation failure with an error code", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "synthetic-anthropic-key");
     mocks.constructClient.mockImplementation(() => {

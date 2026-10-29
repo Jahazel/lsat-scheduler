@@ -77,6 +77,7 @@ export default function ScheduleCheckInView({
   const [savedCheckIns, setSavedCheckIns] = useState(checkIns);
   const [failure, setFailure] = useState<UnexpectedFailure | null>(null);
   const confirmedCheckIns = useRef(checkIns);
+  const pendingSaves = useRef(new Map<string, number>());
   const [, startTransition] = useTransition();
   const doneIds = doneActivityIds(savedCheckIns);
   const totalActivities = scheduledActivityCount(schedule);
@@ -93,15 +94,16 @@ export default function ScheduleCheckInView({
     const others = (checkIns: ActivityCheckIn[]) => checkIns.filter((checkIn) => checkIn.activityId !== activityId);
     setFailure(null);
     setSavedCheckIns((previous) => [...others(previous), { scheduleId, activityId, status }]);
+    pendingSaves.current.set(activityId, (pendingSaves.current.get(activityId) ?? 0) + 1);
     startTransition(async () => {
       const answer = await saveActivityCheckIn({ scheduleId, activityId, status });
-      if (!isUnexpectedFailure(answer)) {
-        confirmedCheckIns.current = [...others(confirmedCheckIns.current), answer];
-        return;
-      }
+      const stillPending = pendingSaves.current.get(activityId)! - 1;
+      pendingSaves.current.set(activityId, stillPending);
+      if (isUnexpectedFailure(answer)) setFailure(answer);
+      else confirmedCheckIns.current = [...others(confirmedCheckIns.current), answer];
+      if (stillPending > 0) return;
       const confirmed = confirmedCheckIns.current.filter((checkIn) => checkIn.activityId === activityId);
       setSavedCheckIns((previous) => [...others(previous), ...confirmed]);
-      setFailure(answer);
     });
   }
 
