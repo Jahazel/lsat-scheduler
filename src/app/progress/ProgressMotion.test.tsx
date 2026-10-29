@@ -145,6 +145,25 @@ describe("ProgressMotion", () => {
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
+  it("drops a held Back when Forward then leaves Progress", async () => {
+    const { rerender } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
+    fireEvent.click(screen.getByRole("link", { name: "← All weeks" }));
+    finishExits();
+    await vi.waitFor(() => expect(mocks.push).toHaveBeenCalled());
+    show("/progress", <List />, rerender);
+
+    const router = vi.fn();
+    addEventListener("popstate", router);
+    history.replaceState(null, "", "/progress?week=2026-10-12");
+    dispatchEvent(new PopStateEvent("popstate"));
+    history.replaceState(null, "", "/dashboard");
+    dispatchEvent(new PopStateEvent("popstate"));
+    finishExits();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(router).toHaveBeenCalledOnce();
+    removeEventListener("popstate", router);
+  });
+
   it("still opens the newest target when an earlier page arrives during its exit", async () => {
     const { rerender } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
     fireEvent.click(screen.getByRole("link", { name: "← Older week" }));

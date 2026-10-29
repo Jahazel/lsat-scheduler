@@ -98,6 +98,7 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
       if (replaying) return;
       if (location.pathname !== "/progress") {
         target.current = null;
+        latest++;
         return;
       }
       if (hrefOf(location) === committed()) return returnToCommitted();
