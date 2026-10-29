@@ -1,18 +1,20 @@
 "use client";
 
 import { useActionState } from "react";
+import { FailureNotice } from "@/components/FailureNotice";
 import { SubmitButton } from "@/components/signIn/PasswordFormParts";
 import { SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";
 import { StepsPreview } from "@/components/signIn/StepsPreview";
 import { ButtonLink } from "@/components/ui/Button";
+import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
 import { verifyEmail, type VerifyEmailState } from "./actions";
 
-const initialState: VerifyEmailState = { linkDoesNotWork: false };
+const initialState: Answer<VerifyEmailState> = { linkDoesNotWork: false };
 
 export function VerifyEmail({ token }: { token: string }) {
   const [state, formAction] = useActionState(verifyEmail, initialState);
 
-  if (!token || state.linkDoesNotWork) {
+  if (!token || (!isUnexpectedFailure(state) && state.linkDoesNotWork)) {
     return (
       <SignInFrame
         title="This link doesn't work"
@@ -29,6 +31,7 @@ export function VerifyEmail({ token }: { token: string }) {
     <SignInFrame title="Verify your email" lead="Press the button to finish signing up." preview={<StepsPreview />}>
       <form action={formAction}>
         <input type="hidden" name="token" value={token} />
+        <FailureNotice answer={state} />
         <SubmitButton label="Verify my email" workingLabel="Verifying…" />
       </form>
     </SignInFrame>

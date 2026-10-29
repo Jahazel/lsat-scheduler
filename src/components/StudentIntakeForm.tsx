@@ -6,13 +6,14 @@ import DailyCapacityFieldset from "@/components/DailyCapacityFieldset";
 import { DAY_ORDER } from "@/lib/engine";
 import { TEST_TIME_LABEL, practiceTestHint } from "@/lib/onboardingWizard";
 import { DAY_LABEL, dailyCapacityError, goalScoreError, type StudentProfileInput, type upcomingTestMonths } from "@/lib/studentProfile";
+import { failureText, type UnexpectedFailure } from "@/lib/unexpectedFailure";
 import type { DayOfWeek } from "@/lib/types";
 
 interface StudentIntakeFormProps {
   initialValues: StudentProfileInput;
   goalTestDateOptions: ReturnType<typeof upcomingTestMonths>;
   submitLabel: string;
-  onSubmit: (input: StudentProfileInput) => Promise<void>;
+  onSubmit: (input: StudentProfileInput) => Promise<UnexpectedFailure | void>;
 }
 
 export default function StudentIntakeForm({
@@ -36,7 +37,11 @@ export default function StudentIntakeForm({
       }
       setSubmitting(true);
       try {
-        await onSubmit(value);
+        const failure = await onSubmit(value);
+        if (failure) {
+          setSubmitError(failureText(failure));
+          setSubmitting(false);
+        }
       } catch {
         setSubmitError("Couldn't save. Try again.");
         setSubmitting(false);

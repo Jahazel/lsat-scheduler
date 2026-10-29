@@ -2,7 +2,6 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { renderToStaticMarkup } from "react-dom/server";
 import { sql } from "drizzle-orm";
-import { z } from "zod";
 import type { Session } from "next-auth";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { setUpAppTestDatabase } from "./appTestDatabase";
@@ -26,7 +25,7 @@ vi.mock("@/auth", () => ({
   signIn: request.signIn,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
+vi.mock("next/navigation", () => import("./fakeNavigation"));
 
 import { signInWithGoogle } from "../../src/app/login/actions";
 import { createStudentProfile } from "../../src/app/onboarding/actions";
@@ -35,6 +34,7 @@ import AccountPage from "../../src/app/account/page";
 import OnboardingPage from "../../src/app/onboarding/page";
 import { requireCurrentAdmin } from "../../src/lib/requireAdmin";
 import { postgresAdminClock, studentSideClock } from "../../src/lib/studentClock";
+import { expectUnexpectedFailure } from "./plannedAnswer";
 import { loadStudentNavState } from "../../src/lib/studentNav";
 
 const database = setUpAppTestDatabase();
@@ -208,8 +208,8 @@ describe.each(["student-a", "student-b", "admin", "no-session"] as const)("%s ca
     const admin = await account("admin@example.test", "admin");
     const actors = { "student-a": a, "student-b": b, admin };
     if (actor === "no-session") {
-      await expect(createStudentProfile(profileInput)).rejects.toThrow("Not authenticated");
-      await expect(updateStudentProfile(profileInput)).rejects.toThrow("Not authenticated");
+      await expectUnexpectedFailure(database, createStudentProfile(profileInput), "Error");
+      await expectUnexpectedFailure(database, updateStudentProfile(profileInput), "Error");
       expect((await getPostgresDatabase().execute(sql`select id from students`)).rows).toEqual([]);
       return;
     }
@@ -302,7 +302,7 @@ it("onboarding saves approved analytics with its student and refuses a partial w
   await expect(createStudentProfile({
     ...input,
     analyticsRows: [...input.analyticsRows.slice(0, 1), { type: "Law", category: "passage", accuracy: 150 }],
-  })).rejects.toThrow("Enter each RC accuracy from 0 to 100.");
+  })).resolves.toEqual({ error: "Enter each RC accuracy from 0 to 100." });
   expect(await findStudentByAccountId(rcTypo.id)).toBeNull();
   const b = await account("snapshot-fail@example.test");
   session(b);
@@ -311,7 +311,7 @@ it("onboarding saves approved analytics with its student and refuses a partial w
   await database.owner.execute(sql`create trigger reject_snapshot_test before insert on analytics_snapshots
     for each row execute function reject_snapshot_test()`);
   try {
-    await expect(createStudentProfile(input)).rejects.toThrow();
+    await expectUnexpectedFailure(database, createStudentProfile(input), "Error:P0001");
     expect(await findStudentByAccountId(b.id)).toBeNull();
     expect((await getPostgresDatabase().execute(sql`select id from analytics_snapshots`)).rows).toHaveLength(2);
   } finally {
@@ -345,7 +345,7 @@ describe.each([
       ...profileInput,
       dailyCapacityMinutes: { ...profile.dailyCapacityMinutes, TUESDAY: minutes },
     };
-    await expect(save(input)).rejects.toBeInstanceOf(z.ZodError);
+    await expectUnexpectedFailure(database, save(input), "ZodError");
     expect(await studentRows()).toEqual(before);
   });
 
@@ -353,21 +353,19 @@ describe.each([
     const before = await studentRows();
     const input = { ...profileInput };
     Reflect.set(input, "preferredPracticeTestDay", "");
-    await expect(save(input)).rejects.toBeInstanceOf(z.ZodError);
+    await expectUnexpectedFailure(database, save(input), "ZodError");
     expect(await studentRows()).toEqual(before);
   });
 
   it.each([165, 160])("rejects goal score %i at or below a current score of 165 without changing stored data", async (goalScore) => {
     const before = await studentRows();
-    await expect(save({ ...profileInput, currentScore: 165, goalScore })).rejects.toThrow(
-      "Your goal must be higher than your current score, 165."
-    );
+    await expectUnexpectedFailure(database, save({ ...profileInput, currentScore: 165, goalScore }), "ZodError");
     expect(await studentRows()).toEqual(before);
   });
 
   it("rejects a goal test date that has passed without changing stored data", async () => {
     const before = await studentRows();
-    await expect(save({ ...profileInput, goalTestDate: "2026-10-01" })).rejects.toThrow("Choose an upcoming LSAT test month.");
+    await expectUnexpectedFailure(database, save({ ...profileInput, goalTestDate: "2026-10-01" }), "ZodError");
     expect(await studentRows()).toEqual(before);
   });
 
@@ -375,7 +373,7 @@ describe.each([
     const before = await studentRows();
     const input = { ...profileInput };
     Reflect.set(input, "platform", "LSAT Demon");
-    await expect(save(input)).rejects.toBeInstanceOf(z.ZodError);
+    await expectUnexpectedFailure(database, save(input), "ZodError");
     expect(await studentRows()).toEqual(before);
   });
 });
@@ -413,7 +411,7 @@ it.each([
   { score: 152, month: "" },
 ])("onboarding rejects official attempt %o without storing a student", async (attempt) => {
   session(await account("bad-attempt@example.test"));
-  await expect(createStudentProfile({ ...profileInput, officialAttempts: [attempt] })).rejects.toBeInstanceOf(z.ZodError);
+  await expectUnexpectedFailure(database, createStudentProfile({ ...profileInput, officialAttempts: [attempt] }), "ZodError");
   expect(await studentRows()).toEqual([]);
 });
 

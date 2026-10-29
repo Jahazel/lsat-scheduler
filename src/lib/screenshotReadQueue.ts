@@ -2,6 +2,7 @@ import { sectionOf } from "./analyticsReview";
 import type { SectionReading } from "./practiceTestResult";
 import { stopsLaterScans, type ExtractReply, type SectionReply } from "./screenshotUpload";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "./types";
+import type { UnexpectedFailure } from "./unexpectedFailure";
 
 type ReadProblem = "connection-lost" | "cannot-read" | "timed-out" | "no-rows";
 
@@ -9,6 +10,7 @@ export type FileRead<T> =
   | { status: "added" | "waiting" | "reading" | "signed-out" | ReadProblem }
   | { status: "rejected"; message: string }
   | { status: "refused"; message: string; tryAgain: boolean }
+  | { status: "failed"; failure: UnexpectedFailure }
   | { status: "read"; value: T };
 
 export type AnalyticsReading = { rows: AnalyticsExtractedRow[]; at: string };
@@ -79,6 +81,8 @@ function failedRead(reply: ScreenshotFailure): FileRead<never> {
       return { status: "rejected", message: reply.message };
     case "refused":
       return { status: "refused", message: reply.message, tryAgain: !stopsLaterScans(reply) };
+    case "failed":
+      return { status: "failed", failure: reply.failure };
     case "connection-lost":
     case "cannot-read":
     case "timed-out":

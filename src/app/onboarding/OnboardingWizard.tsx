@@ -49,6 +49,7 @@ import { SIGN_IN_EXPIRED, SignInAgainLink } from "@/components/SignInExpired";
 import { nextRead } from "@/lib/screenshotReadQueue";
 import { SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, checkScreenshotType, extractScreenshot } from "@/lib/screenshotUpload";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "@/lib/types";
+import { failureText, isUnexpectedFailure } from "@/lib/unexpectedFailure";
 import { DAY_LABEL, MAX_OFFICIAL_ATTEMPTS, attemptMonths, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { createStudentProfile } from "./actions";
 import LivePreview from "./LivePreview";
@@ -103,7 +104,8 @@ export default function OnboardingWizard({
     dispatch({ type: "saveStarted" });
     try {
       const refusal = await onSave(input);
-      if (refusal) dispatch({ type: "saveRefused", message: refusal.error });
+      if (isUnexpectedFailure(refusal)) dispatch({ type: "saveRefused", message: failureText(refusal) });
+      else if (refusal) dispatch({ type: "saveRefused", message: refusal.error });
     } catch {
       dispatch({ type: "saveFailed" });
     }
@@ -662,7 +664,7 @@ function WhereToFindIt() {
   );
 }
 
-const FILE_STATUS: Record<Exclude<Screenshot["read"]["status"], "read" | "rejected">, { text: string; problem: boolean }> = {
+const FILE_STATUS: Record<Exclude<Screenshot["read"]["status"], "read" | "rejected" | "failed">, { text: string; problem: boolean }> = {
   added: { text: "Waiting to read", problem: false },
   waiting: { text: "Waiting to read", problem: false },
   reading: { text: "Reading now", problem: false },
@@ -698,10 +700,11 @@ function ScreenshotFileRow({
   useEffect(() => {
     if (document.activeElement === document.body) row.current?.focus();
   }, [status]);
-  const problem = read.status === "rejected" || (read.status !== "read" && FILE_STATUS[read.status].problem);
-  const statusText = read.status === "read"
-    ? readSummary(section, read.value.rows.length)
-    : read.status === "rejected" ? read.message : FILE_STATUS[read.status].text;
+  const problem = read.status === "rejected" || read.status === "failed" || (read.status !== "read" && FILE_STATUS[read.status].problem);
+  const statusText = read.status === "read" ? readSummary(section, read.value.rows.length)
+    : read.status === "rejected" ? read.message
+    : read.status === "failed" ? failureText(read.failure)
+    : FILE_STATUS[read.status].text;
 
   return (
     <div className="flex flex-col gap-3">
@@ -745,7 +748,7 @@ function ScreenshotFileRow({
             </button>
           </>
         )}
-        {(status === "cannot-read" || status === "timed-out") && (
+        {(status === "cannot-read" || status === "timed-out" || status === "failed") && (
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={onTryAgain} className={SMALL_BUTTON}>
               Try again

@@ -17,6 +17,7 @@ import { PASSWORD_LOGIN_NOTICES } from "../../src/lib/loginNotice";
 import { accountSessionToken } from "../../src/lib/accountSession";
 import { findPendingSignup } from "../../src/lib/pendingSignupRepository";
 import { resendVerificationLink, resetPassword as setPasswordWithLink } from "../../src/lib/passwordAccount";
+import { planned } from "./plannedAnswer";
 import { handlers, passwordSignInAccount } from "../../src/auth";
 
 const COOKIE = "authjs.session-token";
@@ -35,7 +36,7 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers({ host: "localhost:3000", "x-forwarded-proto": "http", "x-vercel-forwarded-for": request.ip }),
   cookies: async () => ({ set: request.setCookie }),
 }));
-vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
+vi.mock("next/navigation", () => import("./fakeNavigation"));
 
 const database = setUpAppTestDatabase();
 let oldPasswordHash: string;
@@ -90,8 +91,8 @@ function patSignupForm() {
   form.set("agreedToTerms", "on");
   return form;
 }
-const signUpPat = () => signUpWithPassword({ kind: "form", errors: {} }, patSignupForm());
-const forgot = (email: string) => requestPasswordReset({ kind: "form" }, emailForm(email));
+const signUpPat = () => signUpWithPassword({ kind: "form", errors: {} }, patSignupForm()).then(planned);
+const forgot = (email: string) => requestPasswordReset({ kind: "form" }, emailForm(email)).then(planned);
 const sent = (email: string): ForgotPasswordState => ({ kind: "sent", email });
 
 function linkTokenIn(text: string, path: "/reset-password" | "/verify-email") {
@@ -106,7 +107,7 @@ async function pressSave(token: string, password = NEW_PASSWORD) {
   form.set("token", token);
   form.set("password", password);
   return resetPassword({ kind: "form" }, form).then(
-    (state) => ({ state, redirectedTo: null }),
+    (state) => ({ state: planned(state), redirectedTo: null }),
     (error: Error) => {
       if (!error.message.startsWith("redirect:")) throw error;
       return { state: null, redirectedTo: error.message.slice("redirect:".length) };
@@ -119,7 +120,7 @@ async function logIn(email: string, password: string) {
   form.set("email", email);
   form.set("password", password);
   request.setCookie.mockReset();
-  const refused = await logInWithPassword({ email: "", notice: null, passwordError: null }, form).catch(() => null);
+  const refused = await logInWithPassword({ email: "", notice: null, passwordError: null }, form).then(planned, () => null);
   const cookie = request.setCookie.mock.calls.findLast(([name]) => name === COOKIE)?.[1] ?? "";
   return { refused, cookie: cookie as string };
 }
@@ -190,7 +191,7 @@ describe("forgot password", () => {
     const press = async (token: string) => {
       const form = new FormData();
       form.set("token", token);
-      return verifyEmail({ linkDoesNotWork: false }, form).catch((error: Error) => error.message);
+      return verifyEmail({ linkDoesNotWork: false }, form).then(planned, (error: Error) => error.message);
     };
     expect(await press(older)).toEqual({ linkDoesNotWork: true });
     expect(await press(newer)).toBe("redirect:/login?notice=EmailVerified");

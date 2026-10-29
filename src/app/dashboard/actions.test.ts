@@ -39,9 +39,9 @@ describe("saveActivityCheckIn", () => {
     expect(mocks.save).toHaveBeenCalledOnce();
   });
 
-  it.each(["2026-09-28", "2026-10-12"])("refuses a check-in for the week of %s", async (weekStartDate) => {
+  it.each(["2026-09-28", "2026-10-12"])("refuses a check-in for the week of %s with an error code", async (weekStartDate) => {
     mocks.findSchedule.mockResolvedValue(scheduleForWeek(weekStartDate));
-    await expect(saveActivityCheckIn(input)).rejects.toThrow("Only this week's check-ins can change");
+    expect(await saveActivityCheckIn(input)).toEqual({ unexpectedFailure: expect.stringMatching(/^[0-9a-f]{8}$/) });
     expect(mocks.save).not.toHaveBeenCalled();
   });
 
@@ -51,6 +51,6 @@ describe("saveActivityCheckIn", () => {
     await expect(saveActivityCheckIn(input)).resolves.toMatchObject(input);
 
     mocks.findSchedule.mockResolvedValue(scheduleForWeek("2026-10-05"));
-    await expect(saveActivityCheckIn(input)).rejects.toThrow("Only this week's check-ins can change");
+    expect(await saveActivityCheckIn(input)).toEqual({ unexpectedFailure: expect.stringMatching(/^[0-9a-f]{8}$/) });
   });
 });

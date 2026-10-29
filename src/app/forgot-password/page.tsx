@@ -1,19 +1,21 @@
 "use client";
 
 import { useActionState } from "react";
+import { FailureNotice } from "@/components/FailureNotice";
 import { CheckEmailTips } from "@/components/signIn/CheckEmailTips";
 import { SubmitButton } from "@/components/signIn/PasswordFormParts";
 import { SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";
 import { TodayPreview } from "@/components/signIn/TodayPreview";
 import { TextInput } from "@/components/ui/TextInput";
+import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
 import { requestPasswordReset, type ForgotPasswordState } from "./actions";
 
-const initialState: ForgotPasswordState = { kind: "form" };
+const initialState: Answer<ForgotPasswordState> = { kind: "form" };
 
 export default function ForgotPasswordPage() {
   const [state, formAction] = useActionState(requestPasswordReset, initialState);
 
-  if (state.kind === "sent") {
+  if (!isUnexpectedFailure(state) && state.kind === "sent") {
     return (
       <SignInFrame
         title="Check your email"
@@ -33,7 +35,8 @@ export default function ForgotPasswordPage() {
       preview={<TodayPreview />}
     >
       <form action={formAction} className="flex flex-col gap-8">
-        <TextInput label="Email" name="email" type="email" autoComplete="email" required error={state.error} />
+        <TextInput label="Email" name="email" type="email" autoComplete="email" required error={isUnexpectedFailure(state) ? undefined : state.error} />
+        <FailureNotice answer={state} />
         <SubmitButton label="Send reset link" workingLabel="Sending…" />
       </form>
       <SwitchPageLink question="Remember it?" href="/login" label="Log in" />

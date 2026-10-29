@@ -39,6 +39,17 @@ describe("ScheduleCheckInView", () => {
     expect(await screen.findByText("18 remaining")).toBeTruthy();
   });
 
+  it("undoes a check-off that fails and shows the error code", async () => {
+    saveActivityCheckIn.mockResolvedValue({ unexpectedFailure: "3f9a01c2" });
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />);
+    const row = within(dayCard("Monday")).getByRole("checkbox", { name: "1 Full LR Section" });
+
+    await userEvent.click(row);
+    expect((await screen.findByRole("alert")).textContent).toBe("Something went wrong. Try again. Error code: 3f9a01c2");
+    expect(row.getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByText("18 remaining")).toBeTruthy();
+  });
+
   it("toggles a focused line with Space or Enter and moves on with Tab", async () => {
     render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />);
     const [first, second] = within(dayCard("Monday")).getAllByRole("checkbox");

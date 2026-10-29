@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import StudentNav, { StudentTabBar, type StudentNavProps } from "./StudentNav";
 import { NavIcon } from "./NavIcon";
+import { ActionForm } from "@/components/FailureNotice";
 import { Button } from "@/components/ui/Button";
 import { FOCUS, cx } from "@/components/ui/classes";
 import { BAR, HEADER, Logo, TABS, isTabActive } from "./shared";
@@ -113,9 +114,9 @@ export default function AdminNav(props: StudentNavProps & { testState?: TestCont
               <span className="text-fog" aria-hidden data-workspace-separator="true">/</span>
               {switcher}
             </div>
-            <form action={props.logOut}>
+            <ActionForm action={props.logOut}>
               <Button type="submit" variant="text" size="md">Log out</Button>
-            </form>
+            </ActionForm>
           </div>
         )}
         {testState && <AdminTestOpener state={testState} panelId={testPanelId} />}

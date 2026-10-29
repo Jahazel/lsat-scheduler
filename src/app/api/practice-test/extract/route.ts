@@ -3,17 +3,20 @@ import { auth } from "@/auth";
 import { scanWithLimits } from "@/lib/scanGuard";
 import { extractPracticeTestSection } from "@/lib/screenshotExtractor";
 import { readScreenshotForm } from "@/lib/screenshotRequest";
+import { answerRequest } from "@/lib/securityLog";
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-  }
+  return answerRequest("/api/practice-test/extract", async () => {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+    }
 
-  const read = await readScreenshotForm(request);
-  if ("refusal" in read) return read.refusal;
+    const read = await readScreenshotForm(request);
+    if ("refusal" in read) return read.refusal;
 
-  return scanWithLimits(session.user.id, "practice-test-section", async (recordCost) => ({
-    reading: await extractPracticeTestSection(read.screenshot.bytes, read.screenshot.mediaType, recordCost),
-  }));
+    return scanWithLimits(session.user.id, "practice-test-section", async (recordCost) => ({
+      reading: await extractPracticeTestSection(read.screenshot.bytes, read.screenshot.mediaType, recordCost),
+    }));
+  });
 }

@@ -12,6 +12,7 @@ import {
 import { useAdminTest } from "./AdminTestContext";
 import { FOCUS, cx } from "./ui/classes";
 import { isoDateInWeek } from "@/lib/scheduleReasonText";
+import { failureText, isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
 import type { SampleDirection } from "@/lib/sampleAnalytics";
 
 export interface TestControlState {
@@ -111,6 +112,11 @@ export default function TestControls({
     }
   }, [confirmation]);
 
+  function settled<T>(answer: Answer<T>): T {
+    if (isUnexpectedFailure(answer)) throw new Error(failureText(answer));
+    return answer;
+  }
+
   async function run(action: () => Promise<void>, message: string) {
     setBusy(true);
     setError(null);
@@ -133,7 +139,7 @@ export default function TestControls({
   function move(next: string) {
     return run(
       async () => {
-        await setSimulatedDate(next);
+        settled(await setSimulatedDate(next));
         setSample(null);
       },
       `Moved to ${displaySimulatedDate(next)}.`,
@@ -278,7 +284,7 @@ export default function TestControls({
                 disabled={!uploadOpen}
                 onClick={() =>
                   run(async () => {
-                    setSample(await generateTestSample(direction));
+                    setSample(settled(await generateTestSample(direction)));
                     if (pathname !== UPLOAD_PATH) router.push(UPLOAD_PATH);
                     onClose();
                   }, "Sample ready for review.")
@@ -331,7 +337,7 @@ export default function TestControls({
                         className={cx(BUTTON, "text-danger-ink")}
                         onClick={() =>
                           run(async () => {
-                            await reset.action();
+                            settled(await reset.action());
                             setSample(null);
                             if (reset.returnsToRealDate) setCurrentWeek(null);
                             router.push(

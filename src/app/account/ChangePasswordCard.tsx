@@ -1,19 +1,21 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { FailureNotice } from "@/components/FailureNotice";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
+import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
 import { changePassword, type PasswordChangeRefusal } from "./actions";
 import { PasswordField } from "./PasswordField";
 
 export function ChangePasswordCard() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [refusal, formAction, pending] = useActionState(async (previous: PasswordChangeRefusal, formData: FormData) => {
+  const [refusal, formAction, pending] = useActionState(async (previous: Answer<PasswordChangeRefusal>, formData: FormData) => {
     const result = await changePassword(previous, formData);
-    if (result?.field === "currentPassword") setCurrentPassword("");
+    if (!isUnexpectedFailure(result) && result?.field === "currentPassword") setCurrentPassword("");
     return result;
   }, null);
-  const shown = pending ? null : refusal;
+  const shown = pending || isUnexpectedFailure(refusal) ? null : refusal;
 
   return (
     <section className="flex flex-col gap-8 rounded-md border border-vellum-line bg-paper p-5 md:flex-row md:justify-between md:gap-16 md:p-8">
@@ -55,6 +57,7 @@ export function ChangePasswordCard() {
         >
           {pending ? "Changing password…" : "Change password"}
         </button>
+        {!pending && <FailureNotice answer={refusal} />}
       </form>
     </section>
   );

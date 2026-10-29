@@ -1,19 +1,21 @@
 "use client";
 
 import { startTransition, useActionState, type FormEvent } from "react";
+import { FailureNotice } from "@/components/FailureNotice";
 import { SubmitButton } from "@/components/signIn/PasswordFormParts";
 import { SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";
 import { TodayPreview } from "@/components/signIn/TodayPreview";
 import { ButtonLink } from "@/components/ui/Button";
 import { TextInput } from "@/components/ui/TextInput";
+import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
 import { resetPassword, type ResetPasswordState } from "./actions";
 
-const initialState: ResetPasswordState = { kind: "form" };
+const initialState: Answer<ResetPasswordState> = { kind: "form" };
 
 export function ResetPassword({ token }: { token: string | null }) {
   const [state, formAction, pending] = useActionState(resetPassword, initialState);
 
-  if (!token || state.kind === "linkDoesNotWork") {
+  if (!token || (!isUnexpectedFailure(state) && state.kind === "linkDoesNotWork")) {
     return (
       <SignInFrame
         title="This link doesn't work"
@@ -48,8 +50,9 @@ export function ResetPassword({ token }: { token: string | null }) {
           autoComplete="new-password"
           required
           helper="At least 8 characters. A long phrase works well."
-          error={state.error}
+          error={isUnexpectedFailure(state) || state.kind !== "form" ? undefined : state.error}
         />
+        <FailureNotice answer={state} />
         <SubmitButton label="Save new password" workingLabel="Saving…" pending={pending} />
       </form>
     </SignInFrame>

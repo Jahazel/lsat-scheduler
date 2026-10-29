@@ -9,6 +9,8 @@ import { doneActivityIds, formatScheduleWeekOf, remainingActivityCount, schedule
 import { dayName, isoDateInWeek } from "@/lib/scheduleReasonText";
 import type { ActivityCheckIn, DayPlan, Student, WeeklySchedule } from "@/lib/types";
 import { saveActivityCheckIn } from "@/app/dashboard/actions";
+import { FailureNotice } from "@/components/FailureNotice";
+import { isUnexpectedFailure, type UnexpectedFailure } from "@/lib/unexpectedFailure";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ReminderStrip } from "@/components/ui/ReminderStrip";
@@ -73,6 +75,7 @@ export default function ScheduleCheckInView({
   uploadReminder = false,
 }: ScheduleCheckInViewProps) {
   const [savedCheckIns, setSavedCheckIns] = useState(checkIns);
+  const [failure, setFailure] = useState<UnexpectedFailure | null>(null);
   const [, startTransition] = useTransition();
   const doneIds = doneActivityIds(savedCheckIns);
   const totalActivities = scheduledActivityCount(schedule);
@@ -86,9 +89,15 @@ export default function ScheduleCheckInView({
 
   function toggle(activityId: string) {
     const status = doneIds.has(activityId) ? "not_started" : "completed";
-    setSavedCheckIns((previous) => [...previous.filter((checkIn) => checkIn.activityId !== activityId), { scheduleId, activityId, status }]);
+    const before = savedCheckIns.filter((checkIn) => checkIn.activityId === activityId);
+    const others = (checkIns: ActivityCheckIn[]) => checkIns.filter((checkIn) => checkIn.activityId !== activityId);
+    setFailure(null);
+    setSavedCheckIns((previous) => [...others(previous), { scheduleId, activityId, status }]);
     startTransition(async () => {
-      await saveActivityCheckIn({ scheduleId, activityId, status });
+      const answer = await saveActivityCheckIn({ scheduleId, activityId, status });
+      if (!isUnexpectedFailure(answer)) return;
+      setSavedCheckIns((previous) => [...others(previous), ...before]);
+      setFailure(answer);
     });
   }
 
@@ -109,6 +118,7 @@ export default function ScheduleCheckInView({
         aside={<div aria-live="polite"><ProgressBar done={doneActivities} total={totalActivities} dueSoFar={dueSoFar} /></div>}
       />
       <div className="flex flex-col gap-4 px-5 pt-8 pb-16 md:px-18 md:pt-16 md:pb-24">
+        <FailureNotice answer={failure} className="px-2 text-small text-danger-ink" />
         {DAY_ORDER.map((day, dayIndex) => {
           const plan = schedule.days[day];
           const plannedMinutes = Math.round(plan.activities.reduce((total, activity) => total + plannedActivityMinutes(activity), 0));

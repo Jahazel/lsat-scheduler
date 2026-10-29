@@ -10,7 +10,7 @@ const request = vi.hoisted(() => ({ ip: "203.0.113.7", session: null as Session 
 vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-vercel-forwarded-for": request.ip }) }));
 vi.mock("@/auth", () => ({ auth: async () => request.session }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
+vi.mock("next/navigation", () => import("./fakeNavigation"));
 
 import { createStudentProfile } from "../../src/app/onboarding/actions";
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
+import { ActionForm } from "@/components/FailureNotice";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { signOutAllDevices } from "./actions";
 
@@ -24,7 +25,7 @@ export function SessionsCard() {
         )}
       </div>
       {confirming && (
-        <form
+        <ActionForm
           action={signOutAllDevices}
           className="flex flex-col gap-4 rounded-xs bg-vellum px-6 py-5 md:flex-row md:items-center md:justify-between md:gap-8"
         >
@@ -33,7 +34,7 @@ export function SessionsCard() {
             <p className="text-small text-smoke">You will need to sign in again on each one, including this browser.</p>
           </div>
           <ConfirmButtons onCancel={() => setConfirming(false)} />
-        </form>
+        </ActionForm>
       )}
     </section>
   );
