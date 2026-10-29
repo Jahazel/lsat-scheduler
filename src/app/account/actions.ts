@@ -13,9 +13,9 @@ import { DELETING_SIGN_IN_PATHS, PASSWORD_CHANGED_PATH } from "@/lib/loginNotice
 import { CURRENT_PASSWORD_MESSAGES } from "@/lib/currentPasswordMessages";
 import * as passwordAccount from "@/lib/passwordAccount";
 import { PASSWORD_MESSAGES } from "@/lib/passwordRules";
-import { afterSignOut } from "@/lib/requestPolicy";
+import { afterSignOut, type SignOutAnswer } from "@/lib/requestPolicy";
 import { answerAction, recordSecurityEvent } from "@/lib/securityLog";
-import type { Answer, FormState, SignOutAnswer } from "@/lib/unexpectedFailure";
+import type { Answer, FormState } from "@/lib/unexpectedFailure";
 
 export async function updateStudentProfile(input: StudentProfileInput) {
   return answerAction("/settings", async () => {

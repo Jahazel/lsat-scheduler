@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import StudentNav, { StudentTabBar, type StudentNavProps } from "./StudentNav";
 import { NavIcon } from "./NavIcon";
-import { SignOutForm } from "@/components/FailureNotice";
+import { SignOutForm } from "@/components/SignOutForm";
 import { Button } from "@/components/ui/Button";
 import { FOCUS, cx } from "@/components/ui/classes";
 import { BAR, HEADER, Logo, TABS, isTabActive } from "./shared";

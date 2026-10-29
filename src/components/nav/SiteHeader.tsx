@@ -4,7 +4,7 @@ import { currentWeekInTimezone, isUploadWeekend } from "@/lib/currentWeeklySched
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { postgresAdminClock, studentSideNow } from "@/lib/studentClock";
 import { auth } from "@/auth";
-import { SignOutForm } from "@/components/FailureNotice";
+import { SignOutForm } from "@/components/SignOutForm";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { initialsFor, loadStudentNavState } from "@/lib/studentNav";
 import AdminNav from "./AdminNav";

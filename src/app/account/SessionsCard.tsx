@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
-import { SignOutForm } from "@/components/FailureNotice";
+import { SignOutForm } from "@/components/SignOutForm";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { signOutAllDevices } from "./actions";
 

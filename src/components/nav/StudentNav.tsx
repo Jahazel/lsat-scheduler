@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { SignOutForm } from "@/components/FailureNotice";
+import { SignOutForm } from "@/components/SignOutForm";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { NavTab } from "@/components/ui/NavTab";
 import { NavIcon } from "./NavIcon";
 import { DESKTOP_BAR, Logo, MOBILE_BAR, TABS, isTabActive } from "./shared";
-import type { SignOutAnswer } from "@/lib/unexpectedFailure";
+import type { SignOutAnswer } from "@/lib/requestPolicy";
 import { WORKSPACE_NAV_BREAKPOINT } from "./workspaceBreakpoint";
 
 export interface StudentNavProps {
