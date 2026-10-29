@@ -26,7 +26,7 @@ interface ScheduleCheckInViewProps {
   readOnly?: boolean;
   header?: ReactNode;
   footer?: ReactNode;
-  gutter?: string;
+  padding?: string;
   /** The student's local date (YYYY-MM-DD). Adds the pace status and the Today label. */
   today?: string;
   uploadReminder?: boolean;
@@ -74,7 +74,7 @@ export default function ScheduleCheckInView({
   readOnly = false,
   header,
   footer,
-  gutter = "px-5 md:px-18",
+  padding = "px-5 pt-8 pb-16 md:px-18 md:pt-16 md:pb-24",
   today,
   uploadReminder = false,
 }: ScheduleCheckInViewProps) {
@@ -125,7 +125,7 @@ export default function ScheduleCheckInView({
         notes={weekNotes(schedule)}
         aside={<div aria-live="polite"><ProgressBar done={doneActivities} total={totalActivities} dueSoFar={dueSoFar} /></div>}
       />}
-      <div className={cx("flex flex-col gap-4 pt-8 pb-16 md:pt-16 md:pb-24", gutter)}>
+      <div className={cx("flex flex-col gap-4", padding)}>
         <FailureNotice answer={failure} className="px-2 text-small text-danger-ink" />
         {DAY_ORDER.map((day, dayIndex) => {
           const plan = schedule.days[day];
