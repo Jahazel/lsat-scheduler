@@ -164,6 +164,19 @@ describe("ProgressMotion", () => {
     removeEventListener("popstate", router);
   });
 
+  it("drops a click when a link outside Progress is clicked during its exit", async () => {
+    show("/progress?week=2026-10-12", <Week week="2026-10-12" />);
+    const nav = document.body.appendChild(document.createElement("a"));
+    nav.href = "/dashboard";
+    nav.addEventListener("click", (event) => event.preventDefault());
+    fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
+    fireEvent.click(nav);
+    finishExits();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(mocks.push).not.toHaveBeenCalled();
+    nav.remove();
+  });
+
   it("still opens the newest target when an earlier page arrives during its exit", async () => {
     const { rerender } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
     fireEvent.click(screen.getByRole("link", { name: "← Older week" }));

@@ -94,13 +94,18 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
   useEffect(() => {
     let replaying = false;
     let latest = 0;
+    // Another navigation, from history or a link outside Progress, replaces a pending click or held Back.
+    function abandonPending() {
+      target.current = null;
+      latest++;
+    }
+    function onClickOutside(event: globalThis.MouseEvent) {
+      const element = event.target as Element;
+      if (element.closest("a") && !ref.current!.contains(element)) abandonPending();
+    }
     function holdPopStateUntilFadedOut(event: PopStateEvent) {
       if (replaying) return;
-      if (location.pathname !== "/progress") {
-        target.current = null;
-        latest++;
-        return;
-      }
+      if (location.pathname !== "/progress") return abandonPending();
       if (hrefOf(location) === committed()) return returnToCommitted();
       const to = new URLSearchParams(location.search).get("week");
       target.current = hrefFor(to);
@@ -116,7 +121,11 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
       }, () => {});
     }
     addEventListener("popstate", holdPopStateUntilFadedOut, { capture: true });
-    return () => removeEventListener("popstate", holdPopStateUntilFadedOut, { capture: true });
+    document.addEventListener("click", onClickOutside, { capture: true });
+    return () => {
+      removeEventListener("popstate", holdPopStateUntilFadedOut, { capture: true });
+      document.removeEventListener("click", onClickOutside, { capture: true });
+    };
   }, []);
 
   function onClickCapture(event: MouseEvent) {
