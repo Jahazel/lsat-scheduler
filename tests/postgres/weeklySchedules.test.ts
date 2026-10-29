@@ -86,13 +86,14 @@ it("shows finished weeks in Progress and refuses check-in changes to them", asyn
   await dashboard();
   const [schedule] = await listWeeklySchedulesForStudent(saved.id);
   const progress = (week?: string) => ProgressPage({ searchParams: Promise.resolve({ week }) });
-  expect(renderToStaticMarkup(await progress())).toContain("No finished weeks yet.");
+  expect(renderToStaticMarkup(await progress())).toContain("No past weeks yet.");
   await saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "completed" });
   vi.setSystemTime(new Date("2026-10-19T16:00:00Z"));
   const markup = renderToStaticMarkup(await progress());
   expect(markup).toContain('href="/progress?week=2026-10-12"');
-  expect(markup).toContain("Avg. done");
-  expect(markup).not.toContain("No finished weeks yet.");
+  expect(markup).toContain("Oct 12 – 18");
+  expect(markup).toMatch(/1 of \d+ done/);
+  expect(markup).not.toContain("No past weeks yet.");
   expect(renderToStaticMarkup(await progress("2026-10-12"))).toContain("Your past plan");
   await expectUnexpectedFailure(database, saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "not_started" }), "Error");
   expect(await postgresActivityCheckIns.listForSchedule(schedule.id))
@@ -101,7 +102,7 @@ it("shows finished weeks in Progress and refuses check-in changes to them", asyn
   await expect(DashboardPage({ searchParams: Promise.resolve({ historyWeek: "2026-10-12" }) }))
     .rejects.toThrow("redirect:/progress?week=2026-10-12");
   await expect(progress("2026-10-19")).rejects.toThrow("redirect:/dashboard");
-  expect(renderToStaticMarkup(await progress("2000-01-03"))).toContain("Your weeks");
+  expect(renderToStaticMarkup(await progress("2000-01-03"))).toContain('href="/progress?week=2026-10-12"');
 });
 
 it.each(["student", "admin"] as const)("refuses another student's check-in for a %s", async (role) => {
@@ -112,7 +113,7 @@ it.each(["student", "admin"] as const)("refuses another student's check-in for a
   await student("other@example.test", role);
   await expectUnexpectedFailure(database, saveActivityCheckIn({ scheduleId: schedule.id, activityId: "MONDAY:0", status: "completed" }), "Error");
   expect((await postgresActivityCheckIns.listForSchedule(schedule.id)).every((row) => row.status === "not_started")).toBe(true);
-  expect(renderToStaticMarkup(await ProgressPage({ searchParams: Promise.resolve({}) }))).toContain("No finished weeks yet.");
+  expect(renderToStaticMarkup(await ProgressPage({ searchParams: Promise.resolve({}) }))).toContain("No past weeks yet.");
 });
 
 it("requires a session and a Student, and rejects malformed or missing activities", async () => {
