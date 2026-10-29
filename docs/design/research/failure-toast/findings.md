@@ -4,7 +4,7 @@ Brief: [brief.md](brief.md). Tracking ticket: #391 (build ticket #372).
 
 The failure toast shows "Something went wrong. Try again." plus an 8-character hex error code. There is no Retry button. The examples are desktop web screens from Mobbin, saved in `refs/`. One phone group is labeled **mobile** and is used only for question 1. Mobbin shows still frames, so every motion read from it is marked **inferred**. Mobbin images belong to their apps, so `refs/` stays local and out of this public repository, as in the Progress run.
 
-Mark each pattern on its `Owner:` line: like, dislike, or leave it blank.
+Owner marks (2026-10-29): the owner accepted every researcher's recommendation. Each pattern's `Owner:` line records the result.
 
 DrillMap fit is judged against `DESIGN.md` and `docs/design/design-system/tokens.css`:
 - Motion: 120 ms hover, 200 ms press and focus, 320 ms overlays. Reduced motion drops movement and keeps 120 ms fades.
@@ -26,21 +26,21 @@ DrillMap fit is judged against `DESIGN.md` and `docs/design/design-system/tokens
 - Works when: the page is a wide workspace and the toast sits near the page edge, away from the content.
 - Tradeoffs: on a 1440 px screen the corner is far from a centered auth card, so the student may not see it. It can sit over a page's own bottom-right control.
 - DrillMap fit: medium. No tab bar on desktop, so no clash.
-- Owner: —
+- Owner: not chosen
 
 ### 1B. Top-center or top-right
 - Desktop web: [Dribbble](https://mobbin.com/screens/9abf2423-409d-4abb-9fdf-24d290062414) (covers the heading), [Google AI Studio](https://mobbin.com/screens/bd6669d2-d3df-476e-b933-e44bb25e5259), [Contra](https://mobbin.com/flows/e91f77ad-32f5-4839-b37f-da2adc6bc6dc), [Snowflake log in](https://mobbin.com/screens/13748743-d3c9-4292-983d-f434f6083bb6) (above the card, ID in brackets). Refs: [dribbble](refs/dribbble-error-toast-top-center.webp), [aistudio](refs/googleaistudio-error-toast-top-center.webp), [contra](refs/contra-error-toast-top-right.webp), [snowflake](refs/snowflake-login-error-id.webp).
 - Works when: the page is short and the student looks at the top.
 - Tradeoffs: it covers page titles and header actions. On a phone it collides with the status bar area.
 - DrillMap fit: medium. Same place on log in and in the shell, but top space on phones is tight.
-- Owner: —
+- Owner: not chosen
 
 ### 1C. Bottom-center
 - Desktop web: [TIDAL](https://mobbin.com/screens/548b60c5-b45d-4ca9-81db-17875594fcd5) ("Page failed to load. Please try again." with a Close button). Ref: [tidal](refs/tidal-close-toast-bottom-center.webp).
 - Works when: the card or form is centered, as on log in and sign-up. The toast sits under what the student just pressed.
 - Tradeoffs: it can hide a bottom page control. On phones it needs an offset (below).
 - DrillMap fit: strong for auth cards and phones, medium on the wide admin workspace.
-- Owner: —
+- Owner: like
 
 ### Mobile bottom-nav behavior (mobile; this question only)
 - Refs (mobile): [Linear](refs/phone/linear-toast-above-floating-tab-bar.webp) ([screen](https://mobbin.com/screens/3d9ccfd8-2425-49e9-a00b-27189140d3a3): toast above a floating bar, bar stays tappable), [Qantas](refs/phone/qantas-toast-above-floating-tab-bar.webp) ([screen](https://mobbin.com/screens/18f77caf-19d5-4199-98b4-a36f34096d23): above the bar), [Jobber](refs/phone/jobber-toast-overlaps-tab-bar.webp) ([screen](https://mobbin.com/screens/750a3e8e-0eb4-4e75-aba7-6ea87254bce1): touches the bar and a round button), [Quo](refs/phone/quo-toast-covers-tab-bar.webp) ([screen](https://mobbin.com/screens/28233f22-360a-456d-9973-ef2942fdf2fa): covers the tab labels).
@@ -60,14 +60,14 @@ Researcher's recommendation: 1C. One bottom-center position for every screen. On
 - Works when: the student needs time to act on the content (copy or read out a code).
 - Tradeoffs: it can sit over content. It needs a reachable close control (keyboard, 44 px target).
 - DrillMap fit: strong. No timer logic. Leaving the screen already closes it (flow map).
-- Owner: —
+- Owner: like
 
 ### 2B. Auto-closes after a long delay, paused on hover and focus
 - Libraries: [Radix Toast](https://www.radix-ui.com/primitives/docs/components/toast) (default 5000 ms, "Pauses closing on hover, focus and window blur"), [Sonner](https://sonner.emilkowal.ski/toast) (default `duration` 4000).
 - Works when: the message is advice the student can see again another way.
 - Tradeoffs: any timer is a 2.2.1 risk for a message whose code lives only here. Hover and focus pause does not help touch or screen-reader users. It repeats the NN/g 5 s failure.
 - DrillMap fit: weak.
-- Owner: —
+- Owner: not chosen
 
 ### 2C. Success auto-closes, failure stays
 - [Contra](https://mobbin.com/flows/e91f77ad-32f5-4839-b37f-da2adc6bc6dc) uses one card style for success and failure; the split is **inferred**. Success toasts are out of scope, so this is a note only.
@@ -81,14 +81,14 @@ Researcher's recommendation: 2A. Stay until the student closes it, with no timer
 - Works when: the student reads the code aloud or retypes it. Monospace plus select-all-on-click covers it.
 - Tradeoffs: NN/g says to show codes "for technical diagnostic purposes only", which a secondary line does. Without a button a phone student needs a long-press. Hex reads ambiguously aloud (`0`/`o`, `b`/`d`).
 - DrillMap fit: strong. Caption text, no new component.
-- Owner: —
+- Owner: like
 
 ### 3B. Code plus a Copy button
 - Desktop web: [Microsoft Loop](https://mobbin.com/screens/1c4378c0-b1bf-4fd6-8298-cb3b565d953a) (Technical details with Copy), [Cloudflare](https://mobbin.com/screens/bbda00c4-4bde-48f2-91d0-a2414fdb5a24) (token field with Copy), [Mintlify](https://mobbin.com/screens/773c3d56-7b5b-4df3-ab2c-0ca63adb005d) (a "Copied" toast after copying). Refs: [msloop](refs/msloop-error-dialog-copy-details.webp), [cloudflare](refs/cloudflare-token-copy-panel.webp).
 - Works when: the text is long or hard to select. An 8-character code is short.
 - Tradeoffs: a second control in a small toast, next to a deliberately absent Retry. Its confirmation needs a status message. The clipboard API can fail silently. None of the examples is a failure toast.
 - DrillMap fit: medium. If added, use an icon button whose label changes to "Copied", with no second toast.
-- Owner: —
+- Owner: not chosen
 
 ### 3C. No code on screen
 - Fails the brief, which wants the student to read the code out.
@@ -102,14 +102,14 @@ Researcher's recommendation: 3A. A smaller monospace line, labeled "Error code",
 - Works when: the toast comes from the edge where it sits.
 - Tradeoffs: translation is movement and must drop under reduced motion.
 - DrillMap fit: strong. 320 ms is for overlays; a toast is smaller, so 200 ms in and 120 ms out (a choice from the tokens, not a standard).
-- Owner: —
+- Owner: like
 
 ### 4B. Fade only
 - Posh, TIDAL and Mintlify stills show no offset; behavior is **inferred**.
 - Works when: simplest build. It is also the reduced-motion version.
 - Tradeoffs: no direction cue; easier to miss on a wide screen.
 - DrillMap fit: strong as the reduced-motion state.
-- Owner: —
+- Owner: like
 
 ### 4C. Scale or bounce
 - Not recommended. A bounce signals play, wrong for a failure.
@@ -123,14 +123,14 @@ Researcher's recommendation: 4A with 4B as the reduced-motion version. See "Flow
 - Works when: the message is identical and only the code differs.
 - Tradeoffs: a student mid-copy sees the code change. A double press loses the first code from the screen. The screen reader announces the new one, which is wanted.
 - DrillMap fit: strong. One toast, one place, no layout shift on a long page.
-- Owner: —
+- Owner: like
 
 ### 5B. Stack
 - Desktop web: [Emergent](https://mobbin.com/screens/c97d67c5-54a4-4c02-89fb-4c6aa0b2ecd9) (two toasts stacked; one is a near-duplicate). Ref: [emergent](refs/emergent-stacked-toasts-bottom-left.webp).
 - Works when: messages differ and each needs its own action.
 - Tradeoffs: a double press makes two identical cards, the stack grows toward the tab bar, and each card adds a close control. [APG](https://www.w3.org/WAI/ARIA/apg/patterns/alert/) warns that frequent interruptions make the timing criteria harder.
 - DrillMap fit: weak.
-- Owner: —
+- Owner: not chosen
 
 ### 5C. Replace, but keep up to two codes in one toast
 - No example found. Only worth it if support needs both codes. A new variant to design and test.
@@ -145,13 +145,13 @@ Researcher's recommendation: 5A. Replace in place, and ignore an identical code 
 - Works when: the failure was about the action the student just retried. The old message is now false.
 - Tradeoffs: a student mid-copy loses the code when the retry works. A silent close (success messages are out of scope). A different action's success would also close it, which is wrong.
 - DrillMap fit: strong if scoped to the same action.
-- Owner: —
+- Owner: like
 
 ### 6B. Stays until closed
 - Works when: the toast doubles as a record for support.
 - Tradeoffs: a red failure next to a saved screen contradicts itself. Simple build, no coupling.
 - DrillMap fit: medium.
-- Owner: —
+- Owner: not chosen
 
 Researcher's recommendation: 6A. Close it when the same action succeeds. Leave it when a different action succeeds.
 
@@ -163,14 +163,14 @@ Researcher's recommendation: 6A. Close it when the same action succeeds. Leave i
 - [WCAG 4.1.3 Understanding](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html): errors use `role="alert"`, "only necessary where a change of context does not take place". Focus need not move.
 - Tradeoffs: a second failure must be a fresh node (new key) so the second code is announced. Keep the code inside the alert text so it is read once with the message.
 - DrillMap fit: strong. Already the app's pattern, and focus stays on the screen's own button.
-- Owner: —
+- Owner: like
 
 ### 7B. Persistent `role="status"` region
 - [ARIA 1.2 status](https://www.w3.org/TR/wai-aria-1.2/#status): implicit `aria-live` of `polite` and `aria-atomic` of `true`; advisory, "not important enough to justify an alert".
 - Works when: messages are advisory (success, "Copied").
 - Tradeoffs: polite waits for a graceful moment, too quiet for a failure.
 - DrillMap fit: medium. Use it only for a Copy confirmation, if Copy is added.
-- Owner: —
+- Owner: not chosen
 
 ### 7C. Move focus to the toast
 - APG: alerts must not move focus; moving focus makes it an alert dialog, which is modal. [Radix](https://www.radix-ui.com/primitives/docs/components/toast) offers an F8 jump to the toast viewport and says it must be made discoverable.
@@ -186,21 +186,21 @@ Researcher's recommendation: 7A. Keep `role="alert"`, insert after the failure, 
 - Works when: the app is light and the toast must not look like a button. Red lives in the icon and edge, so body text keeps contrast.
 - Tradeoffs: a light card on a light page relies on its shadow. `shadow-e3` is the design system's answer.
 - DrillMap fit: strong. `DESIGN.md` reserves `shadow-e3` for toasts. Icon and edge use `--color-danger` (dots and icons). Text uses `--color-danger-ink` or neutral ink. Contrast not measured.
-- Owner: —
+- Owner: like
 
 ### 8B. Filled red card, white text
 - Desktop web: [Dribbble](https://mobbin.com/screens/9abf2423-409d-4abb-9fdf-24d290062414), [Vercel](https://mobbin.com/flows/e308141d-c3cf-4838-a1cb-2e1927276c91), [ManyChat](https://mobbin.com/screens/12b11895-aadc-412b-857d-b816721ea111). Refs: [dribbble](refs/dribbble-error-toast-top-center.webp), [vercel](refs/vercel-error-toast-after-toggle.webp), [manychat](refs/manychat-error-toast-bottom-right.webp).
 - Works when: the message must be seen at once.
 - Tradeoffs: white text on `#F0524F` is probably low contrast (not measured). A loud red slab for a failure that is not the student's fault. `DESIGN.md` has no danger fill token.
 - DrillMap fit: weak.
-- Owner: —
+- Owner: not chosen
 
 ### 8C. Dark neutral toast, small danger icon
 - Desktop web: [TIDAL](https://mobbin.com/screens/548b60c5-b45d-4ca9-81db-17875594fcd5). Mobile: [Linear](https://mobbin.com/screens/3d9ccfd8-2425-49e9-a00b-27189140d3a3), [Qantas](https://mobbin.com/screens/18f77caf-19d5-4199-98b4-a36f34096d23).
 - Works when: one neutral toast serves every type.
 - Tradeoffs: the danger meaning then rests on the icon alone. NN/g says never to use color alone.
 - DrillMap fit: medium. Needs a dark surface token that may not exist.
-- Owner: —
+- Owner: not chosen
 
 Icon note: the light-card examples use a circle with an exclamation mark. A triangle (Dribbble) reads as a softer warning. Pair the icon with the words and mark it `aria-hidden`.
 

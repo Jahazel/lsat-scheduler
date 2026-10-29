@@ -60,4 +60,10 @@ Tell the student that an action failed for a reason the app did not plan for, an
 
 ## Directions
 
-Filled in at design step 3.
+All three sit bottom-center, use a light card with `shadow-e3`, a danger circle-exclamation icon, and a 44 px close control. Boards are in [directions/](directions/).
+
+1. **One line** (520 px): icon, message, "Error code" and the code, close, all on one row. On a phone it cannot stay one line; the code wraps under the message, which makes it Direction 2.
+2. **Two lines** (360 px): message in medium weight, the code line under it. Fits a 390 px phone (366 px between the 12 px side insets) without change.
+3. **Danger edge, code chip** (400 px): a 4 px danger stripe on the left and the code in a gray chip. Fits a phone at full width minus the side insets.
+
+Picked: Direction 2, two lines (owner, 2026-10-29).
