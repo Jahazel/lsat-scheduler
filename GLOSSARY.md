@@ -128,6 +128,24 @@ _Avoid_: pending Account, unverified Account
 A sign-in within the last 10 minutes: a new Google sign-in for a Google Account, or the current password for a password Account. Account deletion and password change need one.
 _Avoid_: re-authentication, fresh login
 
+### Failures
+
+**Unexpected failure**:
+A server step that broke in a way the app did not plan for. The student is told "Something went wrong. Try again." with an error code.
+_Avoid_: error, crash
+
+**Planned refusal**:
+A "no" the app means to give, such as "Wrong password" or a field that fails its check. It is not an unexpected failure and has no error code.
+_Avoid_: error, validation error
+
+**Error code**:
+The 8-character code shown with an unexpected failure. The security log holds the same code, so the owner can find the failure from what the student reads out.
+_Avoid_: error ID, reference number
+
+**Failure toast**:
+The floating notice that shows an unexpected failure and its error code over the current screen.
+_Avoid_: error banner, error message, failure notice
+
 ### Capacity
 
 **Daily capacity**:
