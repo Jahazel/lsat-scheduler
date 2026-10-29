@@ -95,7 +95,11 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     let replaying = false;
     let latest = 0;
     function holdPopStateUntilFadedOut(event: PopStateEvent) {
-      if (replaying || location.pathname !== "/progress") return;
+      if (replaying) return;
+      if (location.pathname !== "/progress") {
+        target.current = null;
+        return;
+      }
       if (hrefOf(location) === committed()) return returnToCommitted();
       const to = new URLSearchParams(location.search).get("week");
       target.current = hrefFor(to);
@@ -129,9 +133,9 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
       return returnToCommitted();
     }
     const week = url.searchParams.get("week");
-    target.current = hrefFor(week);
+    const destination = (target.current = hrefFor(week));
     const exit = leave(week);
-    if (exit) exit.finished.then(navigate, () => {});
+    if (exit) exit.finished.then(() => target.current === destination && navigate(), () => {});
     else navigate();
   }
 
