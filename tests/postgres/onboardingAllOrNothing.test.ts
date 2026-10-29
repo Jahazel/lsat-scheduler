@@ -3,7 +3,6 @@ import type { Session } from "next-auth";
 import { beforeEach, expect, it, vi } from "vitest";
 import { setUpAppTestDatabase } from "./appTestDatabase";
 import { countAction } from "../../src/lib/actionLimits";
-import { findStudentByAccountId } from "../../src/lib/studentRepository";
 
 const request = vi.hoisted(() => ({ session: null as Session | null }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-vercel-forwarded-for": "203.0.113.7" }) }));
@@ -47,49 +46,56 @@ async function savedRows() {
   return { students: students.rows.length, snapshots: snapshots.rows.length };
 }
 
-async function withSnapshotInsertTrigger(body: string, run: () => Promise<void>) {
-  await database.owner.execute(sql.raw(`create function onboarding_snapshot_test() returns trigger language plpgsql as
-    'BEGIN ${body} RETURN NEW; END;'`));
-  await database.owner.execute(sql`create trigger onboarding_snapshot_test before insert on analytics_snapshots
-    for each row execute function onboarding_snapshot_test()`);
+async function withInsertTrigger(table: "students" | "analytics_snapshots", body: string, run: () => Promise<void>) {
+  const name = sql.identifier(`onboarding_${table}_test`);
+  await database.owner.execute(sql`create function ${name}() returns trigger language plpgsql security definer as
+    $$ BEGIN ${sql.raw(body)} RETURN NEW; END; $$`);
+  await database.owner.execute(sql`create trigger ${name} before insert on ${sql.identifier(table)}
+    for each row execute function ${name}()`);
   try {
     await run();
   } finally {
-    await database.owner.execute(sql`drop trigger onboarding_snapshot_test on analytics_snapshots`);
-    await database.owner.execute(sql`drop function onboarding_snapshot_test()`);
+    await database.owner.execute(sql`drop trigger ${name} on ${sql.identifier(table)}`);
+    await database.owner.execute(sql`drop function ${name}()`);
   }
+}
+
+async function countSnapshotSaves(times: number, accountId: string) {
+  const results = [];
+  for (let save = 0; save < times; save += 1) results.push(await countAction("analyticsSnapshotSave", accountId, new Date()));
+  return results;
 }
 
 it("two onboarding saves at the same time make one Student and one Analytics snapshot, and both go to the dashboard", async () => {
   await signedInStudent();
   const input = onboardingInput();
-  await withSnapshotInsertTrigger("PERFORM pg_sleep(0.5);", async () => {
-    const results = await Promise.allSettled([createStudentProfile(input), createStudentProfile(input)]);
-    expect(results.map((result) => result.status === "rejected" && String(result.reason)))
-      .toEqual(["Error: redirect:/dashboard", "Error: redirect:/dashboard"]);
-  });
+  await database.owner.execute(sql`create table student_insert_attempts (at timestamptz not null default clock_timestamp())`);
+  await withInsertTrigger("students", "INSERT INTO student_insert_attempts DEFAULT VALUES;", () =>
+    withInsertTrigger("analytics_snapshots", "PERFORM pg_sleep(0.5);", async () => {
+      const results = await Promise.allSettled([createStudentProfile(input), createStudentProfile(input)]);
+      expect(results.map((result) => result.status === "rejected" && String(result.reason)))
+        .toEqual(["Error: redirect:/dashboard", "Error: redirect:/dashboard"]);
+    }));
+  expect((await database.owner.execute(sql`select at from student_insert_attempts`)).rows).toHaveLength(2);
   expect(await savedRows()).toEqual({ students: 1, snapshots: 1 });
 });
 
-it("a failure after the Student insert leaves no Student and no Analytics snapshot, and the student can save again", async () => {
+it("a failure after the Student insert leaves no Student, no Analytics snapshot, and no used save, and the student can save again", async () => {
   const account = await signedInStudent();
   const input = onboardingInput();
-  await withSnapshotInsertTrigger("RAISE EXCEPTION ''forced snapshot failure'';", async () => {
+  await withInsertTrigger("analytics_snapshots", "RAISE EXCEPTION 'forced snapshot failure';", async () => {
     await expect(createStudentProfile(input)).rejects.toMatchObject({ cause: { message: "forced snapshot failure" } });
   });
   expect(await savedRows()).toEqual({ students: 0, snapshots: 0 });
 
   await expect(createStudentProfile(input)).rejects.toThrow("redirect:/dashboard");
-  expect(await findStudentByAccountId(account.id)).not.toBeNull();
   expect(await savedRows()).toEqual({ students: 1, snapshots: 1 });
-  for (let save = 2; save <= 5; save += 1) {
-    expect(await countAction("analyticsSnapshotSave", account.id, new Date())).toEqual({ allowed: true });
-  }
+  expect(await countSnapshotSaves(5, account.id)).toEqual([...Array(4).fill({ allowed: true }), expect.objectContaining({ allowed: false })]);
 });
 
 it("a refused snapshot save limit leaves no Student and no Analytics snapshot", async () => {
   const account = await signedInStudent();
-  for (let save = 1; save <= 5; save += 1) await countAction("analyticsSnapshotSave", account.id, new Date());
+  await countSnapshotSaves(5, account.id);
   expect(await createStudentProfile(onboardingInput()))
     .toEqual({ error: "You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time." });
   expect(await savedRows()).toEqual({ students: 0, snapshots: 0 });
