@@ -8,7 +8,7 @@ const request = vi.hoisted(() => ({ session: null as Session | null }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-vercel-forwarded-for": "203.0.113.7" }) }));
 vi.mock("@/auth", () => ({ auth: async () => request.session }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
+vi.mock("next/navigation", () => import("./fakeNavigation"));
 
 import { createStudentProfile } from "../../src/app/onboarding/actions";
 
@@ -84,7 +84,7 @@ it("a failure after the Student insert leaves no Student, no Analytics snapshot,
   const account = await signedInStudent();
   const input = onboardingInput();
   await withInsertTrigger("analytics_snapshots", "RAISE EXCEPTION 'forced snapshot failure';", async () => {
-    await expect(createStudentProfile(input)).rejects.toMatchObject({ cause: { message: "forced snapshot failure" } });
+    expect(await createStudentProfile(input)).toEqual({ unexpectedFailure: expect.stringMatching(/^[0-9a-f]{8}$/) });
   });
   expect(await savedRows()).toEqual({ students: 0, snapshots: 0 });
 
