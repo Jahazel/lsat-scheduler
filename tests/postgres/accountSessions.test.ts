@@ -165,13 +165,13 @@ it("ordinary sign-out ends only this browser, and Sign out of all devices ends e
   const clearedHere = () => expect(request.setCookie).toHaveBeenCalledWith(COOKIE, "", expect.objectContaining({ maxAge: 0 }));
 
   request.cookie = laptop;
-  await expect(logOut()).rejects.toThrow("redirect:");
+  expect(await logOut()).toEqual({ goTo: "/?signedOut=1" });
   clearedHere();
   expect((await readSession(phone)).user).toEqual({ id: student.id, role: "student" });
 
   request.setCookie.mockReset();
   request.cookie = phone;
-  await expect(signOutAllDevices()).rejects.toThrow(/^redirect:http:\/\/localhost:3000\/login$/);
+  expect(await signOutAllDevices()).toEqual({ goTo: "/login?signedOut=1" });
   clearedHere();
   expect((await readSession(laptop)).user).toBeNull();
   expect((await readSession(phone)).user).toBeNull();

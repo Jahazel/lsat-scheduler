@@ -13,6 +13,7 @@ import { DELETING_SIGN_IN_PATHS, PASSWORD_CHANGED_PATH } from "@/lib/loginNotice
 import { CURRENT_PASSWORD_MESSAGES } from "@/lib/currentPasswordMessages";
 import * as passwordAccount from "@/lib/passwordAccount";
 import { PASSWORD_MESSAGES } from "@/lib/passwordRules";
+import { afterSignOut, type SignOutAnswer } from "@/lib/requestPolicy";
 import { answerAction, recordSecurityEvent } from "@/lib/securityLog";
 import type { Answer, FormState } from "@/lib/unexpectedFailure";
 
@@ -89,7 +90,7 @@ export async function signInAgainToDelete(): Promise<FormState> {
   });
 }
 
-export async function signOutAllDevices(): Promise<FormState> {
+export async function signOutAllDevices(): Promise<SignOutAnswer> {
   return answerAction("/account", async () => {
     const session = await auth();
     if (!session?.user) {
@@ -98,7 +99,7 @@ export async function signOutAllDevices(): Promise<FormState> {
     if (!isAccountId(session.user.id)) throw new Error("Account record not found");
     await endAllSessions(session.user.id);
     await recordSecurityEvent({ event: "sign_out_all_devices", result: "done", route: "/account", who: { account: session.user.id } });
-    await signOut({ redirectTo: "/login" });
-    return null;
+    await signOut({ redirect: false });
+    return { goTo: afterSignOut("/login") };
   });
 }

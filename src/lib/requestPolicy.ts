@@ -1,8 +1,10 @@
 import type { SecurityLogRoute } from "./securityLog";
+import type { Answer } from "./unexpectedFailure";
 
 export type RequestFacts = {
   method: string;
   pathname: string;
+  search: string;
   origin: string | null;
   contentType: string | null;
   /** The place's configured site address. Never read from the request's `Host` header. */
@@ -36,6 +38,21 @@ export const SECURITY_HEADERS = {
   "Strict-Transport-Security": "max-age=63072000",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
 } as const;
+
+export const PUBLIC_PAGES = [
+  "/", "/legal/ai-disclosure", "/legal/privacy", "/legal/terms",
+  "/login", "/signup", "/forgot-password", "/verify-email", "/reset-password",
+] as const;
+const PUBLIC_PAGE_SET = new Set<string>(PUBLIC_PAGES);
+export const isPublicPage = (pathname: string) => PUBLIC_PAGE_SET.has(pathname);
+
+const SIGNED_OUT_PARAM = "signedOut";
+
+export function afterSignOut(path: "/" | "/login") {
+  return `${path}?${SIGNED_OUT_PARAM}=1` as const;
+}
+
+export type SignOutAnswer = Answer<{ goTo: ReturnType<typeof afterSignOut> }>;
 
 const NO_REFERRER_PAGES = new Set(["/verify-email", "/reset-password"]);
 
@@ -114,5 +131,7 @@ export function requestPolicy(facts: RequestFacts): RequestPolicy {
   const csp = contentSecurityPolicy(facts.enforceCsp, facts.development);
   const responseHeaders: Record<string, string> = { ...SECURITY_HEADERS, [csp.header]: csp.value };
   if (NO_REFERRER_PAGES.has(facts.pathname)) responseHeaders["Referrer-Policy"] = "no-referrer";
+  if (!READS_ONLY.has(facts.method.toUpperCase()) || !isPublicPage(facts.pathname)) responseHeaders["Cache-Control"] = "private, no-store";
+  if (new URLSearchParams(facts.search).has(SIGNED_OUT_PARAM)) responseHeaders["Clear-Site-Data"] = '"cache"';
   return { refused: forgedRequestRefusal(facts), csp, responseHeaders };
 }

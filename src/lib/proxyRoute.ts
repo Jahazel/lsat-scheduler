@@ -1,8 +1,7 @@
 import { landingPathForRole } from "./landingPath";
 import { SESSION_ENDED_PATH } from "./loginNotice";
+import { isPublicPage } from "./requestPolicy";
 import type { SecurityLogRoute } from "./securityLog";
-
-const PUBLIC_ROUTES = ["/", "/login", "/signup", "/verify-email", "/forgot-password", "/reset-password", "/legal/terms", "/legal/privacy", "/legal/ai-disclosure"];
 
 export type ProxyRefusal = { event: "student_data_refused" | "admin_action_refused"; route: SecurityLogRoute };
 
@@ -38,7 +37,7 @@ export function proxyRoute(
 
   if (!user) {
     if (pathname === "/login" && sentSessionCookie && !loginReason) return { kind: "redirect", to: SESSION_ENDED_PATH };
-    if (PUBLIC_ROUTES.includes(pathname)) return { kind: "allow" };
+    if (isPublicPage(pathname)) return { kind: "allow" };
     const refused = adminRefusal(pathname);
     return pathname.startsWith("/api/")
       ? { kind: "unauthorized", refused }

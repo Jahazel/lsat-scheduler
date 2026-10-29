@@ -1,11 +1,11 @@
 import { readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
-import { EXEMPT_ROUTES, requestPolicy, type RequestFacts } from "./requestPolicy";
+import { afterSignOut, EXEMPT_ROUTES, PUBLIC_PAGES, requestPolicy, type RequestFacts } from "./requestPolicy";
 
 const SITE = "https://drillmap.xyz";
 const sameSite = (facts: Partial<RequestFacts>): RequestFacts => ({
-  method: "POST", pathname: "/settings", origin: SITE, contentType: "text/plain;charset=UTF-8", siteUrl: `${SITE}/`, enforceCsp: false, development: false, ...facts,
+  method: "POST", pathname: "/settings", search: "", origin: SITE, contentType: "text/plain;charset=UTF-8", siteUrl: `${SITE}/`, enforceCsp: false, development: false, ...facts,
 });
 
 describe("forged requests", () => {
@@ -170,5 +170,63 @@ describe("content security policy", () => {
   it("allows eval in development only", () => {
     expect(directives(page().csp.value).get("script-src")).not.toContain("'unsafe-eval'");
     expect(directives(page({ development: true }).csp.value).get("script-src")).toMatch(/'strict-dynamic' 'unsafe-eval'$/);
+  });
+});
+
+describe("private responses", () => {
+  const cacheControl = (facts: Partial<RequestFacts>) => page(facts).responseHeaders["Cache-Control"];
+
+  it("keeps the public list to the landing page, the legal pages, login, signup, forgot password, and the email-link pages", () => {
+    expect(PUBLIC_PAGES).toEqual([
+      "/", "/legal/ai-disclosure", "/legal/privacy", "/legal/terms",
+      "/login", "/signup", "/forgot-password", "/verify-email", "/reset-password",
+    ]);
+    for (const pathname of PUBLIC_PAGES) {
+      expect(cacheControl({ pathname }), pathname).toBeUndefined();
+      expect(cacheControl({ pathname, method: "HEAD" }), pathname).toBeUndefined();
+    }
+  });
+
+  it("marks every private page and Route Handler private, no-store", () => {
+    const id = "4b3c2f80-9a8e-4c1d-b7f6-0e5d4c3b2a19";
+    for (const pathname of [
+      "/dashboard", "/dashboard/upload", "/progress", "/settings", "/account", "/onboarding", "/admin", `/admin/students/${id}`,
+      "/api/students", `/api/students/${id}`, "/api/auth/session", "/api/cron/daily-cleanup",
+    ]) {
+      expect(cacheControl({ pathname }), pathname).toBe("private, no-store");
+    }
+  });
+
+  it("marks a new route private until someone adds it to the public list", () => {
+    for (const pathname of ["/new-page", "/login/", "/legal", "/legal/privacy/x", "/_next/data/x.json"]) {
+      expect(cacheControl({ pathname }), pathname).toBe("private, no-store");
+    }
+  });
+
+  it("marks every Server Action and Route Handler write private, no-store, on a public page too", () => {
+    for (const pathname of ["/", "/login", "/settings", "/account", "/api/students", "/api/analytics/extract"]) {
+      expect(cacheControl({ pathname, method: "POST", contentType: "text/plain" }), pathname).toBe("private, no-store");
+    }
+  });
+
+  it("marks a refused forged request private, no-store", () => {
+    expect(cacheControl({ pathname: "/login", method: "POST", origin: "https://evil.example" })).toBe("private, no-store");
+  });
+});
+
+describe("sign-out", () => {
+  const search = (path: string) => new URL(path, SITE).search;
+
+  it("clears the browser cache on the address a sign-out loads", () => {
+    for (const path of [afterSignOut("/"), afterSignOut("/login")]) {
+      const { pathname } = new URL(path, SITE);
+      expect(page({ pathname, search: search(path) }).responseHeaders["Clear-Site-Data"], path).toBe('"cache"');
+    }
+  });
+
+  it("leaves the cache alone on every other response", () => {
+    for (const facts of [{}, { pathname: "/" }, { pathname: "/login", search: "?notice=EmailVerified" }, { method: "POST" }]) {
+      expect(page(facts).responseHeaders).not.toHaveProperty("Clear-Site-Data");
+    }
   });
 });

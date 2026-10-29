@@ -198,7 +198,7 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   log("Log out and request protected Account directly");
   await page.getByRole("button", { name: `Account menu for ${email}`, exact: true }).click();
   await page.getByRole("menuitem", { name: "Log out", exact: true }).click();
-  await page.waitForURL(url + "/");
+  await page.waitForURL(url + "/?signedOut=1");
   await goto("/account");
   await heading("Log in to DrillMap");
   assert.equal(new URL(page.url()).search, "", "A signed-out browser sees Login with no reason.");
