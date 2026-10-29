@@ -8,12 +8,13 @@ export type PageHeaderProps = {
   lead?: string;
   notes?: string[];
   aside?: ReactNode;
+  gutter?: string;
   className?: string;
 };
 
-export function PageHeader({ eyebrow, title, lead, notes = [], aside, className }: PageHeaderProps) {
+export function PageHeader({ eyebrow, title, lead, notes = [], aside, gutter = "px-5 md:px-18", className }: PageHeaderProps) {
   return (
-    <header className={cx("border-b border-vellum-line bg-paper px-5 pt-6 pb-6 md:px-18 md:pt-12 md:pb-10", className)}>
+    <header className={cx("border-b border-vellum-line bg-paper pt-6 pb-6 md:pt-12 md:pb-10", gutter, className)}>
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between lg:gap-4">
         <div className="flex min-w-0 flex-1 flex-col gap-1.5 md:gap-3">
           {eyebrow && <p className="text-caption text-smoke md:text-small">{eyebrow}</p>}

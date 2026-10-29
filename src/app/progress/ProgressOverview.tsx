@@ -16,10 +16,10 @@ function Chevron() {
 export default function ProgressOverview({ months }: { months: PastWeekMonth[] }) {
   return (
     <>
-      <PageHeader title="Progress" lead="Your past weekly schedules. Open one to see what you planned and checked off." />
-      <div className="flex flex-col gap-6 px-4 pt-4 pb-10 md:px-18 md:pt-12 md:pb-18">
+      <PageHeader gutter="px-5 md:px-8 lg:px-18" title="Progress" lead="Your past weekly schedules. Open one to see what you planned and checked off." />
+      <div className="flex flex-col gap-6 px-4 pt-4 pb-10 md:px-8 md:pt-12 md:pb-18 lg:px-18">
         {months.length === 0 ? (
-          <div className={cx(CARD, "flex flex-col gap-1 px-4 py-6 sm:px-6 sm:py-8")}>
+          <div className={cx(CARD, "flex flex-col gap-1 px-4 py-6 sm:px-6 sm:py-12")}>
             <p className="text-body font-medium text-ink">No past weeks yet.</p>
             <p className="text-small text-smoke">Each week shows up here after it ends.</p>
             <Link href="/dashboard" className={cx("mt-3 self-start rounded-xs text-small font-medium text-accent hover:underline", FOCUS)}>
@@ -38,7 +38,7 @@ export default function ProgressOverview({ months }: { months: PastWeekMonth[] }
                   <Link
                     href={`/progress?week=${week.weekStartDate}`}
                     className={cx(
-                      "grid min-h-16 grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2.5 px-4 py-3.5 [grid-template-areas:'dates_count'_'bar_bar']",
+                      "grid min-h-16 grid-cols-[1fr_auto_16px] items-center gap-x-3 gap-y-2.5 px-4 py-3.5 [grid-template-areas:'dates_count_chevron'_'bar_bar_chevron']",
                       "sm:grid-cols-[140px_minmax(0,200px)_1fr_24px] sm:gap-4 sm:px-6 sm:py-0 sm:[grid-template-areas:'dates_bar_count_chevron']",
                       "lg:grid-cols-[200px_minmax(0,320px)_1fr_24px] lg:gap-6",
                       "transition-colors duration-120 ease-[cubic-bezier(0.2,0,0,1)] hover:bg-vellum active:bg-vellum-line",
@@ -50,7 +50,7 @@ export default function ProgressOverview({ months }: { months: PastWeekMonth[] }
                       <span className="block h-full rounded-pill bg-accent" style={{ width: `${week.completionPercent}%` }} />
                     </span>
                     <span className="justify-self-end text-small text-smoke [grid-area:count]">{week.done} of {week.total} done</span>
-                    <span className="hidden justify-self-end [grid-area:chevron] sm:block"><Chevron /></span>
+                    <span className="justify-self-end [grid-area:chevron]"><Chevron /></span>
                   </Link>
                 </li>
               ))}
