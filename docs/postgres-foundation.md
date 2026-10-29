@@ -134,6 +134,7 @@ steps. Step 1 sets `accounts.deleting_since`, which a trigger keeps once set.
 Step 2 deletes the Account and adds a `deletion_list` row with the Account ID,
 the keyed email hash, and the time, in one transaction. See
 [the browser and data rules](security/issue-76-decisions.md#account-deletion).
+
 An Account can exist before onboarding creates its student.
 
 Accounts normalize emails on insert and update. Database checks
@@ -207,8 +208,10 @@ The role can connect, use the `public` schema, and select, insert, and delete
 rows in all six domain tables. It can update every domain table except
 `weekly_schedules` and most of `accounts`. On `accounts`, it inserts only
 `email`, `name`, `google_id`, and `password_hash`, and updates only
-`simulated_date`, `session_version`, and `password_hash`. It reads, inserts,
-updates, and deletes pending signups and reset tokens. Only the owner may give the Admin role, disable an
+`simulated_date`, `session_version`, `password_hash`, and `deleting_since`.
+It reads, inserts, updates, and deletes pending signups and reset tokens. On
+`deletion_list`, it inserts only `account_id` and `email_hash`, reads only
+`deleted_at`, and deletes rows. It cannot update deletion list rows. Only the owner may give the Admin role, disable an
 Account, or change its Google ID. The Weekly schedule trigger stays in place as a second
 protection for the database owner. The app role cannot create roles,
 databases, schemas, tables, temporary tables, or other schema objects.

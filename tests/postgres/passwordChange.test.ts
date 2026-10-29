@@ -271,14 +271,16 @@ describe("password Account deletion", () => {
       expect(await changePassword(null, form({ currentPassword: OLD_PASSWORD, newPassword: NEW_PASSWORD })))
         .toEqual({ unexpectedFailure: expect.any(String) });
       expect(await passwordHashOf(id)).toBe(oldPasswordHash);
-      expect((await logIn(MAYA, OLD_PASSWORD)).cookie).toBe("");
+      await expect(logInWithPassword(null, form({ email: MAYA, password: OLD_PASSWORD })))
+        .rejects.toThrow("redirect:/login?notice=DeletionWillFinish");
       expect(await accountCount(id)).toEqual({ accounts: 1, students: 1 });
     } finally {
       await database.owner.execute(sql`drop trigger reject_student_delete_test on students`);
       await database.owner.execute(sql`drop function reject_student_delete_test()`);
       logged.mockRestore();
     }
-    expect(await logIn(MAYA, OLD_PASSWORD)).toEqual({ refused: null, cookie: "" });
+    await expect(logInWithPassword(null, form({ email: MAYA, password: OLD_PASSWORD })))
+      .rejects.toThrow("redirect:/login?error=AccountDisabled");
     expect(await accountCount(id)).toEqual({ accounts: 0, students: 0 });
     expect(await ownerRows(sql`select count(*)::int as rows from deletion_list where account_id = ${id}`)).toEqual([{ rows: 1 }]);
   });

@@ -126,7 +126,7 @@ export async function resetPassword(
   return result;
 }
 
-export type LoginRefusal = "wrongEmailOrPassword" | "paused" | "tooLong" | "verifyYourEmail" | "accountDisabled";
+export type LoginRefusal = "wrongEmailOrPassword" | "paused" | "tooLong" | "verifyYourEmail" | "accountDisabled" | "deletionWillFinish";
 
 export async function logIn(
   credentials: Partial<Record<"email" | "password", unknown>>, request: PasswordRequest,
@@ -155,8 +155,10 @@ export async function logIn(
     return refused("verifyYourEmail");
   }
   if (!account || account.role === "admin") return refused("wrongEmailOrPassword");
-  if (account.deletingSince) await attemptAccountDeletion(account.id, request.route);
-  if (account.disabledAt || account.deletingSince) return refused("accountDisabled");
+  if (account.deletingSince) {
+    return refused((await attemptAccountDeletion(account.id, request.route, request.ipAddress)) === "will-finish" ? "deletionWillFinish" : "accountDisabled");
+  }
+  if (account.disabledAt) return refused("accountDisabled");
   await recordSecurityEvent({ event: "sign_in", result: "signedIn", route: request.route, who: { account: account.id }, ipAddress: request.ipAddress });
   const user = { id: account.id, email: account.email, name: account.name, sessionVersion: account.sessionVersion };
   return { kind: "signedIn", user } as const;
@@ -209,9 +211,12 @@ export async function deleteAccount(
   request: PasswordRequest,
 ): Promise<DeletionResult> {
   const marked = await markAccountDeleting(id, { confirmation, currentPassword, signedInAt }, request);
-  const result = marked === "marked" ? await attemptAccountDeletion(id, request.route) : marked;
-  await recordSecurityEvent({ event: "account_deletion", result, route: request.route, who: { account: id }, ipAddress: request.ipAddress });
-  return result;
+  if (marked !== "marked") {
+    await recordSecurityEvent({ event: "account_deletion", result: marked, route: request.route, who: { account: id }, ipAddress: request.ipAddress });
+    return marked;
+  }
+  const result = await attemptAccountDeletion(id, request.route, request.ipAddress);
+  return result === "nothingMarked" ? "deleted" : result;
 }
 
 async function markAccountDeleting(
@@ -223,7 +228,7 @@ async function markAccountDeleting(
   if (!passwordAccount && !signedInRecently(signedInAt)) return "sign-in-too-old";
   if (confirmation !== "DELETE") return "wrong-text";
   if (!passwordAccount) {
-    await markGoogleAccountDeleting(id);
+    if (!(await markGoogleAccountDeleting(id))) throw new Error("Google Account not found");
     return "marked";
   }
   const check = await proveCurrentPassword(passwordAccount, currentPassword, request);

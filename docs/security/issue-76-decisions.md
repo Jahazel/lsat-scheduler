@@ -117,7 +117,8 @@ Built on [issue 351](https://github.com/Jahazel/lsat-scheduler/issues/351):
 - The email hash is the security log's keyed hash (HMAC-SHA-256 with `AUTH_SECRET`) of the normalized email. No new secret is added.
 - The app role may insert the Account ID and the hash, read only `deleted_at`, and delete rows. It cannot update rows, read the hash, or set `deleted_at`.
 - When step 2 fails, the error goes to the security log with its code, the `account_deletion` entry has the result `will-finish`, and the student is signed out to Login with "Your Account is closed, and you are signed out. Some of your data is not deleted yet. DrillMap will finish deleting it within a day."
-- A retry is a sign-in by the marked Account, with Google or with its password. The sign-in runs step 2 again and is refused as for a Disabled Account. The daily cleanup job runs step 2 for every marked Account, then deletes deletion list rows older than 30 days (rule 24).
+- A retry is a sign-in by the marked Account, with Google or with its password. The sign-in runs step 2 again and is always refused. When step 2 fails again, Login shows the same "deletion will finish" message. When it finishes, Login shows "This Account can't log in.", as for a Disabled Account. The daily cleanup job runs step 2 for every marked Account, then deletes deletion list rows older than 30 days (rule 24).
+- Every finished or failed step 2, from the Account page, a sign-in retry, or the daily job, writes one `account_deletion` entry with `deleted` or `will-finish`.
 - An Admin still cannot delete their own Account from the Account page, as before.
 
 ### How long data is kept

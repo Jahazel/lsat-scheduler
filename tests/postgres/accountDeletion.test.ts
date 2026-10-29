@@ -254,7 +254,7 @@ it("finishes the deletion on a Google sign-in retry and never gives access back"
   const owner = await markedAfterFailedDeletion("owner@example.test");
   const logged = vi.spyOn(console, "error").mockImplementation(() => {});
   try {
-    expect(await failCheckInDeletes(() => googleSignIn("owner@example.test"))).toBe(DISABLED_SIGN_IN_PATH);
+    expect(await failCheckInDeletes(() => googleSignIn("owner@example.test"))).toBe(DELETION_WILL_FINISH_PATH);
   } finally {
     logged.mockRestore();
   }
@@ -266,6 +266,13 @@ it("finishes the deletion on a Google sign-in retry and never gives access back"
   expect(await ownedRecords(owner.account.id, owner.student.id)).toEqual(noRecords);
   expect(await deletionList()).toEqual([listed(owner.account.id, "owner@example.test")]);
   expect(await sessionFor(owner.account.id)).toBeNull();
+  expect(await deletionEvents()).toEqual([
+    { event: "unexpected_failure", result: "failed", error_type: "Error:P0001" },
+    { event: "account_deletion", result: "will-finish", error_type: null },
+    { event: "unexpected_failure", result: "failed", error_type: "Error:P0001" },
+    { event: "account_deletion", result: "will-finish", error_type: null },
+    { event: "account_deletion", result: "deleted", error_type: null },
+  ]);
 });
 
 it("finishes every marked deletion in one daily job run, and a second run changes nothing", async () => {
@@ -279,6 +286,8 @@ it("finishes every marked deletion in one daily job run, and a second run change
   expect(await runDailyCleanup()).toMatchObject({ accountDeletionsFinished: 0, accountDeletionsFailed: 0 });
   expect(await finishAccountDeletion(owner.account.id)).toBe(false);
   expect(await deletionList()).toEqual([listed(owner.account.id, "owner@example.test")]);
+  expect((await deletionEvents()).at(-1)).toEqual({ event: "account_deletion", result: "deleted", error_type: null });
+  expect(await deletionEvents()).toHaveLength(3);
 });
 
 it("counts a daily job deletion that fails again, logs it, and keeps the mark", async () => {
@@ -295,6 +304,7 @@ it("counts a daily job deletion that fails again, logs it, and keeps the mark", 
     { event: "unexpected_failure", result: "failed", error_type: "Error:P0001" },
     { event: "account_deletion", result: "will-finish", error_type: null },
     { event: "unexpected_failure", result: "failed", error_type: "Error:P0001" },
+    { event: "account_deletion", result: "will-finish", error_type: null },
   ]);
 });
 

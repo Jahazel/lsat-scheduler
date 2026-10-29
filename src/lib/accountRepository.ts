@@ -73,20 +73,24 @@ export async function replacePasswordHash(proof: CurrentPasswordProof, newHash: 
   return changed.length === 1;
 }
 
+const markDeleting = { deletingSince: sql`coalesce(${accounts.deletingSince}, now())` };
+
 export async function markPasswordAccountDeleting(proof: CurrentPasswordProof) {
   const marked = await getPostgresDatabase()
     .update(accounts)
-    .set({ deletingSince: sql`coalesce(${accounts.deletingSince}, now())` })
+    .set(markDeleting)
     .where(passwordUnchangedSinceProof(proof))
     .returning({ id: accounts.id });
   return marked.length === 1;
 }
 
 export async function markGoogleAccountDeleting(id: AccountId) {
-  await getPostgresDatabase()
+  const marked = await getPostgresDatabase()
     .update(accounts)
-    .set({ deletingSince: sql`coalesce(${accounts.deletingSince}, now())` })
-    .where(and(eq(accounts.id, id), isNotNull(accounts.googleId)));
+    .set(markDeleting)
+    .where(and(eq(accounts.id, id), isNotNull(accounts.googleId)))
+    .returning({ id: accounts.id });
+  return marked.length === 1;
 }
 
 export async function findAccountByGoogleId(googleId: string) {

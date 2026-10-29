@@ -1,7 +1,7 @@
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { getPostgresDatabase } from "./postgres";
 import { accounts } from "./postgresSchema";
-import { emailHash, recordUnexpectedFailure, type SecurityLogRoute } from "./securityLog";
+import { emailHash, recordSecurityEvent, recordUnexpectedFailure, type SecurityLogRoute } from "./securityLog";
 
 export async function finishAccountDeletion(id: string) {
   return getPostgresDatabase().transaction(async (tx) => {
@@ -14,29 +14,24 @@ export async function finishAccountDeletion(id: string) {
   });
 }
 
-export async function attemptAccountDeletion(id: string, route: SecurityLogRoute) {
+export async function attemptAccountDeletion(id: string, route: SecurityLogRoute, ipAddress?: string): Promise<"deleted" | "will-finish" | "nothingMarked"> {
+  let result: "deleted" | "will-finish";
   try {
-    await finishAccountDeletion(id);
-    return "deleted";
+    if (!(await finishAccountDeletion(id))) return "nothingMarked";
+    result = "deleted";
   } catch (error) {
     await recordUnexpectedFailure(route, error);
-    return "will-finish";
+    result = "will-finish";
   }
+  await recordSecurityEvent({ event: "account_deletion", result, route, who: { account: id }, ipAddress });
+  return result;
 }
 
 export async function finishMarkedDeletions(route: SecurityLogRoute) {
   const marked = await getPostgresDatabase().select({ id: accounts.id }).from(accounts).where(isNotNull(accounts.deletingSince));
-  let finished = 0;
-  let failed = 0;
-  for (const { id } of marked) {
-    try {
-      if (await finishAccountDeletion(id)) finished += 1;
-    } catch (error) {
-      failed += 1;
-      await recordUnexpectedFailure(route, error);
-    }
-  }
-  return { finished, failed };
+  const results = [];
+  for (const { id } of marked) results.push(await attemptAccountDeletion(id, route));
+  return { finished: results.filter((result) => result === "deleted").length, failed: results.filter((result) => result === "will-finish").length };
 }
 
 export async function deleteOldDeletionListRows() {
