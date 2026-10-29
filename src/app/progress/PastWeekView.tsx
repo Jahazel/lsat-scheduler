@@ -39,7 +39,7 @@ export default function PastWeekView({
   older?: PastWeek;
   newer?: PastWeek;
 }) {
-  const pillClass = "ease-[cubic-bezier(0.2,0,0,1)] max-sm:h-11 max-sm:flex-1";
+  const pillClass = "ease-[cubic-bezier(0.2,0,0,1)]! max-sm:h-11 max-sm:flex-1";
   const header = (
     <header className="border-b border-vellum-line bg-paper px-5 pt-6 pb-6 md:px-8 md:pt-8 md:pb-10 lg:px-18">
       <Link href="/progress" className={TEXT_LINK}>← All weeks</Link>
