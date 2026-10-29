@@ -3,6 +3,7 @@ import path from "node:path";
 
 export default defineConfig({
   test: {
+    server: { deps: { inline: ["next-auth"] } },
     exclude: [...configDefaults.exclude, "tests/postgres/**", ".claude/worktrees/**"],
   },
   resolve: {
