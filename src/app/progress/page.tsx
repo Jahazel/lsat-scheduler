@@ -8,6 +8,7 @@ import { listWeeklySchedulesForStudent } from "@/lib/weeklyScheduleRepository";
 import { postgresActivityCheckIns } from "@/lib/activityCheckInRepository";
 import { resolveProgressRoute } from "@/lib/progressHistory";
 import PastWeekView from "./PastWeekView";
+import { ProgressScreen } from "./ProgressMotion";
 import ProgressOverview from "./ProgressOverview";
 
 export default async function ProgressPage({
@@ -34,14 +35,14 @@ export default async function ProgressPage({
   switch (route.kind) {
     case "this_week": redirect("/dashboard");
     case "week": return (
-      <div className="min-h-screen">
+      <ProgressScreen week={route.week.weekStartDate}>
         <PastWeekView schedule={route.schedule} checkIns={route.checkIns} week={route.week} older={route.older} newer={route.newer} />
-      </div>
+      </ProgressScreen>
     );
     case "list": return (
-      <div className="min-h-screen">
+      <ProgressScreen>
         <ProgressOverview months={route.months} />
-      </div>
+      </ProgressScreen>
     );
   }
 }

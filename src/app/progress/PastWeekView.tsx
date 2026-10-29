@@ -49,7 +49,7 @@ export default function PastWeekView({
             <span className="rounded-pill border border-vellum-line bg-vellum px-2.5 py-0.5 text-caption text-ink">Past week</span>
             {week.done} of {week.total} done
           </p>
-          <h1 className="text-h3 font-medium text-ink md:text-h2">Week of {monthDay.format(new Date(`${week.weekStartDate}T00:00:00.000Z`))}</h1>
+          <h1 tabIndex={-1} className="text-h3 font-medium text-ink outline-none md:text-h2">Week of {monthDay.format(new Date(`${week.weekStartDate}T00:00:00.000Z`))}</h1>
           <HeaderNotes notes={weekNotes(schedule.schedule)} />
         </div>
         {(older || newer) && (
