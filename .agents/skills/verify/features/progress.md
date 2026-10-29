@@ -1,6 +1,6 @@
 # Progress
 
-Progress shows finished-week completion summaries and lets a student open each saved past weekly schedule. Planned work stays fixed while activity check-ins can still be corrected. The `Planned` statistic includes all saved weeks, including the current week. Avg. done, Streak, Best week, and Your weeks use only finished weeks.
+Progress shows finished-week completion summaries and lets a student open each saved past weekly schedule. Past weeks are read-only: planned work and activity check-ins stay fixed. The `Planned` statistic includes all saved weeks, including the current week. Avg. done, Streak, Best week, and Your weeks use only finished weeks.
 
 ## Sub-features
 
@@ -27,12 +27,12 @@ Preconditions:
 - Open Progress from navigation and directly from `/progress`. Require a link whose `href` is `/progress?week=` followed by the saved Monday date. Require its done count and planned hours to match the stored schedule and activity check-ins.
 - Create the next current weekly schedule. After `Next Monday`, This week opens the weekly upload, `Plan this week`. Click `Generate sample` in Test controls and approve it through [This week](weekly-schedule.md). When the first week's plan had a practice test, as with the baseline Saturday preference, the second statement reads `Use this sample as my latest analytics and last week's practice test.` Then reopen Progress. Require the `Planned` statistic to read `across 2 weeks` and include both saved schedules. Require completion statistics and Your weeks to use only the finished week.
 - Click that week link. Require `Viewing a past week · <week> · N of M done` and `Your past plan`. All seven day sections show at once; there is no week or day switch. Compare each day's planned time, capacity, activities, and reasons with the earlier saved document. Click `role=link[name="← All weeks"]` to return to the overview.
-- If correcting a past activity is in scope, check off or clear a row on `/progress?week=…` the same way as on This week. Reload, then require the overview's summary to update and the saved planned document to stay equal.
+- On `/progress?week=…`, require no `role=checkbox`. Each activity row is a list item ending `, done` or `, not done`. Click rows and press Space and Enter; require no POST request, the same rows after reload, and equal `activity_check_ins` records. For the server refusal, keep a second session on This week, move the Simulated date with `Next Monday` in the first, then press a row in the stale tab: require HTTP 500 with server error `Only this week's check-ins can change` and no check-in change.
 - Navigate to `/dashboard?historyWeek=` followed by the saved Monday date. Require the same Progress detail. Navigate to `/progress?week=` with the current Monday date and require `/dashboard`; without a current weekly schedule, `/dashboard` continues to `/dashboard/upload`. The navigate call can report the requested URL, so read the final URL after a wait. An unknown past date falls back to the Progress overview.
 
 ## Gotchas
 
 - The current week does not count as a finished week.
 - The scheduling clock uses America/Chicago. An Admin's Simulated date applies only to their own student side.
-- Past planned work is immutable, but the current implementation exposes editable activity check-ins in past plans. Do not assert that all past-plan controls are read-only.
+- A stale This week tab that saves after the week has ended shows the app's error page.
 - The sample must qualify for the relevant week. Advancing the date can require a new approved sample to create the next plan.

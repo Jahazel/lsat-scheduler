@@ -109,6 +109,21 @@ describe("ScheduleCheckInView", () => {
     expect(screen.getByText("1 of 18 done")).toBeTruthy();
   });
 
+  it("ignores clicks, Space, and Enter on a read-only plan", async () => {
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent}
+      checkIns={[done("MONDAY:0")]} heading="Your past plan" readOnly />);
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    const [doneRow, openRow] = within(dayCard("Monday")).getAllByRole("listitem");
+    await userEvent.click(doneRow!);
+    await userEvent.click(openRow!);
+    await userEvent.tab();
+    await userEvent.keyboard(" {Enter}");
+    expect(saveActivityCheckIn).not.toHaveBeenCalled();
+    expect(doneRow!.textContent).toBe("1 Full LR Section, done");
+    expect(openRow!.textContent).toMatch(/, not done$/);
+    expect(screen.getByText("1 of 18 done")).toBeTruthy();
+  });
+
   it("labels rest, unscheduled, and practice-test days", () => {
     const schedule = generateWeek({ ...mockStudent, goalTestDate: "2026-10-01" },
       { ...mockAnalytics, weekOf: "2026-09-21" }, mockRules, mockStudentName);
