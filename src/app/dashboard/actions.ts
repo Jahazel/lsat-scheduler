@@ -5,8 +5,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { postgresActivityCheckIns } from "@/lib/activityCheckInRepository";
-import { scheduleActivityId } from "@/lib/currentWeeklySchedule";
+import { currentWeekInTimezone, scheduleActivityId } from "@/lib/currentWeeklySchedule";
 import { DAY_ORDER } from "@/lib/engine";
+import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { findStudentByAccountId } from "@/lib/studentRepository";
 import { findWeeklyScheduleForStudent } from "@/lib/weeklyScheduleRepository";
 
@@ -25,6 +26,10 @@ export async function saveActivityCheckIn(input: z.input<typeof CheckInInput>) {
   if (!student) throw new Error("Student record not found");
   const schedule = await findWeeklyScheduleForStudent(student.id, parsed.scheduleId);
   if (!schedule) throw new Error("Weekly schedule not found");
+  const now = await studentSideNow(session.user);
+  if (schedule.weekStartDate !== currentWeekInTimezone(now, SCHEDULE_TIMEZONE)) {
+    throw new Error("Only this week's check-ins can change");
+  }
 
   const [day, index] = parsed.activityId.split(":");
   const activityIndex = Number(index);
@@ -34,7 +39,6 @@ export async function saveActivityCheckIn(input: z.input<typeof CheckInInput>) {
     throw new Error("Schedule activity not found");
   }
 
-  const now = await studentSideNow(session.user);
   const checkIn = await postgresActivityCheckIns.save({
     scheduleId: parsed.scheduleId,
     activityId: parsed.activityId,
