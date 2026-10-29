@@ -358,7 +358,7 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
                 />
               ))}
               {!needsSections && !analytics.LR && !analytics.RC && <p className="text-small text-smoke">{LIMITS}</p>}
-              {!needsSections && !started && <p className="text-small text-smoke">{SCREENSHOT_NOTICE}</p>}
+              {!needsSections && <p className="text-small text-smoke">{SCREENSHOT_NOTICE}</p>}
             </>
           )}
         </UploadGroup>
@@ -404,7 +404,6 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
                 </ol>
                 {tileRejection && <p role="alert" className="text-small text-danger-ink">{tileRejection}</p>}
                 <p className="text-small text-smoke">{LIMITS}</p>
-                <p className="text-small text-smoke">{SCREENSHOT_NOTICE}</p>
               </>
             ) : (
               <SectionRows
@@ -425,6 +424,7 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
               <p className="text-small text-smoke">Practice test {prepTest}. You can replace any screenshot before you confirm.</p>
             )}
             {anyReading && <p className="text-small text-smoke">You can replace a screenshot while you wait. It keeps its place in line.</p>}
+            <p className="text-small text-smoke">{SCREENSHOT_NOTICE}</p>
           </UploadGroup>
         ) : skipsPracticeTest ? (
           <UploadGroup title="Practice test review" count="Skipped">
@@ -526,6 +526,7 @@ function ReadSummary({ analytics, sections, onAnalytics, onReplace }: {
           </li>
         ))}
       </ul>
+      <p className="text-small text-smoke">{SCREENSHOT_NOTICE}</p>
     </UploadGroup>
   );
 }

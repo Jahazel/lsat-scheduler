@@ -597,7 +597,7 @@ describe("WeeklyUpload · Type them", () => {
 describe("WeeklyUpload · screenshot notice", () => {
   const NOTICE = "Your screenshot is sent to Anthropic to read your analytics. Anthropic keeps it for up to 30 days. DrillMap does not store it. Crop out anything you do not want to share.";
 
-  it("shows the notice next to the pickers until the screenshots are sent", async () => {
+  it("shows the notice before the first screenshot is sent and keeps it while one can be replaced", async () => {
     const fetchSpy = stubServer();
     const { user } = setup();
     expect(screen.getAllByText(NOTICE)).toHaveLength(1);
@@ -606,11 +606,22 @@ describe("WeeklyUpload · screenshot notice", () => {
     await addSections(user);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(screen.getAllByText(NOTICE)).toHaveLength(1);
-  });
 
-  it("shows the notice by the analytics pickers when this week had no practice test", () => {
-    setup(false);
+    await user.click(button("Read my screenshots"));
+    await queueEmpty();
+    expect(screen.getAllByRole("button", { name: "Replace pt158-s1.png" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(NOTICE).length).toBeGreaterThan(0);
+  }, 15_000);
+
+  it("keeps the notice by the analytics pickers after they are read when this week had no practice test", async () => {
+    stubServer();
+    const { user } = setup(false);
     expect(screen.getAllByText(NOTICE)).toHaveLength(1);
+
+    await addAnalytics(user);
+    await user.click(button("Read my screenshots"));
+    await screen.findByText("rc-analytics.png · 5 passage types");
+    expect(screen.getAllByText(NOTICE).length).toBeGreaterThan(0);
   });
 
   it("hides the notice when the student types the analytics and sends no image", async () => {
