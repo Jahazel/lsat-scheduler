@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import nextConfig from "../../../next.config";
+import { requestPolicy } from "@/lib/requestPolicy";
 
 const verifyEmail = vi.hoisted(() => vi.fn());
 vi.mock("./actions", () => ({ verifyEmail }));
@@ -45,8 +45,9 @@ describe("Verify my email", () => {
 
   it("sends no Referer header from the page", async () => {
     expect(metadata.referrer).toBe("no-referrer");
-    expect(await nextConfig.headers?.()).toContainEqual({
-      source: "/verify-email", headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+    const { responseHeaders } = requestPolicy({
+      method: "GET", pathname: "/verify-email", origin: null, contentType: null, siteUrl: undefined, enforceCsp: false, development: false,
     });
+    expect(responseHeaders["Referrer-Policy"]).toBe("no-referrer");
   });
 });

@@ -11,9 +11,12 @@ export type Answer<T> = T | UnexpectedFailure;
 /** The state of a form whose action only redirects when it works. */
 export type FormState = UnexpectedFailure | null;
 
+export function isFailureCode(value: unknown): value is FailureCode {
+  return typeof value === "string" && /^[0-9a-f]{8}$/.test(value);
+}
+
 export function isUnexpectedFailure(value: unknown): value is UnexpectedFailure {
-  return typeof value === "object" && value !== null && "unexpectedFailure" in value
-    && typeof value.unexpectedFailure === "string" && /^[0-9a-f]{8}$/.test(value.unexpectedFailure);
+  return typeof value === "object" && value !== null && "unexpectedFailure" in value && isFailureCode(value.unexpectedFailure);
 }
 
 export const failureText = ({ unexpectedFailure }: UnexpectedFailure) =>
