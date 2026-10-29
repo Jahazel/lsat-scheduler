@@ -107,6 +107,17 @@ describe("ProgressMotion", () => {
     removeEventListener("popstate", router);
   });
 
+  it("shows the list when Back is pressed while a click's exit is still running", async () => {
+    const { rerender } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
+    fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
+    history.replaceState(null, "", "/progress");
+    dispatchEvent(new PopStateEvent("popstate"));
+    finishExits();
+    show("/progress", <List />, rerender);
+    expect(live.some((a) => a.options.fill === "forwards")).toBe(false);
+    expect(document.activeElement).toBe(screen.getByRole("link", { name: "Oct 12 – 18" }));
+  });
+
   it("still opens the newest target when an earlier page arrives during its exit", async () => {
     const { rerender } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
     fireEvent.click(screen.getByRole("link", { name: "← Older week" }));

@@ -96,6 +96,7 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     function holdPopStateUntilFadedOut(event: PopStateEvent) {
       if (replaying || location.pathname !== "/progress") return;
       if (hrefOf(location) === committed()) return returnToCommitted();
+      target.current = null;
       const exit = leave(new URLSearchParams(location.search).get("week"));
       if (!exit) return;
       event.stopImmediatePropagation();
