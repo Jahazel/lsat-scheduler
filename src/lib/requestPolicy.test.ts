@@ -5,7 +5,7 @@ import { EXEMPT_ROUTES, requestPolicy, type RequestFacts } from "./requestPolicy
 
 const SITE = "https://drillmap.xyz";
 const sameSite = (facts: Partial<RequestFacts>): RequestFacts => ({
-  method: "POST", pathname: "/settings", origin: SITE, contentType: "text/plain;charset=UTF-8", siteOrigin: SITE, ...facts,
+  method: "POST", pathname: "/settings", origin: SITE, contentType: "text/plain;charset=UTF-8", siteUrl: `${SITE}/`, ...facts,
 });
 
 describe("forged requests", () => {
@@ -31,8 +31,11 @@ describe("forged requests", () => {
     expect(requestPolicy(sameSite({ origin: "http://drillmap.xyz" })).refused).toMatchObject({ status: 403 });
   });
 
-  it("refuses every Origin when the place has no configured site address", () => {
-    expect(requestPolicy(sameSite({ siteOrigin: undefined })).refused).toMatchObject({ status: 403, result: "wrongOrigin" });
+  it("refuses every Origin when the place has no usable site address, and still serves reads", () => {
+    for (const siteUrl of [undefined, "drillmap.xyz"]) {
+      expect(requestPolicy(sameSite({ siteUrl })).refused).toMatchObject({ status: 403, result: "wrongOrigin" });
+      expect(requestPolicy(sameSite({ siteUrl, method: "GET" }))).toEqual({});
+    }
   });
 
   it("checks the Origin before the content type", () => {

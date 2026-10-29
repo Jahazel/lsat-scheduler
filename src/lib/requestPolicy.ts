@@ -6,7 +6,7 @@ export type RequestFacts = {
   origin: string | null;
   contentType: string | null;
   /** The place's configured site address. Never read from the request's `Host` header. */
-  siteOrigin: string | undefined;
+  siteUrl: string | undefined;
 };
 
 export type ForgedRequestRefusal = {
@@ -55,12 +55,13 @@ function acceptedTypes(pathname: string) {
 const mediaType = (contentType: string) => contentType.split(";")[0].trim().toLowerCase();
 
 /** Decides, from the request alone, how the proxy answers it. */
-export function requestPolicy({ method, pathname, origin, contentType, siteOrigin }: RequestFacts): RequestPolicy {
+export function requestPolicy({ method, pathname, origin, contentType, siteUrl }: RequestFacts): RequestPolicy {
   if (READS_ONLY.has(method.toUpperCase())) return {};
   if (EXEMPT_ROUTES.some(({ path, prefix }) => (prefix ? pathname.startsWith(path) : pathname === path))) return {};
 
   const route = routeTemplate(pathname);
   if (origin === null) return { refused: { status: 403, result: "noOrigin", route } };
+  const siteOrigin = siteUrl && URL.canParse(siteUrl) ? new URL(siteUrl).origin : undefined;
   if (origin !== siteOrigin) return { refused: { status: 403, result: "wrongOrigin", route } };
   if (contentType === null || !acceptedTypes(pathname).has(mediaType(contentType))) {
     return { refused: { status: 415, result: "wrongContentType", route } };

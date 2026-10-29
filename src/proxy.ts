@@ -9,13 +9,12 @@ import { NOBODY, recordSecurityEvent } from "@/lib/securityLog";
 // Whether a signed-in student has completed onboarding yet is checked in
 // the page components themselves (they need the Student record anyway).
 export default auth(async (req) => {
-  const siteUrl = configuredSiteUrl();
   const { refused: forged } = requestPolicy({
     method: req.method,
     pathname: req.nextUrl.pathname,
     origin: req.headers.get("origin"),
     contentType: req.headers.get("content-type"),
-    siteOrigin: siteUrl && new URL(siteUrl).origin,
+    siteUrl: configuredSiteUrl(),
   });
   if (forged) {
     const accountId = req.auth?.user?.id;
