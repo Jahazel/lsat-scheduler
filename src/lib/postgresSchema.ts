@@ -24,6 +24,7 @@ export const accounts = pgTable("accounts", {
   role: text("role", { enum: ["student", "admin"] }).notNull().default("student"),
   simulatedDate: date("simulated_date", { mode: "string" }),
   disabledAt: timestamp("disabled_at", { withTimezone: true }),
+  deletingSince: timestamp("deleting_since", { withTimezone: true }),
   sessionVersion: integer("session_version").notNull().default(0),
 });
 
@@ -120,6 +121,12 @@ export const resetTokens = pgTable("reset_tokens", {
   accountId: uuid("account_id").primaryKey().references(() => accounts.id, { onDelete: "cascade" }),
   tokenHash: text("token_hash").notNull().unique(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
+export const deletionList = pgTable("deletion_list", {
+  accountId: uuid("account_id").primaryKey(),
+  emailHash: text("email_hash").notNull(),
+  deletedOn: date("deleted_on", { mode: "string" }).notNull().defaultNow(),
 });
 
 export const runningScans = pgTable("running_scans", {

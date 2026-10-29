@@ -44,6 +44,8 @@ describe("Login", () => {
     [{ error: "CredentialsSignin" }, "alert", "That email and password don't match. Check both and try again, or reset your password."],
     [{ notice: "EmailVerified" }, "status", "Email verified. Log in."],
     [{ notice: "PasswordChanged" }, "status", "Password changed. Log in with your new password."],
+    [{ notice: "DeletionWillFinish" }, "status", "Your Account is being deleted and can't log in. The deletion will finish within a day."],
+    [{ notice: "AccountDeleted" }, "status", "Your Account is deleted."],
     [{ error: "EmailUsesPassword" }, "alert", "This email uses a password. Log in with your password."],
     [{ error: "AccessDenied", code: "3f9a0c1e" }, "alert", "Something went wrong. Try again. Error code: 3f9a0c1e"],
     [{ error: "AccessDenied", code: "not-a-code" }, "alert", "Google sign-in didn't finish. Try again, or use a Google account with a verified email."],
@@ -60,6 +62,8 @@ describe("Login", () => {
     [{ error: "AccessDenied", code: "3f9a0c1e" }, "alert"],
     [{ error: "AccountDisabled" }, "alert"],
     [{ error: "SessionEnded" }, "status"],
+    [{ notice: "DeletionWillFinish" }, "status"],
+    [{ notice: "AccountDeleted" }, "status"],
   ])("puts %o above Continue with Google", async (params, role) => {
     await renderLogin(params);
     expect(follows(screen.getByRole(role), screen.getByRole("button", { name: "Continue with Google" }))).toBe(true);

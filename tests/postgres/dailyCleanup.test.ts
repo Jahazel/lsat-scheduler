@@ -23,7 +23,7 @@ afterAll(() => {
 
 beforeEach(async () => {
   process.env.CRON_SECRET = CRON_SECRET;
-  await database.owner.execute(sql`truncate accounts, pending_signups, security_log cascade`);
+  await database.owner.execute(sql`truncate accounts, pending_signups, security_log, deletion_list cascade`);
   await database.owner.execute(sql`
     insert into pending_signups (email, name, password_hash, token_hash, token_expires_at, created_at) values
       ('old@example.test', 'Old', 'hash', 'token-old', now() + interval '1 day', now() - interval '8 days'),
@@ -42,6 +42,11 @@ beforeEach(async () => {
       (now() - interval '91 days', 'unexpected_failure', 'failed', '/api/cron/daily-cleanup', '00000091', 'Error'),
       (now() - interval '89 days', 'unexpected_failure', 'failed', '/api/cron/daily-cleanup', '00000089', 'Error')
   `);
+  await database.owner.execute(sql`
+    insert into deletion_list (account_id, email_hash, deleted_on) values
+      ('00000000-0000-4000-8000-000000000031', repeat('a', 64), current_date - 31),
+      ('00000000-0000-4000-8000-000000000030', repeat('b', 64), current_date - 30)
+  `);
 });
 
 function cronRequest(authorization?: string) {
@@ -58,6 +63,9 @@ async function remainingRows() {
     securityLog: (await database.owner.execute<{ error_code: string }>(
       sql`select error_code from security_log order by error_code`,
     )).rows.map((row) => row.error_code),
+    deletionList: (await database.owner.execute<{ account_id: string }>(
+      sql`select account_id from deletion_list order by account_id`,
+    )).rows.map((row) => row.account_id),
   };
 }
 
@@ -65,6 +73,7 @@ const everythingKept = {
   signups: ["fresh@example.test", "old@example.test"],
   resets: ["reset-expired", "reset-live"],
   securityLog: ["00000089", "00000091"],
+  deletionList: ["00000000-0000-4000-8000-000000000030", "00000000-0000-4000-8000-000000000031"],
 };
 
 it("refuses a call without the cron secret and changes nothing", async () => {
@@ -82,14 +91,18 @@ it("refuses every call when the place has no cron secret set", async () => {
   expect(await remainingRows()).toEqual(everythingKept);
 });
 
-it("removes pending signups older than 7 days, expired reset tokens, and security log entries older than 90 days", async () => {
+it("removes old pending signups, expired reset tokens, and old security log entries and deletion list rows", async () => {
   const response = await GET(cronRequest(`Bearer ${CRON_SECRET}`));
   expect(response.status).toBe(200);
-  expect(await response.json()).toEqual({ securityLogRemoved: 1, pendingSignupsRemoved: 1, resetTokensRemoved: 1 });
+  expect(await response.json()).toEqual({
+    accountDeletionsFinished: 0, accountDeletionsLeft: 0, deletionListRemoved: 1,
+    securityLogRemoved: 1, pendingSignupsRemoved: 1, resetTokensRemoved: 1,
+  });
   expect(await remainingRows()).toEqual({
     signups: ["fresh@example.test"],
     resets: ["reset-live"],
     securityLog: ["00000089"],
+    deletionList: ["00000000-0000-4000-8000-000000000030"],
   });
 });
 
@@ -97,11 +110,15 @@ it("gives the same result when the route runs twice", async () => {
   await GET(cronRequest(`Bearer ${CRON_SECRET}`));
   const second = await GET(cronRequest(`Bearer ${CRON_SECRET}`));
   expect(second.status).toBe(200);
-  expect(await second.json()).toEqual({ securityLogRemoved: 0, pendingSignupsRemoved: 0, resetTokensRemoved: 0 });
+  expect(await second.json()).toEqual({
+    accountDeletionsFinished: 0, accountDeletionsLeft: 0, deletionListRemoved: 0,
+    securityLogRemoved: 0, pendingSignupsRemoved: 0, resetTokensRemoved: 0,
+  });
   expect(await remainingRows()).toEqual({
     signups: ["fresh@example.test"],
     resets: ["reset-live"],
     securityLog: ["00000089"],
+    deletionList: ["00000000-0000-4000-8000-000000000030"],
   });
 });
 

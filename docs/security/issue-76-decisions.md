@@ -109,6 +109,15 @@ Built on [issue 350](https://github.com/Jahazel/lsat-scheduler/issues/350): the 
 18. If step 2 fails, the student sees a message that deletion will finish. A retry by the student or a daily job finishes every Account marked "deleting."
 19. A retry never removes the mark and never restores access.
 
+Built on [issue 351](https://github.com/Jahazel/lsat-scheduler/issues/351):
+
+- Migration `0017_two_step_deletion` adds `accounts.deleting_since` and the `deletion_list` table. A trigger refuses any change to `deleting_since` once it is set, for every database login. The app role can add, read, and delete deletion list rows, and cannot change them.
+- Step 1 sets `deleting_since` after the Recent sign-in, `DELETE`, and current password checks. The session check refuses a marked Account the same way it refuses a Disabled one.
+- Step 2 deletes the marked Account and adds its deletion list row in one transaction. Step 2 never deletes an unmarked Account. The deletion list row holds the email hash from the security log's keyed hash.
+- If step 2 fails, the student is signed out to Login, which says: "Your Account is being deleted and can't log in. The deletion will finish within a day." The failure is in the security log with its code, and the `account_deletion` entry has the result `willFinish`.
+- The student retry is a sign-in. A Google sign-in, or a password sign-in with the right password, runs step 2 and is always refused. Login then says "Your Account is deleted." or shows the "will finish" message again. The `sign_in` entry has the result `accountDeleted` or `deletionWillFinish`.
+- The daily job runs step 2 for every marked Account, then deletes deletion list rows older than 30 days (rule 24).
+
 ### How long data is kept
 
 20. Account data stays until the student deletes the Account.

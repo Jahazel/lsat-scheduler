@@ -444,6 +444,20 @@ it("adds security log entries but cannot read, change, or erase them, and prunes
   expect(left.rows).toEqual([{ error_code: "abcdef12" }]);
 });
 
+it("adds, reads, and deletes deletion list rows but cannot change them", async () => {
+  const accountId = randomUUID();
+  await appDb().execute(sql`insert into deletion_list (account_id, email_hash) values (${accountId}, repeat('c', 64))`);
+  for (const query of [
+    sql`update deletion_list set email_hash = repeat('d', 64) where account_id = ${accountId}`,
+    sql`update deletion_list set deleted_on = current_date - 31 where account_id = ${accountId}`,
+    sql`truncate deletion_list`,
+  ]) {
+    await expect(appDb().execute(query)).rejects.toMatchObject({ cause: { code: "42501" } });
+  }
+  const removed = await appDb().execute(sql`delete from deletion_list where account_id = ${accountId}`);
+  expect(removed.rowCount).toBe(1);
+});
+
 it("refuses a security log entry that could hold free text", async () => {
   for (const [route, code, type] of [
     ["/api/cron/daily-cleanup", "abcdef123", "Error"],

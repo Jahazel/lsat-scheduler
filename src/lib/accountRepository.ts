@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { getPostgresDatabase } from "./postgres";
 import type { CurrentPasswordProof } from "./passwordAccount";
@@ -18,6 +18,7 @@ const publicColumns = {
   role: accounts.role,
   simulatedDate: accounts.simulatedDate,
   disabledAt: accounts.disabledAt,
+  deletingSince: accounts.deletingSince,
   sessionVersion: accounts.sessionVersion,
 };
 
@@ -72,14 +73,18 @@ export async function replacePasswordHash(proof: CurrentPasswordProof, newHash: 
   return changed.length === 1;
 }
 
-/** Returns false when the password changed after the check. */
-export async function deletePasswordAccount(proof: CurrentPasswordProof) {
-  const deleted = await getPostgresDatabase().delete(accounts).where(passwordUnchangedSinceProof(proof)).returning({ id: accounts.id });
-  return deleted.length === 1;
+const markDeleting = (where: SQL | undefined) => getPostgresDatabase()
+  .update(accounts)
+  .set({ deletingSince: sql`coalesce(${accounts.deletingSince}, now())` })
+  .where(where)
+  .returning({ id: accounts.id });
+
+export async function markPasswordAccountDeleting(proof: CurrentPasswordProof) {
+  return (await markDeleting(passwordUnchangedSinceProof(proof))).length === 1;
 }
 
-export async function deleteGoogleAccount(id: AccountId) {
-  await getPostgresDatabase().delete(accounts).where(and(eq(accounts.id, id), isNotNull(accounts.googleId)));
+export async function markGoogleAccountDeleting(id: AccountId) {
+  return (await markDeleting(and(eq(accounts.id, id), isNotNull(accounts.googleId)))).length === 1;
 }
 
 export async function findAccountByGoogleId(googleId: string) {
