@@ -11,6 +11,8 @@ const STANDARD = "cubic-bezier(0.2, 0, 0, 1)";
 
 type WeekOrList = string | null;
 
+const isPlainClick = (event: { button: number; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean }) =>
+  event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
 const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const hrefOf = (url: URL | Location) => url.pathname + url.search;
 const hrefFor = (shown: WeekOrList) => (shown ? `/progress?week=${shown}` : "/progress");
@@ -96,12 +98,12 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     let latest = 0;
     // Another navigation, from history or a link outside Progress, replaces a pending click or held Back.
     function abandonPending() {
-      target.current = null;
       latest++;
+      if (target.current !== null) returnToCommitted();
     }
     function onClickOutside(event: globalThis.MouseEvent) {
       const element = event.target as Element;
-      if (element.closest("a") && !ref.current!.contains(element)) abandonPending();
+      if (isPlainClick(event) && element.closest("a") && !ref.current!.contains(element)) abandonPending();
     }
     function holdPopStateUntilFadedOut(event: PopStateEvent) {
       if (replaying) return;
@@ -129,7 +131,7 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
   }, []);
 
   function onClickCapture(event: MouseEvent) {
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (!isPlainClick(event)) return;
     const link = (event.target as Element).closest("a");
     if (!link) return;
     const url = new URL(link.href);

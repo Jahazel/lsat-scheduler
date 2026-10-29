@@ -177,6 +177,18 @@ describe("ProgressMotion", () => {
     nav.remove();
   });
 
+  it("keeps a pending click when a link outside Progress opens in a new tab", async () => {
+    show("/progress?week=2026-10-12", <Week week="2026-10-12" />);
+    const nav = document.body.appendChild(document.createElement("a"));
+    nav.href = "/dashboard";
+    nav.addEventListener("click", (event) => event.preventDefault());
+    fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
+    fireEvent.click(nav, { metaKey: true });
+    finishExits();
+    await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/progress?week=2026-10-05", { scroll: false }));
+    nav.remove();
+  });
+
   it("still opens the newest target when an earlier page arrives during its exit", async () => {
     const { rerender } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
     fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
