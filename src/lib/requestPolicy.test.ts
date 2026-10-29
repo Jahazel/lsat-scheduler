@@ -104,6 +104,7 @@ describe("forged requests", () => {
 });
 
 const page = (facts: Partial<RequestFacts> = {}) => requestPolicy(sameSite({ method: "GET", pathname: "/dashboard", contentType: null, ...facts }));
+const nonceOf = (value: string) => /'nonce-([^']+)'/.exec(value)![1];
 const directives = (value: string) => new Map(value.split("; ").map((directive) => {
   const [name, ...sources] = directive.split(" ");
   return [name, sources.join(" ")];
@@ -133,7 +134,7 @@ describe("security headers", () => {
 describe("content security policy", () => {
   it("allows only this site's sources, scripts and style elements that carry the request's nonce, and style attributes", () => {
     const { csp } = page();
-    const nonce = /'nonce-([^']+)'/.exec(csp.value)![1];
+    const nonce = nonceOf(csp.value);
     expect(Object.fromEntries(directives(csp.value))).toEqual({
       "default-src": "'self'",
       "script-src": `'self' 'nonce-${nonce}' 'strict-dynamic'`,
@@ -149,7 +150,7 @@ describe("content security policy", () => {
   });
 
   it("gives each request a new nonce", () => {
-    const nonces = new Set(Array.from({ length: 20 }, () => /'nonce-([^']+)'/.exec(page().csp.value)![1]));
+    const nonces = new Set(Array.from({ length: 20 }, () => nonceOf(page().csp.value)));
     expect(nonces.size).toBe(20);
     for (const nonce of nonces) expect(nonce).toMatch(/^[A-Za-z0-9+/]{20,}={0,2}$/);
   });

@@ -6,7 +6,8 @@ const nextConfig: NextConfig = {
     "/*": ["src/lib/commonPasswords.txt"],
   },
   async headers() {
-    // The proxy sets these with the CSP on every response it handles. This covers the static files it skips.
+    // The proxy replaces these with its own, CSP and per-page referrer included, on every response it handles.
+    // This covers the static files it skips.
     return [{
       source: "/:path*",
       headers: Object.entries(SECURITY_HEADERS).map(([key, value]) => ({ key, value })),

@@ -146,9 +146,9 @@ credential is a secret that gives access, such as a password or an API key.
    (the CSP: the rules for which scripts and styles may run) as
    `Content-Security-Policy-Report-Only`, so the browser reports a blocked
    source in its console and still loads it. Set `CSP_MODE=enforce` to send it as
-   `Content-Security-Policy`, so the browser blocks the source. The proxy reads
-   the setting on each request. On Vercel it is a server-only setting for each
-   place, and a change takes effect at the next deployment.
+   `Content-Security-Policy`, so the browser blocks the source. Locally, restart
+   the app after a change. On Vercel it is a server-only setting for each place,
+   and a change takes effect at the next deployment, with no code change.
 
 4. Start the app from the repository folder:
 
