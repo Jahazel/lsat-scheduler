@@ -22,7 +22,7 @@ import {
   type AnalyticsReading, type FileRead, type QueuedFile, type ReadQueue,
 } from "@/lib/screenshotReadQueue";
 import {
-  CANNOT_READ, MAX_SCREENSHOT_MB, SCREENSHOT_MEDIA_TYPES, TOOK_TOO_LONG, checkScreenshotType, extractPracticeTestScreenshot,
+  CANNOT_READ, MAX_SCREENSHOT_MB, SCREENSHOT_MEDIA_TYPES, SCREENSHOT_NOTICE, TOOK_TOO_LONG, checkScreenshotType, extractPracticeTestScreenshot,
   extractScreenshot,
 } from "@/lib/screenshotUpload";
 import type { ScanningOff } from "@/lib/scanSpending";
@@ -360,6 +360,7 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
                 />
               ))}
               {!needsSections && !analytics.LR && !analytics.RC && <p className="text-small text-smoke">{LIMITS}</p>}
+              {!needsSections && <p className="text-small text-smoke">{SCREENSHOT_NOTICE}</p>}
             </>
           )}
         </UploadGroup>
@@ -425,6 +426,7 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
               <p className="text-small text-smoke">Practice test {prepTest}. You can replace any screenshot before you confirm.</p>
             )}
             {anyReading && <p className="text-small text-smoke">You can replace a screenshot while you wait. It keeps its place in line.</p>}
+            <p className="text-small text-smoke">{SCREENSHOT_NOTICE}</p>
           </UploadGroup>
         ) : skipsPracticeTest ? (
           <UploadGroup title="Practice test review" count="Skipped">
@@ -526,6 +528,7 @@ function ReadSummary({ analytics, sections, onAnalytics, onReplace }: {
           </li>
         ))}
       </ul>
+      <p className="text-small text-smoke">{SCREENSHOT_NOTICE}</p>
     </UploadGroup>
   );
 }

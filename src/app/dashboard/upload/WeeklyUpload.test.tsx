@@ -593,3 +593,46 @@ describe("WeeklyUpload · Type them", () => {
     expect(button("Check the values").disabled).toBe(true);
   }, 15_000);
 });
+
+describe("WeeklyUpload · screenshot notice", () => {
+  const NOTICE = "Your screenshot is sent to Anthropic to read your analytics. Anthropic keeps it for up to 30 days. DrillMap does not store it. Crop out anything you do not want to share.";
+
+  it("shows the notice before the first screenshot is sent and keeps it while one can be replaced", async () => {
+    const fetchSpy = stubServer();
+    const { user } = setup();
+    expect(screen.getAllByText(NOTICE)).toHaveLength(1);
+
+    await addAnalytics(user);
+    await addSections(user);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getAllByText(NOTICE)).toHaveLength(1);
+
+    await user.click(button("Read my screenshots"));
+    await queueEmpty();
+    expect(screen.getAllByRole("button", { name: "Replace pt158-s1.png" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(NOTICE).length).toBeGreaterThan(0);
+  }, 15_000);
+
+  it("keeps the notice by the analytics pickers after they are read when this week had no practice test", async () => {
+    stubServer();
+    const { user } = setup(false);
+    expect(screen.getAllByText(NOTICE)).toHaveLength(1);
+
+    await addAnalytics(user);
+    await user.click(button("Read my screenshots"));
+    await screen.findByText("rc-analytics.png · 5 passage types");
+    expect(screen.getAllByText(NOTICE).length).toBeGreaterThan(0);
+  });
+
+  it("hides the notice when the student types the analytics and sends no image", async () => {
+    const { user } = setup(false);
+    await user.click(screen.getByLabelText("Type them"));
+    expect(screen.queryByText(NOTICE)).toBeNull();
+  });
+
+  it("keeps the notice for the practice test sections when the analytics are typed", async () => {
+    const { user } = setup();
+    await user.click(screen.getByLabelText("Type them"));
+    expect(screen.getAllByText(NOTICE)).toHaveLength(1);
+  });
+});
