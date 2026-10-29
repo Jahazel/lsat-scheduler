@@ -72,6 +72,17 @@ Built on [issue 337](https://github.com/Jahazel/lsat-scheduler/issues/337):
 
 **Why:** A CSP that allows inline scripts does not stop an injected script. Most DrillMap pages already render on each request because they need a session, so the cost is small. Google sign-in is a redirect, not a script, so the CSP does not affect it.
 
+**Owner decision, October 28, 2026 ([#348](https://github.com/Jahazel/lsat-scheduler/issues/348)): style attributes are allowed.** The CSP adds `style-src-attr 'unsafe-inline'`. This replaces the strict reading of rule 6 for style attributes only. `<style>` elements still need the nonce, and `script-src` stays strict.
+
+**Why:** The bars in Progress, onboarding, the week preview, and the progress bar set their size with style attributes. A style attribute cannot run a script.
+
+Built on [issue 350](https://github.com/Jahazel/lsat-scheduler/issues/350):
+
+- The full CSP is `default-src 'self'`; `script-src 'self' 'nonce-…' 'strict-dynamic'`; `style-src 'self' 'nonce-…'`; `style-src-attr 'unsafe-inline'`; `img-src 'self' blob: data:`; `font-src 'self'`; `object-src 'none'`; `base-uri 'self'`; `form-action 'self'`; `frame-ancestors 'none'`. Development also allows `'unsafe-eval'` in `script-src`, because React uses `eval` there to show server error stacks in the browser.
+- `requestPolicy` makes a new nonce and the CSP for each request. The proxy puts the CSP on the request, where Next.js reads the nonce and adds it to its scripts and styles, and on the response.
+- Every page already renders on each request, because the root layout reads the session. The production build lists every route as dynamic.
+- `CSP_MODE` chooses the mode. Unset, the header is `Content-Security-Policy-Report-Only`. `CSP_MODE=enforce` makes it `Content-Security-Policy`. Turning on enforcement is a setting change and a new deployment, with no code change.
+
 ### Other headers
 
 10. Every response sends:
@@ -81,6 +92,8 @@ Built on [issue 337](https://github.com/Jahazel/lsat-scheduler/issues/337):
     - `Strict-Transport-Security: max-age=63072000`
     - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
 11. HSTS does not use `includeSubDomains` or `preload`, because DrillMap uses a `vercel.app` address.
+
+Built on [issue 350](https://github.com/Jahazel/lsat-scheduler/issues/350): the proxy sets these headers from `requestPolicy` on every response it handles, including redirects and refusals. `next.config.ts` sets the same headers on the static files that the proxy skips. The email verification and reset pages send `Referrer-Policy: no-referrer` in place of the default, because their URLs hold a token.
 
 ### Private responses
 
@@ -250,7 +263,7 @@ The owner made each decision in the issue 76 discussion.
 | --- | --- |
 | SameSite | Lax. |
 | Forged requests | Origin and content-type checks on every request that changes data. No CSRF token. |
-| CSP | Strict, with a nonce. Report-only on the copy of the site first. |
+| CSP | Strict, with a nonce. Report-only on the copy of the site first. Style attributes allowed (owner decision, October 28, 2026). |
 | Other headers | As in rule 10. |
 | Private responses | `private, no-store`. Sign-out clears the browser cache. |
 | Account deletion | Mark first, then one transaction. A retry or a daily job finishes it. |

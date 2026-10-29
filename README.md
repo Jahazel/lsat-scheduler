@@ -142,6 +142,14 @@ credential is a secret that gives access, such as a password or an API key.
    unset. On Vercel, each place sets its own `RESEND_API_KEY`, `EMAIL_FROM`, and
    `SITE_URL`. Without a key, a Vercel deployment logs the failed send instead.
 
+   Leave `CSP_MODE` unset. Every page then sends its Content Security Policy
+   (the CSP: the rules for which scripts and styles may run) as
+   `Content-Security-Policy-Report-Only`, so the browser reports a blocked
+   source in its console and still loads it. Set `CSP_MODE=enforce` to send it as
+   `Content-Security-Policy`, so the browser blocks the source. The proxy reads
+   the setting on each request. On Vercel it is a server-only setting for each
+   place, and a change takes effect at the next deployment.
+
 4. Start the app from the repository folder:
 
    ```bash

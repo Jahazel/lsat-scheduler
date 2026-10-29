@@ -28,9 +28,12 @@ export async function drive(directory, name, steps) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, recordVideo: { dir: resolve(out, `video-${label}`) } });
     await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
     const page = await context.newPage();
-    const found = { label, pageErrors: [], consoleErrors: [], failedRequests: [] };
+    const found = { label, pageErrors: [], consoleErrors: [], cspViolations: [], failedRequests: [] };
     page.on("pageerror", (error) => found.pageErrors.push(error.message));
-    page.on("console", (message) => { if (message.type() === "error") found.consoleErrors.push(message.text()); });
+    page.on("console", (message) => {
+      if (message.type() === "error") found.consoleErrors.push(message.text());
+      if (message.text().includes("Content Security Policy")) found.cspViolations.push(message.text());
+    });
     page.on("requestfailed", (request) => {
       const reason = request.failure()?.errorText;
       if (reason !== "net::ERR_ABORTED") found.failedRequests.push({ method: request.method(), url: request.url(), error: reason });
@@ -70,12 +73,14 @@ export async function drive(directory, name, steps) {
   if (!error && cleanupErrors.length) error = new Error(`Saving the browser evidence failed: ${cleanupErrors[0]}`);
   const pageErrors = sessions.flatMap(({ found }) => found.pageErrors);
   if (!error && pageErrors.length) error = new Error(`The page threw ${pageErrors.length} uncaught error(s). First: ${pageErrors[0]}`);
+  const cspViolations = sessions.flatMap(({ found }) => found.cspViolations);
+  if (!error && cspViolations.length) error = new Error(`The browser reported ${cspViolations.length} CSP violation(s). First: ${cspViolations[0]}`);
   const serverErrors = local("logs", "--from", String(logStart)).errors;
   const result = { passed: !error, error: error?.message, out, sessions: sessions.map(({ found }) => found), serverErrors, cleanupErrors };
   save("actions.json", actions);
   save("result.json", result);
   const count = (key) => result.sessions.reduce((total, found) => total + found[key].length, 0);
-  console.log(JSON.stringify({ passed: result.passed, error: result.error, out, pageErrors: count("pageErrors"), consoleErrors: count("consoleErrors"), failedRequests: count("failedRequests"), serverErrors: serverErrors.length }));
+  console.log(JSON.stringify({ passed: result.passed, error: result.error, out, pageErrors: count("pageErrors"), consoleErrors: count("consoleErrors"), cspViolations: count("cspViolations"), failedRequests: count("failedRequests"), serverErrors: serverErrors.length }));
   if (error) throw error;
   return result;
 }
