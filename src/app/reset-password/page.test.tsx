@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import nextConfig from "../../../next.config";
+import { requestPolicy } from "@/lib/requestPolicy";
 
 const { resetPassword, findResetLinkEmail } = vi.hoisted(() => ({ resetPassword: vi.fn(), findResetLinkEmail: vi.fn() }));
 vi.mock("./actions", () => ({ resetPassword }));
@@ -60,8 +60,9 @@ describe("Set a new password", () => {
 
   it("sends no Referer header from the page", async () => {
     expect(metadata.referrer).toBe("no-referrer");
-    expect(await nextConfig.headers?.()).toContainEqual({
-      source: "/reset-password", headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+    const { responseHeaders } = requestPolicy({
+      method: "GET", pathname: "/reset-password", origin: null, contentType: null, siteUrl: undefined, enforceCsp: false, development: false,
     });
+    expect(responseHeaders["Referrer-Policy"]).toBe("no-referrer");
   });
 });

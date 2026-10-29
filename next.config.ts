@@ -1,14 +1,17 @@
 import type { NextConfig } from "next";
+import { SECURITY_HEADERS } from "./src/lib/requestPolicy";
 
 const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/*": ["src/lib/commonPasswords.txt"],
   },
   async headers() {
-    // A link page's URL holds a token, so no request from it may name that URL.
-    return ["/verify-email", "/reset-password"].map((source) => ({
-      source, headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
-    }));
+    // The proxy replaces these with its own, CSP and per-page referrer included, on every response it handles.
+    // This covers the static files it skips.
+    return [{
+      source: "/:path*",
+      headers: Object.entries(SECURITY_HEADERS).map(([key, value]) => ({ key, value })),
+    }];
   },
   async redirects() {
     if (process.env.VERCEL_ENV !== "production") return [];

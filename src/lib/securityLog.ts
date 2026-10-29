@@ -1,5 +1,6 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { sql } from "drizzle-orm";
+import { CredentialsSignin } from "next-auth";
 import { unstable_rethrow } from "next/navigation";
 import { NextResponse } from "next/server";
 import { findAccountByEmail, isAccountId } from "./accountRepository";
@@ -8,6 +9,7 @@ import type { LimitedAction } from "./actionLimits";
 import type { DeletionRefusal, LoginRefusal } from "./passwordAccount";
 import type { VerificationResult } from "./pendingSignupRepository";
 import { getPostgresDatabase } from "./postgres";
+import type { ForgedRequestRefusal } from "./requestPolicy";
 import type { ScanRefusal } from "./scanPlaces";
 import { UNEXPECTED_FAILURE_MESSAGE, type Answer, type FailureCode } from "./unexpectedFailure";
 
@@ -25,6 +27,7 @@ type AppEvents = {
   admin_action_refused: "refused";
   limit_refused: LimitedAction | ScanRefusal["refused"];
   budget_cutoff: "limitReached";
+  forged_request_refused: ForgedRequestRefusal["result"];
 };
 
 export type Subject = { account: string } | { nobody: true };
@@ -107,6 +110,25 @@ export async function answerRequest(route: SecurityLogRoute, work: () => Promise
   } catch (error) {
     unstable_rethrow(error);
     return NextResponse.json(await recordUnexpectedFailure(route, error), { status: 500 });
+  }
+}
+
+/** Auth.js copies `code` into the Login URL only for a CredentialsSignin; the type keeps it off the wrong-password notice. */
+class GoogleSignInFailed extends CredentialsSignin {
+  static type = "AccessDenied" as const;
+
+  constructor(readonly code: FailureCode) {
+    super();
+  }
+}
+
+/** Runs the Google work of an Auth.js callback. Auth.js hides thrown errors, so a failure is logged here and Login gets its code. */
+export async function answerGoogleSignIn<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (error) {
+    unstable_rethrow(error);
+    throw new GoogleSignInFailed((await recordUnexpectedFailure("/api/auth/callback/google", error)).code);
   }
 }
 
