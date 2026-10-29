@@ -14,11 +14,8 @@ permissions:
 jobs:
   worker:
     uses: Jahazel/software-factory/.github/workflows/worker.yml@main
+    # The factory worker reads .factory/setup.sh, .factory/smoke.sh, and .factory/worker-rules.md.
     with:
-      setup: .factory/setup.sh
-      proof: .factory/smoke.sh
-      proof-path: .verification/evidence/
-      rules: .factory/worker-rules.md
       issue: ${{ inputs.issue }}
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
