@@ -3,6 +3,9 @@ name: Factory orchestrator
 on:
   issues:
     types: [labeled]
+  # Main moved, so open factory PRs are behind it. Strict required checks block them until main is merged in.
+  push:
+    branches: [main]
   workflow_dispatch:
 
 # The orchestrator claims and releases labels and starts itself again with github.token.
@@ -14,15 +17,18 @@ permissions:
 
 jobs:
   orchestrate:
-    # Only the owner's agent:implement label starts a run. Other label changes, such as the
-    # worker's agent:blocked, use no job computer.
+    # Only the owner's agent:implement label starts a run on a label event. Other label changes,
+    # such as the worker's agent:blocked, use no job computer.
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
       (github.event.label.name == 'agent:implement' && github.event.sender.login == github.repository_owner)
     uses: Jahazel/software-factory/.github/workflows/orchestrator.yml@main
     with:
       cap: 1
       dry-run: false
+      # Where a merge conflict goes to a worker. Any other conflict blocks the PR.
+      agent-conflicts: migrations/
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       FACTORY_GITHUB_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN }}
