@@ -23,17 +23,18 @@ BEGIN
   END IF;
   REVOKE ALL PRIVILEGES ON TABLE public.accounts, public.students,
     public.analytics_snapshots, public.practice_test_results, public.weekly_schedules, public.activity_check_ins, public.action_counters, public.running_scans,
-    public.scan_settings, public.scan_spending, public.pending_signups, public.reset_tokens, public.security_log FROM PUBLIC;
+    public.scan_settings, public.scan_spending, public.pending_signups, public.reset_tokens, public.security_log, public.deletion_list FROM PUBLIC;
   REVOKE ALL ON FUNCTION public.prune_security_log() FROM PUBLIC;
-  EXECUTE format('REVOKE ALL PRIVILEGES ON TABLE public.accounts, public.students, public.analytics_snapshots, public.practice_test_results, public.weekly_schedules, public.activity_check_ins, public.action_counters, public.running_scans, public.scan_settings, public.scan_spending, public.pending_signups, public.reset_tokens, public.security_log FROM %I', app_role);
+  EXECUTE format('REVOKE ALL PRIVILEGES ON TABLE public.accounts, public.students, public.analytics_snapshots, public.practice_test_results, public.weekly_schedules, public.activity_check_ins, public.action_counters, public.running_scans, public.scan_settings, public.scan_spending, public.pending_signups, public.reset_tokens, public.security_log, public.deletion_list FROM %I', app_role);
   EXECUTE format('REVOKE ALL ON FUNCTION public.prune_security_log() FROM %I', app_role);
-  EXECUTE format('REVOKE ALL ON FUNCTION public.log_admin_role_change(), public.log_emergency_switch() FROM %I', app_role);
-  EXECUTE format('GRANT SELECT, DELETE, INSERT (email, name, google_id, password_hash), UPDATE (simulated_date, session_version, password_hash) ON TABLE public.accounts TO %I', app_role);
+  EXECUTE format('REVOKE ALL ON FUNCTION public.log_admin_role_change(), public.log_emergency_switch(), public.keep_deleting_mark() FROM %I', app_role);
+  EXECUTE format('GRANT SELECT, DELETE, INSERT (email, name, google_id, password_hash), UPDATE (simulated_date, session_version, password_hash, deleting_since) ON TABLE public.accounts TO %I', app_role);
   EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.students, public.analytics_snapshots, public.practice_test_results, public.activity_check_ins, public.action_counters TO %I', app_role);
   EXECUTE format('GRANT SELECT, INSERT, DELETE ON TABLE public.weekly_schedules, public.running_scans TO %I', app_role);
   EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.scan_spending, public.pending_signups, public.reset_tokens TO %I', app_role);
   EXECUTE format('GRANT SELECT ON TABLE public.scan_settings TO %I', app_role);
   EXECUTE format('GRANT INSERT (event, result, route, account_id, ip_address, email_hash, error_code, error_type) ON TABLE public.security_log TO %I', app_role);
+  EXECUTE format('GRANT SELECT (deleted_at), INSERT (account_id, email_hash), DELETE ON TABLE public.deletion_list TO %I', app_role);
   EXECUTE format('GRANT EXECUTE ON FUNCTION public.prune_security_log() TO %I', app_role);
 END;
 $$;

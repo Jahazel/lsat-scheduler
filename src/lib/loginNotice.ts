@@ -5,6 +5,7 @@ export const SESSION_ENDED_PATH = "/login?error=SessionEnded";
 export const EMAIL_VERIFIED_PATH = "/login?notice=EmailVerified";
 export const PASSWORD_CHANGED_PATH = "/login?notice=PasswordChanged";
 export const EMAIL_USES_PASSWORD_PATH = "/login?error=EmailUsesPassword";
+export const DELETION_WILL_FINISH_PATH = "/login?notice=DeletionWillFinish";
 
 export type LoginNotice = {
   tone: "danger" | "warning" | "info" | "emailSent" | "success";
@@ -34,6 +35,13 @@ type QueryValue = string | string[] | undefined;
 
 export function loginNotice({ error, notice, code }: { error?: QueryValue; notice?: QueryValue; code?: QueryValue }): LoginNotice | null {
   if (notice === "EmailVerified") return { tone: "success", text: "Email verified. Log in.", place: "aboveEmail" };
+  if (notice === "DeletionWillFinish") {
+    return {
+      tone: "info",
+      text: "Your Account is closed, and you are signed out. Some of your data is not deleted yet. DrillMap will finish deleting it within a day.",
+      place: "aboveGoogle",
+    };
+  }
   if (notice === "PasswordChanged") return { tone: "success", text: "Password changed. Log in with your new password.", place: "aboveEmail" };
   if (typeof error !== "string" || !error) return null;
   if (error === "SessionEnded") return { tone: "info", text: "Your session ended. Log in again.", place: "aboveGoogle" };

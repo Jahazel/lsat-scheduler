@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 import { findAccountByEmail, isAccountId } from "./accountRepository";
 import { clientIpAddress } from "./clientIpAddress";
 import type { LimitedAction } from "./actionLimits";
-import type { DeletionRefusal, LoginRefusal } from "./passwordAccount";
+import type { DeletionResult, LoginRefusal } from "./passwordAccount";
 import type { VerificationResult } from "./pendingSignupRepository";
 import { getPostgresDatabase } from "./postgres";
 import type { ForgedRequestRefusal } from "./requestPolicy";
@@ -22,7 +22,7 @@ type AppEvents = {
   password_reset_request: "passwordAccount" | "googleAccount" | "pendingSignup" | "noAccount" | "paused";
   password_reset: "changed" | "linkDoesNotWork";
   password_change: "changed" | "wrong-password" | "paused";
-  account_deletion: "deleted" | DeletionRefusal;
+  account_deletion: DeletionResult;
   student_data_refused: "refused";
   admin_action_refused: "refused";
   limit_refused: LimitedAction | ScanRefusal["refused"];
@@ -67,7 +67,7 @@ export function errorTypeOf(error: unknown) {
   return SAFE_ERROR_TYPE.test(type) ? type : "unknown";
 }
 
-function emailHash(email: string) {
+export function emailHash(email: string) {
   const key = process.env.AUTH_SECRET;
   if (!key) throw new Error("AUTH_SECRET is not set");
   return createHmac("sha256", key).update(email).digest("hex");
@@ -132,7 +132,7 @@ export async function answerGoogleSignIn<T>(work: () => Promise<T>): Promise<T> 
   }
 }
 
-async function recordUnexpectedFailure(route: SecurityLogRoute, error: unknown) {
+export async function recordUnexpectedFailure(route: SecurityLogRoute, error: unknown) {
   const code = randomBytes(4).toString("hex") as FailureCode;
   const errorType = errorTypeOf(error);
   console.error(`Unexpected failure on ${route} (${code}): ${errorType}`);

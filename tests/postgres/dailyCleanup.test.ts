@@ -85,7 +85,10 @@ it("refuses every call when the place has no cron secret set", async () => {
 it("removes pending signups older than 7 days, expired reset tokens, and security log entries older than 90 days", async () => {
   const response = await GET(cronRequest(`Bearer ${CRON_SECRET}`));
   expect(response.status).toBe(200);
-  expect(await response.json()).toEqual({ securityLogRemoved: 1, pendingSignupsRemoved: 1, resetTokensRemoved: 1 });
+  expect(await response.json()).toEqual({
+    securityLogRemoved: 1, pendingSignupsRemoved: 1, resetTokensRemoved: 1,
+    accountDeletionsFinished: 0, accountDeletionsFailed: 0, deletionListRemoved: 0,
+  });
   expect(await remainingRows()).toEqual({
     signups: ["fresh@example.test"],
     resets: ["reset-live"],
@@ -97,7 +100,10 @@ it("gives the same result when the route runs twice", async () => {
   await GET(cronRequest(`Bearer ${CRON_SECRET}`));
   const second = await GET(cronRequest(`Bearer ${CRON_SECRET}`));
   expect(second.status).toBe(200);
-  expect(await second.json()).toEqual({ securityLogRemoved: 0, pendingSignupsRemoved: 0, resetTokensRemoved: 0 });
+  expect(await second.json()).toEqual({
+    securityLogRemoved: 0, pendingSignupsRemoved: 0, resetTokensRemoved: 0,
+    accountDeletionsFinished: 0, accountDeletionsFailed: 0, deletionListRemoved: 0,
+  });
   expect(await remainingRows()).toEqual({
     signups: ["fresh@example.test"],
     resets: ["reset-live"],

@@ -418,6 +418,26 @@ it("refuses to reuse an existing role that can switch to an administration role"
   }
 });
 
+it("adds and deletes deletion list rows but cannot change them, read their hash, or set their time", async () => {
+  await ownerDb().execute(sql`truncate deletion_list`);
+  const accountId = randomUUID();
+  const hash = "a".repeat(64);
+  await appDb().execute(sql`insert into deletion_list (account_id, email_hash) values (${accountId}, ${hash})`);
+  for (const query of [
+    sql`update deletion_list set email_hash = ${"b".repeat(64)}`,
+    sql`update deletion_list set deleted_at = now() - interval '1 year'`,
+    sql`select email_hash from deletion_list`,
+    sql`insert into deletion_list (account_id, email_hash, deleted_at) values (${randomUUID()}, ${hash}, now() - interval '1 year')`,
+    sql`truncate deletion_list`,
+  ]) {
+    await expect(appDb().execute(query)).rejects.toMatchObject({ cause: { code: "42501" } });
+  }
+  expect((await ownerDb().execute(sql`select account_id, email_hash from deletion_list`)).rows)
+    .toEqual([{ account_id: accountId, email_hash: hash }]);
+  await appDb().execute(sql`delete from deletion_list where deleted_at < now() + interval '1 minute'`);
+  expect((await ownerDb().execute(sql`select account_id from deletion_list`)).rows).toEqual([]);
+});
+
 it("adds security log entries but cannot read, change, or erase them, and prunes only entries older than 90 days", async () => {
   await ownerDb().execute(sql`truncate security_log`);
   await appDb().execute(sql`

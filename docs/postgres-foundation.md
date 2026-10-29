@@ -128,6 +128,12 @@ emailed token. See [ADR 0006](adr/0006-pending-signups-live-outside-the-accounts
 Every owner link deletes its child records when the owner is deleted.
 Deleting an Account therefore removes its student, Analytics snapshots,
 Practice-test results, Weekly schedules, and Activity check-ins. It keeps other Accounts.
+
+Since `0017_two_step_account_deletion.sql`, the app deletes an Account in two
+steps. Step 1 sets `accounts.deleting_since`, which a trigger keeps once set.
+Step 2 deletes the Account and adds a `deletion_list` row with the Account ID,
+the keyed email hash, and the time, in one transaction. See
+[the browser and data rules](security/issue-76-decisions.md#account-deletion).
 An Account can exist before onboarding creates its student.
 
 Accounts normalize emails on insert and update. Database checks

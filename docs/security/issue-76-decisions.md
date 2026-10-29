@@ -109,6 +109,17 @@ Built on [issue 350](https://github.com/Jahazel/lsat-scheduler/issues/350): the 
 18. If step 2 fails, the student sees a message that deletion will finish. A retry by the student or a daily job finishes every Account marked "deleting."
 19. A retry never removes the mark and never restores access.
 
+Built on [issue 351](https://github.com/Jahazel/lsat-scheduler/issues/351):
+
+- Migration `0017_two_step_account_deletion` adds `accounts.deleting_since` and the `deletion_list` table. A trigger refuses any change to `deleting_since` once it is set, for the owner too, so nothing removes the mark.
+- Step 1 sets `deleting_since`. The session check refuses a marked Account as it refuses a Disabled Account, so every page, API request, Server Action, and Admin page refuses it on the next request.
+- Step 2 is one transaction: it deletes the marked Account, whose records go with it through the database cascades, and inserts one `deletion_list` row. The Account ID is the row's primary key. A second attempt finds no marked Account and changes nothing.
+- The email hash is the security log's keyed hash (HMAC-SHA-256 with `AUTH_SECRET`) of the normalized email. No new secret is added.
+- The app role may insert the Account ID and the hash, read only `deleted_at`, and delete rows. It cannot update rows, read the hash, or set `deleted_at`.
+- When step 2 fails, the error goes to the security log with its code, the `account_deletion` entry has the result `will-finish`, and the student is signed out to Login with "Your Account is closed, and you are signed out. Some of your data is not deleted yet. DrillMap will finish deleting it within a day."
+- A retry is a sign-in by the marked Account, with Google or with its password. The sign-in runs step 2 again and is refused as for a Disabled Account. The daily cleanup job runs step 2 for every marked Account, then deletes deletion list rows older than 30 days (rule 24).
+- An Admin still cannot delete their own Account from the Account page, as before.
+
 ### How long data is kept
 
 20. Account data stays until the student deletes the Account.

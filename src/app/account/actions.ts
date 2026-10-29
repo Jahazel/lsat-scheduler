@@ -9,7 +9,7 @@ import { studentSideToday } from "@/lib/studentClock";
 import { parseStudentProfile, type StudentProfileInput } from "@/lib/studentProfile";
 import { ADMIN_RESTRICTED_ACTION_MESSAGE, isAdminUser } from "@/lib/accessControl";
 import { passwordRequest } from "@/lib/clientIpAddress";
-import { PASSWORD_CHANGED_PATH } from "@/lib/loginNotice";
+import { DELETION_WILL_FINISH_PATH, PASSWORD_CHANGED_PATH } from "@/lib/loginNotice";
 import { CURRENT_PASSWORD_MESSAGES } from "@/lib/currentPasswordMessages";
 import * as passwordAccount from "@/lib/passwordAccount";
 import { PASSWORD_MESSAGES } from "@/lib/passwordRules";
@@ -53,8 +53,8 @@ export async function deleteAccount(_previous: Answer<DeletionRefusal>, formData
       { confirmation: formData.get("confirmation"), currentPassword: formData.get("currentPassword"), signedInAt: session.signedInAt },
       await passwordRequest("/account"),
     );
-    if (result !== "deleted") return result;
-    await signOut({ redirectTo: "/" });
+    if (result !== "deleted" && result !== "will-finish") return result;
+    await signOut({ redirectTo: result === "deleted" ? "/" : DELETION_WILL_FINISH_PATH });
     return null;
   });
 }

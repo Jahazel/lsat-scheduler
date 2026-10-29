@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { sql } from "drizzle-orm";
+import { deleteOldDeletionListRows, finishMarkedDeletions } from "./accountDeletion";
 import { getPostgresDatabase } from "./postgres";
 import { deleteOldPendingSignups } from "./pendingSignupRepository";
 
@@ -16,9 +17,14 @@ export async function runDailyCleanup() {
   const securityLog = await db.execute<{ removed: string }>(sql`select prune_security_log() as removed`);
   const pendingSignupsRemoved = await deleteOldPendingSignups();
   const resets = await db.execute(sql`delete from reset_tokens where expires_at < now()`);
+  const deletions = await finishMarkedDeletions("/api/cron/daily-cleanup");
+  const deletionListRemoved = await deleteOldDeletionListRows();
   return {
     securityLogRemoved: Number(securityLog.rows[0]?.removed),
     pendingSignupsRemoved,
     resetTokensRemoved: resets.rowCount ?? 0,
+    accountDeletionsFinished: deletions.finished,
+    accountDeletionsFailed: deletions.failed,
+    deletionListRemoved,
   };
 }

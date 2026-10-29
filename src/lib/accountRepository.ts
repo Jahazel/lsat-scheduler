@@ -19,6 +19,7 @@ const publicColumns = {
   simulatedDate: accounts.simulatedDate,
   disabledAt: accounts.disabledAt,
   sessionVersion: accounts.sessionVersion,
+  deletingSince: accounts.deletingSince,
 };
 
 export async function findAccountById(id: string | undefined) {
@@ -72,14 +73,20 @@ export async function replacePasswordHash(proof: CurrentPasswordProof, newHash: 
   return changed.length === 1;
 }
 
-/** Returns false when the password changed after the check. */
-export async function deletePasswordAccount(proof: CurrentPasswordProof) {
-  const deleted = await getPostgresDatabase().delete(accounts).where(passwordUnchangedSinceProof(proof)).returning({ id: accounts.id });
-  return deleted.length === 1;
+export async function markPasswordAccountDeleting(proof: CurrentPasswordProof) {
+  const marked = await getPostgresDatabase()
+    .update(accounts)
+    .set({ deletingSince: sql`coalesce(${accounts.deletingSince}, now())` })
+    .where(passwordUnchangedSinceProof(proof))
+    .returning({ id: accounts.id });
+  return marked.length === 1;
 }
 
-export async function deleteGoogleAccount(id: AccountId) {
-  await getPostgresDatabase().delete(accounts).where(and(eq(accounts.id, id), isNotNull(accounts.googleId)));
+export async function markGoogleAccountDeleting(id: AccountId) {
+  await getPostgresDatabase()
+    .update(accounts)
+    .set({ deletingSince: sql`coalesce(${accounts.deletingSince}, now())` })
+    .where(and(eq(accounts.id, id), isNotNull(accounts.googleId)));
 }
 
 export async function findAccountByGoogleId(googleId: string) {

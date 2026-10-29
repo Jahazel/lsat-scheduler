@@ -25,6 +25,7 @@ export const accounts = pgTable("accounts", {
   simulatedDate: date("simulated_date", { mode: "string" }),
   disabledAt: timestamp("disabled_at", { withTimezone: true }),
   sessionVersion: integer("session_version").notNull().default(0),
+  deletingSince: timestamp("deleting_since", { withTimezone: true }),
 });
 
 const dailyCapacity = (name: string) => numeric(name, { mode: "number" }).notNull();

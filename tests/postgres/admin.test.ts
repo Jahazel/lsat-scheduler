@@ -217,7 +217,7 @@ it("Reset everything deletes the Admin's student and test history and keeps thei
   const after = await everyRow();
   expect(await findAccountById(admin.account.id)).toEqual({
     id: admin.account.id, email: "admin@example.test", name: "Admin", role: "admin", simulatedDate: null,
-    disabledAt: null, sessionVersion: 0,
+    disabledAt: null, sessionVersion: 0, deletingSince: null,
   });
   expect(after.students).toEqual((otherRows.students as { id: string }[]).filter((row) => row.id === other.saved.id));
   for (const table of ["analytics_snapshots", "weekly_schedules"] as const) {

@@ -12,7 +12,7 @@ import { changePassword, deleteAccount } from "../../src/app/account/actions";
 import AccountPage from "../../src/app/account/page";
 import { handlers } from "../../src/auth";
 import { PASSWORD_LOGIN_NOTICES } from "../../src/lib/loginNotice";
-import { deletePasswordAccount, findPasswordAccountById, isAccountId, replacePasswordHash } from "../../src/lib/accountRepository";
+import { findPasswordAccountById, isAccountId, markPasswordAccountDeleting, replacePasswordHash } from "../../src/lib/accountRepository";
 import type { Answer } from "../../src/lib/unexpectedFailure";
 import { planned } from "./plannedAnswer";
 import { proveCurrentPassword } from "../../src/lib/passwordAccount";
@@ -254,6 +254,35 @@ describe("password Account deletion", () => {
     expect(await sessionUserId(cookie)).toBeNull();
   });
 
+  it("ends the session at once when step 2 fails, and a later login finishes the deletion without signing in", async () => {
+    const id = await passwordStudent();
+    const { cookie } = await logIn(MAYA, OLD_PASSWORD);
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    await database.owner.execute(sql`create function reject_student_delete_test() returns trigger language plpgsql as
+      'BEGIN RAISE EXCEPTION ''forced student delete failure''; END;'`);
+    await database.owner.execute(sql`create trigger reject_student_delete_test before delete on students
+      for each row execute function reject_student_delete_test()`);
+    try {
+      expect(await remove(cookie, OLD_PASSWORD)).toEqual({ state: null, redirectedTo: "/login?notice=DeletionWillFinish" });
+      expect(await accountCount(id)).toEqual({ accounts: 1, students: 1 });
+      expect(await sessionUserId(cookie)).toBeNull();
+      await expect(openAccountPage(cookie)).rejects.toThrow("redirect:/login");
+      request.cookie = cookie;
+      expect(await changePassword(null, form({ currentPassword: OLD_PASSWORD, newPassword: NEW_PASSWORD })))
+        .toEqual({ unexpectedFailure: expect.any(String) });
+      expect(await passwordHashOf(id)).toBe(oldPasswordHash);
+      expect((await logIn(MAYA, OLD_PASSWORD)).cookie).toBe("");
+      expect(await accountCount(id)).toEqual({ accounts: 1, students: 1 });
+    } finally {
+      await database.owner.execute(sql`drop trigger reject_student_delete_test on students`);
+      await database.owner.execute(sql`drop function reject_student_delete_test()`);
+      logged.mockRestore();
+    }
+    expect(await logIn(MAYA, OLD_PASSWORD)).toEqual({ refused: null, cookie: "" });
+    expect(await accountCount(id)).toEqual({ accounts: 0, students: 0 });
+    expect(await ownerRows(sql`select count(*)::int as rows from deletion_list where account_id = ${id}`)).toEqual([{ rows: 1 }]);
+  });
+
   it("refuses a wrong password and keeps the Account", async () => {
     const id = await passwordStudent();
     const { cookie } = await logIn(MAYA, OLD_PASSWORD);
@@ -290,7 +319,7 @@ describe("a reset between the password check and the write", () => {
     await database.owner.execute(sql`update accounts set password_hash = ${resetHash} where id = ${id}`);
 
     expect(await replacePasswordHash(check.proof, await hashPassword(NEW_PASSWORD))).toBe(false);
-    expect(await deletePasswordAccount(check.proof)).toBe(false);
+    expect(await markPasswordAccountDeleting(check.proof)).toBe(false);
     expect(await passwordHashOf(id)).toBe(resetHash);
     expect(await accountCount(id)).toEqual({ accounts: 1, students: 1 });
   });
