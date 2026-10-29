@@ -211,8 +211,8 @@ rows in all six domain tables. It can update every domain table except
 `simulated_date`, `session_version`, `password_hash`, and `deleting_since`.
 It reads, inserts, updates, and deletes pending signups and reset tokens. On
 `deletion_list`, it inserts only `account_id` and `email_hash`, reads only
-`deleted_at`, and deletes rows. It cannot update deletion list rows. Only the owner may give the Admin role, disable an
-Account, or change its Google ID. The Weekly schedule trigger stays in place as a second
+`deleted_at`, and deletes rows. It cannot update deletion list rows. Only
+the owner may give the Admin role, disable an Account, or change its Google ID. The Weekly schedule trigger stays in place as a second
 protection for the database owner. The app role cannot create roles,
 databases, schemas, tables, temporary tables, or other schema objects.
 It cannot alter, drop, truncate, or disable triggers on the domain tables.
