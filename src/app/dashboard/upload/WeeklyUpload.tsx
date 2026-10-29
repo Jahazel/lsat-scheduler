@@ -22,7 +22,7 @@ import {
   type AnalyticsReading, type FileRead, type QueuedFile, type ReadQueue,
 } from "@/lib/screenshotReadQueue";
 import {
-  CANNOT_READ, MAX_SCREENSHOT_MB, SCREENSHOT_MEDIA_TYPES, TOOK_TOO_LONG, checkScreenshotType, extractPracticeTestScreenshot,
+  CANNOT_READ, MAX_SCREENSHOT_MB, SCREENSHOT_MEDIA_TYPES, SCREENSHOT_NOTICE, TOOK_TOO_LONG, checkScreenshotType, extractPracticeTestScreenshot,
   extractScreenshot,
 } from "@/lib/screenshotUpload";
 import type { ScanningOff } from "@/lib/scanSpending";
@@ -358,6 +358,7 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
                 />
               ))}
               {!needsSections && !analytics.LR && !analytics.RC && <p className="text-small text-smoke">{LIMITS}</p>}
+              {!needsSections && !started && <p className="text-small text-smoke">{SCREENSHOT_NOTICE}</p>}
             </>
           )}
         </UploadGroup>
@@ -403,6 +404,7 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
                 </ol>
                 {tileRejection && <p role="alert" className="text-small text-danger-ink">{tileRejection}</p>}
                 <p className="text-small text-smoke">{LIMITS}</p>
+                <p className="text-small text-smoke">{SCREENSHOT_NOTICE}</p>
               </>
             ) : (
               <SectionRows
