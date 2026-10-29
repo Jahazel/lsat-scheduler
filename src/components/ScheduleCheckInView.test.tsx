@@ -143,7 +143,7 @@ describe("ScheduleCheckInView", () => {
 
   it("shows a read-only plan whose lines ignore clicks, Space, and Enter", async () => {
     render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent}
-      checkIns={[done("MONDAY:0")]} heading="Your past plan" readOnly />);
+      checkIns={[done("MONDAY:0")]} readOnly />);
     expect(screen.queryByRole("checkbox")).toBeNull();
     const [doneRow, openRow] = within(dayCard("Monday")).getAllByRole("listitem");
     await userEvent.click(doneRow!);

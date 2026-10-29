@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { listPastWeekMonths } from "./progressHistory";
+import { listPastWeekMonths, resolveProgressRoute } from "./progressHistory";
 import type { ActivityCheckIn, WeeklySchedule } from "./types";
 
 function schedule(weekOf: string, activityCount = 2): WeeklySchedule {
@@ -91,5 +91,76 @@ describe("listPastWeekMonths", () => {
       { month: "December 2026", weeks: ["Dec 28 – Jan 3"] },
       { month: "September 2026", weeks: ["Sep 28 – Oct 4"] },
     ]);
+  });
+});
+
+describe("resolveProgressRoute", () => {
+  const history = [saved("2026-08-03"), saved("2026-08-10", 3), saved("2026-08-24"), saved("2026-08-31"), saved("2026-09-07")];
+  const route = (requestedWeek: string | undefined, schedules = history) =>
+    resolveProgressRoute({ schedules, checkIns: [], currentWeekStartDate: "2026-09-07", requestedWeek });
+  const neighbors = (requestedWeek: string, schedules = history) => {
+    const resolved = route(requestedWeek, schedules);
+    if (resolved.kind !== "week") throw new Error(`expected a week, got ${resolved.kind}`);
+    return { week: resolved.week.label, older: resolved.older?.label, newer: resolved.newer?.label };
+  };
+
+  it("gives a middle week both neighbors", () => {
+    expect(neighbors("2026-08-24")).toEqual({ week: "Aug 24 – 30", older: "Aug 10 – 16", newer: "Aug 31 – Sep 6" });
+  });
+
+  it("steps over a skipped week each way", () => {
+    expect(neighbors("2026-08-24").older).toBe("Aug 10 – 16");
+    expect(neighbors("2026-08-10").newer).toBe("Aug 24 – 30");
+  });
+
+  it("gives the newest past week no newer week, even when This week has a schedule", () => {
+    expect(neighbors("2026-08-31")).toEqual({ week: "Aug 31 – Sep 6", older: "Aug 24 – 30", newer: undefined });
+  });
+
+  it("gives the oldest week no older week", () => {
+    expect(neighbors("2026-08-03")).toEqual({ week: "Aug 3 – 9", older: undefined, newer: "Aug 10 – 16" });
+  });
+
+  it("gives the only past week neither neighbor", () => {
+    expect(neighbors("2026-08-31", [saved("2026-08-31"), saved("2026-09-07")])).toEqual({ week: "Aug 31 – Sep 6", older: undefined, newer: undefined });
+  });
+
+  it("carries each neighbor's done count", () => {
+    const resolved = resolveProgressRoute({
+      schedules: history,
+      checkIns: checkIns("2026-08-10", ["completed", "completed", "not_started"]),
+      currentWeekStartDate: "2026-09-07",
+      requestedWeek: "2026-08-24",
+    });
+    expect(resolved.kind === "week" && resolved.older).toMatchObject({ weekStartDate: "2026-08-10", done: 2, total: 3 });
+  });
+
+  it("gives the requested week its own schedule and check-ins", () => {
+    const resolved = resolveProgressRoute({
+      schedules: history,
+      checkIns: [...checkIns("2026-08-24", ["completed"]), ...checkIns("2026-08-10", ["completed"])],
+      currentWeekStartDate: "2026-09-07",
+      requestedWeek: "2026-08-24",
+    });
+    if (resolved.kind !== "week") throw new Error(`expected a week, got ${resolved.kind}`);
+    expect(resolved.schedule.id).toBe("schedule-2026-08-24");
+    expect(resolved.checkIns.map((checkIn) => checkIn.scheduleId)).toEqual(["schedule-2026-08-24"]);
+    expect(resolved.week).toMatchObject({ done: 1, total: 2 });
+  });
+
+  it("sends the current week to This week", () => {
+    expect(route("2026-09-07")).toEqual({ kind: "this_week" });
+  });
+
+  it.each([
+    ["no week", undefined],
+    ["a skipped week", "2026-08-17"],
+    ["a week before the first schedule", "2026-01-05"],
+    ["a later week", "2026-09-14"],
+    ["text that is not a date", "soon"],
+  ])("opens the list for %s", (_, requestedWeek) => {
+    const resolved = route(requestedWeek);
+    expect(resolved.kind).toBe("list");
+    expect(resolved.kind === "list" && resolved.months.map((month) => month.month)).toEqual(["August 2026"]);
   });
 });

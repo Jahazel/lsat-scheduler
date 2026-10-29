@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition, type ReactNode } from "react";
 import { DAY_ORDER } from "@/lib/engine";
 import { activityLabel } from "@/lib/activityLabel";
 import { formatDuration } from "@/lib/formatDuration";
 import { plannedActivityMinutes, scheduleActivityId } from "@/lib/currentWeeklySchedule";
-import { doneActivityIds, formatScheduleWeekOf, remainingActivityCount, scheduledActivityCount } from "@/lib/scheduleCheckInSummary";
+import { doneActivityIds, formatScheduleWeekOf, remainingActivityCount, scheduledActivityCount, weekNotes } from "@/lib/scheduleCheckInSummary";
 import { dayName, isoDateInWeek } from "@/lib/scheduleReasonText";
 import type { ActivityCheckIn, DayPlan, Student, WeeklySchedule } from "@/lib/types";
 import { saveActivityCheckIn } from "@/app/dashboard/actions";
@@ -24,7 +24,9 @@ interface ScheduleCheckInViewProps {
   student: Student;
   checkIns: ActivityCheckIn[];
   readOnly?: boolean;
-  heading?: string;
+  header?: ReactNode;
+  footer?: ReactNode;
+  gutter?: string;
   /** The student's local date (YYYY-MM-DD). Adds the pace status and the Today label. */
   today?: string;
   uploadReminder?: boolean;
@@ -70,7 +72,9 @@ export default function ScheduleCheckInView({
   student,
   checkIns,
   readOnly = false,
-  heading = "Your plan for this week",
+  header,
+  footer,
+  gutter = "px-5 md:px-18",
   today,
   uploadReminder = false,
 }: ScheduleCheckInViewProps) {
@@ -82,11 +86,9 @@ export default function ScheduleCheckInView({
   const doneIds = doneActivityIds(savedCheckIns);
   const totalActivities = scheduledActivityCount(schedule);
   const doneActivities = totalActivities - remainingActivityCount(schedule, savedCheckIns);
-  const isPastPlan = heading === "Your past plan";
   const dates = DAY_ORDER.map((_, index) => isoDateInWeek(schedule.weekOf, index));
   const dueSoFar = today === undefined ? undefined : DAY_ORDER.reduce(
     (due, day, index) => dates[index]! <= today ? due + schedule.days[day].activities.length : due, 0);
-  const weekNotes = schedule.reasons?.filter((reason) => reason.placement.scope === "week").map((reason) => reason.sentence) ?? [];
   const practiceTestDays = DAY_ORDER.filter((day) => schedule.days[day].type === "practice_test");
 
   function toggle(activityId: string) {
@@ -116,14 +118,14 @@ export default function ScheduleCheckInView({
           action="Plan next week"
         />
       )}
-      <PageHeader
-        eyebrow={isPastPlan ? undefined : `Week of ${formatScheduleWeekOf(schedule.weekOf)}`}
-        title={heading}
-        lead={isPastPlan || readOnly ? undefined : "Your plan is set. Check off as you go."}
-        notes={weekNotes}
+      {header ?? <PageHeader
+        eyebrow={`Week of ${formatScheduleWeekOf(schedule.weekOf)}`}
+        title="Your plan for this week"
+        lead={readOnly ? undefined : "Your plan is set. Check off as you go."}
+        notes={weekNotes(schedule)}
         aside={<div aria-live="polite"><ProgressBar done={doneActivities} total={totalActivities} dueSoFar={dueSoFar} /></div>}
-      />
-      <div className="flex flex-col gap-4 px-5 pt-8 pb-16 md:px-18 md:pt-16 md:pb-24">
+      />}
+      <div className={cx("flex flex-col gap-4 pt-8 pb-16 md:pt-16 md:pb-24", gutter)}>
         <FailureNotice answer={failure} className="px-2 text-small text-danger-ink" />
         {DAY_ORDER.map((day, dayIndex) => {
           const plan = schedule.days[day];
@@ -166,6 +168,7 @@ export default function ScheduleCheckInView({
             </section>
           );
         })}
+        {footer}
       </div>
     </>
   );
