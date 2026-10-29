@@ -12,8 +12,8 @@ import { serverErrors } from "./appLog.mjs";
 
 const commands = {
   launch: {
-    args: "", valid: (extra) => extra.length === 0,
-    does: "Start DrillMap on http://127.0.0.1:3100 with a new disposable Postgres database. Keep this terminal open; Ctrl+C stops the run.",
+    args: " [--production]", valid: (extra) => extra.length === 0 || extra.length === 1 && extra[0] === "--production",
+    does: "Start DrillMap on http://127.0.0.1:3100 with a new disposable Postgres database. Keep this terminal open; Ctrl+C stops the run. --production builds the app and runs the build instead of next dev.",
     example: "launch \"$VERIFY_RUN_DIR\"",
   },
   doctor: {
@@ -164,12 +164,12 @@ async function launch() {
   let stopping = false;
   let state;
   let postgresDatabase;
-  const start = (program, args, log, env) => {
+  const start = (program, args, log, env, { exits = false } = {}) => {
     const fd = openSync(resolve(run, log), "a");
     const child = spawn(program, args, { cwd: root, detached: true, stdio: ["ignore", fd, fd], env });
     children.push(child);
     child.on("error", (error) => { console.error(error.message); void stop(1); });
-    child.on("exit", (code) => { if (!stopping) { console.error(`${program} exited with ${code}`); void stop(1); } });
+    if (!exits) child.on("exit", (code) => { if (!stopping) { console.error(`${program} exited with ${code}`); void stop(1); } });
     return child;
   };
   async function stop(code) {
@@ -202,12 +202,19 @@ async function launch() {
     const authSecret = randomBytes(32).toString("base64");
     mkdirSync(resolve(run, "scratch"), { recursive: true });
     writeFileSync(resolve(run, "scratch/auth-secret"), authSecret, { mode: 0o600 });
-    const appEnv = { ...process.env, NODE_ENV: "development", DATABASE_URL: postgresDatabase.setting,
+    const production = extra[0] === "--production";
+    const appEnv = { ...process.env, NODE_ENV: production ? "production" : "development", DATABASE_URL: postgresDatabase.setting,
       AUTH_SECRET: authSecret, AUTH_URL: url, NEXTAUTH_URL: url, AUTH_TRUST_HOST: "true", SITE_URL: url, RESEND_API_KEY: "", EMAIL_FROM: "",
       AUTH_GOOGLE_ID: "", AUTH_GOOGLE_SECRET: "", GOOGLE_CLIENT_ID: "", GOOGLE_CLIENT_SECRET: "",
       ANTHROPIC_API_KEY: "", SCAN_SPEND_WARNING_PING_URL: "", SCAN_LIMIT_REACHED_PING_URL: "", SCREENSHOT_EXTRACTOR: process.env.VERIFY_SCREENSHOT_EXTRACTOR ?? "fake", VERCEL_ENV: "development", NEXT_TELEMETRY_DISABLED: "1" };
-    const app = start(process.execPath, [resolve(root, "node_modules/next/dist/bin/next"), "dev", "--hostname", "127.0.0.1", "--port", "3100"], "app.log", appEnv);
-    state = { root, run, url, postgresDatabase: postgresDatabase.name, supervisorPid: process.pid, appPid: app.pid, revision: revision(), status: "starting" };
+    const next = resolve(root, "node_modules/next/dist/bin/next");
+    if (production) {
+      const build = start(process.execPath, [next, "build"], "build.log", appEnv, { exits: true });
+      const [code] = await new Promise((done) => build.once("exit", (...result) => done(result)));
+      if (code !== 0) throw new Error("next build failed. Read build.log.");
+    }
+    const app = start(process.execPath, [next, production ? "start" : "dev", "--hostname", "127.0.0.1", "--port", "3100"], "app.log", appEnv);
+    state = { root, run, url, production, postgresDatabase: postgresDatabase.name, supervisorPid: process.pid, appPid: app.pid, revision: revision(), status: "starting" };
     save("instance.json", state);
     for (let attempt = 0; attempt < 60; attempt++) {
       try {

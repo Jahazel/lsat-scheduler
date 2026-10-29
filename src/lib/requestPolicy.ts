@@ -7,6 +7,8 @@ export type RequestFacts = {
   contentType: string | null;
   /** The place's configured site address. Never read from the request's `Host` header. */
   siteUrl: string | undefined;
+  enforceCsp: boolean;
+  development: boolean;
 };
 
 export type ForgedRequestRefusal = {
@@ -15,7 +17,27 @@ export type ForgedRequestRefusal = {
   route: SecurityLogRoute;
 };
 
-export type RequestPolicy = { refused?: ForgedRequestRefusal };
+export type ContentSecurityPolicy = {
+  header: "Content-Security-Policy" | "Content-Security-Policy-Report-Only";
+  value: string;
+};
+
+export type RequestPolicy = {
+  refused?: ForgedRequestRefusal;
+  /** Next.js reads the nonce from this header on the request and puts it on the page's scripts and styles. */
+  csp: ContentSecurityPolicy;
+  responseHeaders: Record<string, string>;
+};
+
+export const SECURITY_HEADERS = {
+  "X-Frame-Options": "DENY",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Strict-Transport-Security": "max-age=63072000",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+} as const;
+
+const NO_REFERRER_PAGES = new Set(["/verify-email", "/reset-password"]);
 
 export const EXEMPT_ROUTES = [
   { path: "/api/auth/", prefix: true },
@@ -54,17 +76,43 @@ function acceptedTypes(pathname: string) {
 
 const mediaType = (contentType: string) => contentType.split(";")[0].trim().toLowerCase();
 
-/** Decides, from the request alone, how the proxy answers it. */
-export function requestPolicy({ method, pathname, origin, contentType, siteUrl }: RequestFacts): RequestPolicy {
-  if (READS_ONLY.has(method.toUpperCase())) return {};
-  if (EXEMPT_ROUTES.some(({ path, prefix }) => (prefix ? pathname.startsWith(path) : pathname === path))) return {};
+function forgedRequestRefusal({ method, pathname, origin, contentType, siteUrl }: RequestFacts): ForgedRequestRefusal | undefined {
+  if (READS_ONLY.has(method.toUpperCase())) return undefined;
+  if (EXEMPT_ROUTES.some(({ path, prefix }) => (prefix ? pathname.startsWith(path) : pathname === path))) return undefined;
 
   const route = routeTemplate(pathname);
-  if (origin === null) return { refused: { status: 403, result: "noOrigin", route } };
+  if (origin === null) return { status: 403, result: "noOrigin", route };
   const siteOrigin = siteUrl && URL.canParse(siteUrl) ? new URL(siteUrl).origin : undefined;
-  if (origin !== siteOrigin) return { refused: { status: 403, result: "wrongOrigin", route } };
+  if (origin !== siteOrigin) return { status: 403, result: "wrongOrigin", route };
   if (contentType === null || !acceptedTypes(pathname).has(mediaType(contentType))) {
-    return { refused: { status: 415, result: "wrongContentType", route } };
+    return { status: 415, result: "wrongContentType", route };
   }
-  return {};
+  return undefined;
+}
+
+function contentSecurityPolicy(enforce: boolean, development: boolean): ContentSecurityPolicy {
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  // React uses eval in development only, to rebuild server error stacks in the browser.
+  const scriptSrc = `'self' 'nonce-${nonce}' 'strict-dynamic'${development ? " 'unsafe-eval'" : ""}`;
+  const value = [
+    "default-src 'self'",
+    `script-src ${scriptSrc}`,
+    `style-src 'self' 'nonce-${nonce}'`,
+    "style-src-attr 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    "font-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join("; ");
+  return { header: enforce ? "Content-Security-Policy" : "Content-Security-Policy-Report-Only", value };
+}
+
+/** Decides, from the request alone, how the proxy answers it. */
+export function requestPolicy(facts: RequestFacts): RequestPolicy {
+  const csp = contentSecurityPolicy(facts.enforceCsp, facts.development);
+  const responseHeaders: Record<string, string> = { ...SECURITY_HEADERS, [csp.header]: csp.value };
+  if (NO_REFERRER_PAGES.has(facts.pathname)) responseHeaders["Referrer-Policy"] = "no-referrer";
+  return { refused: forgedRequestRefusal(facts), csp, responseHeaders };
 }
