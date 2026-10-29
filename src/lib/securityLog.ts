@@ -8,6 +8,7 @@ import type { LimitedAction } from "./actionLimits";
 import type { DeletionRefusal, LoginRefusal } from "./passwordAccount";
 import type { VerificationResult } from "./pendingSignupRepository";
 import { getPostgresDatabase } from "./postgres";
+import type { ForgedRequestRefusal } from "./requestPolicy";
 import type { ScanRefusal } from "./scanPlaces";
 import { UNEXPECTED_FAILURE_MESSAGE, type Answer, type FailureCode } from "./unexpectedFailure";
 
@@ -25,6 +26,7 @@ type AppEvents = {
   admin_action_refused: "refused";
   limit_refused: LimitedAction | ScanRefusal["refused"];
   budget_cutoff: "limitReached";
+  forged_request_refused: ForgedRequestRefusal["result"];
 };
 
 export type Subject = { account: string } | { nobody: true };

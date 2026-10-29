@@ -47,9 +47,12 @@ export function clearFakeEmails() {
   fakeOutbox.length = 0;
 }
 
-/** Builds an email link on the place's configured site address, never on the address a request names. */
+/** The place's configured site address, never the address a request names. */
+export const configuredSiteUrl = () => process.env.SITE_URL || (process.env.VERCEL ? undefined : LOCAL_SITE_URL);
+
+/** Builds an email link on the place's configured site address. */
 export function emailLink(path: `/${string}`, params: Record<string, string>) {
-  const site = process.env.SITE_URL || (process.env.VERCEL ? undefined : LOCAL_SITE_URL);
+  const site = configuredSiteUrl();
   if (!site) throw new Error("SITE_URL is not set, so this place cannot build email links.");
   const url = new URL(site);
   url.pathname = path;
