@@ -933,3 +933,22 @@ describe("OnboardingWizard · Type them", () => {
     expect(box("Law").value).toBe("58");
   });
 });
+
+describe("OnboardingWizard · screenshot notice", () => {
+  const NOTICE = "Your screenshot is sent to Anthropic to read your analytics. Anthropic keeps it for up to 30 days. DrillMap does not store it. Crop out anything you do not want to share.";
+
+  it("shows the notice on Step 3 before a screenshot is sent and while either can be replaced", async () => {
+    const { user, extract } = await fillGoalAndWeek();
+    expect(screen.getByText(NOTICE)).toBeDefined();
+    expect(extract).not.toHaveBeenCalled();
+
+    await upload(user);
+    expect(screen.getByText(NOTICE)).toBeDefined();
+  });
+
+  it("hides the notice when the student types the analytics", async () => {
+    const { user } = await fillGoalAndWeek();
+    await user.click(screen.getByLabelText("Type them"));
+    expect(screen.queryByText(NOTICE)).toBeNull();
+  });
+});

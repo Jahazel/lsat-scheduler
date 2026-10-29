@@ -47,7 +47,7 @@ import {
 } from "@/lib/onboardingWizard";
 import { SIGN_IN_EXPIRED, SignInAgainLink } from "@/components/SignInExpired";
 import { nextRead } from "@/lib/screenshotReadQueue";
-import { SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, checkScreenshotType, extractScreenshot } from "@/lib/screenshotUpload";
+import { SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, SCREENSHOT_NOTICE, checkScreenshotType, extractScreenshot } from "@/lib/screenshotUpload";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "@/lib/types";
 import { DAY_LABEL, MAX_OFFICIAL_ATTEMPTS, attemptMonths, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { createStudentProfile } from "./actions";
@@ -554,6 +554,7 @@ function AnalyticsStep({
               />
             ))}
             {!anyAdded && <p className="text-small text-smoke">{SCREENSHOT_LIMITS} each.</p>}
+            <p className="text-small text-smoke">{SCREENSHOT_NOTICE}</p>
           </div>
           {screenshot(state, "LR")?.read.status === "read" && <RowsFound rows={lrRead} complete={bothRead(state)} />}
           {!anyAdded && <WhereToFindIt />}

@@ -9,6 +9,8 @@ export const MAX_SCREENSHOT_MB = 4;
 export const MAX_SCREENSHOT_BYTES = MAX_SCREENSHOT_MB * 1024 * 1024;
 export const SCREENSHOT_LIMITS = `PNG, JPG, or WEBP · ${MAX_SCREENSHOT_MB} MB or less`;
 const MAX_UPLOAD_SIDE = 1568;
+export const SCREENSHOT_NOTICE =
+  "Your screenshot is sent to Anthropic to read your analytics. Anthropic keeps it for up to 30 days. DrillMap does not store it. Crop out anything you do not want to share.";
 export const SCANNING_OFF = "Scanning is off right now. Enter your analytics by hand.";
 
 export type ScreenshotRejection = { reason: "wrong-type" | "too-large" | "image-too-large" | "animated"; message: string };
