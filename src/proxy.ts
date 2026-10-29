@@ -1,12 +1,30 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { ipAddressFrom } from "@/lib/clientIpAddress";
+import { configuredSiteUrl } from "@/lib/email";
 import { hasSessionCookie, proxyRoute } from "@/lib/proxyRoute";
+import { requestPolicy } from "@/lib/requestPolicy";
 import { NOBODY, recordSecurityEvent } from "@/lib/securityLog";
 
 // Whether a signed-in student has completed onboarding yet is checked in
 // the page components themselves (they need the Student record anyway).
 export default auth(async (req) => {
+  const { refused: forged } = requestPolicy({
+    method: req.method,
+    pathname: req.nextUrl.pathname,
+    origin: req.headers.get("origin"),
+    contentType: req.headers.get("content-type"),
+    siteUrl: configuredSiteUrl(),
+  });
+  if (forged) {
+    const accountId = req.auth?.user?.id;
+    await recordSecurityEvent({
+      event: "forged_request_refused", result: forged.result, route: forged.route,
+      who: accountId ? { account: accountId } : NOBODY, ipAddress: ipAddressFrom(req.headers),
+    });
+    return NextResponse.json({ error: "Request refused" }, { status: forged.status });
+  }
+
   const route = proxyRoute(req.nextUrl.pathname, req.auth?.user ?? null, {
     sentSessionCookie: hasSessionCookie(req.cookies.getAll().map((cookie) => cookie.name)),
     loginReason: req.nextUrl.searchParams.get("error") ?? req.nextUrl.searchParams.get("notice"),
