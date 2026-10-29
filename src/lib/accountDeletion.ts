@@ -4,6 +4,11 @@ import { accounts, deletionList } from "./postgresSchema";
 import { emailHash, recordUnexpectedFailure, type SecurityLogRoute } from "./securityLog";
 
 export type DeletionOutcome = "deleted" | "willFinish";
+export type DeletingLoginRefusal = "accountDeleted" | "deletionWillFinish";
+
+export async function finishDeletionOnSignIn(id: string, route: SecurityLogRoute): Promise<DeletingLoginRefusal> {
+  return (await finishDeletion(id, route)) === "deleted" ? "accountDeleted" : "deletionWillFinish";
+}
 
 export async function finishDeletion(id: string, route: SecurityLogRoute): Promise<DeletionOutcome> {
   try {
@@ -11,7 +16,11 @@ export async function finishDeletion(id: string, route: SecurityLogRoute): Promi
       const [deleted] = await tx.delete(accounts)
         .where(and(eq(accounts.id, id), isNotNull(accounts.deletingSince)))
         .returning({ email: accounts.email });
-      if (deleted) await tx.insert(deletionList).values({ accountId: id, emailHash: emailHash(deleted.email) }).onConflictDoNothing();
+      if (deleted) {
+        await tx.execute(sql`
+          insert into ${deletionList} (account_id, email_hash) values (${id}, ${emailHash(deleted.email)}) on conflict do nothing
+        `);
+      }
     });
     return "deleted";
   } catch (error) {
@@ -32,9 +41,6 @@ export async function finishMarkedDeletions(route: SecurityLogRoute) {
 }
 
 export async function deleteOldDeletionListRows() {
-  const removed = await getPostgresDatabase()
-    .delete(deletionList)
-    .where(sql`${deletionList.deletedOn} < current_date - 30`)
-    .returning({ accountId: deletionList.accountId });
-  return removed.length;
+  const pruned = await getPostgresDatabase().execute<{ removed: string }>(sql`select prune_deletion_list() as removed`);
+  return Number(pruned.rows[0]?.removed);
 }

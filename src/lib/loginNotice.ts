@@ -1,4 +1,4 @@
-import type { DeletingLoginRefusal } from "./passwordAccount";
+import type { DeletingLoginRefusal } from "./accountDeletion";
 import { failureText, isFailureCode } from "./unexpectedFailure";
 
 export const DISABLED_SIGN_IN_PATH = "/login?error=AccountDisabled";
@@ -41,7 +41,7 @@ export function loginNotice({ error, notice, code }: { error?: QueryValue; notic
   if (notice === "EmailVerified") return { tone: "success", text: "Email verified. Log in.", place: "aboveEmail" };
   if (notice === "AccountDeleted") return { tone: "info", text: "Your Account is deleted.", place: "aboveGoogle" };
   if (notice === "DeletionWillFinish") {
-    return { tone: "info", text: "Your Account is being deleted and can't log in. The deletion will finish within a day.", place: "aboveGoogle" };
+    return { tone: "info", text: "Your Account is being deleted and can't log in. DrillMap will finish the deletion.", place: "aboveGoogle" };
   }
   if (notice === "PasswordChanged") return { tone: "success", text: "Password changed. Log in with your new password.", place: "aboveEmail" };
   if (typeof error !== "string" || !error) return null;

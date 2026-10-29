@@ -318,6 +318,13 @@ it("refuses to clear or move the mark, for the app login and the database owner"
   expect(await markOf(owner.account.id)).toEqual(mark);
 });
 
+it("ends a marked Admin's session at once", async () => {
+  const admin = await studentWithRecords("admin@example.test", "admin");
+  expect(await sessionOf(admin.account.id)).not.toBeNull();
+  await database.owner.execute(sql`update accounts set deleting_since = now() where id = ${admin.account.id}`);
+  expect(await sessionOf(admin.account.id)).toBeNull();
+});
+
 it("removes every record that names an Account when the Account goes", async () => {
   const blocking = await database.owner.execute(sql`
     select conrelid::regclass::text as table_name, conname from pg_constraint

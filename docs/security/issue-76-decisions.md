@@ -111,11 +111,13 @@ Built on [issue 350](https://github.com/Jahazel/lsat-scheduler/issues/350): the 
 
 Built on [issue 351](https://github.com/Jahazel/lsat-scheduler/issues/351):
 
-- Migration `0017_two_step_deletion` adds `accounts.deleting_since` and the `deletion_list` table. A trigger refuses any change to `deleting_since` once it is set, for every database login. The app role can add, read, and delete deletion list rows, and cannot change them.
+- Migration `0017_two_step_deletion` adds `accounts.deleting_since` and the `deletion_list` table. A trigger refuses any change to `deleting_since` once it is set, for every database login. The app role can add deletion list rows, and cannot read, change, or delete them. It removes rows older than 30 days only through `prune_deletion_list()`, as it does for the security log.
 - Step 1 sets `deleting_since` after the Recent sign-in, `DELETE`, and current password checks. The session check refuses a marked Account the same way it refuses a Disabled one.
 - Step 2 deletes the marked Account and adds its deletion list row in one transaction. Step 2 never deletes an unmarked Account. The deletion list row holds the email hash from the security log's keyed hash.
-- If step 2 fails, the student is signed out to Login, which says: "Your Account is being deleted and can't log in. The deletion will finish within a day." The failure is in the security log with its code, and the `account_deletion` entry has the result `willFinish`.
-- The student retry is a sign-in. A Google sign-in, or a password sign-in with the right password, runs step 2 and is always refused. Login then says "Your Account is deleted." or shows the "will finish" message again. The `sign_in` entry has the result `accountDeleted` or `deletionWillFinish`.
+- If step 2 fails, the student is signed out to Login, which shows the "deletion will finish" message. The failure is in the security log with its code, and the `account_deletion` entry has the result `willFinish`.
+- The student retry is a sign-in, because a marked Account has no session. A Google sign-in, or a password sign-in with the right password, runs step 2 and is always refused. Login then says the Account is deleted, or shows the "will finish" message again. The `sign_in` entry has the result `accountDeleted` or `deletionWillFinish`.
+- Waiting for owner approval on issue 351's pull request: the two Login texts, "Your Account is being deleted and can't log in. DrillMap will finish the deletion." and "Your Account is deleted."
+- The privacy page states the deletion list and its 30 days. The sentence about restores waits for deletion replay ([issue 353](https://github.com/Jahazel/lsat-scheduler/issues/353)), as above for rule 36.
 - The daily job runs step 2 for every marked Account, then deletes deletion list rows older than 30 days (rule 24).
 
 ### How long data is kept

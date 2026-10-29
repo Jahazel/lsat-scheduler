@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
-import { finishDeletion, type DeletionOutcome } from "./accountDeletion";
+import { finishDeletion, finishDeletionOnSignIn, type DeletingLoginRefusal, type DeletionOutcome } from "./accountDeletion";
 import { resetYourPassword, verifyYourEmail, youAlreadyHaveAnAccount, youSignInWithGoogle } from "./accountEmails";
 import {
   findAccountByEmail, findPasswordAccountByEmail, findPasswordAccountById, markGoogleAccountDeleting, markPasswordAccountDeleting,
@@ -127,10 +127,6 @@ export async function resetPassword(
 }
 
 export type LoginRefusal = "wrongEmailOrPassword" | "paused" | "tooLong" | "verifyYourEmail" | "accountDisabled" | DeletingLoginRefusal;
-export type DeletingLoginRefusal = "accountDeleted" | "deletionWillFinish";
-
-export const deletingLoginRefusal = (outcome: DeletionOutcome): DeletingLoginRefusal =>
-  outcome === "deleted" ? "accountDeleted" : "deletionWillFinish";
 
 export async function logIn(
   credentials: Partial<Record<"email" | "password", unknown>>, request: PasswordRequest,
@@ -159,7 +155,7 @@ export async function logIn(
     return refused("verifyYourEmail");
   }
   if (!account || account.role === "admin") return refused("wrongEmailOrPassword");
-  if (account.deletingSince) return refused(deletingLoginRefusal(await finishDeletion(account.id, request.route)));
+  if (account.deletingSince) return refused(await finishDeletionOnSignIn(account.id, request.route));
   if (account.disabledAt) return refused("accountDisabled");
   await recordSecurityEvent({ event: "sign_in", result: "signedIn", route: request.route, who: { account: account.id }, ipAddress: request.ipAddress });
   const user = { id: account.id, email: account.email, name: account.name, sessionVersion: account.sessionVersion };

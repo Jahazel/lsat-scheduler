@@ -44,7 +44,7 @@ describe("Login", () => {
     [{ error: "CredentialsSignin" }, "alert", "That email and password don't match. Check both and try again, or reset your password."],
     [{ notice: "EmailVerified" }, "status", "Email verified. Log in."],
     [{ notice: "PasswordChanged" }, "status", "Password changed. Log in with your new password."],
-    [{ notice: "DeletionWillFinish" }, "status", "Your Account is being deleted and can't log in. The deletion will finish within a day."],
+    [{ notice: "DeletionWillFinish" }, "status", "Your Account is being deleted and can't log in. DrillMap will finish the deletion."],
     [{ notice: "AccountDeleted" }, "status", "Your Account is deleted."],
     [{ error: "EmailUsesPassword" }, "alert", "This email uses a password. Log in with your password."],
     [{ error: "AccessDenied", code: "3f9a0c1e" }, "alert", "Something went wrong. Try again. Error code: 3f9a0c1e"],
