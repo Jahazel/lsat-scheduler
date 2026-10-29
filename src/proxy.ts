@@ -60,3 +60,5 @@ export default auth(async (req) => {
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|google-g.svg).*)"],
 };
+
+// Temporary line for the factory planner proof (do not merge).
