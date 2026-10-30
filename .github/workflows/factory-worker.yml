@@ -8,8 +8,12 @@ on:
         type: number
         default: 0
 
+# The agent's job reads with these. A separate publish job writes with FACTORY_GITHUB_TOKEN.
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
+  actions: read
 
 jobs:
   worker:
