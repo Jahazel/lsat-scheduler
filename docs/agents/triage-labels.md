@@ -37,9 +37,11 @@ The local agent factory uses these labels. A dispatcher thread starts one worker
 
 | Label | Meaning |
 | --- | --- |
-| `agent:implement` | The owner wants an agent run to start on this issue. Only the owner adds it. One exception: the weekly gardener adds it to its own report issue after its PR opens, so the factory keeps that PR up to date. |
+| `agent:implement` | The owner wants an agent run to start on this issue. Only the owner adds it. |
 | `agent:in-progress` | An agent has claimed this issue and is working on it. |
-| `agent:blocked` | The agent is stuck. Its comment on the issue says why and what the owner must decide. |
+| `agent:blocked` | The factory stopped work on this issue. Its comment says why. To retry, the owner removes the label. |
+
+The factory pushes only to `factory/issue-<n>-<slug>-<run>` branches. Keep your own branches on `issue-<n>-*`. When you close a factory PR without merging it, the factory blocks its issue and starts no new run on it until you remove `agent:blocked`.
 
 ## Gardening labels
 
