@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { SignedOut } from "@/lib/requestPolicy";
 import type { PasswordChangeRefusal } from "./actions";
 
 const actions = vi.hoisted(() => ({
-  changePassword: vi.fn<(previous: PasswordChangeRefusal, form: FormData) => Promise<PasswordChangeRefusal>>(),
+  changePassword: vi.fn<(previous: PasswordChangeRefusal, form: FormData) => Promise<PasswordChangeRefusal | SignedOut>>(),
 }));
 vi.mock("./actions", () => actions);
 import { ChangePasswordCard } from "./ChangePasswordCard";
@@ -12,6 +13,7 @@ import { ChangePasswordCard } from "./ChangePasswordCard";
 afterEach(() => {
   cleanup();
   actions.changePassword.mockReset();
+  vi.unstubAllGlobals();
 });
 
 const currentPassword = () => screen.getByLabelText("Current password") as HTMLInputElement;
@@ -24,6 +26,16 @@ function fillAndChange(current: string, next: string) {
 }
 
 describe("Change password card", () => {
+  it("loads the signed-out login address as a new page after the change", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign });
+    actions.changePassword.mockResolvedValue({ goTo: "/login?notice=PasswordChanged&signedOut=1" });
+    render(<ChangePasswordCard />);
+    fillAndChange("correct horse battery staple", "purple walrus dances at noon");
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/login?notice=PasswordChanged&signedOut=1"));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("asks for the current and the new password and says it signs out every device", () => {
     render(<ChangePasswordCard />);
     expect(screen.getByRole("heading", { name: "Change password" })).toBeTruthy();

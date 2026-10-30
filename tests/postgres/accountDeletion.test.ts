@@ -210,8 +210,8 @@ async function whileStepTwoFails(work: () => Promise<void>) {
 
 it("logs the deletion as before and adds one deletion list row with the keyed email hash", async () => {
   const owner = await studentWithRecords("owner@example.test");
-  await deleteWith("DELETE");
-  expect(signOut).toHaveBeenCalledWith({ redirectTo: "/" });
+  expect(await deleteWith("DELETE")).toEqual({ goTo: "/?signedOut=1" });
+  expect(signOut).toHaveBeenCalledWith({ redirect: false });
   expect(await deletionListRows()).toEqual([{ account_id: owner.account.id, email_hash: emailHashOf("owner@example.test"), written_today: true }]);
   expect(await securityEvents()).toEqual([
     { event: "account_deletion", result: "deleted", route: "/account", names_account: false, error_type: null },
@@ -223,9 +223,9 @@ it("marks the Account, refuses its sessions at once, and says deletion will fini
   const owner = await studentWithRecords("owner@example.test");
   expect(await sessionOf(owner.account.id)).not.toBeNull();
   await whileStepTwoFails(async () => {
-    expect(await deleteWith("DELETE")).toBeNull();
+    expect(await deleteWith("DELETE")).toEqual({ goTo: "/login?notice=DeletionWillFinish&signedOut=1" });
   });
-  expect(signOut).toHaveBeenCalledWith({ redirectTo: "/login?notice=DeletionWillFinish" });
+  expect(signOut).toHaveBeenCalledWith({ redirect: false });
   expect(await markOf(owner.account.id)).toEqual(expect.any(String));
   expect(await sessionOf(owner.account.id)).toBeNull();
   expect(await ownedRecords(owner.account.id, owner.student.id)).toEqual(allRecords);
@@ -264,9 +264,9 @@ it("finishes on a Google sign-in retry, never signs in, and a second finish chan
 it("finishes a password Account's deletion on a sign-in retry only after the password matches", async () => {
   const owner = await studentWithRecords("owner@example.test", "student", "password");
   await whileStepTwoFails(async () => {
-    expect(await deleteAccount(null, passwordForm(PASSWORD))).toBeNull();
+    expect(await deleteAccount(null, passwordForm(PASSWORD))).toEqual({ goTo: "/login?notice=DeletionWillFinish&signedOut=1" });
   });
-  expect(signOut).toHaveBeenCalledWith({ redirectTo: "/login?notice=DeletionWillFinish" });
+  expect(signOut).toHaveBeenCalledWith({ redirect: false });
 
   expect(await passwordLogIn("owner@example.test", "a wrong password")).toEqual({ kind: "refused", code: "wrongEmailOrPassword" });
   expect(await ownedRecords(owner.account.id, owner.student.id)).toEqual(allRecords);

@@ -189,7 +189,7 @@ it("Account deletion needs a sign-in from the last 10 minutes, then ends every s
   expect((await ownerSql(sql`select count(*)::int as count from accounts`)).rows[0].count).toBe(1);
 
   request.cookie = await signedIn(student.id);
-  await expect(deleteAccount(null, confirmed)).rejects.toThrow(/^redirect:http:\/\/localhost:3000\/$/);
+  expect(await deleteAccount(null, confirmed)).toEqual({ goTo: "/?signedOut=1" });
   expect((await ownerSql(sql`select count(*)::int as count from accounts`)).rows[0].count).toBe(0);
   expect((await readSession(phone)).user).toBeNull();
 });
