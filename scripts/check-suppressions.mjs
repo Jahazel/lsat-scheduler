@@ -12,7 +12,7 @@ function git(...args) {
 function directive(line) {
   const [, kind, rest] = line.match(suppression);
   if (kind.startsWith("@ts-")) return kind;
-  const rules = rest.split(/\s--\s|\*\//)[0].split(/[\s,]+/).filter(Boolean).sort();
+  const rules = rest.split(/\s-{2,}\s|\*\//)[0].split(/[\s,]+/).filter(Boolean).sort();
   return [kind.replace(/\s+/g, " "), ...rules].join(" ");
 }
 
@@ -30,7 +30,7 @@ for (const line of diff.split("\n")) {
     file = line.slice(6);
   } else if (line.startsWith("@@")) {
     inHunk = true;
-  } else if (inHunk && suppression.test(line)) {
+  } else if (inHunk && suppression.test(line.slice(1).trim())) {
     const text = line.slice(1).trim();
     if (line[0] === "+") added.push({ file, text, key: directive(text) });
     if (line[0] === "-") removed.push(directive(text));

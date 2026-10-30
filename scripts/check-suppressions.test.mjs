@@ -72,11 +72,16 @@ it("passes a branch that moves a suppression to another file", async () => {
   expect(result.output).toContain("No new suppressions.");
 });
 
-it("passes a branch that only rewords the reason on a suppressed line", async () => {
-  commit({ "old.ts": "// eslint-disable-next-line no-console -- a better reason\nconsole.log(1);\n" });
+it.each(["--", "---"])("passes a branch that only rewords the reason after %s", async (dashes) => {
+  commit({ "old.ts": `// eslint-disable-next-line no-console ${dashes} a better reason\nconsole.log(1);\n` });
   const result = await check();
   expect(result.code).toBe(0);
   expect(result.output).toContain("No new suppressions.");
+});
+
+it("does not crash on a rule comment split across lines", async () => {
+  commit({ "split.ts": "/* eslint \n  no-console: off */\n" });
+  expect((await check()).output).not.toContain("TypeError");
 });
 
 it("passes a branch that edits the code on a line that ends in a suppression", async () => {
