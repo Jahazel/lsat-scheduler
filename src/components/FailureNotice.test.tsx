@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+import { useActionState } from "react";
 import userEvent from "@testing-library/user-event";
 import type { FailureCode, FormState } from "@/lib/unexpectedFailure";
 
 const navigation = vi.hoisted(() => ({ pathname: "/account" }));
 vi.mock("next/navigation", () => ({ usePathname: () => navigation.pathname }));
 
-import { ActionForm, FailureToastProvider } from "./FailureNotice";
+import { ActionForm, FailureNotice, FailureToastProvider } from "./FailureNotice";
 
 afterEach(() => {
   cleanup();
@@ -98,5 +99,26 @@ it("closes when the student leaves the screen", async () => {
 
   navigation.pathname = "/progress";
   rerender(<Screen logOut={[]} />);
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+function SendLink({ answers }: { answers: (FormState | "sent")[] }) {
+  const [answer, formAction] = useActionState(async () => answers.shift() ?? null, null);
+  if (answer === "sent") return <p>Check your email</p>;
+  return (
+    <form action={formAction}>
+      <button type="submit">Send link</button>
+      <FailureNotice answer={answer} />
+    </form>
+  );
+}
+
+it("closes when the same action works and the screen shows its next step instead of the form", async () => {
+  render(<FailureToastProvider><SendLink answers={[failure("3f9a01c2"), "sent"]} /></FailureToastProvider>);
+  await press("Send link");
+  await toast();
+
+  await press("Send link");
+  await screen.findByText("Check your email");
   expect(screen.queryByRole("alert")).toBeNull();
 });

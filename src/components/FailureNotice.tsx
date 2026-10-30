@@ -8,6 +8,7 @@ import {
   useContext,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type ComponentProps,
@@ -16,7 +17,7 @@ import {
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { isUnexpectedFailure, UNEXPECTED_FAILURE_MESSAGE, type FailureCode, type FormState } from "@/lib/unexpectedFailure";
 
-type Toast = { code: FailureCode; action: string; replaced: boolean };
+type Toast = { code: FailureCode; notice: string; action: string; replaced: boolean };
 type Toasts = { shown: Toast | null; leaving: Toast | null };
 
 const NO_TOASTS: Toasts = { shown: null, leaving: null };
@@ -24,13 +25,14 @@ const LEAVE_MS = 200;
 
 const close = (toasts: Toasts): Toasts => (toasts.shown ? { shown: null, leaving: toasts.shown } : toasts);
 
-function answered(toasts: Toasts, action: string, answer: unknown): Toasts {
-  if (!isUnexpectedFailure(answer)) return toasts.shown?.action === action ? close(toasts) : toasts;
+function answered(toasts: Toasts, notice: string, action: string, answer: unknown): Toasts {
+  if (!isUnexpectedFailure(answer)) return toasts.shown?.notice === notice && toasts.shown.action === action ? close(toasts) : toasts;
   if (toasts.shown?.code === answer.unexpectedFailure) return toasts;
-  return { shown: { code: answer.unexpectedFailure, action, replaced: toasts.shown !== null }, leaving: null };
+  return { shown: { code: answer.unexpectedFailure, notice, action, replaced: toasts.shown !== null }, leaving: null };
 }
 
-const ReportContext = createContext<(action: string, answer: unknown) => void>(() => {});
+type Reports = { answered: (notice: string, action: string, answer: unknown) => void; gone: (notice: string) => void };
+const ReportContext = createContext<Reports>({ answered: () => {}, gone: () => {} });
 
 export function FailureToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState(NO_TOASTS);
@@ -40,12 +42,15 @@ export function FailureToastProvider({ children }: { children: ReactNode }) {
     setToastsPathname(pathname);
     setToasts(close);
   }
-  const report = useCallback((action: string, answer: unknown) => setToasts((current) => answered(current, action, answer)), []);
+  const reports = useMemo<Reports>(() => ({
+    answered: (notice, action, answer) => setToasts((current) => answered(current, notice, action, answer)),
+    gone: (notice) => setToasts((current) => (current.shown?.notice === notice ? close(current) : current)),
+  }), []);
   const leftAt = useCallback((code: FailureCode) => setToasts((current) =>
     current.leaving?.code === code ? { ...current, leaving: null } : current), []);
 
   return (
-    <ReportContext value={report}>
+    <ReportContext value={reports}>
       {children}
       <ToastSlot>
         {[toasts.leaving, toasts.shown].map((toast) => toast && (toast === toasts.shown
@@ -125,18 +130,20 @@ function ToastCard({ toast, onClose, onLeft }: { toast: Toast; onClose?: () => v
 }
 
 /**
- * Shows the failure toast when `answer` becomes an unexpected failure, and closes it
- * when this same action answers again without one. Renders nothing in place.
+ * Shows the failure toast when `answer` becomes an unexpected failure. Closes it when
+ * the same `action` answers again without one, or when this notice unmounts because
+ * the screen showed its next step. Renders nothing in place.
  */
-export function FailureNotice({ answer }: { answer: unknown }) {
-  const report = useContext(ReportContext);
-  const action = useId();
+export function FailureNotice({ answer, action = "" }: { answer: unknown; action?: string }) {
+  const reports = useContext(ReportContext);
+  const notice = useId();
   const previous = useRef(answer);
   useEffect(() => {
     if (previous.current === answer) return;
     previous.current = answer;
-    report(action, answer);
-  }, [action, answer, report]);
+    reports.answered(notice, action, answer);
+  }, [action, answer, notice, reports]);
+  useEffect(() => () => reports.gone(notice), [notice, reports]);
   return null;
 }
 

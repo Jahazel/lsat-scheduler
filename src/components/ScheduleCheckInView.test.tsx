@@ -51,6 +51,22 @@ describe("ScheduleCheckInView", () => {
     expect(screen.getByText("18 remaining")).toBeTruthy();
   });
 
+  it("keeps the error code when another line saves, and closes it when the failed line saves", async () => {
+    saveActivityCheckIn.mockResolvedValueOnce({ unexpectedFailure: "3f9a01c2" });
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />, { wrapper: FailureToastProvider });
+    const [failed, other] = within(dayCard("Monday")).getAllByRole("checkbox");
+    await userEvent.click(failed!);
+    const alert = await screen.findByRole("alert");
+
+    await userEvent.click(other!);
+    expect(await screen.findByText("1 of 18 done")).toBeTruthy();
+    expect(screen.getByRole("alert")).toBe(alert);
+
+    await userEvent.click(failed!);
+    expect(await screen.findByText("2 of 18 done")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("shows the last saved state when two quick presses both fail", async () => {
     const replies: ((answer: unknown) => void)[] = [];
     saveActivityCheckIn.mockImplementation(() => new Promise((resolve) => replies.push(resolve)));

@@ -79,7 +79,7 @@ export default function ScheduleCheckInView({
   uploadReminder = false,
 }: ScheduleCheckInViewProps) {
   const [savedCheckIns, setSavedCheckIns] = useState(checkIns);
-  const [lastAnswer, setLastAnswer] = useState<Answer<ActivityCheckIn> | null>(null);
+  const [lastSave, setLastSave] = useState<{ activityId: string; answer: Answer<ActivityCheckIn> } | null>(null);
   const confirmedCheckIns = useRef(checkIns);
   const pendingSaves = useRef(new Map<string, number>());
   const [, startTransition] = useTransition();
@@ -100,7 +100,7 @@ export default function ScheduleCheckInView({
       const answer = await saveActivityCheckIn({ scheduleId, activityId, status });
       const stillPending = pendingSaves.current.get(activityId)! - 1;
       pendingSaves.current.set(activityId, stillPending);
-      setLastAnswer(answer);
+      setLastSave({ activityId, answer });
       if (!isUnexpectedFailure(answer)) confirmedCheckIns.current = [...others(confirmedCheckIns.current), answer];
       if (stillPending > 0) return;
       const confirmed = confirmedCheckIns.current.filter((checkIn) => checkIn.activityId === activityId);
@@ -124,7 +124,7 @@ export default function ScheduleCheckInView({
         notes={weekNotes(schedule)}
         aside={<div aria-live="polite"><ProgressBar done={doneActivities} total={totalActivities} dueSoFar={dueSoFar} /></div>}
       />}
-      <FailureNotice answer={lastAnswer} />
+      <FailureNotice action={lastSave?.activityId} answer={lastSave?.answer ?? null} />
       <div className={cx("flex flex-col gap-4", padding)}>
         {DAY_ORDER.map((day, dayIndex) => {
           const plan = schedule.days[day];
