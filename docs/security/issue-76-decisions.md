@@ -136,7 +136,8 @@ Built on [issue 354](https://github.com/Jahazel/lsat-scheduler/issues/354) (rule
 
 - Migration `0018_inactive_accounts` adds `accounts.last_signed_in_at` and `accounts.inactive_warning_sent_at`. Every Account that existed before it gets the migration time as its last sign-in. A new Account starts with the time it was created.
 - Each successful Google or password sign-in sets `last_signed_in_at` and clears `inactive_warning_sent_at`. A refused sign-in (wrong password, Disabled Account, Deleting Account) changes neither.
-- The daily job sets `inactive_warning_sent_at` on each Account with no sign-in for 2 years and no warning yet, then emails it through the email sender. Setting the time first means a second run cannot warn the same Account twice. When the email is not sent, the job clears the time so the next run tries again.
+- The daily job emails each Account with no sign-in for 2 years and no warning yet through the email sender, one at a time. It locks the Account's row while it sends, and sets `inactive_warning_sent_at` in the same transaction only when the email was sent. So a second run cannot warn the same Account twice, and a run that stops mid-send records no warning. When the email is not sent, the next run tries again.
+- A sign-in that the daily job marks "deleting" while the sign-in runs is refused like any sign-in of a Deleting Account.
 - The daily job marks "deleting" (step 1) each Account warned 30 or more days ago, then finishes it with step 2 and its deletion list row in the same run.
 - The rule covers every Account, including Disabled and Admin Accounts.
 - The warning email's text is proposed in the PR for issue 354 and waits for the owner's approval.

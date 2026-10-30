@@ -10,6 +10,18 @@ import { createStudent } from "../../src/lib/studentRepository";
 import type { Student } from "../../src/lib/types";
 import { setUpAppTestDatabase } from "./appTestDatabase";
 
+const hooks = vi.hoisted(() => ({ duringPasswordCheck: null as null | (() => Promise<void>) }));
+vi.mock("../../src/lib/passwordHash", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/lib/passwordHash")>();
+  return {
+    ...actual,
+    passwordMatches: async (...args: Parameters<typeof actual.passwordMatches>) => {
+      await hooks.duringPasswordCheck?.();
+      return actual.passwordMatches(...args);
+    },
+  };
+});
+
 const database = setUpAppTestDatabase();
 const PASSWORD = "a long enough password";
 const SIGNED_IN = new Date("2026-11-02T12:00:00Z");
@@ -30,9 +42,11 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(SIGNED_IN);
   clearFakeEmails();
+  hooks.duringPasswordCheck = null;
   await database.owner.execute(sql`truncate accounts, deletion_list, security_log cascade`);
 });
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.useRealTimers();
   vi.unstubAllEnvs();
 });
@@ -155,7 +169,38 @@ it("tries the warning again on the next run when the email was not sent", async 
   expect((await retention(pat.accountId))?.inactive_warning_sent_at).toEqual(after(TWO_YEARS_LATER, 1));
 });
 
-it("claims no warning when the place cannot build the email's link, after the rest of the cleanup", async () => {
+it("records no warning while its email is still being sent", async () => {
+  const pat = await passwordStudent("pat@example.test");
+  await database.owner.execute(sql`update accounts set last_signed_in_at = ${SIGNED_IN}`);
+  vi.stubEnv("RESEND_API_KEY", "test-key");
+  vi.stubEnv("EMAIL_FROM", "DrillMap <test@example.test>");
+  const duringSend: unknown[] = [];
+  vi.stubGlobal("fetch", async () => {
+    duringSend.push((await retention(pat.accountId))?.inactive_warning_sent_at);
+    return new Response("{}", { status: 200 });
+  });
+
+  expect(await runAt(TWO_YEARS_LATER)).toMatchObject({ inactiveWarningsSent: 1 });
+
+  expect(duringSend).toEqual([null]);
+  expect((await retention(pat.accountId))?.inactive_warning_sent_at).toEqual(TWO_YEARS_LATER);
+});
+
+it("refuses a sign-in that the daily job marks for deletion while it runs", async () => {
+  const pat = await passwordStudent("pat@example.test");
+  await database.owner.execute(sql`update accounts set last_signed_in_at = ${SIGNED_IN}`);
+  await runAt(TWO_YEARS_LATER);
+  vi.setSystemTime(after(TWO_YEARS_LATER, 30));
+  hooks.duringPasswordCheck = async () => {
+    hooks.duringPasswordCheck = null;
+    await runDailyCleanup();
+  };
+
+  expect(await passwordLogIn("pat@example.test")).toEqual({ kind: "refused", code: "accountDeleted" });
+  expect(await retention(pat.accountId)).toBeNull();
+});
+
+it("sends and records no warning when the place cannot build the email's link, after the rest of the cleanup", async () => {
   const pat = await passwordStudent("pat@example.test");
   await database.owner.execute(sql`update accounts set last_signed_in_at = ${SIGNED_IN}`);
   await database.owner.execute(sql`

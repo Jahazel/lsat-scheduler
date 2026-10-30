@@ -25,18 +25,17 @@ export async function createGoogleAccountOnSignIn({ user, account, profile }: {
     }
 
     const existing = await findAccountByGoogleId(googleId);
-    if (existing?.deletingSince) {
+    if (existing?.disabledAt && !existing.deletingSince) {
+      await log("accountDisabled", { account: existing.id });
+      return DISABLED_SIGN_IN_PATH;
+    }
+    if (existing && (existing.deletingSince || !(await recordSignIn(existing.id, new Date())))) {
       const refusal = await finishDeletionOnSignIn(existing.id, "/api/auth/callback/google");
       await log(refusal, { account: existing.id });
       return DELETING_SIGN_IN_PATHS[refusal];
     }
-    if (existing?.disabledAt) {
-      await log("accountDisabled", { account: existing.id });
-      return DISABLED_SIGN_IN_PATH;
-    }
     if (existing) {
       await log("signedIn", { account: existing.id });
-      await recordSignIn(existing.id, new Date());
       return true;
     }
     // A concurrent first sign-in with this ID may have won the insert.

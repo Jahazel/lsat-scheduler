@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, isNull, lte, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull, lte, notInArray, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { getPostgresDatabase } from "./postgres";
 import type { CurrentPasswordProof } from "./passwordAccount";
@@ -120,31 +120,40 @@ export async function endAllSessions(id: AccountId) {
     .where(eq(accounts.id, id));
 }
 
-/** Records a successful sign-in, which also cancels an inactive Account warning. */
+/** Records a successful sign-in, which also cancels an inactive Account warning. Returns false when the Account is deleting or gone. */
 export async function recordSignIn(id: string, at: Date) {
-  await getPostgresDatabase()
+  const recorded = await getPostgresDatabase()
     .update(accounts)
     .set({ lastSignedInAt: at, inactiveWarningSentAt: null })
-    .where(and(eq(accounts.id, id), isNull(accounts.deletingSince)));
+    .where(and(eq(accounts.id, id), isNull(accounts.deletingSince)))
+    .returning({ id: accounts.id });
+  return recorded.length === 1;
 }
 
-/** Sets the warning time on each Account due a warning and returns them, so that two runs cannot both warn one Account. */
-export async function claimInactiveWarnings(now: Date) {
+type InactiveAccount = { id: string; email: string; name: string };
+
+/**
+ * Sends one due warning and records it in the same transaction, which holds the Account's row lock.
+ * A run that stops before the commit records no warning, so no Account is deleted without one.
+ */
+export async function warnNextInactiveAccount(now: Date, skip: string[], send: (account: InactiveAccount) => Promise<boolean>) {
   const signedInBefore = new Date(now);
   signedInBefore.setUTCFullYear(signedInBefore.getUTCFullYear() - INACTIVE_YEARS);
-  return getPostgresDatabase()
-    .update(accounts)
-    .set({ inactiveWarningSentAt: now })
-    .where(and(lte(accounts.lastSignedInAt, signedInBefore), isNull(accounts.inactiveWarningSentAt), isNull(accounts.deletingSince)))
-    .returning({ id: accounts.id, email: accounts.email, name: accounts.name });
-}
-
-/** Lets the next daily run warn the Account again when this run's email was not sent. */
-export async function releaseInactiveWarning(id: string, claimedAt: Date) {
-  await getPostgresDatabase()
-    .update(accounts)
-    .set({ inactiveWarningSentAt: null })
-    .where(and(eq(accounts.id, id), eq(accounts.inactiveWarningSentAt, claimedAt)));
+  return getPostgresDatabase().transaction(async (tx) => {
+    const [account] = await tx.select({ id: accounts.id, email: accounts.email, name: accounts.name })
+      .from(accounts)
+      .where(and(
+        lte(accounts.lastSignedInAt, signedInBefore), isNull(accounts.inactiveWarningSentAt), isNull(accounts.deletingSince),
+        skip.length > 0 ? notInArray(accounts.id, skip) : undefined,
+      ))
+      .orderBy(asc(accounts.lastSignedInAt))
+      .limit(1)
+      .for("update", { skipLocked: true });
+    if (!account) return null;
+    if (!(await send(account))) return { id: account.id, sent: false };
+    await tx.update(accounts).set({ inactiveWarningSentAt: now }).where(eq(accounts.id, account.id));
+    return { id: account.id, sent: true };
+  });
 }
 
 export async function markWarnedInactiveAccountsDeleting(now: Date) {

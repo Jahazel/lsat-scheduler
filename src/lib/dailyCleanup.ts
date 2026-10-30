@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { deleteOldDeletionListRows, finishMarkedDeletions } from "./accountDeletion";
 import { signInToKeepYourAccount } from "./accountEmails";
-import { claimInactiveWarnings, markWarnedInactiveAccountsDeleting, releaseInactiveWarning } from "./accountRepository";
+import { markWarnedInactiveAccountsDeleting, warnNextInactiveAccount } from "./accountRepository";
 import { configuredSiteUrl, sendEmail } from "./email";
 import { getPostgresDatabase } from "./postgres";
 import { deleteOldPendingSignups } from "./pendingSignupRepository";
@@ -16,17 +16,16 @@ export function isCronRequestAuthorized(authorization: string | null, secret: st
 }
 
 async function warnInactiveAccounts(now: Date) {
-  if (!configuredSiteUrl()) throw new Error("SITE_URL is not set, so no inactive Account warning is claimed that could not be sent.");
-  const counts = { sent: 0, notSent: 0 };
-  for (const account of await claimInactiveWarnings(now)) {
-    if ((await sendEmail(signInToKeepYourAccount(account.email, account.name))).sent) {
-      counts.sent += 1;
-    } else {
-      counts.notSent += 1;
-      await releaseInactiveWarning(account.id, now);
-    }
+  if (!configuredSiteUrl()) throw new Error("SITE_URL is not set, so this place cannot send inactive Account warnings.");
+  const notSent: string[] = [];
+  let sent = 0;
+  for (;;) {
+    const warned = await warnNextInactiveAccount(now, notSent, async (account) =>
+      (await sendEmail(signInToKeepYourAccount(account.email, account.name))).sent);
+    if (!warned) return { sent, notSent: notSent.length };
+    if (warned.sent) sent += 1;
+    else notSent.push(warned.id);
   }
-  return counts;
 }
 
 export async function runDailyCleanup() {
