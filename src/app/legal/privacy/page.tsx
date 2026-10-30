@@ -13,7 +13,8 @@ export default function PrivacyPage() {
             You may delete your account from the Account page at any time. Deletion removes your user account,
             profile, approved and legacy analytics snapshots, weekly schedules, and activity check-ins from active
             storage. Deletion requests are not used to rewrite records belonging to other students. We keep only a short
-            record that holds your Account ID and a scrambled form of your email.
+            record that holds your Account ID and a scrambled form of your email. We use it for 30 days to make sure a
+            restore from backup cannot bring your data back.
           </p>
           <p>
             These companies handle your data for us. Vercel runs the website. Neon stores the database. Google handles
@@ -30,7 +31,8 @@ export default function PrivacyPage() {
           <p>
             Neon keeps daily backups of the database for 14 days, so deleted data can remain in a backup until it
             expires. We use backups only to recover the service after a failure. They are not used to restore a deleted
-            account except when required to recover the service as a whole.
+            account except when required to recover the service as a whole. After a restore, we delete again every
+            Account that was deleted before.
           </p>
         </div>
       </div>

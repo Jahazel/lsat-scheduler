@@ -16,7 +16,9 @@
     "db:check-copy": "node --import tsx scripts/check-neon.mts",
     "prepare": "git config core.hooksPath .githooks || true",
     "reset:dev-data": "node --env-file=.env.local --import tsx scripts/reset-dev-data.mts",
-    "make-admin": "node --import tsx scripts/make-admin.mts"
+    "make-admin": "node --import tsx scripts/make-admin.mts",
+    "replay-deletions": "node --import tsx scripts/replay-deletions.mts",
+    "check-backup-ages": "node --import tsx scripts/check-backup-ages.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",

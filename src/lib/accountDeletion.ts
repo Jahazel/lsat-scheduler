@@ -1,7 +1,8 @@
 import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
 import { getPostgresDatabase } from "./postgres";
 import { accounts, deletionList } from "./postgresSchema";
-import { emailHash, recordUnexpectedFailure, type SecurityLogRoute } from "./securityLog";
+import { emailHash } from "./emailHash";
+import { recordUnexpectedFailure, type SecurityLogRoute } from "./securityLog";
 
 export type DeletionOutcome = "deleted" | "willFinish";
 export type DeletingLoginRefusal = "accountDeleted" | "deletionWillFinish";

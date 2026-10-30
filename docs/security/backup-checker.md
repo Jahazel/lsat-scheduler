@@ -92,6 +92,10 @@ The checker has no deletion operation. A Viewer must remain read-only. Use the o
 4. Ask for approval of the exact expired backup deletion. Remove only the approved copy through the provider console. Remove unused restore and `_old_` branches only with their own approval and after confirming no site uses them.
 5. Rerun the checker. Confirm zero overdue snapshots, a fresh backup for the active branch, and a healthy monitor. Record the safe result. This task does not prove Stage 6 deletion replay or the Stage 7 restore rehearsal.
 
+## Backup age check after a restore
+
+`npm run check-backup-ages` is a separate command for the [restore runbook](../runbooks/restore.md) ([issue 353](https://github.com/Jahazel/lsat-scheduler/issues/353)). It reads `BACKUP_PROJECT_ID`, `BACKUP_BRANCH_ID`, and `NEON_API_KEY`, with the same GET-only requests and limits as the checker. It sends no monitor signal. It checks every snapshot and every branch except the active one, and exits 1 when any can hold data older than 30 days. Unlike the daily checker, it names each one by its Neon name, so the owner can find it in the console. It never prints an ID or a key.
+
 ## Local verification and sources
 
 Run `npx vitest run scripts/backupChecker.test.ts scripts/check-backups.test.ts`. Synthetic responses cover branch selection, all-page inspection, exact age boundaries, malformed/future times, provider failures, timeouts, alert failures, and safe output. The command test launches a real child process against a local HTTP provider and alert receiver. It checks process exit status, stdout, stderr, and received requests. It uses no provider credential and cannot prove a hosted schedule or owner mailbox receipt. No web route changes, so the web app's browser recipes do not apply.
