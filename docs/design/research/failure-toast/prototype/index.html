@@ -1,0 +1,364 @@
+<!doctype html>
+<!--
+  PROTOTYPE, throw away. Failure toast · Direction 2 (two lines).
+  Question: does the toast's flow and motion feel right at 1440, 768, and 390,
+  with full motion and with reduced motion?
+  Open this file in a browser. No build, no server, no saved data.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE · Failure toast D2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --vellum: #F6F6F6; --paper: #FFFFFF; --line: #E4E4E4; --ink: #0A0A0A;
+  --fog: #8A8A8A; --smoke: #5C5C5C; --accent: #123A94;
+  --danger: #F0524F; --danger-ink: #C23532;
+  --shadow-e3: 0 16px 48px rgb(10 10 10 / 0.12);
+  --fast: 120ms; --base: 200ms; --slow: 320ms;
+  --standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --slowmo: 1;
+  font-family: Geist, ui-sans-serif, system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #2A2A2A; color: var(--ink); }
+button { font: inherit; color: inherit; }
+
+/* ---------- stage and device frame ---------- */
+#stage { position: fixed; inset: 0 0 150px 0; display: flex; justify-content: center; align-items: flex-start; padding-top: 16px; overflow: hidden; }
+#scaler { transform-origin: top center; }
+#frame { position: relative; background: var(--vellum); overflow: hidden; container-type: inline-size; container-name: app; border-radius: 6px; box-shadow: 0 0 0 1px #000; }
+#scroll { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; }
+
+/* ---------- app shell ---------- */
+.nav { position: sticky; top: 0; z-index: 2; height: 72px; display: flex; align-items: center; gap: 32px; padding: 0 72px; background: var(--paper); border-bottom: 1px solid var(--line); }
+.wordmark { font-weight: 600; font-size: 20px; letter-spacing: -0.02em; }
+.tabs { display: flex; gap: 4px; }
+.tab { border: 0; background: none; color: inherit; text-decoration: none; padding: 10px 16px; border-radius: 999px; font-size: 16px; cursor: pointer; transition: background var(--fast) var(--standard); }
+.tab:hover { background: var(--vellum); }
+.tab[aria-current="page"] { background: var(--vellum); font-weight: 500; }
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 24px; color: var(--smoke); }
+.avatar { width: 40px; height: 40px; border-radius: 999px; background: var(--vellum); display: grid; place-items: center; font-size: 13px; font-weight: 500; color: var(--ink); }
+.phone-tab { display: none; }
+.band { background: var(--paper); border-bottom: 1px solid var(--line); padding: 48px 72px 44px; }
+.h1 { font-size: 48px; line-height: 52px; letter-spacing: -0.035em; font-weight: 500; margin: 0; }
+.lead { font-size: 20px; line-height: 30px; color: var(--smoke); margin: 12px 0 0; }
+.body { padding: 48px 72px 160px; }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 24px; max-width: 720px; }
+.card + .card { margin-top: 24px; }
+.card h2 { margin: 0 0 4px; font-size: 18px; font-weight: 500; letter-spacing: -0.02em; }
+.card p { margin: 0 0 16px; color: var(--smoke); font-size: 14px; line-height: 20px; }
+.btn { border: 1px solid var(--ink); background: var(--ink); color: var(--paper); border-radius: 999px; padding: 10px 20px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background var(--fast) var(--standard); }
+.btn.ghost { background: var(--paper); color: var(--ink); }
+.btn:active { background: var(--smoke); border-color: var(--smoke); }
+.btn:focus-visible, .tab:focus-visible, .toast-close:focus-visible, .tb a:focus-visible, .check:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.field { display: block; margin: 0 0 16px; font-size: 14px; }
+.field input { display: block; margin-top: 6px; width: 100%; height: 44px; border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; font: inherit; }
+.day { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); font-size: 15px; }
+.check { width: 24px; height: 24px; border: 1.5px solid var(--smoke); border-radius: 6px; background: var(--paper); cursor: pointer; display: grid; place-items: center; padding: 0; }
+.check[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.check svg { display: none; } .check[aria-checked="true"] svg { display: block; }
+.auth { min-height: 100%; display: grid; place-items: start center; padding: 96px 24px 160px; }
+.auth .card { width: 400px; }
+.auth .wordmark { display: block; text-align: center; margin-bottom: 32px; }
+.spacer { height: 900px; border-top: 1px dashed var(--line); margin-top: 24px; color: var(--fog); font-size: 13px; padding-top: 12px; max-width: 720px; }
+
+/* phone tab bar */
+.tb { display: none; position: absolute; left: 12px; right: 12px; bottom: 12px; height: 66px; z-index: 3; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; justify-content: space-around; align-items: center; }
+.tb a { display: grid; justify-items: center; gap: 4px; text-decoration: none; color: var(--smoke); font-size: 12px; }
+.tb a[aria-current="page"] { color: var(--ink); font-weight: 500; }
+
+/* ---------- failure toast · Direction 2 ---------- */
+.toast-slot { position: absolute; left: 0; right: 0; bottom: 32px; z-index: 4; display: flex; justify-content: center; pointer-events: none; }
+.toast { pointer-events: auto; width: 360px; display: flex; align-items: flex-start; gap: 12px; padding: 16px 4px 16px 16px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-e3);
+  opacity: 1; transform: translateY(0);
+  transition: opacity calc(var(--base) * var(--slowmo)) var(--standard), transform calc(var(--base) * var(--slowmo)) var(--standard); }
+.toast .ico { flex: 0 0 20px; width: 20px; height: 20px; color: var(--danger); margin-top: 1px; }
+.toast .txt { flex: 1; min-width: 0; }
+.toast .msg { font-size: 14px; line-height: 20px; font-weight: 500; margin: 1px 0 4px; }
+.toast .code { font-size: 12px; line-height: 16px; color: var(--smoke); }
+.toast .code b { font: 13px/16px "Geist Mono", ui-monospace, monospace; color: var(--danger-ink); font-weight: 400; margin-left: 4px; user-select: all; }
+.toast-close { flex: 0 0 44px; width: 44px; height: 44px; margin: -12px 0 -12px; border: 0; background: none; color: var(--smoke); border-radius: 999px; cursor: pointer; display: grid; place-items: center; }
+@media (hover: hover) and (pointer: fine) { .toast-close:hover { background: var(--vellum); } }
+
+/* enter: rise 12 px + fade, 200 ms standard curve */
+.toast[data-state="entering"] { opacity: 0; transform: translateY(12px); }
+/* replace: new card fades in with no rise, 120 ms */
+.toast[data-replace] { transition-duration: calc(var(--fast) * var(--slowmo)); }
+.toast[data-state="entering"][data-replace] { transform: translateY(0); }
+/* exit: fade out + 4 px drop, 120 ms, same path as entry */
+.toast[data-state="exiting"] { opacity: 0; transform: translateY(4px); transition-duration: calc(var(--fast) * var(--slowmo)); transition-timing-function: var(--ease-out); }
+
+/* reduced motion: fades only, 120 ms, by system or by the control bar */
+@media (prefers-reduced-motion: reduce) {
+  #frame:not([data-motion="full"]) .toast { transition-duration: calc(var(--fast) * var(--slowmo)); }
+  #frame:not([data-motion="full"]) .toast[data-state="entering"],
+  #frame:not([data-motion="full"]) .toast[data-state="exiting"] { transform: none; }
+}
+#frame[data-motion="reduced"] .toast { transition-duration: calc(var(--fast) * var(--slowmo)); }
+#frame[data-motion="reduced"] .toast[data-state="entering"],
+#frame[data-motion="reduced"] .toast[data-state="exiting"] { transform: none; }
+
+/* ---------- phone ---------- */
+@container app (max-width: 767px) {
+  .nav { height: 56px; padding: 0 16px; gap: 16px; }
+  .tabs, .days-left { display: none; }
+  .phone-tab { display: inline; color: var(--ink); font-size: 16px; }
+  .band { padding: 32px 16px 28px; }
+  .h1 { font-size: 36px; line-height: 40px; }
+  .lead { font-size: 16px; line-height: 24px; }
+  .body { padding: 24px 16px 200px; }
+  .auth { padding: 48px 16px 200px; }
+  .auth .card { width: 100%; }
+  #frame[data-shell="student"] .tb { display: flex; }
+  .toast-slot { bottom: 12px; padding: 0 12px; }
+  #frame[data-shell="student"] .toast-slot { bottom: 86px; }
+  .toast { width: 100%; }
+}
+@container app (min-width: 768px) and (max-width: 1023px) {
+  .nav { padding: 0 32px; gap: 24px; }
+  .band { padding: 40px 32px 36px; }
+  .body { padding: 32px 32px 160px; }
+}
+
+/* ---------- control bar ---------- */
+#bar { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); width: min(1100px, calc(100% - 24px)); background: #111; color: #eee; border-radius: 12px; padding: 10px 14px; font: 12px/1.4 "Geist Mono", ui-monospace, monospace; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+#bar .grp { display: inline-flex; align-items: center; gap: 4px; margin: 2px 14px 2px 0; }
+#bar b { color: #FFB23F; font-weight: 400; margin-right: 4px; }
+#bar button { background: #222; border: 1px solid #333; color: #ddd; border-radius: 6px; padding: 3px 8px; cursor: pointer; font: inherit; }
+#bar button[aria-pressed="true"] { background: #FFB23F; color: #111; border-color: #FFB23F; }
+#state { margin-top: 6px; color: #9a9a9a; }
+#state em { color: #fff; font-style: normal; }
+</style>
+</head>
+<body>
+<div id="stage"><div id="scaler"><div id="frame" data-motion="system" data-shell="student">
+  <div id="scroll">
+    <header class="nav" id="nav">
+      <span class="wordmark">DrillMap</span>
+      <nav class="tabs" aria-label="Main">
+        <a class="tab" href="#/this-week" data-screen="this-week">This week</a>
+        <a class="tab" href="#/progress" data-screen="progress">Progress</a>
+        <a class="tab" href="#/settings" data-screen="settings">Study settings</a>
+      </nav>
+      <div class="nav-right">
+        <span class="phone-tab" id="phoneTab">This week</span>
+        <span class="days-left">125 days to test</span>
+        <span class="avatar">AB</span>
+      </div>
+    </header>
+    <main id="main"></main>
+  </div>
+  <nav class="tb" aria-label="Main" id="tb">
+    <a href="#/this-week" data-screen="this-week"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>This week</a>
+    <a href="#/progress" data-screen="progress"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 20V10M12 20V4M19 20v-6M3 20h18"/></svg>Progress</a>
+    <a href="#/settings" data-screen="settings"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8h16M4 16h16"/><circle cx="9" cy="8" r="2" fill="#fff"/><circle cx="15" cy="16" r="2" fill="#fff"/></svg>Settings</a>
+  </nav>
+  <div class="toast-slot" id="toastSlot"></div>
+</div></div></div>
+
+<div id="bar" aria-label="Prototype controls">
+  <span class="grp"><b>WIDTH</b><button data-w="1440">1440</button><button data-w="768">768</button><button data-w="390">390</button></span>
+  <span class="grp"><b>SCREEN</b><button data-go="#/this-week">This week</button><button data-go="#/settings">Account</button><button data-go="#/login">Log in (no shell)</button></span>
+  <span class="grp"><b>MOTION</b><button data-m="system">Follow system</button><button data-m="full">Full</button><button data-m="reduced">Reduced</button><button id="slowmo">Slow ×5</button></span>
+  <br>
+  <span class="grp"><b>WALK</b><button data-walk="close">Fail, then close</button><button data-walk="nav">Fail, then leave the screen</button><button data-walk="double">Double press (two failures)</button><button data-walk="success">Fail, retry, it works</button></span>
+  <div id="state"></div>
+</div>
+
+<script>
+// ---------- toast logic (portable, no DOM) ----------
+// One toast at a time. Each failure makes a fresh alert. A second failure replaces the first.
+// A navigation or a later success of the same action closes it. It never closes by itself.
+const ToastModel = {
+  initial: () => ({ toast: null, seq: 0 }),
+  fail(s, code, action) {
+    if (s.toast && s.toast.code === code) return { s, event: "same code again, ignored" };
+    const replaced = !!s.toast;
+    return { s: { seq: s.seq + 1, toast: { id: s.seq + 1, code, action } }, event: replaced ? "replaced" : "shown" };
+  },
+  close(s) { return s.toast ? { s: { ...s, toast: null }, event: "closed by the student" } : { s, event: "nothing to close" }; },
+  navigate(s) { return s.toast ? { s: { ...s, toast: null }, event: "closed by leaving the screen" } : { s, event: "no toast" }; },
+  succeed(s, action) {
+    if (s.toast && s.toast.action === action) return { s: { ...s, toast: null }, event: "closed by the same action succeeding" };
+    return { s, event: s.toast ? "a different action succeeded, toast stays" : "no toast" };
+  },
+};
+
+// ---------- page shell ----------
+const S = { width: 1440, motion: "system", slow: false, screen: "this-week", model: ToastModel.initial(), last: "—", checks: {} };
+const sysReduced = matchMedia("(prefers-reduced-motion: reduce)");
+const reduced = () => S.motion === "reduced" || (S.motion === "system" && sysReduced.matches);
+const codes = ["3f9a0c2e", "b71e44d0", "0c2d9e7a", "e4a1b8f3"];
+let codeIx = 0;
+const nextCode = () => codes[codeIx++ % codes.length];
+const $ = id => document.getElementById(id);
+
+const screens = {
+  "this-week": () => `
+    <section class="band"><h1 class="h1">This week</h1><p class="lead">Oct 26 – Nov 1. Check off each activity when it is done.</p></section>
+    <section class="body">
+      <div class="card"><h2>Monday</h2><p>Two activities.</p>
+        ${["LR drill · Assumption, 20 questions", "RC passage · Level 3"].map((t, i) => `
+        <div class="day"><button class="check" role="checkbox" aria-checked="${S.checks["mon" + i] ? "true" : "false"}" data-check="mon${i}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L19 7"/></svg></button><span>${t}</span></div>`).join("")}
+        <p style="margin:16px 0 0">The first check-off fails on the server. Press it to see the toast. Press it again and the save works.</p>
+      </div>
+      <div class="card"><h2>Log out</h2><p>A button that only redirects. This one fails on the server.</p><button class="btn ghost" data-act="logout">Log out</button></div>
+      <div class="spacer">Long page. Scroll down and fail again: the toast stays at the bottom of the window.</div>
+    </section>`,
+  "settings": () => `
+    <section class="band"><h1 class="h1">Study settings</h1><p class="lead">Your test date, hours per week, and account.</p></section>
+    <section class="body">
+      <div class="card"><h2>Change password</h2><p>The form keeps what you typed when the save fails.</p>
+        <label class="field">Current password<input type="password" value="••••••••"></label>
+        <label class="field">New password<input type="password" value="••••••••••"></label>
+        <button class="btn" data-act="password">Save password</button></div>
+      <div class="card"><h2>Sign out of all devices</h2><p>A redirect button.</p><button class="btn ghost" data-act="signout-all">Sign out of all devices</button></div>
+    </section>`,
+  "progress": () => `
+    <section class="band"><h1 class="h1">Progress</h1><p class="lead">Your past weekly schedules.</p></section>
+    <section class="body"><div class="card"><h2>October 2026</h2><p>No action here fails. Use the nav to go back to This week.</p></div></section>`,
+  "login": () => `
+    <div class="auth"><div><span class="wordmark">DrillMap</span>
+      <div class="card"><h2>Log in</h2><p>No app shell. The toast sits in the same place.</p>
+        <label class="field">Email<input type="email" value="ava@example.com"></label>
+        <label class="field">Password<input type="password" value="••••••••"></label>
+        <button class="btn" data-act="login" style="width:100%">Log in</button>
+        <p style="margin:16px 0 0;text-align:center"><button class="btn ghost" data-act="google" style="width:100%">Continue with Google</button></p>
+      </div></div></div>`,
+};
+
+// pending failures: the first press of each action fails, the next press succeeds
+const willFail = {};
+function pressAction(action) {
+  willFail[action] = willFail[action] === undefined ? true : !willFail[action];
+  if (willFail[action]) fail(action); else succeed(action);
+}
+function fail(action) {
+  const r = ToastModel.fail(S.model, nextCode(), action);
+  S.model = r.s; S.last = `${action}: failed, toast ${r.event}`;
+  renderToast(r.event);
+  showState();
+}
+function succeed(action) {
+  const r = ToastModel.succeed(S.model, action);
+  S.model = r.s; S.last = `${action}: worked, ${r.event}`;
+  renderToast(r.event);
+  showState();
+}
+function closeToast() {
+  const r = ToastModel.close(S.model);
+  S.model = r.s; S.last = r.event; renderToast(r.event); showState();
+}
+
+// ---------- toast DOM ----------
+let node = null;
+function toastHtml(t) {
+  return `<div class="toast" role="alert" data-state="entering" data-id="${t.id}">
+    <svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="8.2"/><path d="M10 5.8v5M10 13.6v.4" stroke-linecap="round"/></svg>
+    <div class="txt"><p class="msg">Something went wrong. Try again.</p><p class="code">Error code<b>${t.code}</b></p></div>
+    <button class="toast-close" type="button" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>`;
+}
+function removeNode(n, animate) {
+  if (!n) return;
+  if (!animate) { n.remove(); return; }
+  n.dataset.state = "exiting";
+  n.style.pointerEvents = "none";
+  n.addEventListener("transitionend", () => n.remove(), { once: true });
+  setTimeout(() => n.remove(), 400 * (S.slow ? 5 : 1));
+}
+function renderToast(event) {
+  const t = S.model.toast;
+  const slot = $("toastSlot");
+  const current = slot.querySelector(".toast:not([data-state=exiting])");
+  if (!t) { removeNode(current, true); node = null; return; }
+  if (current && +current.dataset.id === t.id) return;
+  if (current) removeNode(current, false);
+  slot.insertAdjacentHTML("beforeend", toastHtml(t));
+  node = slot.lastElementChild;
+  if (event === "replaced") node.dataset.replace = "";
+  node.querySelector(".toast-close").onclick = closeToast;
+  node.getBoundingClientRect();
+  requestAnimationFrame(() => requestAnimationFrame(() => { node.dataset.state = "shown"; }));
+}
+
+// ---------- screens and nav ----------
+function render() {
+  const noShell = S.screen === "login";
+  $("frame").dataset.shell = noShell ? "none" : "student";
+  $("nav").style.display = noShell ? "none" : "";
+  $("main").innerHTML = screens[S.screen]();
+  document.querySelectorAll("[data-screen]").forEach(a => a.toggleAttribute("aria-current", a.dataset.screen === S.screen) || (a.dataset.screen === S.screen ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
+  $("phoneTab").textContent = { "this-week": "This week", progress: "Progress", settings: "Study settings" }[S.screen] || "";
+  $("scroll").scrollTop = 0;
+}
+function go(screen) {
+  if (screen === S.screen) return;
+  const r = ToastModel.navigate(S.model);
+  S.model = r.s; S.last = `left the screen: ${r.event}`;
+  renderToast(r.event);
+  S.screen = screen; render(); showState();
+}
+document.addEventListener("click", e => {
+  const a = e.target.closest('a[href^="#/"]');
+  if (a) { e.preventDefault(); go(a.getAttribute("href").slice(2)); return; }
+  const act = e.target.closest("[data-act]");
+  if (act) { pressAction(act.dataset.act); return; }
+  const chk = e.target.closest("[data-check]");
+  if (chk) {
+    const id = chk.dataset.check;
+    if (id === "mon0" && !willFail.checkoff) { willFail.checkoff = true; chk.setAttribute("aria-checked", "true"); setTimeout(() => { chk.setAttribute("aria-checked", "false"); fail("check-off"); }, 350 * (S.slow ? 5 : 1)); return; }
+    S.checks[id] = !S.checks[id]; chk.setAttribute("aria-checked", S.checks[id]);
+    if (id === "mon0") succeed("check-off");
+  }
+});
+
+// ---------- guided walkthroughs ----------
+const walks = {
+  close: async () => { go("this-week"); fail("log out"); await wait(1400); closeToast(); },
+  nav: async () => { go("this-week"); fail("log out"); await wait(1400); go("progress"); },
+  double: async () => { go("settings"); fail("save password"); await wait(700); fail("save password"); },
+  success: async () => { go("settings"); fail("save password"); await wait(1400); succeed("save password"); },
+};
+const wait = ms => new Promise(r => setTimeout(r, ms * (S.slow ? 3 : 1)));
+
+// ---------- controls ----------
+function fit() {
+  const stage = $("stage"), sc = $("scaler"), frame = $("frame");
+  const availW = stage.clientWidth - 32, availH = stage.clientHeight - 16;
+  const scale = Math.min(1, availW / S.width);
+  frame.style.width = S.width + "px";
+  frame.style.height = (S.width === 390 ? Math.min(844, availH / scale) : availH / scale) + "px";
+  sc.style.transform = `scale(${scale})`;
+  S.scale = scale;
+}
+function press() {
+  document.querySelectorAll("[data-w]").forEach(b => b.setAttribute("aria-pressed", +b.dataset.w === S.width));
+  document.querySelectorAll("[data-m]").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === S.motion));
+  $("slowmo").setAttribute("aria-pressed", S.slow);
+  $("frame").dataset.motion = S.motion;
+  document.documentElement.style.setProperty("--slowmo", S.slow ? 5 : 1);
+}
+function showState() {
+  const t = S.model.toast;
+  $("state").innerHTML =
+    `screen <em>${S.screen}</em> · toast <em>${t ? `shown, code ${t.code}` : "none"}</em> · motion <em>${reduced() ? "reduced: 120 ms fades only" : "full: 200 ms rise + fade in, 120 ms fade out"}</em>${S.slow ? " ×5 slow" : ""} · scale ${Math.round(S.scale * 100)}%<br>` +
+    `last event <em>${S.last}</em>`;
+}
+document.querySelectorAll("[data-w]").forEach(b => b.onclick = () => { S.width = +b.dataset.w; fit(); press(); showState(); });
+document.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { S.motion = b.dataset.m; press(); showState(); });
+document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => go(b.dataset.go.slice(2)));
+document.querySelectorAll("[data-walk]").forEach(b => b.onclick = () => walks[b.dataset.walk]());
+$("slowmo").onclick = () => { S.slow = !S.slow; press(); showState(); };
+sysReduced.addEventListener("change", showState);
+addEventListener("resize", () => { fit(); showState(); });
+
+fit(); press(); render(); showState();
+</script>
+</body>
+</html>
