@@ -33,11 +33,10 @@ gh issue list --state open --limit 200 --json number,labels --jq '.[] | select([
 
 ## Agent factory labels
 
-The local agent factory uses these labels. A dispatcher thread starts one worker per issue. The labels show where each issue is.
+The agent factory (`.github/workflows/factory-orchestrator.yml`) uses these labels. It starts one worker per issue. The labels show where each issue is.
 
 | Label | Meaning |
 | --- | --- |
-| `agent:implement` | The owner wants an agent run to start on this issue. Only the owner adds it. |
 | `agent:in-progress` | An agent has claimed this issue and is working on it. |
 | `agent:blocked` | The factory stopped work on this issue. Its comment says why. To retry, the owner removes the label. |
 
@@ -51,7 +50,7 @@ The weekly gardener (`.github/workflows/factory-gardener.yml`) uses these labels
 | --- | --- |
 | `gardening:report` | One weekly gardening pass. The issue holds its report. The orchestrator starts no implement worker on it; a resolve worker may update its PR. |
 | `gardening:lesson` | The owner fixed an agent mistake by hand. The next pass handles it first. |
-| `gardening:cleanup` | Finishes a gardening PR. The owner adds `agent:implement` after that PR merges. |
-| `gardening:refactor-idea` | A deeper module the gardener suggests. The owner adds `agent:implement` to start it, or leaves it open. |
+| `gardening:cleanup` | Finishes a gardening PR. The owner adds `ready-for-agent` after that PR merges. |
+| `gardening:refactor-idea` | A deeper module the gardener suggests. The owner adds `ready-for-agent` to start it, or leaves it open. |
 
-`ready-for-agent` still means "the issue has enough detail for an agent to implement it." It does not start a run by itself.
+`ready-for-agent` starts a factory run when the owner adds it. The factory skips an issue that has sub-issues, waits on an open "Blocked by" issue, or already has an open PR.
