@@ -81,3 +81,20 @@ Motion in the prototype, one set:
 - CSS transitions on opacity and transform only, no keyframes, so a rapid second failure retargets instead of restarting.
 
 Impeccable motion review, 2026-10-30 (single context, against the `animate` and `impeccable` motion rules): no banned pattern (`transition: all`, `scale(0)`, keyframes on the toast, `ease-in`). Exit is faster than entrance. Reduced motion keeps the fade so the alert still reads as a state change. One defect found and fixed during the run: the replace fade ran at 200 ms because its duration sat on the start state; CSS takes the duration from the end state, so it now sits on the card.
+
+## States
+
+Every state is in Paper on the Approved page under "Failure toast · Chosen design", at desktop 1440, tablet 768, and phone 390. Exports are in `states/`, one image per board and one `state-*.png` per state with the sizes side by side. The motion rows are in `motion.md`.
+
+| State | Boards |
+| --- | --- |
+| Shown | desktop, tablet, phone (This week and Progress backgrounds; phone above the tab bar) |
+| Entering (mid-frame) | desktop, tablet, phone |
+| Leaving (mid-frame) | desktop, tablet, phone |
+| Reduced motion (mid-fade, no movement) | desktop, tablet, phone |
+| Replaced by a second failure (new code) | desktop, tablet, phone |
+| No app shell (Log in) | desktop, tablet, phone; phone sits 12 px from the bottom with no tab bar |
+| Long page scrolled far down (Account) | desktop; the toast stays at the bottom of the window |
+| Keyboard open (Log in) | phone; the toast sits above the on-screen keyboard |
+
+Not built as boards: the wide admin workspace, because the toast sits bottom-center at every width and the desktop boards cover it; the same-code-within-a-second case, because nothing changes on screen.
