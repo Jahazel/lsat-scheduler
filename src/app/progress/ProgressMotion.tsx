@@ -93,6 +93,10 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     fadeIn(el, slideBetween(from, to));
   }, []);
 
+  useLayoutEffect(() => function showFirstPageWithoutMotionWhenRemounted() {
+    shown.current = undefined;
+  }, []);
+
   useEffect(() => {
     let replaying = false;
     let latest = 0;
