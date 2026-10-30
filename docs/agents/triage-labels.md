@@ -13,6 +13,23 @@ Use these labels when a skill sorts issues by the next action they need.
 Use the label in this tracker when a skill names its corresponding role.
 This file records the local mapping. It does not create labels on GitHub.
 
+## Every open issue gets one ready label
+
+Give every open issue exactly one of `ready-for-agent` or `ready-for-human`. Add it when you create the issue.
+
+| Issue | Ready label |
+| --- | --- |
+| Has the `bug` label | `ready-for-agent`, next to `bug` |
+| Has the `design` label | `ready-for-human` |
+| Any other task that a person must do | `ready-for-human` |
+| All other issues | `ready-for-agent` |
+
+Find open issues with no ready label:
+
+```sh
+gh issue list --state open --limit 200 --json number,labels --jq '.[] | select([.labels[].name] | (index("ready-for-agent") or index("ready-for-human")) | not) | .number'
+```
+
 ## Agent factory labels
 
 The local agent factory uses these labels. A dispatcher thread starts one worker per issue. The labels show where each issue is.
