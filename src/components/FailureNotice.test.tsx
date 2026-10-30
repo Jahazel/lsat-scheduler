@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import { useActionState } from "react";
+import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import type { FailureCode, FormState } from "@/lib/unexpectedFailure";
 
 const navigation = vi.hoisted(() => ({ pathname: "/account" }));
 vi.mock("next/navigation", () => ({ usePathname: () => navigation.pathname }));
 
-import { ActionForm, FailureNotice, FailureToastProvider } from "./FailureNotice";
+import { ActionForm, FailureToastProvider } from "./FailureNotice";
 
 afterEach(() => {
   cleanup();
@@ -102,23 +102,25 @@ it("closes when the student leaves the screen", async () => {
   expect(screen.queryByRole("alert")).toBeNull();
 });
 
-function SendLink({ answers }: { answers: (FormState | "sent")[] }) {
-  const [answer, formAction] = useActionState(async () => answers.shift() ?? null, null);
-  if (answer === "sent") return <p>Check your email</p>;
+function Menu() {
+  const [open, setOpen] = useState(true);
   return (
-    <form action={formAction}>
-      <button type="submit">Send link</button>
-      <FailureNotice answer={answer} />
-    </form>
+    <FailureToastProvider>
+      <button type="button" onClick={() => setOpen(false)}>Close menu</button>
+      {open && (
+        <ActionForm action={async () => failure("3f9a01c2")}>
+          <button type="submit">Log out</button>
+        </ActionForm>
+      )}
+    </FailureToastProvider>
   );
 }
 
-it("closes when the same action works and the screen shows its next step instead of the form", async () => {
-  render(<FailureToastProvider><SendLink answers={[failure("3f9a01c2"), "sent"]} /></FailureToastProvider>);
-  await press("Send link");
-  await toast();
+it("stays when the form that failed is removed, such as a menu closing", async () => {
+  render(<Menu />);
+  await press("Log out");
+  const alert = await toast();
 
-  await press("Send link");
-  await screen.findByText("Check your email");
-  expect(screen.queryByRole("alert")).toBeNull();
+  await press("Close menu");
+  expect(screen.getByRole("alert")).toBe(alert);
 });

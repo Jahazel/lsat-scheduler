@@ -8,7 +8,6 @@ import {
   useContext,
   useEffect,
   useId,
-  useMemo,
   useRef,
   useState,
   type ComponentProps,
@@ -31,8 +30,8 @@ function answered(toasts: Toasts, notice: string, action: string, answer: unknow
   return { shown: { code: answer.unexpectedFailure, notice, action, replaced: toasts.shown !== null }, leaving: null };
 }
 
-type Reports = { answered: (notice: string, action: string, answer: unknown) => void; gone: (notice: string) => void };
-const ReportContext = createContext<Reports>({ answered: () => {}, gone: () => {} });
+type Report = (notice: string, action: string, answer: unknown) => void;
+const ReportContext = createContext<Report>(() => {});
 
 export function FailureToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState(NO_TOASTS);
@@ -42,15 +41,12 @@ export function FailureToastProvider({ children }: { children: ReactNode }) {
     setToastsPathname(pathname);
     setToasts(close);
   }
-  const reports = useMemo<Reports>(() => ({
-    answered: (notice, action, answer) => setToasts((current) => answered(current, notice, action, answer)),
-    gone: (notice) => setToasts((current) => (current.shown?.notice === notice ? close(current) : current)),
-  }), []);
+  const report = useCallback<Report>((notice, action, answer) => setToasts((current) => answered(current, notice, action, answer)), []);
   const leftAt = useCallback((code: FailureCode) => setToasts((current) =>
     current.leaving?.code === code ? { ...current, leaving: null } : current), []);
 
   return (
-    <ReportContext value={reports}>
+    <ReportContext value={report}>
       {children}
       <ToastSlot>
         {[toasts.leaving, toasts.shown].map((toast) => toast && (toast === toasts.shown
@@ -130,20 +126,19 @@ function ToastCard({ toast, onClose, onLeft }: { toast: Toast; onClose?: () => v
 }
 
 /**
- * Shows the failure toast when `answer` becomes an unexpected failure. Closes it when
- * the same `action` answers again without one, or when this notice unmounts because
- * the screen showed its next step. Renders nothing in place.
+ * Shows the failure toast when `answer` becomes an unexpected failure, and closes it
+ * when the same `action` answers again without one. Renders nothing in place, so a
+ * screen that swaps its form for a next step keeps the notice mounted outside both.
  */
 export function FailureNotice({ answer, action = "" }: { answer: unknown; action?: string }) {
-  const reports = useContext(ReportContext);
+  const report = useContext(ReportContext);
   const notice = useId();
   const previous = useRef(answer);
   useEffect(() => {
     if (previous.current === answer) return;
     previous.current = answer;
-    reports.answered(notice, action, answer);
-  }, [action, answer, notice, reports]);
-  useEffect(() => () => reports.gone(notice), [notice, reports]);
+    report(notice, action, answer);
+  }, [action, answer, notice, report]);
   return null;
 }
 

@@ -24,8 +24,9 @@ export default function SignupPage() {
 
 function Signup({ onSignUpAgain }: { onSignUpAgain: () => void }) {
   const [state, formAction, pending] = useActionState(signUpWithPassword, initialState);
+  const notice = <FailureNotice answer={state} />;
 
-  if (!isUnexpectedFailure(state) && state.kind === "checkYourEmail") return <CheckYourEmail email={state.email} onSignUpAgain={onSignUpAgain} />;
+  if (!isUnexpectedFailure(state) && state.kind === "checkYourEmail") return <>{notice}<CheckYourEmail email={state.email} onSignUpAgain={onSignUpAgain} /></>;
 
   // Submitting by hand keeps the typed values: a form action would clear the form when it returns an error.
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -36,52 +37,54 @@ function Signup({ onSignUpAgain }: { onSignUpAgain: () => void }) {
 
   const errors = isUnexpectedFailure(state) ? {} : state.errors;
   return (
-    <SignInFrame title="Sign up for DrillMap" lead="Use Google, or your email and a password." preview={<StepsPreview />}>
-      <div className="flex flex-col gap-3">
-        <ActionForm action={signUpWithGoogle}>
-          <GoogleButton look="light" />
-        </ActionForm>
-        <p className="text-small leading-[20px] text-smoke">
-          By continuing with Google, you agree to the <Link href="/legal/terms" className={LEGAL_LINK}>Terms of Service</Link> and{" "}
-          <Link href="/legal/privacy" className={LEGAL_LINK}>Privacy Policy</Link>
-        </p>
-      </div>
-      <OrWithEmail />
-      <form onSubmit={submit} className="flex flex-col gap-8">
-        <div className="flex flex-col gap-4">
-          <TextInput label="Name" name="name" autoComplete="name" required error={errors.name} />
-          <TextInput label="Email" name="email" type="email" autoComplete="email" required error={errors.email} />
-          <TextInput
-            label="Password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            required
-            helper="At least 8 characters. A long phrase works well."
-            error={errors.password}
-          />
+    <>
+      {notice}
+      <SignInFrame title="Sign up for DrillMap" lead="Use Google, or your email and a password." preview={<StepsPreview />}>
+        <div className="flex flex-col gap-3">
+          <ActionForm action={signUpWithGoogle}>
+            <GoogleButton look="light" />
+          </ActionForm>
+          <p className="text-small leading-[20px] text-smoke">
+            By continuing with Google, you agree to the <Link href="/legal/terms" className={LEGAL_LINK}>Terms of Service</Link> and{" "}
+            <Link href="/legal/privacy" className={LEGAL_LINK}>Privacy Policy</Link>
+          </p>
         </div>
-        <div className="flex flex-col gap-2">
-          <Checkbox
-            name="agreedToTerms"
-            invalid={!!errors.terms}
-            aria-describedby={errors.terms ? "agreed-to-terms-error" : undefined}
-            label={
-              <span>
-                I agree to the <Link href="/legal/terms" className={LEGAL_LINK}>Terms of Service</Link> and{" "}
-                <Link href="/legal/privacy" className={LEGAL_LINK}>Privacy Policy</Link>
-              </span>
-            }
-          />
-          {errors.terms && (
-            <p id="agreed-to-terms-error" className="pl-7 text-small leading-[20px] text-danger-ink">{errors.terms}</p>
-          )}
-        </div>
-        <FailureNotice answer={state} />
-        <SubmitButton label="Create account" pending={pending} />
-      </form>
-      <SwitchPageLink question="Already have an account?" href="/login" label="Log in" />
-    </SignInFrame>
+        <OrWithEmail />
+        <form onSubmit={submit} className="flex flex-col gap-8">
+          <div className="flex flex-col gap-4">
+            <TextInput label="Name" name="name" autoComplete="name" required error={errors.name} />
+            <TextInput label="Email" name="email" type="email" autoComplete="email" required error={errors.email} />
+            <TextInput
+              label="Password"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              required
+              helper="At least 8 characters. A long phrase works well."
+              error={errors.password}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Checkbox
+              name="agreedToTerms"
+              invalid={!!errors.terms}
+              aria-describedby={errors.terms ? "agreed-to-terms-error" : undefined}
+              label={
+                <span>
+                  I agree to the <Link href="/legal/terms" className={LEGAL_LINK}>Terms of Service</Link> and{" "}
+                  <Link href="/legal/privacy" className={LEGAL_LINK}>Privacy Policy</Link>
+                </span>
+              }
+            />
+            {errors.terms && (
+              <p id="agreed-to-terms-error" className="pl-7 text-small leading-[20px] text-danger-ink">{errors.terms}</p>
+            )}
+          </div>
+          <SubmitButton label="Create account" pending={pending} />
+        </form>
+        <SwitchPageLink question="Already have an account?" href="/login" label="Log in" />
+      </SignInFrame>
+    </>
   );
 }
 
