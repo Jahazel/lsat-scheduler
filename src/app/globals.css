@@ -153,3 +153,38 @@ body:has([data-sign-in-page]) > footer { display: none; }
     transparent 75%
   );
 }
+
+/* The floating tab bar's top edge sits 78px above the window bottom (StudentTabBar), so 86px leaves 8px. */
+.failure-toast-slot { bottom: 12px; }
+body:has([data-tab-bar]) .failure-toast-slot { bottom: calc(86px + env(safe-area-inset-bottom)); }
+@media (min-width: 48rem) {
+  .failure-toast-slot,
+  body:has([data-tab-bar]) .failure-toast-slot { bottom: 32px; }
+  body:has([data-workspace-tabs]) .failure-toast-slot { bottom: calc(86px + env(safe-area-inset-bottom)); }
+}
+@media (min-width: 64rem) {
+  body:has([data-workspace-tabs]) .failure-toast-slot { bottom: 32px; }
+}
+
+.failure-toast {
+  --rise: 12px;
+  --drop: 4px;
+  transition: opacity 200ms cubic-bezier(0.2, 0, 0, 1), transform 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+.failure-toast[data-replaced] {
+  --rise: 0px;
+  transition-duration: 120ms;
+}
+@starting-style {
+  .failure-toast { opacity: 0; transform: translateY(var(--rise)); }
+}
+.failure-toast[data-leaving] {
+  opacity: 0;
+  transform: translateY(var(--drop));
+  transition-duration: 120ms;
+  transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .failure-toast { --rise: 0px; --drop: 0px; transition-duration: 120ms; }
+}
