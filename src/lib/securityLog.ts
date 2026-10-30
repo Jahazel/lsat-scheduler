@@ -1,4 +1,4 @@
-import { createHmac, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { CredentialsSignin } from "next-auth";
 import { unstable_rethrow } from "next/navigation";
@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { findAccountByEmail, isAccountId } from "./accountRepository";
 import type { DeletionOutcome } from "./accountDeletion";
 import { clientIpAddress } from "./clientIpAddress";
+import { emailHash } from "./emailHash";
 import type { LimitedAction } from "./actionLimits";
 import type { DeletionRefusal, LoginRefusal } from "./passwordAccount";
 import type { VerificationResult } from "./pendingSignupRepository";
@@ -66,12 +67,6 @@ export function errorTypeOf(error: unknown) {
     ? `:${cause.code}` : "";
   const type = `${error.name}${code}`;
   return SAFE_ERROR_TYPE.test(type) ? type : "unknown";
-}
-
-export function emailHash(email: string) {
-  const key = process.env.AUTH_SECRET;
-  if (!key) throw new Error("AUTH_SECRET is not set");
-  return createHmac("sha256", key).update(email).digest("hex");
 }
 
 /**

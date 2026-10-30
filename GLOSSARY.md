@@ -112,6 +112,10 @@ _Avoid_: pending deletion, soft-deleted account
 A short record of each deleted Account: its Account ID, a keyed hash of its email, and the date. It holds nothing else. Each row is deleted once it is more than 30 days old.
 _Avoid_: tombstone, deleted accounts table
 
+**Deletion replay**:
+Running the deletion list again on a database restored from a backup, before the site uses it, so that a deleted Account stays deleted.
+_Avoid_: tombstone replay, re-deletion
+
 **Sign out of all devices**:
 Ending every session of an Account at once, on every browser and device, including the current one. The ordinary "Sign out" ends only the current browser.
 _Avoid_: sign out everywhere, global logout

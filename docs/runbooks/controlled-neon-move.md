@@ -275,14 +275,14 @@ no longer apply. Only the Neon restore row remains.
 | Before domain assignment | Stop. Keep or restore the old MongoDB deployment on the domain. Reopen old writes only after the owner confirms no Postgres writes occurred and approves restoring old access. Repeat inventory before a later attempt. |
 | Domain assigned, proven no new Postgres records | Pause access. With owner approval, reassign the domain to the recorded MongoDB deployment with its Atlas settings. Confirm Atlas exists and access works before reopening. |
 | Postgres accepted any new records, or this is uncertain | Pause writes. Preserve Neon and Atlas. Prefer repairing the Postgres build or an owner-approved compatible Postgres deployment. Do not reopen Atlas writes or discard new Postgres data. The owner must decide reconciliation or accepted loss before recovery. |
-| Neon restore needed | Use the tested isolated Neon restore procedure from #144. Record source time, counts, recovery time, and any lost writes. Obtain owner approval before changing the app connection or domain. Recheck both Admins and backups before reopening. |
+| Neon restore needed | Follow the [restore runbook](restore.md), which runs the deletion replay and the backup age check before the site uses the restored branch. Record source time, counts, recovery time, and any lost writes. Obtain owner approval before changing the app connection or domain. Recheck both Admins and backups before reopening. |
 
 A MongoDB build cannot use Postgres. Pointing it at a Postgres connection does not
 make it compatible. A Vercel rollback changes code and domain routing. It does not
 restore database contents. Review the settings used by the destination deployment.
 The recovery target is at most one day of lost data and 48 hours to recover.
 Stage 7 must rehearse full recovery, credential rotation, five alert tests, and
-post-restore deletion replay. Stage 6 implements deletion replay first.
+post-restore deletion replay. Stage 6 built the deletion replay ([issue 353](https://github.com/Jahazel/lsat-scheduler/issues/353)).
 
 ## Atlas retirement is a separate gate
 
