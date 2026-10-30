@@ -108,6 +108,10 @@ _Avoid_: banned account, locked account, suspended account
 An Account whose student asked to delete it, while the deletion is not finished. It cannot sign in, and its open sessions stop on their next request. A sign-in or the daily job finishes the deletion. Nothing returns it to a working Account.
 _Avoid_: pending deletion, soft-deleted account
 
+**Inactive Account**:
+An Account with no successful sign-in for 2 years. The daily job emails it a warning, and deletes it with the two-step deletion if there is still no sign-in 30 days later. Any sign-in cancels the warning. Accounts that existed before migration `0018_inactive_accounts` count from the migration day.
+_Avoid_: dormant account, stale account
+
 **Deletion list**:
 A short record of each deleted Account: its Account ID, a keyed hash of its email, and the date. It holds nothing else. Each row is deleted once it is more than 30 days old.
 _Avoid_: tombstone, deleted accounts table

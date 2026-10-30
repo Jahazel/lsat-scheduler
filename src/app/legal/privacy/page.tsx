@@ -10,6 +10,10 @@ export default function PrivacyPage() {
             to generate and display your adaptive weekly schedule and to preserve your study history.
           </p>
           <p>
+            We keep your Account and study information until you delete your Account. If you do not sign in for 2
+            years, we email you, and we delete your Account 30 days later.
+          </p>
+          <p>
             You may delete your account from the Account page at any time. Deletion removes your user account,
             profile, approved and legacy analytics snapshots, weekly schedules, and activity check-ins from active
             storage. Deletion requests are not used to rewrite records belonging to other students. We keep only a short

@@ -4,7 +4,7 @@ import { finishDeletion, finishDeletionOnSignIn, type DeletingLoginRefusal, type
 import { resetYourPassword, verifyYourEmail, youAlreadyHaveAnAccount, youSignInWithGoogle } from "./accountEmails";
 import {
   findAccountByEmail, findPasswordAccountByEmail, findPasswordAccountById, markGoogleAccountDeleting, markPasswordAccountDeleting,
-  replacePasswordHash, signInMethodForEmail, type AccountId,
+  recordSignIn, replacePasswordHash, signInMethodForEmail, type AccountId,
 } from "./accountRepository";
 import { signedInRecently } from "./accountSession";
 import { countAll, giveBack, loginTryCounts, signupCounts } from "./actionLimits";
@@ -158,6 +158,7 @@ export async function logIn(
   if (account.deletingSince) return refused(await finishDeletionOnSignIn(account.id, request.route));
   if (account.disabledAt) return refused("accountDisabled");
   await recordSecurityEvent({ event: "sign_in", result: "signedIn", route: request.route, who: { account: account.id }, ipAddress: request.ipAddress });
+  await recordSignIn(account.id, realNow);
   const user = { id: account.id, email: account.email, name: account.name, sessionVersion: account.sessionVersion };
   return { kind: "signedIn", user } as const;
 }

@@ -1,8 +1,11 @@
-import { and, eq, isNotNull, sql, type SQL } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, lte, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { getPostgresDatabase } from "./postgres";
 import type { CurrentPasswordProof } from "./passwordAccount";
 import { accounts, pendingSignups } from "./postgresSchema";
+
+export const INACTIVE_YEARS = 2;
+export const INACTIVE_WARNING_DAYS = 30;
 
 export const accountIdSchema = z.guid().brand<"AccountId">();
 export type AccountId = z.infer<typeof accountIdSchema>;
@@ -115,4 +118,36 @@ export async function endAllSessions(id: AccountId) {
     .update(accounts)
     .set({ sessionVersion: sql`${accounts.sessionVersion} + 1` })
     .where(eq(accounts.id, id));
+}
+
+/** Records a successful sign-in, which also cancels an inactive Account warning. */
+export async function recordSignIn(id: string, at: Date) {
+  await getPostgresDatabase()
+    .update(accounts)
+    .set({ lastSignedInAt: at, inactiveWarningSentAt: null })
+    .where(and(eq(accounts.id, id), isNull(accounts.deletingSince)));
+}
+
+/** Sets the warning time on each Account due a warning and returns them, so that two runs cannot both warn one Account. */
+export async function claimInactiveWarnings(now: Date) {
+  const signedInBefore = new Date(now);
+  signedInBefore.setUTCFullYear(signedInBefore.getUTCFullYear() - INACTIVE_YEARS);
+  return getPostgresDatabase()
+    .update(accounts)
+    .set({ inactiveWarningSentAt: now })
+    .where(and(lte(accounts.lastSignedInAt, signedInBefore), isNull(accounts.inactiveWarningSentAt), isNull(accounts.deletingSince)))
+    .returning({ id: accounts.id, email: accounts.email, name: accounts.name });
+}
+
+/** Lets the next daily run warn the Account again when this run's email was not sent. */
+export async function releaseInactiveWarning(id: string, claimedAt: Date) {
+  await getPostgresDatabase()
+    .update(accounts)
+    .set({ inactiveWarningSentAt: null })
+    .where(and(eq(accounts.id, id), eq(accounts.inactiveWarningSentAt, claimedAt)));
+}
+
+export async function markWarnedInactiveAccountsDeleting(now: Date) {
+  const warnedBefore = new Date(now.getTime() - INACTIVE_WARNING_DAYS * 24 * 60 * 60 * 1000);
+  return (await markDeleting(lte(accounts.inactiveWarningSentAt, warnedBefore))).length;
 }
