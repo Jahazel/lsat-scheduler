@@ -41,7 +41,7 @@ Do every step in order. Do not change the site's `DATABASE_URL` before step 6.
    npm run check-backup-ages
    ```
 
-   It must report `within-30-days`. If it names the restored branch, its backup is older than 30
+   It must not name the restored branch. If it does, the restored branch's backup is older than 30
    days, or Neon no longer lists the backup it came from (`"ageDays": "unknown"`). Stop: the deletion list
    cannot cover that backup. Delete the restored branch and restore a newer backup. If it names only
    other copies, go on, and remove them in step 8.
