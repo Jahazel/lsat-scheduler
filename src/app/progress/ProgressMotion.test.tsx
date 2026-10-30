@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { StrictMode } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const mocks = vi.hoisted(() => ({ push: vi.fn() }));
@@ -209,6 +210,21 @@ describe("ProgressMotion", () => {
     show("/progress?week=2001-01-01", <List requested="2001-01-01" />, rerender);
     expect(live.some((a) => a.options.fill === "forwards")).toBe(false);
     expect(keyframes(animate.mock.calls.length - 1).at(-1)).toMatchObject({ opacity: 1 });
+  });
+
+  it("shows the page without motion under Strict Mode, as next dev mounts it, and still moves to a week", async () => {
+    history.replaceState(null, "", "/progress");
+    const { rerender } = render(<StrictMode><ProgressMotion><List /></ProgressMotion></StrictMode>);
+    expect(screen.getByRole("heading", { name: "Progress" })).toBeDefined();
+    expect(animate).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("link", { name: "Oct 12 – 18" }));
+    finishExits();
+    await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/progress?week=2026-10-12", { scroll: false }));
+    history.replaceState(null, "", "/progress?week=2026-10-12");
+    rerender(<StrictMode><ProgressMotion><Week week="2026-10-12" /></ProgressMotion></StrictMode>);
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Week of 2026-10-12" }));
+    expect(keyframes(animate.mock.calls.length - 1).at(-1)).toMatchObject({ opacity: 1, transform: "none" });
   });
 
   it("slides an older week out to the right and in from the left, and only fades under reduced motion", () => {
