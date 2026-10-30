@@ -53,6 +53,18 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
+  suppressions:
+    name: Suppression count
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: node scripts/check-suppressions.mjs origin/main
+
   postgres:
     name: Postgres tests
     runs-on: ubuntu-latest
