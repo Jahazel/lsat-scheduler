@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { SignedOut } from "@/lib/requestPolicy";
 import type { DeletionRefusal } from "./actions";
 
 const actions = vi.hoisted(() => ({
-  deleteAccount: vi.fn<(previous: DeletionRefusal, form: FormData) => Promise<DeletionRefusal>>(),
+  deleteAccount: vi.fn<(previous: DeletionRefusal, form: FormData) => Promise<DeletionRefusal | SignedOut>>(),
   signInAgainToDelete: vi.fn(async () => {}),
 }));
 vi.mock("./actions", () => actions);
@@ -17,6 +18,7 @@ afterEach(() => {
   finishStalledDeletion();
   cleanup();
   actions.deleteAccount.mockReset();
+  vi.unstubAllGlobals();
 });
 
 const REMOVED = ["Your profile", "Approved and legacy analytics snapshots", "Weekly schedules", "Activity check-ins"];
@@ -105,6 +107,16 @@ describe("Account deletion card", () => {
       expect(currentPassword().value).toBe("");
       expect(screen.getByText("That's not your current password. Try again.").id).toBe(currentPassword().getAttribute("aria-describedby"));
       expect((screen.getByLabelText("Type DELETE to confirm") as HTMLInputElement).value).toBe("DELETE");
+    });
+
+    it("loads the signed-out address as a new page after deletion", async () => {
+      const assign = vi.fn();
+      vi.stubGlobal("location", { ...window.location, assign });
+      actions.deleteAccount.mockResolvedValue({ goTo: "/login?notice=DeletionWillFinish&signedOut=1" });
+      render(<DeletionCard mode={{ kind: "password" }} />);
+      fillAndDelete("correct horse battery staple", "DELETE");
+      await waitFor(() => expect(assign).toHaveBeenCalledWith("/login?notice=DeletionWillFinish&signedOut=1"));
+      expect(screen.queryByRole("alert")).toBeNull();
     });
 
     it("keeps the password after a wrong confirmation text", async () => {

@@ -48,11 +48,12 @@ export const isPublicPage = (pathname: string) => PUBLIC_PAGE_SET.has(pathname);
 
 const SIGNED_OUT_PARAM = "signedOut";
 
-export function afterSignOut(path: "/" | "/login") {
-  return `${path}?${SIGNED_OUT_PARAM}=1` as const;
+export function afterSignOut(path: "/" | "/login" | `/login?${string}`): `${string}${typeof SIGNED_OUT_PARAM}=1` {
+  return `${path}${path.includes("?") ? "&" : "?"}${SIGNED_OUT_PARAM}=1`;
 }
 
-export type SignOutAnswer = Answer<{ goTo: ReturnType<typeof afterSignOut> }>;
+export type SignedOut = { goTo: ReturnType<typeof afterSignOut> };
+export type SignOutAnswer = Answer<SignedOut>;
 
 const NO_REFERRER_PAGES = new Set(["/verify-email", "/reset-password"]);
 

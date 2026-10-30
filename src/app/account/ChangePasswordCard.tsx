@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { FailureNotice } from "@/components/FailureNotice";
+import { followSignOut } from "@/components/SignOutForm";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
 import { changePassword, type PasswordChangeRefusal } from "./actions";
@@ -11,7 +12,7 @@ export function ChangePasswordCard() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [refusal, formAction, pending] = useActionState(async (previous: Answer<PasswordChangeRefusal>, formData: FormData) => {
-    const result = await changePassword(previous, formData);
+    const result = followSignOut(await changePassword(previous, formData));
     if (!isUnexpectedFailure(result) && result?.field === "currentPassword") setCurrentPassword("");
     return result;
   }, null);

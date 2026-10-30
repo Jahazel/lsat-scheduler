@@ -13,7 +13,7 @@ import { DELETING_SIGN_IN_PATHS, PASSWORD_CHANGED_PATH } from "@/lib/loginNotice
 import { CURRENT_PASSWORD_MESSAGES } from "@/lib/currentPasswordMessages";
 import * as passwordAccount from "@/lib/passwordAccount";
 import { PASSWORD_MESSAGES } from "@/lib/passwordRules";
-import { afterSignOut, type SignOutAnswer } from "@/lib/requestPolicy";
+import { afterSignOut, type SignedOut, type SignOutAnswer } from "@/lib/requestPolicy";
 import { answerAction, recordSecurityEvent } from "@/lib/securityLog";
 import type { Answer, FormState } from "@/lib/unexpectedFailure";
 
@@ -39,7 +39,7 @@ export async function updateStudentProfile(input: StudentProfileInput) {
 
 export type DeletionRefusal = passwordAccount.DeletionRefusal | null;
 
-export async function deleteAccount(_previous: Answer<DeletionRefusal>, formData: FormData): Promise<Answer<DeletionRefusal>> {
+export async function deleteAccount(_previous: Answer<DeletionRefusal>, formData: FormData): Promise<Answer<DeletionRefusal | SignedOut>> {
   return answerAction("/account", async () => {
     const session = await auth();
     if (!session?.user) {
@@ -55,14 +55,14 @@ export async function deleteAccount(_previous: Answer<DeletionRefusal>, formData
       await passwordRequest("/account"),
     );
     if (result !== "deleted" && result !== "willFinish") return result;
-    await signOut({ redirectTo: result === "deleted" ? "/" : DELETING_SIGN_IN_PATHS.deletionWillFinish });
-    return null;
+    await signOut({ redirect: false });
+    return { goTo: afterSignOut(result === "deleted" ? "/" : DELETING_SIGN_IN_PATHS.deletionWillFinish) };
   });
 }
 
 export type PasswordChangeRefusal = { field: "currentPassword" | "newPassword"; message: string } | null;
 
-export async function changePassword(_previous: Answer<PasswordChangeRefusal>, formData: FormData): Promise<Answer<PasswordChangeRefusal>> {
+export async function changePassword(_previous: Answer<PasswordChangeRefusal>, formData: FormData): Promise<Answer<PasswordChangeRefusal | SignedOut>> {
   return answerAction("/account", async () => {
     const session = await auth();
     if (!session?.user) {
@@ -78,8 +78,8 @@ export async function changePassword(_previous: Answer<PasswordChangeRefusal>, f
     if (result === "noPassword") throw new Error("This Account signs in with Google and has no password.");
     if (result === "wrong-password" || result === "paused") return { field: "currentPassword", message: CURRENT_PASSWORD_MESSAGES[result] };
     if (result !== "changed") return { field: "newPassword", message: PASSWORD_MESSAGES[result] };
-    await signOut({ redirectTo: PASSWORD_CHANGED_PATH });
-    return null;
+    await signOut({ redirect: false });
+    return { goTo: afterSignOut(PASSWORD_CHANGED_PATH) };
   });
 }
 

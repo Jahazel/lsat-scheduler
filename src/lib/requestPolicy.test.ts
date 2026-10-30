@@ -1,6 +1,7 @@
 import { readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
+import { DELETING_SIGN_IN_PATHS, PASSWORD_CHANGED_PATH } from "./loginNotice";
 import { afterSignOut, EXEMPT_ROUTES, PUBLIC_PAGES, requestPolicy, type RequestFacts } from "./requestPolicy";
 
 const SITE = "https://drillmap.xyz";
@@ -221,6 +222,14 @@ describe("sign-out", () => {
     for (const path of [afterSignOut("/"), afterSignOut("/login")]) {
       const { pathname } = new URL(path, SITE);
       expect(page({ pathname, search: search(path) }).responseHeaders["Clear-Site-Data"], path).toBe('"cache"');
+    }
+  });
+
+  it("keeps the login notice on the address a sign-out loads", () => {
+    for (const notice of [PASSWORD_CHANGED_PATH, DELETING_SIGN_IN_PATHS.deletionWillFinish] as const) {
+      const url = new URL(afterSignOut(notice), SITE);
+      expect(url.searchParams.get("notice")).toBe(new URL(notice, SITE).searchParams.get("notice"));
+      expect(page({ pathname: url.pathname, search: url.search }).responseHeaders["Clear-Site-Data"], notice).toBe('"cache"');
     }
   });
 

@@ -24,6 +24,7 @@ const NEW_PASSWORD = "purple walrus dances at noon";
 const MAYA = "maya.chen@fastmail.com";
 const WRONG = "That's not your current password. Try again.";
 const PAUSED = PASSWORD_LOGIN_NOTICES.paused.text;
+const SIGNED_OUT = { state: { goTo: "/login?notice=PasswordChanged&signedOut=1" }, redirectedTo: null };
 
 const { originalSecret, request } = vi.hoisted(() => {
   // Auth.js reads its secret when src/auth loads, before any hook runs.
@@ -165,7 +166,7 @@ describe("change password", () => {
     const otherBrowser = await logIn(MAYA, OLD_PASSWORD);
 
     const result = await change(thisBrowser.cookie, OLD_PASSWORD);
-    expect(result).toEqual({ state: null, redirectedTo: "/login?notice=PasswordChanged" });
+    expect(result).toEqual(SIGNED_OUT);
     expect(request.setCookie.mock.calls.some(([name, value]) => name === COOKIE && value === "")).toBe(true);
 
     expect(await sessionUserId(thisBrowser.cookie)).toBeNull();
@@ -178,7 +179,7 @@ describe("change password", () => {
     await passwordStudent();
     const { cookie } = await logIn(MAYA, OLD_PASSWORD);
     advance(9 * 24 * 60 * MINUTE_MS);
-    expect((await change(cookie, OLD_PASSWORD)).redirectedTo).toBe("/login?notice=PasswordChanged");
+    expect(await change(cookie, OLD_PASSWORD)).toEqual(SIGNED_OUT);
   });
 
   it("refuses a wrong current password, keeps the password, and keeps every browser signed in", async () => {
@@ -219,21 +220,21 @@ describe("change password", () => {
     await passwordStudent();
     const { cookie } = await logIn(MAYA, OLD_PASSWORD);
     const seventyTwoBytes = "é".repeat(36);
-    expect((await change(cookie, OLD_PASSWORD, seventyTwoBytes)).redirectedTo).toBe("/login?notice=PasswordChanged");
+    expect(await change(cookie, OLD_PASSWORD, seventyTwoBytes)).toEqual(SIGNED_OUT);
     expect((await logIn(MAYA, seventyTwoBytes)).cookie).not.toBe("");
   });
 
   it("counts wrong current passwords with failed logins, pauses both after 10, and works again when the window ends", async () => {
     await passwordStudent();
     const { cookie } = await logIn(MAYA, OLD_PASSWORD);
-    for (let i = 0; i < 9; i++) expect((await change(cookie, `wrong ${i}`)).state?.message).toBe(WRONG);
+    for (let i = 0; i < 9; i++) expect((await change(cookie, `wrong ${i}`)).state).toEqual({ field: "currentPassword", message: WRONG });
     expect((await logIn(MAYA, "one more wrong")).refused?.notice).toEqual(PASSWORD_LOGIN_NOTICES.wrongEmailOrPassword);
 
     expect((await change(cookie, OLD_PASSWORD)).state).toEqual({ field: "currentPassword", message: PAUSED });
     expect((await logIn(MAYA, OLD_PASSWORD)).refused?.notice).toEqual(PASSWORD_LOGIN_NOTICES.paused);
 
     advance(15 * MINUTE_MS);
-    expect((await change(cookie, OLD_PASSWORD)).redirectedTo).toBe("/login?notice=PasswordChanged");
+    expect(await change(cookie, OLD_PASSWORD)).toEqual(SIGNED_OUT);
   });
 
   it("gives back the count for a right current password, even when the new password is refused", async () => {
@@ -249,7 +250,7 @@ describe("password Account deletion", () => {
     const id = await passwordStudent();
     const { cookie } = await logIn(MAYA, OLD_PASSWORD);
     advance(9 * 24 * 60 * MINUTE_MS);
-    expect(await remove(cookie, OLD_PASSWORD)).toEqual({ state: null, redirectedTo: "/" });
+    expect(await remove(cookie, OLD_PASSWORD)).toEqual({ state: { goTo: "/?signedOut=1" }, redirectedTo: null });
     expect(await accountCount(id)).toEqual({ accounts: 0, students: 0 });
     expect(await sessionUserId(cookie)).toBeNull();
   });
