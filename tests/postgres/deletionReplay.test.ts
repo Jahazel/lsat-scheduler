@@ -19,6 +19,7 @@ let restored: ReturnType<typeof createPostgresConnection>;
 let deletedId: string;
 let keptId: string;
 let sameEmailId: string;
+let markedId: string;
 
 async function seedStudentWithRecords(db: ReturnType<typeof createPostgresConnection>["db"], email: string) {
   const [account] = (await db.execute<{ id: string }>(sql`
@@ -99,6 +100,7 @@ beforeAll(async () => {
     deletedId = await seedStudentWithRecords(seeding.db, "deleted@test.local");
     keptId = await seedStudentWithRecords(seeding.db, "kept@test.local");
     sameEmailId = await seedStudentWithRecords(seeding.db, "same-email@test.local");
+    markedId = await seedStudentWithRecords(seeding.db, "marked@test.local");
   } finally {
     await seeding.close();
   }
@@ -113,6 +115,7 @@ beforeAll(async () => {
   const live = getPostgresDatabase();
   await live.execute(sql`update accounts set deleting_since = now() where id = ${deletedId}::uuid`);
   expect(await finishDeletion(deletedId, "/account")).toBe("deleted");
+  await live.execute(sql`update accounts set deleting_since = now() where id = ${markedId}::uuid`);
   await live.execute(sql`
     insert into deletion_list (account_id, email_hash) values (${randomUUID()}::uuid, ${emailHash("same-email@test.local")})
   `);
@@ -135,23 +138,25 @@ afterAll(async () => {
   process.env.AUTH_SECRET = originalSecret;
 });
 
-it("deletes each restored Account on the deletion list with all its records, and a second run deletes nothing", async () => {
+it("deletes each restored Account on the deletion list or marked deleting, with all its records, and a second run deletes nothing", async () => {
   expect(await recordsOf(deletedId)).toEqual(allRecords);
   expect(await recordsOf(sameEmailId)).toEqual(allRecords);
+  expect(await recordsOf(markedId)).toEqual(allRecords);
 
   const first = await replay();
-  expect(first).toEqual({ code: 0, stdout: "Deletion list rows: 2. Restored Accounts deleted: 2.\n", stderr: "" });
+  expect(first).toEqual({ code: 0, stdout: "Deletion list rows: 2. Restored Accounts deleted: 3.\n", stderr: "" });
   expect(await recordsOf(deletedId)).toEqual(noRecords);
   expect(await recordsOf(sameEmailId)).toEqual(noRecords);
+  expect(await recordsOf(markedId)).toEqual(noRecords);
   expect(await recordsOf(keptId)).toEqual(allRecords);
   const listed = (await restored.db.execute<{ account_id: string }>(sql`select account_id from deletion_list`)).rows;
-  expect(listed).toHaveLength(3);
-  expect(listed.map((row) => row.account_id)).toEqual(expect.arrayContaining([deletedId, sameEmailId]));
+  expect(listed).toHaveLength(4);
+  expect(listed.map((row) => row.account_id)).toEqual(expect.arrayContaining([deletedId, sameEmailId, markedId]));
 
   const second = await replay();
   expect(second).toEqual({ code: 0, stdout: "Deletion list rows: 2. Restored Accounts deleted: 0.\n", stderr: "" });
   expect(await recordsOf(keptId)).toEqual(allRecords);
-  expect((await restored.db.execute(sql`select 1 from deletion_list`)).rows).toHaveLength(3);
+  expect((await restored.db.execute(sql`select 1 from deletion_list`)).rows).toHaveLength(4);
 });
 
 it("refuses to run without the key that made the email hashes", async () => {

@@ -76,9 +76,11 @@ Do not turn on "Ignore the ping, stay in the paused state". It hides the fail si
 Follow the [restore runbook](restore.md) step by step. Restore into a new branch. Before the site uses
 that branch:
 
-1. Run `npm run check-backup-ages`. It must report `within-30-days` for the restored branch.
+1. Run `npm run check-backup-ages` with the current branch's ID as `BACKUP_BRANCH_ID`. It must not
+   name the restored branch. If it names only other copies, go on and remove them afterwards.
 2. Run `npm run replay-deletions` on the restored branch, with the current branch's deletion list. Run it
    twice. The second run must print `Restored Accounts deleted: 0.`
 
-Only then change the site's `DATABASE_URL`. Afterwards, remove the former branch, every `_old_` branch,
+Only then change the site's `DATABASE_URL`. The replay refuses production hosts. On the real site, do not
+let the site use a restored branch until the owner decides how to run the replay there. Afterwards, remove the former branch, every `_old_` branch,
 unused restore branches, and every expired snapshot, each with the owner's approval.

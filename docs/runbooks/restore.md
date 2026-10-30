@@ -12,7 +12,8 @@ still needs the owner's approval before the site uses the restored branch.
 - **Deletion list**: the `deletion_list` table. One row for each deleted Account: its ID, a keyed hash
   of its email, and the date. Rows are deleted after 30 days.
 - **Replay**: `npm run replay-deletions`. It deletes from the restored branch every Account on the
-  current branch's deletion list, by ID or by email hash, with all its records. It copies the list
+  current branch's deletion list, by ID or by email hash, and every Account the current branch marks
+  as deleting, with all its records. It copies the list
   rows to the restored branch. It prints only two counts. A second run deletes nothing.
 - **Age check**: `npm run check-backup-ages`. It reads the real age of every Neon snapshot and every
   branch except the active one. It fails when any can hold data older than 30 days, and names each
