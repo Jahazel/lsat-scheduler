@@ -1,6 +1,6 @@
 # Emergency guide
 
-Steps for abuse, a leaked key, or spend near the limit. Stage 5 ([issue 251](https://github.com/Jahazel/lsat-scheduler/issues/251))
+Steps for abuse, a leaked key, spend near the limit, or a lost database. Stage 5 ([issue 251](https://github.com/Jahazel/lsat-scheduler/issues/251))
 adds the scanning switch and the monthly money limit. Stage 7 adds the other steps listed in the
 [launch checklist](../security/release-gate.md#owner-and-alerts).
 
@@ -70,3 +70,15 @@ The checks must alert only on a fail signal, never on silence:
 4. After you act on the alert, pause the check again so the next month's signal alerts.
 
 Do not turn on "Ignore the ping, stay in the paused state". It hides the fail signal.
+
+## Restore the database from a backup
+
+Follow the [restore runbook](restore.md) step by step. Restore into a new branch. Before the site uses
+that branch:
+
+1. Run `npm run check-backup-ages`. It must report `within-30-days` for the restored branch.
+2. Run `npm run replay-deletions` on the restored branch, with the current branch's deletion list. Run it
+   twice. The second run must print `Restored Accounts deleted: 0.`
+
+Only then change the site's `DATABASE_URL`. Afterwards, remove the former branch, every `_old_` branch,
+unused restore branches, and every expired snapshot, each with the owner's approval.

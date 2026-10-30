@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 
 const pingUrlSchema = z.string().regex(/^https:\/\/hc-ping\.com\/[a-f0-9-]{36}$/);
-const configSchema = z.object({
+export const configSchema = z.object({
   BACKUP_PROJECT_ID: z.string().regex(/^[a-z0-9-]{1,60}$/),
   BACKUP_BRANCH_ID: z.string().regex(/^br-[a-z0-9-]{1,57}$/),
   NEON_API_KEY: z.string().min(1).regex(/^\S+$/),
@@ -33,6 +33,16 @@ type Options = {
   now?: () => Date;
 };
 
+export function oldestDataTime(
+  snapshot: { timestamp?: string; created_at: string; manual: boolean },
+  historyMs: number,
+) {
+  const createdAt = Date.parse(snapshot.created_at);
+  const capturedAt = snapshot.timestamp !== undefined ? Date.parse(snapshot.timestamp) : snapshot.manual ? null : createdAt;
+  const earliestPointInHistoryWindow = createdAt - historyMs;
+  return Math.min(capturedAt ?? earliestPointInHistoryWindow, createdAt);
+}
+
 function assessBackups({ snapshots, branchId, checkedAt, historyMs }: {
   snapshots: z.infer<typeof snapshotSchema>[];
   branchId: string;
@@ -47,8 +57,7 @@ function assessBackups({ snapshots, branchId, checkedAt, historyMs }: {
     const capturedAt = snapshot.timestamp !== undefined ? Date.parse(snapshot.timestamp) : snapshot.manual ? null : createdAt;
     if ((capturedAt ?? createdAt) > checkedAt || createdAt > checkedAt) throw new Error("Future snapshot");
     if (snapshot.source_branch_id === branchId && capturedAt !== null) matchingAges.push((checkedAt - capturedAt) / 3_600_000);
-    const earliestCapture = capturedAt ?? createdAt - historyMs;
-    const ageDays = (checkedAt - Math.min(earliestCapture, createdAt)) / 86_400_000;
+    const ageDays = (checkedAt - oldestDataTime(snapshot, historyMs)) / 86_400_000;
     if (ageDays > 30) {
       expired.push({
         fingerprint: createHash("sha256").update(snapshot.id).digest("hex").slice(0, 12),

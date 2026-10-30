@@ -119,7 +119,7 @@ Built on [issue 351](https://github.com/Jahazel/lsat-scheduler/issues/351):
 - If step 2 fails, the student is signed out to Login, which shows the "deletion will finish" message. The failure is in the security log with its code, and the `account_deletion` entry has the result `willFinish`.
 - The student retry is a sign-in, because a marked Account has no session. A Google sign-in, or a password sign-in with the right password, runs step 2 and is always refused. Login then says the Account is deleted, or shows the "will finish" message again. The `sign_in` entry has the result `accountDeleted` or `deletionWillFinish`.
 - The owner approved the two Login texts on October 29, 2026: "Your Account is being deleted." and "Your Account is deleted." The first gives no time, because a fault that repeats can delay the daily job past one day.
-- The privacy page states the first approved deletion list sentence: "We keep only a short record that holds your Account ID and a scrambled form of your email." The second approved sentence is left out: it promises that a restore cannot bring data back, which needs deletion replay ([issue 353](https://github.com/Jahazel/lsat-scheduler/issues/353)). Rule 36 allows only true statements. The owner decided on October 29, 2026 to leave the 30 days off the page until then. Issue 353 adds the second sentence with the restore sentence.
+- The privacy page states the first approved deletion list sentence: "We keep only a short record that holds your Account ID and a scrambled form of your email." The second approved sentence is left out: it promises that a restore cannot bring data back, which needs deletion replay ([issue 353](https://github.com/Jahazel/lsat-scheduler/issues/353)). Rule 36 allows only true statements. The owner decided on October 29, 2026 to leave the 30 days off the page until then. Issue 353 adds the second sentence with the restore sentence. Issue 353 added both.
 - The daily job runs step 2 for every marked Account, then deletes deletion list rows older than 30 days (rule 24).
 
 ### How long data is kept
@@ -178,6 +178,15 @@ Added by the owner on October 28, 2026, on [issue 316](https://github.com/Jahaze
 
 **Why:** Without rule 31, a restore from a backup made before a deletion brings the deleted Account back. Atlas Flex keeps backups for 8 days, so 30 days leaves a wide margin.
 
+Built on [issue 353](https://github.com/Jahazel/lsat-scheduler/issues/353):
+
+- `npm run replay-deletions` reads the deletion list from the current branch (`DELETION_LIST_URL`) and runs it on the restored branch (`DATABASE_URL`). In one transaction it deletes each restored Account whose ID is listed, or whose email gives a listed hash under the site's `AUTH_SECRET`, with all its records through the database cascades. It copies the listed rows, and a row for each Account it deletes, to the restored branch, so that branch keeps the list. It prints only the number of list rows and the number of deleted Accounts. A second run deletes nothing.
+- The replay reads the list from the current branch, because a restored branch holds the list from the backup time, without the deletions made since.
+- Both settings pass the same host check as the other scripts: a local database or an approved copy host. The replay cannot reach production. How to run it on a production restore is open for the owner.
+- `npm run check-backup-ages` reads every Neon snapshot and every branch except the active one (`BACKUP_BRANCH_ID`). It fails when any can hold data older than 30 days, and names each by its Neon name only. A snapshot is aged by the backup checker's rule. A branch is aged from the oldest of its creation time, its parent point in time, and the backup it was restored from. A branch restored from a backup that Neon no longer lists fails with an unknown age.
+- The [restore runbook](../runbooks/restore.md) and the [emergency guide](../runbooks/emergency.md#restore-the-database-from-a-backup) restore into a new branch, run the age check and the replay before the site uses it, and remove expired copies and unused restore branches afterwards.
+- The privacy page adds "After a restore, we delete again every Account that was deleted before." and the second deletion list sentence: "We use it for 30 days to make sure a restore from backup cannot bring your data back."
+
 ### Screenshots
 
 33. The upload screen shows this notice before the student sends an image: "Your screenshot is sent to Anthropic to read your analytics. Anthropic keeps it for up to 30 days. DrillMap does not store it. Crop out anything you do not want to share."
@@ -192,7 +201,7 @@ Added by the owner on October 28, 2026, on [issue 316](https://github.com/Jahaze
 
 ## Approved privacy page text
 
-Updated on October 19, 2026 (#145) for the move to Neon ([issue 78](issue-78-database-research.md#decision)). The database line names Neon. The backup period is 14 days, as set in #144. Stage 6 builds deletion replay. Until then, the live page leaves out the sentence about deleting Accounts again after a restore (rule 36).
+Updated on October 19, 2026 (#145) for the move to Neon ([issue 78](issue-78-database-research.md#decision)). The database line names Neon. The backup period is 14 days, as set in #144. Stage 6 built deletion replay ([issue 353](https://github.com/Jahazel/lsat-scheduler/issues/353)), so the page now states the sentence about deleting Accounts again after a restore (rule 36).
 
 > **Privacy Policy**
 > Last updated: [release date]
