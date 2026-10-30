@@ -9,8 +9,8 @@ on:
   workflow_dispatch:
     inputs:
       trigger-label:
-        description: Label that starts work; agent:implement is stage 1, ready-for-agent is stage 2
-        default: agent:implement
+        description: Label that starts work
+        default: ready-for-agent
       dry-run:
         description: Show what the run would start without starting it
         type: boolean
@@ -25,19 +25,18 @@ permissions:
 
 jobs:
   orchestrate:
-    # A label event starts a run only when the owner adds agent:implement, or removes agent:blocked
+    # A label event starts a run only when the owner adds ready-for-agent, or removes agent:blocked
     # to retry. Other label changes, such as the worker's agent:blocked, use no job computer.
-    # To move to stage 2, change agent:implement here and in trigger-label below to ready-for-agent.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'push' ||
       (github.event.sender.login == github.repository_owner && (
-        (github.event.action == 'labeled' && github.event.label.name == 'agent:implement') ||
+        (github.event.action == 'labeled' && github.event.label.name == 'ready-for-agent') ||
         (github.event.action == 'unlabeled' && github.event.label.name == 'agent:blocked')))
     uses: Jahazel/software-factory/.github/workflows/orchestrator.yml@main
     with:
       cap: 1
-      trigger-label: ${{ inputs.trigger-label || 'agent:implement' }}
+      trigger-label: ${{ inputs.trigger-label || 'ready-for-agent' }}
       dry-run: ${{ inputs.dry-run == true }}
       # Where a merge conflict goes to a worker. Any other conflict blocks the PR.
       agent-conflicts: migrations/
