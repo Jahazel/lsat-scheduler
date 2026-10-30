@@ -11,6 +11,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:postgres": "vitest run --config vitest.postgres.config.ts",
+    "check:suppressions": "node scripts/check-suppressions.mjs",
     "db:migrate": "node --import tsx scripts/migrate-postgres.mts",
     "db:check-copy": "node --import tsx scripts/check-neon.mts",
     "prepare": "git config core.hooksPath .githooks || true",

@@ -1,4 +1,4 @@
-- The checks are `npm run lint`, `npm run typecheck`, `npm test`, and `npm run test:postgres`. The pre-commit hook runs them too. `DATABASE_URL` is already set for `test:postgres`.
+- The checks are `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:postgres`, and `npm run check:suppressions`. The pre-commit hook runs the first three. Run `check:suppressions` after your last commit; CI fails the PR when it fails. `DATABASE_URL` is already set for `test:postgres`.
 - This computer has no `.env.local`, and the app needs none for tests or `verify`.
 - `verify`: `DATABASE_URL` is already a loopback owner connection, and `VERIFY_PLAYWRIGHT_MODULE` already points at an installed Playwright with Chromium. Skip the skill's Playwright install.
 - A merge conflict only in `migrations/`: keep every migration from `origin/main` unchanged. Rename your migration file to the next free number. Put its journal entry last, with a later `when` value, as `docs/postgres-foundation.md` says. Every other conflict blocks.

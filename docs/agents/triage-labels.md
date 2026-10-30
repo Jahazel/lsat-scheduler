@@ -36,8 +36,19 @@ The local agent factory uses these labels. A dispatcher thread starts one worker
 
 | Label | Meaning |
 | --- | --- |
-| `agent:implement` | The owner wants an agent run to start on this issue. Only the owner adds it. |
+| `agent:implement` | The owner wants an agent run to start on this issue. Only the owner adds it. One exception: the weekly gardener adds it to its own report issue after its PR opens, so the factory keeps that PR up to date. |
 | `agent:in-progress` | An agent has claimed this issue and is working on it. |
 | `agent:blocked` | The agent is stuck. Its comment on the issue says why and what the owner must decide. |
+
+## Gardening labels
+
+The weekly gardener (`.github/workflows/factory-gardener.yml`) uses these labels.
+
+| Label | Meaning |
+| --- | --- |
+| `gardening:report` | One weekly gardening pass. The issue holds its report. The orchestrator starts no implement worker on it; a resolve worker may update its PR. |
+| `gardening:lesson` | The owner fixed an agent mistake by hand. The next pass handles it first. |
+| `gardening:cleanup` | Finishes a gardening PR. The owner adds `agent:implement` after that PR merges. |
+| `gardening:refactor-idea` | A deeper module the gardener suggests. The owner adds `agent:implement` to start it, or leaves it open. |
 
 `ready-for-agent` still means "the issue has enough detail for an agent to implement it." It does not start a run by itself.
