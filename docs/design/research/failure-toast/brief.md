@@ -67,3 +67,17 @@ All three sit bottom-center, use a light card with `shadow-e3`, a danger circle-
 3. **Danger edge, code chip** (400 px): a 4 px danger stripe on the left and the code in a gray chip. Fits a phone at full width minus the side insets.
 
 Picked: Direction 2, two lines (owner, 2026-10-29).
+
+## Prototype
+
+A throwaway clickable prototype is at `prototype/index.html`. Open the file in a browser. It has no build step and no saved data. Its control bar switches the width (1440, 768, 390), the screen (This week, Account, Log in with no app shell), and the motion mode, and has a ×5 slow-motion switch. Its four walkthroughs run the flow map: fail then close, fail then leave the screen, a double press, and fail then retry with success. Screenshots from a scripted run are next to it as `shot-*.png` and `frames-enter-strip.png`.
+
+Motion in the prototype, one set:
+
+- Appears: 200 ms, rises 12 px and fades in, standard curve `cubic-bezier(0.2, 0, 0, 1)`.
+- Closes (close control, leaving the screen, the same action succeeding): 120 ms, fades out and drops 4 px, strong ease-out `cubic-bezier(0.23, 1, 0.32, 1)`. The project's exit curve `cubic-bezier(0.4, 0, 1, 1)` is an ease-in, which the `animate` rules forbid on UI, so the toast does not use it.
+- Replaced by a second failure: the old card ends at once; the new card fades in over 120 ms with no rise.
+- Reduced motion: no rise, no drop; 120 ms fades only.
+- CSS transitions on opacity and transform only, no keyframes, so a rapid second failure retargets instead of restarting.
+
+Impeccable motion review, 2026-10-30 (single context, against the `animate` and `impeccable` motion rules): no banned pattern (`transition: all`, `scale(0)`, keyframes on the toast, `ease-in`). Exit is faster than entrance. Reduced motion keeps the fade so the alert still reads as a state change. One defect found and fixed during the run: the replace fade ran at 200 ms because its duration sat on the start state; CSS takes the duration from the end state, so it now sits on the card.
