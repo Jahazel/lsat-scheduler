@@ -218,6 +218,8 @@ Mobbin stills cannot show motion. Anything marked **inferred** comes from where 
 | Replaced | Old toast ends at once; new one fades in with no rise | 120 ms | Choice; avoids two toasts moving together |
 | Reduced motion | No rise, no drop, fades only | 120 ms in and out | `DESIGN.md` reduced-motion rule |
 
+The approved motion is in `motion.md`. It replaces this table's exit curve with a strong ease-out, because the `animate` rules forbid an ease-in on UI.
+
 - A community summary lists M3 emphasized easing as `cubic-bezier(0.2, 0, 0, 1)` ([source](https://davaux.codeberg.page/ui-docs/motion)). It is not a primary source.
 - [Radix Toast](https://www.radix-ui.com/primitives/docs/components/toast) supports swipe to close. A swipe down is a natural extra way to close on a phone. Keep the close button for keyboard and screen-reader users.
 - The element must exist with `role="alert"` at once. Only opacity and offset animate, so motion never delays the announcement.

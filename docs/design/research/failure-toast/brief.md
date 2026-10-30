@@ -98,3 +98,8 @@ Every state is in Paper on the Approved page under "Failure toast · Chosen desi
 | Keyboard open (Log in) | phone; the toast sits above the on-screen keyboard |
 
 Not built as boards: the wide admin workspace, because the toast sits bottom-center at every width and the desktop boards cover it; the same-code-within-a-second case, because nothing changes on screen.
+
+## Spec and tickets
+
+- Spec: #404.
+- Tickets, all under #372: #405 (the toast on every screen that uses the shared failure notice), then #406 (weekly upload), #407 (onboarding), and #408 (failed Google sign-in and admin screens). #406 to #408 are blocked by #405.
