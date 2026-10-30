@@ -15,13 +15,14 @@ This file records the local mapping. It does not create labels on GitHub.
 
 ## Every open issue gets one ready label
 
-Give every open issue exactly one of `ready-for-agent` or `ready-for-human`. Add it when you create the issue.
+Give every open issue exactly one of `ready-for-agent` or `ready-for-human`. Add it when you create the issue. Use the first row that matches.
 
 | Issue | Ready label |
 | --- | --- |
-| Has the `bug` label | `ready-for-agent`, next to `bug` |
+| Has an open question for the owner, or needs a step only a person can do | `ready-for-human` |
+| A spec that tickets split into work | `ready-for-human` |
 | Has the `design` label | `ready-for-human` |
-| Any other task that a person must do | `ready-for-human` |
+| Has the `bug` label | `ready-for-agent`, next to `bug` |
 | All other issues | `ready-for-agent` |
 
 Find open issues with no ready label:
