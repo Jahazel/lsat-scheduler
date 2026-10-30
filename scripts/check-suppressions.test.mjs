@@ -72,6 +72,22 @@ it("passes a branch that moves a suppression to another file", async () => {
   expect(result.output).toContain("No new suppressions.");
 });
 
+it("passes a branch that only rewords the reason on a suppressed line", async () => {
+  commit({ "old.ts": "// eslint-disable-next-line no-console -- a better reason\nconsole.log(1);\n" });
+  const result = await check();
+  expect(result.code).toBe(0);
+  expect(result.output).toContain("No new suppressions.");
+});
+
+it("passes a branch that edits the code on a line that ends in a suppression", async () => {
+  commit({ "line.ts": "alert(1); // eslint-disable-line no-alert -- kept\n" });
+  git("switch", "--quiet", "main");
+  git("merge", "--quiet", "work");
+  git("switch", "--quiet", "-c", "edit");
+  commit({ "line.ts": "alert(2); // eslint-disable-line no-alert -- kept\n" });
+  expect((await check()).code).toBe(0);
+});
+
 it("passes a branch that removes a suppression", async () => {
   commit({ "old.ts": "console.log(1);\n" });
   expect((await check()).code).toBe(0);

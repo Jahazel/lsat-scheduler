@@ -46,7 +46,7 @@ The weekly gardener (`.github/workflows/factory-gardener.yml`) uses these labels
 
 | Label | Meaning |
 | --- | --- |
-| `gardening:report` | One weekly gardening pass. The issue holds its report. The orchestrator never starts a worker on it. |
+| `gardening:report` | One weekly gardening pass. The issue holds its report. The orchestrator starts no implement worker on it; a resolve worker may update its PR. |
 | `gardening:lesson` | The owner fixed an agent mistake by hand. The next pass handles it first. |
 | `gardening:cleanup` | Finishes a gardening PR. The owner adds `agent:implement` after that PR merges. |
 | `gardening:refactor-idea` | A deeper module the gardener suggests. The owner adds `agent:implement` to start it, or leaves it open. |

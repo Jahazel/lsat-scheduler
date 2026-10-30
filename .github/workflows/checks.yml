@@ -54,7 +54,7 @@ jobs:
       - run: npm test
 
   suppressions:
-    name: Suppression count
+    name: New suppressions
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
