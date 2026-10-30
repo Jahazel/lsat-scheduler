@@ -1,39 +1,45 @@
 import { execFileSync } from "node:child_process";
 
-const pattern = "eslint-disable|@ts-expect-error|@ts-ignore|@ts-nocheck";
+const suppression = /eslint-disable|@ts-expect-error|@ts-ignore|@ts-nocheck|\/\*\s*eslint\s/;
 const pathspecs = ["*.ts", "*.tsx", "*.mts", "*.cts", "*.js", "*.jsx", "*.mjs", "*.cjs", ":!scripts/check-suppressions*"];
 
 function git(...args) {
-  return execFileSync("git", args, { encoding: "utf8" }).trim();
+  return execFileSync("git", args, { encoding: "utf8" });
 }
 
-function countByFile(revision) {
-  let output;
-  try {
-    output = git("grep", "--count", "-E", pattern, revision, "--", ...pathspecs);
-  } catch (error) {
-    if (error.status === 1) return new Map();
-    throw error;
+const base = git("merge-base", "HEAD", process.argv[2] ?? "origin/main").trim();
+const diff = git("diff", "--unified=0", "--no-color", "--no-renames", base, "HEAD", "--", ...pathspecs);
+
+const removed = [];
+const added = [];
+let file = "";
+let inHunk = false;
+for (const line of diff.split("\n")) {
+  if (line.startsWith("diff --git ")) {
+    inHunk = false;
+  } else if (!inHunk && line.startsWith("+++ ")) {
+    file = line.slice(6);
+  } else if (line.startsWith("@@")) {
+    inHunk = true;
+  } else if (inHunk && suppression.test(line)) {
+    const text = line.slice(1).trim();
+    if (line[0] === "+") added.push({ file, text });
+    if (line[0] === "-") removed.push(text);
   }
-  return new Map(output.split("\n").map((line) => {
-    const [, file, count] = line.match(/^[^:]+:(.+):(\d+)$/);
-    return [file, Number(count)];
-  }));
 }
 
-const sum = (counts) => [...counts.values()].reduce((total, count) => total + count, 0);
+const moved = new Set();
+const fresh = added.filter(({ text }) => {
+  const index = removed.findIndex((old, i) => old === text && !moved.has(i));
+  if (index === -1) return true;
+  moved.add(index);
+  return false;
+});
 
-const base = git("merge-base", "HEAD", process.argv[2] ?? "origin/main");
-const before = countByFile(base);
-const after = countByFile("HEAD");
-
-if (sum(after) <= sum(before)) {
-  console.log(`Suppressions: ${sum(after)} (the base has ${sum(before)}).`);
+if (fresh.length === 0) {
+  console.log("No new suppressions.");
 } else {
-  console.error(`Suppressions went up from ${sum(before)} to ${sum(after)}. Fix the code so the lint or type rule passes instead of silencing it.`);
-  for (const [file, count] of after) {
-    const old = before.get(file) ?? 0;
-    if (count > old) console.error(`  ${file}: ${old} -> ${count}`);
-  }
+  console.error(`This branch adds ${fresh.length} lint or type-check suppression(s). Fix the code so the rule passes instead of silencing it:`);
+  for (const { file, text } of fresh) console.error(`  ${file}: ${text}`);
   process.exit(1);
 }
