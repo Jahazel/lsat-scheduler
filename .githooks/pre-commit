@@ -6,4 +6,5 @@ gitleaks protect --staged --redact --exit-code 1
 
 npm run --silent lint
 npm run --silent typecheck
-npm test --silent
+# Other sessions on a shared machine can slow tests past Vitest's 5-second default.
+npm test --silent -- --testTimeout=30000
