@@ -1,0 +1,21 @@
+name: Factory gardener
+
+on:
+  # Monday 07:00 in Chicago all year: 12:00 UTC in summer time, 13:00 UTC in winter time.
+  schedule:
+    - cron: "0 12 * * 1"
+    - cron: "0 13 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  garden:
+    uses: Jahazel/software-factory/.github/workflows/gardener.yml@main
+    with:
+      time-zone: America/Chicago
+      hour: 7
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      FACTORY_GITHUB_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN }}
