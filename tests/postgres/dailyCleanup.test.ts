@@ -142,7 +142,7 @@ it("answers a failed run with the plain message and a short code, and stores the
     result: "failed",
     route: "/api/cron/daily-cleanup",
     account_id: null,
-    ip_address: null,
+    ip_address: "unknown",
     email_hash: null,
     error_code: body.code,
     error_type: "TypeError",
