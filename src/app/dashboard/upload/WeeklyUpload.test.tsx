@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import WeeklyUpload from "./WeeklyUpload";
+import { FailureToastProvider } from "@/components/FailureNotice";
 import { mockStudent } from "@/lib/mockData";
 import { PT158_FIXTURES } from "@/lib/practiceTestFixtures/pt158";
 import type { LRSectionReading, SectionReading } from "@/lib/practiceTestResult";
@@ -54,7 +55,7 @@ const SECTION_FILES = ["pt158-s1.png", "pt158-s2.png", "pt158-s3.png", "pt158-s4
 function setup(hadPracticeTest = true, start?: Pick<WeeklyUploadBasis, "plans" | "startsOn">) {
   const onCheckValues = vi.fn();
   const user = userEvent.setup();
-  render(<WeeklyUpload basis={basis(hadPracticeTest, start)} initialScore={156} onCheckValues={onCheckValues} />);
+  render(<WeeklyUpload basis={basis(hadPracticeTest, start)} initialScore={156} onCheckValues={onCheckValues} />, { wrapper: FailureToastProvider });
   return { user, onCheckValues };
 }
 
@@ -372,6 +373,47 @@ describe("WeeklyUpload", () => {
     expect(await screen.findByText("Couldn't read that screenshot. Try again or a clearer image.")).toBeDefined();
     await queueEmpty();
     expect(button("Check the values").disabled).toBe(true);
+  });
+
+  it("shows a failed read in the failure toast, keeps Try again on its row, and closes the toast when the retry reads", async () => {
+    const server = stubServer({ "pt158-s2.png": Response.json({ code: "3f9a01c2" }, { status: 500 }) });
+    const { user } = setup();
+    await readAll(user);
+
+    expect((await screen.findByRole("alert")).textContent).toBe("Something went wrong. Try again.Error code 3f9a01c2");
+    expect(screen.getAllByText("Something went wrong. Try again.")).toHaveLength(1);
+    const row = screen.getByText("We couldn't read this screenshot").closest("[data-file-row]") as HTMLElement;
+    expect(row.textContent).toContain("pt158-s2.png");
+
+    let reply!: () => void;
+    const replied = new Promise<void>((resolve) => { reply = resolve; });
+    server.mockImplementation(async () => {
+      await replied;
+      return Response.json({ reading: sample(2) });
+    });
+    await user.click(within(row).getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("pt158-s2.png · Reading now")).toBeDefined();
+    expect(screen.getByRole("alert")).toBeDefined();
+    reply();
+    await queueEmpty();
+    expect(screen.getByText("Section 2 · Logical Reasoning")).toBeDefined();
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
+  it("keeps the failure toast when another row reads, and closes it when the failed row's replacement reads", async () => {
+    stubServer({ "pt158-s2.png": Response.json({ code: "3f9a01c2" }, { status: 500 }), "retake-s2.png": sample(2), "retake-s3.png": sample(3) });
+    const { user } = setup();
+    await readAll(user);
+    expect(await screen.findByRole("alert")).toBeDefined();
+
+    await user.upload(screen.getAllByLabelText("Replacement for pt158-s3.png")[0], png("retake-s3.png"));
+    await queueEmpty();
+    expect(screen.getByRole("alert").textContent).toContain("3f9a01c2");
+
+    await user.upload(screen.getAllByLabelText("Replacement for pt158-s2.png")[0], png("retake-s2.png"));
+    await queueEmpty();
+    expect(screen.getByText("Section 2 · Logical Reasoning")).toBeDefined();
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   });
 
   it("refuses a wrong page in the RC box on its row and keeps the button off", async () => {
