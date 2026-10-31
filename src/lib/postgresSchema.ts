@@ -25,6 +25,8 @@ export const accounts = pgTable("accounts", {
   simulatedDate: date("simulated_date", { mode: "string" }),
   disabledAt: timestamp("disabled_at", { withTimezone: true }),
   deletingSince: timestamp("deleting_since", { withTimezone: true }),
+  lastSignedInAt: timestamp("last_signed_in_at", { withTimezone: true }).notNull().defaultNow(),
+  inactiveWarningSentAt: timestamp("inactive_warning_sent_at", { withTimezone: true }),
   sessionVersion: integer("session_version").notNull().default(0),
 });
 

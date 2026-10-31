@@ -132,6 +132,16 @@ Built on [issue 351](https://github.com/Jahazel/lsat-scheduler/issues/351):
 
 **Why:** LSAT study usually lasts months. Two years keeps data for students who come back after a break.
 
+Built on [issue 354](https://github.com/Jahazel/lsat-scheduler/issues/354) (rule 21):
+
+- Migration `0018_inactive_accounts` adds `accounts.last_signed_in_at` and `accounts.inactive_warning_sent_at`. Every Account that existed before it gets the migration time as its last sign-in. A new Account starts with the time it was created.
+- Each successful Google or password sign-in sets `last_signed_in_at` and clears `inactive_warning_sent_at`. A refused sign-in (wrong password, Disabled Account, Deleting Account) changes neither.
+- The daily job emails each Account with no sign-in for 2 years and no warning yet through the email sender, one at a time. It locks the Account's row while it sends, and sets `inactive_warning_sent_at` in the same transaction only when the email was sent. So two runs at once cannot warn the same Account twice, and a run that stops mid-send records no warning. When the email is not sent, the next run tries again. If a run stops after the email is sent but before the time is saved, the next run sends it again: a rare second warning is safer than a deletion with none.
+- A sign-in that the daily job marks "deleting" while the sign-in runs is refused like any sign-in of a Deleting Account.
+- The daily job marks "deleting" (step 1) each Account warned 30 or more days ago, then finishes it with step 2 and its deletion list row in the same run.
+- The rule covers every Account, including Disabled and Admin Accounts.
+- The warning email's text is proposed in the PR for issue 354 and waits for the owner's approval.
+
 Changed by the owner on October 28, 2026 (owner decision 2 on [issue 348](https://github.com/Jahazel/lsat-scheduler/issues/348)), built on [issue 349](https://github.com/Jahazel/lsat-scheduler/issues/349):
 
 - The `leads` table is dropped. Migration `0015_drop_leads` deletes the table and every old lead.
