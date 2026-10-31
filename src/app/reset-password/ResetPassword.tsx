@@ -14,17 +14,21 @@ const initialState: Answer<ResetPasswordState> = { kind: "form" };
 
 export function ResetPassword({ token }: { token: string | null }) {
   const [state, formAction, pending] = useActionState(resetPassword, initialState);
+  const notice = <FailureNotice answer={state} />;
 
   if (!token || (!isUnexpectedFailure(state) && state.kind === "linkDoesNotWork")) {
     return (
-      <SignInFrame
-        title="This link doesn't work"
-        lead="It may have expired, been used already, or been replaced by a newer link. A reset link works once, for 30 minutes."
-        preview={<TodayPreview />}
-      >
-        <ButtonLink href="/forgot-password" className="w-full rounded-sm">Get a new link</ButtonLink>
-        <SwitchPageLink question="Back to" href="/login" label="Log in" />
-      </SignInFrame>
+      <>
+        {notice}
+        <SignInFrame
+          title="This link doesn't work"
+          lead="It may have expired, been used already, or been replaced by a newer link. A reset link works once, for 30 minutes."
+          preview={<TodayPreview />}
+        >
+          <ButtonLink href="/forgot-password" className="w-full rounded-sm">Get a new link</ButtonLink>
+          <SwitchPageLink question="Back to" href="/login" label="Log in" />
+        </SignInFrame>
+      </>
     );
   }
 
@@ -36,25 +40,27 @@ export function ResetPassword({ token }: { token: string | null }) {
   }
 
   return (
-    <SignInFrame
-      title="Set a new password"
-      lead="Choose a new password. Saving it signs you out on all your devices."
-      preview={<TodayPreview />}
-    >
-      <form onSubmit={submit} className="flex flex-col gap-8">
-        <input type="hidden" name="token" value={token} />
-        <TextInput
-          label="New password"
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          required
-          helper="At least 8 characters. A long phrase works well."
-          error={isUnexpectedFailure(state) || state.kind !== "form" ? undefined : state.error}
-        />
-        <FailureNotice answer={state} />
-        <SubmitButton label="Save new password" workingLabel="Saving…" pending={pending} />
-      </form>
-    </SignInFrame>
+    <>
+      {notice}
+      <SignInFrame
+        title="Set a new password"
+        lead="Choose a new password. Saving it signs you out on all your devices."
+        preview={<TodayPreview />}
+      >
+        <form onSubmit={submit} className="flex flex-col gap-8">
+          <input type="hidden" name="token" value={token} />
+          <TextInput
+            label="New password"
+            name="password"
+            type="password"
+            autoComplete="new-password"
+            required
+            helper="At least 8 characters. A long phrase works well."
+            error={isUnexpectedFailure(state) || state.kind !== "form" ? undefined : state.error}
+          />
+          <SubmitButton label="Save new password" workingLabel="Saving…" pending={pending} />
+        </form>
+      </SignInFrame>
+    </>
   );
 }

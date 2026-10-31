@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 
 const requestPasswordReset = vi.hoisted(() => vi.fn());
 vi.mock("./actions", () => ({ requestPasswordReset }));
+import { FailureToastProvider } from "@/components/FailureNotice";
 import ForgotPasswordPage from "./page";
 
 afterEach(() => {
@@ -27,6 +28,21 @@ describe("Forgot password", () => {
     expect(screen.getByText("If maya.chen@fastmail.com has a DrillMap Account, we sent it an email with your next step.")).toBeTruthy();
     expect(screen.getByText("A reset link works for 30 minutes.")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Log in" }).getAttribute("href")).toBe("/login");
+  });
+
+  it("closes the failure toast when a retry sends the link", async () => {
+    requestPasswordReset.mockResolvedValueOnce({ unexpectedFailure: "3f9a01c2" });
+    requestPasswordReset.mockResolvedValueOnce({ kind: "sent", email: "maya.chen@fastmail.com" });
+    render(<ForgotPasswordPage />, { wrapper: FailureToastProvider });
+    await userEvent.type(screen.getByLabelText("Email"), "maya.chen@fastmail.com");
+    await userEvent.click(screen.getByRole("button", { name: "Send reset link" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("Error code 3f9a01c2");
+
+    await userEvent.clear(screen.getByLabelText("Email"));
+    await userEvent.type(screen.getByLabelText("Email"), "maya.chen@fastmail.com");
+    await userEvent.click(screen.getByRole("button", { name: "Send reset link" }));
+    expect(await screen.findByRole("heading", { name: "Check your email" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("shows the email error under the field", async () => {

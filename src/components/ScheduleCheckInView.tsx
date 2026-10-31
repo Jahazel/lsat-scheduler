@@ -10,7 +10,7 @@ import { dayName, isoDateInWeek } from "@/lib/scheduleReasonText";
 import type { ActivityCheckIn, DayPlan, Student, WeeklySchedule } from "@/lib/types";
 import { saveActivityCheckIn } from "@/app/dashboard/actions";
 import { FailureNotice } from "@/components/FailureNotice";
-import { isUnexpectedFailure, type UnexpectedFailure } from "@/lib/unexpectedFailure";
+import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ReminderStrip } from "@/components/ui/ReminderStrip";
@@ -79,7 +79,7 @@ export default function ScheduleCheckInView({
   uploadReminder = false,
 }: ScheduleCheckInViewProps) {
   const [savedCheckIns, setSavedCheckIns] = useState(checkIns);
-  const [failure, setFailure] = useState<UnexpectedFailure | null>(null);
+  const [lastSave, setLastSave] = useState<{ activityId: string; answer: Answer<ActivityCheckIn> } | null>(null);
   const confirmedCheckIns = useRef(checkIns);
   const pendingSaves = useRef(new Map<string, number>());
   const [, startTransition] = useTransition();
@@ -94,15 +94,14 @@ export default function ScheduleCheckInView({
   function toggle(activityId: string) {
     const status = doneIds.has(activityId) ? "not_started" : "completed";
     const others = (checkIns: ActivityCheckIn[]) => checkIns.filter((checkIn) => checkIn.activityId !== activityId);
-    setFailure(null);
     setSavedCheckIns((previous) => [...others(previous), { scheduleId, activityId, status }]);
     pendingSaves.current.set(activityId, (pendingSaves.current.get(activityId) ?? 0) + 1);
     startTransition(async () => {
       const answer = await saveActivityCheckIn({ scheduleId, activityId, status });
       const stillPending = pendingSaves.current.get(activityId)! - 1;
       pendingSaves.current.set(activityId, stillPending);
-      if (isUnexpectedFailure(answer)) setFailure(answer);
-      else confirmedCheckIns.current = [...others(confirmedCheckIns.current), answer];
+      setLastSave({ activityId, answer });
+      if (!isUnexpectedFailure(answer)) confirmedCheckIns.current = [...others(confirmedCheckIns.current), answer];
       if (stillPending > 0) return;
       const confirmed = confirmedCheckIns.current.filter((checkIn) => checkIn.activityId === activityId);
       setSavedCheckIns((previous) => [...others(previous), ...confirmed]);
@@ -125,8 +124,8 @@ export default function ScheduleCheckInView({
         notes={weekNotes(schedule)}
         aside={<div aria-live="polite"><ProgressBar done={doneActivities} total={totalActivities} dueSoFar={dueSoFar} /></div>}
       />}
+      <FailureNotice action={lastSave?.activityId} answer={lastSave?.answer ?? null} />
       <div className={cx("flex flex-col gap-4", padding)}>
-        <FailureNotice answer={failure} className="px-2 text-small text-danger-ink" />
         {DAY_ORDER.map((day, dayIndex) => {
           const plan = schedule.days[day];
           const plannedMinutes = Math.round(plan.activities.reduce((total, activity) => total + plannedActivityMinutes(activity), 0));
