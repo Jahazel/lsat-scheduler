@@ -400,6 +400,22 @@ describe("WeeklyUpload", () => {
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   });
 
+  it("keeps the failure toast when another row reads, and closes it when the failed row's replacement reads", async () => {
+    stubServer({ "pt158-s2.png": Response.json({ code: "3f9a01c2" }, { status: 500 }), "retake-s2.png": sample(2), "retake-s3.png": sample(3) });
+    const { user } = setup();
+    await readAll(user);
+    expect(await screen.findByRole("alert")).toBeDefined();
+
+    await user.upload(screen.getAllByLabelText("Replacement for pt158-s3.png")[0], png("retake-s3.png"));
+    await queueEmpty();
+    expect(screen.getByRole("alert").textContent).toContain("3f9a01c2");
+
+    await user.upload(screen.getAllByLabelText("Replacement for pt158-s2.png")[0], png("retake-s2.png"));
+    await queueEmpty();
+    expect(screen.getByText("Section 2 · Logical Reasoning")).toBeDefined();
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
   it("refuses a wrong page in the RC box on its row and keeps the button off", async () => {
     stubServer({}, { RC: Response.json({ rows: [], showsPassageTypes: false }) });
     const { user } = setup();

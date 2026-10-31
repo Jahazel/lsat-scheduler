@@ -15,7 +15,7 @@ export type FileRead<T> =
 
 export type AnalyticsReading = { rows: AnalyticsExtractedRow[]; at: string };
 
-export type QueuedFile<M, S extends keyof M = keyof M> = { [K in S]: { id: number; slot: K; file: File; read: FileRead<M[K]> } }[S];
+export type QueuedFile<M, S extends keyof M = keyof M> = { [K in S]: { id: number; row: number; slot: K; file: File; read: FileRead<M[K]> } }[S];
 
 export interface ReadQueue<M> {
   files: QueuedFile<M>[];
@@ -39,10 +39,11 @@ export function addFile<M>(
   queue: ReadQueue<M>,
   { slot, file, status, replacing }: { slot: keyof M; file: File; status: "added" | "waiting"; replacing?: number },
 ): ReadQueue<M> {
-  const added = { id: queue.nextId, slot, file, read: { status } } as QueuedFile<M>;
+  const replaced = queue.files.find((entry) => entry.id === replacing);
+  const added = { id: queue.nextId, row: replaced?.row ?? queue.nextId, slot, file, read: { status } } as QueuedFile<M>;
   const files = replacing === undefined
     ? [...queue.files, added]
-    : queue.files.map((entry) => (entry.id === replacing ? added : entry));
+    : queue.files.map((entry) => (entry === replaced ? added : entry));
   return { ...queue, files, nextId: queue.nextId + 1 };
 }
 
