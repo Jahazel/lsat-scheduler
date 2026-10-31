@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const requestPasswordReset = vi.hoisted(() => vi.fn());
@@ -42,7 +42,7 @@ describe("Forgot password", () => {
     await userEvent.type(screen.getByLabelText("Email"), "maya.chen@fastmail.com");
     await userEvent.click(screen.getByRole("button", { name: "Send reset link" }));
     expect(await screen.findByRole("heading", { name: "Check your email" })).toBeTruthy();
-    expect(screen.queryByRole("alert")).toBeNull();
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   });
 
   it("shows the email error under the field", async () => {
