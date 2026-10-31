@@ -1,3 +1,4 @@
+import { INACTIVE_WARNING_DAYS, INACTIVE_YEARS } from "./accountRepository";
 import { emailLink, type Email } from "./email";
 import { RESET_LINK_MINUTES } from "./passwordResetRepository";
 import { VERIFICATION_LINK_HOURS } from "./pendingSignupRepository";
@@ -55,6 +56,19 @@ export function resetYourPassword(to: string, token: string): Email {
       "Open this link to set a new password:",
       emailLink("/reset-password", { token }),
       `The link works once, for ${RESET_LINK_MINUTES} minutes. If you did not ask for this, ignore this email. Your password did not change.`,
+    ].join("\n\n"),
+  };
+}
+
+export function signInToKeepYourAccount(to: string, name: string): Email {
+  return {
+    to,
+    subject: "Sign in to keep your DrillMap Account",
+    text: [
+      `Hi ${name},`,
+      `You have not signed in to DrillMap for ${INACTIVE_YEARS} years. Sign in within ${INACTIVE_WARNING_DAYS} days to keep your Account:`,
+      emailLink("/login", {}),
+      "If you do not sign in by then, we will delete your Account and your study information. You do not need to do anything else.",
     ].join("\n\n"),
   };
 }

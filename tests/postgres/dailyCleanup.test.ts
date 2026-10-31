@@ -95,7 +95,8 @@ it("removes old pending signups, expired reset tokens, and old security log entr
   const response = await GET(cronRequest(`Bearer ${CRON_SECRET}`));
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({
-    accountDeletionsFinished: 0, accountDeletionsLeft: 0, deletionListRemoved: 1,
+    accountDeletionsFinished: 0, accountDeletionsLeft: 0, inactiveAccountsMarked: 0, inactiveWarningsSent: 0, inactiveWarningsNotSent: 0,
+    deletionListRemoved: 1,
     securityLogRemoved: 1, pendingSignupsRemoved: 1, resetTokensRemoved: 1,
   });
   expect(await remainingRows()).toEqual({
@@ -111,7 +112,8 @@ it("gives the same result when the route runs twice", async () => {
   const second = await GET(cronRequest(`Bearer ${CRON_SECRET}`));
   expect(second.status).toBe(200);
   expect(await second.json()).toEqual({
-    accountDeletionsFinished: 0, accountDeletionsLeft: 0, deletionListRemoved: 0,
+    accountDeletionsFinished: 0, accountDeletionsLeft: 0, inactiveAccountsMarked: 0, inactiveWarningsSent: 0, inactiveWarningsNotSent: 0,
+    deletionListRemoved: 0,
     securityLogRemoved: 0, pendingSignupsRemoved: 0, resetTokensRemoved: 0,
   });
   expect(await remainingRows()).toEqual({

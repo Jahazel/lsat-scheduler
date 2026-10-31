@@ -127,6 +127,13 @@
       "when": 1792972800000,
       "tag": "0017_two_step_deletion",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793059200000,
+      "tag": "0018_inactive_accounts",
+      "breakpoints": true
     }
   ]
 }

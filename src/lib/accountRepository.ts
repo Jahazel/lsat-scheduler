@@ -1,8 +1,11 @@
-import { and, eq, isNotNull, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull, lte, notInArray, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { getPostgresDatabase } from "./postgres";
 import type { CurrentPasswordProof } from "./passwordAccount";
 import { accounts, pendingSignups } from "./postgresSchema";
+
+export const INACTIVE_YEARS = 2;
+export const INACTIVE_WARNING_DAYS = 30;
 
 export const accountIdSchema = z.guid().brand<"AccountId">();
 export type AccountId = z.infer<typeof accountIdSchema>;
@@ -115,4 +118,45 @@ export async function endAllSessions(id: AccountId) {
     .update(accounts)
     .set({ sessionVersion: sql`${accounts.sessionVersion} + 1` })
     .where(eq(accounts.id, id));
+}
+
+/** Records a successful sign-in, which also cancels an inactive Account warning. Returns false when the Account is deleting or gone. */
+export async function recordSignIn(id: string, at: Date) {
+  const recorded = await getPostgresDatabase()
+    .update(accounts)
+    .set({ lastSignedInAt: at, inactiveWarningSentAt: null })
+    .where(and(eq(accounts.id, id), isNull(accounts.deletingSince)))
+    .returning({ id: accounts.id });
+  return recorded.length === 1;
+}
+
+type InactiveAccount = { id: string; email: string; name: string };
+
+/**
+ * Sends one due warning and records it in the same transaction, which holds the Account's row lock.
+ * A run that stops before the commit records no warning, so no Account is deleted without one.
+ */
+export async function warnNextInactiveAccount(now: Date, skip: string[], send: (account: InactiveAccount) => Promise<boolean>) {
+  const signedInBefore = new Date(now);
+  signedInBefore.setUTCFullYear(signedInBefore.getUTCFullYear() - INACTIVE_YEARS);
+  return getPostgresDatabase().transaction(async (tx) => {
+    const [account] = await tx.select({ id: accounts.id, email: accounts.email, name: accounts.name })
+      .from(accounts)
+      .where(and(
+        lte(accounts.lastSignedInAt, signedInBefore), isNull(accounts.inactiveWarningSentAt), isNull(accounts.deletingSince),
+        skip.length > 0 ? notInArray(accounts.id, skip) : undefined,
+      ))
+      .orderBy(asc(accounts.lastSignedInAt))
+      .limit(1)
+      .for("update", { skipLocked: true });
+    if (!account) return null;
+    if (!(await send(account))) return { id: account.id, sent: false };
+    await tx.update(accounts).set({ inactiveWarningSentAt: now }).where(eq(accounts.id, account.id));
+    return { id: account.id, sent: true };
+  });
+}
+
+export async function markWarnedInactiveAccountsDeleting(now: Date) {
+  const warnedBefore = new Date(now.getTime() - INACTIVE_WARNING_DAYS * 24 * 60 * 60 * 1000);
+  return (await markDeleting(lte(accounts.inactiveWarningSentAt, warnedBefore))).length;
 }
