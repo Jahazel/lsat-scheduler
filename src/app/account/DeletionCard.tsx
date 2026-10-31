@@ -149,7 +149,7 @@ function ConfirmationFields({ refusal, currentPassword }: {
         {pending ? "Deleting…" : "Delete account"}
       </button>
       {pending && <p className="text-small text-smoke">Deleting your account. This takes a few seconds.</p>}
-      <FailureNotice answer={shown} />
+      <FailureNotice answer={refusal} />
     </>
   );
 }

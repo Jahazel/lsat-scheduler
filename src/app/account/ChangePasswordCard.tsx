@@ -58,7 +58,7 @@ export function ChangePasswordCard() {
         >
           {pending ? "Changing password…" : "Change password"}
         </button>
-        {!pending && <FailureNotice answer={refusal} />}
+        <FailureNotice answer={refusal} />
       </form>
     </section>
   );
