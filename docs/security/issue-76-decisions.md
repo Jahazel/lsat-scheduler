@@ -184,7 +184,9 @@ Built on [issue 355](https://github.com/Jahazel/lsat-scheduler/issues/355):
 
 ### Errors
 
-29. Every unexpected failure returns one plain message, "Something went wrong. Try again.", and a short error code. The security log stores the same code with the time, the route, and the error type.
+29. Every unexpected failure returns one plain message, "Something went wrong. Try again.", and a short error code. The security log stores the same code with the time, the route, the error type, and the IP address of the request.
+
+**Owner decision, October 28, 2026 ([#380](https://github.com/Jahazel/lsat-scheduler/issues/380)): failure entries store the IP address.** Rule 29 listed only the code, time, route, and error type, while rule 26 says each entry holds the IP address. Rule 29 now matches rule 26, so the owner can link a failure to the device or network that caused it. The address is read and checked as on every other entry: a missing or malformed address, or one that cannot be read, stores `unknown`, and the failure still answers with its code.
 
 ### Restores
 
