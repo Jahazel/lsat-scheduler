@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useReducer, useRef, useState, type ReactNode } from "react";
+import { FailureNotice } from "@/components/FailureNotice";
 import { ScanningOffNote } from "@/components/ScanningOffNote";
 import SignInExpired from "@/components/SignInExpired";
 import { SnapshotReviewFields } from "@/components/SnapshotReviewFields";
@@ -30,7 +31,6 @@ import { DAY_LABEL } from "@/lib/studentProfile";
 import { mostMissedType } from "@/lib/engine";
 import { mockRules } from "@/lib/mockData";
 import type { AnalyticsExtractedRow, AnalyticsSection, AnalyticsSnapshot, LRStemType, WeeklySchedule } from "@/lib/types";
-import { failureText } from "@/lib/unexpectedFailure";
 import {
   plannedWeekAnalytics, previewPlannedWeek, MAX_SCORE, MIN_SCORE, type WeeklyUploadBasis,
 } from "@/lib/weeklyUploadPreview";
@@ -56,11 +56,11 @@ type SectionUpload = QueuedFile<UploadReads, "section">;
 const READ_ORDER = [...SECTIONS, "section"] as const;
 const PENDING: Read["status"][] = ["added", "waiting", "reading"];
 
-function readProblem(read: Read): { message: string; tryAgain: boolean } | null {
+function readProblem(read: Read): { message: string | null; tryAgain: boolean } | null {
   switch (read.status) {
     case "rejected": return { message: read.message, tryAgain: false };
     case "no-rows": return { message: NO_LR_ROWS, tryAgain: false };
-    case "failed": return { message: failureText(read.failure), tryAgain: true };
+    case "failed": return { message: null, tryAgain: true };
     case "timed-out": return { message: TOOK_TOO_LONG, tryAgain: true };
     case "cannot-read":
     case "connection-lost": return { message: CANNOT_READ, tryAgain: true };
@@ -475,8 +475,18 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
         )}
         <p className="text-center text-small text-smoke">{hint}</p>
       </div>
+      {reads.files.map((upload) => <LastFinishedReadNotice key={upload.rowKey} read={upload.read} />)}
     </div>
   );
+}
+
+const finishedReadAnswer = (read: Read) => (read.status === "failed" ? read.failure : read.status === "read" ? read : null);
+
+function LastFinishedReadNotice({ read }: { read: Read }) {
+  const [lastFinished, setLastFinished] = useState(finishedReadAnswer(read));
+  const finished = finishedReadAnswer(read) ?? lastFinished;
+  if (finished !== lastFinished) setLastFinished(finished);
+  return <FailureNotice answer={finished} />;
 }
 
 function UploadGroup({ title, count, className, children }: { title: string; count: ReactNode; className?: string; children: ReactNode }) {
@@ -591,7 +601,7 @@ function ReadNote({ read, onTryAgain }: { read: Read; onTryAgain: () => void }) 
   if (!problem) return null;
   return (
     <>
-      <ProblemNote>{problem.message}</ProblemNote>
+      {problem.message && <ProblemNote>{problem.message}</ProblemNote>}
       {problem.tryAgain && <Button variant="outline" size="md" className="self-start" onClick={onTryAgain}>Try again</Button>}
     </>
   );
@@ -616,7 +626,7 @@ function AnalyticsRow({ section, upload, rejection, onFile, onTryAgain }: {
       title={SECTION_NAME[section]}
       detail={(
         <Detail file={file} status={read.status} read={read.status === "read"}>
-          {read.status === "read" ? `${read.value.rows.length} ${noun}` : read.status === "refused" && "not read"}
+          {read.status === "read" ? `${read.value.rows.length} ${noun}` : (read.status === "refused" || read.status === "failed") && "not read"}
         </Detail>
       )}
       action={<ReplaceButton file={file} onFile={onFile} />}

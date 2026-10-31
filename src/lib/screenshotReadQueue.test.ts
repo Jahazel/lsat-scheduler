@@ -66,6 +66,14 @@ describe("screenshot read queue", () => {
 
     expect(slotFiles(replaced, "section").map(({ file }) => file.name)).toEqual(["s1.png", "s2-new.png", "s3.png"]);
   });
+
+  it("gives a replacement a new id and keeps its row key, so the row's failure notice stays the same", () => {
+    const q = queue(["LR", "lr.png"], ["section", "s1.png"], ["section", "s2.png"]);
+    const replaced = addFile(addFile(q, { slot: "LR", file: png("lr-2.png"), status: "waiting", replacing: 0 }),
+      { slot: "section", file: png("s2-new.png"), status: "waiting", replacing: 2 });
+
+    expect(replaced.files.map(({ id, rowKey }) => [id, rowKey])).toEqual([[3, 0], [1, 1], [4, 2]]);
+  });
 });
 
 describe("reply to file status", () => {
