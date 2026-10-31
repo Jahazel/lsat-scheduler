@@ -174,6 +174,12 @@ Added by the owner on October 28, 2026, on [issue 316](https://github.com/Jahaze
 - The Admin role change and the emergency switch change are made outside the app, with `npm run make-admin` or SQL. Database triggers record them, so every path makes an entry.
 - Refused forged requests are recorded when the check for rules 2 to 5 is built ([issue 337](https://github.com/Jahazel/lsat-scheduler/issues/337)).
 
+Built on [issue 355](https://github.com/Jahazel/lsat-scheduler/issues/355):
+
+- Each model reply that fails a model output check writes one `model_reply_refused` entry. Its result names the failed check: `wrongTool` (no tool call, or another tool), `unknownLabel` (a question type, passage type, priority, page, or result that is not on the list), `tooManyRows` (more rows or tags than allowed), `badTrueFalse` (a true/false field that is not true or false), `badNumber` (an accuracy, score, or test, section, or question number that is out of range, not whole, or not a number), or `wrongShape` (anything else, such as a missing rows list). The entry also holds the number of rows in the reply, or no number when the reply has no rows list. It holds no label, value, accuracy, model output, or screenshot. Migration `0019_model_reply_event` adds the event and the `row_count` column, which only this event may fill.
+- When a reply fails more than one check, the entry names the first one the checks find.
+- A Google sign-in that ends before DrillMap's sign-in check runs writes one `sign_in` entry with no Account. Google sends a cancel back with `error=access_denied`, and Auth.js then sends Login `error=Configuration`, as it does for a real setup fault. The entry tells them apart by Google's own `error` value: `access_denied` records `googleCancelled`. Any other Google error, or a Login `error=Configuration` with no Google error, such as a failed token exchange, records `setupFault`.
+
 **Why:** Vercel Hobby keeps logs for 1 hour, which is too short to look into an attack. A database collection needs no new provider, as with the issue 75 counters. Ninety days is long enough to find slow attacks.
 
 ### Errors

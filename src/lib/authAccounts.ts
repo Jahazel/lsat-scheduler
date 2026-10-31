@@ -49,3 +49,16 @@ export async function createGoogleAccountOnSignIn({ user, account, profile }: {
     return usesPassword ? EMAIL_USES_PASSWORD_PATH : false;
   });
 }
+
+const GOOGLE_CALLBACK = "/api/auth/callback/google";
+
+/** Auth.js sends a cancel at Google (`error=access_denied`) to Login as `error=Configuration`, the same as a real setup fault. */
+export async function recordGoogleCallbackFailure(requestUrl: URL, response: Response) {
+  if (requestUrl.pathname !== GOOGLE_CALLBACK) return;
+  const googleError = requestUrl.searchParams.get("error");
+  const loginError = new URL(response.headers.get("Location") ?? "", requestUrl).searchParams.get("error");
+  if (googleError === null && loginError !== "Configuration") return;
+  await recordSecurityEvent({
+    event: "sign_in", result: googleError === "access_denied" ? "googleCancelled" : "setupFault", route: GOOGLE_CALLBACK, who: NOBODY,
+  });
+}

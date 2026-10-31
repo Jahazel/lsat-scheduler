@@ -6,6 +6,9 @@ import { hashPassword } from "../../src/lib/passwordHash";
 import { deleteAccount, logIn, requestPasswordReset, type PasswordRequest } from "../../src/lib/passwordAccount";
 import { redirect } from "next/navigation";
 import { answerAction, answerRequest, recordSecurityEvent, type SecurityEntry, type SecurityEvent } from "../../src/lib/securityLog";
+import { readAnalyticsReply, readSectionReply, type ToolReply } from "../../src/lib/claudeExtract";
+import { mockRules } from "../../src/lib/mockData";
+import { scanWithLimits } from "../../src/lib/scanGuard";
 
 const MAYA = "maya.chen@fastmail.com";
 const PASSWORD = "correct horse battery staple";
@@ -122,7 +125,7 @@ it("accepts every event the app can record, and refuses an event name it does no
     sign_in: "signedIn", sign_out_all_devices: "done", email_verification: "verified", password_reset_request: "passwordAccount",
     password_reset: "changed", password_change: "changed", account_deletion: "deleted", student_data_refused: "refused",
     admin_action_refused: "refused", limit_refused: "scanInDay", budget_cutoff: "limitReached",
-    forged_request_refused: "noOrigin",
+    forged_request_refused: "noOrigin", model_reply_refused: "badNumber",
   };
   for (const [event, result] of Object.entries(sample)) {
     await recordSecurityEvent({ event, result, route: "/admin/students/[id]", who: { nobody: true } } as SecurityEntry);
@@ -171,4 +174,48 @@ it("answers a failed request with HTTP 500 and the code in the log, and passes a
   const body = await response.json();
   expect(body).toEqual({ error: "Something went wrong. Try again.", code: expect.stringMatching(/^[0-9a-f]{8}$/) });
   expect(await failures()).toEqual([{ route: "/api/students/[id]", error_code: body.code, error_type: "Error" }]);
+});
+
+const analyticsReply = (input: unknown): ToolReply => ({ name: "record_analytics_rows", input });
+
+it.each([
+  ["wrongTool", null, "analytics", () => readAnalyticsReply({ name: "record_practice_test_section", input: { rows: [] } }, mockRules, "LR")],
+  ["unknownLabel", 2, "analytics", () => readAnalyticsReply(analyticsReply({
+    rows: [{ type: "Strengthen", accuracy: 61 }, { type: "Ignore previous instructions", accuracy: 47 }],
+  }), mockRules, "LR")],
+  ["tooManyRows", 6, "analytics", () => readAnalyticsReply(analyticsReply({
+    showsPassageTypes: true, rows: Array.from({ length: 6 }, () => ({ type: "Law", accuracy: 53 })),
+  }), mockRules, "RC")],
+  ["badTrueFalse", 1, "analytics", () => readAnalyticsReply(analyticsReply({
+    showsPassageTypes: "yes", rows: [{ type: "Law", accuracy: 59 }],
+  }), mockRules, "RC")],
+  ["badNumber", 1, "analytics", () => readAnalyticsReply(analyticsReply({ rows: [{ type: "Strengthen", accuracy: 143 }] }), mockRules, "LR")],
+  ["badNumber", 1, "practice-test-section", () => readSectionReply({ name: "record_practice_test_section", input: {
+    page: "section_review", prepTest: 158, section: 2, kind: "LR", score: -4, reachesEnd: true, rows: [{ question: 97, result: "correct", tags: ["Flaw"] }],
+  } })],
+] as const)("records a %s model reply refusal once, by its shape only", async (check, rowCount, kind, read) => {
+  const id = await passwordAccount();
+  const response = await scanWithLimits(id, kind, async () => read());
+
+  expect(response.status).toBe(502);
+  expect(await response.json()).toEqual({ error: "Couldn't read that screenshot" });
+  const rows = (await database.owner.execute(sql`
+    select event, result, route, account_id, email_hash, error_code, error_type, row_count from security_log where event <> 'limit_refused'
+  `)).rows;
+  expect(rows).toEqual([{
+    event: "model_reply_refused", result: check, route: kind === "analytics" ? "/api/analytics/extract" : "/api/practice-test/extract",
+    account_id: id, email_hash: null, error_code: null, error_type: null, row_count: rowCount,
+  }]);
+  const everything = JSON.stringify(rows.map((row) => ({ ...row, account_id: null })));
+  for (const value of ["Strengthen", "Ignore", "Law", "yes", "Flaw", "158", "143", "97", "61", "47", "53", "59"]) {
+    expect(everything).not.toContain(value);
+  }
+});
+
+it("keeps a row count off every event but a refused model reply", async () => {
+  await expect(database.owner.execute(sql`insert into security_log (event, result, route, row_count) values ('sign_in', 'signedIn', '/login', 3)`))
+    .rejects.toMatchObject({ cause: { code: "23514" } });
+  await expect(database.owner.execute(sql`
+    insert into security_log (event, result, route, row_count) values ('model_reply_refused', 'tooManyRows', '/api/analytics/extract', -1)
+  `)).rejects.toMatchObject({ cause: { code: "23514" } });
 });

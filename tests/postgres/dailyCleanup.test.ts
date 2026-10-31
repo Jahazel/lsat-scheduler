@@ -146,6 +146,7 @@ it("answers a failed run with the plain message and a short code, and stores the
     email_hash: null,
     error_code: body.code,
     error_type: "TypeError",
+    row_count: null,
   }]);
   expect(logged).toHaveBeenCalledWith(expect.stringContaining(body.code));
   logged.mockRestore();

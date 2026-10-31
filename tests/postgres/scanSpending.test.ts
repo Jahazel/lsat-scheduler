@@ -79,7 +79,7 @@ it("keeps the count after a timeout or an error with no reply, and uses the real
   const failed = await scanWithLimits("student-a", "practice-test-section", async () => { throw new Anthropic.APIConnectionError({ message: "synthetic network loss" }); });
   const unreadable = await scanWithLimits("student-a", "analytics", async (recordCost) => {
     recordCost(0.005);
-    throw new ModelReplyRefused("The model's reply does not fit its format");
+    throw new ModelReplyRefused("badNumber", 1);
   });
 
   expect([timedOut.status, failed.status, unreadable.status]).toEqual([504, 502, 502]);
