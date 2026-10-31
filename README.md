@@ -123,7 +123,9 @@ credential is a secret that gives access, such as a password or an API key.
    Leave `ANTHROPIC_API_KEY` unset, including in your terminal environment. Keep
    `SCREENSHOT_EXTRACTOR=fake`. The fake extractor returns fixed rows for any
    uploaded screenshot and never calls Anthropic. Set it to `fake-failure` to see
-   the "Couldn't read that screenshot" message. Without this setting, the app
+   the "Couldn't read that screenshot" message: it hands the real model output
+   checks a bad reply, which also writes one `model_reply_refused` entry in the
+   security log. Without this setting, the app
    calls Anthropic when a key is set and shows that message when no key is set.
    Never set `SCREENSHOT_EXTRACTOR` on the real site. Admins can also use Sample
    analytics snapshots for their student side. An Admin reviews and approves

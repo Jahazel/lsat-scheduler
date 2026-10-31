@@ -5,6 +5,7 @@ import { unstable_rethrow } from "next/navigation";
 import { NextResponse } from "next/server";
 import { findAccountByEmail, isAccountId } from "./accountRepository";
 import type { DeletionOutcome } from "./accountDeletion";
+import type { ReplyCheck } from "./claudeExtract";
 import { clientIpAddress } from "./clientIpAddress";
 import { emailHash } from "./emailHash";
 import type { LimitedAction } from "./actionLimits";
@@ -18,7 +19,7 @@ import { UNEXPECTED_FAILURE_MESSAGE, type Answer, type FailureCode } from "./une
 export type SecurityLogRoute = `/${string}`;
 
 type AppEvents = {
-  sign_in: "signedIn" | LoginRefusal | "usesPassword" | "googleRefused";
+  sign_in: "signedIn" | LoginRefusal | "usesPassword" | "googleRefused" | "googleCancelled" | "setupFault";
   sign_out_all_devices: "done";
   email_verification: VerificationResult;
   password_reset_request: "passwordAccount" | "googleAccount" | "pendingSignup" | "noAccount" | "paused";
@@ -30,6 +31,7 @@ type AppEvents = {
   limit_refused: LimitedAction | ScanRefusal["refused"];
   budget_cutoff: "limitReached";
   forged_request_refused: ForgedRequestRefusal["result"];
+  model_reply_refused: ReplyCheck;
 };
 
 export type Subject = { account: string } | { nobody: true };
@@ -43,7 +45,7 @@ export type SecurityEntry = {
     who: E extends "sign_in" ? SignInSubject : Subject;
     /** Read from the request when not given. */
     ipAddress?: string;
-  };
+  } & (E extends "model_reply_refused" ? { rowCount: number | null } : { rowCount?: never });
 }[keyof AppEvents];
 
 export type SecurityEvent = SecurityEntry["event"];
@@ -73,15 +75,15 @@ export function errorTypeOf(error: unknown) {
  * Writes one entry after the action's own change is saved. Never throws: a failed write goes to the server log.
  * An Account deleted a moment before, as in account deletion itself, leaves the Account ID empty.
  */
-export async function recordSecurityEvent({ event, result, route, who, ipAddress }: SecurityEntry) {
+export async function recordSecurityEvent({ event, result, route, who, ipAddress, rowCount }: SecurityEntry) {
   try {
     const accountId = "account" in who && isAccountId(who.account) ? who.account : null;
     const ip = ipAddress ?? await clientIpAddress().catch(() => "unknown");
     await getPostgresDatabase().execute(sql`
-      insert into security_log (event, result, route, account_id, ip_address, email_hash) values (
+      insert into security_log (event, result, route, account_id, ip_address, email_hash, row_count) values (
         ${event}, ${result}, ${route}, (select id from accounts where id = ${accountId}::uuid),
         ${SAFE_IP_ADDRESS.test(ip) ? ip : "unknown"},
-        ${"unknownEmail" in who ? emailHash(who.unknownEmail) : null}
+        ${"unknownEmail" in who ? emailHash(who.unknownEmail) : null}, ${rowCount ?? null}
       )
     `);
   } catch (logError) {

@@ -17,7 +17,7 @@ it("applies owner SQL twice and the ordinary migration command skips the recorde
     const bundle = await exec(process.execPath, ["scripts/sql-editor-migrations.mjs"]);
     await owner.db.execute(sql.raw(bundle.stdout));
     const applied = await owner.db.execute(sql`select * from drillmap_migrations.applied order by id`);
-    expect(applied.rows).toHaveLength(19);
+    expect(applied.rows).toHaveLength(20);
     expect((await owner.db.execute(sql`select to_regclass('public.leads') as leads`)).rows).toEqual([{ leads: null }]);
     await owner.db.execute(sql`insert into accounts (email, name, google_id) values ('retained@example.test', 'Retained', 'google-retained')`);
     await owner.db.execute(sql.raw(bundle.stdout));
@@ -50,7 +50,7 @@ it("refuses changed, unknown, duplicate, and incomplete migration history", asyn
       })).rejects.toThrow("Migration history does not match this version. Stop.");
     }
     await owner.db.execute(sql.raw(bundle.stdout));
-    expect((await owner.db.execute(sql`select * from drillmap_migrations.applied`)).rows).toHaveLength(19);
+    expect((await owner.db.execute(sql`select * from drillmap_migrations.applied`)).rows).toHaveLength(20);
   } finally {
     await owner.close();
     await database.cleanup();
@@ -72,7 +72,7 @@ it("rolls back structure and bookkeeping together when migration SQL fails", asy
       .toEqual([{ journal: null, normalizer: null }]);
     await owner.db.execute(sql`drop table accounts`);
     await owner.db.execute(sql.raw(bundle.stdout));
-    expect((await owner.db.execute(sql`select * from drillmap_migrations.applied`)).rows).toHaveLength(19);
+    expect((await owner.db.execute(sql`select * from drillmap_migrations.applied`)).rows).toHaveLength(20);
   } finally {
     await owner.close();
     await database.cleanup();
@@ -91,7 +91,7 @@ it("finishes an already recorded valid migration prefix", async () => {
     const bundle = await exec(process.execPath, ["scripts/sql-editor-migrations.mjs"]);
     await owner.db.execute(sql.raw(bundle.stdout));
     const applied = (await owner.db.execute(sql`select * from drillmap_migrations.applied order by created_at`)).rows;
-    expect(applied).toHaveLength(19);
+    expect(applied).toHaveLength(20);
     expect(applied[0]).toEqual(prefix[0]);
     expect((await owner.db.execute(sql`select count(*)::integer as count from accounts`)).rows).toEqual([{ count: 0 }]);
   } finally {

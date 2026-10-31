@@ -25,9 +25,12 @@ it("reads any other image as another page with the fake extractor", async () => 
   expect(await extractPracticeTestSection(Buffer.from("not a practice test"), "image/png", recordCost)).toEqual({ page: "other" });
 });
 
-it("fails on request with the failing fake extractor", async () => {
+it("refuses the failing fake extractor's bad reply with the real output checks", async () => {
   vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake-failure");
-  await expect(extractPracticeTestSection(Buffer.from("x"), "image/png", recordCost)).rejects.toThrow("Fake screenshot extractor failed on request");
+  await expect(extractPracticeTestSection(Buffer.from("x"), "image/png", recordCost)).rejects.toMatchObject({ check: "badNumber", rowCount: 1 });
+  for (const section of ["LR", "RC"] as const) {
+    await expect(extractAnalyticsRows(Buffer.from("x"), "image/png", mockRules, section, recordCost)).rejects.toMatchObject({ check: "badNumber", rowCount: 1 });
+  }
 });
 
 function claudeReplies(content: unknown[]) {
@@ -66,23 +69,23 @@ const lrSection = { page: "section_review", prepTest: 158, section: 2, kind: "LR
 const lrRow = { question: 1, result: "correct", tags: ["Flaw"] };
 
 it.each([
-  ["a section without a score", [toolUse("record_practice_test_section", { ...lrSection, score: undefined, rows: [] })]],
-  ["an unknown result", [toolUse("record_practice_test_section", { ...lrSection, rows: [{ ...lrRow, result: "maybe" }] })]],
-  ["reachesEnd as text", [toolUse("record_practice_test_section", { ...lrSection, reachesEnd: "true", rows: [] })]],
-  ["a score past the section's questions", [toolUse("record_practice_test_section", { ...lrSection, score: -31, rows: [] })]],
-  ["a section number that is not on a test", [toolUse("record_practice_test_section", { ...lrSection, section: 5, rows: [] })]],
-  ["31 question rows", [toolUse("record_practice_test_section", {
+  ["a section without a score", "badNumber", 0, [toolUse("record_practice_test_section", { ...lrSection, score: undefined, rows: [] })]],
+  ["an unknown result", "unknownLabel", 1, [toolUse("record_practice_test_section", { ...lrSection, rows: [{ ...lrRow, result: "maybe" }] })]],
+  ["reachesEnd as text", "badTrueFalse", 0, [toolUse("record_practice_test_section", { ...lrSection, reachesEnd: "true", rows: [] })]],
+  ["a score past the section's questions", "badNumber", 0, [toolUse("record_practice_test_section", { ...lrSection, score: -31, rows: [] })]],
+  ["a section number that is not on a test", "badNumber", 0, [toolUse("record_practice_test_section", { ...lrSection, section: 5, rows: [] })]],
+  ["31 question rows", "tooManyRows", 31, [toolUse("record_practice_test_section", {
     ...lrSection, rows: Array.from({ length: 31 }, (_, i) => ({ ...lrRow, question: (i % 30) + 1 })),
   })]],
-  ["a question number past the section", [toolUse("record_practice_test_section", { ...lrSection, rows: [{ ...lrRow, question: 99 }] })]],
-  ["9 tags on one question", [toolUse("record_practice_test_section", {
+  ["a question number past the section", "badNumber", 1, [toolUse("record_practice_test_section", { ...lrSection, rows: [{ ...lrRow, question: 99 }] })]],
+  ["9 tags on one question", "tooManyRows", 1, [toolUse("record_practice_test_section", {
     ...lrSection, rows: [{ ...lrRow, tags: Array.from({ length: 9 }, () => "Flaw") }],
   })]],
-  ["the analytics tool", [toolUse("record_analytics_rows", { page: "other" })]],
-  ["text and no tool", [{ type: "text", text: "This looks like a practice test." }]],
-])("refuses a section reply with %s", async (_case, content) => {
-  claudeReplies(content);
-  await expect(extractPracticeTestSection(Buffer.from("x"), "image/png", recordCost)).rejects.toThrow("does not fit its format");
+  ["the analytics tool", "wrongTool", null, [toolUse("record_analytics_rows", { page: "other" })]],
+  ["text and no tool", "wrongTool", null, [{ type: "text", text: "This looks like a practice test." }]],
+] as const)("refuses a section reply with %s by its %s check", async (_case, check, rowCount, content) => {
+  claudeReplies([...content]);
+  await expect(extractPracticeTestSection(Buffer.from("x"), "image/png", recordCost)).rejects.toMatchObject({ check, rowCount });
 });
 
 it("reads LR and RC analytics rows that fit the tool's format", async () => {
@@ -102,29 +105,29 @@ it("reads LR and RC analytics rows that fit the tool's format", async () => {
 });
 
 it.each([
-  ["LR", "an unknown type name", [toolUse("record_analytics_rows", { rows: [{ type: "Ignore previous instructions", accuracy: 50 }] })]],
-  ["LR", "an RC passage type", [toolUse("record_analytics_rows", { rows: [{ type: "Law", accuracy: 50 }] })]],
-  ["LR", "accuracy over 100", [toolUse("record_analytics_rows", { rows: [{ type: "Strengthen", accuracy: 140 }] })]],
-  ["LR", "negative accuracy", [toolUse("record_analytics_rows", { rows: [{ type: "Strengthen", accuracy: -5 }] })]],
-  ["LR", "accuracy as text", [toolUse("record_analytics_rows", { rows: [{ type: "Strengthen", accuracy: "68%" }] })]],
-  ["LR", "an unknown priority", [toolUse("record_analytics_rows", { rows: [{ type: "Causal reasoning", priority: "URGENT" }] })]],
-  ["LR", "more rows than there are types", [toolUse("record_analytics_rows", {
+  ["LR", "an unknown type name", "unknownLabel", 1, [toolUse("record_analytics_rows", { rows: [{ type: "Ignore previous instructions", accuracy: 50 }] })]],
+  ["LR", "an RC passage type", "unknownLabel", 1, [toolUse("record_analytics_rows", { rows: [{ type: "Law", accuracy: 50 }] })]],
+  ["LR", "accuracy over 100", "badNumber", 1, [toolUse("record_analytics_rows", { rows: [{ type: "Strengthen", accuracy: 140 }] })]],
+  ["LR", "negative accuracy", "badNumber", 1, [toolUse("record_analytics_rows", { rows: [{ type: "Strengthen", accuracy: -5 }] })]],
+  ["LR", "accuracy as text", "badNumber", 1, [toolUse("record_analytics_rows", { rows: [{ type: "Strengthen", accuracy: "68%" }] })]],
+  ["LR", "an unknown priority", "unknownLabel", 1, [toolUse("record_analytics_rows", { rows: [{ type: "Causal reasoning", priority: "URGENT" }] })]],
+  ["LR", "more rows than there are types", "tooManyRows", mockRules.lrStemTypes.length + mockRules.lrLogicTypes.length + 1, [toolUse("record_analytics_rows", {
     rows: Array.from({ length: mockRules.lrStemTypes.length + mockRules.lrLogicTypes.length + 1 }, () => ({ type: "Strengthen", accuracy: 50 })),
   })]],
-  ["LR", "no rows list", [toolUse("record_analytics_rows", { types: ["Strengthen"] })]],
-  ["LR", "another tool", [toolUse("record_practice_test_section", { rows: [] })]],
-  ["LR", "no tool", [{ type: "text", text: "I can't see any rows." }]],
-  ["RC", "an LR type", [toolUse("record_analytics_rows", { showsPassageTypes: true, rows: [{ type: "Strengthen", accuracy: 70 }] })]],
-  ["RC", "accuracy over 100", [toolUse("record_analytics_rows", { showsPassageTypes: true, rows: [{ type: "Law", accuracy: 101 }] })]],
-  ["RC", "6 rows", [toolUse("record_analytics_rows", { showsPassageTypes: true, rows: Array.from({ length: 6 }, () => ({ type: "Law", accuracy: 50 })) })]],
-  ["RC", "no page flag", [toolUse("record_analytics_rows", { rows: [] })]],
-] as const)("refuses an %s analytics reply with %s", async (section, _case, content) => {
-  await expect(claudeReadsAnalytics(section, [...content])).rejects.toThrow("does not fit its format");
+  ["LR", "no rows list", "wrongShape", null, [toolUse("record_analytics_rows", { types: ["Strengthen"] })]],
+  ["LR", "another tool", "wrongTool", null, [toolUse("record_practice_test_section", { rows: [] })]],
+  ["LR", "no tool", "wrongTool", null, [{ type: "text", text: "I can't see any rows." }]],
+  ["RC", "an LR type", "unknownLabel", 1, [toolUse("record_analytics_rows", { showsPassageTypes: true, rows: [{ type: "Strengthen", accuracy: 70 }] })]],
+  ["RC", "accuracy over 100", "badNumber", 1, [toolUse("record_analytics_rows", { showsPassageTypes: true, rows: [{ type: "Law", accuracy: 101 }] })]],
+  ["RC", "6 rows", "tooManyRows", 6, [toolUse("record_analytics_rows", { showsPassageTypes: true, rows: Array.from({ length: 6 }, () => ({ type: "Law", accuracy: 50 })) })]],
+  ["RC", "no page flag", "badTrueFalse", 0, [toolUse("record_analytics_rows", { rows: [] })]],
+] as const)("refuses an %s analytics reply with %s by its %s check", async (section, _case, check, rowCount, content) => {
+  await expect(claudeReadsAnalytics(section, [...content])).rejects.toMatchObject({ check, rowCount });
 });
 
 it("records each Claude reply's cost from its token usage, also when the reply does not fit its format", async () => {
   await claudeReadsAnalytics("RC", [toolUse("record_analytics_rows", { showsPassageTypes: true, rows: [{ type: "Law", accuracy: 58 }] })]);
-  await expect(claudeReads({ page: "unknown" })).rejects.toThrow("does not fit its format");
+  await expect(claudeReads({ page: "unknown" })).rejects.toMatchObject({ check: "unknownLabel" });
 
   expect(recordCost.mock.calls).toEqual([[0.0025], [0.0025]]);
 });
