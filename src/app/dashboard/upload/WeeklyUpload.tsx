@@ -475,7 +475,7 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
         )}
         <p className="text-center text-small text-smoke">{hint}</p>
       </div>
-      {reads.files.map((upload) => <LastFinishedReadNotice key={upload.row} read={upload.read} />)}
+      {reads.files.map((upload) => <LastFinishedReadNotice key={upload.rowKey} read={upload.read} />)}
     </div>
   );
 }
