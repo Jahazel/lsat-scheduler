@@ -6,6 +6,8 @@ import { SECTION_NAME } from "@/lib/analyticsReview";
 import type { ExtractReply } from "@/lib/screenshotUpload";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "@/lib/types";
 import { upcomingTestMonths } from "@/lib/studentProfile";
+import type { FailureCode } from "@/lib/unexpectedFailure";
+import { FailureToastProvider } from "@/components/FailureNotice";
 import OnboardingWizard from "./OnboardingWizard";
 
 beforeEach(() => {
@@ -51,12 +53,18 @@ const rcRows: ExtractReply = {
 };
 
 type Extract = (file: File, section: AnalyticsSection) => Promise<ExtractReply>;
+const FAILED = { unexpectedFailure: "3f9a01c2" as FailureCode };
+const TOAST_TEXT = "Something went wrong. Try again.Error code 3f9a01c2";
+
 const bySection = (lr: ExtractReply = rows, rc: ExtractReply = rcRows) =>
   vi.fn<Extract>(async (_file, section) => (section === "LR" ? lr : rc));
 
 async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract = bySection()) {
   const user = userEvent.setup();
-  render(<OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={onSave} extract={extract} />);
+  render(
+    <OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={onSave} extract={extract} />,
+    { wrapper: FailureToastProvider },
+  );
 
   expect(screen.getByText("Step 1 of 4 · Goal")).toBeDefined();
   expect(continueButton().disabled).toBe(true);
@@ -232,6 +240,25 @@ describe("OnboardingWizard", () => {
     expect(onSave).toHaveBeenCalledTimes(2);
   });
 
+  it("shows a failed save in the failure toast, stays on Analytics, and closes the toast when Skip for now saves", async () => {
+    const onSave = vi.fn().mockResolvedValueOnce(FAILED).mockResolvedValueOnce(undefined);
+    const { user } = await fillGoalAndWeek(onSave);
+
+    await user.click(screen.getByRole("button", { name: "Skip for now" }));
+    expect((await screen.findByRole("alert")).textContent).toBe(TOAST_TEXT);
+    expect(screen.getAllByText("Something went wrong. Try again.")).toHaveLength(1);
+    expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();
+    expect(screen.queryByText(/We couldn't save your plan/)).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect((screen.getByLabelText("Practice test on Friday") as HTMLInputElement).checked).toBe(true);
+    await user.click(continueButton());
+    await user.click(screen.getByRole("button", { name: "Skip for now" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(onSave).toHaveBeenCalledTimes(2);
+    expect(onSave.mock.calls[1]).toEqual(onSave.mock.calls[0]);
+  });
+
   it("ties each out-of-range score box to its own message", async () => {
     const user = userEvent.setup();
     render(<OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={vi.fn()} />);
@@ -320,10 +347,33 @@ describe("OnboardingWizard", () => {
       await upload(user);
       const status = await screen.findByText(/Connection lost\. Your file is still here\./);
       expect(status.closest("[aria-live]")?.className).not.toContain("danger");
+      expect(screen.queryByRole("alert")).toBeNull();
       await user.click(screen.getByRole("button", { name: "Try again" }));
 
       expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
       expect(extract).toHaveBeenCalledTimes(2);
+      expect(extract.mock.calls[1][0]).toBe(screenshot);
+    });
+
+    it("shows a failed read in the failure toast, keeps Try again on its row, and closes the toast when the retry reads", async () => {
+      let finishRetry: (reply: ExtractReply) => void = () => {};
+      const extract = vi.fn<Extract>()
+        .mockResolvedValueOnce({ kind: "failed", failure: FAILED })
+        .mockImplementationOnce(() => new Promise<ExtractReply>((resolve) => { finishRetry = resolve; }));
+      const { user } = await fillGoalAndWeek(undefined, extract);
+
+      await upload(user);
+      expect((await screen.findByRole("alert")).textContent).toBe(TOAST_TEXT);
+      expect(screen.getAllByText("Something went wrong. Try again.")).toHaveLength(1);
+      expect(screen.getByText("lr-analytics.png · not read")).toBeDefined();
+      expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();
+
+      await user.click(screen.getByRole("button", { name: "Try again" }));
+      expect(await screen.findByText("lr-analytics.png · Reading now")).toBeDefined();
+      expect(screen.getByRole("alert")).toBeDefined();
+      finishRetry(rows);
+      expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
+      await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
       expect(extract.mock.calls[1][0]).toBe(screenshot);
     });
 
@@ -666,6 +716,23 @@ describe("OnboardingWizard", () => {
       expect(onSave).toHaveBeenCalledTimes(2);
     });
 
+    it("shows a failed Confirm snapshot in the failure toast, keeps every tick, and closes the toast when the retry saves", async () => {
+      const onSave = vi.fn().mockResolvedValueOnce(FAILED).mockResolvedValueOnce(undefined);
+      const { user } = await openReview(onSave);
+      for (const statement of statements) await user.click(screen.getByLabelText(statement));
+
+      await user.click(confirmButton());
+      expect((await screen.findByRole("alert")).textContent).toBe(TOAST_TEXT);
+      expect(screen.getAllByText("Something went wrong. Try again.")).toHaveLength(1);
+      expect(screen.getByText("Step 4 of 4 · Review")).toBeDefined();
+      expect((screen.getByLabelText(statements[1]) as HTMLInputElement).checked).toBe(true);
+      expect(box("Strengthen").value).toBe("68");
+
+      await user.click(confirmButton());
+      await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+      expect(onSave).toHaveBeenCalledTimes(2);
+    });
+
     it("shows the server's refusal and keeps every tick when the snapshot save limit is reached", async () => {
       const refusal = "You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time.";
       const onSave = vi.fn().mockResolvedValue({ error: refusal });
@@ -674,6 +741,7 @@ describe("OnboardingWizard", () => {
 
       await user.click(confirmButton());
       expect(await screen.findByText(refusal)).toBeDefined();
+      expect(screen.queryByRole("alert")).toBeNull();
       expect((screen.getByLabelText(statements[1]) as HTMLInputElement).checked).toBe(true);
       expect((confirmButton() as HTMLButtonElement).disabled).toBe(false);
     });
