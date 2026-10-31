@@ -71,6 +71,12 @@ export function errorTypeOf(error: unknown) {
   return SAFE_ERROR_TYPE.test(type) ? type : "unknown";
 }
 
+/** The request's IP address as the log stores it: `unknown` when it is missing, malformed, or cannot be read. */
+async function loggedIpAddress(given?: string) {
+  const ip = given ?? await clientIpAddress().catch(() => "unknown");
+  return SAFE_IP_ADDRESS.test(ip) ? ip : "unknown";
+}
+
 /**
  * Writes one entry after the action's own change is saved. Never throws: a failed write goes to the server log.
  * An Account deleted a moment before, as in account deletion itself, leaves the Account ID empty.
@@ -78,11 +84,10 @@ export function errorTypeOf(error: unknown) {
 export async function recordSecurityEvent({ event, result, route, who, ipAddress, rowCount }: SecurityEntry) {
   try {
     const accountId = "account" in who && isAccountId(who.account) ? who.account : null;
-    const ip = ipAddress ?? await clientIpAddress().catch(() => "unknown");
     await getPostgresDatabase().execute(sql`
       insert into security_log (event, result, route, account_id, ip_address, email_hash, row_count) values (
         ${event}, ${result}, ${route}, (select id from accounts where id = ${accountId}::uuid),
-        ${SAFE_IP_ADDRESS.test(ip) ? ip : "unknown"},
+        ${await loggedIpAddress(ipAddress)},
         ${"unknownEmail" in who ? emailHash(who.unknownEmail) : null}, ${rowCount ?? null}
       )
     `);
@@ -136,7 +141,8 @@ export async function recordUnexpectedFailure(route: SecurityLogRoute, error: un
   console.error(`Unexpected failure on ${route} (${code}): ${errorType}`);
   try {
     await getPostgresDatabase().execute(sql`
-      insert into security_log (event, result, route, error_code, error_type) values ('unexpected_failure', 'failed', ${route}, ${code}, ${errorType})
+      insert into security_log (event, result, route, ip_address, error_code, error_type)
+      values ('unexpected_failure', 'failed', ${route}, ${await loggedIpAddress()}, ${code}, ${errorType})
     `);
   } catch (logError) {
     console.error(`Security log write failed (${code}): ${errorTypeOf(logError)}`);

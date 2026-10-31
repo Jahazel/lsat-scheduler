@@ -5,7 +5,7 @@ import { isAccountId } from "../../src/lib/accountRepository";
 import { hashPassword } from "../../src/lib/passwordHash";
 import { deleteAccount, logIn, requestPasswordReset, type PasswordRequest } from "../../src/lib/passwordAccount";
 import { redirect } from "next/navigation";
-import { answerAction, answerRequest, recordSecurityEvent, type SecurityEntry, type SecurityEvent } from "../../src/lib/securityLog";
+import { answerAction, answerGoogleSignIn, answerRequest, recordSecurityEvent, type SecurityEntry, type SecurityEvent } from "../../src/lib/securityLog";
 import { readAnalyticsReply, readSectionReply, type ToolReply } from "../../src/lib/claudeExtract";
 import { mockRules } from "../../src/lib/mockData";
 import { scanWithLimits } from "../../src/lib/scanGuard";
@@ -19,6 +19,15 @@ const { originalSecret } = vi.hoisted(() => {
   return { originalSecret };
 });
 
+/** The request headers the next entry reads; `null` stands for a call outside any request. */
+const incoming = vi.hoisted(() => ({ headers: null as Record<string, string> | null }));
+vi.mock("next/headers", () => ({
+  headers: async () => {
+    if (incoming.headers === null) throw new Error("`headers` was called outside a request scope.");
+    return new Headers(incoming.headers);
+  },
+}));
+
 const database = setUpAppTestDatabase();
 let passwordHash: string;
 beforeAll(async () => {
@@ -28,6 +37,7 @@ beforeEach(async () => {
   await database.owner.execute(sql`truncate accounts, action_counters, security_log cascade`);
   await database.owner.execute(sql`update scan_settings set scanning_off = false`);
   await database.owner.execute(sql`truncate security_log`);
+  incoming.headers = null;
 });
 afterAll(() => {
   process.env.AUTH_SECRET = originalSecret;
@@ -39,6 +49,9 @@ const entries = async () => (await database.owner.execute(sql`
 `)).rows;
 const failures = async () => (await database.owner.execute(sql`
   select route, error_code, error_type from security_log where event = 'unexpected_failure'
+`)).rows;
+const failureAddresses = async () => (await database.owner.execute(sql`
+  select route, ip_address, error_code from security_log where event = 'unexpected_failure' order by logged_at
 `)).rows;
 
 async function passwordAccount() {
@@ -174,6 +187,40 @@ it("answers a failed request with HTTP 500 and the code in the log, and passes a
   const body = await response.json();
   expect(body).toEqual({ error: "Something went wrong. Try again.", code: expect.stringMatching(/^[0-9a-f]{8}$/) });
   expect(await failures()).toEqual([{ route: "/api/students/[id]", error_code: body.code, error_type: "Error" }]);
+});
+
+it("stores the request's IP address with an action, route, and Google sign-in failure", async () => {
+  incoming.headers = { "x-vercel-forwarded-for": "198.51.100.23" };
+  const action = await answerAction("/dashboard", async () => { throw new TypeError("forced"); });
+  incoming.headers = { "x-vercel-forwarded-for": "2001:db8::17" };
+  const route = await (await answerRequest("/api/students/[id]", async () => { throw new Error("forced"); })).json();
+  incoming.headers = { "x-vercel-forwarded-for": "203.0.113.40" };
+  const google = await answerGoogleSignIn(async () => { throw new TypeError("forced"); }).catch((error: { code: string }) => error.code);
+
+  expect(await failureAddresses()).toEqual([
+    { route: "/dashboard", ip_address: "198.51.100.23", error_code: (action as { unexpectedFailure: string }).unexpectedFailure },
+    { route: "/api/students/[id]", ip_address: "2001:db8::17", error_code: route.code },
+    { route: "/api/auth/callback/google", ip_address: "203.0.113.40", error_code: google },
+  ]);
+});
+
+it.each([
+  ["missing", {}],
+  ["malformed", { "x-vercel-forwarded-for": "1.2.3.4, 5.6.7.8" }],
+  ["unreadable", null],
+] as const)("stores unknown for a %s IP address and still answers a failure with its code", async (_case, requestHeaders) => {
+  incoming.headers = requestHeaders;
+  const failure = await answerAction("/dashboard", async () => { throw new TypeError("forced"); });
+  const response = await answerRequest("/api/students/[id]", async () => { throw new Error("forced"); });
+
+  expect(failure).toEqual({ unexpectedFailure: expect.stringMatching(/^[0-9a-f]{8}$/) });
+  expect(response.status).toBe(500);
+  const body = await response.json();
+  expect(body).toEqual({ error: "Something went wrong. Try again.", code: expect.stringMatching(/^[0-9a-f]{8}$/) });
+  expect(await failureAddresses()).toEqual([
+    { route: "/dashboard", ip_address: "unknown", error_code: (failure as { unexpectedFailure: string }).unexpectedFailure },
+    { route: "/api/students/[id]", ip_address: "unknown", error_code: body.code },
+  ]);
 });
 
 const analyticsReply = (input: unknown): ToolReply => ({ name: "record_analytics_rows", input });
