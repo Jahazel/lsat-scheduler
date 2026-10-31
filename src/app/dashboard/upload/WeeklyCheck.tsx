@@ -243,7 +243,7 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
             onBack={onBack}
             onConfirm={confirm}
           />
-          {reply && "signedOut" in reply && <SignInExpired />}
+          {!saving && reply && "signedOut" in reply && <SignInExpired />}
         </div>
       </div>
       <aside aria-label={`Your screenshots and ${text.preview}`} className="hidden flex-col gap-4 bg-vellum px-8 pb-12 pt-32 lg:flex xl:px-18">

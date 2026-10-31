@@ -223,7 +223,7 @@ describe("Check what we read", () => {
     expect((await screen.findByRole("alert")).textContent).toBe("Something went wrong. Try again.Error code 3f9a01c2");
     expect(screen.getAllByText("Something went wrong. Try again.")).toHaveLength(1);
 
-    await user.click(confirmButton());
+    await user.click(await screen.findByRole("button", { name: "Confirm and build next week" }));
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
     expect(confirm).toHaveBeenCalledTimes(2);
   });
