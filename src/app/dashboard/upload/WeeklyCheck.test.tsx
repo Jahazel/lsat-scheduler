@@ -1,14 +1,16 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AdminTestProvider, useAdminTest } from "@/components/AdminTestContext";
+import { FailureToastProvider } from "@/components/FailureNotice";
 import { readSection } from "@/lib/analyticsReview";
 import { summarizeApprovedRows } from "@/lib/analyticsSnapshots";
 import { samplePracticeTestSections } from "@/lib/adminTestWorkspace";
 import { mockStudent } from "@/lib/mockData";
 import { reviewPracticeTest } from "@/lib/practiceTestResult";
 import type { AnalyticsExtractedRow } from "@/lib/types";
+import type { FailureCode } from "@/lib/unexpectedFailure";
 import type { WeeklyUploadBasis } from "@/lib/weeklyUploadPreview";
 import type { confirmWeeklyUpload, WeeklyUploadConfirmResult } from "./actions";
 import type { WeeklyUploadRead } from "./WeeklyUpload";
@@ -62,6 +64,7 @@ function read(withPracticeTest = true): WeeklyUploadRead {
 }
 
 const REFUSED: WeeklyUploadConfirmResult = { error: "Not saved in this test." };
+const REDIRECTED = undefined as unknown as WeeklyUploadConfirmResult;
 
 function setup({ withPracticeTest = true, reply = REFUSED }: { withPracticeTest?: boolean; reply?: WeeklyUploadConfirmResult } = {}) {
   const confirm = vi.fn<typeof confirmWeeklyUpload>(async () => reply);
@@ -202,6 +205,27 @@ describe("Check what we read", () => {
     await user.click(confirmButton());
 
     expect(await screen.findByText("Upload fresh practice-test screenshots before saving.")).toBeDefined();
+  });
+
+  it("shows a failed confirmation in the failure toast and closes it when the retry goes through", async () => {
+    const confirm = vi.fn<typeof confirmWeeklyUpload>()
+      .mockResolvedValueOnce({ unexpectedFailure: "3f9a01c2" as FailureCode })
+      .mockResolvedValueOnce(REDIRECTED);
+    const user = userEvent.setup();
+    render(
+      <WeeklyCheck basis={basis(true)} read={read(true)} source="7sage_screenshot" onBack={vi.fn()} onConfirm={confirm} />,
+      { wrapper: FailureToastProvider },
+    );
+    await user.click(statement(REVIEWED));
+    await user.click(statement(LATEST));
+
+    await user.click(confirmButton());
+    expect((await screen.findByRole("alert")).textContent).toBe("Something went wrong. Try again.Error code 3f9a01c2");
+    expect(screen.getAllByText("Something went wrong. Try again.")).toHaveLength(1);
+
+    await user.click(confirmButton());
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(confirm).toHaveBeenCalledTimes(2);
   });
 
   it("previews next Monday from these values, marked not confirmed, with the most-missed type first", () => {

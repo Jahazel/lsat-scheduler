@@ -1,6 +1,7 @@
 "use client";
 
 import { useReducer, useState, useTransition } from "react";
+import { FailureNotice } from "@/components/FailureNotice";
 import { PauseGlyph } from "@/components/ScanningOffNote";
 import SignInExpired from "@/components/SignInExpired";
 import {
@@ -16,13 +17,13 @@ import type { HiddenResult, PracticeTestResult } from "@/lib/practiceTestResult"
 import { confirmLock, reviewDraftReducer, startDraft } from "@/lib/reviewDraft";
 import { DAY_LABEL } from "@/lib/studentProfile";
 import type { LRStemType } from "@/lib/types";
+import type { Answer } from "@/lib/unexpectedFailure";
 import type { PracticeTestApprovalInput } from "@/lib/weeklyUpload";
 import {
   plannedWeekAnalytics, previewPlannedWeek, MAX_SCORE, MIN_SCORE, type WeeklyUploadBasis,
 } from "@/lib/weeklyUploadPreview";
 import type { confirmWeeklyUpload, WeeklyUploadConfirmResult } from "./actions";
 import type { WeeklyUploadRead } from "./WeeklyUpload";
-import { failureText, isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
 import { checkPreviewDrills, formatSectionScore, parseScore, planText } from "./weeklyUploadText";
 
 const SCORE_ID = "current-score";
@@ -171,7 +172,6 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
       extraction: { source, extractedAt: practiceTest.extractedAt },
       confirmation: { extractedValuesMatch: true, isThisWeeksPracticeTest: true, confirmedAt: approval.confirmation.confirmedAt },
     };
-    setReply(null);
     startSaving(async () => {
       onSent?.();
       setReply(await onConfirm({
@@ -185,9 +185,7 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
 
   const note = saving
     ? `Saving and building ${text.week}. This takes a few seconds.`
-    : isUnexpectedFailure(reply)
-      ? <span className="text-danger-ink">{failureText(reply)}</span>
-      : reply && "error" in reply
+    : reply && "error" in reply
       ? <span className="text-danger-ink">{reply.error}</span>
       : reason ?? (typed && "Your weekly schedule uses these values like a scan.");
 
@@ -263,6 +261,7 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
           )}
         </div>
       </aside>
+      <FailureNotice answer={reply} />
     </div>
   );
 }
