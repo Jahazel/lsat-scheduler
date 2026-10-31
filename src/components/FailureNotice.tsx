@@ -13,6 +13,7 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { isUnexpectedFailure, UNEXPECTED_FAILURE_MESSAGE, type FailureCode, type FormState } from "@/lib/unexpectedFailure";
 
@@ -57,9 +58,19 @@ export function FailureToastProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** Lifts the toast above the on-screen keyboard, which covers fixed elements on phones without resizing the page. */
+/**
+ * Lifts the toast above the on-screen keyboard, which covers fixed elements on phones without resizing the page.
+ * While a dialog is open, the slot moves into it: a modal dialog makes the rest of the page inert and covers it.
+ */
 function ToastSlot({ children }: { children: ReactNode }) {
   const [keyboardInset, setKeyboardInset] = useState(0);
+  const [dialog, setDialog] = useState<HTMLDialogElement | null>(null);
+  useEffect(() => {
+    const find = () => setDialog([...document.querySelectorAll<HTMLDialogElement>("dialog[open]")].at(-1) ?? null);
+    const observer = new MutationObserver(find);
+    observer.observe(document.body, { subtree: true, attributeFilter: ["open"] });
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     const viewport = window.visualViewport;
     if (!viewport) return;
@@ -71,7 +82,7 @@ function ToastSlot({ children }: { children: ReactNode }) {
       viewport.removeEventListener("scroll", measure);
     };
   }, []);
-  return (
+  const slot = (
     <div
       className="failure-toast-slot pointer-events-none fixed inset-x-0 z-50 grid justify-items-center px-3 *:col-start-1 *:row-start-1"
       style={keyboardInset > 0 ? { bottom: keyboardInset + 12 } : undefined}
@@ -79,6 +90,7 @@ function ToastSlot({ children }: { children: ReactNode }) {
       {children}
     </div>
   );
+  return dialog ? createPortal(slot, dialog) : slot;
 }
 
 function ToastCard({ toast, onClose, onLeft }: { toast: Toast; onClose?: () => void; onLeft?: (code: FailureCode) => void }) {
@@ -139,6 +151,18 @@ export function FailureNotice({ answer, action = "" }: { answer: unknown; action
     previous.current = answer;
     report(notice, action, answer);
   }, [action, answer, notice, report]);
+  return null;
+}
+
+export function FailureNoticeOnArrival({ code }: { code: FailureCode }) {
+  const report = useContext(ReportContext);
+  const notice = useId();
+  const shown = useRef<FailureCode | null>(null);
+  useEffect(() => {
+    if (shown.current === code) return;
+    shown.current = code;
+    report(notice, "", { unexpectedFailure: code });
+  }, [code, notice, report]);
   return null;
 }
 

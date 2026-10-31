@@ -10,9 +10,10 @@ import {
   resetEverything,
 } from "@/app/admin/test/actions";
 import { useAdminTest } from "./AdminTestContext";
+import { FailureNotice } from "./FailureNotice";
 import { FOCUS, cx } from "./ui/classes";
 import { isoDateInWeek } from "@/lib/scheduleReasonText";
-import { failureText, isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
+import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
 import type { SampleDirection } from "@/lib/sampleAnalytics";
 
 export interface TestControlState {
@@ -98,6 +99,7 @@ export default function TestControls({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [answer, setAnswer] = useState<unknown>(null);
   const cancelButton = useRef<HTMLButtonElement>(null);
   const resetButtons = useRef(new Map<string, HTMLButtonElement>());
   const lastConfirmation = useRef<string | null>(null);
@@ -112,17 +114,15 @@ export default function TestControls({
     }
   }, [confirmation]);
 
-  function settled<T>(answer: Answer<T>): T {
-    if (isUnexpectedFailure(answer)) throw new Error(failureText(answer));
-    return answer;
-  }
-
-  async function run(action: () => Promise<void>, message: string) {
+  async function run<T>(call: () => Promise<Answer<T>>, done: (value: T) => void, message: string) {
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
-      await action();
+      const answer = await call();
+      setAnswer(answer);
+      if (isUnexpectedFailure(answer)) return;
+      done(answer);
       setConfirmation(null);
       setNotice(message);
       router.refresh();
@@ -138,10 +138,8 @@ export default function TestControls({
   }
   function move(next: string) {
     return run(
-      async () => {
-        settled(await setSimulatedDate(next));
-        setSample(null);
-      },
+      () => setSimulatedDate(next),
+      () => setSample(null),
       `Moved to ${displaySimulatedDate(next)}.`,
     );
   }
@@ -283,8 +281,8 @@ export default function TestControls({
                 className={cx(BUTTON, "mt-3 w-full")}
                 disabled={!uploadOpen}
                 onClick={() =>
-                  run(async () => {
-                    setSample(settled(await generateTestSample(direction)));
+                  run(() => generateTestSample(direction), (sample) => {
+                    setSample(sample);
                     if (pathname !== UPLOAD_PATH) router.push(UPLOAD_PATH);
                     onClose();
                   }, "Sample ready for review.")
@@ -336,8 +334,7 @@ export default function TestControls({
                         type="button"
                         className={cx(BUTTON, "text-danger-ink")}
                         onClick={() =>
-                          run(async () => {
-                            settled(await reset.action());
+                          run(reset.action, () => {
                             setSample(null);
                             if (reset.returnsToRealDate) setCurrentWeek(null);
                             router.push(
@@ -382,6 +379,7 @@ export default function TestControls({
         )}
         {notice && <p className="text-small text-smoke">{notice}</p>}
       </div>
+      <FailureNotice answer={answer} />
     </div>
   );
 }

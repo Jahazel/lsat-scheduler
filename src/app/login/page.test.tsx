@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { FailureToastProvider } from "@/components/FailureNotice";
 import { PASSWORD_LOGIN_NOTICES } from "@/lib/loginNotice";
 
 const actions = vi.hoisted(() => ({ signInWithGoogle: vi.fn(), logInWithPassword: vi.fn() }));
@@ -11,8 +12,11 @@ import LoginPage from "./page";
 beforeEach(() => actions.logInWithPassword.mockReset());
 afterEach(cleanup);
 
+const loginPage = (params: { error?: string; notice?: string; code?: string }) =>
+  LoginPage({ searchParams: Promise.resolve(params) } as PageProps<"/login">);
+
 async function renderLogin(params: { error?: string; notice?: string; code?: string } = {}) {
-  render(await LoginPage({ searchParams: Promise.resolve(params) } as PageProps<"/login">));
+  return render(await loginPage(params), { wrapper: FailureToastProvider });
 }
 
 async function logInAs(email: string, password: string) {
@@ -47,7 +51,6 @@ describe("Login", () => {
     [{ notice: "DeletionWillFinish" }, "status", "Your Account is being deleted."],
     [{ notice: "AccountDeleted" }, "status", "Your Account is deleted."],
     [{ error: "EmailUsesPassword" }, "alert", "This email uses a password. Log in with your password."],
-    [{ error: "AccessDenied", code: "3f9a0c1e" }, "alert", "Something went wrong. Try again. Error code: 3f9a0c1e"],
     [{ error: "AccessDenied", code: "not-a-code" }, "alert", "Google sign-in didn't finish. Try again, or use a Google account with a verified email."],
     [{ error: "CredentialsSignin", code: "3f9a0c1e" }, "alert", "That email and password don't match. Check both and try again, or reset your password."],
   ])("explains %o", async (params, role, text) => {
@@ -59,7 +62,6 @@ describe("Login", () => {
 
   it.each([
     [{ error: "AccessDenied" }, "alert"],
-    [{ error: "AccessDenied", code: "3f9a0c1e" }, "alert"],
     [{ error: "AccountDisabled" }, "alert"],
     [{ error: "SessionEnded" }, "status"],
     [{ notice: "DeletionWillFinish" }, "status"],
@@ -106,6 +108,21 @@ describe("Login", () => {
 
     await waitFor(() => expect(screen.getByRole("alert").textContent).toBe(PASSWORD_LOGIN_NOTICES.paused.text));
     expect(screen.queryByText("This Account can't log in.")).toBeNull();
+  });
+
+  it("shows the failure toast once with the code when a Google sign-in fails unexpectedly, and no notice above Google", async () => {
+    const { rerender } = await renderLogin({ error: "AccessDenied", code: "3f9a0c1e" });
+
+    const toast = await screen.findByRole("alert");
+    expect(toast.textContent).toContain("Something went wrong. Try again.");
+    expect(toast.textContent).toContain("Error code 3f9a0c1e");
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(follows(screen.getByRole("button", { name: "Continue with Google" }), toast)).toBe(true);
+
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    rerender(await loginPage({ error: "AccessDenied", code: "3f9a0c1e" }));
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("shows a too-long password beside the Password field", async () => {

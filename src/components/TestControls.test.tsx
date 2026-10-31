@@ -6,6 +6,7 @@ import { AdminTestProvider, CurrentWeekReport } from "./AdminTestContext";
 const mocks = vi.hoisted(() => ({ move: vi.fn(), rebuild: vi.fn(), data: vi.fn(), everything: vi.fn(), push: vi.fn(), refresh: vi.fn(), sample: vi.fn() }));
 vi.mock("@/app/admin/test/actions", () => ({ setSimulatedDate: mocks.move, rebuildThisWeek: mocks.rebuild, resetTestData: mocks.data, resetEverything: mocks.everything, generateTestSample: mocks.sample }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/dashboard", useRouter: () => ({ push: mocks.push, refresh: mocks.refresh }) }));
+import { FailureToastProvider } from "./FailureNotice";
 import TestControls from "./TestControls";
 const state = { date: "2026-10-07", realDate: "2026-09-27", weekStartDate: "2026-10-05", simulated: true, onboarded: true, weekHasSchedule: true, uploadWeekend: false };
 afterEach(cleanup);
@@ -117,6 +118,20 @@ describe("Test controls", () => {
     await user.click(screen.getByRole("button", { name: "Confirm reset" }));
     expect(await screen.findByRole("alert")).toHaveProperty("textContent", "Reset failed.");
     expect((screen.getByRole("button", { name: "Rebuild this week" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+  it("shows the failure toast, not a completion message, when a control fails unexpectedly", async () => {
+    mocks.rebuild.mockResolvedValueOnce({ unexpectedFailure: "3f9a01c2" });
+    const user = userEvent.setup();
+    render(<TestControls state={state} onClose={() => {}} />, { wrapper: FailureToastProvider });
+    await user.click(screen.getByRole("button", { name: "Rebuild this week" }));
+    await user.click(screen.getByRole("button", { name: "Confirm rebuild" }));
+    const toast = await screen.findByRole("alert");
+    expect(toast.textContent).toContain("Something went wrong. Try again.");
+    expect(toast.textContent).toContain("Error code 3f9a01c2");
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.queryByText("Rebuild this week complete.")).toBeNull();
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect((screen.getByRole("button", { name: "Confirm rebuild" }) as HTMLButtonElement).disabled).toBe(false);
   });
   it("shows the rebuild error instead of a completion message", async () => {
     mocks.rebuild.mockRejectedValueOnce(new Error("There is no weekly schedule to rebuild."));

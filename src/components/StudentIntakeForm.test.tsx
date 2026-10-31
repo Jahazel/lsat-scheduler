@@ -1,7 +1,12 @@
+// @vitest-environment jsdom
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { FailureToastProvider } from "./FailureNotice";
 import { mockStudent } from "@/lib/mockData";
 import { upcomingTestMonths } from "@/lib/studentProfile";
+import type { FailureCode } from "@/lib/unexpectedFailure";
 import StudentIntakeForm from "./StudentIntakeForm";
 
 function settingsMarkup(initialValues = mockStudent, today = "2026-10-18") {
@@ -15,7 +20,32 @@ function settingsMarkup(initialValues = mockStudent, today = "2026-10-18") {
   );
 }
 
+afterEach(cleanup);
+
 describe("StudentIntakeForm", () => {
+  it("shows the failure toast when the save fails unexpectedly, and keeps the typed values", async () => {
+    render(
+      <StudentIntakeForm
+        initialValues={mockStudent}
+        goalTestDateOptions={upcomingTestMonths("2026-10-18")}
+        submitLabel="Save changes"
+        onSubmit={async () => ({ unexpectedFailure: "3f9a01c2" as FailureCode })}
+      />,
+      { wrapper: FailureToastProvider },
+    );
+    const goal = screen.getByLabelText("Goal score") as HTMLInputElement;
+    await userEvent.clear(goal);
+    await userEvent.type(goal, "178");
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    const toast = await screen.findByRole("alert");
+    expect(toast.textContent).toContain("Something went wrong. Try again.");
+    expect(toast.textContent).toContain("Error code 3f9a01c2");
+    expect(screen.queryByText(/Error code: 3f9a01c2/)).toBeNull();
+    expect(goal.value).toBe("178");
+    expect((screen.getByRole("button", { name: "Save changes" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it("says profile changes apply to the next weekly schedule created", () => {
     expect(settingsMarkup()).toContain(
       "Changes to daily capacity and your preferred practice-test day apply to the next weekly schedule created."

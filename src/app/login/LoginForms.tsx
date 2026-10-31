@@ -2,22 +2,23 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { ActionForm, FailureNotice } from "@/components/FailureNotice";
+import { ActionForm, FailureNotice, FailureNoticeOnArrival } from "@/components/FailureNotice";
 import { GoogleButton } from "@/components/signIn/GoogleButton";
 import { OrWithEmail, SubmitButton } from "@/components/signIn/PasswordFormParts";
 import { Notice } from "@/components/signIn/SignInFrame";
 import { TextInput } from "@/components/ui/TextInput";
 import { FOCUS, cx } from "@/components/ui/classes";
 import type { LoginNotice } from "@/lib/loginNotice";
-import { isUnexpectedFailure } from "@/lib/unexpectedFailure";
+import { isUnexpectedFailure, type FailureCode } from "@/lib/unexpectedFailure";
 import { logInWithPassword, signInWithGoogle } from "./actions";
 
-export function LoginForms({ urlNotice }: { urlNotice: LoginNotice | null }) {
+export function LoginForms({ urlNotice, googleFailure }: { urlNotice: LoginNotice | null; googleFailure: FailureCode | null }) {
   const [answer, logInAction] = useActionState(logInWithPassword, null);
   const refused = isUnexpectedFailure(answer) ? null : answer;
   const notice = answer ? refused?.notice ?? null : urlNotice;
   return (
     <>
+      {googleFailure && <FailureNoticeOnArrival code={googleFailure} />}
       {notice?.place === "aboveGoogle" && <Notice notice={notice} />}
       <ActionForm action={signInWithGoogle}>
         <GoogleButton look="light" />
