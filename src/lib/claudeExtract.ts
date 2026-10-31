@@ -56,16 +56,57 @@ function imageBlock(imageBuffer: Buffer, mediaType: ScreenshotMediaType) {
   return { type: "image" as const, source: { type: "base64" as const, media_type: mediaType, data: imageBuffer.toString("base64") } };
 }
 
-export const MODEL_REPLY_REFUSED = "ModelReplyRefused";
+export type ReplyCheck = "wrongTool" | "unknownLabel" | "tooManyRows" | "badTrueFalse" | "badNumber" | "wrongShape";
 
 export class ModelReplyRefused extends Error {
-  name = MODEL_REPLY_REFUSED;
+  name = "ModelReplyRefused";
+
+  constructor(readonly check: ReplyCheck, readonly rowCount: number | null) {
+    super(`The model's reply failed the ${check} check`);
+  }
 }
 
-function parseToolInput<T>(content: Anthropic.ContentBlock[], name: string, schema: z.ZodType<T>): T {
+export function isModelReplyRefused(error: unknown): error is ModelReplyRefused {
+  return error instanceof Error && error.name === "ModelReplyRefused" && "check" in error && "rowCount" in error;
+}
+
+export type ToolReply = { name: string; input: unknown } | undefined;
+
+function toolReply(content: Anthropic.ContentBlock[]): ToolReply {
   const toolUse = content.find((block) => block.type === "tool_use");
-  const parsed = schema.safeParse(toolUse?.type === "tool_use" && toolUse.name === name ? toolUse.input : null);
-  if (!parsed.success) throw new ModelReplyRefused(`The model's ${name} reply does not fit its format`);
+  return toolUse?.type === "tool_use" ? toolUse : undefined;
+}
+
+function failedCheck(issue: z.core.$ZodIssue): ReplyCheck {
+  switch (issue.code) {
+    case "invalid_union": {
+      const closestBranch = issue.errors.reduce<z.core.$ZodIssue[] | undefined>(
+        (closest, branch) => (closest === undefined || branch.length < closest.length ? branch : closest), undefined);
+      return closestBranch?.[0] ? failedCheck(closestBranch[0]) : "unknownLabel";
+    }
+    case "invalid_value":
+      return "unknownLabel";
+    case "too_big":
+      if (issue.origin === "array") return "tooManyRows";
+      return issue.origin === "number" ? "badNumber" : "wrongShape";
+    case "too_small":
+      return issue.origin === "number" ? "badNumber" : "wrongShape";
+    case "invalid_type":
+      if (issue.expected === "boolean") return "badTrueFalse";
+      return issue.expected === "number" || issue.expected === "int" ? "badNumber" : "wrongShape";
+    default:
+      return "wrongShape";
+  }
+}
+
+function rowCountOf(input: unknown) {
+  return typeof input === "object" && input !== null && "rows" in input && Array.isArray(input.rows) ? input.rows.length : null;
+}
+
+function parseToolInput<T>(reply: ToolReply, name: string, schema: z.ZodType<T>): T {
+  if (reply?.name !== name) throw new ModelReplyRefused("wrongTool", null);
+  const parsed = schema.safeParse(reply.input);
+  if (!parsed.success) throw new ModelReplyRefused(parsed.error.issues[0] ? failedCheck(parsed.error.issues[0]) : "wrongShape", rowCountOf(reply.input));
   return parsed.data;
 }
 
@@ -77,6 +118,10 @@ export function extractAnalyticsRowsFromImage(
   recordCost: RecordCost,
 ): Promise<AnalyticsExtraction> {
   return section === "LR" ? extractLRRows(imageBuffer, mediaType, rules, recordCost) : extractPassageRows(imageBuffer, mediaType, rules, recordCost);
+}
+
+export function readAnalyticsReply(reply: ToolReply, rules: RulesConfig, section: AnalyticsSection): AnalyticsExtraction {
+  return section === "LR" ? readLRReply(reply, rules) : readPassageReply(reply, rules);
 }
 
 async function extractLRRows(
@@ -141,7 +186,11 @@ For every row visible in the image, call ${TOOL_NAME} with one entry per row. Us
     ],
   }, recordCost);
 
-  const { rows } = parseToolInput(response.content, TOOL_NAME, lrToolInput(allTypes));
+  return readLRReply(toolReply(response.content), rules);
+}
+
+function readLRReply(reply: ToolReply, rules: RulesConfig): AnalyticsExtraction {
+  const { rows } = parseToolInput(reply, TOOL_NAME, lrToolInput([...rules.lrStemTypes, ...rules.lrLogicTypes]));
   return {
     rows: rows.map(({ type, accuracy, priority }) => {
       const row: AnalyticsExtractedRow = { type, category: categoryFor(type, rules), accuracy };
@@ -204,7 +253,11 @@ Call ${TOOL_NAME} once. Set showsPassageTypes to true if the screenshot is the R
     ],
   }, recordCost);
 
-  const { rows, showsPassageTypes } = parseToolInput(response.content, TOOL_NAME, passageToolInput(rules.rcTypes));
+  return readPassageReply(toolReply(response.content), rules);
+}
+
+function readPassageReply(reply: ToolReply, rules: RulesConfig): AnalyticsExtraction {
+  const { rows, showsPassageTypes } = parseToolInput(reply, TOOL_NAME, passageToolInput(rules.rcTypes));
   return {
     rows: rows.map(({ type, accuracy }) => ({ type, category: "passage", accuracy })),
     showsPassageTypes,
@@ -297,5 +350,9 @@ Call ${SECTION_TOOL_NAME} once. For an LR section, report every visible row in o
     ],
   }, recordCost);
 
-  return parseToolInput(response.content, SECTION_TOOL_NAME, ToolSectionReading);
+  return readSectionReply(toolReply(response.content));
+}
+
+export function readSectionReply(reply: ToolReply): SectionReading {
+  return parseToolInput(reply, SECTION_TOOL_NAME, ToolSectionReading);
 }

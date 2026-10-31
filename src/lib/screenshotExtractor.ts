@@ -1,5 +1,8 @@
 import { createHash } from "node:crypto";
-import { categoryFor, extractAnalyticsRowsFromImage, ModelReplyRefused, readPracticeTestSectionFromImage, type AnalyticsExtraction, type RecordCost } from "./claudeExtract";
+import {
+  categoryFor, extractAnalyticsRowsFromImage, readAnalyticsReply, readPracticeTestSectionFromImage, readSectionReply,
+  type AnalyticsExtraction, type RecordCost,
+} from "./claudeExtract";
 import { PT158_FIXTURES } from "./practiceTestFixtures/pt158";
 import type { SectionReading } from "./practiceTestResult";
 import type { ScreenshotMediaType } from "./screenshotUpload";
@@ -20,6 +23,15 @@ const FAKE_PASSAGE_ROWS: PassageExtractedRow[] = [
   { type: "Humanities", category: "passage", accuracy: 81 },
   { type: "Art", category: "passage", accuracy: 77 },
 ];
+
+function outOfRangeAccuracyReply(section: AnalyticsSection) {
+  return { name: "record_analytics_rows", input: { showsPassageTypes: true, rows: [{ type: section === "LR" ? "Strengthen" : "Law", accuracy: 140 }] } };
+}
+
+const OUT_OF_RANGE_QUESTION_REPLY = {
+  name: "record_practice_test_section",
+  input: { page: "section_review", prepTest: 158, section: 2, kind: "LR", score: -4, reachesEnd: true, rows: [{ question: 99, result: "correct", tags: [] }] },
+};
 
 function fakeLRRows(rules: RulesConfig): AnalyticsExtractedRow[] {
   return FAKE_ROWS.map((row) => ({ ...row, category: categoryFor(row.type, rules) }));
@@ -47,7 +59,7 @@ export async function extractAnalyticsRows(
       if (section === "RC") return { rows: [], showsPassageTypes: true };
       return { rows: fakeLRRows(rules) };
     case "fake-failure":
-      throw new ModelReplyRefused("Fake screenshot extractor failed on request");
+      return readAnalyticsReply(outOfRangeAccuracyReply(section), rules, section);
     default:
       throw new Error(`Unknown SCREENSHOT_EXTRACTOR value: ${setting}`);
   }
@@ -68,7 +80,7 @@ export async function extractPracticeTestSection(
       return PT158_FIXTURES.find((fixture) => fixture.sha256 === sha256)?.reading ?? { page: "other" };
     }
     case "fake-failure":
-      throw new ModelReplyRefused("Fake screenshot extractor failed on request");
+      return readSectionReply(OUT_OF_RANGE_QUESTION_REPLY);
     default:
       throw new Error(`Unknown SCREENSHOT_EXTRACTOR value: ${setting}`);
   }

@@ -120,7 +120,7 @@ describe("issue 70 request boundary evidence", () => {
     mocks.messages.mockResolvedValue({ content: [{
       type: "tool_use", name: "record_analytics_rows", input: { rows: [{ type: "Unknown synthetic type", accuracy: 999, priority: "SOMETIMES" }] },
     }], usage: { input_tokens: 1, output_tokens: 1 } });
-    await expect(extractAnalyticsRowsFromImage(Buffer.from([0]), "image/png", mockRules, "LR", () => {})).rejects.toThrow("does not fit its format");
+    await expect(extractAnalyticsRowsFromImage(Buffer.from([0]), "image/png", mockRules, "LR", () => {})).rejects.toMatchObject({ check: "unknownLabel", rowCount: 1 });
   });
 
   it("strips profile ownership and operator fields but accepts a non-date goalTestDate", () => {

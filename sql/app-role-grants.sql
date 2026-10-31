@@ -33,7 +33,7 @@ BEGIN
   EXECUTE format('GRANT SELECT, INSERT, DELETE ON TABLE public.weekly_schedules, public.running_scans TO %I', app_role);
   EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.scan_spending, public.pending_signups, public.reset_tokens TO %I', app_role);
   EXECUTE format('GRANT SELECT ON TABLE public.scan_settings TO %I', app_role);
-  EXECUTE format('GRANT INSERT (event, result, route, account_id, ip_address, email_hash, error_code, error_type) ON TABLE public.security_log TO %I', app_role);
+  EXECUTE format('GRANT INSERT (event, result, route, account_id, ip_address, email_hash, error_code, error_type, row_count) ON TABLE public.security_log TO %I', app_role);
   EXECUTE format('GRANT INSERT (account_id, email_hash) ON TABLE public.deletion_list TO %I', app_role);
   EXECUTE format('GRANT EXECUTE ON FUNCTION public.prune_security_log(), public.prune_deletion_list() TO %I', app_role);
 END;
