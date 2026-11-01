@@ -44,7 +44,7 @@ export function proxyRoute(
       : { kind: "redirect", to: sentSessionCookie ? SESSION_ENDED_PATH : "/login", refused };
   }
 
-  if (pathname === "/login" || pathname === "/signup") return { kind: "redirect", to: landingPathForRole(user.role) };
+  if (pathname === "/" || pathname === "/login" || pathname === "/signup") return { kind: "redirect", to: landingPathForRole(user.role) };
   if (pathname.startsWith("/admin") && user.role !== "admin") return { kind: "redirect", to: "/dashboard", refused: adminRefusal(pathname) };
   return { kind: "allow" };
 }
