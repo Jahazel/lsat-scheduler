@@ -4,7 +4,6 @@ import {
   currentWeekInTimezone,
   loadOrGenerateCurrentWeek,
   showsUploadReminder,
-  weekWithoutPlan,
   weeklyUploadIsOpen,
 } from "./currentWeeklySchedule";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "./mockData";
@@ -530,12 +529,40 @@ describe("loadOrGenerateCurrentWeek", () => {
     it("counts a Saturday upload for next week but not the current one", async () => {
       const repositories = inMemoryRepositories([approvedSnapshot("saturday", saturdayNoon)]);
 
-      await expect(load(repositories, "2026-09-20T15:00:00.000Z")).resolves.toEqual({ kind: "analytics_required" });
+      const sunday = await load(repositories, "2026-09-20T15:00:00.000Z");
       const nextWeek = await load(repositories, "2026-09-21T14:00:00.000Z");
 
+      expect(sunday).toMatchObject({ kind: "next_week_preview", schedule: { weekStartDate: "2026-09-21" } });
       if (nextWeek.kind !== "schedule") throw new Error("Expected a saved schedule");
       expect(nextWeek.schedule.weekStartDate).toBe("2026-09-21");
       expect(nextWeek.schedule.sourceSnapshotIds).toEqual(["saturday"]);
+    });
+
+    it.each([
+      ["Saturday", saturdayNoon],
+      ["Sunday", "2026-09-20T15:00:00.000Z"],
+    ])("previews and saves next week's full plan on %s when this week has none, then keeps it on Monday", async (_, weekendNow) => {
+      const repositories = inMemoryRepositories([approvedSnapshot("saturday", saturdayNoon)]);
+
+      const preview = await load(repositories, weekendNow);
+
+      if (preview.kind !== "next_week_preview") throw new Error("Expected next week's preview");
+      expect(preview.schedule.weekStartDate).toBe("2026-09-21");
+      expect(preview.schedule.generatedAt).toBe(weekendNow);
+      expect(DAY_ORDER.filter((day) => preview.schedule.schedule.days[day].type === "unscheduled")).toEqual([]);
+      expect(preview.schedule.generationInputs.remainingDays).toEqual(DAY_ORDER);
+      expect(repositories.schedules).toEqual([preview.schedule]);
+      expect(repositories.checkIns()).toEqual([]);
+      await expect(load(repositories, "2026-09-20T20:00:00.000Z")).resolves.toEqual(preview);
+
+      const monday = await load(repositories, "2026-09-21T14:00:00.000Z", { ...mockStudent, currentScore: 170 });
+
+      expect(monday).toEqual({ kind: "schedule", schedule: preview.schedule });
+      expect(repositories.checkIns().length).toBeGreaterThan(0);
+    });
+
+    it("asks for the weekly upload on the weekend until next week's upload is confirmed", async () => {
+      await expect(load(inMemoryRepositories([]), saturdayNoon)).resolves.toEqual({ kind: "analytics_required" });
     });
 
     it("counts an upload from Saturday 00:00 in the schedule timezone, not from UTC midnight", async () => {
@@ -627,20 +654,6 @@ describe("showsUploadReminder", () => {
     const sunday = new Date("2026-09-20T15:00:00.000Z");
     expect(showsUploadReminder([approvedSnapshot("thursday", "2026-09-17T15:00:00.000Z")], sunday, timezone)).toBe(true);
     expect(showsUploadReminder([approvedSnapshot("saturday", "2026-09-19T17:00:00.000Z")], sunday, timezone)).toBe(false);
-  });
-});
-
-describe("weekWithoutPlan", () => {
-  const timezone = "America/Chicago";
-  const saturday = new Date("2026-09-19T17:00:00.000Z");
-
-  it("opens the weekly upload from Monday to Friday", () => {
-    expect(weekWithoutPlan([], new Date("2026-09-17T15:00:00.000Z"), timezone)).toBe("weekly_upload");
-  });
-
-  it("opens the weekly upload on the weekend, then says the plan starts Monday once it is approved", () => {
-    expect(weekWithoutPlan([], saturday, timezone)).toBe("weekly_upload");
-    expect(weekWithoutPlan([approvedSnapshot("saturday", "2026-09-19T16:00:00.000Z")], saturday, timezone)).toBe("plan_starts_monday");
   });
 });
 

@@ -37,7 +37,8 @@ export interface CurrentWeekRepositories {
 
 export type LoadOrGenerateCurrentWeekResult =
   | { kind: "analytics_required" }
-  | { kind: "schedule"; schedule: PersistedWeeklySchedule };
+  | { kind: "schedule"; schedule: PersistedWeeklySchedule }
+  | { kind: "next_week_preview"; schedule: PersistedWeeklySchedule };
 
 // The scheduling policy version recorded on every newly created weekly
 // schedule. Saved schedules keep the version they were created with.
@@ -110,12 +111,6 @@ function nextWeekHasUpload(snapshots: ApprovedAnalyticsSnapshot[], now: Date, ti
 
 export function showsUploadReminder(snapshots: ApprovedAnalyticsSnapshot[], now: Date, timezone: string) {
   return isUploadWeekend(now, timezone) && !nextWeekHasUpload(snapshots, now, timezone);
-}
-
-export type WeekWithoutPlan = "weekly_upload" | "plan_starts_monday";
-
-export function weekWithoutPlan(snapshots: ApprovedAnalyticsSnapshot[], now: Date, timezone: string): WeekWithoutPlan {
-  return isUploadWeekend(now, timezone) && nextWeekHasUpload(snapshots, now, timezone) ? "plan_starts_monday" : "weekly_upload";
 }
 
 export function weeklyUploadIsOpen(now: Date, timezone: string, currentWeekHasSchedule: boolean) {
@@ -218,10 +213,27 @@ export async function loadOrGenerateCurrentWeek(
   }
 
   const eligibleSnapshots = await input.snapshots.listEligibleForStudent(input.studentId);
-  const [latestSnapshot] = newestApprovedSnapshots(approvedForWeek(eligibleSnapshots, weekStartDate, input.timezone));
-  if (!latestSnapshot) {
-    return { kind: "analytics_required" };
+  const current = await buildAndSaveWeek(input, eligibleSnapshots, weekStartDate, currentDayInTimezone(now, input.timezone));
+  if (current) {
+    await input.activityCheckIns.ensureForSchedule(current);
+    return { kind: "schedule", schedule: current };
   }
+  if (!isUploadWeekend(now, input.timezone)) return { kind: "analytics_required" };
+
+  const nextWeekStartDate = isoDateInWeek(weekStartDate, 7);
+  const preview = await input.weeklySchedules.findByStudentAndWeek(input.studentId, nextWeekStartDate)
+    ?? await buildAndSaveWeek(input, eligibleSnapshots, nextWeekStartDate, "MONDAY");
+  return preview ? { kind: "next_week_preview", schedule: preview } : { kind: "analytics_required" };
+}
+
+async function buildAndSaveWeek(
+  input: LoadOrGenerateCurrentWeekInput,
+  eligibleSnapshots: ApprovedAnalyticsSnapshot[],
+  weekStartDate: string,
+  createdOn: DayOfWeek,
+) {
+  const [latestSnapshot] = newestApprovedSnapshots(approvedForWeek(eligibleSnapshots, weekStartDate, input.timezone));
+  if (!latestSnapshot) return null;
   const snapshots = newestApprovedSnapshots(approvedUpToWeek(eligibleSnapshots, weekStartDate, input.timezone)).slice(0, 3);
   const [practiceTest] = approvedForWeek(await input.practiceTestResults.listForStudent(input.studentId), weekStartDate, input.timezone)
     .filter((result) => new Date(result.approvedAt) >= new Date(latestSnapshot.approvedAt))
@@ -236,32 +248,28 @@ export async function loadOrGenerateCurrentWeek(
   const priorWeekPracticeTestReviewMinutes = priorSunday?.type === "practice_test"
     ? priorSunday.activities.find((activity) => activity.kind === "PT")?.minutes
     : undefined;
-  const currentDay = currentDayInTimezone(now, input.timezone);
   const schedule = generateRemainingWeek(input.student, analytics, input.rules, input.studentName, {
-    createdOn: currentDay,
+    createdOn,
     priorWeekPracticeTestReviewMinutes,
     priorSchedules: history.map((record) => record.schedule),
     missedStemTypeCounts: practiceTest?.missedStemTypeCounts,
   });
-  const saved: PersistedWeeklySchedule = {
+  return input.weeklySchedules.create({
     id: `${input.studentId}:${weekStartDate}`,
     studentId: input.studentId,
     weekStartDate,
-    generatedAt: now.toISOString(),
+    generatedAt: input.now().toISOString(),
     schedule,
     sourceSnapshotIds: snapshots.map((snapshot) => snapshot.id),
     generationInputs: {
       student: input.student,
       timezone: input.timezone,
-      remainingDays: DAY_ORDER.slice(DAY_ORDER.indexOf(currentDay)),
+      remainingDays: DAY_ORDER.slice(DAY_ORDER.indexOf(createdOn)),
       analytics,
       priorWeekPracticeTestReviewMinutes,
       priorScheduleIds: history.map((record) => record.id),
       ...(practiceTest && { practiceTestResultId: practiceTest.id }),
     },
     policyVersion: SCHEDULING_POLICY_VERSION,
-  };
-  const created = await input.weeklySchedules.create(saved);
-  await input.activityCheckIns.ensureForSchedule(created);
-  return { kind: "schedule", schedule: created };
+  });
 }
