@@ -1,0 +1,42 @@
+name: Ready label check
+
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Issue number to check now, with no wait
+        type: number
+        required: true
+
+permissions:
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      ISSUE: ${{ inputs.issue || github.event.issue.number }}
+    steps:
+      - name: Wait 10 minutes for the author to add a label or sub-issues
+        if: github.event_name == 'issues'
+        run: sleep 600
+
+      - name: Add ready-for-human when the issue has no ready label
+        run: |
+          read -r state subissues ready < <(gh api "repos/$GH_REPO/issues/$ISSUE" --jq '[
+            .state,
+            .sub_issues_summary.total,
+            ([.labels[].name] | any(. == "ready-for-agent" or . == "ready-for-human"))
+          ] | @tsv')
+          echo "Issue #$ISSUE: state=$state sub-issues=$subissues ready-label=$ready"
+          if [ "$state" != "open" ] || [ "$subissues" != "0" ] || [ "$ready" = "true" ]; then
+            echo "No change needed."
+            exit 0
+          fi
+          gh issue edit "$ISSUE" --add-label ready-for-human
+          gh issue comment "$ISSUE" --body "This issue had no ready label, so the ready label check added \`ready-for-human\`. Change it to \`ready-for-agent\` if an agent can do this work. Adding \`ready-for-agent\` starts a factory run. See \`docs/agents/triage-labels.md\`."
