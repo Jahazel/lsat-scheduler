@@ -195,7 +195,7 @@ A schedule activity covering a set number of LR questions of one question type (
 _Avoid_: drill block, practice set
 
 **Paired LR drill**:
-One drill of 10 LR questions across two question types the tutor pairs, such as Necessary and Sufficient assumption. A weekly schedule holds two when the current score is 160 or higher and one otherwise, never more than one per drilling day.
+One drill of 10 LR questions across two question types the tutor pairs, such as Necessary and Sufficient assumption. It counts as 5 questions of each of its two types. A weekly schedule holds two when the current score is 160 or higher and one otherwise, never more than one per drilling day. The two in one week share no type.
 _Avoid_: 5+5 unit, combo drill
 
 **Drilling ratio**:
