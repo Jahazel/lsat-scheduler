@@ -58,6 +58,11 @@ describe("proxy route", () => {
     expect(proxyRoute("/signup", admin)).toEqual({ kind: "redirect", to: "/admin" });
   });
 
+  it("sends a signed-in user who opens the site address to their landing page", () => {
+    expect(proxyRoute("/", student)).toEqual({ kind: "redirect", to: "/dashboard" });
+    expect(proxyRoute("/", admin)).toEqual({ kind: "redirect", to: "/admin" });
+  });
+
   it("sends a non-admin away from admin pages to This week", () => {
     expect(proxyRoute("/admin", student)).toEqual({ kind: "redirect", to: "/dashboard", refused: { event: "admin_action_refused", route: "/admin" } });
     expect(proxyRoute("/admin/students/1", student)).toEqual({ kind: "redirect", to: "/dashboard", refused: { event: "student_data_refused", route: "/admin/students/[id]" } });
