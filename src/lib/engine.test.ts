@@ -346,6 +346,22 @@ describe("adaptive weekly schedule v3", () => {
     expect(pairsFor(strengthenNext, weakenPairsOnly)).toEqual([["Flaw or descriptive weakening", "Weaken"]]);
   });
 
+  it("places the second pair on the next small day after a day whose only LR line was the first pair", () => {
+    const schedule = generateWeek({ ...mockStudent, currentScore: 165,
+      dailyCapacityMinutes: { ...everyDay(30), MONDAY: 90 } }, flawWeakest, mockRules, mockStudentName);
+    expect(lrDrillsOn(schedule, "MONDAY").filter(isPaired).map(lineText))
+      .toEqual(["10 Flaw or descriptive weakening + Weaken"]);
+    expect(lrDrillsOn(schedule, "TUESDAY").map(lineText)).toEqual(["10 Sufficient assumption + Necessary assumption"]);
+  });
+
+  it("skips a type whose every pair shares a type with the first pair when choosing the second pair", () => {
+    const strengthenWeakest = { ...flawWeakest,
+      lrAccuracyByType: { ...flawWeakest.lrAccuracyByType, Strengthen: 0.05 } };
+    const pairs = lrDrillsInDayOrder(generateWeek({ ...mockStudent, currentScore: 165, dailyCapacityMinutes: everyDay(90) },
+      strengthenWeakest, mockRules, mockStudentName)).filter(isPaired).map((activity) => activity.types);
+    expect(pairs).toEqual([["Strengthen", "Weaken"], ["Sufficient assumption", "Necessary assumption"]]);
+  });
+
   it("never repeats a type across a week's two pairs", () => {
     for (const analytics of [mockAnalytics, flawWeakest]) {
       for (const accommodationMultiplier of [1, 1.5, 2] as const) {

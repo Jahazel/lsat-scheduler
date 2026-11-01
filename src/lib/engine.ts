@@ -176,7 +176,7 @@ function fillDrillDay(stream: DrillStream, capacity: number, score: number, rule
 
   let placedPair = false;
   const pairMinutes = paired ? lrMinutes(paired.questionCount) : 0;
-  const pairKeepsTopTypeFirst = () => stream.lrSlotsTaken.size > 0 || paired?.types[0] === stream.lrOrder[0];
+  const pairKeepsTopTypeFirst = () => stream.lrQuestions > 0 || paired?.types[0] === stream.lrOrder[0];
   const pairReady = () => paired !== undefined && !placedPair && pairKeepsTopTypeFirst();
   const placePair = () => {
     if (!paired || !pairReady() || !fits(pairMinutes)) return;
