@@ -41,11 +41,14 @@ describe("daily capacity filler", () => {
             dailyCapacityMinutes: { ...everyDay(high), THURSDAY: low, FRIDAY: low, SATURDAY: low } };
           const schedule = generateWeek(student, analytics, mockRules, mockStudentName);
           const singles = lrDrillsInDayOrder(schedule).filter((activity) => activity.types.length === 1);
+          const pairTypes = new Set(lrDrillsInDayOrder(schedule).filter((activity) => activity.types.length === 2)
+            .flatMap((activity) => activity.types));
           const context = `${score}/${high}/${low}/${practiceTestDay}/${analytics === starredOnlyAnalytics ? "starred" : "full"}`;
           const firstSecondPassIndex = singles.findIndex((activity) => activity.questionCount === mockRules.lrUnitSizes.medium);
           if (firstSecondPassIndex >= 0) {
-            expect(new Set(singles.slice(0, firstSecondPassIndex).map((activity) => activity.types[0])), context)
-              .toEqual(expectedTypes);
+            const firstPass = new Set(singles.slice(0, firstSecondPassIndex).map((activity) => activity.types[0]));
+            expect([...firstPass].filter((type) => !expectedTypes.has(type)), context).toEqual([]);
+            expect([...expectedTypes].filter((type) => !firstPass.has(type) && !pairTypes.has(type)), context).toEqual([]);
           }
           if (singles.length >= mockRules.lrStarredTypes.length) {
             const present = new Set(singles.map((activity) => activity.types[0]));
@@ -138,10 +141,10 @@ describe("daily capacity filler", () => {
     const schedule = generateWeek({ ...mockStudent, dailyCapacityMinutes: everyDay(30) },
       analytics, mockRules, mockStudentName, { createdOn: "FRIDAY" });
     expect(lrDrillsOn(schedule, "FRIDAY").map((activity) => activity.types)).toEqual([
-      ["Strengthen"], ["Strengthen", "Weaken"],
+      ["Flaw or descriptive weakening"], ["Strengthen", "Weaken"],
     ]);
     expect(schedule.reasons?.find((reason) => reason.code === "starred_rotation")?.sentence)
-      .toBe("Conditional reasoning, Flaw or descriptive weakening, Necessary assumption, and Sufficient assumption sit out this week in the starred rotation.");
+      .toBe("Conditional reasoning, Necessary assumption, and Sufficient assumption sit out this week in the starred rotation.");
   });
 
   it("places drills only on remaining drilling days after Thursday approval", () => {
@@ -155,14 +158,14 @@ describe("daily capacity filler", () => {
   it("uses the regular pool after starred and restricted types, and keeps each paired line to 10 questions", () => {
     const lr = drills(generated(1200)).filter(isLR);
     const singles = lr.filter((activity) => activity.types.length === 1);
-    expect(singles.slice(0, mockRules.lrStarredTypes.length).map((activity) => activity.types[0])).toEqual(
-      [...mockRules.lrStarredTypes].sort((a, b) =>
-        (mockAnalytics.lrAccuracyByType[a] ?? 1) - (mockAnalytics.lrAccuracyByType[b] ?? 1)
-        || [...mockRules.lrStemTypes, ...mockRules.lrLogicTypes].indexOf(a)
-          - [...mockRules.lrStemTypes, ...mockRules.lrLogicTypes].indexOf(b))
-    );
-    expect(singles[mockRules.lrStarredTypes.length].types[0]).toBe(mockAnalytics.lrTopPriorityLogicTypes[0]);
     const paired = lr.filter((activity) => activity.types.length === 2);
+    const starredOffPairDay = [...mockRules.lrStarredTypes].sort((a, b) =>
+      (mockAnalytics.lrAccuracyByType[a] ?? 1) - (mockAnalytics.lrAccuracyByType[b] ?? 1)
+      || [...mockRules.lrStemTypes, ...mockRules.lrLogicTypes].indexOf(a)
+        - [...mockRules.lrStemTypes, ...mockRules.lrLogicTypes].indexOf(b))
+      .filter((type) => !paired[0].types.includes(type));
+    expect(singles.slice(0, starredOffPairDay.length).map((activity) => activity.types[0])).toEqual(starredOffPairDay);
+    expect(singles[starredOffPairDay.length].types[0]).toBe(mockAnalytics.lrTopPriorityLogicTypes[0]);
     expect(paired.length).toBeGreaterThan(0);
     for (const activity of paired) {
       expect(activity.questionCount).toBe(10);
@@ -269,8 +272,10 @@ describe("adaptive weekly schedule v3", () => {
       if (activity.questionCount === 10) expect(seen.has(activity.types[0]), activity.types[0]).toBe(true);
       seen.add(activity.types[0]);
     }
-    expect(lr.slice(0, allTypes.size).every((activity) => activity.questionCount === 5)).toBe(true);
-    expect(lr.slice(allTypes.size).filter((activity) => activity.questionCount === 10).length).toBeGreaterThan(5);
+    const fiveQuestionTypes = lr.filter((activity) => activity.questionCount === 5).map((activity) => activity.types[0]);
+    expect(fiveQuestionTypes).toHaveLength(allTypes.size);
+    expect(new Set(fiveQuestionTypes)).toEqual(allTypes);
+    expect(lr.filter((activity) => activity.questionCount === 10).length).toBeGreaterThan(5);
   });
 
   it("places 2 paired lines on separate days at 160 and exactly 1 at 159", () => {
@@ -307,6 +312,52 @@ describe("adaptive weekly schedule v3", () => {
       ["Evaluate"], ["Sufficient assumption", "Necessary assumption"],
     ]);
     expect(schedule.days.FRIDAY.totalMinutes).toBe(105);
+  });
+
+  const flawWeakest = { ...mockAnalytics,
+    lrAccuracyByType: { ...mockAnalytics.lrAccuracyByType, "Flaw or descriptive weakening": 0.1 } };
+  const lineText = (activity: LRDrill) => `${activity.questionCount} ${activity.types.join(" + ")}`;
+
+  it("keeps single-type lines of a pair's types off the pair's day in the tutor's example week", () => {
+    const schedule = generateWeek({ ...mockStudent, currentScore: 165, dailyCapacityMinutes: everyDay(90) },
+      flawWeakest, mockRules, mockStudentName);
+    expect(lrDrillsOn(schedule, "TUESDAY").map(lineText)).toEqual([
+      "10 Flaw or descriptive weakening + Weaken", "5 Sufficient assumption",
+    ]);
+    expect(lrDrillsOn(schedule, "THURSDAY").map(lineText)).toContain("5 Flaw or descriptive weakening");
+    expect(lrDrillsOn(schedule, "THURSDAY").map(lineText)).toContain("5 Weaken");
+  });
+
+  it("holds no single-type line of a pair type on a pair's day at any size, and still drills every type", () => {
+    for (const analytics of [mockAnalytics, flawWeakest]) {
+      for (const accommodationMultiplier of [1, 1.5, 2] as const) {
+        for (const currentScore of [149, 165]) {
+          for (let capacity = 30; capacity <= 480; capacity += 15) {
+            const dailyCapacityMinutes = everyDay(capacity);
+            const schedule = generateWeek({ ...mockStudent, accommodationMultiplier, currentScore, dailyCapacityMinutes },
+              analytics, mockRules, mockStudentName);
+            const lr = lrDrillsInDayOrder(schedule);
+            const pairedTypes = new Set(lr.filter(isPaired).flatMap((activity) => activity.types));
+            for (const day of DAY_ORDER.filter((item) => schedule.days[item].type === "drill")) {
+              const context = `${accommodationMultiplier}/${currentScore}/${capacity}/${day}`;
+              const total = schedule.days[day].totalMinutes;
+              expect(schedule.days[day].activities.length, context).toBeGreaterThan(0);
+              expect(total, context).toBeGreaterThanOrEqual(capacity - 10);
+              expect(total, context).toBeLessThanOrEqual(capacity + 30);
+              const pair = lrDrillsOn(schedule, day).find(isPaired);
+              if (!pair) continue;
+              const singles = lrDrillsOn(schedule, day).filter((activity) => !isPaired(activity));
+              expect(singles.filter((activity) => pair.types.includes(activity.types[0])).map(lineText), context)
+                .toEqual([]);
+            }
+            const singleTypes = new Set(lr.filter((activity) => !isPaired(activity)).map((activity) => activity.types[0]));
+            if (capacity >= 120) {
+              for (const type of pairedTypes) expect(singleTypes.has(type), `${capacity}/${type}`).toBe(true);
+            }
+          }
+        }
+      }
+    }
   });
 
   it("gives each RC type one passage, lowest accuracy first, then repeats only types with an accuracy", () => {
@@ -347,8 +398,7 @@ describe("adaptive weekly schedule v3", () => {
 
   it("puts the most-missed stem type first for one week with a week note", () => {
     const missed = generated(90, { missedStemTypeCounts: { Weaken: 3, "Flaw or descriptive weakening": 1 } });
-    expect(firstSingleType(missed)).toEqual(["Weaken"]);
-    expect(lrDrillsInDayOrder(missed).filter(isPaired)[0].types).toEqual(["Weaken", "Strengthen"]);
+    expect(lrDrillsInDayOrder(missed)[0].types).toEqual(["Weaken", "Strengthen"]);
     expect(missed.reasons).toContainEqual({ code: "missed_type_priority", placement: { scope: "week" },
       sentence: "Weaken comes first this week. You missed it most on your last practice test." });
 
@@ -359,13 +409,13 @@ describe("adaptive weekly schedule v3", () => {
     expect(firstSingleType(tie)).toEqual(["Evaluate"]);
 
     const plain = generated(90);
-    expect(firstSingleType(plain)).toEqual(["Sufficient assumption"]);
+    expect(lrDrillsInDayOrder(plain)[0].types[0]).toBe("Sufficient assumption");
     expect(generated(90, { missedStemTypeCounts: {} })).toEqual(plain);
     expect(reasonCodes(plain)).not.toContain("missed_type_priority");
 
     const nextWeek = generateWeek({ ...mockStudent, dailyCapacityMinutes: everyDay(90) },
       { ...mockAnalytics, weekOf: "2026-08-31" }, mockRules, mockStudentName, { priorSchedules: [missed] });
-    expect(firstSingleType(nextWeek)).not.toEqual(["Weaken"]);
+    expect(lrDrillsInDayOrder(nextWeek)[0].types[0]).not.toBe("Weaken");
     expect(reasonCodes(nextWeek)).not.toContain("missed_type_priority");
   });
 });
