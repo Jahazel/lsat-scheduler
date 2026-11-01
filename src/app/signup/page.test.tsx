@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 
 const actions = vi.hoisted(() => ({ signUpWithGoogle: vi.fn(), signUpWithPassword: vi.fn() }));
 vi.mock("./actions", () => actions);
+import { FailureToastProvider } from "@/components/FailureNotice";
 import SignupPage from "./page";
 
 beforeEach(() => {
@@ -69,5 +70,19 @@ describe("Signup", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Sign up again" }));
     expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe("");
+  });
+
+  it("closes the failure toast when a retry creates the account", async () => {
+    actions.signUpWithPassword.mockResolvedValueOnce({ unexpectedFailure: "3f9a01c2" });
+    actions.signUpWithPassword.mockResolvedValueOnce({ kind: "checkYourEmail", email: "maya.chen@fastmail.com" });
+    render(<SignupPage />, { wrapper: FailureToastProvider });
+    await fillIn();
+    await userEvent.click(screen.getByRole("checkbox"));
+    await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("Error code 3f9a01c2");
+
+    await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+    expect(await screen.findByRole("heading", { name: "Check your email" })).toBeTruthy();
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   });
 });
