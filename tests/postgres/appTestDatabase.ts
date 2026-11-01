@@ -23,6 +23,12 @@ export async function createAppTestDatabase() {
   try {
     const roleSql = await readFile("sql/app-role.sql", "utf8");
     const grantsSql = await readFile("sql/app-role-grants.sql", "utf8");
+    async function restoreGrants() {
+      await owner.db.transaction(async (tx) => {
+        await tx.execute(sql`select set_config('drillmap.app_role', ${role}, true)`);
+        await tx.execute(sql.raw(grantsSql));
+      });
+    }
     const password = randomBytes(32).toString("hex");
     await owner.db.transaction(async (tx) => {
       await tx.execute(sql`select set_config('drillmap.app_role', ${role}, true)`);
@@ -44,7 +50,7 @@ export async function createAppTestDatabase() {
         .returning({ id: accounts.id, role: accounts.role });
       return account ?? null;
     }
-    return { setting: setting.toString(), ownerSetting: database.setting, role, owner: owner.db, createAccountAsOwner, cleanup };
+    return { setting: setting.toString(), ownerSetting: database.setting, role, owner: owner.db, createAccountAsOwner, restoreGrants, cleanup };
   } catch (error) {
     await cleanup();
     throw error;
@@ -76,5 +82,6 @@ export function setUpAppTestDatabase() {
     get role() { return ready().role; },
     get owner() { return ready().owner; },
     get createAccountAsOwner() { return ready().createAccountAsOwner; },
+    get restoreGrants() { return ready().restoreGrants; },
   };
 }
