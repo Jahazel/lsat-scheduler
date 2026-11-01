@@ -100,16 +100,24 @@ interface DrillStream {
   lrOrder: LRType[];
   rcOrder: RCType[];
   rcRepeatOrder: RCType[];
-  lrIndex: number;
+  lrSlotsTaken: Set<number>;
   rcIndex: number;
   rcComboIndex: number;
   lrQuestions: number;
   rcPassages: number;
 }
 
-function nextLRUnit(stream: DrillStream, score: number, rules: RulesConfig): LRUnit {
-  const firstPass = stream.lrIndex < stream.lrOrder.length;
-  return { types: [stream.lrOrder[stream.lrIndex % stream.lrOrder.length]],
+function nextLRSlot(stream: DrillStream, excluded: readonly LRType[]): number | undefined {
+  const { lrOrder, lrSlotsTaken } = stream;
+  if (lrOrder.every((type) => excluded.includes(type))) return undefined;
+  for (let slot = 0; ; slot++) {
+    if (!lrSlotsTaken.has(slot) && !excluded.includes(lrOrder[slot % lrOrder.length])) return slot;
+  }
+}
+
+function lrSlotUnit(stream: DrillStream, slot: number, score: number, rules: RulesConfig): LRUnit {
+  const firstPass = slot < stream.lrOrder.length;
+  return { types: [stream.lrOrder[slot % stream.lrOrder.length]],
     questionCount: firstPass ? rules.lrUnitSizes.small : rules.lrUnitSizes.medium,
     difficultyRange: score >= rules.lrDifficultyCutoffScore || !firstPass ? "L3-5" : "L2-4" };
 }
@@ -148,9 +156,9 @@ function fillDrillDay(stream: DrillStream, capacity: number, score: number, rule
     used += minutes;
     stream.lrQuestions += unit.questionCount;
   };
-  const takeLR = (questionCount?: number) => {
-    const unit = nextLRUnit(stream, score, rules);
-    stream.lrIndex++;
+  const takeLR = (slot: number, questionCount?: number) => {
+    const unit = lrSlotUnit(stream, slot, score, rules);
+    stream.lrSlotsTaken.add(slot);
     addLR(questionCount ? { ...unit, questionCount } : unit);
   };
   const takeRC = (count: 1 | 2) => {
@@ -162,30 +170,36 @@ function fillDrillDay(stream: DrillStream, capacity: number, score: number, rule
 
   let placedPair = false;
   const pairMinutes = paired ? lrMinutes(paired.questionCount) : 0;
-  const pairKeepsTopTypeFirst = () => stream.lrIndex > 0 || paired?.types[0] === stream.lrOrder[0];
+  const pairKeepsTopTypeFirst = () => stream.lrSlotsTaken.size > 0 || paired?.types[0] === stream.lrOrder[0];
   const pairReady = () => paired !== undefined && !placedPair && pairKeepsTopTypeFirst();
   const placePair = () => {
     if (!paired || !pairReady() || !fits(pairMinutes)) return;
     addLR(paired);
     placedPair = true;
   };
+  const pairLandsToday = () => placedPair || (pairReady() && fits(pairMinutes));
+  const nextSlot = () => nextLRSlot(stream, pairLandsToday() && paired ? paired.types : []);
+  const slotMinutes = (slot: number) => lrMinutes(lrSlotUnit(stream, slot, score, rules).questionCount);
 
   if (fullSection?.kind === "LR") lr.push(fullSection);
   if (fullSection?.kind === "RC") rc.push(fullSection);
   if (fullSection?.kind === "LR" || fullSection?.kind === "RC") used += fullSection.drillMinutes;
   else {
-    const minimumMinutes = preferLR() ? lrMinutes(nextLRUnit(stream, score, rules).questionCount) : rcMinutes(1);
+    const slot = nextSlot();
+    const minimumLR = preferLR() && slot !== undefined;
+    const minimumMinutes = minimumLR ? slotMinutes(slot) : rcMinutes(1);
     if (pairReady() && !fits(minimumMinutes + pairMinutes)) placePair();
-    if (!placedPair && preferLR()) takeLR();
+    if (!placedPair && minimumLR) takeLR(slot);
     else if (!placedPair) takeRC(1);
   }
   placePair();
   while (used < capacity - 1e-8) {
-    const lrFits = fits(lrMinutes(nextLRUnit(stream, score, rules).questionCount));
+    const slot = nextSlot();
+    const lrFits = slot !== undefined && fits(slotMinutes(slot));
     const rcFits = fits(rcMinutes(2));
-    if (lrFits && (preferLR() || !rcFits)) takeLR();
+    if (lrFits && (preferLR() || !rcFits)) takeLR(slot);
     else if (rcFits) takeRC(2);
-    else if (fits(lrMinutes(rules.lrUnitSizes.small))) takeLR(rules.lrUnitSizes.small);
+    else if (slot !== undefined && fits(lrMinutes(rules.lrUnitSizes.small))) takeLR(slot, rules.lrUnitSizes.small);
     else break;
     placePair();
   }
@@ -308,7 +322,7 @@ export function generateWeek(
     const paired = pairedUnit(lrOrder, student.currentScore, rules);
     const { first: rcOrder, repeat: rcRepeatOrder } = rcPassageOrder(analytics, rules);
     const stream: DrillStream = { lrOrder, rcOrder, rcRepeatOrder,
-      lrIndex: 0, rcIndex: 0, rcComboIndex: 0, lrQuestions: 0, rcPassages: 0 };
+      lrSlotsTaken: new Set(), rcIndex: 0, rcComboIndex: 0, lrQuestions: 0, rcPassages: 0 };
     const plans = {} as Partial<Record<DayOfWeek, DayPlan>>;
     let pairsPlaced = 0;
     activeDrillingDays.forEach((day) => {
