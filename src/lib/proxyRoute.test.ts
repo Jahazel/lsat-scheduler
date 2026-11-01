@@ -58,7 +58,7 @@ describe("proxy route", () => {
     expect(proxyRoute("/signup", admin)).toEqual({ kind: "redirect", to: "/admin" });
   });
 
-  it("sends a signed-in user who opens the site address to their landing page", () => {
+  it("sends a signed-in student who opens the site address to This week, and an admin to Admin", () => {
     expect(proxyRoute("/", student)).toEqual({ kind: "redirect", to: "/dashboard" });
     expect(proxyRoute("/", admin)).toEqual({ kind: "redirect", to: "/admin" });
   });
