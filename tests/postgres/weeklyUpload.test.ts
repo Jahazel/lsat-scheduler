@@ -9,6 +9,7 @@ import { listWeeklySchedulesForStudent } from "../../src/lib/weeklyScheduleRepos
 import { postgresActivityCheckIns } from "../../src/lib/activityCheckInRepository";
 import { approveWeeklyUpload, listApprovedPracticeTestResults } from "../../src/lib/weeklyUploadRepository";
 import { prepareWeeklyUpload } from "../../src/lib/weeklyUpload";
+import { loadStudentNavState } from "../../src/lib/studentNav";
 import { PT158_FIXTURES } from "../../src/lib/practiceTestFixtures/pt158";
 import { postgresAdminTestRepositories } from "../../src/lib/adminTestRepositories";
 import { resetTestWorkspace } from "../../src/lib/adminTestWorkspace";
@@ -250,6 +251,7 @@ it("a student who signs up on Saturday sees next week's saved plan as a read-onl
   state.session = { user: { id: account.id, role: "student", email: "weekend@example.test", name: "Sam" }, expires: "2099-01-01" };
 
   await expect(dashboard()).rejects.toThrow("redirect:/dashboard/upload");
+  expect(await loadStudentNavState(account.id, SATURDAY)).toMatchObject({ uploadNeeded: true });
   await expect(confirmWeeklyUpload({ ...upload(SATURDAY), practiceTest: null })).rejects.toThrow("redirect:/dashboard");
   const weekend = await dashboard();
   expect(weekend).toContain("Next week · starts Monday, Oct 19");
@@ -261,6 +263,7 @@ it("a student who signs up on Saturday sees next week's saved plan as a read-onl
   expect(preview.weekStartDate).toBe("2026-10-19");
   expect(await postgresActivityCheckIns.listForSchedule(preview.id)).toEqual([]);
   await expect(uploadPage()).rejects.toThrow(/^redirect:\/dashboard$/);
+  expect(await loadStudentNavState(account.id, SATURDAY)).toMatchObject({ hasCurrentWeek: false, uploadNeeded: false });
 
   vi.setSystemTime(NEXT_MONDAY);
   const monday = await dashboard();
