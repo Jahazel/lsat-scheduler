@@ -278,16 +278,18 @@ describe("adaptive weekly schedule v3", () => {
     expect(lr.filter((activity) => activity.questionCount === 10).length).toBeGreaterThan(5);
   });
 
-  it("places 2 paired lines on separate days at 160 and exactly 1 at 159", () => {
-    const at160 = lrDrillsInDayOrder(generated(90)).filter(isPaired);
-    expect(at160.map((activity) => [activity.types, activity.questionCount])).toEqual([
-      [["Sufficient assumption", "Necessary assumption"], 10],
-      [["Sufficient assumption", "Necessary assumption"], 10],
-    ]);
+  it("places 2 different paired lines on separate days at 160 and exactly 1 at 159", () => {
     const schedule160 = generated(90);
+    expect(lrDrillsInDayOrder(schedule160).filter(isPaired).map((activity) => [activity.types, activity.questionCount]))
+      .toEqual([
+        [["Sufficient assumption", "Necessary assumption"], 10],
+        [["Weaken", "Strengthen"], 10],
+      ]);
     expect(DAY_ORDER.filter((day) => lrDrillsOn(schedule160, day).some(isPaired))).toEqual(["MONDAY", "TUESDAY"]);
     const at159 = generateWeek({ ...mockStudent, currentScore: 159, dailyCapacityMinutes: everyDay(90) },
       mockAnalytics, mockRules, mockStudentName);
+    expect(lrDrillsInDayOrder(at159).filter(isPaired).map((activity) => activity.types))
+      .toEqual([["Sufficient assumption", "Necessary assumption"]]);
     expect(DAY_ORDER.filter((day) => lrDrillsOn(at159, day).some(isPaired))).toEqual(["MONDAY"]);
   });
 
@@ -321,11 +323,40 @@ describe("adaptive weekly schedule v3", () => {
   it("keeps single-type lines of a pair's types off the pair's day in the tutor's example week", () => {
     const schedule = generateWeek({ ...mockStudent, currentScore: 165, dailyCapacityMinutes: everyDay(90) },
       flawWeakest, mockRules, mockStudentName);
-    expect(lrDrillsOn(schedule, "TUESDAY").map(lineText)).toEqual([
-      "10 Flaw or descriptive weakening + Weaken", "5 Sufficient assumption",
+    expect(lrDrillsOn(schedule, "MONDAY").map(lineText)).toEqual(["10 Flaw or descriptive weakening + Weaken"]);
+    const tuesday = lrDrillsOn(schedule, "TUESDAY").map(lineText);
+    expect(tuesday).toContain("10 Sufficient assumption + Necessary assumption");
+    expect(tuesday.filter((line) => /^5 (Sufficient|Necessary) assumption$/.test(line))).toEqual([]);
+  });
+
+  it("makes the second pair hold the highest-ranked type not in the first pair, sharing no type with it", () => {
+    const pairsFor = (analytics: typeof mockAnalytics, rules = mockRules) =>
+      lrDrillsInDayOrder(generateWeek({ ...mockStudent, currentScore: 165, dailyCapacityMinutes: everyDay(90) },
+        analytics, rules, mockStudentName)).filter(isPaired).map((activity) => activity.types);
+    expect(pairsFor(flawWeakest)).toEqual([
+      ["Flaw or descriptive weakening", "Weaken"], ["Sufficient assumption", "Necessary assumption"],
     ]);
-    expect(lrDrillsOn(schedule, "THURSDAY").map(lineText)).toContain("5 Flaw or descriptive weakening");
-    expect(lrDrillsOn(schedule, "THURSDAY").map(lineText)).toContain("5 Weaken");
+    const strengthenNext = { ...flawWeakest,
+      lrAccuracyByType: { ...flawWeakest.lrAccuracyByType, Strengthen: 0.2 } };
+    expect(pairsFor(strengthenNext)).toEqual([
+      ["Flaw or descriptive weakening", "Weaken"], ["Strengthen", "Most strongly supported"],
+    ]);
+    const weakenPairsOnly = { ...mockRules, lrPairedTypes: mockRules.lrPairedTypes.filter((pair) =>
+      pair.includes("Weaken")) };
+    expect(pairsFor(strengthenNext, weakenPairsOnly)).toEqual([["Flaw or descriptive weakening", "Weaken"]]);
+  });
+
+  it("never repeats a type across a week's two pairs", () => {
+    for (const analytics of [mockAnalytics, flawWeakest]) {
+      for (const accommodationMultiplier of [1, 1.5, 2] as const) {
+        for (let capacity = 30; capacity <= 480; capacity += 15) {
+          const pairs = lrDrillsInDayOrder(generateWeek({ ...mockStudent, accommodationMultiplier, currentScore: 165,
+            dailyCapacityMinutes: everyDay(capacity) }, analytics, mockRules, mockStudentName)).filter(isPaired);
+          const types = pairs.flatMap((activity) => activity.types);
+          expect(new Set(types).size, `${accommodationMultiplier}/${capacity}`).toBe(types.length);
+        }
+      }
+    }
   });
 
   it("holds no single-type line of a pair type on a pair's day at any size, and still drills every type", () => {

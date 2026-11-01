@@ -335,18 +335,19 @@ describe("loadOrGenerateCurrentWeek", () => {
     const firstTypes = new Set(skipped.map((checkIn) => {
       const [day, index] = checkIn.activityId.split(":");
       const activity = first.schedule.schedule.days[day as keyof typeof first.schedule.schedule.days].activities[Number(index)];
-      return activity.kind === "LR" && !activity.isFullSection ? activity.types[0] : "";
-    }));
+      return activity.kind === "LR" && !activity.isFullSection ? activity.types : [];
+    }).flat());
 
     const second = await loadOrGenerateCurrentWeek({
       ...input, now: () => new Date("2026-09-21T14:00:00.000Z"),
     });
     if (second.kind !== "schedule") throw new Error("Expected a saved schedule");
-    const nextTypes = Object.values(second.schedule.schedule.days).flatMap((day) => day.activities)
-      .flatMap((activity) => activity.kind === "LR" && !activity.isFullSection ? activity.types : []);
+    const firstPair = Object.values(second.schedule.schedule.days).flatMap((day) => day.activities)
+      .flatMap((activity) => activity.kind === "LR" && !activity.isFullSection && activity.types.length === 2
+        ? [activity.types] : [])[0];
     expect(skipped.length).toBeGreaterThan(0);
-    expect(nextTypes.length).toBeGreaterThan(0);
-    expect(firstTypes.has(nextTypes[0])).toBe(false);
+    expect(firstPair).toBeDefined();
+    expect(firstTypes.has(firstPair?.[0] ?? "")).toBe(false);
   });
 
   it("keeps the prior week's Sunday practice-test review day despite a later preference change", async () => {

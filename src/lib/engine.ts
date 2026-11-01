@@ -88,12 +88,18 @@ function rcPassageOrder(analytics: PlanningAnalytics, rules: RulesConfig): { fir
 
 type LRUnit = Pick<LRDrill, "types" | "questionCount" | "difficultyRange">;
 
-function pairedUnit(order: LRType[], score: number, rules: RulesConfig): LRUnit | undefined {
+function weekPairs(order: LRType[], quota: number, rules: RulesConfig, score: number): LRUnit[] {
+  const pairs: LRUnit[] = [];
   for (const type of order) {
-    const pair = rules.lrPairedTypes.find((candidate) => candidate.includes(type));
-    if (pair) return { types: [type, pair[0] === type ? pair[1] : pair[0]], questionCount: rules.lrUnitSizes.medium,
-      difficultyRange: score >= rules.lrDifficultyCutoffScore ? "L3-5" : "L2-4" };
+    if (pairs.length === quota) break;
+    const taken = pairs.flatMap((pair) => pair.types);
+    if (taken.includes(type)) continue;
+    const pair = rules.lrPairedTypes.find((candidate) => candidate.includes(type)
+      && !candidate.some((member) => taken.includes(member)));
+    if (pair) pairs.push({ types: [type, pair[0] === type ? pair[1] : pair[0]], questionCount: rules.lrUnitSizes.medium,
+      difficultyRange: score >= rules.lrDifficultyCutoffScore ? "L3-5" : "L2-4" });
   }
+  return pairs;
 }
 
 interface DrillStream {
@@ -319,7 +325,7 @@ export function generateWeek(
   const pairedQuota = student.currentScore >= PAIRED_LINES_SCORE_CUTOFF ? 2 : 1;
   const fillWith = (rotate: boolean) => {
     const lrOrder = lrTypeOrder(analytics, rules, history, rotate, missedType);
-    const paired = pairedUnit(lrOrder, student.currentScore, rules);
+    const pairs = weekPairs(lrOrder, pairedQuota, rules, student.currentScore);
     const { first: rcOrder, repeat: rcRepeatOrder } = rcPassageOrder(analytics, rules);
     const stream: DrillStream = { lrOrder, rcOrder, rcRepeatOrder,
       lrSlotsTaken: new Set(), rcIndex: 0, rcComboIndex: 0, lrQuestions: 0, rcPassages: 0 };
@@ -328,7 +334,7 @@ export function generateWeek(
     activeDrillingDays.forEach((day) => {
       const full = day === fullSectionDay ? fullSectionActivity(fullSubject, rules, timeMult) : undefined;
       const result = fillDrillDay(stream, student.dailyCapacityMinutes[day], student.currentScore, rules, timeMult,
-        drillingDays.indexOf(day) % 2 === 1, full, pairsPlaced < pairedQuota ? paired : undefined);
+        drillingDays.indexOf(day) % 2 === 1, full, pairs[pairsPlaced]);
       if (result.placedPair) pairsPlaced++;
       plans[day] = { day, type: "drill", activities: result.activities,
         totalMinutes: result.totalMinutes,
