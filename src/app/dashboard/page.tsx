@@ -4,11 +4,10 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { findStudentByAccountId } from "@/lib/studentRepository";
 import {
-  currentWeekInTimezone, loadOrGenerateCurrentWeek, localDateInTimezone, showsUploadReminder, weekWithoutPlan,
+  currentWeekInTimezone, loadOrGenerateCurrentWeek, localDateInTimezone, showsUploadReminder,
 } from "@/lib/currentWeeklySchedule";
-import { isoDateInWeek } from "@/lib/scheduleReasonText";
-import { formatScheduleWeekOf } from "@/lib/scheduleCheckInSummary";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { weekNotes } from "@/lib/scheduleCheckInSummary";
 import { listApprovedAnalyticsSnapshots } from "@/lib/analyticsSnapshotRepository";
 import { mockRules } from "@/lib/mockData";
 import { postgresCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
@@ -17,6 +16,10 @@ import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import type { Student } from "@/lib/types";
 import ScheduleCheckInView from "@/components/ScheduleCheckInView";
 import { CurrentWeekReport } from "@/components/AdminTestContext";
+
+const previewStartDate = new Intl.DateTimeFormat("en-US", {
+  weekday: "long", month: "short", day: "numeric", timeZone: "UTC",
+});
 
 type DashboardSearchParams = { historyWeek?: string | string[] };
 
@@ -65,37 +68,36 @@ export default async function DashboardPage({
     timezone: SCHEDULE_TIMEZONE,
     now: () => now,
   });
-  const currentSchedule = currentWeek.kind === "schedule" ? currentWeek.schedule : null;
+  if (currentWeek.kind === "analytics_required") redirect("/dashboard/upload");
+  const { schedule } = currentWeek;
+  const preview = currentWeek.kind === "next_week_preview";
   const [checkIns, snapshots] = await Promise.all([
-    currentSchedule ? postgresActivityCheckIns.listForSchedule(currentSchedule.id) : [],
+    preview ? [] : postgresActivityCheckIns.listForSchedule(schedule.id),
     listApprovedAnalyticsSnapshots(doc.id),
   ]);
-  const withoutPlan = currentSchedule ? null : weekWithoutPlan(snapshots, now, SCHEDULE_TIMEZONE);
-  if (withoutPlan === "weekly_upload") redirect("/dashboard/upload");
-
-  const dashboardContent = withoutPlan === "plan_starts_monday" ? (
-    <PageHeader
-      eyebrow={`Week of ${formatScheduleWeekOf(isoDateInWeek(currentWeekInTimezone(now, SCHEDULE_TIMEZONE), 7))}`}
-      title="Your plan starts Monday"
-      lead="Your upload is saved. Your weekly schedule opens on Monday."
-    />
-  ) : currentSchedule && (
-    <ScheduleCheckInView
-      scheduleId={currentSchedule.id}
-      schedule={currentSchedule.schedule}
-      student={currentSchedule.generationInputs.student}
-      checkIns={checkIns}
-      today={localDateInTimezone(now, SCHEDULE_TIMEZONE)}
-      uploadReminder={showsUploadReminder(snapshots, now, SCHEDULE_TIMEZONE)}
-    />
-  );
 
   return (
     <div className="min-h-screen">
       {isAdminUser(session.user) && (
-        <CurrentWeekReport week={currentWeekInTimezone(now, SCHEDULE_TIMEZONE)} hasSchedule={!!currentSchedule} />
+        <CurrentWeekReport week={currentWeekInTimezone(now, SCHEDULE_TIMEZONE)} hasSchedule={!preview} />
       )}
-      {dashboardContent}
+      <ScheduleCheckInView
+        scheduleId={schedule.id}
+        schedule={schedule.schedule}
+        student={schedule.generationInputs.student}
+        checkIns={checkIns}
+        readOnly={preview}
+        header={preview ? (
+          <PageHeader
+            eyebrow={`Next week · starts ${previewStartDate.format(new Date(`${schedule.weekStartDate}T00:00:00.000Z`))}`}
+            title="Your plan for next week"
+            lead="Your upload is saved. Check-ins open on Monday."
+            notes={weekNotes(schedule.schedule)}
+          />
+        ) : undefined}
+        today={localDateInTimezone(now, SCHEDULE_TIMEZONE)}
+        uploadReminder={!preview && showsUploadReminder(snapshots, now, SCHEDULE_TIMEZONE)}
+      />
     </div>
   );
 }

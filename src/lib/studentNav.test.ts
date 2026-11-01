@@ -14,12 +14,17 @@ describe("initialsFor", () => {
   });
 });
 
-const mocks = vi.hoisted(() => ({ findStudent: vi.fn(), execute: vi.fn() }));
+const mocks = vi.hoisted(() => ({ findStudent: vi.fn(), execute: vi.fn(), snapshots: vi.fn() }));
 vi.mock("./studentRepository", () => ({ findStudentByAccountId: mocks.findStudent }));
-vi.mock("./postgres", () => ({ getPostgresDatabase: () => ({ execute: mocks.execute }) }));
+vi.mock("./postgres", () => ({
+  getPostgresDatabase: () => ({ execute: mocks.execute, select: () => ({ from: () => ({ where: mocks.snapshots }) }) }),
+}));
 
 describe("loadStudentNavState", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.snapshots.mockResolvedValue([]);
+  });
   it("reports an existing weekly schedule", async () => {
     mocks.findStudent.mockResolvedValue({ id: "student-1", goalTestDate: "2027-01-01" });
     mocks.execute.mockResolvedValue({ rowCount: 1 });
@@ -29,5 +34,17 @@ describe("loadStudentNavState", () => {
     mocks.findStudent.mockResolvedValue({ id: "student-1", goalTestDate: "2027-01-01" });
     mocks.execute.mockResolvedValue({ rowCount: 0 });
     expect(await loadStudentNavState("user-1")).toMatchObject({ hasCurrentWeek: false, uploadNeeded: true });
+  });
+  it("needs no upload on a weekend once next week's upload is confirmed", async () => {
+    mocks.findStudent.mockResolvedValue({ id: "student-1", goalTestDate: "2027-01-01" });
+    mocks.execute.mockResolvedValue({ rowCount: 0 });
+    mocks.snapshots.mockResolvedValue([{ approvedAt: new Date("2026-10-31T16:00:00Z") }]);
+    expect(await loadStudentNavState("user-1", new Date("2026-11-01T16:00:00Z"))).toMatchObject({ hasCurrentWeek: false, uploadNeeded: false });
+  });
+  it("still needs an upload on a weekend when only last weekend's upload is confirmed", async () => {
+    mocks.findStudent.mockResolvedValue({ id: "student-1", goalTestDate: "2027-01-01" });
+    mocks.execute.mockResolvedValue({ rowCount: 0 });
+    mocks.snapshots.mockResolvedValue([{ approvedAt: new Date("2026-10-18T16:00:00Z") }]);
+    expect(await loadStudentNavState("user-1", new Date("2026-11-01T16:00:00Z"))).toMatchObject({ uploadNeeded: true });
   });
 });
