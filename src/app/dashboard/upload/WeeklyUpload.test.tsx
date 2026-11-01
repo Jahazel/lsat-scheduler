@@ -431,13 +431,15 @@ describe("WeeklyUpload", () => {
     const order: string[] = [];
     let running = 0;
     let mostRunning = 0;
+    let releaseFirstRead!: () => void;
+    const firstReadReleased = new Promise<void>((resolve) => { releaseFirstRead = resolve; });
     const server = stubServer();
     const answer = server.getMockImplementation()!;
     server.mockImplementation(async (url, init) => {
       running += 1;
       mostRunning = Math.max(mostRunning, running);
       order.push(((init.body as FormData).get("image") as File).name);
-      await new Promise((resolve) => setTimeout(resolve, 5));
+      await (order.length === 1 ? firstReadReleased : new Promise((resolve) => setTimeout(resolve, 5)));
       running -= 1;
       return answer(url, init);
     });
@@ -451,6 +453,7 @@ describe("WeeklyUpload", () => {
     expect(screen.getAllByText(/^pt158-s\d\.png · Waiting to read$/)).toHaveLength(4);
     expect(button("Reading 1 of 6…").disabled).toBe(true);
     expect(screen.getByText("Each screenshot takes up to 30 seconds.")).toBeDefined();
+    releaseFirstRead();
     await queueEmpty();
 
     expect(mostRunning).toBe(1);
