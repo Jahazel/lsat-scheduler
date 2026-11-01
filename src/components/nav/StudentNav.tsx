@@ -72,25 +72,24 @@ function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<S
       >
         {initials}
       </button>
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 top-full z-50 mt-1 w-60 rounded-xs border border-vellum-line bg-paper py-1 shadow-e3"
-        >
-          <p className="truncate border-b border-vellum-line px-4 py-2.5 text-caption text-smoke">{email}</p>
-          {countdownLabel && (
-            <p className={cx("border-b border-vellum-line px-4 py-2.5 text-small text-smoke", !compact && "@[900px]:hidden")}>{countdownLabel}</p>
-          )}
-          <Link role="menuitem" href="/account" onClick={() => setOpen(false)} className={item}>
-            Account
-          </Link>
-          <SignOutForm action={logOut}>
-            <button role="menuitem" type="submit" className={item}>
-              Log out
-            </button>
-          </SignOutForm>
-        </div>
-      )}
+      <div
+        role="menu"
+        hidden={!open}
+        className="absolute right-0 top-full z-50 mt-1 w-60 rounded-xs border border-vellum-line bg-paper py-1 shadow-e3"
+      >
+        <p className="truncate border-b border-vellum-line px-4 py-2.5 text-caption text-smoke">{email}</p>
+        {countdownLabel && (
+          <p className={cx("border-b border-vellum-line px-4 py-2.5 text-small text-smoke", !compact && "@[900px]:hidden")}>{countdownLabel}</p>
+        )}
+        <Link role="menuitem" href="/account" onClick={() => setOpen(false)} className={item}>
+          Account
+        </Link>
+        <SignOutForm action={logOut}>
+          <button role="menuitem" type="submit" className={item}>
+            Log out
+          </button>
+        </SignOutForm>
+      </div>
     </div>
   );
 }

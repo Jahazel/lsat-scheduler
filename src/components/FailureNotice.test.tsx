@@ -102,30 +102,58 @@ it("closes when the student leaves the screen", async () => {
   expect(screen.queryByRole("alert")).toBeNull();
 });
 
-function Menu() {
-  const [open, setOpen] = useState(true);
+function Steps() {
+  const [step, setStep] = useState<"check" | "upload">("check");
   return (
     <FailureToastProvider>
-      <button type="button" onClick={() => setOpen(false)}>Close menu</button>
-      {open && (
-        <ActionForm action={async () => failure("3f9a01c2")}>
-          <button type="submit">Log out</button>
-        </ActionForm>
-      )}
+      {step === "check" ? (
+        <>
+          <button type="button" onClick={() => setStep("upload")}>Back</button>
+          <ActionForm action={async () => failure("3f9a01c2")}>
+            <button type="submit">Confirm</button>
+          </ActionForm>
+        </>
+      ) : <p>Upload</p>}
     </FailureToastProvider>
   );
 }
 
-it("stays when the form that failed is removed, such as a menu closing", async () => {
-  render(<Menu />);
-  await press("Log out");
-  const alert = await toast();
+it("closes when the step that showed it goes away without a route change", async () => {
+  render(<Steps />);
+  await press("Confirm");
+  await toast();
 
-  await press("Close menu");
-  expect(screen.getByRole("alert")).toBe(alert);
+  await press("Back");
+  expect(screen.getByText("Upload")).toBeTruthy();
+  expect(screen.queryByRole("alert")).toBeNull();
 });
 
-it("shows inside an open dialog, which makes the rest of the page inert", async () => {
+it("moves the same toast into an open dialog and back, without showing or announcing it again", async () => {
+  render(
+    <FailureToastProvider>
+      <ActionForm action={async () => failure("3f9a01c2")}>
+        <button type="submit">Next Monday</button>
+      </ActionForm>
+      <dialog aria-label="Test controls" />
+    </FailureToastProvider>,
+  );
+  await press("Next Monday");
+  const alert = await toast();
+  const dialog = screen.getByRole("dialog", { hidden: true });
+
+  act(() => dialog.setAttribute("open", ""));
+  await vi.waitFor(() => expect(dialog.contains(alert)).toBe(true));
+  expect(alert.isConnected).toBe(true);
+  expect(alert.getAttribute("role")).toBeNull();
+  expect(alert.textContent).toContain("Error code 3f9a01c2");
+
+  act(() => dialog.removeAttribute("open"));
+  await vi.waitFor(() => expect(dialog.contains(alert)).toBe(false));
+  expect(alert.isConnected).toBe(true);
+  expect(alert.getAttribute("role")).toBeNull();
+});
+
+it("shows a failure from inside an open dialog in that dialog, which makes the rest of the page inert", async () => {
   render(
     <FailureToastProvider>
       <dialog aria-label="Test controls">
@@ -140,7 +168,4 @@ it("shows inside an open dialog, which makes the rest of the page inert", async 
   await press("Next Monday");
 
   expect(dialog.contains(await toast())).toBe(true);
-
-  act(() => dialog.removeAttribute("open"));
-  await vi.waitFor(() => expect(dialog.contains(screen.getByRole("alert"))).toBe(false));
 });
