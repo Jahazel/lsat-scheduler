@@ -3,10 +3,11 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import { useState } from "react";
 import DailyCapacityFieldset from "@/components/DailyCapacityFieldset";
+import { FailureNotice } from "@/components/FailureNotice";
 import { DAY_ORDER } from "@/lib/engine";
 import { TEST_TIME_LABEL, practiceTestHint } from "@/lib/onboardingWizard";
 import { DAY_LABEL, dailyCapacityError, goalScoreError, type StudentProfileInput, type upcomingTestMonths } from "@/lib/studentProfile";
-import { failureText, type UnexpectedFailure } from "@/lib/unexpectedFailure";
+import type { UnexpectedFailure } from "@/lib/unexpectedFailure";
 import type { DayOfWeek } from "@/lib/types";
 
 interface StudentIntakeFormProps {
@@ -23,6 +24,7 @@ export default function StudentIntakeForm({
   onSubmit,
 }: StudentIntakeFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [answer, setAnswer] = useState<UnexpectedFailure | void>();
   const [submitting, setSubmitting] = useState(false);
 
   const savedTestMonthIsOffered = goalTestDateOptions.some((option) => option.value === initialValues.goalTestDate);
@@ -38,10 +40,8 @@ export default function StudentIntakeForm({
       setSubmitting(true);
       try {
         const failure = await onSubmit(value);
-        if (failure) {
-          setSubmitError(failureText(failure));
-          setSubmitting(false);
-        }
+        setAnswer(failure);
+        if (failure) setSubmitting(false);
       } catch {
         setSubmitError("Couldn't save. Try again.");
         setSubmitting(false);
@@ -181,6 +181,7 @@ export default function StudentIntakeForm({
       </form.Field>
 
       {submitError && <p className="text-small text-danger-ink">{submitError}</p>}
+      <FailureNotice answer={answer} />
 
       <button
         type="submit"

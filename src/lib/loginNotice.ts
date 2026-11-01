@@ -1,5 +1,5 @@
 import type { DeletingLoginRefusal } from "./accountDeletion";
-import { failureText, isFailureCode } from "./unexpectedFailure";
+import { isFailureCode, type FailureCode } from "./unexpectedFailure";
 
 export const DISABLED_SIGN_IN_PATH = "/login?error=AccountDisabled";
 export const SESSION_ENDED_PATH = "/login?error=SessionEnded";
@@ -37,6 +37,10 @@ export const PASSWORD_LOGIN_NOTICES = {
 
 type QueryValue = string | string[] | undefined;
 
+export function googleSignInFailure({ error, code }: { error?: QueryValue; code?: QueryValue }): FailureCode | null {
+  return error === "AccessDenied" && isFailureCode(code) ? code : null;
+}
+
 export function loginNotice({ error, notice, code }: { error?: QueryValue; notice?: QueryValue; code?: QueryValue }): LoginNotice | null {
   if (notice === "EmailVerified") return { tone: "success", text: "Email verified. Log in.", place: "aboveEmail" };
   if (notice === "AccountDeleted") return { tone: "info", text: "Your Account is deleted.", place: "aboveGoogle" };
@@ -48,9 +52,7 @@ export function loginNotice({ error, notice, code }: { error?: QueryValue; notic
   if (error === "EmailUsesPassword") {
     return { tone: "danger", text: "This email uses a password. Log in with your password.", place: "aboveEmail" };
   }
-  if (error === "AccessDenied" && isFailureCode(code)) {
-    return { tone: "danger", text: failureText({ unexpectedFailure: code }), place: "aboveGoogle" };
-  }
+  if (googleSignInFailure({ error, code })) return null;
   if (error === "CredentialsSignin") return PASSWORD_LOGIN_NOTICES.wrongEmailOrPassword;
   return { tone: "danger", text: "Google sign-in didn't finish. Try again, or use a Google account with a verified email.", place: "aboveGoogle" };
 }

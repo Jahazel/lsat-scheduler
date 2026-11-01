@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import type { FailureCode, FormState } from "@/lib/unexpectedFailure";
@@ -123,4 +123,24 @@ it("stays when the form that failed is removed, such as a menu closing", async (
 
   await press("Close menu");
   expect(screen.getByRole("alert")).toBe(alert);
+});
+
+it("shows inside an open dialog, which makes the rest of the page inert", async () => {
+  render(
+    <FailureToastProvider>
+      <dialog aria-label="Test controls">
+        <ActionForm action={async () => failure("3f9a01c2")}>
+          <button type="submit">Next Monday</button>
+        </ActionForm>
+      </dialog>
+    </FailureToastProvider>,
+  );
+  const dialog = screen.getByRole("dialog", { hidden: true });
+  act(() => dialog.setAttribute("open", ""));
+  await press("Next Monday");
+
+  expect(dialog.contains(await toast())).toBe(true);
+
+  act(() => dialog.removeAttribute("open"));
+  await vi.waitFor(() => expect(dialog.contains(screen.getByRole("alert"))).toBe(false));
 });
