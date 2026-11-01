@@ -77,11 +77,11 @@ _Avoid_: empty day, missed day
 ### Student app
 
 **This week**:
-The student's current weekly schedule as a checklist of schedule activities, or the weekly upload that creates it when none exists yet. On Saturday and Sunday it reminds the student to plan next week until next week's weekly upload is confirmed.
+The student's current weekly schedule as a checklist of schedule activities, or the weekly upload that creates it when none exists yet. On Saturday and Sunday it reminds the student to plan next week until next week's weekly upload is confirmed. When the current week has no weekly schedule, confirming next week's upload on Saturday or Sunday saves next week's full weekly schedule at once, and This week shows it read-only under "Next week" until Monday.
 _Avoid_: dashboard, current plan
 
 **Weekly upload**:
-The page where a student adds two analytics screenshots, four practice-test section screenshots, and their current score, then confirms what was read. Confirming saves the analytics snapshot, the practice-test result if there is one, and the current score together. An upload confirmed from Saturday onward is "Plan next week" and counts for the next weekly schedule. An upload confirmed Monday to Friday, when the week has no weekly schedule yet, is "Plan this week" and counts for the rest of the current week. When the week before the planned week had no practice test, it asks only for the analytics screenshots.
+The page where a student adds two analytics screenshots, four practice-test section screenshots, and their current score, then confirms what was read. Confirming saves the analytics snapshot, the practice-test result if there is one, and the current score together. An upload confirmed from Saturday onward is "Plan next week" and counts for the next weekly schedule. The weekly upload closes once the week it counts for has a weekly schedule. An upload confirmed Monday to Friday, when the week has no weekly schedule yet, is "Plan this week" and counts for the rest of the current week. When the week before the planned week had no practice test, it asks only for the analytics screenshots.
 _Avoid_: weekly check-in, analytics upload
 
 **Progress**:

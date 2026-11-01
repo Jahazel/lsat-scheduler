@@ -6,8 +6,10 @@ import { setUpAppTestDatabase } from "./appTestDatabase";
 import { createStudent, findStudentByAccountId } from "../../src/lib/studentRepository";
 import { createApprovedAnalyticsSnapshot, listApprovedAnalyticsSnapshots } from "../../src/lib/analyticsSnapshotRepository";
 import { listWeeklySchedulesForStudent } from "../../src/lib/weeklyScheduleRepository";
+import { postgresActivityCheckIns } from "../../src/lib/activityCheckInRepository";
 import { approveWeeklyUpload, listApprovedPracticeTestResults } from "../../src/lib/weeklyUploadRepository";
 import { prepareWeeklyUpload } from "../../src/lib/weeklyUpload";
+import { loadStudentNavState } from "../../src/lib/studentNav";
 import { PT158_FIXTURES } from "../../src/lib/practiceTestFixtures/pt158";
 import { postgresAdminTestRepositories } from "../../src/lib/adminTestRepositories";
 import { resetTestWorkspace } from "../../src/lib/adminTestWorkspace";
@@ -200,7 +202,7 @@ it("a student with no plan on Wednesday plans the rest of this week from last we
 it("opens the weekly upload on a weekday only while the week has no plan and no upload that counts for it", async () => {
   const { studentId } = await studentWithThisWeek();
   vi.setSystemTime(new Date("2026-10-13T16:00:00Z"));
-  await expect(uploadPage()).rejects.toThrow("redirect:/dashboard");
+  await expect(uploadPage()).rejects.toThrow(/^redirect:\/dashboard$/);
 
   vi.setSystemTime(new Date("2026-10-21T16:00:00Z"));
   const markup = await uploadPage();
@@ -210,7 +212,7 @@ it("opens the weekly upload on a weekday only while the week has no plan and no 
   vi.setSystemTime(SATURDAY);
   await expect(confirmWeeklyUpload(upload(SATURDAY))).rejects.toThrow("redirect:/dashboard");
   vi.setSystemTime(NEXT_MONDAY);
-  await expect(uploadPage()).rejects.toThrow("redirect:/dashboard");
+  await expect(uploadPage()).rejects.toThrow(/^redirect:\/dashboard$/);
   expect((await listWeeklySchedulesForStudent(studentId)).map(({ weekStartDate }) => weekStartDate)).toEqual(["2026-10-12"]);
 });
 
@@ -240,7 +242,7 @@ it("saves a practice test reviewed on Sunday and confirmed after midnight, and u
   expect(next?.generationInputs.practiceTestResultId).toBe(practiceTest.id);
 });
 
-it("a student who signs up on Saturday plans next week, sees that the plan starts Monday, and gets it on Monday", async () => {
+it("a student who signs up on Saturday sees next week's saved plan as a read-only preview, and gets that plan on Monday", async () => {
   vi.setSystemTime(SATURDAY);
   const account = await database.createAccountAsOwner({ email: "weekend@example.test", name: "Sam", role: "student" });
   if (!account) throw new Error("Account fixture already exists");
@@ -249,14 +251,25 @@ it("a student who signs up on Saturday plans next week, sees that the plan start
   state.session = { user: { id: account.id, role: "student", email: "weekend@example.test", name: "Sam" }, expires: "2099-01-01" };
 
   await expect(dashboard()).rejects.toThrow("redirect:/dashboard/upload");
+  expect(await loadStudentNavState(account.id, SATURDAY)).toMatchObject({ uploadNeeded: true });
   await expect(confirmWeeklyUpload({ ...upload(SATURDAY), practiceTest: null })).rejects.toThrow("redirect:/dashboard");
   const weekend = await dashboard();
-  expect(weekend).toContain("Your plan starts Monday");
-  expect(await listWeeklySchedulesForStudent(student.id)).toEqual([]);
+  expect(weekend).toContain("Next week · starts Monday, Oct 19");
+  expect(weekend).toContain("Check-ins open on Monday.");
+  expect(weekend).not.toContain('role="checkbox"');
+  const [preview, ...others] = await listWeeklySchedulesForStudent(student.id);
+  if (!preview) throw new Error("Expected next week's preview to be saved");
+  expect(others).toEqual([]);
+  expect(preview.weekStartDate).toBe("2026-10-19");
+  expect(await postgresActivityCheckIns.listForSchedule(preview.id)).toEqual([]);
+  await expect(uploadPage()).rejects.toThrow(/^redirect:\/dashboard$/);
+  expect(await loadStudentNavState(account.id, SATURDAY)).toMatchObject({ hasCurrentWeek: false, uploadNeeded: false });
 
   vi.setSystemTime(NEXT_MONDAY);
-  expect(await dashboard()).toContain("Your plan for this week");
-  expect((await listWeeklySchedulesForStudent(student.id)).map(({ weekStartDate }) => weekStartDate)).toEqual(["2026-10-19"]);
+  const monday = await dashboard();
+  expect(monday).toContain("Your plan for this week");
+  expect(monday).toContain('role="checkbox"');
+  expect(await listWeeklySchedulesForStudent(student.id)).toEqual([preview]);
 });
 
 it("rolls back the snapshot, the score, and the day's save count when the practice-test insert fails", async () => {

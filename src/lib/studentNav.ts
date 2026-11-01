@@ -1,7 +1,8 @@
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getPostgresDatabase } from "@/lib/postgres";
+import { analyticsSnapshots } from "@/lib/postgresSchema";
 import { findStudentByAccountId } from "@/lib/studentRepository";
-import { currentWeekInTimezone } from "@/lib/currentWeeklySchedule";
+import { approvedForWeek, currentWeekInTimezone, uploadWeekOf } from "@/lib/currentWeeklySchedule";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { testCountdown, testCountdownLabel } from "@/lib/testCountdown";
 
@@ -25,18 +26,29 @@ export async function loadStudentNavState(userId: string, now = new Date()): Pro
   if (!student) return null;
 
   const countdown = testCountdown(student.goalTestDate, now, SCHEDULE_TIMEZONE);
-  const currentWeek = await getPostgresDatabase().execute(sql`
-    select 1 from weekly_schedules
-    where student_id = ${student.id}::uuid
-      and week_start_date = ${currentWeekInTimezone(now, SCHEDULE_TIMEZONE)}::date
-    limit 1
-  `);
-  const hasCurrentWeek = currentWeek.rowCount === 1;
+  const database = getPostgresDatabase();
+  const currentWeek = currentWeekInTimezone(now, SCHEDULE_TIMEZONE);
+  const [schedule, snapshots] = await Promise.all([
+    database.execute(sql`
+      select 1 from weekly_schedules
+      where student_id = ${student.id}::uuid
+        and week_start_date = ${currentWeek}::date
+      limit 1
+    `),
+    database.select({ approvedAt: analyticsSnapshots.approvedAt }).from(analyticsSnapshots)
+      .where(eq(analyticsSnapshots.studentId, student.id)),
+  ]);
+  const hasCurrentWeek = schedule.rowCount === 1;
+  // This week builds the weekly schedule while it renders, at the same time as this header.
+  // So a confirmed upload turns the dot off before the weekly schedule is saved.
+  const approvals = snapshots.map(({ approvedAt }) => ({ approvedAt: approvedAt.toISOString() }));
+  const uploadConfirmed = [currentWeek, uploadWeekOf(now, SCHEDULE_TIMEZONE)]
+    .some((week) => approvedForWeek(approvals, week, SCHEDULE_TIMEZONE).length > 0);
 
   return {
     countdownLabel: testCountdownLabel(countdown),
     isTestDay: countdown?.kind === "today",
     hasCurrentWeek,
-    uploadNeeded: !hasCurrentWeek,
+    uploadNeeded: !hasCurrentWeek && !uploadConfirmed,
   };
 }
