@@ -28,13 +28,14 @@ jobs:
 
       - name: Add ready-for-human when the issue has no ready label
         run: |
-          read -r state subissues ready < <(gh api "repos/$GH_REPO/issues/$ISSUE" --jq '[
+          read -r state is_pr subissues has_ready_label < <(gh api "repos/$GH_REPO/issues/$ISSUE" --jq '[
             .state,
-            .sub_issues_summary.total,
+            (.pull_request != null),
+            (.sub_issues_summary.total // 0),
             ([.labels[].name] | any(. == "ready-for-agent" or . == "ready-for-human"))
           ] | @tsv')
-          echo "Issue #$ISSUE: state=$state sub-issues=$subissues ready-label=$ready"
-          if [ "$state" != "open" ] || [ "$subissues" != "0" ] || [ "$ready" = "true" ]; then
+          echo "Issue #$ISSUE: state=$state pull-request=$is_pr sub-issues=$subissues ready-label=$has_ready_label"
+          if [ "$state" != "open" ] || [ "$is_pr" = "true" ] || [ "$subissues" != "0" ] || [ "$has_ready_label" = "true" ]; then
             echo "No change needed."
             exit 0
           fi

@@ -19,7 +19,7 @@ Give every open issue exactly one of `ready-for-agent` or `ready-for-human`, unl
 
 | Issue | Ready label |
 | --- | --- |
-| Has sub-issues (a parent issue). It closes when its sub-issues close. | none |
+| Has sub-issues (a parent issue). It closes when its sub-issues close. When you add the first sub-issue, remove its ready label. | none |
 | Has an open question for the owner, or needs a step only a person can do | `ready-for-human` |
 | A spec that tickets split into work | `ready-for-human` |
 | Has the `design` label | `ready-for-human` |
@@ -29,7 +29,7 @@ Give every open issue exactly one of `ready-for-agent` or `ready-for-human`, unl
 Find open issues with no ready label, parent issues left out:
 
 ```sh
-gh api --paginate 'repos/{owner}/{repo}/issues?state=open&per_page=100' --jq '.[] | select(.pull_request | not) | select(.sub_issues_summary.total == 0) | select([.labels[].name] | (index("ready-for-agent") or index("ready-for-human")) | not) | .number'
+gh api --paginate 'repos/{owner}/{repo}/issues?state=open&per_page=100' --jq '.[] | select(.pull_request | not) | select((.sub_issues_summary.total // 0) == 0) | select([.labels[].name] | (index("ready-for-agent") or index("ready-for-human")) | not) | .number'
 ```
 
 The ready label check (`.github/workflows/ready-label-check.yml`) catches a missed label. Ten minutes after an issue opens, it adds `ready-for-human` and a comment to an open issue that has no ready label and no sub-issues. Its label does not start the factory. The owner changes it to `ready-for-agent` when an agent can do the work.
