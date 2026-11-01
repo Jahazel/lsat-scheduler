@@ -145,6 +145,7 @@ it("moves the same toast into an open dialog and back, without showing or announ
   await vi.waitFor(() => expect(dialog.contains(alert)).toBe(true));
   expect(alert.isConnected).toBe(true);
   expect(alert.getAttribute("role")).toBeNull();
+  expect(alert.dataset.entered).toBe("true");
   expect(alert.textContent).toContain("Error code 3f9a01c2");
 
   act(() => dialog.removeAttribute("open"));
