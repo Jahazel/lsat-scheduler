@@ -96,6 +96,7 @@ export type WizardAction =
   | ReviewAction
   | { type: "saveStarted" }
   | { type: "saveFailed" }
+  | { type: "saveEnded" }
   | { type: "saveRefused"; message: string };
 
 const DEFAULT_DAILY_MINUTES = 90;
@@ -443,7 +444,7 @@ function updateDraft(state: WizardState, update: (draft: ReviewDraft) => ReviewD
 }
 
 export function wizardReducer(state: WizardState, action: WizardAction): WizardState {
-  if (state.save === "saving" && !["saveFailed", "saveRefused", "readStarted", "readEnded"].includes(action.type)) return state;
+  if (state.save === "saving" && !["saveFailed", "saveEnded", "saveRefused", "readStarted", "readEnded"].includes(action.type)) return state;
   switch (action.type) {
     case "edit":
       return { ...state, values: { ...state.values, ...action.values } };
@@ -494,6 +495,8 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       return profileWithAttempts(state) ? { ...state, save: "saving" } : state;
     case "saveFailed":
       return { ...state, save: "failed" };
+    case "saveEnded":
+      return { ...state, save: "idle" };
     case "saveRefused":
       return { ...state, save: { refused: action.message } };
     default: {

@@ -5,10 +5,12 @@ import {
   useId,
   useReducer,
   useRef,
+  useState,
   type FormEvent,
   type ReactNode,
 } from "react";
 import { DurationSelect } from "@/components/DailyCapacityFieldset";
+import { FailureNotice } from "@/components/FailureNotice";
 import { ScanningOffNote } from "@/components/ScanningOffNote";
 import { IconButton } from "@/components/ui/Button";
 import { DropZone } from "@/components/ui/DropZone";
@@ -49,7 +51,7 @@ import { SIGN_IN_EXPIRED, SignInAgainLink } from "@/components/SignInExpired";
 import { nextRead } from "@/lib/screenshotReadQueue";
 import { SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, SCREENSHOT_NOTICE, checkScreenshotType, extractScreenshot } from "@/lib/screenshotUpload";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "@/lib/types";
-import { failureText, isUnexpectedFailure } from "@/lib/unexpectedFailure";
+import { isUnexpectedFailure } from "@/lib/unexpectedFailure";
 import { DAY_LABEL, MAX_OFFICIAL_ATTEMPTS, attemptMonths, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { createStudentProfile } from "./actions";
 import LivePreview from "./LivePreview";
@@ -87,6 +89,7 @@ export default function OnboardingWizard({
     : initialWizardState());
   const draft = activeDraft(state);
   const { screenshots } = state;
+  const [saveAnswer, setSaveAnswer] = useState<Awaited<ReturnType<typeof onSave>>>();
 
   useEffect(() => {
     const next = nextRead(screenshots, SECTIONS);
@@ -103,9 +106,10 @@ export default function OnboardingWizard({
   async function save(input: Parameters<typeof onSave>[0]) {
     dispatch({ type: "saveStarted" });
     try {
-      const refusal = await onSave(input);
-      if (isUnexpectedFailure(refusal)) dispatch({ type: "saveRefused", message: failureText(refusal) });
-      else if (refusal) dispatch({ type: "saveRefused", message: refusal.error });
+      const answer = await onSave(input);
+      setSaveAnswer(answer);
+      if (isUnexpectedFailure(answer)) dispatch({ type: "saveEnded" });
+      else if (answer) dispatch({ type: "saveRefused", message: answer.error });
     } catch {
       dispatch({ type: "saveFailed" });
     }
@@ -140,8 +144,20 @@ export default function OnboardingWizard({
         </div>
       </div>
       <LivePreview state={state} firstName={firstName} initials={initials} today={today} />
+      <FailureNotice answer={saveAnswer} />
+      {SECTIONS.map((section) => <LastFinishedReadNotice key={section} read={screenshot(state, section)?.read} />)}
     </div>
   );
+}
+
+const finishedReadAnswer = (read: Screenshot["read"] | undefined) =>
+  read?.status === "failed" ? read.failure : read?.status === "read" ? read : null;
+
+function LastFinishedReadNotice({ read }: { read: Screenshot["read"] | undefined }) {
+  const [lastFinished, setLastFinished] = useState(finishedReadAnswer(read));
+  const finished = finishedReadAnswer(read) ?? lastFinished;
+  if (finished !== lastFinished) setLastFinished(finished);
+  return <FailureNotice answer={finished} />;
 }
 
 function StepHeading({ state, title, lede }: { state: WizardState; title: string; lede: ReactNode }) {
@@ -665,11 +681,12 @@ function WhereToFindIt() {
   );
 }
 
-const FILE_STATUS: Record<Exclude<Screenshot["read"]["status"], "read" | "rejected" | "failed">, { text: string; problem: boolean }> = {
+const FILE_STATUS: Record<Exclude<Screenshot["read"]["status"], "read" | "rejected">, { text: string; problem: boolean }> = {
   added: { text: "Waiting to read", problem: false },
   waiting: { text: "Waiting to read", problem: false },
   reading: { text: "Reading now", problem: false },
   refused: { text: "not read", problem: false },
+  failed: { text: "not read", problem: true },
   "timed-out": { text: "Reading took too long and stopped.", problem: true },
   "connection-lost": { text: "Connection lost. Your file is still here.", problem: false },
   "cannot-read": { text: "We couldn't read the rows in it.", problem: true },
@@ -701,10 +718,9 @@ function ScreenshotFileRow({
   useEffect(() => {
     if (document.activeElement === document.body) row.current?.focus();
   }, [status]);
-  const problem = read.status === "rejected" || read.status === "failed" || (read.status !== "read" && FILE_STATUS[read.status].problem);
+  const problem = read.status === "rejected" || (read.status !== "read" && FILE_STATUS[read.status].problem);
   const statusText = read.status === "read" ? readSummary(section, read.value.rows.length)
     : read.status === "rejected" ? read.message
-    : read.status === "failed" ? failureText(read.failure)
     : FILE_STATUS[read.status].text;
 
   return (
