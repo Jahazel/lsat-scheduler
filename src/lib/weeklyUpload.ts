@@ -4,7 +4,7 @@ import {
   checkApprovalTimes, prepareApprovedSnapshot, SnapshotApprovalError, snapshotWeekOptions, summarizeApprovedRows,
 } from "./analyticsSnapshots";
 import {
-  approvedForWeek, currentDayInTimezone, currentWeekInTimezone, newestApprovedSnapshots, uploadWeekOf, weeklyUploadIsOpen,
+  approvedForWeek, currentDayInTimezone, currentWeekInTimezone, newestApprovedSnapshots, uploadWeekOf,
 } from "./currentWeeklySchedule";
 import { DAY_ORDER } from "./engine";
 import { reviewPracticeTest, type SectionReview } from "./practiceTestResult";
@@ -27,8 +27,8 @@ function weekHadPracticeTest(schedules: PersistedWeeklySchedule[], weekStartDate
 
 function uploadNeeds(now: Date, schedules: PersistedWeeklySchedule[]) {
   const currentWeek = currentWeekInTimezone(now, SCHEDULE_TIMEZONE);
-  if (!weeklyUploadIsOpen(now, SCHEDULE_TIMEZONE, schedules.some((record) => record.weekStartDate === currentWeek))) return null;
   const weekOf = uploadWeekOf(now, SCHEDULE_TIMEZONE);
+  if (scheduleForWeek(schedules, weekOf)) return null;
   const lastWeek = isoDateInWeek(weekOf, -7);
   const plansThisWeek = weekOf === currentWeek;
   return {

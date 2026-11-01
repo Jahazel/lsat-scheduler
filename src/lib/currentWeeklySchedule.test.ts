@@ -4,7 +4,6 @@ import {
   currentWeekInTimezone,
   loadOrGenerateCurrentWeek,
   showsUploadReminder,
-  weeklyUploadIsOpen,
 } from "./currentWeeklySchedule";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "./mockData";
 import { DAY_ORDER, generateWeek } from "./engine";
@@ -654,17 +653,5 @@ describe("showsUploadReminder", () => {
     const sunday = new Date("2026-09-20T15:00:00.000Z");
     expect(showsUploadReminder([approvedSnapshot("thursday", "2026-09-17T15:00:00.000Z")], sunday, timezone)).toBe(true);
     expect(showsUploadReminder([approvedSnapshot("saturday", "2026-09-19T17:00:00.000Z")], sunday, timezone)).toBe(false);
-  });
-});
-
-describe("weeklyUploadIsOpen", () => {
-  const timezone = "America/Chicago";
-  const wednesday = new Date("2026-09-16T15:00:00.000Z");
-  const saturday = new Date("2026-09-19T17:00:00.000Z");
-
-  it("stays open all weekend, and from Monday to Friday only until the week has a weekly schedule", () => {
-    expect(weeklyUploadIsOpen(saturday, timezone, true)).toBe(true);
-    expect(weeklyUploadIsOpen(wednesday, timezone, false)).toBe(true);
-    expect(weeklyUploadIsOpen(wednesday, timezone, true)).toBe(false);
   });
 });

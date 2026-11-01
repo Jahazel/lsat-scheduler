@@ -201,7 +201,7 @@ it("a student with no plan on Wednesday plans the rest of this week from last we
 it("opens the weekly upload on a weekday only while the week has no plan and no upload that counts for it", async () => {
   const { studentId } = await studentWithThisWeek();
   vi.setSystemTime(new Date("2026-10-13T16:00:00Z"));
-  await expect(uploadPage()).rejects.toThrow("redirect:/dashboard");
+  await expect(uploadPage()).rejects.toThrow(/^redirect:\/dashboard$/);
 
   vi.setSystemTime(new Date("2026-10-21T16:00:00Z"));
   const markup = await uploadPage();
@@ -211,7 +211,7 @@ it("opens the weekly upload on a weekday only while the week has no plan and no 
   vi.setSystemTime(SATURDAY);
   await expect(confirmWeeklyUpload(upload(SATURDAY))).rejects.toThrow("redirect:/dashboard");
   vi.setSystemTime(NEXT_MONDAY);
-  await expect(uploadPage()).rejects.toThrow("redirect:/dashboard");
+  await expect(uploadPage()).rejects.toThrow(/^redirect:\/dashboard$/);
   expect((await listWeeklySchedulesForStudent(studentId)).map(({ weekStartDate }) => weekStartDate)).toEqual(["2026-10-12"]);
 });
 
@@ -260,6 +260,7 @@ it("a student who signs up on Saturday sees next week's saved plan as a read-onl
   expect(others).toEqual([]);
   expect(preview.weekStartDate).toBe("2026-10-19");
   expect(await postgresActivityCheckIns.listForSchedule(preview.id)).toEqual([]);
+  await expect(uploadPage()).rejects.toThrow(/^redirect:\/dashboard$/);
 
   vi.setSystemTime(NEXT_MONDAY);
   const monday = await dashboard();

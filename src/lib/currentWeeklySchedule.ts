@@ -113,10 +113,6 @@ export function showsUploadReminder(snapshots: ApprovedAnalyticsSnapshot[], now:
   return isUploadWeekend(now, timezone) && !nextWeekHasUpload(snapshots, now, timezone);
 }
 
-export function weeklyUploadIsOpen(now: Date, timezone: string, currentWeekHasSchedule: boolean) {
-  return isUploadWeekend(now, timezone) || !currentWeekHasSchedule;
-}
-
 export function currentDayInTimezone(now: Date, timezone: string): DayOfWeek {
   const { year, month, day } = localDateParts(now, timezone);
   const dayOfWeek = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
