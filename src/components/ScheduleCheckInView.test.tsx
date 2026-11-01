@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { generateWeek } from "@/lib/engine";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "@/lib/mockData";
@@ -64,7 +64,7 @@ describe("ScheduleCheckInView", () => {
 
     await userEvent.click(failed!);
     expect(await screen.findByText("2 of 18 done")).toBeTruthy();
-    expect(screen.queryByRole("alert")).toBeNull();
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   });
 
   it("shows the last saved state when two quick presses both fail", async () => {
