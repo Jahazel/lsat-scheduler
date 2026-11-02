@@ -8,7 +8,8 @@ A student enters their study profile during onboarding. They can later change St
 - `capacity` edits every day's minutes or applies one value to all days.
 - `preferences` saves the goal score, Test time, goal test month, and preferred practice-test day. Study settings shows the current score as text; only the weekly upload changes it.
 - `save-bar` shows the save bar after an edit, hides it when every edit is undone, and reads `Saving…`, then `Saved.` for 6 s, without leaving the page.
-- `field-errors` refuses a goal not above the current score and a day outside 30 min to 8 h, and moves focus to the first invalid field.
+- `attempts` adds, edits, and removes Official LSAT attempts on Study settings, up to ten.
+- `field-errors` refuses a goal not above the current score, a day outside 30 min to 8 h, and an attempt with no score or no month, and moves focus to the first invalid field.
 - `settings-persist` reopens saved values while preserving an existing weekly schedule.
 
 ## How to get to it (user POV)
@@ -37,11 +38,12 @@ Preconditions:
 - Click `Save changes`. The button reads `Saving…` and is disabled, then the bar reads `Saved. Changes apply to your next weekly schedule.` and leaves after 6 s. The URL stays `/settings`. Reopen `/settings` and require goal score 168 and all seven capacities 30. Capture screenshots and database records with these values; `students.current_score` stays as it was.
 - Save with goal `140` (current 150): no request is sent, `Your goal must be higher than your current score, 150.` shows under the goal score, and focus moves to it. A day under 30 min or over 8 h shows `Enter at least 30 min.` or `Enter 8 h or less.` under that day; the hour and minute selects cannot reach those values, so only stored data or a sent request can.
 - A save failure keeps every edit and shows the app's failure toast 24 px above the bar at every width. To force a real one, load the page, raise `students.current_score` above the typed goal with the owner connection, and press Save: the server refuses the goal and answers with an error code. Label the evidence as a forced failure.
+- Official LSAT attempts sit in the Goal section under the four fields: `Official LSAT attempts` with `For your record. It does not change your plan.` With none, it shows `No official attempts yet` and `role=button[name="Add attempt"]`. Each row is `role=textbox[name="Attempt N score"]`, `role=combobox[name="Attempt N month and year"]` (the current month and the 59 before it), and `role=button[name="Remove attempt N"]`, in one bordered list. Onboarding's attempts show here. `Add attempt` adds an empty row, which fades in and drops 6 px in 200 ms (fade only, 120 ms, with reduced motion), and focus moves to its score. `Remove attempt N` fades the row out in 120 ms, then the list closes the gap and focus moves to the next row's remove button, or to `Add attempt`. At ten rows `Add attempt` is replaced by `You can record up to 10 attempts.` Save with a row missing its score shows `Enter the score from this attempt.`; missing its month, `Pick the month of this attempt.`; a score outside 120 to 180, `LSAT scores go from 120 to 180. Check this attempt's score.` Focus moves to the first. A save writes the whole list to `students.official_attempts`; the server refuses more than ten or a month outside the offered range.
 - With an existing weekly schedule, capture its document before editing. Open Study settings from the navigation. Save a different capacity and reopen This week. Require the entire saved weekly schedule document to remain equal, including its saved capacities and schedule reasons. A later unsaved week uses the updated settings.
 
 ## Gotchas
 
-- Study settings does not show or edit Official LSAT attempts yet, and a save keeps the stored ones. Only onboarding records them.
+- An attempt row's month list moves with the student-side date. A stored month older than the 60 offered ones loads as `Month and year`, and Save then asks for a month.
 - `Apply` copies the separate All days control to all seven days. Changing All days without Apply changes no daily capacity.
 - Every day requires 30 to 480 minutes in 15-minute steps. Selecting zero hours clamps the minutes to a valid value.
 - Goal test date options are the LSAT test months after the student-side date, so an Admin's Simulated date shortens the list. A saved month that is no longer offered shows `Select a test date`, and Save then shows `Choose an upcoming LSAT test month.` Inspect the options before choosing.

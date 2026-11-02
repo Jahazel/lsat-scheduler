@@ -224,8 +224,19 @@ body:has(.save-bar[data-shown]) .failure-toast-slot { transform: translateY(-88p
   body:has(.save-bar[data-shown]) .failure-toast-slot { transform: translateY(-80px); }
 }
 
+.attempt-row { transition: opacity 200ms cubic-bezier(0.2, 0, 0, 1), transform 200ms cubic-bezier(0.2, 0, 0, 1); }
+@starting-style {
+  .attempt-row[data-added] { opacity: 0; transform: translateY(-6px); }
+}
+.attempt-row[data-leaving] {
+  opacity: 0;
+  transition-duration: 120ms;
+  transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .save-bar,
   .save-bar[data-shown] { transform: none; transition-duration: 120ms; }
   .failure-toast-slot { transition: none; }
+  .attempt-row { transition-property: opacity; transition-duration: 120ms; }
 }

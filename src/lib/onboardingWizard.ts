@@ -180,7 +180,7 @@ export function scoreMessages(state: WizardState): Record<ScoreBox, string | nul
 
 type AttemptProblem = "empty-score" | "out-of-range" | "no-month";
 
-function attemptProblem(row: AttemptRow): AttemptProblem | null {
+function attemptProblem(row: Pick<AttemptRow, "score" | "month">): AttemptProblem | null {
   if (row.score.trim() === "") return "empty-score";
   if (!inScoreRange(parseScore(row.score))) return "out-of-range";
   return row.month === "" ? "no-month" : null;
@@ -191,6 +191,11 @@ const ATTEMPT_MESSAGE: Record<AttemptProblem, { box: "score" | "month"; text: st
   "out-of-range": { box: "score", text: "LSAT scores go from 120 to 180. Check this attempt's score." },
   "no-month": { box: "month", text: "Pick the month of this attempt." },
 };
+
+export function attemptFieldMessage(row: Pick<AttemptRow, "score" | "month">) {
+  const problem = attemptProblem(row);
+  return problem ? ATTEMPT_MESSAGE[problem] : null;
+}
 
 export function attemptMessage(row: AttemptRow) {
   const problem = attemptProblem(row);

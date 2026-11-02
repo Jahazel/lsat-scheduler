@@ -100,10 +100,13 @@ export function parseStudentProfile(input: unknown, today: string) {
 // the platform, which the schema fills in.
 export type StudentProfileInput = Omit<z.input<typeof studentProfileSchema>, "platform">;
 
-export type StudySettingsInput = Omit<StudentProfileInput, "currentScore">;
+export type StudySettingsInput = Omit<StudentProfileInput, "currentScore"> & { officialAttempts: OfficialAttempt[] };
 
-export function parseStudySettings(input: StudySettingsInput, storedCurrentScore: number, today: string) {
-  return parseStudentProfile({ ...input, currentScore: storedCurrentScore }, today);
+export function parseStudySettings({ officialAttempts, ...input }: StudySettingsInput, storedCurrentScore: number, today: string) {
+  return {
+    settings: parseStudentProfile({ ...input, currentScore: storedCurrentScore }, today),
+    officialAttempts: parseOfficialAttempts(officialAttempts, today),
+  };
 }
 
 export const MAX_OFFICIAL_ATTEMPTS = 10;
