@@ -238,13 +238,13 @@ export function weeklyTotalMinutes(values: WeekValues): number {
   return DAY_ORDER.reduce((sum, day) => sum + values.dailyCapacityMinutes[day], 0);
 }
 
-export function practiceTestHint(accommodation: Accommodation): string {
-  const length = formatDuration(practiceTestMinutes(accommodation));
-  return `A full practice test takes ${length} with ${testTimeName(accommodation)}. Pick a day with that much time.`;
-}
-
 export function practiceTestFact(accommodation: Accommodation): string {
   return `A full practice test takes ${shortDuration(practiceTestMinutes(accommodation))} with ${testTimeName(accommodation)}.`;
+}
+
+export function practiceTestDayIsShort(values: WeekValues, accommodation: Accommodation): boolean {
+  const day = values.preferredPracticeTestDay;
+  return day !== null && values.dailyCapacityMinutes[day] < practiceTestMinutes(accommodation);
 }
 
 const utcDay = (isoDate: string) => new Date(`${isoDate}T00:00:00.000Z`);

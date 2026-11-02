@@ -5,7 +5,7 @@ import {
   confirmSnapshotInput,
   initialWizardState,
   practiceTestFact,
-  practiceTestHint,
+  practiceTestDayIsShort,
   practiceTestMinutes,
   profileWithAttempts,
   previewHeader,
@@ -23,6 +23,7 @@ import { PASSAGE_TYPES } from "./analyticsReview";
 import { generateWeek } from "./engine";
 import { accuracyMessage, addTypeOptions, boxText, emptyListNote } from "./reviewDraft";
 import { mockRules } from "./mockData";
+import { everyDay } from "./studentProfile";
 import type { AnalyticsExtractedRow } from "./types";
 
 function draftOf(state: WizardState) {
@@ -119,12 +120,14 @@ describe("onboarding wizard", () => {
 
   it("sizes the practice test by Test time, as the weekly schedule does", () => {
     expect([practiceTestMinutes(1), practiceTestMinutes(1.5), practiceTestMinutes(2)]).toEqual([150, 188, 225]);
-    expect(practiceTestHint(1)).toBe(
-      "A full practice test takes 2 h 30 min with standard time. Pick a day with that much time.",
-    );
-    expect(practiceTestHint(2)).toBe(
-      "A full practice test takes 3 h 45 min with 2× time. Pick a day with that much time.",
-    );
+  });
+
+  it("calls a practice-test day short when it has less time than the practice test", () => {
+    const week = { dailyCapacityMinutes: { ...everyDay(150), SUNDAY: 30 }, preferredPracticeTestDay: "SATURDAY" as const };
+    expect(practiceTestDayIsShort(week, 1)).toBe(false);
+    expect(practiceTestDayIsShort(week, 1.5)).toBe(true);
+    expect(practiceTestDayIsShort({ ...week, preferredPracticeTestDay: "SUNDAY" }, 1)).toBe(true);
+    expect(practiceTestDayIsShort({ ...week, preferredPracticeTestDay: null }, 2)).toBe(false);
   });
 
   it("states the practice-test length as a fact and lets a short practice-test day continue", () => {

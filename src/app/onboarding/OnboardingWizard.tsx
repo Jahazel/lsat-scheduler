@@ -226,7 +226,7 @@ function GoalStep({
           {goalMessage && <FieldMessage id="goal-score-message">{goalMessage}</FieldMessage>}
         </div>
 
-        <GoalTestDateSelect value={state.values.goalTestDate} options={goalTestDateOptions} onChange={(goalTestDate) => edit({ goalTestDate })} />
+        <GoalTestDateSelect label="Goal test date" value={state.values.goalTestDate} options={goalTestDateOptions} onChange={(goalTestDate) => edit({ goalTestDate })} />
 
         <TestTimeChoice value={state.values.accommodationMultiplier} onChange={(accommodationMultiplier) => edit({ accommodationMultiplier })} />
 

@@ -100,6 +100,12 @@ export function parseStudentProfile(input: unknown, today: string) {
 // the platform, which the schema fills in.
 export type StudentProfileInput = Omit<z.input<typeof studentProfileSchema>, "platform">;
 
+export type StudySettingsInput = Omit<StudentProfileInput, "currentScore">;
+
+export function parseStudySettings(input: StudySettingsInput, storedCurrentScore: number, today: string) {
+  return parseStudentProfile({ ...input, currentScore: storedCurrentScore }, today);
+}
+
 export const MAX_OFFICIAL_ATTEMPTS = 10;
 const ATTEMPT_MONTH_COUNT = 60;
 

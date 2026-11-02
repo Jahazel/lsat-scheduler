@@ -172,16 +172,18 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   log("Open Study settings through navigation");
   await page.getByRole("link", { name: "Study settings", exact: true }).click();
   await heading("Study settings");
-  await page.getByRole("spinbutton", { name: "Goal score", exact: true }).fill("168");
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("textbox", { name: "Goal score", exact: true }).fill("168");
   await page.getByRole("combobox", { name: "All days hours", exact: true }).selectOption("0");
   await page.getByRole("button", { name: "Apply", exact: true }).click();
   log("Set goal score 168, apply 30 minutes to all days, and save");
   await capture("settings-before-save");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
-  await heading(WEEKLY_UPLOAD);
+  await page.locator('[role="status"] > :not([aria-hidden])').filter({ hasText: "Saved. Changes apply to your next weekly schedule." }).waitFor();
+  assert.equal(new URL(page.url()).pathname, "/settings");
   await goto("/settings");
   await heading("Study settings");
-  assert.equal(await page.getByRole("spinbutton", { name: "Goal score", exact: true }).inputValue(), "168");
+  assert.equal(await page.getByRole("textbox", { name: "Goal score", exact: true }).inputValue(), "168");
   for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
     assert.equal(await page.getByRole("combobox", { name: `${day} hours`, exact: true }).inputValue(), "0");
     assert.equal(await page.getByRole("combobox", { name: `${day} minutes`, exact: true }).inputValue(), "30");

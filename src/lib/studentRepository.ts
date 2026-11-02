@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, lt, ne } from "drizzle-orm";
 import { z } from "zod";
 import { approvedSnapshotColumns, countSnapshotSave } from "./analyticsSnapshotRepository";
 import type { prepareApprovedSnapshot } from "./analyticsSnapshots";
@@ -11,9 +11,12 @@ import type { Student, StudentRecord } from "./types";
 export type PersistedStudent = Student & { id: string };
 
 function studentColumns(student: Student) {
+  return { ...settingsColumns(student), currentScore: student.currentScore };
+}
+
+function settingsColumns(student: Omit<Student, "currentScore">) {
   return {
     platform: "7Sage" as const,
-    currentScore: student.currentScore,
     goalScore: student.goalScore,
     goalTestDate: student.goalTestDate,
     preferredPracticeTestDay: student.preferredPracticeTestDay,
@@ -107,12 +110,12 @@ export async function createStudent(
   });
 }
 
-export async function updateStudentByAccountId(accountId: string | undefined, student: Student) {
+export async function updateStudySettings(accountId: string | undefined, settings: Omit<Student, "currentScore">) {
   if (!isAccountId(accountId)) return false;
   const updated = await getPostgresDatabase()
     .update(students)
-    .set(studentColumns(student))
-    .where(eq(students.accountId, accountId))
+    .set(settingsColumns(settings))
+    .where(and(eq(students.accountId, accountId), lt(students.currentScore, settings.goalScore)))
     .returning({ id: students.id });
   return updated.length === 1;
 }
