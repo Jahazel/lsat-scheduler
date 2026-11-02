@@ -48,6 +48,7 @@ export default async function SiteHeader() {
       weekStartDate: currentWeekInTimezone(now, SCHEDULE_TIMEZONE),
       simulated: !!currentUser.simulatedDate, onboarded: !!state,
       weekHasSchedule: state?.hasCurrentWeek ?? false,
+      uploadWeekHasSchedule: state?.hasUploadWeek ?? false,
       uploadWeekend: isUploadWeekend(now, SCHEDULE_TIMEZONE),
     } : undefined;
     return (

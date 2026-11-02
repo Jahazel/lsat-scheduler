@@ -263,7 +263,7 @@ it("a student who signs up on Saturday sees next week's saved plan as a read-onl
   expect(preview.weekStartDate).toBe("2026-10-19");
   expect(await postgresActivityCheckIns.listForSchedule(preview.id)).toEqual([]);
   await expect(uploadPage()).rejects.toThrow(/^redirect:\/dashboard$/);
-  expect(await loadStudentNavState(account.id, SATURDAY)).toMatchObject({ hasCurrentWeek: false, uploadNeeded: false });
+  expect(await loadStudentNavState(account.id, SATURDAY)).toMatchObject({ hasCurrentWeek: false, hasUploadWeek: true, uploadNeeded: false });
 
   vi.setSystemTime(NEXT_MONDAY);
   const monday = await dashboard();

@@ -1,4 +1,5 @@
-import { approvedForWeek, currentWeekInTimezone } from "./currentWeeklySchedule";
+import { approvedForWeek, currentWeekInTimezone, isUploadWeekend } from "./currentWeeklySchedule";
+import { isoDateInWeek } from "./scheduleReasonText";
 import type { ActivityCheckIn, ApprovedAnalyticsSnapshot, PersistedWeeklySchedule } from "./types";
 
 interface ReadOnlyCurrentWeekRepositories {
@@ -21,6 +22,7 @@ interface LoadReadOnlyCurrentWeekInput extends ReadOnlyCurrentWeekRepositories {
 
 export type ReadOnlyCurrentWeekResult =
   | { kind: "schedule"; schedule: PersistedWeeklySchedule; checkIns: ActivityCheckIn[] }
+  | { kind: "next_week_preview"; weekStartDate: string }
   | { kind: "analytics_required" }
   | { kind: "schedule_not_created" };
 
@@ -37,6 +39,13 @@ export async function loadReadOnlyCurrentWeek(input: LoadReadOnlyCurrentWeekInpu
     };
   }
 
+  if (isUploadWeekend(input.now(), input.timezone)) {
+    const nextWeekStartDate = isoDateInWeek(weekStartDate, 7);
+    if (await input.weeklySchedules.findByStudentAndWeek(input.studentId, nextWeekStartDate)) {
+      return { kind: "next_week_preview", weekStartDate: nextWeekStartDate };
+    }
+  }
+
   const snapshots = approvedForWeek(
     await input.snapshots.listEligibleForStudent(input.studentId),
     weekStartDate,
@@ -45,8 +54,17 @@ export async function loadReadOnlyCurrentWeek(input: LoadReadOnlyCurrentWeekInpu
   return snapshots.length === 0 ? { kind: "analytics_required" } : { kind: "schedule_not_created" };
 }
 
+const previewStartDate = new Intl.DateTimeFormat("en-US", {
+  weekday: "long", month: "short", day: "numeric", timeZone: "UTC",
+});
+
 export function adminScheduleStateMessage(result: Exclude<ReadOnlyCurrentWeekResult, { kind: "schedule" }>) {
-  return result.kind === "analytics_required"
-    ? "This student needs confirmed, eligible analytics before a current weekly schedule can be created."
-    : "No saved schedule exists for the current week. The student must open their dashboard to create it.";
+  switch (result.kind) {
+    case "next_week_preview":
+      return `This student has saved their plan for next week. It starts ${previewStartDate.format(new Date(`${result.weekStartDate}T00:00:00.000Z`))}.`;
+    case "analytics_required":
+      return "This student needs confirmed, eligible analytics before a current weekly schedule can be created.";
+    case "schedule_not_created":
+      return "No saved schedule exists for the current week. The student must open their dashboard to create it.";
+  }
 }

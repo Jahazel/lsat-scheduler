@@ -466,7 +466,7 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       return updateAttemptRow(state, action.id, action.part === "score" ? { leftScore: true } : { leftRow: true });
     case "continue": {
       const next = STEPS[STEPS.indexOf(state.step) + 1];
-      return blockedReason(state) || !next ? state : { ...state, step: next, changedStep: true };
+      return blockedReason(state) || !next ? state : { ...state, step: next, changedStep: true, save: "idle" };
     }
     case "back": {
       const previous = STEPS[STEPS.indexOf(state.step) - 1];

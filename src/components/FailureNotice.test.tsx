@@ -154,6 +154,29 @@ it("moves the same toast into an open dialog and back, without showing or announ
   expect(alert.getAttribute("role")).toBeNull();
 });
 
+it("keeps the toast on the page when its open dialog leaves the page", async () => {
+  const page = (withDialog: boolean) => (
+    <FailureToastProvider>
+      <ActionForm action={async () => failure("3f9a01c2")}>
+        <button type="submit">Next Monday</button>
+      </ActionForm>
+      {withDialog && <dialog aria-label="Test controls" />}
+    </FailureToastProvider>
+  );
+  const { rerender } = render(page(true));
+  await press("Next Monday");
+  const alert = await toast();
+  const dialog = screen.getByRole("dialog", { hidden: true });
+  act(() => dialog.setAttribute("open", ""));
+  await vi.waitFor(() => expect(dialog.contains(alert)).toBe(true));
+
+  rerender(page(false));
+
+  await vi.waitFor(() => expect(alert.isConnected).toBe(true));
+  expect(alert.closest("dialog")).toBeNull();
+  expect(alert.textContent).toContain("Error code 3f9a01c2");
+});
+
 it("shows a failure from inside an open dialog in that dialog, which makes the rest of the page inert", async () => {
   render(
     <FailureToastProvider>
