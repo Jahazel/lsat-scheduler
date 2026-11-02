@@ -52,7 +52,11 @@ export async function drive(directory, name, steps) {
       signInAs: async (email, ...sessionArgs) => { log(`Set a minted session cookie for ${email}`); await context.addCookies([local("session", email, ...sessionArgs)]); },
       heading: (text) => page.getByRole("heading", { name: text, exact: true }).waitFor(),
       capture: async (file) => {
+        // A full-page screenshot draws sticky elements where the current scroll puts them, so take it from the top.
+        // A navigation in progress can refuse the scroll; the screenshot is still worth taking then.
+        const scroll = await page.evaluate(() => { const at = [window.scrollX, window.scrollY]; window.scrollTo({ left: 0, top: 0, behavior: "instant" }); return at; }).catch(() => null);
         await page.screenshot({ path: resolve(out, `${file}.png`), fullPage: true });
+        if (scroll) await page.evaluate(([left, top]) => window.scrollTo({ left, top, behavior: "instant" }), scroll).catch(() => {});
         writeFileSync(resolve(out, `${file}.aria.txt`), await page.locator("body").ariaSnapshot());
       },
     };
