@@ -23,6 +23,7 @@ export interface TestControlState {
   simulated: boolean;
   onboarded: boolean;
   weekHasSchedule: boolean;
+  uploadWeekHasSchedule: boolean;
   uploadWeekend: boolean;
 }
 
@@ -87,11 +88,14 @@ export default function TestControls({
   const router = useRouter();
   const pathname = usePathname();
   const { setSample, currentWeek, setCurrentWeek } = useAdminTest();
-  const canRebuild =
-    currentWeek?.week === state.weekStartDate
-      ? currentWeek.exists
-      : state.weekHasSchedule;
-  const uploadOpen = state.uploadWeekend || !canRebuild;
+  const report = currentWeek?.week === state.weekStartDate ? currentWeek : null;
+  const weekSaved = report ? report.exists : state.weekHasSchedule;
+  const nextWeek = isoDateInWeek(state.weekStartDate, 7);
+  const previewSaved = state.uploadWeekend &&
+    (report ? report.previewExists : state.uploadWeekHasSchedule);
+  const rebuildsPreview = !weekSaved && previewSaved;
+  const canRebuild = weekSaved || previewSaved;
+  const uploadOpen = state.uploadWeekend ? !previewSaved : !weekSaved;
   const id = useId();
   const [date, setDate] = useState("");
   const [direction, setDirection] = useState<SampleDirection>("steady");
@@ -292,8 +296,9 @@ export default function TestControls({
               </button>
               {!uploadOpen && (
                 <p className="mt-2 text-caption text-smoke">
-                  The weekly upload is closed this week. Reset test data, or
-                  move the simulated date to Saturday.
+                  {state.uploadWeekend
+                    ? `The weekly upload is closed. The week of ${displaySimulatedDate(nextWeek)} already has a weekly schedule. Rebuild it, or reset test data.`
+                    : "The weekly upload is closed this week. Reset test data, or move the simulated date to Saturday."}
                 </p>
               )}
             </>
@@ -312,11 +317,19 @@ export default function TestControls({
                 <p className="mt-1 text-caption text-smoke">
                   {reset.requiresSchedule && !canRebuild
                     ? "No weekly schedule this week yet."
-                    : reset.detail}
+                    : reset.requiresSchedule && rebuildsPreview
+                      ? "Recreate next week's preview from your current settings and analytics."
+                      : reset.detail}
                 </p>
                 {confirmation === reset.key ? (
                   <div className="mt-3 space-y-2 text-caption text-smoke">
-                    <p>Deletes {reset.deletes}.</p>
+                    <p>
+                      Deletes{" "}
+                      {reset.requiresSchedule && rebuildsPreview
+                        ? `next week's preview, the weekly schedule for the week of ${displaySimulatedDate(nextWeek)}`
+                        : reset.deletes}
+                      .
+                    </p>
                     <p>Keeps {reset.keeps}.</p>
                     {reset.returnsToRealDate && (
                       <p>Returns to the real date.</p>

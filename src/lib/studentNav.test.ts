@@ -27,23 +27,28 @@ describe("loadStudentNavState", () => {
   });
   it("reports an existing weekly schedule", async () => {
     mocks.findStudent.mockResolvedValue({ id: "student-1", goalTestDate: "2027-01-01" });
-    mocks.execute.mockResolvedValue({ rowCount: 1 });
-    expect(await loadStudentNavState("user-1", new Date("2026-09-30T12:00:00Z"))).toMatchObject({ hasCurrentWeek: true, uploadNeeded: false });
+    mocks.execute.mockResolvedValue({ rows: [{ week: "2026-09-28" }] });
+    expect(await loadStudentNavState("user-1", new Date("2026-09-30T12:00:00Z"))).toMatchObject({ hasCurrentWeek: true, hasUploadWeek: true, uploadNeeded: false });
+  });
+  it("reports next week's saved preview on a weekend", async () => {
+    mocks.findStudent.mockResolvedValue({ id: "student-1", goalTestDate: "2027-01-01" });
+    mocks.execute.mockResolvedValue({ rows: [{ week: "2026-11-02" }] });
+    expect(await loadStudentNavState("user-1", new Date("2026-11-01T16:00:00Z"))).toMatchObject({ hasCurrentWeek: false, hasUploadWeek: true });
   });
   it("requests an upload when there is no schedule", async () => {
     mocks.findStudent.mockResolvedValue({ id: "student-1", goalTestDate: "2027-01-01" });
-    mocks.execute.mockResolvedValue({ rowCount: 0 });
+    mocks.execute.mockResolvedValue({ rows: [] });
     expect(await loadStudentNavState("user-1")).toMatchObject({ hasCurrentWeek: false, uploadNeeded: true });
   });
   it("needs no upload on a weekend once next week's upload is confirmed", async () => {
     mocks.findStudent.mockResolvedValue({ id: "student-1", goalTestDate: "2027-01-01" });
-    mocks.execute.mockResolvedValue({ rowCount: 0 });
+    mocks.execute.mockResolvedValue({ rows: [] });
     mocks.snapshots.mockResolvedValue([{ approvedAt: new Date("2026-10-31T16:00:00Z") }]);
     expect(await loadStudentNavState("user-1", new Date("2026-11-01T16:00:00Z"))).toMatchObject({ hasCurrentWeek: false, uploadNeeded: false });
   });
   it("still needs an upload on a weekend when only last weekend's upload is confirmed", async () => {
     mocks.findStudent.mockResolvedValue({ id: "student-1", goalTestDate: "2027-01-01" });
-    mocks.execute.mockResolvedValue({ rowCount: 0 });
+    mocks.execute.mockResolvedValue({ rows: [] });
     mocks.snapshots.mockResolvedValue([{ approvedAt: new Date("2026-10-18T16:00:00Z") }]);
     expect(await loadStudentNavState("user-1", new Date("2026-11-01T16:00:00Z"))).toMatchObject({ uploadNeeded: true });
   });

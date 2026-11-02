@@ -207,6 +207,41 @@ it("reports an error when this week has no weekly schedule to rebuild", async ()
   expect(records.checkIns).toEqual(["old", "real"]);
 });
 
+function withNextWeekPreview(simulatedDate: string, keepCurrent = false) {
+  const workspaceRecords = workspace();
+  const { records, user } = workspaceRecords;
+  user.simulatedDate = simulatedDate;
+  if (!keepCurrent) {
+    records.schedules = records.schedules.filter((schedule) => schedule.id !== "current");
+    records.checkIns = records.checkIns.filter((id) => id !== "current");
+  }
+  records.schedules.push({ id: "preview", studentId: "admin-student", week: "2026-10-12" });
+  return workspaceRecords;
+}
+
+it.each(["2026-10-10", "2026-10-11"])("rebuilds next week's preview on %s when this week has no weekly schedule", async (date) => {
+  const { repos, records, user } = withNextWeekPreview(date);
+  await rebuildTestWeek("admin", new Date("2026-09-23T18:00:00Z"), repos);
+  expect(records.schedules.map((s) => s.id)).toEqual(["old", "real"]);
+  expect(records.snapshots).toEqual(["admin-student", "real-student"]);
+  expect(records.practiceTests).toEqual(["admin-student", "real-student"]);
+  expect(user.simulatedDate).toBe(date);
+});
+
+it("rebuilds this week rather than next week's preview when both are saved", async () => {
+  const { repos, records } = withNextWeekPreview("2026-10-10", true);
+  await rebuildTestWeek("admin", new Date("2026-09-23T18:00:00Z"), repos);
+  expect(records.schedules.map((s) => s.id)).toEqual(["old", "real", "preview"]);
+});
+
+it("leaves a saved next week alone from Monday to Friday", async () => {
+  const { repos, records } = withNextWeekPreview("2026-10-09");
+  await expect(
+    rebuildTestWeek("admin", new Date("2026-09-23T18:00:00Z"), repos),
+  ).rejects.toThrow("There is no weekly schedule to rebuild.");
+  expect(records.schedules.map((s) => s.id)).toEqual(["old", "real", "preview"]);
+});
+
 it("rejects a non-admin before reading their Student for rebuild", async () => {
   const { repos } = workspace();
   repos.clock = clock("student", "2026-10-07").repository;

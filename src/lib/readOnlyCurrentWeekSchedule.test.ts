@@ -35,13 +35,16 @@ const persistedCheckIns: ActivityCheckIn[] = [
 function repositories({
   schedule = null,
   snapshots = [],
+  savedWeeks,
 }: {
   schedule?: PersistedWeeklySchedule | null;
   snapshots?: ApprovedAnalyticsSnapshot[];
+  savedWeeks?: string[];
 } = {}) {
   return {
     weeklySchedules: {
-      findByStudentAndWeek: async () => schedule,
+      findByStudentAndWeek: async (_studentId: string, week: string) =>
+        savedWeeks ? (savedWeeks.includes(week) ? { ...savedSchedule, weekStartDate: week } : null) : schedule,
     },
     snapshots: {
       listEligibleForStudent: async () => snapshots,
@@ -92,5 +95,34 @@ describe("loadReadOnlyCurrentWeek", () => {
     expect(adminScheduleStateMessage(result)).toBe(
       "No saved schedule exists for the current week. The student must open their dashboard to create it."
     );
+  });
+
+  it.each([
+    ["Saturday", "2026-09-19T15:00:00.000Z"],
+    ["Sunday", "2026-09-20T15:00:00.000Z"],
+  ])("reports a saved next-week preview on %s instead of asking for analytics", async (_day, at) => {
+    const result = await loadReadOnlyCurrentWeek({
+      studentId: "student-1",
+      timezone: "America/Chicago",
+      now: () => new Date(at),
+      ...repositories({ savedWeeks: ["2026-09-21"] }),
+    });
+
+    expect(result).toEqual({ kind: "next_week_preview", weekStartDate: "2026-09-21" });
+    if (result.kind === "schedule") throw new Error("Expected a next-week preview");
+    expect(adminScheduleStateMessage(result)).toBe(
+      "This student has saved their plan for next week. It starts Monday, Sep 21."
+    );
+  });
+
+  it("ignores a saved next week from Monday to Friday", async () => {
+    const result = await loadReadOnlyCurrentWeek({
+      studentId: "student-1",
+      timezone: "America/Chicago",
+      now: () => monday,
+      ...repositories({ savedWeeks: ["2026-09-21"] }),
+    });
+
+    expect(result).toEqual({ kind: "analytics_required" });
   });
 });
