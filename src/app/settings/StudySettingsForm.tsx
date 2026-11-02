@@ -19,6 +19,7 @@ import type { DayOfWeek } from "@/lib/types";
 import { isUnexpectedFailure, type FormState } from "@/lib/unexpectedFailure";
 import { LeaveGuard } from "./LeaveGuard";
 import { OfficialAttemptList, type AttemptDraft, type AttemptMessage } from "./OfficialAttemptList";
+import { SettingsWeekPreview } from "./SettingsWeekPreview";
 
 const SAVED_HOLD_MS = 6000;
 const SAVE_NOTE = "Changes apply to your next weekly schedule.";
@@ -292,17 +293,26 @@ export function StudySettingsForm({
         </Section>
 
         <Section title="Week" lede="How much time you can study each day. Each day needs at least 30 min.">
-          <div className="lg:max-w-[560px]">
-            <WeekFields
-              values={draft}
-              allDaysMinutes={state.allDaysMinutes}
-              accommodation={draft.accommodationMultiplier}
-              dayMessages={visible?.days}
-              hintShortPracticeTestDay
-              onAllDaysChange={(minutes) => dispatch({ type: "setAllDays", minutes })}
-              onApplyAllDays={() => dispatch({ type: "applyAllDays" })}
-              onDayChange={(day, minutes) => edit({ dailyCapacityMinutes: { ...draft.dailyCapacityMinutes, [day]: minutes } })}
-              onPracticeTestDayChange={(preferredPracticeTestDay) => edit({ preferredPracticeTestDay })}
+          <div className="flex items-start gap-10">
+            <div className="min-w-0 flex-1 lg:grow-0 lg:basis-[560px]">
+              <WeekFields
+                values={draft}
+                allDaysMinutes={state.allDaysMinutes}
+                accommodation={draft.accommodationMultiplier}
+                dayMessages={visible?.days}
+                hintShortPracticeTestDay
+                onAllDaysChange={(minutes) => dispatch({ type: "setAllDays", minutes })}
+                onApplyAllDays={() => dispatch({ type: "applyAllDays" })}
+                onDayChange={(day, minutes) => edit({ dailyCapacityMinutes: { ...draft.dailyCapacityMinutes, [day]: minutes } })}
+                onPracticeTestDayChange={(preferredPracticeTestDay) => edit({ preferredPracticeTestDay })}
+              />
+            </div>
+            <SettingsWeekPreview
+              currentScore={currentScore}
+              goalScore={draft.goalScore}
+              testMonthLabel={goalTestDateOptions.find((option) => option.value === draft.goalTestDate)?.label ?? null}
+              week={draft}
+              storedWeek={state.stored}
             />
           </div>
         </Section>
