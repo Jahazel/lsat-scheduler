@@ -22,6 +22,7 @@ import { OfficialAttemptList, type AttemptDraft, type AttemptMessage } from "./O
 const SAVED_HOLD_MS = 6000;
 const SAVE_NOTE = "Changes apply to your next weekly schedule.";
 const SAVED_NOTE = "Saved. Changes apply to your next weekly schedule.";
+const PASSED_NOTICE_ID = "test-month-passed-notice";
 const SEND_FAILED_NOTE = "We couldn't save your changes. Check your connection and press Save changes again.";
 
 type Settings = {
@@ -221,10 +222,23 @@ export function StudySettingsForm({
 
   const goalMessageId = visible?.goalScore ? "goal-score-message" : null;
   const monthMessageId = visible?.goalTestDate ? "goal-test-date-message" : null;
+  const monthPassed = state.stored.goalTestDate === "";
 
   return (
     <form ref={form} onSubmit={submit} noValidate>
       <div className="flex flex-col md:mx-auto md:box-content md:max-w-content md:gap-6 md:px-8 md:pt-8 md:pb-16 lg:px-18 lg:pt-16 lg:pb-24">
+        {monthPassed && (
+          <p
+            id={PASSED_NOTICE_ID}
+            className="flex items-start gap-2.5 border-y border-warning-line bg-warning-wash px-5 py-3 text-small text-ink md:rounded-xs md:border md:px-4 max-md:[&+section]:border-t-0"
+          >
+            <svg aria-hidden viewBox="0 0 24 24" className="size-[18px] shrink-0 text-warning-ink" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8v5M12 16.5v.5" />
+            </svg>
+            Your test month has passed. Choose a new one.
+          </p>
+        )}
         <Section title="Goal" lede="Where you are now, where you want to be, and when.">
           <div className="grid grid-cols-2 items-start gap-x-4 gap-y-5 md:gap-x-6 lg:grid-cols-4">
             <div className="flex flex-col gap-2">
@@ -251,6 +265,8 @@ export function StudySettingsForm({
                 value={draft.goalTestDate}
                 options={goalTestDateOptions}
                 messageId={monthMessageId}
+                placeholder="Choose a month"
+                noticeId={monthPassed ? PASSED_NOTICE_ID : null}
                 onChange={(goalTestDate) => edit({ goalTestDate })}
               />
               {monthMessageId && (

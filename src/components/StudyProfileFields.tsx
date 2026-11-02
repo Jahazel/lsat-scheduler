@@ -23,7 +23,9 @@ import { DAY_LABEL, attemptMonths, type upcomingTestMonths } from "@/lib/student
 import type { DayOfWeek } from "@/lib/types";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
-const FIELD = `h-11 w-full rounded-sm border bg-paper px-3 text-body text-ink ${FOCUS}`;
+const FIELD_SHAPE = `h-11 w-full rounded-sm border bg-paper px-3 text-body ${FOCUS}`;
+const FIELD = `${FIELD_SHAPE} text-ink`;
+const EMPTY_HIGHLIGHTED_FIELD = `${FIELD_SHAPE} text-smoke border-warning-ink shadow-[0_0_0_1px_var(--color-warning-ink)]`;
 const SELECT = `h-[34px] min-w-0 flex-1 rounded-sm border bg-paper px-2 text-small text-ink ${FOCUS}`;
 const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline ${FOCUS}`;
 
@@ -78,12 +80,16 @@ export function GoalTestDateSelect({
   value,
   options,
   messageId = null,
+  placeholder = "Select a test date",
+  noticeId = null,
   onChange,
 }: {
   label: string;
   value: string;
   options: ReturnType<typeof upcomingTestMonths>;
   messageId?: string | null;
+  placeholder?: string;
+  noticeId?: string | null;
   onChange: (value: string) => void;
 }) {
   return (
@@ -96,11 +102,11 @@ export function GoalTestDateSelect({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-invalid={messageId ? true : undefined}
-        aria-describedby={messageId ?? undefined}
-        className={fieldBox(Boolean(messageId))}
+        aria-describedby={messageId ?? noticeId ?? undefined}
+        className={!messageId && noticeId && value === "" ? EMPTY_HIGHLIGHTED_FIELD : fieldBox(Boolean(messageId))}
       >
         <option value="" disabled>
-          Select a test date
+          {placeholder}
         </option>
         {options.map((option) => (
           <option key={option.value} value={option.value}>

@@ -10,6 +10,7 @@ A student enters their study profile during onboarding. They can later change St
 - `save-bar` shows the save bar after an edit, hides it when every edit is undone, and reads `Saving…`, then `Saved.` for 6 s, without leaving the page.
 - `attempts` adds, edits, and removes Official LSAT attempts on Study settings, up to ten.
 - `field-errors` refuses a goal not above the current score, a day outside 30 min to 8 h, and an attempt with no score or no month, and moves focus to the first invalid field.
+- `month-passed` shows the test-month-passed notice and blocks Save until a new month is chosen.
 - `settings-persist` reopens saved values while preserving an existing weekly schedule.
 
 ## How to get to it (user POV)
@@ -46,7 +47,7 @@ Preconditions:
 - An attempt row's month list moves with the student-side date. A stored month older than the 60 offered ones loads as `Month and year`, and Save then asks for a month.
 - `Apply` copies the separate All days control to all seven days. Changing All days without Apply changes no daily capacity.
 - Every day requires 30 to 480 minutes in 15-minute steps. Selecting zero hours clamps the minutes to a valid value.
-- Goal test date options are the LSAT test months after the student-side date, so an Admin's Simulated date shortens the list. A saved month that is no longer offered shows `Select a test date`, and Save then shows `Choose an upcoming LSAT test month.` Inspect the options before choosing.
+- Goal test date options are the LSAT test months after the student-side date, so an Admin's Simulated date shortens the list. In onboarding, an empty month shows `Select a test date`. In Study settings, a saved month that is no longer offered shows the notice `Your test month has passed. Choose a new one.` above the Goal card, and the month field is empty (`Choose a month`) with an amber border and `aria-describedby` on the notice. With no other edit there is no save bar. Save after another edit refuses with `Choose an upcoming LSAT test month.` and focuses the month. Choosing a month and saving removes the notice. To reach it, set `students.goal_test_date` to a past month with the owner connection, or move an Admin's Simulated date past the saved month. Inspect the options before choosing.
 - The save bar keeps both messages in the DOM and fades one out with `aria-hidden`, so a plain text wait matches the hidden one. Wait on `[role="status"] > :not([aria-hidden])` with the message text.
 - In Study settings, field messages show only after Save is pressed, then follow each edit until the save succeeds.
 - A row message appears when focus leaves its box. After a mouse press, it waits for the press to end, so the pressed button does not move under the pointer.
