@@ -107,6 +107,7 @@ interface DrillStream {
   rcOrder: RCType[];
   rcRepeatOrder: RCType[];
   lrSlotsTaken: Set<number>;
+  pairTypes: LRType[];
   rcIndex: number;
   rcComboIndex: number;
   lrQuestions: number;
@@ -184,7 +185,9 @@ function fillDrillDay(stream: DrillStream, capacity: number, score: number, rule
     placedPair = true;
   };
   const pairLandsToday = () => placedPair || (pairReady() && fits(pairMinutes));
-  const nextSlot = () => nextLRSlot(stream, pairLandsToday() && paired ? paired.types : []);
+  const excludedToday = () => (pairLandsToday() && paired ? paired.types : []);
+  const nextSlot = () => nextLRSlot(stream, excludedToday());
+  const shortSlot = () => nextLRSlot(stream, [...excludedToday(), ...stream.pairTypes]);
   const slotMinutes = (slot: number) => lrMinutes(lrSlotUnit(stream, slot, score, rules).questionCount);
 
   if (fullSection?.kind === "LR") lr.push(fullSection);
@@ -205,8 +208,11 @@ function fillDrillDay(stream: DrillStream, capacity: number, score: number, rule
     const rcFits = fits(rcMinutes(2));
     if (lrFits && (preferLR() || !rcFits)) takeLR(slot);
     else if (rcFits) takeRC(2);
-    else if (slot !== undefined && fits(lrMinutes(rules.lrUnitSizes.small))) takeLR(slot, rules.lrUnitSizes.small);
-    else break;
+    else {
+      const short = shortSlot();
+      if (short === undefined || !fits(lrMinutes(rules.lrUnitSizes.small))) break;
+      takeLR(short, rules.lrUnitSizes.small);
+    }
     placePair();
   }
   const activities = lrFirst ? [...lr, ...rc] : [...rc, ...lr];
@@ -323,12 +329,12 @@ export function generateWeek(
   const missedType = mostMissedType(options.missedStemTypeCounts, analytics, rules);
   if (missedType) weekReason("missed_type_priority", missedTypePrioritySentence(missedType));
   const pairedQuota = student.currentScore >= PAIRED_LINES_SCORE_CUTOFF ? 2 : 1;
-  const fillWith = (rotate: boolean) => {
-    const lrOrder = lrTypeOrder(analytics, rules, history, rotate, missedType);
-    const pairs = weekPairs(lrOrder, pairedQuota, rules, student.currentScore);
+  const fillCreditingPairs = (lrOrder: LRType[], pairs: LRUnit[]) => {
     const { first: rcOrder, repeat: rcRepeatOrder } = rcPassageOrder(analytics, rules);
-    const stream: DrillStream = { lrOrder, rcOrder, rcRepeatOrder,
-      lrSlotsTaken: new Set(), rcIndex: 0, rcComboIndex: 0, lrQuestions: 0, rcPassages: 0 };
+    const pairTypes = pairs.flatMap((pair) => pair.types);
+    const creditedSlots = pairTypes.map((type) => lrOrder.indexOf(type)).filter((slot) => slot >= 0);
+    const stream: DrillStream = { lrOrder, rcOrder, rcRepeatOrder, pairTypes,
+      lrSlotsTaken: new Set(creditedSlots), rcIndex: 0, rcComboIndex: 0, lrQuestions: 0, rcPassages: 0 };
     const plans = {} as Partial<Record<DayOfWeek, DayPlan>>;
     let pairsPlaced = 0;
     activeDrillingDays.forEach((day) => {
@@ -340,6 +346,16 @@ export function generateWeek(
         totalMinutes: result.totalMinutes,
         capacityOverageMinutes: Math.max(0, round2(result.totalMinutes - student.dailyCapacityMinutes[day])) };
     });
+    return { plans, everyCreditedPairPlaced: pairsPlaced === pairs.length };
+  };
+  const fillWith = (rotate: boolean) => {
+    const lrOrder = lrTypeOrder(analytics, rules, history, rotate, missedType);
+    const pairs = weekPairs(lrOrder, pairedQuota, rules, student.currentScore);
+    let filled = fillCreditingPairs(lrOrder, pairs);
+    for (let kept = pairs.length - 1; !filled.everyCreditedPairPlaced; kept--) {
+      filled = fillCreditingPairs(lrOrder, pairs.slice(0, kept));
+    }
+    const { plans } = filled;
     const drilledTypes = new Set(Object.values(plans).flatMap((plan) => plan?.activities ?? [])
       .flatMap((activity) => activity.kind === "LR" && !activity.isFullSection ? activity.types : []));
     return { plans, sittingOut: rules.lrStarredTypes.filter((type) => !drilledTypes.has(type)),
