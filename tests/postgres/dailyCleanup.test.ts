@@ -155,6 +155,7 @@ it("answers a failed run with the plain message and a short code, and stores the
 it("still answers with the code when the security log write fails", async () => {
   const logged = vi.spyOn(console, "error").mockImplementation(() => {});
   vi.mocked(runDailyCleanup).mockRejectedValueOnce(new Error("database down"));
+  const grantsBefore = await securityLogInsertColumns();
   await database.owner.execute(sql`revoke insert on security_log from ${sql.identifier(database.role)}`);
   try {
     const response = await GET(cronRequest(`Bearer ${CRON_SECRET}`));
@@ -163,9 +164,17 @@ it("still answers with the code when the security log write fails", async () => 
     expect(body).toEqual({ error: "Something went wrong. Try again.", code: expect.stringMatching(/^[0-9a-f]{8}$/) });
     expect(logged).toHaveBeenCalledWith(expect.stringContaining(`Security log write failed (${body.code})`));
   } finally {
-    await database.owner.execute(sql`
-      grant insert (event, route, error_code, error_type) on security_log to ${sql.identifier(database.role)}
-    `);
+    await database.restoreGrants();
     logged.mockRestore();
   }
+  expect(await securityLogInsertColumns()).toEqual(grantsBefore);
 });
+
+async function securityLogInsertColumns() {
+  const { rows } = await database.owner.execute<{ column_name: string }>(sql`
+    select column_name from information_schema.column_privileges
+    where table_name = 'security_log' and grantee = ${database.role} and privilege_type = 'INSERT'
+    order by column_name
+  `);
+  return rows.map((row) => row.column_name);
+}
