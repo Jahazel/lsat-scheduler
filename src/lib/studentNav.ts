@@ -11,6 +11,7 @@ export interface StudentNavState {
   isTestDay: boolean;
   uploadNeeded: boolean;
   hasCurrentWeek?: boolean;
+  hasUploadWeek?: boolean;
 }
 
 export function initialsFor(name: string | null | undefined, email: string | null | undefined) {
@@ -28,27 +29,29 @@ export async function loadStudentNavState(userId: string, now = new Date()): Pro
   const countdown = testCountdown(student.goalTestDate, now, SCHEDULE_TIMEZONE);
   const database = getPostgresDatabase();
   const currentWeek = currentWeekInTimezone(now, SCHEDULE_TIMEZONE);
-  const [schedule, snapshots] = await Promise.all([
-    database.execute(sql`
-      select 1 from weekly_schedules
+  const uploadWeek = uploadWeekOf(now, SCHEDULE_TIMEZONE);
+  const [schedules, snapshots] = await Promise.all([
+    database.execute<{ week: string }>(sql`
+      select to_char(week_start_date, 'YYYY-MM-DD') as week from weekly_schedules
       where student_id = ${student.id}::uuid
-        and week_start_date = ${currentWeek}::date
-      limit 1
+        and week_start_date in (${currentWeek}::date, ${uploadWeek}::date)
     `),
     database.select({ approvedAt: analyticsSnapshots.approvedAt }).from(analyticsSnapshots)
       .where(eq(analyticsSnapshots.studentId, student.id)),
   ]);
-  const hasCurrentWeek = schedule.rowCount === 1;
+  const savedWeeks = new Set(schedules.rows.map(({ week }) => week));
+  const hasCurrentWeek = savedWeeks.has(currentWeek);
   // This week builds the weekly schedule while it renders, at the same time as this header.
   // So a confirmed upload turns the dot off before the weekly schedule is saved.
   const approvals = snapshots.map(({ approvedAt }) => ({ approvedAt: approvedAt.toISOString() }));
-  const uploadConfirmed = [currentWeek, uploadWeekOf(now, SCHEDULE_TIMEZONE)]
+  const uploadConfirmed = [currentWeek, uploadWeek]
     .some((week) => approvedForWeek(approvals, week, SCHEDULE_TIMEZONE).length > 0);
 
   return {
     countdownLabel: testCountdownLabel(countdown),
     isTestDay: countdown?.kind === "today",
     hasCurrentWeek,
+    hasUploadWeek: savedWeeks.has(uploadWeek),
     uploadNeeded: !hasCurrentWeek && !uploadConfirmed,
   };
 }
