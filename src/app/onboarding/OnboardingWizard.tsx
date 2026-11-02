@@ -592,7 +592,9 @@ function AnalyticsStep({
           {typed ? " · Your schedule starts after you add your analytics." : " · Your schedule starts after you add both."}
         </p>
         <p role="status" className="text-center text-small text-smoke">
-          {state.save === "failed" && "We couldn't save your plan. Check your connection and press Skip for now again."}
+          {state.save === "failed"
+            ? "We couldn't save your plan. Check your connection and press Skip for now again."
+            : typeof state.save === "object" && state.save.refused}
         </p>
       </div>
     </div>
