@@ -11,6 +11,7 @@ import { approveWeeklyUpload, listApprovedPracticeTestResults } from "../../src/
 import { prepareWeeklyUpload } from "../../src/lib/weeklyUpload";
 import { loadStudentNavState } from "../../src/lib/studentNav";
 import { PT158_FIXTURES } from "../../src/lib/practiceTestFixtures/pt158";
+import { DAY_ORDER } from "../../src/lib/engine";
 import { postgresAdminTestRepositories } from "../../src/lib/adminTestRepositories";
 import { resetTestWorkspace } from "../../src/lib/adminTestWorkspace";
 import { confirmWeeklyUpload } from "../../src/app/dashboard/upload/actions";
@@ -193,7 +194,7 @@ it("a student with no plan on Wednesday plans the rest of this week from last we
   expect(week?.generationInputs).toMatchObject({ practiceTestResultId: after.practiceTests[0].id, student: { currentScore: 160 } });
   expect(week?.generationInputs.remainingDays[0]).toBe("WEDNESDAY");
   expect([week?.schedule.days.MONDAY.activities, week?.schedule.days.TUESDAY.activities]).toEqual([[], []]);
-  const firstDrill = Object.values(week?.schedule.days ?? {}).flatMap((day) => day.activities)
+  const firstDrill = DAY_ORDER.flatMap((day) => week?.schedule.days[day].activities ?? [])
     .find((activity) => activity.kind === "LR" && !activity.isFullSection);
   expect(firstDrill?.kind === "LR" && firstDrill.types[0]).toBe("Flaw or descriptive weakening");
   expect(markup).toContain("Flaw or descriptive weakening comes first this week.");
