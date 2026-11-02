@@ -12,7 +12,8 @@ import { findAccountByEmail } from "../../src/lib/accountRepository";
 import { createGoogleAccountOnSignIn } from "../../src/lib/authAccounts";
 import { answerGoogleSignIn } from "../../src/lib/securityLog";
 import { accountSessionToken } from "../../src/lib/accountSession";
-import { findStudentByAccountId } from "../../src/lib/studentRepository";
+import { findStudentByAccountId, updateStudySettings } from "../../src/lib/studentRepository";
+import type { StudySettingsInput } from "../../src/lib/studentProfile";
 import type { Student } from "../../src/lib/types";
 
 interface RequestState {
@@ -32,9 +33,10 @@ vi.mock("next/navigation", () => import("./fakeNavigation"));
 
 import { signInWithGoogle } from "../../src/app/login/actions";
 import { createStudentProfile } from "../../src/app/onboarding/actions";
-import { updateStudentProfile } from "../../src/app/account/actions";
+import { saveStudySettings } from "../../src/app/settings/actions";
 import AccountPage from "../../src/app/account/page";
 import OnboardingPage from "../../src/app/onboarding/page";
+import StudySettingsPage from "../../src/app/settings/page";
 import { requireCurrentAdmin } from "../../src/lib/requireAdmin";
 import { postgresAdminClock, studentSideClock } from "../../src/lib/studentClock";
 import { expectUnexpectedFailure } from "./plannedAnswer";
@@ -71,6 +73,10 @@ const profile: Student = {
   dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 105, WEDNESDAY: 120, THURSDAY: 135, FRIDAY: 150, SATURDAY: 165, SUNDAY: 180 },
 };
 const profileInput = { ...profile, officialAttempts: [], analyticsRows: [], analyticsApproval: null };
+const settings: StudySettingsInput = {
+  goalScore: profile.goalScore, goalTestDate: profile.goalTestDate, preferredPracticeTestDay: profile.preferredPracticeTestDay,
+  accommodationMultiplier: profile.accommodationMultiplier, dailyCapacityMinutes: profile.dailyCapacityMinutes,
+};
 async function account(email: string, role: "student" | "admin" = "student") {
   const created = await database.createAccountAsOwner({ email, name: email, role });
   if (!created) throw new Error("Fixture Account already exists.");
@@ -257,7 +263,7 @@ describe.each(["student-a", "student-b", "admin", "no-session"] as const)("%s ca
     const actors = { "student-a": a, "student-b": b, admin };
     if (actor === "no-session") {
       await expectUnexpectedFailure(database, createStudentProfile(profileInput), "Error");
-      await expectUnexpectedFailure(database, updateStudentProfile(profileInput), "Error");
+      await expectUnexpectedFailure(database, saveStudySettings(settings), "Error");
       expect((await getPostgresDatabase().execute(sql`select id from students`)).rows).toEqual([]);
       return;
     }
@@ -267,7 +273,7 @@ describe.each(["student-a", "student-b", "admin", "no-session"] as const)("%s ca
     await onboard();
     expect(await findStudentByAccountId(owner.id)).toMatchObject(profile);
     expect((await getPostgresDatabase().execute(sql`select account_id from students`)).rows).toEqual([{ account_id: owner.id }]);
-    await expect(updateStudentProfile({ ...profileInput, goalScore: 170 })).rejects.toThrow("redirect:/dashboard");
+    expect(await saveStudySettings({ ...settings, goalScore: 170 })).toBeNull();
     expect(await findStudentByAccountId(owner.id)).toMatchObject({ goalScore: 170, dailyCapacityMinutes: profile.dailyCapacityMinutes });
     for (const other of [a, b, admin].filter((entry) => entry.id !== owner.id)) {
       expect(await findStudentByAccountId(other.id)).toBeNull();
@@ -289,7 +295,7 @@ it("Study settings keep another student's profile and the saved Weekly schedule 
     values (${student.id}, '2026-10-12', now(), '{"preserved":true}', '{}', '{}', 'test-policy')`);
   const before = await getPostgresDatabase().execute(sql`select * from weekly_schedules`);
   session(a);
-  await expect(updateStudentProfile({ ...profileInput, goalScore: 172 })).rejects.toThrow("redirect:/dashboard");
+  expect(await saveStudySettings({ ...settings, goalScore: 172 })).toBeNull();
   expect(await findStudentByAccountId(b.id)).toMatchObject({ goalScore: 165 });
   expect((await getPostgresDatabase().execute(sql`select * from weekly_schedules`)).rows).toEqual(before.rows);
   expect(await loadStudentNavState(a.id, new Date("2026-10-15T12:00:00Z"))).toMatchObject({ hasCurrentWeek: true, uploadNeeded: false });
@@ -377,7 +383,7 @@ it("make-admin refuses a missing Account and leaves existing Accounts unchanged"
 
 describe.each([
   { name: "onboarding", save: createStudentProfile, existingProfile: false },
-  { name: "Study settings", save: updateStudentProfile, existingProfile: true },
+  { name: "Study settings", save: saveStudySettings, existingProfile: true },
 ])("$name input validation", ({ save, existingProfile }) => {
   beforeEach(async () => {
     const owner = await account("validation@example.test");
@@ -405,9 +411,9 @@ describe.each([
     expect(await studentRows()).toEqual(before);
   });
 
-  it.each([165, 160])("rejects goal score %i at or below a current score of 165 without changing stored data", async (goalScore) => {
+  it.each([150, 140])("rejects goal score %i at or below a current score of 150 without changing stored data", async (goalScore) => {
     const before = await studentRows();
-    await expectUnexpectedFailure(database, save({ ...profileInput, currentScore: 165, goalScore }), "ZodError");
+    await expectUnexpectedFailure(database, save({ ...profileInput, goalScore }), "ZodError");
     expect(await studentRows()).toEqual(before);
   });
 
@@ -448,7 +454,7 @@ it("onboarding stores official attempts, and Study settings keep them", async ()
   session(owner);
   const officialAttempts = [{ score: 152, month: "2025-06" }, { score: 149, month: "2026-01" }];
   await expect(createStudentProfile({ ...profileInput, officialAttempts })).rejects.toThrow("redirect:/dashboard");
-  await expect(updateStudentProfile({ ...profile, goalScore: 170 })).rejects.toThrow("redirect:/dashboard");
+  expect(await saveStudySettings({ ...settings, goalScore: 170 })).toBeNull();
   expect(await studentRows()).toMatchObject([{ goal_score: 170, official_attempts: officialAttempts }]);
 });
 
@@ -468,9 +474,7 @@ it.each(["student", "admin"] as const)("Study settings store the %s's Wednesday 
   session(owner);
   await onboard();
   const dailyCapacityMinutes = { ...profile.dailyCapacityMinutes, WEDNESDAY: 480 };
-  await expect(updateStudentProfile({
-    ...profile, dailyCapacityMinutes, preferredPracticeTestDay: "WEDNESDAY",
-  })).rejects.toThrow("redirect:/dashboard");
+  expect(await saveStudySettings({ ...settings, dailyCapacityMinutes, preferredPracticeTestDay: "WEDNESDAY" })).toBeNull();
   expect(await findStudentByAccountId(owner.id)).toMatchObject({ dailyCapacityMinutes, preferredPracticeTestDay: "WEDNESDAY" });
 });
 
@@ -490,10 +494,36 @@ it("onboarding works for an Account that signed in before and has no Student (D4
   await expect(OnboardingPage()).rejects.toThrow("redirect:/dashboard");
 });
 
+it("Study settings keep the stored current score and check the goal against it, whatever the request sends", async () => {
+  const owner = await account("current-score@example.test");
+  session(owner);
+  await onboard();
+  const sendsAScore = { ...settings, currentScore: 120 };
+  expect(await saveStudySettings({ ...sendsAScore, goalScore: 170 })).toBeNull();
+  expect(await findStudentByAccountId(owner.id)).toMatchObject({ currentScore: 150, goalScore: 170 });
+  const before = await studentRows();
+  await expectUnexpectedFailure(database, saveStudySettings({ ...sendsAScore, goalScore: 140 }), "ZodError");
+  expect(await studentRows()).toEqual(before);
+  expect(await updateStudySettings(owner.id, { ...settings, goalScore: 150 })).toBe(false);
+  expect(await studentRows()).toEqual(before);
+});
+
+it("Study settings page sends a signed-out visitor to Log in and an Account without a Student to onboarding", async () => {
+  await expect(StudySettingsPage()).rejects.toThrow("redirect:/login");
+  const owner = await account("page@example.test");
+  session(owner);
+  await expect(StudySettingsPage()).rejects.toThrow("redirect:/onboarding");
+  await onboard();
+  const page = renderToStaticMarkup(await StudySettingsPage());
+  expect(page).toContain("Updates with each weekly upload");
+  expect(page).toContain(">150<");
+  expect(page).toContain('value="165"');
+});
+
 it("Study settings send an Account without a Student to onboarding", async () => {
   const owner = await account("new@example.test");
   session(owner);
-  await expect(updateStudentProfile(profile)).rejects.toThrow("redirect:/onboarding");
+  await expect(saveStudySettings(settings)).rejects.toThrow("redirect:/onboarding");
   expect(await findStudentByAccountId(owner.id)).toBeNull();
 });
 

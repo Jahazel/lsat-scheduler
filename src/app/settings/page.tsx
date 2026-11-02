@@ -1,40 +1,38 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { studentSideToday } from "@/lib/studentClock";
-import { upcomingTestMonths, type StudentProfileInput } from "@/lib/studentProfile";
+import { upcomingTestMonths } from "@/lib/studentProfile";
 import { findStudentByAccountId } from "@/lib/studentRepository";
-import StudentIntakeForm from "@/components/StudentIntakeForm";
-import { updateStudentProfile } from "../account/actions";
+import { saveStudySettings } from "./actions";
+import { StudySettingsForm } from "./StudySettingsForm";
 
 export default async function StudySettingsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const doc = await findStudentByAccountId(session.user.id);
-  if (!doc) redirect("/onboarding");
-
-  const initialValues: StudentProfileInput = {
-    currentScore: doc.currentScore,
-    goalScore: doc.goalScore,
-    dailyCapacityMinutes: doc.dailyCapacityMinutes,
-    preferredPracticeTestDay: doc.preferredPracticeTestDay,
-    accommodationMultiplier: doc.accommodationMultiplier,
-    goalTestDate: doc.goalTestDate,
-  };
+  const student = await findStudentByAccountId(session.user.id);
+  if (!student) redirect("/onboarding");
 
   return (
-    <div className="min-h-screen px-6 py-12">
-      <div className="mx-auto max-w-md">
-        <h1 className="text-h3 font-semibold text-ink">Study settings</h1>
-        <div className="mt-8">
-          <StudentIntakeForm
-            initialValues={initialValues}
-            goalTestDateOptions={upcomingTestMonths(await studentSideToday(session.user))}
-            submitLabel="Save changes"
-            onSubmit={updateStudentProfile}
-          />
+    <div className="min-h-screen bg-vellum">
+      <header className="border-b border-vellum-line bg-paper px-5 pt-6 pb-6 md:px-8 md:pt-10 md:pb-8 lg:px-18 lg:pt-12 lg:pb-10">
+        <div className="mx-auto flex max-w-content flex-col gap-3">
+          <h1 className="text-h3 font-semibold text-ink md:text-h2">Study settings</h1>
+          <p className="text-body text-smoke md:text-lead">Your goal and your week. Changes apply to your next weekly schedule.</p>
         </div>
-      </div>
+      </header>
+      <StudySettingsForm
+        currentScore={student.currentScore}
+        saved={{
+          goalScore: student.goalScore,
+          goalTestDate: student.goalTestDate,
+          accommodationMultiplier: student.accommodationMultiplier,
+          dailyCapacityMinutes: student.dailyCapacityMinutes,
+          preferredPracticeTestDay: student.preferredPracticeTestDay,
+        }}
+        goalTestDateOptions={upcomingTestMonths(await studentSideToday(session.user))}
+        onSave={saveStudySettings}
+      />
     </div>
   );
 }
