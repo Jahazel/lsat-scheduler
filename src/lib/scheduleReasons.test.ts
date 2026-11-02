@@ -14,7 +14,7 @@ const reason = (reasons: ScheduleReason[] | undefined, code: ScheduleReason["cod
 
 describe("saved schedule reasons", () => {
   it("groups the starred types sitting out into one reason", () => {
-    const schedule = week({ ...mockStudent, currentScore: 140, dailyCapacityMinutes: capacities(30) });
+    const schedule = week({ ...mockStudent, currentScore: 140, dailyCapacityMinutes: capacities(15) });
     const sittingOut = mockRules.lrStarredTypes.filter((type) =>
       !DAY_ORDER.some((day) => schedule.days[day].activities.some((activity) =>
         activity.kind === "LR" && !activity.isFullSection && activity.types.includes(type))));

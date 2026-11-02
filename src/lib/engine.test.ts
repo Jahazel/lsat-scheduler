@@ -51,7 +51,7 @@ describe("daily capacity filler", () => {
             expect([...expectedTypes].filter((type) => !firstPass.has(type) && !pairTypes.has(type)), context).toEqual([]);
           }
           if (singles.length >= mockRules.lrStarredTypes.length) {
-            const present = new Set(singles.map((activity) => activity.types[0]));
+            const present = new Set([...singles.map((activity) => activity.types[0]), ...pairTypes]);
             expect(mockRules.lrStarredTypes.filter((type) => !present.has(type)), context).toEqual([]);
           }
         }
@@ -163,7 +163,7 @@ describe("daily capacity filler", () => {
       (mockAnalytics.lrAccuracyByType[a] ?? 1) - (mockAnalytics.lrAccuracyByType[b] ?? 1)
       || [...mockRules.lrStemTypes, ...mockRules.lrLogicTypes].indexOf(a)
         - [...mockRules.lrStemTypes, ...mockRules.lrLogicTypes].indexOf(b))
-      .filter((type) => !paired[0].types.includes(type));
+      .filter((type) => !paired.some((activity) => activity.types.includes(type)));
     expect(singles.slice(0, starredOffPairDay.length).map((activity) => activity.types[0])).toEqual(starredOffPairDay);
     expect(singles[starredOffPairDay.length].types[0]).toBe(mockAnalytics.lrTopPriorityLogicTypes[0]);
     expect(paired.length).toBeGreaterThan(0);
@@ -265,16 +265,19 @@ describe("adaptive weekly schedule v3", () => {
   });
 
   it("uses 5-question LR lines on the first pass and 10 questions of one type after", () => {
-    const lr = lrDrillsInDayOrder(generated(480)).filter((activity) => !isPaired(activity));
-    const seen = new Set<string>();
+    const all = lrDrillsInDayOrder(generated(480));
+    const pairTypes = all.filter(isPaired).flatMap((activity) => activity.types);
+    const lr = all.filter((activity) => !isPaired(activity));
+    const seen = new Set<string>(pairTypes);
     for (const activity of lr) {
       expect([5, 10]).toContain(activity.questionCount);
       if (activity.questionCount === 10) expect(seen.has(activity.types[0]), activity.types[0]).toBe(true);
       seen.add(activity.types[0]);
     }
     const fiveQuestionTypes = lr.filter((activity) => activity.questionCount === 5).map((activity) => activity.types[0]);
-    expect(fiveQuestionTypes).toHaveLength(allTypes.size);
-    expect(new Set(fiveQuestionTypes)).toEqual(allTypes);
+    const unpairedTypes = [...allTypes].filter((type) => !pairTypes.includes(type));
+    expect(fiveQuestionTypes).toHaveLength(unpairedTypes.length);
+    expect(new Set(fiveQuestionTypes)).toEqual(new Set(unpairedTypes));
     expect(lr.filter((activity) => activity.questionCount === 10).length).toBeGreaterThan(5);
   });
 
@@ -319,6 +322,7 @@ describe("adaptive weekly schedule v3", () => {
   const flawWeakest = { ...mockAnalytics,
     lrAccuracyByType: { ...mockAnalytics.lrAccuracyByType, "Flaw or descriptive weakening": 0.1 } };
   const lineText = (activity: LRDrill) => `${activity.questionCount} ${activity.types.join(" + ")}`;
+  const isPairLine = (line: string) => line.includes(" + ");
 
   it("keeps single-type lines of a pair's types off the pair's day in the tutor's example week", () => {
     const schedule = generateWeek({ ...mockStudent, currentScore: 165, dailyCapacityMinutes: everyDay(90) },
@@ -362,7 +366,7 @@ describe("adaptive weekly schedule v3", () => {
     expect(pairs).toEqual([["Strengthen", "Weaken"], ["Sufficient assumption", "Necessary assumption"]]);
   });
 
-  it("gives the first pair's types single-type lines on a remaining day that holds the second pair", () => {
+  it("gives the time a placed pair frees to the next types in the order on the second pair's day", () => {
     const schedule = generateWeek({ ...mockStudent, currentScore: 165, dailyCapacityMinutes: everyDay(120) },
       mockAnalytics, mockRules, mockStudentName, { createdOn: "THURSDAY" });
     expect(DAY_ORDER.filter((day) => schedule.days[day].type === "drill" && schedule.days[day].activities.length > 0))
@@ -370,8 +374,8 @@ describe("adaptive weekly schedule v3", () => {
     expect(lrDrillsOn(schedule, "THURSDAY").filter(isPaired).map(lineText))
       .toEqual(["10 Sufficient assumption + Necessary assumption"]);
     const friday = lrDrillsOn(schedule, "FRIDAY").map(lineText);
-    expect(friday).toContain("10 Weaken + Strengthen");
-    expect(friday).toEqual(expect.arrayContaining(["5 Sufficient assumption", "5 Necessary assumption"]));
+    expect(friday).toEqual(["5 Conditional reasoning", "10 Weaken + Strengthen", "5 Flaw or descriptive weakening",
+      "5 Phenomenon-hypothesis (LR)", "5 Math"]);
   });
 
   it("never repeats a type across a week's two pairs", () => {
@@ -387,7 +391,54 @@ describe("adaptive weekly schedule v3", () => {
     }
   });
 
-  it("holds no single-type line of a pair type on a pair's day at any size, and still drills every type", () => {
+  it("counts each placed pair as the 5-question line of both its types in the tutor's example week", () => {
+    const schedule = generateWeek({ ...mockStudent, currentScore: 165, dailyCapacityMinutes: everyDay(90) },
+      flawWeakest, mockRules, mockStudentName);
+    const lines = lrDrillsInDayOrder(schedule).map(lineText);
+    expect(lines.filter(isPairLine)).toEqual([
+      "10 Flaw or descriptive weakening + Weaken", "10 Sufficient assumption + Necessary assumption",
+    ]);
+    expect(lines.filter((line) =>
+      /^5 (Flaw or descriptive weakening|Weaken|Sufficient assumption|Necessary assumption)$/.test(line))).toEqual([]);
+    expect(lines.filter((line) => !isPairLine(line)).slice(0, 2)).toEqual(["5 Conditional reasoning", "5 Strengthen"]);
+  });
+
+  it("gives credit only for a pair the week places, so an unplaced pair's types keep their 5-question lines", () => {
+    const schedule = generateWeek({ ...mockStudent, currentScore: 159, accommodationMultiplier: 2,
+      dailyCapacityMinutes: everyDay(10) }, mockAnalytics, mockRules, mockStudentName, { createdOn: "FRIDAY" });
+    expect(lrDrillsOn(schedule, "FRIDAY").map(lineText)).toEqual(["5 Sufficient assumption"]);
+  });
+
+  it("keeps the 5-question lines of a second pair the week cannot place, and credits the first pair", () => {
+    const schedule = generateWeek({ ...mockStudent, currentScore: 165, accommodationMultiplier: 1.5,
+      dailyCapacityMinutes: { ...everyDay(30), FRIDAY: 80 } }, mockAnalytics, mockRules, mockStudentName,
+    { createdOn: "WEDNESDAY" });
+    expect(lrDrillsOn(schedule, "THURSDAY").map(lineText))
+      .toEqual(["5 Conditional reasoning", "10 Sufficient assumption + Necessary assumption"]);
+    expect(lrDrillsOn(schedule, "FRIDAY").map(lineText)).toEqual(["5 Weaken"]);
+  });
+
+  it("holds no 5-question line of a placed pair's type on any day, and rotation counts both pair types", () => {
+    for (const analytics of [mockAnalytics, flawWeakest, starredOnlyAnalytics]) {
+      for (const accommodationMultiplier of [1, 1.5, 2] as const) {
+        for (const currentScore of [149, 165]) {
+          for (let capacity = 10; capacity <= 480; capacity += 10) {
+            const schedule = generateWeek({ ...mockStudent, accommodationMultiplier, currentScore,
+              dailyCapacityMinutes: everyDay(capacity) }, analytics, mockRules, mockStudentName);
+            const lr = lrDrillsInDayOrder(schedule);
+            const pairTypes = lr.filter(isPaired).flatMap((activity) => activity.types);
+            const context = `${accommodationMultiplier}/${currentScore}/${capacity}`;
+            expect(lr.filter((activity) => !isPaired(activity) && activity.questionCount === mockRules.lrUnitSizes.small
+              && pairTypes.includes(activity.types[0])).map(lineText), context).toEqual([]);
+            const rotation = schedule.reasons?.find((reason) => reason.code === "starred_rotation")?.sentence ?? "";
+            expect(pairTypes.filter((type) => rotation.includes(type)), context).toEqual([]);
+          }
+        }
+      }
+    }
+  });
+
+  it("holds no single-type line of a pair type on a pair's day at any size, and gives pair types later 10-question lines", () => {
     for (const analytics of [mockAnalytics, flawWeakest]) {
       for (const accommodationMultiplier of [1, 1.5, 2] as const) {
         for (const currentScore of [149, 165]) {
@@ -409,8 +460,9 @@ describe("adaptive weekly schedule v3", () => {
               expect(singles.filter((activity) => pair.types.includes(activity.types[0])).map(lineText), context)
                 .toEqual([]);
             }
-            const singleTypes = new Set(lr.filter((activity) => !isPaired(activity)).map((activity) => activity.types[0]));
-            if (capacity >= 120) {
+            const singleTypes = new Set(lr.filter((activity) => !isPaired(activity)
+              && activity.questionCount === mockRules.lrUnitSizes.medium).map((activity) => activity.types[0]));
+            if (capacity >= 360) {
               for (const type of pairedTypes) expect(singleTypes.has(type), `${capacity}/${type}`).toBe(true);
             }
           }
