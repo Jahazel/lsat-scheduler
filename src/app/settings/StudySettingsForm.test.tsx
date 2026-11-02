@@ -189,6 +189,29 @@ describe("Study settings form", () => {
     expect(document.activeElement).toBe(wednesday);
   });
 
+  it("says the test month has passed, leaves the month empty, and shows no notice for an offered month", () => {
+    renderForm({ values: { ...saved, goalTestDate: "2026-10-01" } });
+    const notice = screen.getByText("Your test month has passed. Choose a new one.");
+    const month = screen.getByRole("combobox", { name: "Goal test month" }) as HTMLSelectElement;
+    expect(month.value).toBe("");
+    expect(month.getAttribute("aria-describedby")).toBe(notice.id);
+    expect(saveButton()).toBeNull();
+    cleanup();
+
+    renderForm();
+    expect(screen.queryByText("Your test month has passed. Choose a new one.")).toBeNull();
+  });
+
+  it("saves once a new month is chosen after the test month passed, then drops the notice", async () => {
+    const { onSave } = renderForm({ values: { ...saved, goalTestDate: "2026-10-01" } });
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Goal test month" }), "2027-04-01");
+    await userEvent.click(saveButton()!);
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ goalTestDate: "2027-04-01" }));
+    expect(status()?.textContent).toBe(SAVED_NOTE);
+    expect(screen.queryByText("Your test month has passed. Choose a new one.")).toBeNull();
+  });
+
   it("asks for a test month when the saved one is no longer offered", async () => {
     const { onSave } = renderForm({ values: { ...saved, goalTestDate: "2026-10-01" } });
     await typeGoal("170");
