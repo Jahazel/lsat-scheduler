@@ -176,3 +176,24 @@ The owner chose these while designing on 2026-10-26. The boards win over the spe
   - Too common, the student's own email, or "drillmap": "This password is too common. Choose a password that's
     harder to guess."
 - A wrong current password on "Change password" or on deletion: "That's not your current password. Try again."
+
+## Study settings (`study-settings/`)
+
+Exported 2026-11-02 for spec #464 from the Approved page, "Study settings · Chosen design". Motion rows:
+`research/study-settings/motion.md`. Every board shows Direction 3 at desktop 1440, tablet 768, and phone 390; each
+file name ends in `-desktop`, `-tablet`, or `-phone`.
+
+| File | Paper board | Screen ticket |
+| --- | --- | --- |
+| `d3-*` | Study settings · D3 (approved direction, unsaved changes) | #466, #470 |
+| `s1-clean-*` | State 1 Clean | #466, #467, #470 |
+| `s2-6-save-bar-*` | States 2–4, 6 Save bar (unsaved, saving, saved, save failed) | #466 |
+| `s5-field-errors-*` | State 5 Field errors | #466 |
+| `s7-month-passed-*` | State 7 Test month passed | #468 |
+| `s8-leave-guard-*` | State 8 Leave guard | #469 |
+| `s9-loading-*` | State 9 Loading (the app's existing loading state) | #466 |
+| `data-a-edges-*` | Data case A: no attempts, all days equal, 30 min, Sunday practice test, 2× time, 179 → 180 | #466, #467, #470 |
+| `data-b-maximums-*` | Data case B: ten attempts, every day different, 8 h days, 1.5× time | #466, #467, #470 |
+
+In data case A the 3 h 45 practice test sits on a 30 min Sunday. The board shows onboarding's hint and does not block
+Save. Spec #464 keeps this as an open question for the tutor.
