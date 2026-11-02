@@ -259,6 +259,21 @@ describe("OnboardingWizard", () => {
     expect(onSave.mock.calls[1]).toEqual(onSave.mock.calls[0]);
   });
 
+  it("shows the server's refusal under Skip for now, not in the failure toast, and lets Skip be pressed again", async () => {
+    const refusal = "You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time.";
+    const onSave = vi.fn().mockResolvedValue({ error: refusal });
+    const { user } = await fillGoalAndWeek(onSave);
+
+    await user.click(screen.getByRole("button", { name: "Skip for now" }));
+    const note = await screen.findByText(refusal);
+    expect(note.getAttribute("role")).toBe("status");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();
+
+    await user.click(screen.getByRole("button", { name: "Skip for now" }));
+    expect(onSave).toHaveBeenCalledTimes(2);
+  });
+
   it("ties each out-of-range score box to its own message", async () => {
     const user = userEvent.setup();
     render(<OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={vi.fn()} />);
