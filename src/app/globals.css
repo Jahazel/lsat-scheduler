@@ -242,3 +242,36 @@ body:has(.save-bar[data-shown]) .failure-toast-slot { transform: translateY(-88p
   .failure-toast-slot { transition: none; }
   .attempt-row { transition-property: opacity; transition-duration: 120ms; }
 }
+
+.leave-dialog,
+.leave-dialog::backdrop {
+  opacity: 0;
+  transition:
+    opacity 120ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 120ms cubic-bezier(0.23, 1, 0.32, 1),
+    overlay 120ms allow-discrete,
+    display 120ms allow-discrete;
+}
+.leave-dialog { transform: scale(0.98); }
+.leave-dialog::backdrop { background: rgb(10 10 10 / 0.4); }
+.leave-dialog[open],
+.leave-dialog[open]::backdrop {
+  opacity: 1;
+  transition-duration: 320ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+.leave-dialog[open] { transform: none; }
+@starting-style {
+  .leave-dialog[open],
+  .leave-dialog[open]::backdrop { opacity: 0; }
+  .leave-dialog[open] { transform: scale(0.96); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .leave-dialog,
+  .leave-dialog[open] { transform: none; }
+  .leave-dialog[open],
+  .leave-dialog[open]::backdrop { transition-duration: 120ms; }
+  @starting-style {
+    .leave-dialog[open] { transform: none; }
+  }
+}

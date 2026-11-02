@@ -338,3 +338,113 @@ describe("Official LSAT attempts", () => {
     expect(screen.getByText("LSAT scores go from 120 to 180. Check this attempt's score.")).toBeTruthy();
   });
 });
+
+describe("Study settings leave guard", () => {
+  let navigated: string[];
+
+  beforeEach(() => {
+    navigated = [];
+    HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+      this.setAttribute("open", "");
+    };
+    HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+      this.removeAttribute("open");
+    };
+    HTMLDialogElement.prototype.getAnimations = () => [];
+  });
+
+  function renderWithNav() {
+    const goTo = (event: React.MouseEvent<HTMLAnchorElement>) => {
+      event.preventDefault();
+      navigated.push(event.currentTarget.getAttribute("href")!);
+    };
+    render(
+      <>
+        <nav aria-label="Primary">
+          <a href="/dashboard" onClick={goTo}>This week</a>
+          <a href="/settings" aria-current="page" onClick={goTo}>Study settings</a>
+        </nav>
+        <StudySettingsForm currentScore={150} saved={saved} today="2026-11-02" goalTestDateOptions={upcomingTestMonths("2026-11-02")} onSave={vi.fn(async (): Promise<FormState> => null)} />
+      </>,
+      { wrapper: FailureToastProvider },
+    );
+  }
+
+  const thisWeek = () => screen.getByRole("link", { name: "This week" });
+  const leaveDialog = () => screen.queryByRole("dialog", { name: "Leave without saving?" });
+  const openDialog = () => (leaveDialog()?.hasAttribute("open") ? leaveDialog() : null);
+  const leaveRequested = (event: BeforeUnloadEvent) => {
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+
+  it("lets a clean page follow a nav tab and leave the browser tab without asking", async () => {
+    renderWithNav();
+    await userEvent.click(thisWeek());
+    expect(navigated).toEqual(["/dashboard"]);
+    expect(openDialog()).toBeNull();
+    expect(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)).toBe(false);
+  });
+
+  it("asks before following another nav tab with unsaved edits and puts focus on Stay", async () => {
+    renderWithNav();
+    await typeGoal("170");
+    await userEvent.click(thisWeek());
+
+    expect(navigated).toEqual([]);
+    const dialog = openDialog()!;
+    expect(within(dialog).getByText("Your changes to Study settings will be lost.")).toBeTruthy();
+    expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: "Stay" }));
+  });
+
+  it("does not ask when the student taps the Study settings tab they are on", async () => {
+    renderWithNav();
+    await typeGoal("170");
+    await userEvent.click(screen.getByRole("link", { name: "Study settings" }));
+    expect(openDialog()).toBeNull();
+  });
+
+  it("keeps the edits and returns focus to the tab on Stay", async () => {
+    renderWithNav();
+    await typeGoal("170");
+    await userEvent.click(thisWeek());
+    await userEvent.click(within(openDialog()!).getByRole("button", { name: "Stay" }));
+
+    expect(openDialog()).toBeNull();
+    expect(navigated).toEqual([]);
+    expect(document.activeElement).toBe(thisWeek());
+    expect(goalScore().value).toBe("170");
+    expect(saveButton()).not.toBeNull();
+  });
+
+  it("treats Escape as Stay", async () => {
+    renderWithNav();
+    await typeGoal("170");
+    await userEvent.click(thisWeek());
+    await userEvent.keyboard("{Escape}");
+
+    expect(openDialog()).toBeNull();
+    expect(navigated).toEqual([]);
+    expect(document.activeElement).toBe(thisWeek());
+    expect(goalScore().value).toBe("170");
+  });
+
+  it("goes to the chosen tab on Leave", async () => {
+    renderWithNav();
+    await typeGoal("170");
+    await userEvent.click(thisWeek());
+    await userEvent.click(within(openDialog()!).getByRole("button", { name: "Leave" }));
+
+    expect(openDialog()).toBeNull();
+    expect(navigated).toEqual(["/dashboard"]);
+  });
+
+  it("asks the browser to confirm closing or reloading only while edits are unsaved", async () => {
+    renderWithNav();
+    await typeGoal("170");
+    expect(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)).toBe(true);
+
+    await typeGoal("165");
+    expect(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)).toBe(false);
+  });
+});

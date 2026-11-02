@@ -17,6 +17,7 @@ import {
 } from "@/lib/studentProfile";
 import type { DayOfWeek } from "@/lib/types";
 import { isUnexpectedFailure, type FormState } from "@/lib/unexpectedFailure";
+import { LeaveGuard } from "./LeaveGuard";
 import { OfficialAttemptList, type AttemptDraft, type AttemptMessage } from "./OfficialAttemptList";
 
 const SAVED_HOLD_MS = 6000;
@@ -309,6 +310,7 @@ export function StudySettingsForm({
 
       <SaveBar shown={dirty || phase === "saving" || phase === "savedHold"} phase={phase} sendFailed={state.sendFailed} />
       <FailureNotice answer={state.answer} />
+      <LeaveGuard dirty={dirty} />
     </form>
   );
 }
