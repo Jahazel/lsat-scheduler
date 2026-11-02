@@ -17,8 +17,8 @@ export async function saveStudySettings(input: StudySettingsInput): Promise<Form
     const stored = await findStudentByAccountId(session.user.id);
     if (!stored) redirect("/onboarding");
 
-    const settings = parseStudySettings(input, stored.currentScore, await studentSideToday(session.user));
-    if (!(await updateStudySettings(session.user.id, settings))) {
+    const { settings, officialAttempts } = parseStudySettings(input, stored.currentScore, await studentSideToday(session.user));
+    if (!(await updateStudySettings(session.user.id, settings, officialAttempts))) {
       throw new Error("Study settings were not saved: the student is gone or the goal is no longer above the current score.");
     }
 

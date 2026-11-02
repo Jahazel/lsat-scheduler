@@ -13,19 +13,24 @@ const saved: StudySettingsInput = {
   accommodationMultiplier: 1,
   dailyCapacityMinutes: { ...everyDay(90), SATURDAY: 210 },
   preferredPracticeTestDay: "SATURDAY",
+  officialAttempts: [],
 };
+const twoAttempts = [{ score: 152, month: "2025-06" }, { score: 149, month: "2026-01" }];
 
 const SAVE_NOTE = "Changes apply to your next weekly schedule.";
 const SAVED_NOTE = "Saved. Changes apply to your next weekly schedule.";
 
 function renderForm({ onSave = vi.fn(async (): Promise<FormState> => null), values = saved } = {}) {
   render(
-    <StudySettingsForm currentScore={150} saved={values} goalTestDateOptions={upcomingTestMonths("2026-11-02")} onSave={onSave} />,
+    <StudySettingsForm currentScore={150} saved={values} today="2026-11-02" goalTestDateOptions={upcomingTestMonths("2026-11-02")} onSave={onSave} />,
     { wrapper: FailureToastProvider },
   );
   return { onSave };
 }
 
+const attemptScore = (n: number) => screen.getByRole("textbox", { name: `Attempt ${n} score` }) as HTMLInputElement;
+const attemptMonth = (n: number) => screen.getByRole("combobox", { name: `Attempt ${n} month and year` }) as HTMLSelectElement;
+const addAttempt = () => screen.queryByRole("button", { name: "Add attempt" });
 const goalScore = () => screen.getByRole("textbox", { name: "Goal score" }) as HTMLInputElement;
 const saveButton = () => screen.queryByRole("button", { name: /Save changes|Saving…/ }) as HTMLButtonElement | null;
 function status() {
@@ -94,6 +99,7 @@ describe("Study settings form", () => {
       accommodationMultiplier: 1.5,
       dailyCapacityMinutes: { ...saved.dailyCapacityMinutes, TUESDAY: 270 },
       preferredPracticeTestDay: "SUNDAY",
+      officialAttempts: [],
     });
 
     vi.useFakeTimers();
@@ -212,5 +218,100 @@ describe("Study settings form", () => {
     await userEvent.click(screen.getByRole("button", { name: "Apply" }));
     await userEvent.click(saveButton()!);
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ dailyCapacityMinutes: everyDay(150) }));
+  });
+});
+
+describe("Official LSAT attempts", () => {
+  it("shows the empty list, adds a row with focus on its score, and saves the new attempt", async () => {
+    const { onSave } = renderForm();
+    expect(screen.getByText("No official attempts yet")).toBeTruthy();
+
+    await userEvent.click(addAttempt()!);
+    expect(screen.queryByText("No official attempts yet")).toBeNull();
+    expect(document.activeElement).toBe(attemptScore(1));
+    expect(saveButton()).not.toBeNull();
+
+    await userEvent.type(attemptScore(1), "158");
+    await userEvent.selectOptions(attemptMonth(1), "2026-08");
+    await userEvent.click(saveButton()!);
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ officialAttempts: [{ score: 158, month: "2026-08" }] }));
+  });
+
+  it("shows saved attempts, edits one, and removes another", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { onSave } = renderForm({ values: { ...saved, officialAttempts: twoAttempts } });
+    expect(attemptScore(1).value).toBe("152");
+    expect(attemptMonth(2).value).toBe("2026-01");
+    expect(saveButton()).toBeNull();
+
+    await userEvent.clear(attemptScore(2));
+    await userEvent.type(attemptScore(2), "151");
+    await userEvent.click(screen.getByRole("button", { name: "Remove attempt 1" }));
+    act(() => vi.advanceTimersByTime(120));
+    expect(screen.queryByRole("textbox", { name: "Attempt 2 score" })).toBeNull();
+    expect(attemptScore(1).value).toBe("151");
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Remove attempt 1" }));
+
+    await userEvent.click(saveButton()!);
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ officialAttempts: [{ score: 151, month: "2026-01" }] }));
+  });
+
+  it("hides the save bar when a removed attempt is added back the same", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderForm({ values: { ...saved, officialAttempts: [twoAttempts[0]] } });
+    await userEvent.click(screen.getByRole("button", { name: "Remove attempt 1" }));
+    act(() => vi.advanceTimersByTime(120));
+    expect(screen.getByText("No official attempts yet")).toBeTruthy();
+    expect(document.activeElement).toBe(addAttempt());
+    expect(saveButton()).not.toBeNull();
+
+    await userEvent.click(addAttempt()!);
+    await userEvent.type(attemptScore(1), "152");
+    await userEvent.selectOptions(attemptMonth(1), "2025-06");
+    expect(saveButton()).toBeNull();
+  });
+
+  it("asks for a month again when a saved attempt's month is no longer offered", async () => {
+    const { onSave } = renderForm({ values: { ...saved, officialAttempts: [{ score: 150, month: "2021-10" }] } });
+    expect(attemptMonth(1).value).toBe("");
+    await typeGoal("170");
+    await userEvent.click(saveButton()!);
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText("Pick the month of this attempt.")).toBeTruthy();
+  });
+
+  it("replaces Add attempt with the limit note at ten attempts", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const nine = Array.from({ length: 9 }, () => twoAttempts[0]);
+    renderForm({ values: { ...saved, officialAttempts: nine } });
+    expect(screen.queryByText("You can record up to 10 attempts.")).toBeNull();
+
+    await userEvent.click(addAttempt()!);
+    expect(addAttempt()).toBeNull();
+    expect(screen.getByText("You can record up to 10 attempts.")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /^Remove attempt/ })).toHaveLength(10);
+
+    await userEvent.click(screen.getByRole("button", { name: "Remove attempt 10" }));
+    act(() => vi.advanceTimersByTime(120));
+    expect(addAttempt()).not.toBeNull();
+    expect(screen.queryByText("You can record up to 10 attempts.")).toBeNull();
+  });
+
+  it("refuses a row with no score or no month, shows its message, and moves focus to the first", async () => {
+    const { onSave } = renderForm({ values: { ...saved, officialAttempts: twoAttempts } });
+    await userEvent.click(addAttempt()!);
+    await userEvent.click(addAttempt()!);
+    await userEvent.type(attemptScore(4), "150");
+    await userEvent.click(saveButton()!);
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText("Enter the score from this attempt.")).toBeTruthy();
+    expect(screen.getByText("Pick the month of this attempt.")).toBeTruthy();
+    expect(attemptScore(3).getAttribute("aria-invalid")).toBe("true");
+    expect(attemptMonth(4).getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(attemptScore(3));
+
+    await userEvent.type(attemptScore(3), "190");
+    expect(screen.getByText("LSAT scores go from 120 to 180. Check this attempt's score.")).toBeTruthy();
   });
 });

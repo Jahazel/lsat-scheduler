@@ -5,10 +5,19 @@ import { FailureNotice } from "@/components/FailureNotice";
 import { FieldMessage, GoalTestDateSelect, ScoreInput, TestTimeChoice, WeekFields } from "@/components/StudyProfileFields";
 import { FOCUS, cx } from "@/components/ui/classes";
 import { DAY_ORDER } from "@/lib/engine";
-import type { Accommodation } from "@/lib/onboardingWizard";
-import { dailyCapacityError, everyDay, goalScoreError, type StudySettingsInput, type upcomingTestMonths } from "@/lib/studentProfile";
+import { attemptFieldMessage, type Accommodation } from "@/lib/onboardingWizard";
+import {
+  attemptMonths,
+  dailyCapacityError,
+  everyDay,
+  goalScoreError,
+  MAX_OFFICIAL_ATTEMPTS,
+  type StudySettingsInput,
+  type upcomingTestMonths,
+} from "@/lib/studentProfile";
 import type { DayOfWeek } from "@/lib/types";
 import { isUnexpectedFailure, type FormState } from "@/lib/unexpectedFailure";
+import { OfficialAttemptList, type AttemptDraft, type AttemptMessage } from "./OfficialAttemptList";
 
 const SAVED_HOLD_MS = 6000;
 const SAVE_NOTE = "Changes apply to your next weekly schedule.";
@@ -21,6 +30,7 @@ type Settings = {
   accommodationMultiplier: Accommodation;
   dailyCapacityMinutes: Record<DayOfWeek, number>;
   preferredPracticeTestDay: DayOfWeek;
+  officialAttempts: AttemptDraft[];
 };
 
 type Phase = "editing" | "saving" | "savedHold" | "savedLeaving";
@@ -29,6 +39,7 @@ interface State {
   stored: Settings;
   draft: Settings;
   allDaysMinutes: number;
+  nextAttemptId: number;
   phase: Phase;
   showMessages: boolean;
   sendFailed: boolean;
@@ -39,13 +50,20 @@ type Action =
   | { type: "edit"; values: Partial<Settings> }
   | { type: "setAllDays"; minutes: number }
   | { type: "applyAllDays" }
+  | { type: "addAttempt" }
+  | { type: "editAttempt"; id: number; values: Partial<Pick<AttemptDraft, "score" | "month">> }
+  | { type: "removeAttempt"; id: number }
   | { type: "saveRefused" }
   | { type: "saveStarted" }
   | { type: "saveEnded"; sent: Settings; answer: FormState }
   | { type: "saveNotSent" }
   | { type: "savedHoldEnded" };
 
-const same = (a: Settings, b: Settings) => JSON.stringify(a) === JSON.stringify(b);
+const comparable = (settings: Settings) => ({
+  ...settings,
+  officialAttempts: settings.officialAttempts.map(({ score, month }) => ({ score: score.trim(), month })),
+});
+const same = (a: Settings, b: Settings) => JSON.stringify(comparable(a)) === JSON.stringify(comparable(b));
 
 function edit(state: State, values: Partial<Settings>): State {
   return { ...state, draft: { ...state.draft, ...values }, sendFailed: false, phase: state.phase === "saving" ? "saving" : "editing" };
@@ -59,6 +77,18 @@ function reducer(state: State, action: Action): State {
       return { ...state, allDaysMinutes: action.minutes };
     case "applyAllDays":
       return edit(state, { dailyCapacityMinutes: everyDay(state.allDaysMinutes) });
+    case "addAttempt": {
+      const rows = state.draft.officialAttempts;
+      if (rows.length >= MAX_OFFICIAL_ATTEMPTS) return state;
+      const row = { id: state.nextAttemptId, score: "", month: "" };
+      return { ...edit(state, { officialAttempts: [...rows, row] }), nextAttemptId: row.id + 1 };
+    }
+    case "editAttempt":
+      return edit(state, {
+        officialAttempts: state.draft.officialAttempts.map((row) => (row.id === action.id ? { ...row, ...action.values } : row)),
+      });
+    case "removeAttempt":
+      return edit(state, { officialAttempts: state.draft.officialAttempts.filter((row) => row.id !== action.id) });
     case "saveRefused":
       return { ...state, showMessages: true };
     case "saveStarted":
@@ -95,31 +125,54 @@ function messages(draft: Settings, currentScore: number) {
     const message = dailyCapacityError(draft.dailyCapacityMinutes[day]);
     if (message) days[day] = message;
   }
-  return { goalScore, goalTestDate, days, any: Boolean(goalScore || goalTestDate || Object.keys(days).length > 0) };
+  const attempts: Partial<Record<number, AttemptMessage>> = {};
+  for (const row of draft.officialAttempts) {
+    const message = attemptFieldMessage(row);
+    if (message) attempts[row.id] = message;
+  }
+  const any = Boolean(goalScore || goalTestDate || Object.keys(days).length > 0 || Object.keys(attempts).length > 0);
+  return { goalScore, goalTestDate, days, attempts, any };
 }
 
 function toInput(settings: Settings): StudySettingsInput {
-  return { ...settings, goalScore: Number(settings.goalScore) };
+  return {
+    ...settings,
+    goalScore: Number(settings.goalScore),
+    officialAttempts: settings.officialAttempts.map(({ score, month }) => ({ score: Number(score), month })),
+  };
 }
 
 export function StudySettingsForm({
   currentScore,
   saved,
+  today,
   goalTestDateOptions,
   onSave,
 }: {
   currentScore: number;
   saved: StudySettingsInput;
+  today: string;
   goalTestDateOptions: ReturnType<typeof upcomingTestMonths>;
   onSave: (input: StudySettingsInput) => Promise<FormState>;
 }) {
   const [state, dispatch] = useReducer(reducer, null, (): State => {
     const offered = goalTestDateOptions.some((option) => option.value === saved.goalTestDate);
-    const stored: Settings = { ...saved, goalScore: String(saved.goalScore), goalTestDate: offered ? saved.goalTestDate : "" };
+    const attemptMonthOffered = new Set(attemptMonths(today).map((month) => month.value));
+    const stored: Settings = {
+      ...saved,
+      goalScore: String(saved.goalScore),
+      goalTestDate: offered ? saved.goalTestDate : "",
+      officialAttempts: saved.officialAttempts.map(({ score, month }, id) => ({
+        id,
+        score: String(score),
+        month: attemptMonthOffered.has(month) ? month : "",
+      })),
+    };
     return {
       stored,
       draft: stored,
       allDaysMinutes: saved.dailyCapacityMinutes.MONDAY,
+      nextAttemptId: stored.officialAttempts.length,
       phase: "editing",
       showMessages: false,
       sendFailed: false,
@@ -210,6 +263,15 @@ export function StudySettingsForm({
               <TestTimeChoice value={draft.accommodationMultiplier} onChange={(accommodationMultiplier) => edit({ accommodationMultiplier })} />
             </div>
           </div>
+          <OfficialAttemptList
+            rows={draft.officialAttempts}
+            nextId={state.nextAttemptId}
+            today={today}
+            messages={visible?.attempts}
+            onEdit={(id, values) => dispatch({ type: "editAttempt", id, values })}
+            onAdd={() => dispatch({ type: "addAttempt" })}
+            onRemove={(id) => dispatch({ type: "removeAttempt", id })}
+          />
         </Section>
 
         <Section title="Week" lede="How much time you can study each day. Each day needs at least 30 min.">

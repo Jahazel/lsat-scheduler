@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { studentSideToday } from "@/lib/studentClock";
 import { upcomingTestMonths } from "@/lib/studentProfile";
-import { findStudentByAccountId } from "@/lib/studentRepository";
+import { findOfficialAttempts, findStudentByAccountId } from "@/lib/studentRepository";
 import { saveStudySettings } from "./actions";
 import { StudySettingsForm } from "./StudySettingsForm";
 
@@ -12,6 +12,7 @@ export default async function StudySettingsPage() {
 
   const student = await findStudentByAccountId(session.user.id);
   if (!student) redirect("/onboarding");
+  const today = await studentSideToday(session.user);
 
   return (
     <div className="min-h-screen bg-vellum">
@@ -29,8 +30,10 @@ export default async function StudySettingsPage() {
           accommodationMultiplier: student.accommodationMultiplier,
           dailyCapacityMinutes: student.dailyCapacityMinutes,
           preferredPracticeTestDay: student.preferredPracticeTestDay,
+          officialAttempts: await findOfficialAttempts(session.user.id),
         }}
-        goalTestDateOptions={upcomingTestMonths(await studentSideToday(session.user))}
+        today={today}
+        goalTestDateOptions={upcomingTestMonths(today)}
         onSave={saveStudySettings}
       />
     </div>
