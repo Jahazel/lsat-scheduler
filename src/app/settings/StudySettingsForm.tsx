@@ -230,7 +230,7 @@ export function StudySettingsForm({
         {monthPassed && (
           <p
             id={PASSED_NOTICE_ID}
-            className="flex items-start gap-2.5 border-y border-warning-line bg-warning-wash px-5 py-3 text-small text-ink md:rounded-md md:border md:px-4 max-md:[&+section]:border-t-0"
+            className="flex items-start gap-2.5 border-y border-warning-line bg-warning-wash px-5 py-3 text-small text-ink md:rounded-xs md:border md:px-4 max-md:[&+section]:border-t-0"
           >
             <svg aria-hidden viewBox="0 0 24 24" className="size-[18px] shrink-0 text-warning-ink" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="9" />
