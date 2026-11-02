@@ -5,20 +5,22 @@ import { FailureNotice } from "@/components/FailureNotice";
 import { FieldMessage, GoalTestDateSelect, ScoreInput, TestTimeChoice, WeekFields } from "@/components/StudyProfileFields";
 import { FOCUS, cx } from "@/components/ui/classes";
 import { DAY_ORDER } from "@/lib/engine";
-import { attemptFieldMessage, type Accommodation } from "@/lib/onboardingWizard";
+import { attemptMonths, dailyCapacityError, everyDay, type StudySettingsInput, type upcomingTestMonths } from "@/lib/studentProfile";
 import {
-  attemptMonths,
-  dailyCapacityError,
-  everyDay,
-  goalScoreError,
-  MAX_OFFICIAL_ATTEMPTS,
-  type StudySettingsInput,
-  type upcomingTestMonths,
-} from "@/lib/studentProfile";
+  addAttempt,
+  attemptProblemMessage,
+  editAttempt,
+  goalScoreMessage,
+  removeAttempt,
+  toOfficialAttempts,
+  type Accommodation,
+  type AttemptMessage,
+  type AttemptRow,
+} from "@/lib/studyProfileDraft";
 import type { DayOfWeek } from "@/lib/types";
 import { isUnexpectedFailure, type FormState } from "@/lib/unexpectedFailure";
 import { LeaveGuard } from "./LeaveGuard";
-import { OfficialAttemptList, type AttemptDraft, type AttemptMessage } from "./OfficialAttemptList";
+import { OfficialAttemptList } from "./OfficialAttemptList";
 import { SettingsWeekPreview } from "./SettingsWeekPreview";
 
 const SAVED_HOLD_MS = 6000;
@@ -33,7 +35,7 @@ type Settings = {
   accommodationMultiplier: Accommodation;
   dailyCapacityMinutes: Record<DayOfWeek, number>;
   preferredPracticeTestDay: DayOfWeek;
-  officialAttempts: AttemptDraft[];
+  officialAttempts: AttemptRow[];
 };
 
 type Phase = "editing" | "saving" | "savedHold" | "savedLeaving";
@@ -54,7 +56,7 @@ type Action =
   | { type: "setAllDays"; minutes: number }
   | { type: "applyAllDays" }
   | { type: "addAttempt" }
-  | { type: "editAttempt"; id: number; values: Partial<Pick<AttemptDraft, "score" | "month">> }
+  | { type: "editAttempt"; id: number; values: Partial<Pick<AttemptRow, "score" | "month">> }
   | { type: "removeAttempt"; id: number }
   | { type: "saveRefused" }
   | { type: "saveStarted" }
@@ -81,17 +83,14 @@ function reducer(state: State, action: Action): State {
     case "applyAllDays":
       return edit(state, { dailyCapacityMinutes: everyDay(state.allDaysMinutes) });
     case "addAttempt": {
-      const rows = state.draft.officialAttempts;
-      if (rows.length >= MAX_OFFICIAL_ATTEMPTS) return state;
-      const row = { id: state.nextAttemptId, score: "", month: "" };
-      return { ...edit(state, { officialAttempts: [...rows, row] }), nextAttemptId: row.id + 1 };
+      const id = state.nextAttemptId;
+      const officialAttempts = addAttempt(state.draft.officialAttempts, { id, score: "", month: "" });
+      return officialAttempts ? { ...edit(state, { officialAttempts }), nextAttemptId: id + 1 } : state;
     }
     case "editAttempt":
-      return edit(state, {
-        officialAttempts: state.draft.officialAttempts.map((row) => (row.id === action.id ? { ...row, ...action.values } : row)),
-      });
+      return edit(state, { officialAttempts: editAttempt(state.draft.officialAttempts, action.id, action.values) });
     case "removeAttempt":
-      return edit(state, { officialAttempts: state.draft.officialAttempts.filter((row) => row.id !== action.id) });
+      return edit(state, { officialAttempts: removeAttempt(state.draft.officialAttempts, action.id) });
     case "saveRefused":
       return { ...state, showMessages: true };
     case "saveStarted":
@@ -112,16 +111,8 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-function parseScore(text: string): number | null {
-  return /^\d+$/.test(text.trim()) ? Number(text) : null;
-}
-
 function messages(draft: Settings, currentScore: number) {
-  const goal = parseScore(draft.goalScore);
-  const goalScore =
-    goal === null || goal < 120 || goal > 180
-      ? "LSAT scores go from 120 to 180. Check your goal score."
-      : goalScoreError(currentScore, goal);
+  const goalScore = goalScoreMessage(currentScore, draft.goalScore);
   const goalTestDate = draft.goalTestDate === "" ? "Choose an upcoming LSAT test month." : null;
   const days: Partial<Record<DayOfWeek, string>> = {};
   for (const day of DAY_ORDER) {
@@ -130,7 +121,7 @@ function messages(draft: Settings, currentScore: number) {
   }
   const attempts: Partial<Record<number, AttemptMessage>> = {};
   for (const row of draft.officialAttempts) {
-    const message = attemptFieldMessage(row);
+    const message = attemptProblemMessage(row);
     if (message) attempts[row.id] = message;
   }
   const any = Boolean(goalScore || goalTestDate || Object.keys(days).length > 0 || Object.keys(attempts).length > 0);
@@ -141,7 +132,7 @@ function toInput(settings: Settings): StudySettingsInput {
   return {
     ...settings,
     goalScore: Number(settings.goalScore),
-    officialAttempts: settings.officialAttempts.map(({ score, month }) => ({ score: Number(score), month })),
+    officialAttempts: toOfficialAttempts(settings.officialAttempts),
   };
 }
 

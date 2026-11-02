@@ -4,15 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { FieldMessage } from "@/components/StudyProfileFields";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { attemptMonths, MAX_OFFICIAL_ATTEMPTS } from "@/lib/studentProfile";
-
-export type AttemptDraft = { id: number; score: string; month: string };
-export type AttemptMessage = { box: "score" | "month"; text: string };
+import type { AttemptMessage, AttemptRow } from "@/lib/studyProfileDraft";
 
 const LEAVE_MS = 120;
 const BOX = `h-10 rounded-sm border bg-paper px-3 text-body text-ink ${FOCUS}`;
 const box = (invalid: boolean) => cx(BOX, invalid ? "border-danger" : "border-vellum-line");
 
-type Leaving = { row: AttemptDraft; index: number };
+type Leaving = { row: AttemptRow; index: number };
 
 export function OfficialAttemptList({
   rows,
@@ -23,11 +21,11 @@ export function OfficialAttemptList({
   onAdd,
   onRemove,
 }: {
-  rows: AttemptDraft[];
+  rows: AttemptRow[];
   nextId: number;
   today: string;
   messages: Partial<Record<number, AttemptMessage>> | undefined;
-  onEdit: (id: number, values: Partial<Pick<AttemptDraft, "score" | "month">>) => void;
+  onEdit: (id: number, values: Partial<Pick<AttemptRow, "score" | "month">>) => void;
   onAdd: () => void;
   onRemove: (id: number) => void;
 }) {
@@ -37,7 +35,7 @@ export function OfficialAttemptList({
   const pendingFocus = useRef<string | null>(null);
   const months = attemptMonths(today);
 
-  const shown: { row: AttemptDraft; leaving: boolean }[] = rows.map((row) => ({ row, leaving: false }));
+  const shown: { row: AttemptRow; leaving: boolean }[] = rows.map((row) => ({ row, leaving: false }));
   for (const gone of leaving) shown.splice(Math.min(gone.index, shown.length), 0, { row: gone.row, leaving: true });
 
   useEffect(() => {
@@ -52,7 +50,7 @@ export function OfficialAttemptList({
     onAdd();
   }
 
-  function remove(row: AttemptDraft) {
+  function remove(row: AttemptRow) {
     const index = rows.indexOf(row);
     const next = rows[index + 1];
     setLeaving((list) => [...list, { row, index }]);
