@@ -1,0 +1,628 @@
+<!doctype html>
+<!--
+  PROTOTYPE, throw away. Study settings · Direction 3 (Goal strip + week workspace),
+  with Direction 1's dark save bar.
+  Question: does the flow and its motion feel right at 1440, 768, and 390,
+  with full motion and with reduced motion?
+  Open this file in a browser. No build, no server, no saved data.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE · Study settings D3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --vellum: #F6F6F6; --paper: #FFFFFF; --line: #E4E4E4; --ink: #0A0A0A; --chalk: #FAFAFA;
+  --fog: #8A8A8A; --smoke: #5C5C5C; --accent: #123A94; --accent-tint: rgb(18 58 148 / 0.14);
+  --danger: #F0524F; --danger-ink: #C23532; --warning-ink: #9A6700; --success-ink: #1F7A34;
+  --shadow-bar: 0 8px 24px rgb(0 0 0 / 0.12);
+  --shadow-e3: 0 16px 48px rgb(10 10 10 / 0.12);
+  --fast: 120ms; --base: 200ms; --slow: 320ms;
+  --standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --slowmo: 1;
+  font-family: Geist, ui-sans-serif, system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #2A2A2A; color: var(--ink); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- stage and device frame ---------- */
+#stage { position: fixed; inset: 0 0 132px 0; display: flex; justify-content: center; align-items: flex-start; padding-top: 16px; overflow: hidden; }
+#scaler { transform-origin: top center; }
+#frame { position: relative; background: var(--vellum); overflow: hidden; container-type: inline-size; container-name: app; border-radius: 6px; box-shadow: 0 0 0 1px #000; }
+#scroll { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; scroll-behavior: auto; }
+
+/* ---------- app shell ---------- */
+.nav { position: sticky; top: 0; z-index: 2; height: 72px; display: flex; align-items: center; gap: 32px; padding: 0 72px; background: var(--paper); border-bottom: 1px solid var(--line); }
+.wordmark { font-weight: 600; font-size: 20px; letter-spacing: -0.02em; }
+.tabs { display: flex; gap: 4px; }
+.tab { border: 0; background: none; padding: 8px 16px; border-radius: 999px; font-size: 16px; cursor: pointer; transition: background-color var(--fast) ease; }
+@media (hover: hover) and (pointer: fine) { .tab:hover { background: var(--vellum); } }
+.tab[aria-current="page"] { background: var(--vellum); font-weight: 500; }
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 24px; color: var(--smoke); }
+.avatar { width: 40px; height: 40px; border-radius: 999px; border: 1px solid var(--ink); background: var(--vellum); display: grid; place-items: center; font-size: 14px; font-weight: 500; color: var(--ink); }
+.phone-pill { display: none; background: var(--vellum); border-radius: 999px; padding: 5px 12px; font-size: 14px; }
+.band { background: var(--paper); border-bottom: 1px solid var(--line); padding: 48px 72px 40px; }
+.band-in { max-width: 1120px; margin: 0 auto; }
+.h1 { font-size: 48px; line-height: 52px; letter-spacing: -0.02em; font-weight: 600; margin: 0; }
+.lead { font-size: 20px; line-height: 30px; color: var(--smoke); margin: 12px 0 0; }
+.body { padding: 32px 72px 140px; }
+.body-in { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 32px; display: flex; flex-direction: column; gap: 24px; }
+.card-head h2 { margin: 0; font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -0.02em; }
+.card-head p { margin: 4px 0 0; color: var(--smoke); font-size: 16px; line-height: 24px; }
+.tb { display: none; position: absolute; left: 12px; right: 12px; bottom: 12px; height: 66px; z-index: 3; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; justify-content: space-around; align-items: center; box-shadow: 0 1px 2px rgb(0 0 0 / .06); }
+.tb button { border: 0; background: none; display: grid; justify-items: center; gap: 4px; color: var(--smoke); font-size: 12px; cursor: pointer; }
+.tb button[aria-current="page"] { color: var(--ink); font-weight: 500; }
+
+/* ---------- fields ---------- */
+.label { font-size: 14px; line-height: 18px; font-weight: 500; }
+.hint { font-size: 12px; line-height: 16px; color: var(--smoke); }
+.err { font-size: 14px; line-height: 18px; color: var(--danger-ink); display: flex; gap: 6px; align-items: flex-start; }
+.err[hidden] { display: none; }
+.f { display: flex; flex-direction: column; gap: 8px; flex: 1 1 0; min-width: 0; }
+.input, .select { height: 44px; border: 1px solid var(--line); border-radius: 6px; padding: 0 12px; background: var(--paper); font-size: 16px; width: 100%; }
+.select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%235C5C5C' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
+.input:focus, .select:focus { outline: none; border-color: var(--ink); }
+[aria-invalid="true"] { border-color: var(--danger-ink) !important; box-shadow: 0 0 0 1px var(--danger-ink); }
+.needs { border-color: var(--warning-ink); box-shadow: 0 0 0 1px var(--warning-ink); }
+.readonly-val { height: 44px; display: flex; align-items: center; font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.goal-row { display: flex; gap: 24px; align-items: flex-start; }
+.seg { display: flex; gap: 4px; padding: 4px; background: var(--vellum); border-radius: 6px; }
+.seg button { flex: 1; height: 36px; border: 0; border-radius: 4px; background: none; font-size: 14px; color: var(--smoke); cursor: pointer; white-space: nowrap; transition: background-color var(--fast) ease, color var(--fast) ease; }
+.seg button[aria-pressed="true"] { background: var(--paper); color: var(--ink); font-weight: 500; box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
+.notice { display: flex; gap: 10px; align-items: flex-start; background: #FFF6DB; border: 1px solid #EADBA8; color: var(--ink); border-radius: 8px; padding: 12px 16px; font-size: 14px; line-height: 20px; }
+.notice[hidden] { display: none; }
+
+/* attempts */
+.att { display: flex; flex-direction: column; gap: 8px; max-width: 640px; }
+.att-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.rows { border: 1px solid var(--line); border-radius: 6px; }
+.rows:empty { display: none; }
+.row { display: flex; gap: 12px; align-items: flex-start; padding: 8px 8px 8px 12px; border-top: 1px solid var(--line);
+  opacity: 1; transform: translateY(0);
+  transition: opacity calc(var(--base) * var(--slowmo)) var(--standard), transform calc(var(--base) * var(--slowmo)) var(--standard); }
+.row:first-child { border-top: 0; }
+.row[data-state="entering"] { opacity: 0; transform: translateY(-6px); }
+.row[data-state="leaving"] { opacity: 0; transition-duration: calc(var(--fast) * var(--slowmo)); transition-timing-function: var(--ease-out); }
+.row .score { width: 96px; flex: 0 0 96px; }
+.row .month { flex: 1; min-width: 0; }
+.row .cell { display: flex; flex-direction: column; gap: 4px; }
+.row .input, .row .select { height: 40px; }
+.icon-btn { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; border: 0; background: none; border-radius: 999px; color: var(--smoke); cursor: pointer; transition: background-color var(--fast) ease; }
+@media (hover: hover) and (pointer: fine) { .icon-btn:hover { background: var(--vellum); } }
+.link[hidden], .empty[hidden], .hint[hidden], .count[hidden] { display: none; }
+.empty { font-size: 14px; color: var(--smoke); padding: 4px 0; }
+.link { display: inline-flex; gap: 8px; align-items: center; border: 0; background: none; padding: 4px 0; font-size: 14px; font-weight: 500; text-decoration: underline 1px; text-underline-offset: 3px; cursor: pointer; align-self: flex-start; }
+
+/* week table */
+.wk { display: flex; gap: 40px; align-items: stretch; }
+.tbl { width: 560px; flex: 0 0 560px; display: flex; flex-direction: column; }
+.tr { display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 12px; border-bottom: 1px solid var(--line); }
+.tr.head { min-height: 28px; font-size: 12px; color: var(--smoke); }
+.tr.all { background: var(--vellum); border-radius: 6px 6px 0 0; min-height: 52px; }
+.tr .d { width: 64px; flex: 0 0 64px; font-size: 14px; font-weight: 500; }
+.tr .tm { display: flex; gap: 8px; }
+.tr .tm .select { height: 34px; width: 100px; font-size: 14px; }
+.tr .pt { margin-left: auto; width: 84px; flex: 0 0 84px; display: grid; place-items: center; }
+.tr .row-err { flex-basis: 100%; }
+.tr.has-err { flex-wrap: wrap; padding-bottom: 8px; }
+.tr.has-err .row-err { padding-left: 72px; }
+.radio { width: 20px; height: 20px; border-radius: 999px; border: 1.5px solid var(--smoke); background: var(--paper); cursor: pointer; padding: 0; display: grid; place-items: center; }
+.radio[aria-checked="true"] { border-color: var(--accent); }
+.radio[aria-checked="true"]::after { content: ""; width: 10px; height: 10px; border-radius: 999px; background: var(--accent); }
+.apply { height: 34px; padding: 0 14px; border: 1px solid var(--ink); border-radius: 6px; background: var(--paper); font-size: 14px; font-weight: 500; cursor: pointer; }
+.totals { padding: 16px 12px 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--smoke); }
+.totals b { color: var(--ink); font-size: 16px; }
+
+/* preview (lg and wider only) */
+.pv { flex: 1; border-left: 1px solid var(--line); padding-left: 40px; display: flex; flex-direction: column; gap: 20px; }
+.eyebrow { font: 12px/16px "Geist Mono", ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--smoke); }
+.pv .big { font-size: 28px; line-height: 34px; font-weight: 600; letter-spacing: -0.02em; margin-top: 4px; }
+.pv .sub { font-size: 14px; color: var(--accent); }
+.bars { display: flex; flex-direction: column; gap: 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+.bar-row { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+.bar-row .dn { width: 36px; }
+.bar-row .track { flex: 1; height: 20px; }
+.bar-row .fill { height: 20px; width: 100%; border-radius: 4px; background: #DDE3F0; transform-origin: left center;
+  transition: transform calc(var(--fast) * var(--slowmo)) var(--ease-out); display: flex; align-items: center; }
+.bar-row .fill.pt { background: var(--accent); color: #fff; font-size: 12px; padding-left: 8px; }
+.bar-row .v { width: 56px; text-align: right; font-variant-numeric: tabular-nums; }
+.bar-row.changed .dn, .bar-row.changed .v { color: var(--accent); font-weight: 600; }
+.bar-row.changed .fill { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.pv-note { font-size: 14px; color: var(--smoke); }
+
+/* ---------- save bar (Direction 1 style, Direction 3 width) ---------- */
+.savebar { position: absolute; z-index: 4; bottom: 24px; left: calc((100% - 1120px) / 2); right: calc((100% - 1120px) / 2);
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px;
+  padding: 12px 12px 12px 24px; background: var(--ink); color: var(--chalk); border-radius: 12px; box-shadow: var(--shadow-bar);
+  opacity: 1; transform: translateY(0); visibility: visible;
+  transition: opacity calc(var(--base) * var(--slowmo)) var(--standard), transform calc(var(--base) * var(--slowmo)) var(--standard), visibility 0s; }
+.savebar[data-state="hidden"] { opacity: 0; transform: translateY(12px); visibility: hidden; pointer-events: none;
+  transition: opacity calc(var(--fast) * var(--slowmo)) var(--ease-out), transform calc(var(--fast) * var(--slowmo)) var(--ease-out), visibility 0s linear calc(var(--fast) * var(--slowmo)); }
+.savebar .msg { position: relative; flex: 1; min-height: 20px; font-size: 14px; line-height: 20px; }
+.savebar .msg span { display: flex; gap: 8px; align-items: center; transition: opacity calc(var(--fast) * var(--slowmo)) ease; }
+.savebar .msg .saved { position: absolute; inset: 0; opacity: 0; }
+.savebar[data-mode="saved"] .msg .note { opacity: 0; }
+.savebar[data-mode="saved"] .msg .saved { opacity: 1; }
+.save-btn { height: 40px; padding: 0 20px; border: 0; border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; flex: 0 0 auto; transition: opacity var(--fast) ease; }
+.save-btn:disabled { opacity: .6; cursor: default; }
+.savebar[data-mode="saved"] .save-btn { opacity: 0; pointer-events: none; }
+.save-btn:focus-visible { outline-color: var(--paper); }
+
+/* ---------- failure toast (existing component, stacks above the bar) ---------- */
+.toast-slot { position: absolute; left: 0; right: 0; bottom: 32px; z-index: 5; display: flex; justify-content: center; pointer-events: none; transition: transform calc(var(--base) * var(--slowmo)) var(--standard); }
+#frame[data-bar="shown"] .toast-slot { transform: translateY(-80px); }
+.toast { pointer-events: auto; width: 360px; display: flex; gap: 12px; padding: 16px 4px 16px 16px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-e3);
+  opacity: 1; transform: translateY(0);
+  transition: opacity calc(var(--base) * var(--slowmo)) var(--standard), transform calc(var(--base) * var(--slowmo)) var(--standard); }
+.toast[data-state="entering"] { opacity: 0; transform: translateY(12px); }
+.toast[data-state="exiting"] { opacity: 0; transform: translateY(4px); transition-duration: calc(var(--fast) * var(--slowmo)); transition-timing-function: var(--ease-out); }
+.toast .txt { flex: 1; font-size: 14px; line-height: 20px; }
+.toast .txt b { display: block; font-weight: 500; }
+.toast .txt small { color: var(--smoke); font-size: 13px; }
+
+/* ---------- leave dialog ---------- */
+.scrim { position: absolute; inset: 0; z-index: 6; background: rgb(10 10 10 / 0.4); display: grid; place-items: center; padding: 16px;
+  opacity: 1; transition: opacity calc(var(--slow) * var(--slowmo)) var(--standard); }
+.scrim[hidden] { display: none; }
+.scrim[data-state="entering"], .scrim[data-state="exiting"] { opacity: 0; }
+.scrim[data-state="exiting"] { transition-duration: calc(var(--fast) * var(--slowmo)); transition-timing-function: var(--ease-out); }
+.dlg { width: 400px; max-width: 100%; background: var(--paper); border-radius: 12px; padding: 24px; box-shadow: var(--shadow-e3);
+  transform: scale(1); transition: transform calc(var(--slow) * var(--slowmo)) var(--standard); }
+.scrim[data-state="entering"] .dlg { transform: scale(0.96); }
+.scrim[data-state="exiting"] .dlg { transform: scale(0.98); transition-duration: calc(var(--fast) * var(--slowmo)); transition-timing-function: var(--ease-out); }
+.dlg h3 { margin: 0; font-size: 18px; line-height: 24px; font-weight: 600; }
+.dlg p { margin: 8px 0 24px; color: var(--smoke); font-size: 14px; line-height: 20px; }
+.dlg .acts { display: flex; justify-content: flex-end; gap: 8px; }
+.btn { height: 40px; padding: 0 18px; border-radius: 6px; border: 1px solid var(--line); background: var(--paper); font-size: 14px; font-weight: 500; cursor: pointer; }
+.btn.dark { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn.danger { color: var(--danger-ink); border-color: var(--danger-ink); }
+
+/* ---------- other screens and loading ---------- */
+.placeholder { padding: 48px 72px; color: var(--smoke); }
+.skel { height: 16px; border-radius: 4px; background: var(--line); margin: 12px 0; }
+
+/* ---------- reduced motion: drop movement, keep 120 ms fades ---------- */
+/* data-rm is set by JS from the system setting and the MOTION control */
+#frame[data-rm="1"] .savebar,
+#frame[data-rm="1"] .savebar[data-state="hidden"],
+#frame[data-rm="1"] .row, #frame[data-rm="1"] .toast, #frame[data-rm="1"] .scrim, #frame[data-rm="1"] .dlg { transition-duration: calc(var(--fast) * var(--slowmo)); }
+#frame[data-rm="1"] .savebar[data-state="hidden"],
+#frame[data-rm="1"] .row[data-state="entering"],
+#frame[data-rm="1"] .toast[data-state="entering"], #frame[data-rm="1"] .toast[data-state="exiting"],
+#frame[data-rm="1"] .scrim .dlg { transform: none; }
+#frame[data-rm="1"] .bar-row .fill, #frame[data-rm="1"] .toast-slot { transition: none; }
+#frame[data-rm="1"] .row[data-state="leaving"] { transition-duration: 0s; }
+
+/* ---------- tablet 768-1023: no preview, goal fields 2 x 2 ---------- */
+@container app (max-width: 1023px) {
+  .nav { padding: 0 32px; gap: 24px; }
+  .band { padding: 40px 32px 32px; }
+  .body { padding: 32px 32px 140px; }
+  .card { padding: 24px; }
+  .goal-row { flex-wrap: wrap; row-gap: 20px; column-gap: 16px; }
+  .goal-row .f { flex: 1 1 300px; }
+  .pv { display: none; }
+  .tbl { flex: 1 1 auto; width: auto; }
+  .savebar { left: 32px; right: 32px; }
+  .placeholder { padding: 40px 32px; }
+}
+/* ---------- phone below 768: top bar + floating tab bar, no card frames ---------- */
+@container app (max-width: 767px) {
+  .nav { height: 56px; padding: 0 20px; }
+  .tabs, .nav-right .count { display: none; }
+  .phone-pill { display: inline-block; }
+  .avatar { width: 32px; height: 32px; border: 0; background: none; font-size: 13px; }
+  .nav-right { gap: 12px; }
+  .band { padding: 24px 20px 20px; }
+  .h1 { font-size: 28px; line-height: 34px; }
+  .lead { font-size: 14px; line-height: 18px; margin-top: 8px; }
+  .body { padding: 0 0 180px; background: var(--paper); }
+  .body-in { gap: 0; }
+  .card { border: 0; border-radius: 0; padding: 28px 20px 32px; gap: 20px; }
+  .card + .card { border-top: 8px solid var(--vellum); }
+  .goal-row .f { flex: 1 1 150px; }
+  .goal-row .f.full { flex-basis: 100%; }
+  .att-head { flex-direction: column; gap: 2px; }
+  .tbl { margin: 0 -12px; }
+  .tr { padding: 0 8px; gap: 6px; }
+  .tr .d { width: 40px; flex-basis: 40px; }
+  .tr .tm .select { width: 92px; }
+  .tr .pt { width: 60px; flex-basis: 60px; }
+  .tr.has-err .row-err { padding-left: 46px; }
+  .tb { display: flex; }
+  .savebar { left: 12px; right: 12px; bottom: 86px; padding-left: 16px; }
+  .savebar .msg { font-size: 13px; line-height: 18px; }
+  .toast-slot { bottom: 86px; padding: 0 12px; }
+  .toast { width: 100%; }
+  .placeholder { padding: 32px 20px; }
+}
+
+/* ---------- control bar (not part of the design) ---------- */
+#bar { position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%); width: min(1180px, calc(100% - 20px)); background: #111; color: #eee; border-radius: 12px; padding: 8px 12px; font: 12px/1.4 "Geist Mono", ui-monospace, monospace; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+#bar .line { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+#bar .grp { display: inline-flex; gap: 4px; align-items: center; }
+#bar b { color: #888; font-weight: 400; margin-right: 4px; }
+#bar button { background: #262626; border: 1px solid #333; color: #eee; border-radius: 6px; padding: 3px 8px; cursor: pointer; font: inherit; }
+#bar button[aria-pressed="true"] { background: #eee; color: #111; }
+#readout { margin-top: 6px; color: #9fd29f; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div id="stage"><div id="scaler"><div id="frame" data-motion="system">
+  <div id="scroll">
+    <header class="nav">
+      <span class="wordmark">DrillMap</span>
+      <nav class="tabs" aria-label="Primary">
+        <button class="tab" data-go="this-week">This week</button>
+        <button class="tab" data-go="progress">Progress</button>
+        <button class="tab" data-go="settings">Study settings</button>
+      </nav>
+      <div class="nav-right"><span class="phone-pill" id="pill">Settings</span><span class="count">125 days to test</span><span class="avatar">AB</span></div>
+    </header>
+    <main id="main"></main>
+  </div>
+
+  <div class="savebar" id="savebar" data-state="hidden" data-mode="dirty" aria-hidden="true">
+    <div class="msg">
+      <span class="note">Changes apply to your next weekly schedule.</span>
+      <span class="saved" role="status" id="savedMsg"></span>
+    </div>
+    <button class="save-btn" id="saveBtn">Save changes</button>
+  </div>
+
+  <div class="toast-slot" id="toastSlot"></div>
+
+  <div class="scrim" id="scrim" hidden>
+    <div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlgT" aria-describedby="dlgD">
+      <h3 id="dlgT">Leave without saving?</h3>
+      <p id="dlgD">Your changes to Study settings will be lost.</p>
+      <div class="acts"><button class="btn danger" id="leaveBtn">Leave</button><button class="btn dark" id="stayBtn">Stay</button></div>
+    </div>
+  </div>
+
+  <nav class="tb" aria-label="Primary">
+    <button data-go="this-week"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>This week</button>
+    <button data-go="progress"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 20V10M12 20V4M19 20v-6M3 20h18"/></svg>Progress</button>
+    <button data-go="settings"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8h16M4 16h16"/><circle cx="9" cy="8" r="2" fill="#fff"/><circle cx="15" cy="16" r="2" fill="#fff"/></svg>Settings</button>
+  </nav>
+</div></div></div>
+
+<div id="bar">
+  <div class="line">
+    <span class="grp"><b>WIDTH</b><button data-w="1440">1440</button><button data-w="768">768</button><button data-w="390">390</button></span>
+    <span class="grp"><b>MOTION</b><button data-m="system">Follow system</button><button data-m="full">Full</button><button data-m="reduced">Reduced</button><button id="slowmo">Slow ×5</button></span>
+    <span class="grp"><b>DATA</b><button data-d="normal">Two attempts</button><button data-d="none">No attempts</button><button data-d="ten">Ten attempts</button><button data-d="179">Current 179</button><button data-d="passed">Test month passed</button></span>
+    <span class="grp"><b>NEXT SAVE</b><button data-s="ok">Works</button><button data-s="fail">Fails</button></span>
+    <span class="grp"><b>PAGE</b><button id="reload">Reload (loading state)</button></span>
+  </div>
+  <div id="readout"></div>
+</div>
+
+<script>
+const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const OFFERED = ["January 2027","February 2027","March 2027","April 2027","June 2027","August 2027"];
+const PAST = ["June 2024","October 2024","January 2025","June 2025","August 2025","November 2025","January 2026","April 2026","June 2026","August 2026"];
+const PT_MIN = { std: 150, "1.5": 188, "2": 225 };
+const PT_NAME = { std: "standard time", "1.5": "1.5× time", "2": "2× time" };
+const SAVED_HOLD_MS = 6000;
+const SAVE_WAIT_MS = 700;
+
+let uid = 0;
+const att = (score, month) => ({ id: ++uid, score, month });
+function dataset(kind) {
+  const base = { current: 150, goal: 165, month: "March 2027", time: "std", ptDay: 5,
+    days: [90, 90, 120, 90, 60, 210, 120], attempts: [att("152", "June 2025"), att("149", "January 2026")] };
+  if (kind === "none") base.attempts = [];
+  if (kind === "ten") base.attempts = PAST.map((m, i) => att(String(146 + (i % 6)), m));
+  if (kind === "179") { base.current = 179; base.goal = 180; }
+  if (kind === "passed") base.month = "October 2026";
+  return base;
+}
+const clone = (o) => JSON.parse(JSON.stringify(o));
+
+const S = { width: 1440, motion: "system", slow: false, data: "normal", nextSave: "ok", screen: "settings",
+  saved: null, draft: null, bar: "hidden", barMode: "dirty", saving: false, errors: {}, last: "Page loaded", loading: false };
+let savedTimer = null;
+
+const $ = (s, r = document) => r.querySelector(s);
+const frame = $("#frame"), main = $("#main"), savebar = $("#savebar"), saveBtn = $("#saveBtn");
+const sysReduced = matchMedia("(prefers-reduced-motion: reduce)");
+const reduced = () => S.motion === "reduced" || (S.motion === "system" && sysReduced.matches);
+const ms = (t) => t * (S.slow ? 5 : 1);
+const fmt = (m) => { const h = Math.floor(m / 60), r = m % 60; return h && r ? `${h} h ${r}` : h ? `${h} h` : `${r} min`; };
+const monthOk = (m) => OFFERED.includes(m);
+
+function load(kind) {
+  S.data = kind; S.saved = dataset(kind); S.draft = clone(S.saved); S.errors = {};
+  if (!monthOk(S.draft.month)) S.draft.month = "";
+  setBar("hidden"); renderScreen(); out("Loaded data: " + kind);
+}
+function isDirty() {
+  const a = S.draft, b = S.saved;
+  const norm = (x) => JSON.stringify({ ...x, attempts: x.attempts.map(({ score, month }) => ({ score, month })) });
+  return norm(a) !== norm(b);
+}
+
+/* ---------- settings screen ---------- */
+function renderScreen() {
+  document.querySelectorAll("[data-go]").forEach((b) => b.setAttribute("aria-current", b.dataset.go === S.screen ? "page" : "false"));
+  $(".count").hidden = !!S.saved && S.saved.month !== "" && !monthOk(S.saved.month); // a passed test date shows no countdown (src/lib/testCountdown.ts)
+  $("#pill").textContent = { "this-week": "This week", progress: "Progress", settings: "Settings" }[S.screen];
+  if (S.loading) { main.innerHTML = `<div class="band"><div class="band-in"><h1 class="h1">Study settings</h1></div></div><div class="body"><div class="body-in"><div class="card" aria-busy="true"><div class="skel" style="width:30%"></div><div class="skel"></div><div class="skel" style="width:70%"></div></div></div></div>`; return; }
+  if (S.screen !== "settings") { main.innerHTML = `<div class="placeholder"><h1 class="h1" style="color:var(--ink)">${S.screen === "progress" ? "Progress" : "This week"}</h1><p>Another page. Press the Study settings tab to go back.</p></div>`; return; }
+  const d = S.draft;
+  main.innerHTML = `
+  <div class="band"><div class="band-in"><h1 class="h1">Study settings</h1><p class="lead">Your goal and your week. Changes apply to your next weekly schedule.</p></div></div>
+  <div class="body"><div class="body-in">
+    <div class="notice" id="passedNotice" ${d.month || S.saved.month === "" || monthOk(S.saved.month) ? "hidden" : ""} role="status">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--warning-ink)" stroke-width="2"><path d="M12 8v5M12 16.5v.5"/><circle cx="12" cy="12" r="9"/></svg>
+      <span>Your test month has passed. Choose a new one.</span></div>
+    <section class="card" aria-labelledby="gH">
+      <div class="card-head"><h2 id="gH">Goal</h2><p>Where you are now, where you want to be, and when.</p></div>
+      <div class="goal-row">
+        <div class="f"><span class="label">Current PT score</span><div class="readonly-val">${d.current}</div><span class="hint">Updates with each weekly upload</span></div>
+        <div class="f"><label class="label" for="goal">Goal score</label><input class="input" id="goal" inputmode="numeric" value="${d.goal}"><span class="err" id="goal-err" hidden></span></div>
+        <div class="f full"><label class="label" for="month">Goal test month</label>
+          <select class="select ${d.month ? "" : "needs"}" id="month"><option value="" ${d.month ? "" : "selected"} disabled>Choose a month</option>${OFFERED.map((m) => `<option ${m === d.month ? "selected" : ""}>${m}</option>`).join("")}</select>
+          <span class="err" id="month-err" hidden></span></div>
+        <div class="f full"><span class="label" id="ttL">Test time</span><div class="seg" role="group" aria-labelledby="ttL">
+          ${["std", "1.5", "2"].map((t) => `<button data-time="${t}" aria-pressed="${d.time === t}">${t === "std" ? "Standard" : t + "× time"}</button>`).join("")}</div></div>
+      </div>
+      <div class="att">
+        <div class="att-head"><span class="label">Official LSAT attempts</span><span class="hint">For your record. It does not change your plan.</span></div>
+        <div class="empty" id="attEmpty">No official attempts yet</div>
+        <div class="rows" id="rows"></div>
+        <button class="link" id="addAtt"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 2.5v9M2.5 7h9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Add attempt</button>
+        <span class="hint" id="attMax" hidden>You can record up to 10 attempts.</span>
+        <span class="sr" role="status" id="attStatus" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"></span>
+      </div>
+    </section>
+    <section class="card" aria-labelledby="wH">
+      <div class="card-head"><h2 id="wH">Week</h2><p>How much time you can study each day. Each day needs at least 30 min.</p></div>
+      <div class="wk">
+        <div class="tbl" id="tbl"></div>
+        <aside class="pv" aria-label="Preview of your next weekly schedule">
+          <div><div class="eyebrow">Preview · next weekly schedule</div><div class="big" id="pvBig"></div><div class="sub" id="pvSub"></div></div>
+          <div class="bars" id="bars"></div>
+          <div class="pv-note">Updates as you edit. This week stays as it is.</div>
+        </aside>
+      </div>
+    </section>
+  </div></div>`;
+  d.attempts.forEach((a) => $("#rows").append(rowEl(a, false)));
+  buildTable(); syncAttempts(); syncPreview(); showErrors();
+}
+
+function rowEl(a, entering) {
+  const r = document.createElement("div");
+  r.className = "row"; r.dataset.id = a.id; if (entering) r.dataset.state = "entering";
+  r.innerHTML = `
+    <div class="cell score"><input class="input" aria-label="Score" inputmode="numeric" value="${a.score}" data-f="score"><span class="err" hidden></span></div>
+    <div class="cell month"><select class="select" aria-label="Month and year" data-f="month"><option value="" ${a.month ? "" : "selected"} disabled>Month and year</option>${PAST.map((m) => `<option ${m === a.month ? "selected" : ""}>${m}</option>`).join("")}</select><span class="err" hidden></span></div>
+    <button class="icon-btn" aria-label="Remove attempt" data-rm><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+  return r;
+}
+function syncAttempts() {
+  const n = S.draft.attempts.length;
+  $("#attEmpty").hidden = n > 0;
+  $("#addAtt").hidden = n >= 10; $("#attMax").hidden = n < 10;
+}
+function hmSelects(mins, key) {
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return `<div class="tm"><select class="select" aria-label="${key} hours" data-h="${key}">${[0,1,2,3,4,5,6,7,8].map((x) => `<option value="${x}" ${x === h ? "selected" : ""}>${x} h</option>`).join("")}</select>
+    <select class="select" aria-label="${key} minutes" data-m="${key}">${[0,15,30,45].map((x) => `<option value="${x}" ${x === m ? "selected" : ""}>${x} min</option>`).join("")}</select></div>`;
+}
+function buildTable() {
+  const d = S.draft;
+  $("#tbl").innerHTML = `<div class="tr head"><span class="d">Day</span><span>Study time</span><span class="pt">Practice test</span></div>
+    <div class="tr all"><span class="d">All days</span>${hmSelects(90, "all")}<span class="pt"><button class="apply" id="applyAll">Apply</button></span></div>
+    ${DAYS.map((n, i) => `<div class="tr" data-row="${i}"><span class="d">${n}</span>${hmSelects(d.days[i], i)}<span class="pt"><button class="radio" role="radio" aria-label="Practice test on ${n}" aria-checked="${d.ptDay === i}" data-pt="${i}"></button></span><span class="err row-err" hidden></span></div>`).join("")}
+    <div class="totals"><div style="display:flex;justify-content:space-between"><span>Weekly total</span><b id="total"></b></div><span id="ptNote"></span></div>`;
+}
+function syncPreview() {
+  const d = S.draft, s = S.saved, max = Math.max(...d.days, 60);
+  const total = d.days.reduce((a, b) => a + b, 0);
+  $("#total").textContent = fmt(total);
+  $("#ptNote").textContent = `A full practice test takes ${fmt(PT_MIN[d.time])} with ${PT_NAME[d.time]}.`;
+  $("#pvBig").textContent = `${d.current} → ${d.goal || "—"}`;
+  $("#pvSub").textContent = `${d.month ? "by " + d.month : "choose a test month"} · ${fmt(total)} a week`;
+  const bars = $("#bars");
+  if (!bars.children.length) bars.innerHTML = DAYS.map((n, i) => `<div class="bar-row" data-b="${i}"><span class="dn">${n}</span><span class="track"><span class="fill"></span></span><span class="v"></span></div>`).join("");
+  DAYS.forEach((n, i) => {
+    const row = bars.children[i], fill = row.querySelector(".fill");
+    fill.style.transform = `scaleX(${Math.max(d.days[i], 0) / max})`;
+    fill.classList.toggle("pt", d.ptDay === i); fill.textContent = d.ptDay === i ? "PT" : "";
+    row.querySelector(".v").textContent = fmt(d.days[i]);
+    row.classList.toggle("changed", d.days[i] !== s.days[i] || (d.ptDay === i) !== (s.ptDay === i));
+  });
+}
+
+/* ---------- validation ---------- */
+function validate() {
+  const d = S.draft, e = {};
+  const g = Number(d.goal);
+  if (!/^\d+$/.test(String(d.goal)) || g < 120 || g > 180) e.goal = "Enter a score from 120 to 180.";
+  else if (g <= d.current) e.goal = `Goal score must be above your current score (${d.current}).`;
+  if (!d.month) e.month = "Choose a test month.";
+  d.days.forEach((m, i) => { if (m < 30) e["day" + i] = "Each day needs at least 30 min."; else if (m > 480) e["day" + i] = "A day can hold at most 8 h."; });
+  d.attempts.forEach((a) => {
+    if (!/^\d+$/.test(a.score) || +a.score < 120 || +a.score > 180) e["s" + a.id] = a.score ? "Enter a score from 120 to 180." : "Enter a score.";
+    if (!a.month) e["m" + a.id] = "Choose a month.";
+  });
+  return e;
+}
+const ERR_ICON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:0 0 16px;margin-top:1px"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16v.5"/></svg>`;
+function setErr(input, errEl, msg) {
+  if (!input || !errEl) return;
+  input.setAttribute("aria-invalid", msg ? "true" : "false");
+  errEl.hidden = !msg; errEl.innerHTML = msg ? ERR_ICON + `<span>${msg}</span>` : "";
+  if (msg) { errEl.id ||= "e" + Math.random().toString(36).slice(2); input.setAttribute("aria-describedby", errEl.id); } else input.removeAttribute("aria-describedby");
+}
+function showErrors() {
+  if (S.screen !== "settings" || S.loading) return;
+  const e = S.errors;
+  setErr($("#goal"), $("#goal-err"), e.goal);
+  setErr($("#month"), $("#month-err"), e.month);
+  DAYS.forEach((n, i) => { const tr = $(`[data-row="${i}"]`); tr.classList.toggle("has-err", !!e["day" + i]); setErr(tr.querySelector(`[data-h="${i}"]`), tr.querySelector(".row-err"), e["day" + i]); });
+  document.querySelectorAll(".row").forEach((r) => {
+    const id = r.dataset.id, [es, em] = r.querySelectorAll(".err");
+    setErr(r.querySelector('[data-f="score"]'), es, e["s" + id]); setErr(r.querySelector('[data-f="month"]'), em, e["m" + id]);
+  });
+}
+
+/* ---------- save bar ---------- */
+function setBar(state, mode = "dirty") {
+  S.bar = state; S.barMode = mode;
+  savebar.dataset.state = state; savebar.dataset.mode = mode;
+  savebar.setAttribute("aria-hidden", state === "hidden" ? "true" : "false");
+  frame.dataset.bar = state === "hidden" ? "hidden" : "shown";
+  saveBtn.disabled = S.saving; saveBtn.textContent = S.saving ? "Saving…" : "Save changes";
+  saveBtn.tabIndex = state === "hidden" || mode === "saved" ? -1 : 0;
+}
+function onEdit(what) {
+  clearTimeout(savedTimer);
+  if (Object.keys(S.errors).length) { S.errors = validateOnly(Object.keys(S.errors)); showErrors(); }
+  if (isDirty()) setBar("shown", "dirty"); else setBar("hidden");
+  syncPreview(); out("Edited " + what);
+}
+function validateOnly(keys) { const all = validate(); const r = {}; keys.forEach((k) => { if (all[k]) r[k] = all[k]; }); return r; }
+function save() {
+  if (S.saving) return;
+  S.errors = validate(); showErrors();
+  const keys = Object.keys(S.errors);
+  if (keys.length) {
+    const first = document.querySelector('[aria-invalid="true"]');
+    first.scrollIntoView({ block: "center", behavior: reduced() ? "auto" : "smooth" });
+    first.focus({ preventScroll: true });
+    out(`Save blocked: ${keys.length} field error(s). Focus moved to the first one.`); return;
+  }
+  S.saving = true; setBar("shown", "dirty"); out("Saving…");
+  setTimeout(() => {
+    S.saving = false;
+    if (S.nextSave === "fail") { setBar("shown", "dirty"); showToast(); out("Save failed. Edits kept. Toast sits above the save bar."); return; }
+    S.saved = clone(S.draft); dismissToast();
+    $("#savedMsg").innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7EE08F" stroke-width="2.4"><path d="M5 12l5 5L19 7"/></svg>Saved. Changes apply to your next weekly schedule.`;
+    setBar("shown", "saved"); $("#passedNotice").hidden = true; $("#month").classList.remove("needs"); syncPreview();
+    out(`Saved. Message holds ${SAVED_HOLD_MS / 1000} s, then the bar fades.`);
+    savedTimer = setTimeout(() => { setBar("hidden", "saved"); $("#savedMsg").textContent = ""; out("Bar faded out (Clean state)."); }, ms(SAVED_HOLD_MS));
+  }, ms(SAVE_WAIT_MS));
+}
+
+/* ---------- failure toast ---------- */
+function showToast() {
+  const slot = $("#toastSlot"); slot.innerHTML = "";
+  const t = document.createElement("div"); t.className = "toast"; t.dataset.state = "entering"; t.setAttribute("role", "alert");
+  t.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" style="flex:0 0 20px;margin-top:1px"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16v.5"/></svg><div class="txt"><b>Something went wrong. Try again.</b><small>Error code <code style="font:13px Geist Mono,monospace;color:var(--danger-ink)">3F9A2C1B</code></small></div><button class="icon-btn" aria-label="Close" data-close-toast style="margin:-12px 0;width:44px;height:44px;flex-basis:44px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
+  slot.append(t); requestAnimationFrame(() => requestAnimationFrame(() => (t.dataset.state = "shown")));
+}
+function dismissToast() {
+  const t = $("#toastSlot .toast"); if (!t) return;
+  t.dataset.state = "exiting"; setTimeout(() => t.remove(), ms(120) + 40);
+}
+
+/* ---------- leave guard ---------- */
+let pendingGo = null, lastFocus = null;
+function go(screen) {
+  if (S.screen === screen) return;
+  if (S.screen === "settings" && isDirty()) { pendingGo = screen; openDlg(); return; }
+  navigate(screen);
+}
+function navigate(screen) {
+  S.screen = screen; clearTimeout(savedTimer); setBar("hidden"); dismissToast(); S.errors = {};
+  if (screen === "settings") { S.draft = clone(S.saved); if (!monthOk(S.draft.month)) S.draft.month = ""; }
+  $("#scroll").scrollTop = 0; renderScreen(); out("Went to " + screen);
+}
+function openDlg() {
+  lastFocus = document.activeElement;
+  const s = $("#scrim"); s.hidden = false; s.dataset.state = "entering";
+  requestAnimationFrame(() => requestAnimationFrame(() => (s.dataset.state = "shown")));
+  $("#stayBtn").focus(); out("Leave guard open. Focus on Stay.");
+}
+function closeDlg(leave) {
+  const s = $("#scrim"); s.dataset.state = "exiting";
+  setTimeout(() => { s.hidden = true; if (leave) navigate(pendingGo); else lastFocus?.focus(); pendingGo = null; }, ms(120) + 20);
+  out(leave ? "Left. Edits lost." : "Stayed. Edits kept.");
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click", (ev) => {
+  const t = ev.target.closest("button"); if (!t) return;
+  if (t.dataset.go) return go(t.dataset.go);
+  if (t.dataset.time) { S.draft.time = t.dataset.time; document.querySelectorAll("[data-time]").forEach((b) => b.setAttribute("aria-pressed", b === t)); return onEdit("test time"); }
+  if (t.dataset.pt) { S.draft.ptDay = +t.dataset.pt; document.querySelectorAll("[data-pt]").forEach((b) => b.setAttribute("aria-checked", b === t)); return onEdit("practice-test day"); }
+  if (t.id === "applyAll") {
+    const h = +$('[data-h="all"]').value, m = +$('[data-m="all"]').value; S.draft.days = S.draft.days.map(() => h * 60 + m);
+    DAYS.forEach((n, i) => { $(`[data-h="${i}"]`).value = h; $(`[data-m="${i}"]`).value = m; }); return onEdit("all days");
+  }
+  if (t.id === "addAtt") {
+    if (S.draft.attempts.length >= 10) return;
+    const a = att("", ""); S.draft.attempts.push(a); const r = rowEl(a, true); $("#rows").append(r); syncAttempts();
+    requestAnimationFrame(() => requestAnimationFrame(() => (r.dataset.state = "shown")));
+    r.querySelector("input").focus(); return onEdit("added attempt");
+  }
+  if ("rm" in t.dataset) {
+    const r = t.closest(".row"), id = +r.dataset.id, next = r.nextElementSibling;
+    S.draft.attempts = S.draft.attempts.filter((a) => a.id !== id);
+    delete S.errors["s" + id]; delete S.errors["m" + id];
+    r.dataset.state = "leaving";
+    setTimeout(() => { r.remove(); syncAttempts(); (next?.querySelector("[data-rm]") || $("#addAtt")).focus(); $("#attStatus").textContent = "Attempt removed"; }, reduced() ? 0 : ms(120));
+    return onEdit("removed attempt");
+  }
+  if ("closeToast" in t.dataset) return dismissToast();
+  if (t === saveBtn) return save();
+  if (t.id === "stayBtn") return closeDlg(false);
+  if (t.id === "leaveBtn") return closeDlg(true);
+});
+document.addEventListener("input", (ev) => {
+  const el = ev.target, d = S.draft;
+  if (el.id === "goal") { d.goal = el.value.trim(); return onEdit("goal score"); }
+  if (el.id === "month") { d.month = el.value; el.classList.remove("needs"); return onEdit("test month"); }
+  if (el.dataset.h !== undefined || el.dataset.m !== undefined) {
+    const k = el.dataset.h ?? el.dataset.m; if (k === "all") return;
+    d.days[+k] = +$(`[data-h="${k}"]`).value * 60 + +$(`[data-m="${k}"]`).value; return onEdit(DAYS[+k] + " time");
+  }
+  if (el.dataset.f) { const a = d.attempts.find((x) => x.id === +el.closest(".row").dataset.id); a[el.dataset.f] = el.value.trim(); return onEdit("attempt " + el.dataset.f); }
+});
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !$("#scrim").hidden) closeDlg(false); });
+
+/* ---------- control bar ---------- */
+function fit() {
+  frame.style.width = S.width + "px";
+  const stage = $("#stage"), h = stage.clientHeight - 16;
+  const scale = Math.min(1, (stage.clientWidth - 24) / S.width);
+  frame.style.height = Math.round(h / scale) + "px";
+  $("#scaler").style.transform = `scale(${scale})`;
+}
+function out(msg) {
+  if (msg) S.last = msg;
+  frame.dataset.motion = S.motion; frame.dataset.rm = reduced() ? "1" : "0";
+  document.documentElement.style.setProperty("--slowmo", S.slow ? 5 : 1);
+  document.querySelectorAll("[data-w]").forEach((b) => b.setAttribute("aria-pressed", +b.dataset.w === S.width));
+  document.querySelectorAll("[data-m]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.m === S.motion));
+  document.querySelectorAll("[data-d]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.d === S.data));
+  document.querySelectorAll("[data-s]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.s === S.nextSave));
+  $("#slowmo").setAttribute("aria-pressed", S.slow);
+  $("#readout").textContent = `screen=${S.screen}  unsaved=${S.screen === "settings" && S.draft ? isDirty() : false}  bar=${S.bar}/${S.barMode}  errors=${Object.keys(S.errors).length}  attempts=${S.draft?.attempts.length ?? 0}  reducedMotion=${reduced()}  ·  ${S.last}`;
+}
+document.querySelectorAll("[data-w]").forEach((b) => (b.onclick = () => { S.width = +b.dataset.w; fit(); out("Width " + S.width); }));
+document.querySelectorAll("[data-m]").forEach((b) => (b.onclick = () => { S.motion = b.dataset.m; out("Motion " + S.motion); }));
+document.querySelectorAll("[data-d]").forEach((b) => (b.onclick = () => { S.screen = "settings"; load(b.dataset.d); }));
+document.querySelectorAll("[data-s]").forEach((b) => (b.onclick = () => { S.nextSave = b.dataset.s; out("Next save " + S.nextSave); }));
+$("#slowmo").onclick = () => { S.slow = !S.slow; out("Slow motion " + (S.slow ? "on" : "off")); };
+$("#reload").onclick = () => { S.screen = "settings"; S.loading = true; setBar("hidden"); renderScreen(); out("Loading…"); setTimeout(() => { S.loading = false; load(S.data); }, 900); };
+sysReduced.addEventListener("change", () => out());
+addEventListener("resize", fit);
+const qp = new URLSearchParams(location.search);
+if (qp.get("w")) S.width = +qp.get("w");
+if (qp.get("m")) S.motion = qp.get("m");
+fit(); load(qp.get("d") || "normal");
+</script>
+</body>
+</html>

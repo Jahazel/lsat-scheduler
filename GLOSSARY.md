@@ -89,11 +89,11 @@ The student's history across finished weeks: each past weekly schedule, newest f
 _Avoid_: history, past plans
 
 **Official LSAT attempt**:
-A real LSAT the student has taken, recorded during onboarding as a score with its month and year. It gives the tutor context; the weekly schedule does not use it.
+A real LSAT the student has taken, recorded as a score with its month and year during onboarding or later in Study settings. It gives the tutor context; the weekly schedule does not use it.
 _Avoid_: past LSAT, real test
 
 **Study settings**:
-The student's study profile: scores, goal test date, daily capacity, preferred practice-test day and accommodation. Changes apply to the next weekly schedule created.
+The student's study profile: goal score, goal test date, official LSAT attempts, daily capacity, preferred practice-test day and accommodation. It shows the current score but does not change it; only the weekly upload does. Changes apply to the next weekly schedule created.
 _Avoid_: account settings, profile
 
 **Account**:
