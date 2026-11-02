@@ -188,3 +188,41 @@ body:has([data-tab-bar]) .failure-toast-slot { bottom: calc(86px + env(safe-area
 @media (prefers-reduced-motion: reduce) {
   .failure-toast { --rise: 0px; --drop: 0px; transition-duration: 120ms; }
 }
+
+.save-bar { left: 12px; right: 12px; bottom: 12px; }
+body:has([data-tab-bar]) .save-bar { bottom: calc(86px + env(safe-area-inset-bottom)); }
+@media (min-width: 48rem) {
+  .save-bar,
+  body:has([data-tab-bar]) .save-bar { left: 32px; right: 32px; bottom: 24px; }
+  body:has([data-workspace-tabs]) .save-bar { bottom: calc(86px + env(safe-area-inset-bottom)); }
+}
+@media (min-width: 64rem) {
+  .save-bar,
+  body:has([data-tab-bar]) .save-bar,
+  body:has([data-workspace-tabs]) .save-bar { left: 72px; right: 72px; bottom: 24px; }
+  body:has([data-test-dock="expanded"]) .save-bar { right: calc(20rem + 72px); }
+  body:has([data-test-dock="collapsed"]) .save-bar { right: calc(5rem + 72px); }
+}
+
+.save-bar {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 120ms cubic-bezier(0.23, 1, 0.32, 1), transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.save-bar[data-shown] {
+  opacity: 1;
+  transform: none;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+.save-bar-fade { transition: opacity 120ms cubic-bezier(0.23, 1, 0.32, 1); }
+.save-bar-fade:not([data-shown]) { opacity: 0; }
+
+.failure-toast-slot { transition: transform 200ms cubic-bezier(0.2, 0, 0, 1); }
+body:has(.save-bar[data-shown]) .failure-toast-slot { transform: translateY(-80px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .save-bar,
+  .save-bar[data-shown] { transform: none; transition-duration: 120ms; }
+  .failure-toast-slot { transition: none; }
+}

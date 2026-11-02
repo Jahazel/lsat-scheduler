@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { DurationSelect } from "@/components/DailyCapacityFieldset";
 import { IconButton } from "@/components/ui/Button";
 import { useDeferWhilePointerDown } from "@/components/SnapshotReviewFields";
@@ -11,6 +11,7 @@ import {
   DAY_SHORT_LABEL,
   TEST_TIME_LABEL,
   attemptMessage,
+  practiceTestDayIsShort,
   practiceTestFact,
   previewWeek,
   weeklyTotalMinutes,
@@ -23,14 +24,20 @@ import type { DayOfWeek } from "@/lib/types";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 const FIELD = `h-11 w-full rounded-sm border bg-paper px-3 text-body text-ink ${FOCUS}`;
-const SELECT = `h-[34px] min-w-0 flex-1 rounded-sm border border-vellum-line bg-paper px-2 text-small text-ink ${FOCUS}`;
+const SELECT = `h-[34px] min-w-0 flex-1 rounded-sm border bg-paper px-2 text-small text-ink ${FOCUS}`;
 const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline ${FOCUS}`;
 
 const fieldBox = (invalid: boolean) => `${FIELD} ${invalid ? "border-danger" : "border-vellum-line"}`;
 
-export function FieldMessage({ id, children }: { id: string; children: ReactNode }) {
+export function FieldMessage({ id, icon = false, children }: { id: string; icon?: boolean; children: ReactNode }) {
   return (
-    <p id={id} className="text-small text-danger-ink">
+    <p id={id} className={`text-small text-danger-ink ${icon ? "flex items-start gap-1.5" : ""}`}>
+      {icon && (
+        <svg aria-hidden viewBox="0 0 24 24" className="mt-0.5 size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7.5v5.5M12 16v.5" />
+        </svg>
+      )}
       {children}
     </p>
   );
@@ -47,7 +54,7 @@ export function ScoreInput({
   value: string;
   messageId: string | null;
   onChange: (value: string) => void;
-  onBlur: () => void;
+  onBlur?: () => void;
 }) {
   return (
     <label className="flex flex-1 flex-col gap-2">
@@ -67,20 +74,31 @@ export function ScoreInput({
 }
 
 export function GoalTestDateSelect({
+  label,
   value,
   options,
+  messageId = null,
   onChange,
 }: {
+  label: string;
   value: string;
   options: ReturnType<typeof upcomingTestMonths>;
+  messageId?: string | null;
   onChange: (value: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-2">
       <label htmlFor="goal-test-date" className="text-small font-medium text-ink">
-        Goal test date
+        {label}
       </label>
-      <select id="goal-test-date" value={value} onChange={(e) => onChange(e.target.value)} className={`${FIELD} border-vellum-line`}>
+      <select
+        id="goal-test-date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-invalid={messageId ? true : undefined}
+        aria-describedby={messageId ?? undefined}
+        className={fieldBox(Boolean(messageId))}
+      >
         <option value="" disabled>
           Select a test date
         </option>
@@ -221,6 +239,8 @@ export function WeekFields({
   values,
   allDaysMinutes,
   accommodation,
+  dayMessages = {},
+  hintShortPracticeTestDay = false,
   onAllDaysChange,
   onApplyAllDays,
   onDayChange,
@@ -229,6 +249,8 @@ export function WeekFields({
   values: WeekValues;
   allDaysMinutes: number;
   accommodation: Accommodation;
+  dayMessages?: Partial<Record<DayOfWeek, string>>;
+  hintShortPracticeTestDay?: boolean;
   onAllDaysChange: (minutes: number) => void;
   onApplyAllDays: () => void;
   onDayChange: (day: DayOfWeek, minutes: number) => void;
@@ -255,7 +277,7 @@ export function WeekFields({
               All<span className="hidden lg:inline"> days</span>
             </th>
             <td className="py-2">
-              <DurationSelect label="All days" value={allDaysMinutes} onChange={onAllDaysChange} className="flex gap-2" selectClassName={SELECT} />
+              <DurationSelect label="All days" value={allDaysMinutes} onChange={onAllDaysChange} className="flex gap-2" selectClassName={`${SELECT} border-vellum-line`} />
             </td>
             <td className="rounded-r-sm py-2 text-center">
               <button
@@ -267,34 +289,51 @@ export function WeekFields({
               </button>
             </td>
           </tr>
-          {DAY_ORDER.map((day) => (
-            <tr key={day} className="border-b border-vellum-line">
-              <th scope="row" className="py-1 pl-2 text-left text-small font-medium text-ink lg:pl-3">
-                {DAY_SHORT_LABEL[day]}
-              </th>
-              <td className="py-1">
-                <DurationSelect
-                  label={DAY_LABEL[day]}
-                  value={values.dailyCapacityMinutes[day]}
-                  onChange={(minutes) => onDayChange(day, minutes)}
-                  className="flex gap-2"
-                  selectClassName={SELECT}
-                />
-              </td>
-              <td className="py-1 text-center">
-                <label className="inline-flex size-11 cursor-pointer items-center justify-center">
-                  <input
-                    type="radio"
-                    name="preferredPracticeTestDay"
-                    aria-label={`Practice test on ${DAY_LABEL[day]}`}
-                    checked={values.preferredPracticeTestDay === day}
-                    onChange={() => onPracticeTestDayChange(day)}
-                    className={`size-5 accent-accent ${FOCUS}`}
-                  />
-                </label>
-              </td>
-            </tr>
-          ))}
+          {DAY_ORDER.map((day) => {
+            const message = dayMessages[day];
+            const messageId = `capacity-${day}-message`;
+            return (
+              <Fragment key={day}>
+                <tr className={message ? undefined : "border-b border-vellum-line"}>
+                  <th scope="row" className="py-1 pl-2 text-left text-small font-medium text-ink lg:pl-3">
+                    {DAY_SHORT_LABEL[day]}
+                  </th>
+                  <td className="py-1">
+                    <DurationSelect
+                      label={DAY_LABEL[day]}
+                      value={values.dailyCapacityMinutes[day]}
+                      onChange={(minutes) => onDayChange(day, minutes)}
+                      errorId={message ? messageId : undefined}
+                      className="flex gap-2"
+                      selectClassName={`${SELECT} ${message ? "border-danger" : "border-vellum-line"}`}
+                    />
+                  </td>
+                  <td className="py-1 text-center">
+                    <label className="inline-flex size-11 cursor-pointer items-center justify-center">
+                      <input
+                        type="radio"
+                        name="preferredPracticeTestDay"
+                        aria-label={`Practice test on ${DAY_LABEL[day]}`}
+                        checked={values.preferredPracticeTestDay === day}
+                        onChange={() => onPracticeTestDayChange(day)}
+                        className={`size-5 accent-accent ${FOCUS}`}
+                      />
+                    </label>
+                  </td>
+                </tr>
+                {message && (
+                  <tr className="border-b border-vellum-line">
+                    <td />
+                    <td colSpan={2} className="pb-2.5">
+                      <FieldMessage id={messageId} icon>
+                        {message}
+                      </FieldMessage>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
 
@@ -305,7 +344,10 @@ export function WeekFields({
             {formatDuration(weeklyTotalMinutes(values))}
           </span>
         </p>
-        <p className="text-small text-smoke">{practiceTestFact(accommodation)}</p>
+        <p className="text-small text-smoke">
+          {practiceTestFact(accommodation)}
+          {hintShortPracticeTestDay && practiceTestDayIsShort(values, accommodation) && " Pick a day with that much time."}
+        </p>
       </div>
     </div>
   );

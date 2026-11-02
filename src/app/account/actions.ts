@@ -1,12 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { auth, signIn, signOut } from "@/auth";
 import { endAllSessions, isAccountId } from "@/lib/accountRepository";
-import { updateStudentByAccountId } from "@/lib/studentRepository";
-import { studentSideToday } from "@/lib/studentClock";
-import { parseStudentProfile, type StudentProfileInput } from "@/lib/studentProfile";
 import { ADMIN_RESTRICTED_ACTION_MESSAGE, isAdminUser } from "@/lib/accessControl";
 import { passwordRequest } from "@/lib/clientIpAddress";
 import { DELETING_SIGN_IN_PATHS, PASSWORD_CHANGED_PATH } from "@/lib/loginNotice";
@@ -16,26 +11,6 @@ import { PASSWORD_MESSAGES } from "@/lib/passwordRules";
 import { afterSignOut, type SignedOut, type SignOutAnswer } from "@/lib/requestPolicy";
 import { answerAction, recordSecurityEvent } from "@/lib/securityLog";
 import type { Answer, FormState } from "@/lib/unexpectedFailure";
-
-export async function updateStudentProfile(input: StudentProfileInput) {
-  return answerAction("/settings", async () => {
-    const session = await auth();
-    if (!session?.user) {
-      throw new Error("Not authenticated");
-    }
-
-    const studentFields = parseStudentProfile(input, await studentSideToday(session.user));
-
-    const updated = await updateStudentByAccountId(session.user.id, studentFields);
-
-    if (!updated) {
-      redirect("/onboarding");
-    }
-
-    if (isAdminUser(session.user)) revalidatePath("/", "layout");
-    redirect("/dashboard");
-  });
-}
 
 export type DeletionRefusal = passwordAccount.DeletionRefusal | null;
 

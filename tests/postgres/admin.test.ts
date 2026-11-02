@@ -4,7 +4,7 @@ import type { Session } from "next-auth";
 import { afterAll, beforeEach, expect, it, vi } from "vitest";
 import { setUpAppTestDatabase } from "./appTestDatabase";
 import { findAccountById } from "../../src/lib/accountRepository";
-import { createStudent, updateStudentByAccountId } from "../../src/lib/studentRepository";
+import { createStudent, updateStudySettings } from "../../src/lib/studentRepository";
 import { listWeeklySchedulesForStudent } from "../../src/lib/weeklyScheduleRepository";
 import { postgresActivityCheckIns } from "../../src/lib/activityCheckInRepository";
 import { saveActivityCheckIn } from "../../src/app/dashboard/actions";
@@ -165,7 +165,7 @@ it("Rebuild deletes the current week's schedule and check-ins, and This week rec
   expect(current.weekStartDate).toBe("2026-10-12");
   await saveActivityCheckIn({ scheduleId: current.id, activityId: "MONDAY:0", status: "completed" });
   const capacity = { ...profile.dailyCapacityMinutes, MONDAY: 120 };
-  expect(await updateStudentByAccountId(admin.account.id, { ...profile, dailyCapacityMinutes: capacity })).toBe(true);
+  expect(await updateStudySettings(admin.account.id, { ...profile, dailyCapacityMinutes: capacity })).toBe(true);
 
   await rebuildThisWeek();
   expect(await listWeeklySchedulesForStudent(admin.saved.id)).toEqual([earlier]);
