@@ -240,3 +240,4 @@ body:has(.save-bar[data-shown]) .failure-toast-slot { transform: translateY(-88p
   .failure-toast-slot { transition: none; }
   .attempt-row { transition-property: opacity; transition-duration: 120ms; }
 }
+
