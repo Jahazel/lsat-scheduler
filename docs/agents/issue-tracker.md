@@ -21,6 +21,18 @@ Infer the repo from `git remote -v`; `gh` does this automatically when run insid
 - Choose before you create the PR. GitHub reads closing words only at the moment of the merge, and the owner may merge at once. An edit after the merge does not close the issue.
 - **Closing an issue by hand**: if no commit message or merged PR names the issue, close it with the comment `Implemented in <sha>.` so the issue points to its code. If a commit or PR already names it, GitHub shows the link and no comment is needed.
 
+## A PR that changes screens shows a picture
+
+The visual evidence check (`.github/workflows/visual-evidence.yml`) fails a PR that changes a screen file and has no picture in its body. A screen file is a `.tsx` file under `src/app/` or `src/components/` that is not a `*.test.tsx` test, or any `.css` file. Server files, `src/lib/`, migrations, scripts, tests, and docs never need a picture.
+
+- **A picture** is a `https://github.com/user-attachments/` link, a Markdown image `![…](…)`, or an `<img>` or `<video>` tag. An image inside an HTML comment does not count.
+- **Add pictures** with `gh pr create --attach ./shot.png` or `gh pr edit <n> --attach ./shot.png`. Use screen-sized shots of the changed screens, not full-page shots. The `verify` skill says how to take them.
+- **The `no-visual-change` label** passes the check. Use it only when a screen file changes but the screen looks the same, such as a rename.
+- The check runs again when the body or the labels change, so a fix needs no new commit.
+- **Known gap:** a server change that changes visible text, such as a new error message in `src/lib/`, does not need a picture. Add one anyway when the student sees the change.
+
+The file rule and the picture rule live in `scripts/check-visual-evidence.mjs`.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_
