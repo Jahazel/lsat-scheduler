@@ -4,6 +4,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { AdminTestProvider, useAdminTest } from "@/components/AdminTestContext";
 import { FailureToastProvider } from "@/components/FailureNotice";
+import { SIGN_IN_EXPIRED } from "@/components/SignInExpired";
 import { readSection } from "@/lib/analyticsReview";
 import { summarizeApprovedRows } from "@/lib/analyticsSnapshots";
 import { samplePracticeTestSections } from "@/lib/adminTestWorkspace";
@@ -225,6 +226,28 @@ describe("Check what we read", () => {
 
     await user.click(await screen.findByRole("button", { name: "Confirm and build next week" }));
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(confirm).toHaveBeenCalledTimes(2);
+  });
+
+  it("hides the sign-in-expired note while a retry saves", async () => {
+    let finish: (reply: WeeklyUploadConfirmResult) => void = () => {};
+    const confirm = vi.fn<typeof confirmWeeklyUpload>()
+      .mockResolvedValueOnce({ signedOut: true })
+      .mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    const user = userEvent.setup();
+    render(<WeeklyCheck basis={basis(true)} read={read(true)} source="7sage_screenshot" onBack={vi.fn()} onConfirm={confirm} />);
+    await user.click(statement(REVIEWED));
+    await user.click(statement(LATEST));
+
+    await user.click(confirmButton());
+    expect(await screen.findByText(SIGN_IN_EXPIRED, { exact: false })).toBeDefined();
+
+    await user.click(confirmButton());
+    expect(await screen.findByText("Saving and building next week. This takes a few seconds.")).toBeDefined();
+    expect(screen.queryByText(SIGN_IN_EXPIRED, { exact: false })).toBeNull();
+
+    finish(REDIRECTED);
+    await waitFor(() => expect(screen.queryByText("Saving and building next week. This takes a few seconds.")).toBeNull());
     expect(confirm).toHaveBeenCalledTimes(2);
   });
 
