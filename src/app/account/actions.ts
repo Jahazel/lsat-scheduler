@@ -4,7 +4,7 @@ import { auth, signIn, signOut } from "@/auth";
 import { endAllSessions, isAccountId } from "@/lib/accountRepository";
 import { ADMIN_RESTRICTED_ACTION_MESSAGE, isAdminUser } from "@/lib/accessControl";
 import { passwordRequest } from "@/lib/clientIpAddress";
-import { DELETING_SIGN_IN_PATHS, PASSWORD_CHANGED_PATH } from "@/lib/loginNotice";
+import { loginRefusalPath, PASSWORD_CHANGED_PATH } from "@/lib/loginNotice";
 import { CURRENT_PASSWORD_MESSAGES } from "@/lib/currentPasswordMessages";
 import * as passwordAccount from "@/lib/passwordAccount";
 import { PASSWORD_MESSAGES } from "@/lib/passwordRules";
@@ -31,7 +31,7 @@ export async function deleteAccount(_previous: Answer<DeletionRefusal>, formData
     );
     if (result !== "deleted" && result !== "willFinish") return result;
     await signOut({ redirect: false });
-    return { goTo: afterSignOut(result === "deleted" ? "/" : DELETING_SIGN_IN_PATHS.deletionWillFinish) };
+    return { goTo: afterSignOut(result === "deleted" ? "/" : loginRefusalPath("deletionWillFinish")) };
   });
 }
 
