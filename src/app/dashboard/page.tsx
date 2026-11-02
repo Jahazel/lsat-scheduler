@@ -79,7 +79,7 @@ export default async function DashboardPage({
   return (
     <div className="min-h-screen">
       {isAdminUser(session.user) && (
-        <CurrentWeekReport week={currentWeekInTimezone(now, SCHEDULE_TIMEZONE)} hasSchedule={!preview} />
+        <CurrentWeekReport week={currentWeekInTimezone(now, SCHEDULE_TIMEZONE)} hasSchedule={!preview} hasPreview={preview} />
       )}
       <ScheduleCheckInView
         scheduleId={schedule.id}
