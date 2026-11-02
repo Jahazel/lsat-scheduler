@@ -1,9 +1,11 @@
 import type { Account, Profile, User } from "next-auth";
-import { createAccount, findAccountByGoogleId, recordSignIn, signInMethodForEmail } from "./accountRepository";
+import { createAccount, findAccountByGoogleId, signInMethodForEmail } from "./accountRepository";
 import { normalizeEmail } from "./email";
-import { finishDeletionOnSignIn } from "./accountDeletion";
-import { DELETING_SIGN_IN_PATHS, DISABLED_SIGN_IN_PATH, EMAIL_USES_PASSWORD_PATH } from "./loginNotice";
+import { EMAIL_USES_PASSWORD_PATH, loginRefusalPath } from "./loginNotice";
 import { answerGoogleSignIn, NOBODY, recordSecurityEvent, signInSubject, type SecurityResult, type SignInSubject } from "./securityLog";
+import { admitAccount } from "./signInGate";
+
+const GOOGLE_CALLBACK = "/api/auth/callback/google";
 
 export async function createGoogleAccountOnSignIn({ user, account, profile }: {
   user: User;
@@ -13,7 +15,7 @@ export async function createGoogleAccountOnSignIn({ user, account, profile }: {
   if (account?.provider === "credentials") return true;
   return answerGoogleSignIn(async () => {
     const log = (result: SecurityResult<"sign_in">, who: SignInSubject) =>
-      recordSecurityEvent({ event: "sign_in", result, route: "/api/auth/callback/google", who });
+      recordSecurityEvent({ event: "sign_in", result, route: GOOGLE_CALLBACK, who });
     if (account?.provider !== "google") return false;
 
     const googleId = account.providerAccountId;
@@ -25,18 +27,10 @@ export async function createGoogleAccountOnSignIn({ user, account, profile }: {
     }
 
     const existing = await findAccountByGoogleId(googleId);
-    if (existing?.disabledAt && !existing.deletingSince) {
-      await log("accountDisabled", { account: existing.id });
-      return DISABLED_SIGN_IN_PATH;
-    }
-    if (existing && (existing.deletingSince || !(await recordSignIn(existing.id, new Date())))) {
-      const refusal = await finishDeletionOnSignIn(existing.id, "/api/auth/callback/google");
-      await log(refusal, { account: existing.id });
-      return DELETING_SIGN_IN_PATHS[refusal];
-    }
     if (existing) {
-      await log("signedIn", { account: existing.id });
-      return true;
+      const admission = await admitAccount(existing, { route: GOOGLE_CALLBACK, realNow: new Date() });
+      await log(admission, { account: existing.id });
+      return admission === "signedIn" || loginRefusalPath(admission);
     }
     // A concurrent first sign-in with this ID may have won the insert.
     const created = await createAccount({ email, name: user.name ?? email, googleId }) ?? await findAccountByGoogleId(googleId);
@@ -49,8 +43,6 @@ export async function createGoogleAccountOnSignIn({ user, account, profile }: {
     return usesPassword ? EMAIL_USES_PASSWORD_PATH : false;
   });
 }
-
-const GOOGLE_CALLBACK = "/api/auth/callback/google";
 
 /** Auth.js sends a cancel at Google (`error=access_denied`) to Login as `error=Configuration`, the same as a real setup fault. */
 export async function recordGoogleCallbackFailure(requestUrl: URL, response: Response) {

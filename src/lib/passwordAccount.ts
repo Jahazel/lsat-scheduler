@@ -1,10 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
-import { finishDeletion, finishDeletionOnSignIn, type DeletingLoginRefusal, type DeletionOutcome } from "./accountDeletion";
+import { finishDeletion, type DeletionOutcome } from "./accountDeletion";
 import { resetYourPassword, verifyYourEmail, youAlreadyHaveAnAccount, youSignInWithGoogle } from "./accountEmails";
 import {
   findAccountByEmail, findPasswordAccountByEmail, findPasswordAccountById, markGoogleAccountDeleting, markPasswordAccountDeleting,
-  recordSignIn, replacePasswordHash, signInMethodForEmail, type AccountId,
+  replacePasswordHash, signInMethodForEmail, type AccountId,
 } from "./accountRepository";
 import { signedInRecently } from "./accountSession";
 import { countAll, giveBack, loginTryCounts, signupCounts } from "./actionLimits";
@@ -16,6 +16,7 @@ import {
   createAccountFromPendingSignup, findPendingSignup, replaceVerificationToken, savePendingSignup, type VerificationResult,
 } from "./pendingSignupRepository";
 import { NOBODY, recordSecurityEvent, signInSubject, type SecurityLogRoute, type SecurityResult } from "./securityLog";
+import { admitAccount, type SignInRefusal } from "./signInGate";
 
 export type PasswordRequest = { route: SecurityLogRoute; ipAddress: string; realNow: Date };
 
@@ -126,7 +127,7 @@ export async function resetPassword(
   return result;
 }
 
-export type LoginRefusal = "wrongEmailOrPassword" | "paused" | "tooLong" | "verifyYourEmail" | "accountDisabled" | DeletingLoginRefusal;
+export type LoginRefusal = "wrongEmailOrPassword" | "paused" | "tooLong" | "verifyYourEmail" | SignInRefusal;
 
 export async function logIn(
   credentials: Partial<Record<"email" | "password", unknown>>, request: PasswordRequest,
@@ -155,9 +156,8 @@ export async function logIn(
     return refused("verifyYourEmail");
   }
   if (!account || account.role === "admin") return refused("wrongEmailOrPassword");
-  if (account.deletingSince) return refused(await finishDeletionOnSignIn(account.id, request.route));
-  if (account.disabledAt) return refused("accountDisabled");
-  if (!(await recordSignIn(account.id, realNow))) return refused(await finishDeletionOnSignIn(account.id, request.route));
+  const admission = await admitAccount(account, request);
+  if (admission !== "signedIn") return refused(admission);
   await recordSecurityEvent({ event: "sign_in", result: "signedIn", route: request.route, who: { account: account.id }, ipAddress: request.ipAddress });
   const user = { id: account.id, email: account.email, name: account.name, sessionVersion: account.sessionVersion };
   return { kind: "signedIn", user } as const;
