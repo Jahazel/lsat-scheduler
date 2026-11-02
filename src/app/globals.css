@@ -219,7 +219,10 @@ body:has([data-tab-bar]) .save-bar { bottom: calc(86px + env(safe-area-inset-bot
 .save-bar-fade:not([data-shown]) { opacity: 0; }
 
 .failure-toast-slot { transition: transform 200ms cubic-bezier(0.2, 0, 0, 1); }
-body:has(.save-bar[data-shown]) .failure-toast-slot { transform: translateY(-80px); }
+body:has(.save-bar[data-shown]) .failure-toast-slot { transform: translateY(-88px); }
+@media (min-width: 48rem) {
+  body:has(.save-bar[data-shown]) .failure-toast-slot { transform: translateY(-80px); }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .save-bar,

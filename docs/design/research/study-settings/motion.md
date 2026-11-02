@@ -14,8 +14,8 @@ Only `opacity` and `transform` animate, through CSS transitions, not keyframes. 
 | Save bar message | The save succeeds | Note crossfades to "Saved. Changes apply to your next weekly schedule."; the button fades out | Fast, 120 ms | Same |
 | Save bar | 6 s after "Saved." shows | Same as the clean exit | Fast, 120 ms | Same as the clean exit |
 | Save bar | A new edit during the 6 s "Saved." hold | Message crossfades back to the note; the button fades in; the bar stays put | Fast, 120 ms | Same |
-| Failure toast | The save fails | The app's failure toast enters as in `docs/design/research/failure-toast/motion.md`. Its slot sits 80 px higher while the bar shows, so it stacks above the bar | Base, 200 ms | As in the failure-toast spec |
-| Failure toast slot | The bar hides or shows while a toast is open | Slot moves by 80 px with `transform`, standard curve | Base, 200 ms | Jumps, no movement |
+| Failure toast | The save fails | The app's failure toast enters as in `docs/design/research/failure-toast/motion.md`. Its slot sits 88 px higher on phone and 80 px higher from 768 px while the bar shows, leaving 24 px between toast and bar, so it stacks above the bar | Base, 200 ms | As in the failure-toast spec |
+| Failure toast slot | The bar hides or shows while a toast is open | Slot moves by 88 px on phone or 80 px from 768 px with `transform`, standard curve | Base, 200 ms | Jumps, no movement |
 | Field errors | Save pressed with invalid input | No motion on the messages. The page scrolls the first invalid field to the center with smooth scroll, then focus moves there | Browser smooth scroll | Instant scroll |
 | Attempt row | Student presses "Add attempt" | New row fades in and drops 6 px into place; focus moves to its score | Base, 200 ms | Fades in without movement, 120 ms |
 | Attempt row | Student presses "Remove attempt" | Row fades out, strong ease-out, then the list closes the gap at once | Fast, 120 ms | Same |
