@@ -6,7 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vite
 import { setUpAppTestDatabase } from "./appTestDatabase";
 import { accountSessionToken } from "../../src/lib/accountSession";
 import { createGoogleAccountOnSignIn } from "../../src/lib/authAccounts";
-import { DISABLED_SIGN_IN_PATH } from "../../src/lib/loginNotice";
+import { loginRefusalPath } from "../../src/lib/loginNotice";
 import { handlers } from "../../src/auth";
 import proxy from "../../src/proxy";
 import { createStudentProfile } from "../../src/app/onboarding/actions";
@@ -248,7 +248,7 @@ it("Google sign-in writes a session that survives, and a Disabled Account is sen
   expect((await readSession(await mint(token))).user).toEqual({ id: student.id, role: "student" });
 
   await ownerSql(sql`update accounts set disabled_at = now() where id = ${student.id}`);
-  expect(await signIn()).toBe(DISABLED_SIGN_IN_PATH);
+  expect(await signIn()).toBe(loginRefusalPath("accountDisabled"));
   expect(await accountSessionToken({ token: {}, user, account: google })).toBeNull();
 });
 
