@@ -409,6 +409,15 @@ describe("adaptive weekly schedule v3", () => {
     expect(lrDrillsOn(schedule, "FRIDAY").map(lineText)).toEqual(["5 Sufficient assumption"]);
   });
 
+  it("keeps the 5-question lines of a second pair the week cannot place, and credits the first pair", () => {
+    const schedule = generateWeek({ ...mockStudent, currentScore: 165, accommodationMultiplier: 1.5,
+      dailyCapacityMinutes: { ...everyDay(30), FRIDAY: 80 } }, mockAnalytics, mockRules, mockStudentName,
+    { createdOn: "WEDNESDAY" });
+    expect(lrDrillsOn(schedule, "THURSDAY").map(lineText))
+      .toEqual(["5 Conditional reasoning", "10 Sufficient assumption + Necessary assumption"]);
+    expect(lrDrillsOn(schedule, "FRIDAY").map(lineText)).toEqual(["5 Weaken"]);
+  });
+
   it("holds no 5-question line of a placed pair's type on any day, and rotation counts both pair types", () => {
     for (const analytics of [mockAnalytics, flawWeakest, starredOnlyAnalytics]) {
       for (const accommodationMultiplier of [1, 1.5, 2] as const) {
