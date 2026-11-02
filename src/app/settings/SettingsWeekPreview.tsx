@@ -3,6 +3,7 @@ import { shortDuration } from "@/lib/formatDuration";
 import { DAY_SHORT_LABEL, weeklyTotalMinutes, type WeekValues } from "@/lib/onboardingWizard";
 
 const SHORTEST_FULL_BAR_MINUTES = 60;
+const SHORT_BAR_SHARE = 0.25;
 
 export function SettingsWeekPreview({
   currentScore,
@@ -36,6 +37,7 @@ export function SettingsWeekPreview({
       <ol className="flex flex-col gap-2 border-t border-vellum-line pt-4">
         {DAY_ORDER.map((day) => {
           const minutes = week.dailyCapacityMinutes[day];
+          const share = minutes / scale;
           const practiceTest = day === practiceTestDay;
           const changed =
             minutes !== storedWeek.dailyCapacityMinutes[day] || practiceTest !== (day === storedWeek.preferredPracticeTestDay);
@@ -45,12 +47,14 @@ export function SettingsWeekPreview({
               <span className="relative flex h-5 min-w-0 flex-1 items-center">
                 <span
                   aria-hidden
-                  className={`preview-bar absolute inset-0 rounded ${practiceTest ? "bg-accent" : "bg-accent/14"} ${
+                  className={`preview-bar absolute inset-0 rounded ${practiceTest ? "bg-accent" : "bg-accent/tint"} ${
                     changed ? "shadow-[inset_0_0_0_1.5px_var(--color-accent)]" : ""
                   }`}
-                  style={{ transform: `scaleX(${minutes / scale})` }}
+                  style={{ transform: `scaleX(${share})` }}
                 />
-                {practiceTest && <span className="relative pl-2 text-caption font-medium text-paper">PT</span>}
+                {practiceTest && (
+                  <span className={`relative pl-2 text-caption font-medium ${share < SHORT_BAR_SHARE ? "text-accent" : "text-paper"}`}>PT</span>
+                )}
               </span>
               <span className={`w-14 shrink-0 text-right tabular-nums ${changed ? "text-accent" : "text-ink"}`}>
                 {shortDuration(minutes)}
