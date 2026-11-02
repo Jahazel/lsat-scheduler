@@ -26,12 +26,24 @@ import {
 } from "./screenshotReadQueue";
 import {
   DAY_LABEL,
-  MAX_OFFICIAL_ATTEMPTS,
   everyDay,
   goalScoreError,
   type OfficialAttempt,
   type StudentProfileInput,
 } from "./studentProfile";
+import {
+  addAttempt,
+  attemptProblem,
+  attemptProblemMessage,
+  editAttempt,
+  inScoreRange,
+  parseScoreText,
+  removeAttempt,
+  scoreRangeMessage,
+  toOfficialAttempts,
+  type Accommodation,
+  type AttemptRow,
+} from "./studyProfileDraft";
 import { testCountdown, testCountdownLabel } from "./testCountdown";
 import type { Activity, AnalyticsExtractedRow, AnalyticsSection, DayOfWeek } from "./types";
 
@@ -39,7 +51,6 @@ const STEP_NAMES = ["Goal", "Week", "Analytics", "Review"] as const;
 export type WizardStep = "goal" | "week" | "analytics" | "review";
 const STEPS: WizardStep[] = ["goal", "week", "analytics", "review"];
 
-export type Accommodation = StudentProfileInput["accommodationMultiplier"];
 type ScoreBox = "currentScore" | "goalScore";
 
 export interface WizardValues {
@@ -54,11 +65,11 @@ export interface WizardValues {
 
 export type WeekValues = Pick<WizardValues, "dailyCapacityMinutes" | "preferredPracticeTestDay">;
 
-export type AttemptRow = { id: number; score: string; month: string; leftScore: boolean; leftRow: boolean };
+export type OnboardingAttemptRow = AttemptRow & { leftScore: boolean; leftRow: boolean };
 
 export interface AttemptsDraft {
   taken: boolean;
-  rows: AttemptRow[];
+  rows: OnboardingAttemptRow[];
   nextId: number;
 }
 
@@ -86,7 +97,7 @@ export type WizardAction =
   | { type: "setAttemptsTaken"; taken: boolean }
   | { type: "addAttempt" }
   | { type: "removeAttempt"; id: number }
-  | { type: "editAttempt"; id: number; values: Partial<Pick<AttemptRow, "score" | "month">> }
+  | { type: "editAttempt"; id: number; values: Partial<Pick<OnboardingAttemptRow, "score" | "month">> }
   | { type: "leaveAttempt"; id: number; part: "score" | "row" }
   | { type: "continue" }
   | { type: "back" }
@@ -148,29 +159,20 @@ export function stepLabel(step: WizardStep): string {
   return `Step ${index + 1} of ${STEP_NAMES.length} · ${STEP_NAMES[index]}`;
 }
 
-function parseScore(text: string): number | null {
-  if (!/^\d+$/.test(text.trim())) return null;
-  return Number(text);
-}
-
-function inScoreRange(score: number | null): score is number {
-  return score !== null && score >= 120 && score <= 180;
-}
-
-const SCORE_BOX_NAME: Record<ScoreBox, string> = { currentScore: "current score", goalScore: "goal score" };
+const SCORE_BOX_NAME: Record<ScoreBox, string> = { currentScore: "your current score", goalScore: "your goal score" };
 
 // The messages under the score pair. A box's range message shows alone; the
 // goal-above-current message waits until both boxes are in range.
 export function scoreMessages(state: WizardState): Record<ScoreBox, string | null> & { goalNotAbove: string | null } {
   const rangeMessage = (box: ScoreBox) => {
     const text = state.values[box];
-    if (!state.leftScoreBoxes[box] || text.trim() === "" || inScoreRange(parseScore(text))) return null;
-    return `LSAT scores go from 120 to 180. Check your ${SCORE_BOX_NAME[box]}.`;
+    if (!state.leftScoreBoxes[box] || text.trim() === "" || inScoreRange(parseScoreText(text))) return null;
+    return scoreRangeMessage(SCORE_BOX_NAME[box]);
   };
   const currentScore = rangeMessage("currentScore");
   const goalScore = rangeMessage("goalScore");
-  const current = parseScore(state.values.currentScore);
-  const goal = parseScore(state.values.goalScore);
+  const current = parseScoreText(state.values.currentScore);
+  const goal = parseScoreText(state.values.goalScore);
   const goalNotAbove =
     !currentScore && !goalScore && state.leftScoreBoxes.goalScore && inScoreRange(current) && inScoreRange(goal)
       ? goalScoreError(current, goal)
@@ -178,29 +180,9 @@ export function scoreMessages(state: WizardState): Record<ScoreBox, string | nul
   return { currentScore, goalScore, goalNotAbove };
 }
 
-type AttemptProblem = "empty-score" | "out-of-range" | "no-month";
-
-function attemptProblem(row: Pick<AttemptRow, "score" | "month">): AttemptProblem | null {
-  if (row.score.trim() === "") return "empty-score";
-  if (!inScoreRange(parseScore(row.score))) return "out-of-range";
-  return row.month === "" ? "no-month" : null;
-}
-
-const ATTEMPT_MESSAGE: Record<AttemptProblem, { box: "score" | "month"; text: string }> = {
-  "empty-score": { box: "score", text: "Enter the score from this attempt." },
-  "out-of-range": { box: "score", text: "LSAT scores go from 120 to 180. Check this attempt's score." },
-  "no-month": { box: "month", text: "Pick the month of this attempt." },
-};
-
-export function attemptFieldMessage(row: Pick<AttemptRow, "score" | "month">) {
-  const problem = attemptProblem(row);
-  return problem ? ATTEMPT_MESSAGE[problem] : null;
-}
-
-export function attemptMessage(row: AttemptRow) {
-  const problem = attemptProblem(row);
-  const shown = row.leftRow || (row.leftScore && problem === "out-of-range");
-  return problem && shown ? ATTEMPT_MESSAGE[problem] : null;
+export function attemptMessage(row: OnboardingAttemptRow) {
+  const shown = row.leftRow || (row.leftScore && attemptProblem(row) === "out-of-range");
+  return shown ? attemptProblemMessage(row) : null;
 }
 
 function attemptsBlockedReason(attempts: AttemptsDraft): string | null {
@@ -212,23 +194,17 @@ function attemptsBlockedReason(attempts: AttemptsDraft): string | null {
 
 export function officialAttemptsInput(attempts: AttemptsDraft): OfficialAttempt[] | null {
   if (attemptsBlockedReason(attempts)) return null;
-  if (!attempts.taken) return [];
-  return attempts.rows.map(({ score, month }) => ({ score: Number(score), month }));
+  return attempts.taken ? toOfficialAttempts(attempts.rows) : [];
 }
 
-function withAttemptRows(state: WizardState, rows: AttemptRow[]): WizardState {
+function withAttemptRows(state: WizardState, rows: OnboardingAttemptRow[]): WizardState {
   return { ...state, attempts: { ...state.attempts, rows } };
 }
 
 function addAttemptRow(state: WizardState): WizardState {
   const { attempts } = state;
-  if (attempts.rows.length >= MAX_OFFICIAL_ATTEMPTS) return state;
-  const row = { id: attempts.nextId, score: "", month: "", leftScore: false, leftRow: false };
-  return { ...state, attempts: { ...attempts, rows: [...attempts.rows, row], nextId: attempts.nextId + 1 } };
-}
-
-function updateAttemptRow(state: WizardState, id: number, update: Partial<AttemptRow>): WizardState {
-  return withAttemptRows(state, state.attempts.rows.map((row) => (row.id === id ? { ...row, ...update } : row)));
+  const rows = addAttempt(attempts.rows, { id: attempts.nextId, score: "", month: "", leftScore: false, leftRow: false });
+  return rows ? { ...state, attempts: { ...attempts, rows, nextId: attempts.nextId + 1 } } : state;
 }
 
 function testTimeName(accommodation: Accommodation): string {
@@ -336,8 +312,8 @@ export function blockedReason(state: WizardState): string | null {
   const { values } = state;
   switch (state.step) {
     case "goal": {
-      const current = parseScore(values.currentScore);
-      const goal = parseScore(values.goalScore);
+      const current = parseScoreText(values.currentScore);
+      const goal = parseScoreText(values.goalScore);
       if (values.currentScore.trim() === "" || values.goalScore.trim() === "") return "Enter both scores to continue.";
       if (!inScoreRange(current) || !inScoreRange(goal) || goalScoreError(current, goal)) {
         return "Fix your scores above to continue.";
@@ -363,8 +339,8 @@ export function blockedReason(state: WizardState): string | null {
 
 // The saved profile, or null while Steps 1–2 are still invalid.
 export function toProfileInput(values: WizardValues): StudentProfileInput | null {
-  const currentScore = parseScore(values.currentScore);
-  const goalScore = parseScore(values.goalScore);
+  const currentScore = parseScoreText(values.currentScore);
+  const goalScore = parseScoreText(values.goalScore);
   const day = values.preferredPracticeTestDay;
   if (!inScoreRange(currentScore) || !inScoreRange(goalScore) || goalScoreError(currentScore, goalScore)) return null;
   if (!day || values.goalTestDate === "") return null;
@@ -466,11 +442,11 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
     case "addAttempt":
       return addAttemptRow(state);
     case "removeAttempt":
-      return state.attempts.rows.length > 1 ? withAttemptRows(state, state.attempts.rows.filter((row) => row.id !== action.id)) : state;
+      return state.attempts.rows.length > 1 ? withAttemptRows(state, removeAttempt(state.attempts.rows, action.id)) : state;
     case "editAttempt":
-      return updateAttemptRow(state, action.id, action.values);
+      return withAttemptRows(state, editAttempt(state.attempts.rows, action.id, action.values));
     case "leaveAttempt":
-      return updateAttemptRow(state, action.id, action.part === "score" ? { leftScore: true } : { leftRow: true });
+      return withAttemptRows(state, editAttempt(state.attempts.rows, action.id, action.part === "score" ? { leftScore: true } : { leftRow: true }));
     case "continue": {
       const next = STEPS[STEPS.indexOf(state.step) + 1];
       return blockedReason(state) || !next ? state : { ...state, step: next, changedStep: true, save: "idle" };

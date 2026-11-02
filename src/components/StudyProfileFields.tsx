@@ -15,10 +15,10 @@ import {
   practiceTestFact,
   previewWeek,
   weeklyTotalMinutes,
-  type Accommodation,
-  type AttemptRow,
+  type OnboardingAttemptRow,
   type WeekValues,
 } from "@/lib/onboardingWizard";
+import type { Accommodation } from "@/lib/studyProfileDraft";
 import { DAY_LABEL, attemptMonths, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { DayOfWeek } from "@/lib/types";
 
@@ -150,12 +150,12 @@ export function OfficialAttemptRows({
   onAdd,
 }: {
   idPrefix: string;
-  rows: AttemptRow[];
+  rows: OnboardingAttemptRow[];
   today: string;
   canRemove: boolean;
   canAdd: boolean;
   addLabel: string;
-  onEdit: (id: number, values: Partial<Pick<AttemptRow, "score" | "month">>) => void;
+  onEdit: (id: number, values: Partial<Pick<OnboardingAttemptRow, "score" | "month">>) => void;
   onLeave: (id: number, part: "score" | "row") => void;
   onRemove: (id: number) => void;
   onAdd: () => void;
