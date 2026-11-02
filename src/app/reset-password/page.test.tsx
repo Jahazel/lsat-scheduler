@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { requestPolicy } from "@/lib/requestPolicy";
 
 const { resetPassword, findResetLinkEmail } = vi.hoisted(() => ({ resetPassword: vi.fn(), findResetLinkEmail: vi.fn() }));
 vi.mock("./actions", () => ({ resetPassword }));
 vi.mock("@/lib/passwordResetRepository", () => ({ findResetLinkEmail }));
+import { FailureToastProvider } from "@/components/FailureNotice";
 import ResetPasswordPage, { metadata } from "./page";
 
 afterEach(() => {
@@ -16,7 +17,9 @@ afterEach(() => {
 });
 
 async function renderPage(token?: string) {
-  render(await ResetPasswordPage({ params: Promise.resolve({}), searchParams: Promise.resolve(token === undefined ? {} : { token }) }));
+  render(await ResetPasswordPage({ params: Promise.resolve({}), searchParams: Promise.resolve(token === undefined ? {} : { token }) }), {
+    wrapper: FailureToastProvider,
+  });
 }
 
 describe("Set a new password", () => {
@@ -46,6 +49,20 @@ describe("Set a new password", () => {
     await userEvent.type(screen.getByLabelText("New password"), "purple walrus dances");
     await userEvent.click(screen.getByRole("button", { name: "Save new password" }));
     expect(await screen.findByRole("heading", { name: "This link doesn't work" })).toBeTruthy();
+  });
+
+  it("closes the failure toast when a retry gets an answer", async () => {
+    findResetLinkEmail.mockResolvedValue("maya.chen@fastmail.com");
+    resetPassword.mockResolvedValueOnce({ unexpectedFailure: "3f9a01c2" });
+    resetPassword.mockResolvedValueOnce({ kind: "linkDoesNotWork" });
+    await renderPage("link-token");
+    await userEvent.type(screen.getByLabelText("New password"), "purple walrus dances");
+    await userEvent.click(screen.getByRole("button", { name: "Save new password" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("Error code 3f9a01c2");
+
+    await userEvent.click(screen.getByRole("button", { name: "Save new password" }));
+    expect(await screen.findByRole("heading", { name: "This link doesn't work" })).toBeTruthy();
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   });
 
   it.each([["an unknown or expired token", "old-token"], ["no token", undefined]])("for %s, offers a new link and Log in", async (_case, token) => {
