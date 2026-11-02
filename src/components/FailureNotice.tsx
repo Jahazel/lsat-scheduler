@@ -72,6 +72,7 @@ export function FailureToastProvider({ children }: { children: ReactNode }) {
 /**
  * Lifts the toast above the on-screen keyboard, which covers fixed elements on phones without resizing the page.
  * While a dialog is open, the slot moves into it: a modal dialog makes the rest of the page inert and covers it.
+ * An open dialog can also leave the page without closing, so removed nodes send the slot back too.
  */
 function ToastSlot({ children }: { children: ReactNode }) {
   const [keyboardInset, setKeyboardInset] = useState(0);
@@ -81,7 +82,7 @@ function ToastSlot({ children }: { children: ReactNode }) {
   useEffect(() => {
     const find = () => setDialog([...document.querySelectorAll<HTMLDialogElement>("dialog[open]")].at(-1) ?? null);
     const observer = new MutationObserver(find);
-    observer.observe(document.body, { subtree: true, attributeFilter: ["open"] });
+    observer.observe(document.body, { subtree: true, childList: true, attributeFilter: ["open"] });
     return () => observer.disconnect();
   }, []);
   useEffect(() => {
