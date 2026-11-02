@@ -83,6 +83,16 @@ describe("openWeeklyUpload", () => {
     expect(openAt(saturday, [savedWeek("2026-09-28")])).not.toBeNull();
   });
 
+  it("is closed on the weekend once next week's previewed schedule is saved", () => {
+    expect(openAt(saturday, [savedWeek("2026-10-05")])).toBeNull();
+    expect(() => prepareWeeklyUpload({ weekOf: "2026-10-05" }, {
+      clock: { now: saturday, real: saturday, simulated: false },
+      schedules: [savedWeek("2026-10-05")],
+      allowAdminSample: false,
+      scanningOff: { analytics: false, "practice-test-section": false },
+    })).toThrow("This page is out of date. Open This week to continue.");
+  });
+
   it("is closed on a weekday once an upload counts for this week, but not on the weekend", () => {
     const counted = [{ ...mockAnalytics, id: "sunday", approvedAt: "2026-10-04T20:00:00.000Z" }];
     expect(openAt(wednesday, [], counted)).toBeNull();

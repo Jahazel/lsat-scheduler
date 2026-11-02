@@ -1,6 +1,7 @@
 import { isAdminUser } from "@/lib/accessControl";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
-import { currentWeekInTimezone } from "./currentWeeklySchedule";
+import { currentWeekInTimezone, isUploadWeekend } from "./currentWeeklySchedule";
+import { isoDateInWeek } from "./scheduleReasonText";
 import type { ApprovedAnalyticsSnapshot } from "./types";
 import {
   generateSampleAnalytics,
@@ -190,13 +191,15 @@ export async function rebuildTestWeek(
   const student = await repositories.findStudent(userId);
   if (!student) throw new Error("There is no weekly schedule to rebuild.");
   const now = clockForVerifiedUser(user, real).now;
+  const week = currentWeekInTimezone(now, SCHEDULE_TIMEZONE);
   await repositories.inTransaction(async (writes) => {
-    const deletedCount = await writes.deleteSchedules(
-      student.id,
-      currentWeekInTimezone(now, SCHEDULE_TIMEZONE),
-    );
-    if (deletedCount === 0)
-      throw new Error("There is no weekly schedule to rebuild.");
+    if (await writes.deleteSchedules(student.id, week)) return;
+    if (
+      isUploadWeekend(now, SCHEDULE_TIMEZONE) &&
+      (await writes.deleteSchedules(student.id, isoDateInWeek(week, 7)))
+    )
+      return;
+    throw new Error("There is no weekly schedule to rebuild.");
   });
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useReducer, useRef, useState, type ReactNode } from "react";
-import { FailureNotice } from "@/components/FailureNotice";
+import { LastFinishedReadNotice } from "@/components/FailureNotice";
 import { ScanningOffNote } from "@/components/ScanningOffNote";
 import SignInExpired from "@/components/SignInExpired";
 import { SnapshotReviewFields } from "@/components/SnapshotReviewFields";
@@ -478,15 +478,6 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
       {reads.files.map((upload) => <LastFinishedReadNotice key={upload.rowKey} read={upload.read} />)}
     </div>
   );
-}
-
-const finishedReadAnswer = (read: Read) => (read.status === "failed" ? read.failure : read.status === "read" ? read : null);
-
-function LastFinishedReadNotice({ read }: { read: Read }) {
-  const [lastFinished, setLastFinished] = useState(finishedReadAnswer(read));
-  const finished = finishedReadAnswer(read) ?? lastFinished;
-  if (finished !== lastFinished) setLastFinished(finished);
-  return <FailureNotice answer={finished} />;
 }
 
 function UploadGroup({ title, count, className, children }: { title: string; count: ReactNode; className?: string; children: ReactNode }) {

@@ -9,39 +9,32 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { DurationSelect } from "@/components/DailyCapacityFieldset";
-import { FailureNotice } from "@/components/FailureNotice";
+import { FailureNotice, LastFinishedReadNotice } from "@/components/FailureNotice";
 import { ScanningOffNote } from "@/components/ScanningOffNote";
-import { IconButton } from "@/components/ui/Button";
 import { DropZone } from "@/components/ui/DropZone";
 import { FileRow, WaitNote } from "@/components/ui/FileRow";
 import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
 import { CheckGlyph, ClockGlyph, ReadingGlyph } from "@/components/ui/StatusIcon";
-import { DAY_ORDER } from "@/lib/engine";
 import { SECTION_NAME, SECTIONS, type Statement } from "@/lib/analyticsReview";
 import { analyticsInputs, confirmLock, type ReviewDraft } from "@/lib/reviewDraft";
 import {
   ConfirmBar, ReviewStatements, STEP_PRIMARY as PRIMARY, STEP_SECONDARY as SECONDARY, SnapshotReviewFields,
-  boxId, statementId, tierId, useDeferWhilePointerDown, useFocusAfterRender,
+  boxId, statementId, tierId, useFocusAfterRender,
 } from "@/components/SnapshotReviewFields";
-import { formatDuration } from "@/lib/formatDuration";
 import {
-  DAY_SHORT_LABEL,
-  TEST_TIME_LABEL,
+  FieldMessage, GoalTestDateSelect, OfficialAttemptRows, ScoreInput, TestTimeChoice, WeekFields,
+} from "@/components/StudyProfileFields";
+import {
   activeDraft,
-  attemptMessage,
   blockedReason,
   bothRead,
   confirmSnapshotInput,
   initialWizardState,
-  practiceTestFact,
   profileWithAttempts,
   scoreMessages,
   screenshot,
   stepLabel,
-  weeklyTotalMinutes,
   wizardReducer,
-  type Accommodation,
   type AttemptsDraft,
   type Screenshot,
   type WizardAction,
@@ -52,13 +45,11 @@ import { nextRead } from "@/lib/screenshotReadQueue";
 import { SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, SCREENSHOT_NOTICE, checkScreenshotType, extractScreenshot } from "@/lib/screenshotUpload";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "@/lib/types";
 import { isUnexpectedFailure } from "@/lib/unexpectedFailure";
-import { DAY_LABEL, MAX_OFFICIAL_ATTEMPTS, attemptMonths, type upcomingTestMonths } from "@/lib/studentProfile";
+import { MAX_OFFICIAL_ATTEMPTS, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { createStudentProfile } from "./actions";
 import LivePreview from "./LivePreview";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
-const FIELD = `h-11 w-full rounded-sm border bg-paper px-3 text-body text-ink ${FOCUS}`;
-const SELECT = `h-[34px] min-w-0 flex-1 rounded-sm border border-vellum-line bg-paper px-2 text-small text-ink ${FOCUS}`;
 const SMALL_BUTTON = `h-10 self-start rounded-sm border border-vellum-line bg-paper px-[18px] text-small font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum ${FOCUS}`;
 const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline ${FOCUS}`;
 const CHANGE_LATER = "You can change these any time in Study settings.";
@@ -150,16 +141,6 @@ export default function OnboardingWizard({
   );
 }
 
-const finishedReadAnswer = (read: Screenshot["read"] | undefined) =>
-  read?.status === "failed" ? read.failure : read?.status === "read" ? read : null;
-
-function LastFinishedReadNotice({ read }: { read: Screenshot["read"] | undefined }) {
-  const [lastFinished, setLastFinished] = useState(finishedReadAnswer(read));
-  const finished = finishedReadAnswer(read) ?? lastFinished;
-  if (finished !== lastFinished) setLastFinished(finished);
-  return <FailureNotice answer={finished} />;
-}
-
 function StepHeading({ state, title, lede }: { state: WizardState; title: string; lede: ReactNode }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const { changedStep } = state;
@@ -218,7 +199,7 @@ function GoalStep({
 }) {
   const messages = scoreMessages(state);
   const goalMessage = messages.goalScore ?? messages.goalNotAbove;
-  const scoreBox = (invalid: boolean) => `${FIELD} ${invalid ? "border-danger" : "border-vellum-line"}`;
+  const edit = (values: Partial<WizardState["values"]>) => dispatch({ type: "edit", values });
 
   return (
     <StepForm state={state} dispatch={dispatch}>
@@ -226,86 +207,28 @@ function GoalStep({
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
           <div className="flex gap-3">
-            <label className="flex flex-1 flex-col gap-2">
-              <span className="text-small font-medium text-ink">Current PT score</span>
-              <input
-                inputMode="numeric"
-                autoComplete="off"
-                value={state.values.currentScore}
-                onChange={(e) => dispatch({ type: "edit", values: { currentScore: e.target.value } })}
-                onBlur={() => dispatch({ type: "leaveScoreBox", box: "currentScore" })}
-                aria-invalid={messages.currentScore ? true : undefined}
-                aria-describedby={messages.currentScore ? "current-score-message" : undefined}
-                className={scoreBox(Boolean(messages.currentScore))}
-              />
-            </label>
-            <label className="flex flex-1 flex-col gap-2">
-              <span className="text-small font-medium text-ink">Goal score</span>
-              <input
-                inputMode="numeric"
-                autoComplete="off"
-                value={state.values.goalScore}
-                onChange={(e) => dispatch({ type: "edit", values: { goalScore: e.target.value } })}
-                onBlur={() => dispatch({ type: "leaveScoreBox", box: "goalScore" })}
-                aria-invalid={goalMessage ? true : undefined}
-                aria-describedby={goalMessage ? "goal-score-message" : undefined}
-                className={scoreBox(Boolean(goalMessage))}
-              />
-            </label>
+            <ScoreInput
+              label="Current PT score"
+              value={state.values.currentScore}
+              messageId={messages.currentScore ? "current-score-message" : null}
+              onChange={(currentScore) => edit({ currentScore })}
+              onBlur={() => dispatch({ type: "leaveScoreBox", box: "currentScore" })}
+            />
+            <ScoreInput
+              label="Goal score"
+              value={state.values.goalScore}
+              messageId={goalMessage ? "goal-score-message" : null}
+              onChange={(goalScore) => edit({ goalScore })}
+              onBlur={() => dispatch({ type: "leaveScoreBox", box: "goalScore" })}
+            />
           </div>
-          {messages.currentScore && (
-            <p id="current-score-message" className="text-small text-danger-ink">
-              {messages.currentScore}
-            </p>
-          )}
-          {goalMessage && (
-            <p id="goal-score-message" className="text-small text-danger-ink">
-              {goalMessage}
-            </p>
-          )}
+          {messages.currentScore && <FieldMessage id="current-score-message">{messages.currentScore}</FieldMessage>}
+          {goalMessage && <FieldMessage id="goal-score-message">{goalMessage}</FieldMessage>}
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label htmlFor="goal-test-date" className="text-small font-medium text-ink">
-            Goal test date
-          </label>
-          <select
-            id="goal-test-date"
-            value={state.values.goalTestDate}
-            onChange={(e) => dispatch({ type: "edit", values: { goalTestDate: e.target.value } })}
-            className={`${FIELD} border-vellum-line`}
-          >
-            <option value="" disabled>
-              Select a test date
-            </option>
-            {goalTestDateOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <GoalTestDateSelect value={state.values.goalTestDate} options={goalTestDateOptions} onChange={(goalTestDate) => edit({ goalTestDate })} />
 
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-small font-medium text-ink">Test time</legend>
-          <div className="flex gap-1 rounded-sm bg-vellum p-1">
-            {([1, 1.5, 2] satisfies Accommodation[]).map((multiplier) => (
-              <label
-                key={multiplier}
-                className="flex h-9 flex-1 cursor-pointer items-center justify-center rounded text-small text-smoke transition-colors duration-150 ease-out hover:bg-vellum-line hover:text-ink has-[:checked]:bg-paper has-[:checked]:font-medium has-[:checked]:text-ink has-[:checked]:shadow-control has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent"
-              >
-                <input
-                  type="radio"
-                  name="testTime"
-                  className="sr-only"
-                  checked={state.values.accommodationMultiplier === multiplier}
-                  onChange={() => dispatch({ type: "edit", values: { accommodationMultiplier: multiplier } })}
-                />
-                {TEST_TIME_LABEL[multiplier]}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <TestTimeChoice value={state.values.accommodationMultiplier} onChange={(accommodationMultiplier) => edit({ accommodationMultiplier })} />
 
         <OfficialAttempts attempts={state.attempts} dispatch={dispatch} today={today} />
       </div>
@@ -320,9 +243,6 @@ const ATTEMPT_CHOICES = [
 
 function OfficialAttempts({ attempts, dispatch, today }: { attempts: AttemptsDraft; dispatch: Dispatch; today: string }) {
   const id = useId();
-  const deferWhilePointerDown = useDeferWhilePointerDown();
-  const months = attemptMonths(today);
-  const box = (invalid: boolean) => `${FIELD} ${invalid ? "border-danger" : "border-vellum-line"}`;
 
   return (
     <div className="flex flex-col gap-2">
@@ -342,88 +262,18 @@ function OfficialAttempts({ attempts, dispatch, today }: { attempts: AttemptsDra
         onChange={(choice) => dispatch({ type: "setAttemptsTaken", taken: choice === "taken" })}
       />
       {attempts.taken && (
-        <div className="flex flex-col gap-2 pt-1">
-          <div aria-hidden className="flex gap-3 text-caption text-smoke">
-            <span className="w-24 shrink-0">Score</span>
-            <span className="flex-1">Month and year</span>
-            <span className="w-8 shrink-0" />
-          </div>
-          {attempts.rows.map((row, index) => {
-            const message = attemptMessage(row);
-            const messageId = `${id}-attempt-${row.id}-message`;
-            const describedBy = (box: "score" | "month") => (message?.box === box ? messageId : undefined);
-            return (
-              <div
-                key={row.id}
-                className="flex flex-col gap-2"
-                onBlur={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget)) deferWhilePointerDown(() => dispatch({ type: "leaveAttempt", id: row.id, part: "row" }));
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-24 shrink-0">
-                    <input
-                      inputMode="numeric"
-                      autoComplete="off"
-                      aria-label={`Attempt ${index + 1} score`}
-                      value={row.score}
-                      onChange={(e) => dispatch({ type: "editAttempt", id: row.id, values: { score: e.target.value } })}
-                      onBlur={() => deferWhilePointerDown(() => dispatch({ type: "leaveAttempt", id: row.id, part: "score" }))}
-                      aria-invalid={message?.box === "score" ? true : undefined}
-                      aria-describedby={describedBy("score")}
-                      className={box(message?.box === "score")}
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <select
-                      aria-label={`Attempt ${index + 1} month and year`}
-                      value={row.month}
-                      onChange={(e) => dispatch({ type: "editAttempt", id: row.id, values: { month: e.target.value } })}
-                      aria-invalid={message?.box === "month" ? true : undefined}
-                      aria-describedby={describedBy("month")}
-                      className={box(message?.box === "month")}
-                    >
-                      <option value="" disabled>
-                        Select a month
-                      </option>
-                      {months.map((month) => (
-                        <option key={month.value} value={month.value}>
-                          {month.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {attempts.rows.length > 1 ? (
-                    <IconButton label={`Remove attempt ${index + 1}`} onClick={() => dispatch({ type: "removeAttempt", id: row.id })}>
-                      <svg aria-hidden className="text-smoke" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                        <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" />
-                      </svg>
-                    </IconButton>
-                  ) : (
-                    <span className="w-8 shrink-0" />
-                  )}
-                </div>
-                {message && (
-                  <p id={messageId} className="text-small text-danger-ink">
-                    {message.text}
-                  </p>
-                )}
-              </div>
-            );
-          })}
-          {attempts.rows.length < MAX_OFFICIAL_ATTEMPTS && (
-            <button
-              type="button"
-              onClick={() => dispatch({ type: "addAttempt" })}
-              className={`flex items-center gap-2 self-start pt-1 text-small ${LINK_BUTTON}`}
-            >
-              <svg aria-hidden viewBox="0 0 14 14" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <path d="M7 2.5v9M2.5 7h9" />
-              </svg>
-              Add another attempt
-            </button>
-          )}
-        </div>
+        <OfficialAttemptRows
+          idPrefix={id}
+          rows={attempts.rows}
+          today={today}
+          canRemove={attempts.rows.length > 1}
+          canAdd={attempts.rows.length < MAX_OFFICIAL_ATTEMPTS}
+          addLabel="Add another attempt"
+          onEdit={(rowId, values) => dispatch({ type: "editAttempt", id: rowId, values })}
+          onLeave={(rowId, part) => dispatch({ type: "leaveAttempt", id: rowId, part })}
+          onRemove={(rowId) => dispatch({ type: "removeAttempt", id: rowId })}
+          onAdd={() => dispatch({ type: "addAttempt" })}
+        />
       )}
     </div>
   );
@@ -439,87 +289,17 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
         title="Plan your week"
         lede="How much time you can study each day. Each day needs at least 30 min. We choose your rest day."
       />
-      <div>
-        <table className="w-full table-fixed border-collapse">
-          <colgroup>
-            <col className="w-12 lg:w-20" />
-            <col />
-            <col className="w-[60px] lg:w-[100px]" />
-          </colgroup>
-          <thead>
-            <tr className="text-caption text-smoke">
-              <th scope="col" className="pb-2 pl-2 text-left font-regular lg:pl-3">Day</th>
-              <th scope="col" className="pb-2 text-left font-regular">Study time</th>
-              <th scope="col" className="pb-2 text-center font-regular">Practice test</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="bg-vellum">
-              <th scope="row" className="rounded-l-sm py-2 pl-2 text-left text-small font-medium text-ink lg:pl-3">
-                All<span className="hidden lg:inline"> days</span>
-              </th>
-              <td className="py-2">
-                <DurationSelect
-                  label="All days"
-                  value={values.allDaysMinutes}
-                  onChange={(minutes) => dispatch({ type: "edit", values: { allDaysMinutes: minutes } })}
-                  className="flex gap-2"
-                  selectClassName={SELECT}
-                />
-              </td>
-              <td className="rounded-r-sm py-2 text-center">
-                <button
-                  type="button"
-                  onClick={() => dispatch({ type: "applyAllDays" })}
-                  className={`h-[34px] rounded-sm border border-ink bg-paper px-2 text-small font-medium text-ink lg:px-3 hover:bg-vellum ${FOCUS}`}
-                >
-                  Apply
-                </button>
-              </td>
-            </tr>
-            {DAY_ORDER.map((day) => (
-              <tr key={day} className="border-b border-vellum-line">
-                <th scope="row" className="py-1 pl-2 text-left text-small font-medium text-ink lg:pl-3">
-                  {DAY_SHORT_LABEL[day]}
-                </th>
-                <td className="py-1">
-                  <DurationSelect
-                    label={DAY_LABEL[day]}
-                    value={values.dailyCapacityMinutes[day]}
-                    onChange={(minutes) =>
-                      dispatch({ type: "edit", values: { dailyCapacityMinutes: { ...values.dailyCapacityMinutes, [day]: minutes } } })
-                    }
-                    className="flex gap-2"
-                    selectClassName={SELECT}
-                  />
-                </td>
-                <td className="py-1 text-center">
-                  <label className="inline-flex size-11 cursor-pointer items-center justify-center">
-                    <input
-                      type="radio"
-                      name="preferredPracticeTestDay"
-                      aria-label={`Practice test on ${DAY_LABEL[day]}`}
-                      checked={values.preferredPracticeTestDay === day}
-                      onChange={() => dispatch({ type: "edit", values: { preferredPracticeTestDay: day } })}
-                      className={`size-5 accent-accent ${FOCUS}`}
-                    />
-                  </label>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <div className="flex flex-col gap-1 px-2 pt-5 lg:px-3">
-          <p className="flex items-baseline justify-between">
-            <span className="text-small text-smoke">Weekly total</span>
-            <span aria-live="polite" className="text-body font-semibold text-ink">
-              {formatDuration(weeklyTotalMinutes(values))}
-            </span>
-          </p>
-          <p className="text-small text-smoke">{practiceTestFact(values.accommodationMultiplier)}</p>
-        </div>
-      </div>
+      <WeekFields
+        values={values}
+        allDaysMinutes={values.allDaysMinutes}
+        accommodation={values.accommodationMultiplier}
+        onAllDaysChange={(minutes) => dispatch({ type: "edit", values: { allDaysMinutes: minutes } })}
+        onApplyAllDays={() => dispatch({ type: "applyAllDays" })}
+        onDayChange={(day, minutes) =>
+          dispatch({ type: "edit", values: { dailyCapacityMinutes: { ...values.dailyCapacityMinutes, [day]: minutes } } })
+        }
+        onPracticeTestDayChange={(day) => dispatch({ type: "edit", values: { preferredPracticeTestDay: day } })}
+      />
     </StepForm>
   );
 }
@@ -602,7 +382,9 @@ function AnalyticsStep({
           {typed ? " · Your schedule starts after you add your analytics." : " · Your schedule starts after you add both."}
         </p>
         <p role="status" className="text-center text-small text-smoke">
-          {state.save === "failed" && "We couldn't save your plan. Check your connection and press Skip for now again."}
+          {state.save === "failed"
+            ? "We couldn't save your plan. Check your connection and press Skip for now again."
+            : typeof state.save === "object" && state.save.refused}
         </p>
       </div>
     </div>

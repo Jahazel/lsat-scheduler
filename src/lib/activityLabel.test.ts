@@ -45,12 +45,12 @@ describe("activity labels", () => {
   });
 
   it("allows only one or two LR types and one or two RC passages", () => {
-    const passage = { type: "Law" as const, difficultyLevel: 2 };
+    type Passage = { type: "Law"; difficultyLevel: number };
     expectTypeOf<[]>().not.toExtend<LRDrill["types"]>();
     expectTypeOf<["Inference", "Strengthen", "Weaken"]>().not.toExtend<LRDrill["types"]>();
     expectTypeOf<["Necessary assumption", "Sufficient assumption"]>().toExtend<LRDrill["types"]>();
     expectTypeOf<[]>().not.toExtend<RCDrill["passages"]>();
-    expectTypeOf<[typeof passage, typeof passage, typeof passage]>().not.toExtend<RCDrill["passages"]>();
-    expectTypeOf<[typeof passage, typeof passage]>().toExtend<RCDrill["passages"]>();
+    expectTypeOf<[Passage, Passage, Passage]>().not.toExtend<RCDrill["passages"]>();
+    expectTypeOf<[Passage, Passage]>().toExtend<RCDrill["passages"]>();
   });
 });

@@ -259,6 +259,21 @@ describe("OnboardingWizard", () => {
     expect(onSave.mock.calls[1]).toEqual(onSave.mock.calls[0]);
   });
 
+  it("shows the server's refusal under Skip for now, not in the failure toast, and lets Skip be pressed again", async () => {
+    const refusal = "You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time.";
+    const onSave = vi.fn().mockResolvedValue({ error: refusal });
+    const { user } = await fillGoalAndWeek(onSave);
+
+    await user.click(screen.getByRole("button", { name: "Skip for now" }));
+    const note = await screen.findByText(refusal);
+    expect(note.getAttribute("role")).toBe("status");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();
+
+    await user.click(screen.getByRole("button", { name: "Skip for now" }));
+    expect(onSave).toHaveBeenCalledTimes(2);
+  });
+
   it("ties each out-of-range score box to its own message", async () => {
     const user = userEvent.setup();
     render(<OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={vi.fn()} />);
@@ -555,6 +570,33 @@ describe("OnboardingWizard", () => {
     const box = (type: string) => screen.getByLabelText(`${type} accuracy`) as HTMLInputElement;
     const confirmButton = () => screen.getByRole("button", { name: "Confirm snapshot" });
     const statements = ["I reviewed these values and they match my screenshots.", "These screenshots show my latest 7Sage analytics."];
+
+    it("drops a refused Skip for now message when the student moves on to Review", async () => {
+      const refusal = "You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time.";
+      const steps = await fillGoalAndWeek(vi.fn().mockResolvedValue({ error: refusal }), bySection(read));
+      await steps.user.click(screen.getByRole("button", { name: "Skip for now" }));
+      expect(await screen.findByText(refusal)).toBeDefined();
+
+      await upload(steps.user);
+      await upload(steps.user, rcScreenshot, "RC");
+      await steps.user.click(await screen.findByRole("button", { name: "Check the values" }));
+
+      expect(screen.getByText("Step 4 of 4 · Review")).toBeDefined();
+      expect(screen.queryByText(refusal)).toBeNull();
+    });
+
+    it("does not ask the student to press Confirm snapshot again after a failed Skip for now", async () => {
+      const steps = await fillGoalAndWeek(vi.fn().mockRejectedValueOnce(new Error("offline")), bySection(read));
+      await steps.user.click(screen.getByRole("button", { name: "Skip for now" }));
+      expect(await screen.findByText("We couldn't save your plan. Check your connection and press Skip for now again.")).toBeDefined();
+
+      await upload(steps.user);
+      await upload(steps.user, rcScreenshot, "RC");
+      await steps.user.click(await screen.findByRole("button", { name: "Check the values" }));
+
+      expect(screen.getByText("Step 4 of 4 · Review")).toBeDefined();
+      expect(screen.queryByText(/We couldn't save your plan/)).toBeNull();
+    });
 
     it("shows a scanned High row as top priority on Step 3 and ticked on Step 4", async () => {
       const highRead: ExtractReply = {

@@ -8,7 +8,7 @@ vi.mock("@/app/admin/test/actions", () => ({ setSimulatedDate: mocks.move, rebui
 vi.mock("next/navigation", () => ({ usePathname: () => "/dashboard", useRouter: () => ({ push: mocks.push, refresh: mocks.refresh }) }));
 import { FailureToastProvider } from "./FailureNotice";
 import TestControls from "./TestControls";
-const state = { date: "2026-10-07", realDate: "2026-09-27", weekStartDate: "2026-10-05", simulated: true, onboarded: true, weekHasSchedule: true, uploadWeekend: false };
+const state = { date: "2026-10-07", realDate: "2026-09-27", weekStartDate: "2026-10-05", simulated: true, onboarded: true, weekHasSchedule: true, uploadWeekHasSchedule: true, uploadWeekend: false };
 afterEach(cleanup);
 beforeEach(() => vi.clearAllMocks());
 describe("Test controls", () => {
@@ -24,11 +24,43 @@ describe("Test controls", () => {
   it.each([
     ["a weekday whose week has a weekly schedule", { weekHasSchedule: true, uploadWeekend: false }, false],
     ["a weekday with no weekly schedule yet", { weekHasSchedule: false, uploadWeekend: false }, true],
-    ["the weekend", { weekHasSchedule: true, uploadWeekend: true }, true],
+    ["the weekend", { weekHasSchedule: true, uploadWeekHasSchedule: false, uploadWeekend: true }, true],
   ])("sets Generate sample on or off for %s", (_name, week, open) => {
     render(<TestControls state={{ ...state, ...week }} onClose={() => {}} />);
     expect((screen.getByRole("button", { name: "Generate sample" }) as HTMLButtonElement).disabled).toBe(!open);
     expect(!!screen.queryByText("The weekly upload is closed this week. Reset test data, or move the simulated date to Saturday.")).toBe(!open);
+  });
+  const saturday = { ...state, date: "2026-10-10", weekHasSchedule: false, uploadWeekHasSchedule: true, uploadWeekend: true };
+  const closedForNextWeek = "The weekly upload is closed. The week of Oct 12, 2026 already has a weekly schedule. Rebuild it, or reset test data.";
+  it("turns Generate sample off on the weekend once next week's preview is saved", () => {
+    render(<TestControls state={saturday} onClose={() => {}} />);
+    expect((screen.getByRole("button", { name: "Generate sample" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(closedForNextWeek)).toBeDefined();
+  });
+  it("turns Generate sample off once This week reports next week's new preview", () => {
+    render(
+      <AdminTestProvider>
+        <CurrentWeekReport week={state.weekStartDate} hasSchedule={false} hasPreview />
+        <TestControls state={{ ...saturday, uploadWeekHasSchedule: false }} onClose={() => {}} />
+      </AdminTestProvider>,
+    );
+    expect((screen.getByRole("button", { name: "Generate sample" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(closedForNextWeek)).toBeDefined();
+  });
+  it("rebuilds next week's preview on the weekend and names its week", async () => {
+    const user = userEvent.setup();
+    render(<TestControls state={saturday} onClose={() => {}} />);
+    expect(screen.getByText("Recreate next week's preview from your current settings and analytics.")).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "Rebuild this week" }));
+    expect(screen.getByText("Deletes next week's preview, the weekly schedule for the week of Oct 12, 2026.")).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "Confirm rebuild" }));
+    expect(mocks.rebuild).toHaveBeenCalledOnce();
+    expect(mocks.push).toHaveBeenCalledWith("/dashboard");
+  });
+  it("ignores a saved next week from Monday to Friday", () => {
+    render(<TestControls state={{ ...state, weekHasSchedule: false, uploadWeekHasSchedule: true }} onClose={() => {}} />);
+    expect((screen.getByRole("button", { name: "Generate sample" }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole("button", { name: "Rebuild this week" }) as HTMLButtonElement).disabled).toBe(true);
   });
   it("turns Generate sample off once This week reports a new weekly schedule", () => {
     render(

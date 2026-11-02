@@ -13,6 +13,8 @@ vi.mock("next/navigation", () => ({ usePathname: () => mocks.pathname, useRouter
 
 import AdminNav from "./AdminNav";
 import StudentNav from "./StudentNav";
+import { FailureToastProvider } from "@/components/FailureNotice";
+import type { FailureCode } from "@/lib/unexpectedFailure";
 
 const props = {
   initials: "QA", email: "qa@example.test", countdownLabel: "30 days to test",
@@ -137,7 +139,7 @@ describe("workspace switcher interactions", () => {
 });
 
 describe("admin test dock", () => {
-  const testState = { date: "2026-10-07", realDate: "2026-09-27", weekStartDate: "2026-10-05", simulated: true, onboarded: true, weekHasSchedule: true, uploadWeekend: false };
+  const testState = { date: "2026-10-07", realDate: "2026-09-27", weekStartDate: "2026-10-05", simulated: true, onboarded: true, weekHasSchedule: true, uploadWeekHasSchedule: true, uploadWeekend: false };
   beforeEach(() => {
     mocks.pathname = "/dashboard";
     vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
@@ -187,5 +189,21 @@ describe("admin test dock", () => {
     expect(header.contains(slideOver)).toBe(false);
     expect(header.contains(opener)).toBe(true);
     expect(opener.getAttribute("aria-controls")).toBe(slideOver.id);
+  });
+});
+
+describe("account menu", () => {
+  it("keeps a failed Log out's toast when the menu closes", async () => {
+    mocks.pathname = "/dashboard";
+    const logOut = async () => ({ unexpectedFailure: "3f9a01c2" as FailureCode });
+    render(<FailureToastProvider><StudentNav {...props} logOut={logOut} /></FailureToastProvider>);
+    const [menuButton] = screen.getAllByRole("button", { name: "Account menu for qa@example.test" });
+    await userEvent.click(menuButton);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Log out" }));
+    const alert = await screen.findByRole("alert");
+
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.getByRole("alert")).toBe(alert);
   });
 });
