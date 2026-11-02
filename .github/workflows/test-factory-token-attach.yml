@@ -1,0 +1,43 @@
+# Throwaway check for Jahazel/software-factory#22. Delete with its branch.
+name: Test factory token attach
+
+on:
+  push:
+    branches: [test-factory-token-attach]
+
+permissions:
+  contents: read
+
+jobs:
+  attach:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Try gh pr create and gh pr edit with --attach
+        env:
+          GH_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN }}
+        run: |
+          set -x
+          gh --version
+          mkdir -p "$RUNNER_TEMP/ev" && cd "$RUNNER_TEMP/ev"
+          python3 - <<'PY'
+          import struct, zlib
+          def png(path, rgb):
+              w = h = 64
+              raw = b"".join(b"\x00" + bytes(rgb) * w for _ in range(h))
+              def chunk(t, d): return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xffffffff)
+              open(path, "wb").write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+          png("create.png", (30, 120, 200))
+          png("edit.png", (200, 80, 30))
+          PY
+          printf 'Throwaway test for Jahazel/software-factory#22. Do not merge.\n\n![Blue square from create](./create.png)\n' > body.md
+          status=0
+          url=$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$GITHUB_REF_NAME" --draft \
+            --title "test: factory token attach check (do not merge)" --body-file body.md --attach ./create.png) || status=$?
+          echo "create exit=$status url=$url"
+          gh pr view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json number,body
+          printf '%s\n\n![Orange square from edit](./edit.png)\n' "$(gh pr view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json body --jq .body)" > body2.md
+          estatus=0
+          gh pr edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --body-file body2.md --attach ./edit.png || estatus=$?
+          echo "edit exit=$estatus"
+          gh pr view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json body --jq .body
