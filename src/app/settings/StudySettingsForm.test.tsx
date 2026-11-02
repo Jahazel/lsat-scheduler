@@ -20,9 +20,9 @@ const twoAttempts = [{ score: 152, month: "2025-06" }, { score: 149, month: "202
 const SAVE_NOTE = "Changes apply to your next weekly schedule.";
 const SAVED_NOTE = "Saved. Changes apply to your next weekly schedule.";
 
-function renderForm({ onSave = vi.fn(async (): Promise<FormState> => null), values = saved } = {}) {
+function renderForm({ onSave = vi.fn(async (): Promise<FormState> => null), values = saved, currentScore = 150 } = {}) {
   render(
-    <StudySettingsForm currentScore={150} saved={values} today="2026-11-02" goalTestDateOptions={upcomingTestMonths("2026-11-02")} onSave={onSave} />,
+    <StudySettingsForm currentScore={currentScore} saved={values} today="2026-11-02" goalTestDateOptions={upcomingTestMonths("2026-11-02")} onSave={onSave} />,
     { wrapper: FailureToastProvider },
   );
   return { onSave };
@@ -241,6 +241,81 @@ describe("Study settings form", () => {
     await userEvent.click(screen.getByRole("button", { name: "Apply" }));
     await userEvent.click(saveButton()!);
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ dailyCapacityMinutes: everyDay(150) }));
+  });
+});
+
+describe("Study settings week preview", () => {
+  const preview = () => within(screen.getByRole("complementary", { name: "Preview of your next weekly schedule" }));
+  const previewDays = () => preview().getAllByRole("listitem").map((row) => row.textContent);
+
+  it("shows each day's time, the practice-test day, and the goal beside the capacity table", () => {
+    renderForm();
+    const week = within(screen.getByRole("region", { name: "Week" }));
+    expect(week.getByRole("complementary", { name: "Preview of your next weekly schedule" })).toBeTruthy();
+    expect(preview().getByText("150 → 165")).toBeTruthy();
+    expect(preview().getByText("by June 2027 · 12 h 30 a week")).toBeTruthy();
+    expect(previewDays()).toEqual(["Mon1 h 30", "Tue1 h 30", "Wed1 h 30", "Thu1 h 30", "Fri1 h 30", "SatPT3 h 30", "Sun1 h 30"]);
+  });
+
+  it("follows edits before saving, marks each changed day, and clears the marks once saved", async () => {
+    renderForm();
+    await typeGoal("168");
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Friday minutes" }), "0");
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Friday hours" }), "2");
+    await userEvent.click(screen.getByRole("radio", { name: "Practice test on Sunday" }));
+
+    expect(preview().getByText("150 → 168")).toBeTruthy();
+    expect(preview().getByText("by June 2027 · 13 h a week")).toBeTruthy();
+    expect(previewDays()).toEqual([
+      "Mon1 h 30",
+      "Tue1 h 30",
+      "Wed1 h 30",
+      "Thu1 h 30",
+      "Fri2 h (changed)",
+      "Sat3 h 30 (changed)",
+      "SunPT1 h 30 (changed)",
+    ]);
+
+    await userEvent.click(saveButton()!);
+    expect(previewDays().some((day) => day?.includes("(changed)"))).toBe(false);
+  });
+
+  it("drops a day's mark when its edit is undone", async () => {
+    renderForm();
+    const tuesday = screen.getByRole("combobox", { name: "Tuesday hours" });
+    await userEvent.selectOptions(tuesday, "3");
+    expect(previewDays()[1]).toBe("Tue3 h 30 (changed)");
+    await userEvent.selectOptions(tuesday, "1");
+    expect(previewDays()[1]).toBe("Tue1 h 30");
+  });
+
+  it("renders data case B: every day different, 8 h days", () => {
+    renderForm({
+      values: {
+        ...saved,
+        goalScore: 170,
+        goalTestDate: "2027-01-01",
+        dailyCapacityMinutes: { MONDAY: 480, TUESDAY: 150, WEDNESDAY: 480, THURSDAY: 60, FRIDAY: 270, SATURDAY: 480, SUNDAY: 360 },
+      },
+    });
+    expect(preview().getByText("150 → 170")).toBeTruthy();
+    expect(preview().getByText("by January 2027 · 38 h a week")).toBeTruthy();
+    expect(previewDays()).toEqual(["Mon8 h", "Tue2 h 30", "Wed8 h", "Thu1 h", "Fri4 h 30", "SatPT8 h", "Sun6 h"]);
+  });
+
+  it("renders data case A: all days equal with a Sunday practice test", () => {
+    renderForm({
+      currentScore: 179,
+      values: { ...saved, goalScore: 180, dailyCapacityMinutes: everyDay(30), preferredPracticeTestDay: "SUNDAY" },
+    });
+    expect(preview().getByText("179 → 180")).toBeTruthy();
+    expect(preview().getByText("by June 2027 · 3 h 30 a week")).toBeTruthy();
+    expect(previewDays()).toEqual(["Mon30 min", "Tue30 min", "Wed30 min", "Thu30 min", "Fri30 min", "Sat30 min", "SunPT30 min"]);
+  });
+
+  it("asks for a test month when the saved one has passed", () => {
+    renderForm({ values: { ...saved, goalTestDate: "2026-10-01" } });
+    expect(preview().getByText("choose a test month · 12 h 30 a week")).toBeTruthy();
   });
 });
 
