@@ -176,7 +176,7 @@ body:has([data-tab-bar]) .failure-toast-slot { bottom: calc(86px + env(safe-area
   transition-duration: 120ms;
 }
 @starting-style {
-  .failure-toast { opacity: 0; transform: translateY(var(--rise)); }
+  .failure-toast:not([data-entered]) { opacity: 0; transform: translateY(var(--rise)); }
 }
 .failure-toast[data-leaving] {
   opacity: 0;
