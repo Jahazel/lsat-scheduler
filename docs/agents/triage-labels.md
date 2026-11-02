@@ -47,6 +47,14 @@ The agent factory (`.github/workflows/factory-orchestrator.yml`) uses these labe
 
 The factory pushes only to `factory/issue-<n>-<slug>-<run>` branches. Keep your own branches on `issue-<n>-*`. When you close a factory PR without merging it, the factory blocks its issue and starts no new run on it until you remove `agent:blocked`.
 
+## Visual evidence label
+
+The visual evidence check (`.github/workflows/visual-evidence.yml`) reads this label. See `docs/agents/issue-tracker.md` for the check.
+
+| Label | Meaning |
+| --- | --- |
+| `no-visual-change` | The PR changes a screen file, but the screen looks the same, such as after a rename. The check passes without a picture. |
+
 ## Gardening labels
 
 The weekly gardener (`.github/workflows/factory-gardener.yml`) uses these labels.
