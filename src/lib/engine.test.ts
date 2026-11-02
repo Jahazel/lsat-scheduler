@@ -362,6 +362,18 @@ describe("adaptive weekly schedule v3", () => {
     expect(pairs).toEqual([["Strengthen", "Weaken"], ["Sufficient assumption", "Necessary assumption"]]);
   });
 
+  it("gives the first pair's types single-type lines on a remaining day that holds the second pair", () => {
+    const schedule = generateWeek({ ...mockStudent, currentScore: 165, dailyCapacityMinutes: everyDay(120) },
+      mockAnalytics, mockRules, mockStudentName, { createdOn: "THURSDAY" });
+    expect(DAY_ORDER.filter((day) => schedule.days[day].type === "drill" && schedule.days[day].activities.length > 0))
+      .toEqual(["THURSDAY", "FRIDAY"]);
+    expect(lrDrillsOn(schedule, "THURSDAY").filter(isPaired).map(lineText))
+      .toEqual(["10 Sufficient assumption + Necessary assumption"]);
+    const friday = lrDrillsOn(schedule, "FRIDAY").map(lineText);
+    expect(friday).toContain("10 Weaken + Strengthen");
+    expect(friday).toEqual(expect.arrayContaining(["5 Sufficient assumption", "5 Necessary assumption"]));
+  });
+
   it("never repeats a type across a week's two pairs", () => {
     for (const analytics of [mockAnalytics, flawWeakest]) {
       for (const accommodationMultiplier of [1, 1.5, 2] as const) {
