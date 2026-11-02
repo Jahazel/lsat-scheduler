@@ -52,6 +52,26 @@ it("closes when the student presses Close", async () => {
   expect(screen.queryByRole("alert")).toBeNull();
 });
 
+it("keeps the closed toast on screen until its exit ends", async () => {
+  let endExit!: () => void;
+  const exit = new Promise<void>((resolve) => (endExit = resolve));
+  Element.prototype.getAnimations = function (this: Element) {
+    return this.hasAttribute("data-leaving") ? [{ finished: exit } as unknown as Animation] : [];
+  };
+  try {
+    render(<Screen logOut={[failure("3f9a01c2")]} />);
+    await press("Log out");
+    await toast();
+
+    await press("Close");
+    expect(document.querySelector(".failure-toast[data-leaving]")).not.toBeNull();
+    await act(async () => endExit());
+    expect(document.querySelector(".failure-toast")).toBeNull();
+  } finally {
+    delete (Element.prototype as Partial<Element>).getAnimations;
+  }
+});
+
 it("replaces the toast with a fresh alert when a second failure has a new code", async () => {
   render(<Screen logOut={[failure("3f9a01c2"), failure("0d2d95eb")]} />);
   await press("Log out");

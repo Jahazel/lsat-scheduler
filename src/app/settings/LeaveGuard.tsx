@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
+import { afterExit } from "@/components/ui/afterExit";
 import { cx } from "@/components/ui/classes";
 
 const NAV_TAB = 'nav[aria-label="Primary"] a[href]:not([aria-current="page"])';
@@ -45,7 +46,7 @@ export function LeaveGuard({ dirty }: { dirty: boolean }) {
     const tab = pressedTab.current;
     if (!closing || !tab) return;
     closing.close();
-    await Promise.allSettled(closing.getAnimations().map((exit) => exit.finished));
+    await afterExit(closing);
     passing.current = true;
     tab.click();
     passing.current = false;

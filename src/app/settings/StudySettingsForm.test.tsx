@@ -336,7 +336,6 @@ describe("Official LSAT attempts", () => {
   });
 
   it("shows saved attempts, edits one, and removes another", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
     const { onSave } = renderForm({ values: { ...saved, officialAttempts: twoAttempts } });
     expect(attemptScore(1).value).toBe("152");
     expect(attemptMonth(2).value).toBe("2026-01");
@@ -345,7 +344,7 @@ describe("Official LSAT attempts", () => {
     await userEvent.clear(attemptScore(2));
     await userEvent.type(attemptScore(2), "151");
     await userEvent.click(screen.getByRole("button", { name: "Remove attempt 1" }));
-    act(() => vi.advanceTimersByTime(120));
+    await act(async () => {});
     expect(screen.queryByRole("textbox", { name: "Attempt 2 score" })).toBeNull();
     expect(attemptScore(1).value).toBe("151");
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Remove attempt 1" }));
@@ -354,11 +353,30 @@ describe("Official LSAT attempts", () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ officialAttempts: [{ score: 151, month: "2026-01" }] }));
   });
 
+  it("keeps a removed attempt on screen until its exit ends, then moves focus to the next row", async () => {
+    let endExit!: () => void;
+    const exit = new Promise<void>((resolve) => (endExit = resolve));
+    Element.prototype.getAnimations = function (this: Element) {
+      return this.hasAttribute("data-leaving") ? [{ finished: exit } as unknown as Animation] : [];
+    };
+    try {
+      renderForm({ values: { ...saved, officialAttempts: twoAttempts } });
+      await userEvent.click(screen.getByRole("button", { name: "Remove attempt 1" }));
+      expect(document.querySelector("[data-leaving]")).not.toBeNull();
+
+      await act(async () => endExit());
+      expect(document.querySelector("[data-leaving]")).toBeNull();
+      expect(attemptScore(1).value).toBe("149");
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Remove attempt 1" }));
+    } finally {
+      delete (Element.prototype as Partial<Element>).getAnimations;
+    }
+  });
+
   it("hides the save bar when a removed attempt is added back the same", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
     renderForm({ values: { ...saved, officialAttempts: [twoAttempts[0]] } });
     await userEvent.click(screen.getByRole("button", { name: "Remove attempt 1" }));
-    act(() => vi.advanceTimersByTime(120));
+    await act(async () => {});
     expect(screen.getByText("No official attempts yet")).toBeTruthy();
     expect(document.activeElement).toBe(addAttempt());
     expect(saveButton()).not.toBeNull();
@@ -379,7 +397,6 @@ describe("Official LSAT attempts", () => {
   });
 
   it("replaces Add attempt with the limit note at ten attempts", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
     const nine = Array.from({ length: 9 }, () => twoAttempts[0]);
     renderForm({ values: { ...saved, officialAttempts: nine } });
     expect(screen.queryByText("You can record up to 10 attempts.")).toBeNull();
@@ -390,7 +407,7 @@ describe("Official LSAT attempts", () => {
     expect(screen.getAllByRole("button", { name: /^Remove attempt/ })).toHaveLength(10);
 
     await userEvent.click(screen.getByRole("button", { name: "Remove attempt 10" }));
-    act(() => vi.advanceTimersByTime(120));
+    await act(async () => {});
     expect(addAttempt()).not.toBeNull();
     expect(screen.queryByText("You can record up to 10 attempts.")).toBeNull();
   });

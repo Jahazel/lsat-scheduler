@@ -3,17 +3,18 @@
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, type MouseEvent, type ReactNode } from "react";
 
-const FAST = 120;
-const BASE = 200;
 const SLIDE = 8;
-const EXIT = "cubic-bezier(0.4, 0, 1, 1)";
-const STANDARD = "cubic-bezier(0.2, 0, 0, 1)";
 
 type WeekOrList = string | null;
 
 const isPlainClick = (event: { button: number; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean }) =>
   event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
 const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const motionToken = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const ms = (name: string) => {
+  const duration = motionToken(name);
+  return parseFloat(duration) * (duration.endsWith("ms") ? 1 : 1000);
+};
 const hrefOf = (url: URL | Location) => url.pathname + url.search;
 const hrefFor = (shown: WeekOrList) => (shown ? `/progress?week=${shown}` : "/progress");
 
@@ -28,12 +29,12 @@ function stopAtCurrentFrame(el: HTMLElement): Keyframe {
 }
 
 function fadeOut(el: HTMLElement, x: number) {
-  return el.animate([stopAtCurrentFrame(el), { opacity: 0, transform: `translateX(${-x}px)` }], { duration: FAST, easing: EXIT, fill: "forwards" });
+  return el.animate([stopAtCurrentFrame(el), { opacity: 0, transform: `translateX(${-x}px)` }], { duration: ms("--duration-fast"), easing: motionToken("--ease-exit"), fill: "forwards" });
 }
 
 function fadeIn(el: HTMLElement, x: number, from: Keyframe = { opacity: 0, transform: `translateX(${x}px)` }) {
-  if (reducedMotion()) el.animate([{ opacity: from.opacity }, { opacity: 1 }], { duration: FAST, easing: "linear" });
-  else el.animate([from, { opacity: 1, transform: "none" }], { duration: BASE, easing: STANDARD });
+  if (reducedMotion()) el.animate([{ opacity: from.opacity }, { opacity: 1 }], { duration: ms("--duration-fast"), easing: "linear" });
+  else el.animate([from, { opacity: 1, transform: "none" }], { duration: ms("--duration-base"), easing: motionToken("--ease-standard") });
 }
 
 const PageShown = createContext<(shown: WeekOrList, requested: string | null, page: HTMLElement) => void>(() => {});
