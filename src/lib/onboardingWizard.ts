@@ -52,6 +52,8 @@ export interface WizardValues {
   preferredPracticeTestDay: DayOfWeek | null;
 }
 
+export type WeekValues = Pick<WizardValues, "dailyCapacityMinutes" | "preferredPracticeTestDay">;
+
 export type AttemptRow = { id: number; score: string; month: string; leftScore: boolean; leftRow: boolean };
 
 export interface AttemptsDraft {
@@ -232,7 +234,7 @@ export function practiceTestMinutes(accommodation: Accommodation): number {
   return Math.round(mockRules.ptDurationMinutes * mockRules.accommodationTimeMultiplier[accommodation]);
 }
 
-export function weeklyTotalMinutes(values: WizardValues): number {
+export function weeklyTotalMinutes(values: WeekValues): number {
   return DAY_ORDER.reduce((sum, day) => sum + values.dailyCapacityMinutes[day], 0);
 }
 
@@ -263,7 +265,7 @@ export function previewHeader(values: WizardValues, firstName: string, today: st
   };
 }
 
-export function previewWeek(values: WizardValues) {
+export function previewWeek(values: WeekValues) {
   const longest = Math.max(...DAY_ORDER.map((day) => values.dailyCapacityMinutes[day]));
   const day = values.preferredPracticeTestDay;
   return {
