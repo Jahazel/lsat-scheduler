@@ -110,11 +110,24 @@ export async function createStudent(
   });
 }
 
-export async function updateStudySettings(accountId: string | undefined, settings: Omit<Student, "currentScore">) {
+export async function findOfficialAttempts(accountId: string | undefined) {
+  if (!isAccountId(accountId)) return [];
+  const [row] = await getPostgresDatabase()
+    .select({ officialAttempts: students.officialAttempts })
+    .from(students)
+    .where(eq(students.accountId, accountId));
+  return row?.officialAttempts ?? [];
+}
+
+export async function updateStudySettings(
+  accountId: string | undefined,
+  settings: Omit<Student, "currentScore">,
+  officialAttempts: OfficialAttempt[],
+) {
   if (!isAccountId(accountId)) return false;
   const updated = await getPostgresDatabase()
     .update(students)
-    .set(settingsColumns(settings))
+    .set({ ...settingsColumns(settings), officialAttempts })
     .where(and(eq(students.accountId, accountId), lt(students.currentScore, settings.goalScore)))
     .returning({ id: students.id });
   return updated.length === 1;

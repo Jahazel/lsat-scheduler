@@ -76,6 +76,7 @@ const profileInput = { ...profile, officialAttempts: [], analyticsRows: [], anal
 const settings: StudySettingsInput = {
   goalScore: profile.goalScore, goalTestDate: profile.goalTestDate, preferredPracticeTestDay: profile.preferredPracticeTestDay,
   accommodationMultiplier: profile.accommodationMultiplier, dailyCapacityMinutes: profile.dailyCapacityMinutes,
+  officialAttempts: [],
 };
 async function account(email: string, role: "student" | "admin" = "student") {
   const created = await database.createAccountAsOwner({ email, name: email, role });
@@ -449,13 +450,41 @@ it("onboarding stores each day's capacity and a Sunday practice-test day", async
   expect(await findStudentByAccountId(owner.id)).toMatchObject({ dailyCapacityMinutes, preferredPracticeTestDay: "SUNDAY" });
 });
 
-it("onboarding stores official attempts, and Study settings keep them", async () => {
+it("Study settings show onboarding's official attempts and save the edited list", async () => {
   const owner = await account("attempts@example.test");
   session(owner);
   const officialAttempts = [{ score: 152, month: "2025-06" }, { score: 149, month: "2026-01" }];
   await expect(createStudentProfile({ ...profileInput, officialAttempts })).rejects.toThrow("redirect:/dashboard");
-  expect(await saveStudySettings({ ...settings, goalScore: 170 })).toBeNull();
-  expect(await studentRows()).toMatchObject([{ goal_score: 170, official_attempts: officialAttempts }]);
+  const page = renderToStaticMarkup(await StudySettingsPage());
+  expect(page).toContain('value="152"');
+  expect(page).toContain('value="149"');
+  expect(page).toContain('<option value="2025-06" selected="">June 2025</option>');
+  expect(page).toContain('<option value="2026-01" selected="">January 2026</option>');
+
+  const edited = [{ score: 155, month: "2026-01" }];
+  expect(await saveStudySettings({ ...settings, goalScore: 170, officialAttempts: edited })).toBeNull();
+  expect(await studentRows()).toMatchObject([{ goal_score: 170, official_attempts: edited }]);
+
+  const ten = Array.from({ length: 10 }, (_, index) => ({ score: 140 + index, month: "2026-01" }));
+  expect(await saveStudySettings({ ...settings, officialAttempts: ten })).toBeNull();
+  expect(await studentRows()).toMatchObject([{ official_attempts: ten }]);
+  expect(await saveStudySettings({ ...settings, officialAttempts: [] })).toBeNull();
+  expect(await studentRows()).toMatchObject([{ official_attempts: [] }]);
+});
+
+it.each([
+  { name: "eleven attempts", officialAttempts: Array.from({ length: 11 }, () => ({ score: 150, month: "2026-01" })) },
+  { name: "a future month", officialAttempts: [{ score: 152, month: "2099-01" }] },
+  { name: "a month before the offered range", officialAttempts: [{ score: 152, month: "2000-01" }] },
+  { name: "no month", officialAttempts: [{ score: 152, month: "" }] },
+  { name: "a score above 180", officialAttempts: [{ score: 181, month: "2026-01" }] },
+])("Study settings refuse $name and keep the stored attempts", async ({ officialAttempts }) => {
+  session(await account("bad-settings-attempt@example.test"));
+  const stored = [{ score: 152, month: "2025-06" }];
+  await expect(createStudentProfile({ ...profileInput, officialAttempts: stored })).rejects.toThrow("redirect:/dashboard");
+  const before = await studentRows();
+  await expectUnexpectedFailure(database, saveStudySettings({ ...settings, goalScore: 170, officialAttempts }), "ZodError");
+  expect(await studentRows()).toEqual(before);
 });
 
 it.each([
@@ -504,7 +533,7 @@ it("Study settings keep the stored current score and check the goal against it, 
   const before = await studentRows();
   await expectUnexpectedFailure(database, saveStudySettings({ ...sendsAScore, goalScore: 140 }), "ZodError");
   expect(await studentRows()).toEqual(before);
-  expect(await updateStudySettings(owner.id, { ...settings, goalScore: 150 })).toBe(false);
+  expect(await updateStudySettings(owner.id, { ...profile, goalScore: 150 }, [])).toBe(false);
   expect(await studentRows()).toEqual(before);
 });
 
