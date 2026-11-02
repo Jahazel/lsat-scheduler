@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { DurationSelect } from "@/components/DailyCapacityFieldset";
-import { FailureNotice } from "@/components/FailureNotice";
+import { FailureNotice, LastFinishedReadNotice } from "@/components/FailureNotice";
 import { ScanningOffNote } from "@/components/ScanningOffNote";
 import { IconButton } from "@/components/ui/Button";
 import { DropZone } from "@/components/ui/DropZone";
@@ -148,16 +148,6 @@ export default function OnboardingWizard({
       {SECTIONS.map((section) => <LastFinishedReadNotice key={section} read={screenshot(state, section)?.read} />)}
     </div>
   );
-}
-
-const finishedReadAnswer = (read: Screenshot["read"] | undefined) =>
-  read?.status === "failed" ? read.failure : read?.status === "read" ? read : null;
-
-function LastFinishedReadNotice({ read }: { read: Screenshot["read"] | undefined }) {
-  const [lastFinished, setLastFinished] = useState(finishedReadAnswer(read));
-  const finished = finishedReadAnswer(read) ?? lastFinished;
-  if (finished !== lastFinished) setLastFinished(finished);
-  return <FailureNotice answer={finished} />;
 }
 
 function StepHeading({ state, title, lede }: { state: WizardState; title: string; lede: ReactNode }) {

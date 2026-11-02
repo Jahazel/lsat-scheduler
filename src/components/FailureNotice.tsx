@@ -8,13 +8,16 @@ import {
   useContext,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ComponentProps,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
+import type { FileRead } from "@/lib/screenshotReadQueue";
 import { isUnexpectedFailure, UNEXPECTED_FAILURE_MESSAGE, type FailureCode, type FormState } from "@/lib/unexpectedFailure";
 
 type Toast = { code: FailureCode; notice: string; action: string; replaced: boolean };
@@ -22,6 +25,7 @@ type Toasts = { shown: Toast | null; leaving: Toast | null };
 
 const NO_TOASTS: Toasts = { shown: null, leaving: null };
 const LEAVE_MS = 200;
+const noSubscription = () => () => {};
 
 const close = (toasts: Toasts): Toasts => (toasts.shown ? { shown: null, leaving: toasts.shown } : toasts);
 
@@ -31,8 +35,12 @@ function answered(toasts: Toasts, notice: string, action: string, answer: unknow
   return { shown: { code: answer.unexpectedFailure, notice, action, replaced: toasts.shown !== null }, leaving: null };
 }
 
-type Report = (notice: string, action: string, answer: unknown) => void;
-const ReportContext = createContext<Report>(() => {});
+type Notices = {
+  report: (notice: string, action: string, answer: unknown) => void;
+  leave: (notice: string) => void;
+};
+const NoticesContext = createContext<Notices>({ report: () => {}, leave: () => {} });
+const SlotHostContext = createContext<HTMLDialogElement | null>(null);
 
 export function FailureToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState(NO_TOASTS);
@@ -42,19 +50,22 @@ export function FailureToastProvider({ children }: { children: ReactNode }) {
     setToastsPathname(pathname);
     setToasts(close);
   }
-  const report = useCallback<Report>((notice, action, answer) => setToasts((current) => answered(current, notice, action, answer)), []);
+  const notices = useMemo<Notices>(() => ({
+    report: (notice, action, answer) => setToasts((current) => answered(current, notice, action, answer)),
+    leave: (notice) => setToasts((current) => (current.shown?.notice === notice ? close(current) : current)),
+  }), []);
   const leftAt = useCallback((code: FailureCode) => setToasts((current) =>
     current.leaving?.code === code ? { ...current, leaving: null } : current), []);
 
   return (
-    <ReportContext value={report}>
+    <NoticesContext value={notices}>
       {children}
       <ToastSlot>
         {[toasts.leaving, toasts.shown].map((toast) => toast && (toast === toasts.shown
           ? <ToastCard key={toast.code} toast={toast} onClose={() => setToasts(close)} />
           : <ToastCard key={toast.code} toast={toast} onLeft={leftAt} />))}
       </ToastSlot>
-    </ReportContext>
+    </NoticesContext>
   );
 }
 
@@ -64,6 +75,8 @@ export function FailureToastProvider({ children }: { children: ReactNode }) {
  */
 function ToastSlot({ children }: { children: ReactNode }) {
   const [keyboardInset, setKeyboardInset] = useState(0);
+  const hydrated = useSyncExternalStore(noSubscription, () => true, () => false);
+  const [host] = useState(() => (typeof document === "undefined" ? null : document.createElement("div")));
   const [dialog, setDialog] = useState<HTMLDialogElement | null>(null);
   useEffect(() => {
     const find = () => setDialog([...document.querySelectorAll<HTMLDialogElement>("dialog[open]")].at(-1) ?? null);
@@ -71,6 +84,11 @@ function ToastSlot({ children }: { children: ReactNode }) {
     observer.observe(document.body, { subtree: true, attributeFilter: ["open"] });
     return () => observer.disconnect();
   }, []);
+  useEffect(() => {
+    if (!host) return;
+    (dialog ?? document.body).append(host);
+    return () => host.remove();
+  }, [dialog, host]);
   useEffect(() => {
     const viewport = window.visualViewport;
     if (!viewport) return;
@@ -90,11 +108,16 @@ function ToastSlot({ children }: { children: ReactNode }) {
       {children}
     </div>
   );
-  return dialog ? createPortal(slot, dialog) : slot;
+  return hydrated && host && createPortal(<SlotHostContext value={dialog}>{slot}</SlotHostContext>, host);
 }
 
 function ToastCard({ toast, onClose, onLeft }: { toast: Toast; onClose?: () => void; onLeft?: (code: FailureCode) => void }) {
   const leaving = onLeft !== undefined;
+  const dialog = useContext(SlotHostContext);
+  const [shownIn] = useState(dialog);
+  const [moved, setMoved] = useState(false);
+  if (!moved && dialog !== shownIn) setMoved(true);
+  const [entered, setEntered] = useState(false);
   useEffect(() => {
     if (!onLeft) return;
     const timer = setTimeout(() => onLeft(toast.code), LEAVE_MS);
@@ -103,13 +126,16 @@ function ToastCard({ toast, onClose, onLeft }: { toast: Toast; onClose?: () => v
 
   return (
     <div
-      role={leaving ? undefined : "alert"}
+      role={leaving || moved ? undefined : "alert"}
       aria-hidden={leaving || undefined}
       inert={leaving}
       data-leaving={leaving || undefined}
       data-replaced={toast.replaced || undefined}
+      data-entered={entered || moved || undefined}
       onTransitionEnd={(event) => {
-        if (onLeft && event.target === event.currentTarget && event.propertyName === "opacity") onLeft(toast.code);
+        if (event.target !== event.currentTarget || event.propertyName !== "opacity") return;
+        if (onLeft) onLeft(toast.code);
+        else setEntered(true);
       }}
       className="failure-toast pointer-events-auto flex w-full items-start gap-3 self-end rounded-md border border-vellum-line bg-paper py-4 pr-1 pl-4 shadow-e3 md:w-[360px]"
     >
@@ -139,11 +165,12 @@ function ToastCard({ toast, onClose, onLeft }: { toast: Toast; onClose?: () => v
 
 /**
  * Shows the failure toast when `answer` becomes an unexpected failure, and closes it
- * when the same `action` answers again without one. Renders nothing in place, so a
- * screen that swaps its form for a next step keeps the notice mounted outside both.
+ * when the same `action` answers again without one, or when this notice unmounts.
+ * Renders nothing in place, so a screen that swaps its form for a next step keeps
+ * the notice mounted outside both.
  */
 export function FailureNotice({ answer, action = "" }: { answer: unknown; action?: string }) {
-  const report = useContext(ReportContext);
+  const { report, leave } = useContext(NoticesContext);
   const notice = useId();
   const previous = useRef(answer);
   useEffect(() => {
@@ -151,19 +178,29 @@ export function FailureNotice({ answer, action = "" }: { answer: unknown; action
     previous.current = answer;
     report(notice, action, answer);
   }, [action, answer, notice, report]);
+  useEffect(() => () => leave(notice), [leave, notice]);
   return null;
 }
 
 export function FailureNoticeOnArrival({ code }: { code: FailureCode }) {
-  const report = useContext(ReportContext);
+  const { report, leave } = useContext(NoticesContext);
   const notice = useId();
-  const shown = useRef<FailureCode | null>(null);
   useEffect(() => {
-    if (shown.current === code) return;
-    shown.current = code;
     report(notice, "", { unexpectedFailure: code });
-  }, [code, notice, report]);
+    return () => leave(notice);
+  }, [code, leave, notice, report]);
   return null;
+}
+
+const finishedReadAnswer = (read: FileRead<unknown> | undefined) =>
+  read?.status === "failed" ? read.failure : read?.status === "read" ? read : null;
+
+/** Keeps the last finished read as the answer, so a read that starts again does not close its toast. */
+export function LastFinishedReadNotice({ read }: { read: FileRead<unknown> | undefined }) {
+  const [lastFinished, setLastFinished] = useState(finishedReadAnswer(read));
+  const finished = finishedReadAnswer(read) ?? lastFinished;
+  if (finished !== lastFinished) setLastFinished(finished);
+  return <FailureNotice answer={finished} />;
 }
 
 export function ActionForm({ action, children, ...props }: Omit<ComponentProps<"form">, "action"> & {
