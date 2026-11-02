@@ -319,7 +319,7 @@ describe("loadOrGenerateCurrentWeek", () => {
     ]);
     const input = {
       studentId: "student-1", student: { ...mockStudent,
-        dailyCapacityMinutes: Object.fromEntries(Object.keys(mockStudent.dailyCapacityMinutes).map((day) => [day, 30])) as typeof mockStudent.dailyCapacityMinutes },
+        dailyCapacityMinutes: Object.fromEntries(Object.keys(mockStudent.dailyCapacityMinutes).map((day) => [day, 15])) as typeof mockStudent.dailyCapacityMinutes },
       studentName: mockStudentName, rules: mockRules, timezone: "America/Chicago",
       now: () => monday, ...repositories,
     };
