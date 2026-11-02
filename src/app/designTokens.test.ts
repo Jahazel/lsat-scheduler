@@ -4,7 +4,6 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const SRC = path.resolve(__dirname, "..");
-const THEME_FILE = path.join(SRC, "app", "globals.css");
 
 const TAILWIND_PALETTE =
   "red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc|neutral|stone|white|black";
@@ -55,8 +54,13 @@ function withoutComments(source: string, fileName: string): string {
     .reduce((code, { pos, end }) => code.slice(0, pos) + code.slice(end), source);
 }
 
+function withoutThemeBlocks(css: string): string {
+  return css.replace(/@theme\b[^{]*\{[^}]*\}/g, "");
+}
+
 function findTokenViolations(source: string, fileName = "inline.tsx"): string[] {
-  const code = withoutComments(source, fileName);
+  const withoutCommentText = withoutComments(source, fileName);
+  const code = fileName.endsWith(".css") ? withoutThemeBlocks(withoutCommentText) : withoutCommentText;
   return RULES.flatMap(({ name, pattern }) =>
     [...code.matchAll(pattern)].map((match) => `${name}: ${match[0]}`),
   );
@@ -120,9 +124,17 @@ describe("design tokens", () => {
     ]);
   });
 
+  it("allows raw colors only inside the theme's @theme blocks", () => {
+    const css = "@theme {\n  --color-ink: #0A0A0A;\n  --shadow-e1: 0 12px 32px rgb(10 10 10 / 0.06);\n}\n@theme inline {\n  --font-sans: var(--font-geist-sans);\n}\n.scrim { background: rgb(10 10 10 / 0.4); color: #FFFFFF; }";
+    expect(findTokenViolations(css, "globals.css")).toEqual([
+      "raw hex color: #FFFFFF",
+      "raw color function: rgb(",
+    ]);
+  });
+
   it("keeps application code on Paper tokens", () => {
     const violations = sourceFiles(SRC)
-      .filter((file) => file !== THEME_FILE && file !== __filename)
+      .filter((file) => file !== __filename)
       .flatMap((file) =>
         findTokenViolations(readFileSync(file, "utf8"), file).map(
           (violation) => `${path.relative(SRC, file)}: ${violation}`,
