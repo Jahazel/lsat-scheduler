@@ -253,7 +253,7 @@ body:has(.save-bar[data-shown]) .failure-toast-slot { transform: translateY(-88p
     display 120ms allow-discrete;
 }
 .leave-dialog { transform: scale(0.98); }
-.leave-dialog::backdrop { background: rgb(10 10 10 / 0.4); }
+.leave-dialog::backdrop { background: color-mix(in srgb, var(--color-ink) var(--opacity-muted), transparent); }
 .leave-dialog[open],
 .leave-dialog[open]::backdrop {
   opacity: 1;
