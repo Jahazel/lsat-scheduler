@@ -6,6 +6,7 @@ import { requestPolicy } from "@/lib/requestPolicy";
 
 const verifyEmail = vi.hoisted(() => vi.fn());
 vi.mock("./actions", () => ({ verifyEmail }));
+import { FailureToastProvider } from "@/components/FailureNotice";
 import VerifyEmailPage, { metadata } from "./page";
 
 afterEach(() => {
@@ -14,7 +15,9 @@ afterEach(() => {
 });
 
 async function renderPage(token?: string) {
-  render(await VerifyEmailPage({ searchParams: Promise.resolve(token === undefined ? {} : { token }) } as PageProps<"/verify-email">));
+  render(await VerifyEmailPage({ searchParams: Promise.resolve(token === undefined ? {} : { token }) } as PageProps<"/verify-email">), {
+    wrapper: FailureToastProvider,
+  });
 }
 
 describe("Verify my email", () => {
@@ -36,6 +39,18 @@ describe("Verify my email", () => {
     expect(await screen.findByRole("heading", { name: "This link doesn't work" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Sign up again" }).getAttribute("href")).toBe("/signup");
     expect(screen.getByRole("link", { name: "Log in" }).getAttribute("href")).toBe("/login");
+  });
+
+  it("closes the failure toast when a retry gets an answer", async () => {
+    verifyEmail.mockResolvedValueOnce({ unexpectedFailure: "3f9a01c2" });
+    verifyEmail.mockResolvedValueOnce({ linkDoesNotWork: true });
+    await renderPage("link-token");
+    await userEvent.click(screen.getByRole("button", { name: "Verify my email" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("Error code 3f9a01c2");
+
+    await userEvent.click(screen.getByRole("button", { name: "Verify my email" }));
+    expect(await screen.findByRole("heading", { name: "This link doesn't work" })).toBeTruthy();
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   });
 
   it("shows the link-doesn't-work message for a link with no token", async () => {
