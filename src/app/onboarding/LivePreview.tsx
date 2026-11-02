@@ -2,9 +2,9 @@
 
 import { DAY_LABEL } from "@/lib/studentProfile";
 import { SECTIONS } from "@/lib/analyticsReview";
-import { activeDraft, previewDrills, previewHeader, previewWeek, screenshot, type PreviewDrill, type WizardState } from "@/lib/onboardingWizard";
-import type { DayOfWeek } from "@/lib/types";
-import { DrillList, WeekTiles, type DrillItem } from "@/components/WeekPreview";
+import { activeDraft, previewDrills, previewHeader, screenshot, type PreviewDrill, type WizardState } from "@/lib/onboardingWizard";
+import { DrillList, type DrillItem } from "@/components/WeekPreview";
+import { LiveWeekPreview } from "@/components/StudyProfileFields";
 import { ScreenshotCard } from "@/components/SnapshotReviewFields";
 
 const SKELETON = "h-2 rounded bg-vellum";
@@ -68,7 +68,7 @@ export default function LivePreview({ state, firstName, initials, today }: LiveP
           </p>
         </div>
         <div className="flex grow flex-col gap-3 border-t border-vellum-line bg-vellum px-5 py-6 xl:px-7">
-          {state.step === "goal" ? <SkeletonDays /> : <Week state={state} drillDay={drills?.day ?? null} />}
+          {state.step === "goal" ? <SkeletonDays /> : <LiveWeekPreview values={state.values} highlight={drills?.day ?? null} />}
           {state.step !== "goal" &&
             (drills ? (
               <div className="flex flex-col gap-2.5 rounded-sm border border-vellum-line bg-paper p-5">
@@ -100,19 +100,6 @@ function SkeletonDays() {
         </div>
       ))}
     </div>
-  );
-}
-
-function Week({ state, drillDay }: { state: WizardState; drillDay: DayOfWeek | null }) {
-  const week = previewWeek(state.values);
-  return (
-    <>
-      <p className="flex items-baseline gap-3">
-        <span className="text-body font-semibold text-ink">Your week</span>
-        <span className="text-small text-smoke">{week.summary}</span>
-      </p>
-      <WeekTiles days={week.days} highlight={drillDay} />
-    </>
   );
 }
 
