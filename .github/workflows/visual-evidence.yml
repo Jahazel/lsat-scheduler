@@ -22,6 +22,7 @@ jobs:
         with:
           node-version: 24
       - name: Check the PR body for a picture
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
