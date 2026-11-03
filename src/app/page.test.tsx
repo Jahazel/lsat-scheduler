@@ -132,26 +132,31 @@ describe("Landing page", () => {
     expect(within(monthly).getByText("About $56.30 a month on Weekly. Good for a full prep cycle.")).toBeTruthy();
   });
 
-  it("answers the five questions, with only the card question open", () => {
+  it("answers the five questions, with only the card question open and the practice sites question fourth", () => {
     render(<LandingPage />);
     const questions = screen.getByRole("region", { name: "FAQ" });
     const buttons = within(questions).getAllByRole("button");
-    expect(buttons.map((b) => [b.textContent, b.getAttribute("aria-expanded")])).toEqual([
+    const rows = [
       ["Do I need a card to start?", "true"],
       ["What happens after the free week?", "false"],
       ["Can I cancel?", "false"],
-      ["Do I need 7Sage?", "false"],
+      ["Which practice sites work?", "false"],
       ["Is the plan made by AI?", "false"],
-    ]);
+    ];
+    expect(buttons).toHaveLength(rows.length);
+    rows.forEach(([name, expanded], index) => {
+      expect(within(questions).getByRole("button", { name })).toBe(buttons[index]);
+      expect(buttons[index].getAttribute("aria-expanded")).toBe(expanded);
+    });
     expect(within(questions).getByText("No. Your first full week is free. You pick Weekly ($7.99) or Monthly ($25) only when it ends.")).toBeTruthy();
-    expect(isInaccessible(within(questions).getByText("Yes for screenshots. You can also type your numbers by hand."))).toBe(true);
+    expect(isInaccessible(within(questions).getByText("7Sage today, with more sites coming. You can also type your numbers by hand."))).toBe(true);
 
     for (const b of buttons.slice(1)) fireEvent.click(b);
     expect(within(questions).getAllByRole("button").every((b) => b.getAttribute("aria-expanded") === "true")).toBe(true);
     for (const answer of [
       "Pick Weekly ($7.99) or Monthly ($25) to keep getting weekly schedules.",
       "Any time. You keep access until your paid week or month ends. No refunds for unused time.",
-      "Yes for screenshots. You can also type your numbers by hand.",
+      "7Sage today, with more sites coming. You can also type your numbers by hand.",
       "No. Fixed rules built from the tutor's coaching method make the plan. AI only reads your screenshots, and you check what it read.",
     ]) {
       expect(isInaccessible(within(questions).getByText(answer))).toBe(false);

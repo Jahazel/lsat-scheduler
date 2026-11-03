@@ -124,18 +124,19 @@ function QuestionsSection() {
   const price = planPriceText(PLAN_PRICES);
   const plans = `Weekly (${price.weekly}) or Monthly (${price.monthly})`;
   return (
-    <section aria-labelledby="questions-title" className="flex w-full flex-col items-center">
+    <RevealSection threshold={0.2} aria-labelledby="questions-title" className="flex w-full flex-col items-center">
       <SectionLabel id="questions-title" number="04">FAQ</SectionLabel>
-      <div className="flex w-full flex-col gap-8 pt-8 md:max-w-[672px] md:pt-14 lg:max-w-[1120px] lg:flex-row lg:items-start lg:gap-24 lg:pt-[72px]">
-        <p className="text-[32px]/[38px] font-semibold tracking-heading text-ink md:text-h2 lg:w-[360px] lg:shrink-0">
+      <div className="grid w-full gap-5 pt-8 md:w-[min(720px,calc(100%-48px))] md:gap-8 md:pt-14 lg:w-[min(1120px,calc(100%-48px))] lg:grid-cols-4 lg:items-start lg:gap-0 lg:pt-[72px]">
+        <p className="reveal-item text-[32px]/[38px] font-semibold tracking-[-0.03em] text-ink md:text-[40px]/[46px] lg:sticky lg:top-28 lg:px-6 lg:text-[48px]/[54px]">
           FAQ
         </p>
         <QuestionList
+          className="lg:col-span-3"
           questions={[
             { question: "Do I need a card to start?", answer: `No. Your first full week is free. You pick ${plans} only when it ends.` },
             { question: "What happens after the free week?", answer: `Pick ${plans} to keep getting weekly schedules.` },
             { question: "Can I cancel?", answer: "Any time. You keep access until your paid week or month ends. No refunds for unused time." },
-            { question: "Do I need 7Sage?", answer: "Yes for screenshots. You can also type your numbers by hand." },
+            { question: "Which practice sites work?", answer: "7Sage today, with more sites coming. You can also type your numbers by hand." },
             {
               question: "Is the plan made by AI?",
               answer: "No. Fixed rules built from the tutor's coaching method make the plan. AI only reads your screenshots, and you check what it read.",
@@ -143,7 +144,7 @@ function QuestionsSection() {
           ]}
         />
       </div>
-    </section>
+    </RevealSection>
   );
 }
 

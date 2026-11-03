@@ -28,7 +28,11 @@ const expanded = () => screen.getAllByRole("button").map((b) => b.getAttribute("
 describe("QuestionList", () => {
   it("lists every question as a heading button, with only the first answer open", () => {
     render(<QuestionList questions={QUESTIONS} />);
-    expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(QUESTIONS.map((q) => q.question));
+    const headings = screen.getAllByRole("heading", { level: 3 });
+    expect(headings).toHaveLength(QUESTIONS.length);
+    QUESTIONS.forEach(({ question }, index) => {
+      expect(screen.getByRole("heading", { level: 3, name: question })).toBe(headings[index]);
+    });
     expect(expanded()).toEqual(["true", "false", "false", "false", "false", "false", "false", "false"]);
     expect(shownAnswers()).toEqual(["Answer 1."]);
     expect(answerOf("Question 1?").textContent).toBe("Answer 1.");
@@ -46,6 +50,14 @@ describe("QuestionList", () => {
 
     fireEvent.click(button("Question 4?"));
     expect(shownAnswers()).toEqual([]);
+  });
+
+  it("numbers the rows Q01 onward, outside each button's name", () => {
+    render(<QuestionList questions={QUESTIONS} />);
+    expect(screen.getAllByRole("button").map((b) => b.textContent!.slice(0, 3))).toEqual(
+      ["Q01", "Q02", "Q03", "Q04", "Q05", "Q06", "Q07", "Q08"],
+    );
+    expect(button("Question 1?")).toBe(screen.getAllByRole("button")[0]);
   });
 
   it("keeps closed answers out of the accessibility tree", () => {
