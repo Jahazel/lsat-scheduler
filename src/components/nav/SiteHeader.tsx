@@ -5,11 +5,12 @@ import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { postgresAdminClock, studentSideNow } from "@/lib/studentClock";
 import { auth } from "@/auth";
 import { SignOutForm } from "@/components/SignOutForm";
-import { Button, ButtonLink } from "@/components/ui/Button";
+import { Button } from "@/components/ui/Button";
 import { initialsFor, loadStudentNavState } from "@/lib/studentNav";
 import AdminNav from "./AdminNav";
 import StudentNav, { StudentTabBar } from "./StudentNav";
 import { logOut } from "./actions";
+import SignedOutTopBar from "./SignedOutTopBar";
 import { BAR, HEADER, Logo } from "./shared";
 
 function LogOutButton() {
@@ -25,17 +26,7 @@ export default async function SiteHeader() {
   const user = session?.user;
 
   if (!user) {
-    return (
-      <header className={HEADER}>
-        <div className={BAR}>
-          <Logo href="/" />
-          <nav aria-label="Primary" className="flex items-center gap-1">
-            <ButtonLink href="/login" variant="text" size="md">Log in</ButtonLink>
-            <ButtonLink href="/signup" size="md">Sign up</ButtonLink>
-          </nav>
-        </div>
-      </header>
-    );
+    return <SignedOutTopBar />;
   }
 
   if (isAdminUser(user)) {

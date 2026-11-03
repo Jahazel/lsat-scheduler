@@ -23,8 +23,8 @@ DrillMap signs people in with Google or with an email-verified password. Signup 
 
 ## How to get to it (user POV)
 
-- On `/`, click the hero `Start free week` or the navigation `Sign up` link. Both reach `/signup`.
-- On `/login`, click `Sign up`. On `/signup`, click `Log in`. Public navigation also has `Log in`.
+- On `/`, click the hero `Start free week` or the navigation `Start free week` link. Both reach `/signup`.
+- On `/login`, click `Sign up`. On `/signup`, click `Log in`. Public navigation also has `Log in`, `How it works` (`/#how-it-works`), and `Pricing` (`/#pricing`); the last two hide below 768 px. The signed-out footer also has `Log in`.
 - Auth.js sends every Google sign-in failure to `/login?error=<type>`. A refused Google sign-in (`AccessDenied`) and any other Auth.js error type show the refusal text. `AccountDisabled` and `SessionEnded` show their own text. A Google sign-in with a password Account's email goes to `EmailUsesPassword`; Postgres tests cover that refusal, because this baseline has no Google client. The proxy adds `SessionEnded` when the browser sent a session cookie that the current-Account check ended, on a protected page or on a direct `/login` visit.
 - On `/login`, click `Forgot password?` beside the Password label. It reaches `/forgot-password`; its `Log in` link returns.
 - In the student workspace, open `Account menu for verify-student@example.test`. Choose `Account` or `Log out`.

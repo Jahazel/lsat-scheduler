@@ -36,7 +36,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <FailureToastProvider>
             <SiteHeader />
             <main className="flex-1">{children}</main>
-            <Footer />
+            <Footer signedIn={!!session?.user} />
           </FailureToastProvider>
         </AdminTestProvider>
       </body>

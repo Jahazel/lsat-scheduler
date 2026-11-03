@@ -251,8 +251,17 @@ describe("app shell pieces", () => {
       .toEqual(["Sufficient assumption comes first this week.", "Weaken sits out this week."]);
   });
 
-  it("renders the footer's legal links", () => {
-    render(<Footer />);
+  it("shows Log in in the footer for signed-out visitors only", () => {
+    const { unmount } = render(<Footer signedIn={false} />);
+    expect(screen.getByRole("link", { name: "Log in" }).getAttribute("href")).toBe("/login");
+    unmount();
+    render(<Footer signedIn />);
+    expect(screen.queryByRole("link", { name: "Log in" })).toBeNull();
+  });
+
+  it("renders the footer's legal links and AI line", () => {
+    render(<Footer signedIn={false} />);
+    expect(screen.getByText("Plans follow fixed rules. AI only reads your screenshots.")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Terms of Service" }).getAttribute("href")).toBe("/legal/terms");
     expect(screen.getByRole("link", { name: "Privacy Policy" }).getAttribute("href")).toBe("/legal/privacy");
     expect(screen.getByRole("link", { name: "AI Disclosure" }).getAttribute("href")).toBe("/legal/ai-disclosure");
