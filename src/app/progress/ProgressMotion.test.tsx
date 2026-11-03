@@ -82,6 +82,22 @@ describe("ProgressMotion", () => {
     expect(document.activeElement).toBe(screen.getByRole("link", { name: "Oct 12 – 18" }));
   });
 
+  it("keeps the old week on screen, dimmed and busy, until the new week arrives", async () => {
+    const { container, rerender } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
+    const area = container.firstElementChild!;
+    fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
+    finishExits();
+    await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/progress?week=2026-10-05", { scroll: false }));
+    expect(keyframes(0).at(-1)).toMatchObject({ opacity: 0.5 });
+    expect(area.getAttribute("aria-busy")).toBe("true");
+    expect(screen.getByRole("heading", { name: "Week of 2026-10-12" })).toBeDefined();
+
+    show("/progress?week=2026-10-05", <Week week="2026-10-05" />, rerender);
+    expect(area.hasAttribute("aria-busy")).toBe(false);
+    expect(keyframes(1)[0]).toMatchObject({ opacity: 0.5 });
+    expect(keyframes(1).at(-1)).toMatchObject({ opacity: 1 });
+  });
+
   it("starts one navigation when Older is clicked twice during its transition", async () => {
     show("/progress?week=2026-10-12", <Week week="2026-10-12" />);
     const older = screen.getByRole("link", { name: "← Older week" });
@@ -92,7 +108,7 @@ describe("ProgressMotion", () => {
     expect(mocks.push).toHaveBeenCalledOnce();
   });
 
-  it("holds Back until the page has faded out, then hands it to the router", async () => {
+  it("holds Back until the page has dimmed, then hands it to the router", async () => {
     const { rerender } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
     fireEvent.click(screen.getByRole("link", { name: "← All weeks" }));
     show("/progress", <List />, rerender);
@@ -103,7 +119,7 @@ describe("ProgressMotion", () => {
     history.replaceState(null, "", "/progress?week=2026-10-12");
     dispatchEvent(new PopStateEvent("popstate"));
     expect(router).not.toHaveBeenCalled();
-    expect(keyframes(0).at(-1)).toMatchObject({ opacity: 0 });
+    expect(keyframes(0).at(-1)).toMatchObject({ opacity: 0.5 });
     finishExits();
     await vi.waitFor(() => expect(router).toHaveBeenCalledOnce());
     removeEventListener("popstate", router);
@@ -138,13 +154,14 @@ describe("ProgressMotion", () => {
   });
 
   it("drops a click when Forward leaves Progress during its exit", async () => {
-    show("/progress?week=2026-10-12", <Week week="2026-10-12" />);
+    const { container } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
     fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
     history.replaceState(null, "", "/dashboard");
     dispatchEvent(new PopStateEvent("popstate"));
     finishExits();
     await Promise.resolve();
     expect(mocks.push).not.toHaveBeenCalled();
+    expect(container.firstElementChild!.hasAttribute("aria-busy")).toBe(false);
   });
 
   it("drops a held Back when Forward then leaves Progress", async () => {
@@ -232,15 +249,16 @@ describe("ProgressMotion", () => {
     const { rerender } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
     fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
     show("/progress?week=2026-10-05", <Week week="2026-10-05" />, rerender);
-    expect(keyframes(0).at(-1)).toMatchObject({ opacity: 0, transform: "translateX(8px)" });
-    expect(keyframes(1)[0]).toMatchObject({ opacity: 0, transform: "translateX(-8px)" });
+    expect(keyframes(0).at(-1)).toMatchObject({ opacity: 0.5, transform: "translateX(8px)" });
+    expect(keyframes(1)[0]).toMatchObject({ opacity: 0.5, transform: "translateX(-8px)" });
 
     animate.mockClear();
     reduced = true;
     document.documentElement.style.setProperty("--duration-fast", ".12s");
     fireEvent.click(screen.getByRole("link", { name: "← All weeks" }));
     show("/progress", <List />, rerender);
-    expect(animate).toHaveBeenCalledOnce();
-    expect(animate.mock.calls[0]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "linear" }]);
+    expect(animate).toHaveBeenCalledTimes(2);
+    expect(keyframes(0).at(-1)).toMatchObject({ opacity: 0.5, transform: "translateX(0px)" });
+    expect(animate.mock.calls[1]).toEqual([[{ opacity: 0.5 }, { opacity: 1 }], { duration: 120, easing: "linear" }]);
   });
 });

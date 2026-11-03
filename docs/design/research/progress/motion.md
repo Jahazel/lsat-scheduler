@@ -18,6 +18,7 @@ Durations are the design-system tokens: fast 120 ms, base 200 ms, slow 320 ms. E
 | Week row (list) | Pointer hover, on devices that can hover | Background steps to vellum. | fast, standard easing | Same (color only) |
 | Week row (list) | Press | Background steps to vellum-line. | fast, standard easing | Same (color only) |
 | Older / Newer pill | Pointer hover | Background steps to vellum. | fast, standard easing | Same (color only) |
-| Loading state (list and past week) | The page is fetching | The app's shared loading skeleton (`src/app/loading.tsx`), with its existing pulse. | Existing | Existing |
+| Loading state (first entry) | The page is fetching | Progress's own placeholder (`src/app/progress/loading.tsx`): the header band and a month card in the list's layout, with the shared pulse. Changed by #569 so the page does not jump when it loads. | Existing | Existing |
+| Page content | The next page is slow to arrive | The old page stops at 50 % opacity instead of fading out, and is marked busy (`aria-busy`). The next page fades in from 50 %. Changed by #569 so the area is never empty. | Out: fast, exit easing. In: base, standard easing. | 120 ms fade to 50 %, then a 120 ms fade in. |
 
 The page title takes focus with no visible ring, which is the usual pattern for focus the page moves. The next Tab stop shows the ring.
