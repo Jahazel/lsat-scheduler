@@ -132,6 +132,12 @@ describe("design tokens", () => {
     ]);
   });
 
+  it("defines the landing page motion tokens", () => {
+    const css = readFileSync(path.join(SRC, "app/globals.css"), "utf8");
+    expect(css).toContain("--ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);");
+    expect(css).toContain("--duration-reveal: 600ms;");
+  });
+
   it("keeps application code on Paper tokens", () => {
     const violations = sourceFiles(SRC)
       .filter((file) => file !== __filename)
