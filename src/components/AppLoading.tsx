@@ -1,4 +1,4 @@
-export default function Loading() {
+export default function AppLoading() {
   return (
     <div className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-2xl animate-pulse">
