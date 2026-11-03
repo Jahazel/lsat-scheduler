@@ -8,6 +8,8 @@
   }
 }
 
+@custom-variant pin (@media (scripting: enabled) and (min-width: 48rem));
+
 @theme {
   --color-*: initial;
   --text-*: initial;
@@ -283,6 +285,50 @@ body:has([data-sign-in-page]) > footer { display: none; }
     color-mix(in oklab, var(--color-spectrum-violet) 45%, transparent) 60%,
     color-mix(in oklab, var(--color-spectrum-violet) calc(14% + var(--mat-edge)), transparent) 100%
   );
+}
+
+.how-step {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(14px);
+  transition: opacity var(--duration-fast) var(--ease-out-strong), transform var(--duration-slow) var(--ease-out-strong), visibility 0s linear var(--duration-slow);
+}
+.how-step[data-state="before"] { transform: translateY(-14px); }
+.how-step[data-state="on"] {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition-duration: var(--duration-base), var(--duration-slow), 0s;
+  transition-delay: 80ms, 80ms, 0s;
+}
+.how-key::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 1px;
+  height: 3px;
+  border-radius: 2px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0s linear var(--duration-slow);
+}
+.how-step[data-state="on"] .how-key::after { transform: scaleX(1); transition: transform var(--duration-reveal) var(--ease-out-strong) 240ms; }
+.how-key[data-tone="violet"]::after { background: color-mix(in oklab, var(--color-spectrum-violet) 75%, transparent); }
+.how-key[data-tone="pink"]::after { background: color-mix(in oklab, var(--color-spectrum-pink) 75%, transparent); }
+.how-key[data-tone="amber"]::after { background: color-mix(in oklab, var(--color-spectrum-amber) 75%, transparent); }
+.how-key[data-tone="spectrum"]::after { background: linear-gradient(90deg in oklab, var(--color-spectrum-violet), var(--color-spectrum-pink), var(--color-spectrum-amber)); }
+.how-mat { opacity: 0; transition: opacity var(--duration-reveal) var(--ease-out-strong); }
+.how-mat[data-state="on"] { opacity: 1; }
+.how-shot {
+  opacity: 0;
+  transform: translateY(28px) scale(0.98);
+  transition: opacity var(--duration-slow) var(--ease-out-strong), transform var(--duration-reveal) var(--ease-out-strong);
+}
+.how-shot[data-state="before"] { transform: translateY(-28px) scale(0.98); }
+.how-shot[data-state="on"] { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .how-step, .how-step[data-state], .how-shot, .how-shot[data-state], .how-mat { transform: none; transition-duration: var(--duration-fast); transition-delay: 0s; }
+  .how-key::after, .how-step[data-state="on"] .how-key::after { transform: none; transition: none; }
 }
 
 /* The floating tab bar's top edge sits 78px above the window bottom (StudentTabBar), so 86px leaves 8px. */
