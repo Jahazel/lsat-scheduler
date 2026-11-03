@@ -1,4 +1,5 @@
 import { HeroScreens } from "@/components/landing/HeroScreens";
+import { HowItWorks } from "@/components/landing/HowItWorks";
 import { FREE_WEEK_NOTE, StartFreeWeekLink } from "@/components/landing/StartFreeWeekLink";
 import { PLAN_PRICES, planPriceText } from "@/lib/planPrices";
 
@@ -38,7 +39,7 @@ export default function LandingPage() {
         </ul>
       </section>
 
-      {/* How it works, id="how-it-works", goes here (#531). */}
+      <HowItWorks />
 
       <PricingSection />
 

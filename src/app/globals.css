@@ -194,6 +194,48 @@ body:has([data-sign-in-page]) > footer { display: none; }
   .hero-glow { --glow-size: 56% 50%; height: 880px; }
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  html:has(#how-it-works) { scroll-behavior: smooth; }
+}
+
+.step-mat { --mat-size: 80% 70%; --mat-spectrum-at: 50% 90%; --mat-edge: 0%; }
+@media (min-width: 64rem) {
+  .step-mat { --mat-size: 80% 90%; --mat-spectrum-at: 50% 85%; --mat-edge: 2%; }
+}
+.step-mat-violet {
+  background-image: radial-gradient(
+    ellipse var(--mat-size) at 30% 100% in oklab,
+    color-mix(in oklab, var(--color-spectrum-violet) 70%, transparent) 0%,
+    color-mix(in oklab, var(--color-spectrum-violet) 28%, transparent) 60%,
+    color-mix(in oklab, var(--color-spectrum-violet) calc(12% + var(--mat-edge)), transparent) 100%
+  );
+}
+.step-mat-pink {
+  background-image: radial-gradient(
+    ellipse var(--mat-size) at 70% 100% in oklab,
+    color-mix(in oklab, var(--color-spectrum-pink) 62%, transparent) 0%,
+    color-mix(in oklab, var(--color-spectrum-pink) 24%, transparent) 60%,
+    color-mix(in oklab, var(--color-spectrum-pink) calc(10% + var(--mat-edge)), transparent) 100%
+  );
+}
+.step-mat-amber {
+  background-image: radial-gradient(
+    ellipse var(--mat-size) at 30% 100% in oklab,
+    color-mix(in oklab, var(--color-spectrum-amber) 80%, transparent) 0%,
+    color-mix(in oklab, var(--color-spectrum-amber) 34%, transparent) 60%,
+    color-mix(in oklab, var(--color-spectrum-amber) calc(14% + var(--mat-edge)), transparent) 100%
+  );
+}
+.step-mat-spectrum {
+  background-image: radial-gradient(
+    circle farthest-corner at var(--mat-spectrum-at) in oklab,
+    color-mix(in oklab, var(--color-spectrum-amber) 85%, transparent) 0%,
+    color-mix(in oklab, var(--color-spectrum-pink) 70%, transparent) 30%,
+    color-mix(in oklab, var(--color-spectrum-violet) 45%, transparent) 60%,
+    color-mix(in oklab, var(--color-spectrum-violet) calc(14% + var(--mat-edge)), transparent) 100%
+  );
+}
+
 /* The floating tab bar's top edge sits 78px above the window bottom (StudentTabBar), so 86px leaves 8px. */
 .failure-toast-slot { bottom: 12px; }
 body:has([data-tab-bar]) .failure-toast-slot { bottom: calc(86px + env(safe-area-inset-bottom)); }
