@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, type MouseEvent, type ReactNode } from "react";
 
 const SLIDE = 8;
+const DIMMED = 0.5;
 
 type WeekOrList = string | null;
 
@@ -28,11 +29,14 @@ function stopAtCurrentFrame(el: HTMLElement): Keyframe {
   return { opacity, transform };
 }
 
-function fadeOut(el: HTMLElement, x: number) {
-  return el.animate([stopAtCurrentFrame(el), { opacity: 0, transform: `translateX(${-x}px)` }], { duration: ms("--duration-fast"), easing: motionToken("--ease-exit"), fill: "forwards" });
+// Next keeps the old page on screen until a same-route navigation's page arrives.
+function dim(el: HTMLElement, x: number) {
+  el.setAttribute("aria-busy", "true");
+  return el.animate([stopAtCurrentFrame(el), { opacity: DIMMED, transform: `translateX(${-x}px)` }], { duration: ms("--duration-fast"), easing: motionToken("--ease-exit"), fill: "forwards" });
 }
 
-function fadeIn(el: HTMLElement, x: number, from: Keyframe = { opacity: 0, transform: `translateX(${x}px)` }) {
+function fadeIn(el: HTMLElement, x: number, from: Keyframe = { opacity: DIMMED, transform: `translateX(${x}px)` }) {
+  el.removeAttribute("aria-busy");
   if (reducedMotion()) el.animate([{ opacity: from.opacity }, { opacity: 1 }], { duration: ms("--duration-fast"), easing: "linear" });
   else el.animate([from, { opacity: 1, transform: "none" }], { duration: ms("--duration-base"), easing: motionToken("--ease-standard") });
 }
@@ -60,7 +64,8 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     const el = ref.current!;
     const from = shown.current ?? null;
     if (from === null) listScroll.current = scrollY;
-    if (!reducedMotion()) return fadeOut(el, slideBetween(from, to));
+    if (reducedMotion()) dim(el, 0);
+    else return dim(el, slideBetween(from, to));
   }
 
   function returnToCommitted() {
@@ -77,7 +82,7 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     if (from === undefined) return;
 
     const el = ref.current!;
-    // Back to an unknown-week bookmark faded out a list that comes back unchanged.
+    // Back to an unknown-week bookmark dimmed a list that comes back unchanged.
     if (from === to) {
       if (el.getAnimations().some((animation) => animation.effect?.getTiming().fill === "forwards")) fadeIn(el, 0, stopAtCurrentFrame(el));
       return;
