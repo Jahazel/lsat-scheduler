@@ -32,6 +32,7 @@ One light ground: Vellum page, Paper cards, Ink text, one Accent blue.
 | Accent tint | `bg-accent/tint`, `bg-accent/faint` | Tinted backgrounds (14% and 8%) |
 | Status | `text-success-ink`, `text-warning-ink`, `text-danger-ink` | Status text; the base color (`bg-success`, …) is for dots and icons |
 | Dark surface | `bg-ink`, `bg-graphite-raised`, `border-graphite-line` | The landing page's sample-week panel |
+| Spectrum | `bg-sign-in-glow`; `spectrum-violet`, `spectrum-pink`, `spectrum-amber` | Brand surfaces only: the Log in and Sign up glow, the landing hero glow behind the product screen, and the landing How it works color panels. Never text, buttons, or app screens. |
 
 **Never color alone.** Every status pairs its color with an icon or a word.
 
