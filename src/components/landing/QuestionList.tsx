@@ -56,7 +56,6 @@ export function QuestionList({ questions }: { questions: Question[] }) {
             </h3>
             <div
               id={`answer-${index}`}
-              data-testid="question-answer"
               className="grid"
               style={{
                 gridTemplateRows: open ? "1fr" : "0fr",
