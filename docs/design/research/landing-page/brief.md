@@ -98,3 +98,23 @@ Critique (impeccable, 2026-11-02): design review scores D1 22/32, D2 20/32, D3 2
 - Sample dates in the screens (September–October) do not match each other or today.
 - D2's step crops are too small to read and cut text at the edge.
 - "Do I need 7Sage?" and "Is the plan made by AI?" stay closed by default, though skeptical visitors need them most.
+
+## Prototype
+Owner approved the D3 desktop, tablet and phone boards (2026-11-02). The clickable prototype is [prototype/index.html](prototype/index.html): it switches between 1440, 768 and 390 px and turns reduced motion on and off. It walks the whole flow map. Pages outside the landing page show a stand-in that names the real path. Screenshots and a motion video: [prototype/shots/](prototype/shots/).
+
+Motion, chosen with `animate` and reviewed with `impeccable`:
+
+| Action | Motion |
+| --- | --- |
+| Hover a button or link | Color change, 120 ms, ease. Pointer devices only. |
+| Press a button | Shrinks to 97%, 120 ms, strong ease-out. |
+| Tap "How it works" or "Pricing" in the top bar | Smooth scroll; the section stops under the sticky top bar. A jump past the step screens skips their wipe. |
+| Switch This week / Progress | White pill slides to the new tab, 200 ms, strong ease-in-out; the screen crossfades, 200 ms, strong ease-out. |
+| Open or close a question | Answer grows or shrinks and fades, 200 ms, strong ease-out; plus turns to minus. |
+| A How it works screen first scrolls into view | Wipes up once, 600 ms, strong ease-out. |
+| Top bar after scroll | No motion; it is sticky from the start. |
+| "Start free week", "Log in", legal links | Instant page change. |
+| Focus | Instant 2 px ring: Accent on light ground, Chalk on the dark footer. |
+| Reduced motion | No slide, wipe, scale or height change; tab and question fades stay at 120 ms; anchor jumps are instant. |
+
+Token note: the project's `--ease-exit` (`cubic-bezier(0.4, 0, 1, 1)`) is an ease-in curve, which the motion rules ban for UI. The prototype does not use it. The prototype adds `--ease-in-out-strong` (`cubic-bezier(0.77, 0, 0.175, 1)`) for the tab pill.

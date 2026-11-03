@@ -1,0 +1,536 @@
+<!doctype html>
+<!-- PROTOTYPE, throwaway. Landing page D3 · Product first (#519). Open index.html to switch widths. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DrillMap · Landing prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --color-graphite: #141414;
+  --color-graphite-raised: #1C1C1C;
+  --color-graphite-line: #262626;
+  --color-vellum: #F6F6F6;
+  --color-paper: #FFFFFF;
+  --color-vellum-line: #E4E4E4;
+  --color-ink: #0A0A0A;
+  --color-chalk: #FAFAFA;
+  --color-fog: #8A8A8A;
+  --color-smoke: #5C5C5C;
+  --color-accent: #123A94;
+  --color-spectrum-violet: #7C5CFF;
+  --color-spectrum-pink: #FF4FA3;
+  --color-spectrum-amber: #FFB23F;
+  --radius-xs: 8px; --radius-sm: 6px; --radius-md: 12px;
+  --shadow-e2: 0 24px 60px #0A0A0A14;
+
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-hover: ease;
+
+  --page: 1120px;
+  --s: 1;
+}
+* { box-sizing: border-box; margin: 0; }
+html { scroll-behavior: smooth; }
+html.reduce { scroll-behavior: auto; }
+body {
+  background: var(--color-vellum); color: var(--color-ink);
+  font-family: Geist, system-ui, sans-serif; font-size: 16px; line-height: 24px;
+  -webkit-font-smoothing: antialiased; overflow-x: hidden;
+}
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+.wrap { width: var(--page); margin-inline: auto; }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+footer :focus-visible { outline-color: var(--color-chalk); }
+
+/* Buttons: hover is feedback (120 ms, ease); press is feedback (120 ms, strong ease-out, scale 0.97). */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--color-ink); color: var(--color-chalk); border-radius: var(--radius-sm);
+  font-weight: 500; white-space: nowrap;
+  transition: background-color var(--duration-fast) var(--ease-hover), transform var(--duration-fast) var(--ease-out-strong);
+}
+.btn:active { transform: scale(0.97); }
+.btn-sm { height: 36px; padding-inline: 16px; font-size: 14px; line-height: 18px; }
+.btn-lg { height: 52px; padding-inline: 28px; font-size: 16px; line-height: 20px; }
+.btn-card { height: 48px; width: 100%; font-size: 16px; line-height: 20px; }
+.link { transition: color var(--duration-fast) var(--ease-hover); }
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover { background: var(--color-graphite-raised); }
+  .link:hover { color: var(--color-ink); }
+  .link-dark:hover { color: var(--color-chalk); }
+  .faq-q:hover .faq-label { color: var(--color-smoke); }
+}
+
+/* Top bar: sticky from the first pixel, so "Start free week" stays reachable. No motion. */
+.topbar { position: sticky; top: 0; z-index: 10; background: var(--color-vellum); border-bottom: 1px solid var(--color-vellum-line); height: 64px; }
+.topbar .wrap { height: 100%; display: flex; align-items: center; justify-content: space-between; }
+.topbar-left { display: flex; align-items: center; gap: 40px; }
+.logo { font-size: 20px; line-height: 24px; font-weight: 600; letter-spacing: -0.02em; }
+.anchors { display: flex; gap: 28px; font-size: 14px; line-height: 18px; color: var(--color-smoke); }
+.topbar-right { display: flex; align-items: center; gap: 20px; font-size: 14px; line-height: 18px; font-weight: 500; }
+section[id] { scroll-margin-top: 64px; }
+
+/* Hero */
+.hero { position: relative; overflow: clip; padding-top: 96px; display: flex; flex-direction: column; align-items: center; }
+.glow {
+  position: absolute; left: 0; width: 100%; top: 476px; height: 880px; pointer-events: none;
+  background-image: radial-gradient(ellipse 56% 50% at 50% 50% in oklab,
+    color-mix(in oklab, var(--color-spectrum-amber) 90%, transparent) 0%,
+    color-mix(in oklab, var(--color-spectrum-amber) 80%, transparent) 42%,
+    color-mix(in oklab, var(--color-spectrum-pink) 70%, transparent) 62%,
+    color-mix(in oklab, var(--color-spectrum-violet) 45%, transparent) 80%,
+    transparent 100%);
+}
+.hero-copy { position: relative; width: 880px; max-width: 100%; display: flex; flex-direction: column; align-items: center; gap: 24px; text-align: center; }
+.hero h1 { font-size: 64px; line-height: 66px; font-weight: 600; letter-spacing: -0.035em; text-wrap: balance; }
+.lead { font-size: 20px; line-height: 30px; color: var(--color-smoke); }
+.hero .lead { width: 640px; max-width: 100%; }
+.cta { position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 40px 0 56px; }
+.note { font-size: 14px; line-height: 18px; color: var(--color-smoke); }
+
+/* Hero tabs. State indication: the white pill slides between tabs (clip-path, 200 ms, strong ease-in-out). */
+.tabs-wrap { position: relative; padding-bottom: 20px; }
+.tabs { position: relative; display: flex; gap: 4px; padding: 4px; background: var(--color-vellum-line); border-radius: var(--radius-xs); }
+.tab { height: 36px; padding-inline: 20px; display: flex; align-items: center; border-radius: var(--radius-sm); font-size: 14px; line-height: 18px; font-weight: 500; color: var(--color-smoke); }
+.tabs-active {
+  position: absolute; inset: 4px; display: flex; gap: 4px; pointer-events: none;
+  clip-path: inset(0 var(--clip-r, 50%) 0 var(--clip-l, 0) round var(--radius-sm));
+  transition: clip-path var(--duration-base) var(--ease-in-out-strong);
+}
+.tabs-active span { height: 36px; padding-inline: 20px; display: flex; align-items: center; background: var(--color-paper); color: var(--color-ink); border-radius: var(--radius-sm); box-shadow: 0 1px 2px #00000014; font-size: 14px; line-height: 18px; font-weight: 500; }
+
+/* Hero screen. Tab change: crossfade, 200 ms, strong ease-out. Fixed panel height, so nothing below moves. */
+.screen {
+  --inner: calc(1120px * var(--s));
+  position: relative; width: var(--panel-w, 1120px); height: var(--panel-h, 720px);
+  background: var(--color-paper); border-radius: var(--radius-md); box-shadow: var(--shadow-e2); overflow: clip; flex-shrink: 0;
+}
+.pane { position: absolute; inset: 0; transition: opacity var(--duration-base) var(--ease-out-strong); }
+.pane[hidden] { display: block; opacity: 0; pointer-events: none; }
+.pane-week { display: flex; flex-direction: column; }
+.pw-nav { width: var(--inner); height: calc(56px * var(--s)); flex-shrink: 0; background: url(img/app-nav.png) 0 0 / 100% 100% no-repeat; }
+.pw-head { width: var(--inner); height: calc(233px * var(--s)); flex-shrink: 0; background: url(img/this-week.png) 0 0 / var(--inner) auto no-repeat; }
+.pw-days { width: var(--inner); flex-grow: 1; background: var(--color-vellum) url(img/this-week.png) 0 calc(-754px * var(--s)) / var(--inner) auto no-repeat; }
+.pane-progress img { display: block; width: var(--inner); height: auto; }
+
+.proof { position: relative; display: flex; padding-top: 56px; }
+.proof > div { display: flex; flex-direction: column; align-items: center; gap: 4px; padding-inline: 32px; }
+.proof > div + div { border-left: 1px solid var(--color-vellum-line); }
+.proof b { font-size: 48px; line-height: 52px; font-weight: 600; letter-spacing: -0.02em; white-space: nowrap; }
+.proof span { font-size: 14px; line-height: 18px; color: var(--color-smoke); }
+
+/* How it works */
+.h2 { font-size: 48px; line-height: 52px; font-weight: 600; letter-spacing: -0.02em; }
+.how { padding-top: 160px; display: flex; flex-direction: column; gap: 96px; }
+.section-title { align-self: stretch; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
+.section-title .lead { width: 600px; max-width: 100%; }
+.steps { display: flex; flex-direction: column; gap: 120px; }
+.step { position: relative; display: flex; align-items: center; gap: 96px; }
+.step:nth-child(even) { flex-direction: row-reverse; }
+.mat { position: absolute; top: -40px; width: 704px; height: 480px; border-radius: 24px; }
+.step:nth-child(odd) .mat { left: 456px; }
+.step:nth-child(even) .mat { left: -40px; }
+.step-text { position: relative; width: 400px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
+.step-text h3 { font-size: 28px; line-height: 34px; font-weight: 600; letter-spacing: -0.02em; }
+.step-text h3 span { color: var(--color-smoke); }
+.shot { position: relative; width: 624px; height: 400px; flex-shrink: 0; background: var(--color-paper); border-radius: var(--radius-md); box-shadow: var(--shadow-e2); overflow: clip; }
+.shot img { position: absolute; max-width: none; }
+.shot .phone { display: none; }
+.c-violet { background-image: radial-gradient(ellipse 80% 90% at 30% 100% in oklab, color-mix(in oklab, var(--color-spectrum-violet) 70%, transparent) 0%, color-mix(in oklab, var(--color-spectrum-violet) 28%, transparent) 60%, color-mix(in oklab, var(--color-spectrum-violet) 14%, transparent) 100%); }
+.c-pink { background-image: radial-gradient(ellipse 80% 90% at 70% 100% in oklab, color-mix(in oklab, var(--color-spectrum-pink) 62%, transparent) 0%, color-mix(in oklab, var(--color-spectrum-pink) 24%, transparent) 60%, color-mix(in oklab, var(--color-spectrum-pink) 12%, transparent) 100%); }
+.c-amber { background-image: radial-gradient(ellipse 80% 90% at 30% 100% in oklab, color-mix(in oklab, var(--color-spectrum-amber) 80%, transparent) 0%, color-mix(in oklab, var(--color-spectrum-amber) 34%, transparent) 60%, color-mix(in oklab, var(--color-spectrum-amber) 16%, transparent) 100%); }
+.c-spectrum { background-image: radial-gradient(circle farthest-corner at 50% 85% in oklab, color-mix(in oklab, var(--color-spectrum-amber) 85%, transparent) 0%, color-mix(in oklab, var(--color-spectrum-pink) 70%, transparent) 30%, color-mix(in oklab, var(--color-spectrum-violet) 45%, transparent) 60%, color-mix(in oklab, var(--color-spectrum-violet) 16%, transparent) 100%); }
+
+/* Explanation, first visit only: each step screen wipes up once as it enters view (clip-path, 600 ms, strong ease-out). A jump past it skips the wipe. */
+html.js:not(.reduce) .reveal { clip-path: inset(0 0 100% 0 round var(--radius-md)); transition: clip-path 600ms var(--ease-out-strong); }
+html.js:not(.reduce) .reveal.seen { clip-path: inset(0 0 0 0 round var(--radius-md)); }
+
+/* Pricing */
+.pricing { padding-top: 160px; display: flex; flex-direction: column; align-items: center; gap: 48px; }
+.plans { display: flex; gap: 24px; justify-content: center; align-self: stretch; }
+.plan { width: 400px; padding: 32px; background: var(--color-paper); border: 1px solid var(--color-vellum-line); border-radius: var(--radius-md); display: flex; flex-direction: column; justify-content: space-between; gap: 32px; }
+.plan-top { display: flex; flex-direction: column; gap: 12px; }
+.plan-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 24px; }
+.plan-name { font-size: 18px; line-height: 24px; font-weight: 600; }
+.badge { height: 24px; padding-inline: 10px; display: flex; align-items: center; border-radius: 999px; background: color-mix(in oklab, var(--color-accent) 14%, transparent); color: var(--color-accent); font-size: 12px; line-height: 16px; font-weight: 500; white-space: nowrap; }
+.price { display: flex; align-items: baseline; gap: 6px; }
+.price b { font-size: 48px; line-height: 52px; font-weight: 600; letter-spacing: -0.02em; }
+.price span, .muted { color: var(--color-smoke); }
+.small { font-size: 14px; line-height: 18px; }
+.plan-bottom { display: flex; flex-direction: column; gap: 12px; }
+
+/* Questions. State indication: answer opens by height (grid rows) + opacity, 200 ms, strong ease-out; the plus turns into a minus. */
+.faq { padding-top: 160px; display: flex; align-items: start; gap: 96px; }
+.faq .h2 { width: 360px; flex-shrink: 0; }
+.faq-list { flex-grow: 1; border-top: 1px solid var(--color-vellum-line); }
+.faq-item { border-bottom: 1px solid var(--color-vellum-line); padding-bottom: 12px; }
+.faq-item h3 { font: inherit; }
+.faq-q { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-block: 24px 12px; }
+.faq-label { font-size: 18px; line-height: 24px; font-weight: 500; transition: color var(--duration-fast) var(--ease-hover); }
+.faq-icon { flex-shrink: 0; }
+.faq-icon .v { transform-origin: 10px 10px; transition: transform var(--duration-base) var(--ease-out-strong); }
+.faq-item.open .faq-icon .v { transform: scaleY(0); }
+.faq-a { display: grid; grid-template-rows: 0fr; opacity: 0; visibility: hidden; transition: grid-template-rows var(--duration-base) var(--ease-out-strong), opacity var(--duration-base) var(--ease-out-strong), visibility 0s linear var(--duration-base); }
+.faq-item.open .faq-a { grid-template-rows: 1fr; opacity: 1; visibility: visible; transition-delay: 0s; }
+.faq-a > div { overflow: hidden; }
+.faq-a p { width: 560px; max-width: 100%; padding-bottom: 12px; color: var(--color-smoke); }
+
+/* Final band and footer */
+.final { padding: 160px 0 128px; display: flex; flex-direction: column; align-items: center; gap: 32px; text-align: center; }
+.final h2 { width: 800px; max-width: 100%; font-size: 64px; line-height: 66px; font-weight: 600; letter-spacing: -0.035em; text-wrap: balance; }
+.final .cta { padding: 0; }
+footer { background: var(--color-graphite); color: var(--color-chalk); padding: 64px 0 48px; }
+footer .wrap { display: flex; flex-direction: column; gap: 48px; }
+.foot-top { display: flex; align-items: center; justify-content: space-between; }
+.foot-top .logo { font-size: 20px; }
+.foot-top a { font-size: 14px; line-height: 18px; font-weight: 500; }
+.foot-bottom { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 24px; border-top: 1px solid var(--color-graphite-line); font-size: 14px; line-height: 18px; color: var(--color-fog); }
+.legal { display: flex; flex-wrap: wrap; gap: 24px; }
+
+/* Stand-in for pages outside this prototype. Navigation is instant: no motion between pages. */
+.stub { min-height: 100vh; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; text-align: center; }
+body.on-stub main, body.on-stub .topbar, body.on-stub footer { display: none; }
+body.on-stub .stub { display: flex; }
+.stub code { font-family: "Geist Mono", monospace; font-size: 13px; background: var(--color-paper); border: 1px solid var(--color-vellum-line); border-radius: var(--radius-sm); padding: 2px 8px; }
+.stub a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Reduced motion: no slide, wipe, scale, or height change. Crossfades stay, shortened. */
+html.reduce .tabs-active, html.reduce .faq-a, html.reduce .faq-icon .v, html.reduce .btn { transition: none; }
+html.reduce .btn:active { transform: none; }
+html.reduce .pane { transition: opacity var(--duration-fast) var(--ease-hover); }
+html.reduce .faq-a { transition: opacity var(--duration-fast) var(--ease-hover), visibility 0s linear var(--duration-fast); }
+html.reduce .faq-item.open .faq-a { transition-delay: 0s; }
+
+/* Tablet: 768–1023 */
+@media (max-width: 1023px) {
+  :root { --page: 672px; --s: 0.6; }
+  .hero h1 { font-size: 48px; line-height: 52px; }
+  .glow { top: 470px; height: 560px; background-size: 100% 100%; }
+  .screen { --panel-w: 672px; --panel-h: 432px; }
+  .proof { display: grid; grid-template-columns: 1fr 1fr; row-gap: 28px; width: var(--page); }
+  .proof > div + div { border-left: 0; }
+  .how { padding-top: 120px; gap: 64px; }
+  .steps { gap: 32px; }
+  .step, .step:nth-child(even) { flex-direction: column; align-items: stretch; gap: 32px; padding: 32px 24px 24px; border-radius: 20px; }
+  .step .mat, .step:nth-child(odd) .mat, .step:nth-child(even) .mat { inset: 0; width: auto; height: auto; border-radius: 20px; }
+  .step-text { width: auto; }
+  .pricing, .faq { padding-top: 120px; }
+  .plan { width: auto; flex: 1; }
+  .faq { flex-direction: column; gap: 32px; }
+  .faq .h2 { width: auto; }
+  .faq-list { width: 100%; }
+  .final { padding: 120px 0 112px; }
+  .final h2 { font-size: 48px; line-height: 52px; }
+}
+/* Phone: under 768 */
+@media (max-width: 767px) {
+  :root { --page: calc(100vw - 40px); --s: 0.75; }
+  .anchors { display: none; }
+  .hero { padding: 56px 0 72px; }
+  .hero h1 { font-size: 40px; line-height: 44px; }
+  .hero .lead, .section-title .lead { font-size: 16px; line-height: 24px; }
+  .hero-copy { width: var(--page); }
+  .cta { width: var(--page); }
+  .hero .cta .btn { width: 100%; }
+  .glow { top: 478px; height: 560px; background-image: radial-gradient(ellipse 66% 52% at 50% 50% in oklab,
+    color-mix(in oklab, var(--color-spectrum-amber) 90%, transparent) 0%,
+    color-mix(in oklab, var(--color-spectrum-amber) 80%, transparent) 42%,
+    color-mix(in oklab, var(--color-spectrum-pink) 70%, transparent) 62%,
+    color-mix(in oklab, var(--color-spectrum-violet) 45%, transparent) 80%, transparent 100%); }
+  .screen { --panel-w: var(--page); --panel-h: 460px; }
+  .proof > div { align-items: start; }
+  .proof b { font-size: 28px; line-height: 34px; }
+  .h2 { font-size: 32px; line-height: 38px; }
+  .how { padding-top: 72px; gap: 40px; }
+  .steps { gap: 20px; }
+  .step, .step:nth-child(even) { padding: 28px 20px 20px; gap: 24px; }
+  .step-text h3 { font-size: 22px; line-height: 28px; }
+  .step-text p { font-size: 16px; line-height: 24px; }
+  .shot { width: 100%; height: 380px; }
+  .shot .desk { display: none; }
+  .shot .phone { display: block; }
+  .pricing { padding-top: 72px; }
+  .plans { flex-direction: column; gap: 16px; }
+  .faq { padding-top: 72px; }
+  .final { padding: 96px 20px; }
+  .final h2 { font-size: 36px; line-height: 40px; }
+  .foot-bottom { flex-direction: column; align-items: start; }
+  .legal { gap: 16px; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <div class="topbar-left">
+      <a class="logo" href="#top">DrillMap</a>
+      <nav class="anchors" aria-label="Sections">
+        <a class="link" href="#how-it-works">How it works</a>
+        <a class="link" href="#pricing">Pricing</a>
+      </nav>
+    </div>
+    <div class="topbar-right">
+      <a class="link" href="#/login">Log in</a>
+      <a class="btn btn-sm" href="#/signup">Start free week</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="glow" aria-hidden="true"></div>
+    <div class="hero-copy">
+      <h1 id="hero-title">Your LSAT week, planned before Monday</h1>
+      <p class="lead">Upload your 7Sage analytics on the weekend. DrillMap plans Monday to Sunday around the question types you miss most.</p>
+    </div>
+    <div class="cta">
+      <a class="btn btn-lg" href="#/signup">Start free week</a>
+      <p class="note">Your first full week free. No card needed.</p>
+    </div>
+    <div class="tabs-wrap">
+      <div class="tabs" role="tablist" aria-label="Inside the app">
+        <button class="tab" role="tab" id="tab-week" aria-controls="pane-week" aria-selected="true">This week</button>
+        <button class="tab" role="tab" id="tab-progress" aria-controls="pane-progress" aria-selected="false" tabindex="-1">Progress</button>
+        <div class="tabs-active" aria-hidden="true"><span>This week</span><span>Progress</span></div>
+      </div>
+    </div>
+    <div class="screen">
+      <div class="pane pane-week" id="pane-week" role="tabpanel" aria-labelledby="tab-week" aria-label="This week screen: Saturday and Sunday drills with check boxes">
+        <div class="pw-nav"></div><div class="pw-head"></div><div class="pw-days"></div>
+      </div>
+      <div class="pane pane-progress" id="pane-progress" role="tabpanel" aria-labelledby="tab-progress" hidden>
+        <img src="img/progress.png" alt="Progress screen: past weekly schedules by month, each with a done count">
+      </div>
+    </div>
+    <div class="proof">
+      <div><b>178</b><span>Tutor's LSAT score</span></div>
+      <div><b>Stanford Law</b><span>Tutor's law school</span></div>
+      <div><b>200+</b><span>Students coached</span></div>
+      <div><b>3,000+</b><span>Hours coached</span></div>
+    </div>
+  </section>
+
+  <section class="wrap how" id="how-it-works" aria-labelledby="how-title">
+    <div class="section-title">
+      <h2 class="h2" id="how-title">How it works</h2>
+      <p class="lead">Four steps. The last one repeats every weekend, so each new plan starts from your latest results.</p>
+    </div>
+    <ol class="steps" style="list-style:none;padding:0">
+      <li class="step">
+        <div class="mat c-violet" aria-hidden="true"></div>
+        <div class="step-text"><h3><span>1 </span>Tell us about your prep</h3><p class="lead">Your scores, your study hours, and your goal test date.</p></div>
+        <div class="shot reveal">
+          <img class="desk" src="img/step1-goal.png" alt="Set your target: current score, goal score, test date" style="width:1325px;left:0;top:-66px">
+          <img class="phone" src="img/phone-step1.png" alt="Set your target on phone" style="width:100%;left:0;top:-28px">
+        </div>
+      </li>
+      <li class="step">
+        <div class="mat c-pink" aria-hidden="true"></div>
+        <div class="step-text"><h3><span>2 </span>Upload your 7Sage analytics</h3><p class="lead">Two screenshots. You check every number we read before we save it. You can also type them by hand.</p></div>
+        <div class="shot reveal">
+          <img class="desk" src="img/step2-check.png" alt="Check what we read: each value next to the screenshot" style="width:1325px;left:0;top:-66px">
+          <img class="phone" src="img/phone-step2.png" alt="Check what we read on phone" style="width:100%;left:0;top:-28px">
+        </div>
+      </li>
+      <li class="step">
+        <div class="mat c-amber" aria-hidden="true"></div>
+        <div class="step-text"><h3><span>3 </span>Get your week</h3><p class="lead">A Monday–Sunday plan aimed at your weakest question types. Check off each drill as you go.</p></div>
+        <div class="shot reveal">
+          <img class="desk" src="img/this-week.png" alt="Saturday and Sunday drills with check boxes" style="width:1152px;left:-26px;top:-770px">
+          <img class="phone" src="img/this-week.png" alt="One day card with drills" style="width:1120px;left:-40px;top:-768px">
+        </div>
+      </li>
+      <li class="step">
+        <div class="mat c-spectrum" aria-hidden="true"></div>
+        <div class="step-text"><h3><span>4 </span>Repeat every weekend</h3><p class="lead">Upload new analytics. Next week's plan adjusts to what changed.</p></div>
+        <div class="shot reveal">
+          <img class="desk" src="img/step4-plan-next.png" alt="Plan next week: current score and the screenshot upload" style="width:1325px;left:0;top:-66px">
+          <img class="phone" src="img/phone-step4.png" alt="Plan next week on phone" style="width:100%;left:0;top:-28px">
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <section class="wrap pricing" id="pricing" aria-labelledby="price-title">
+    <div class="section-title">
+      <h2 class="h2" id="price-title">Your first full week is free</h2>
+      <p class="lead">Pick a plan when your free week ends. Both plans get the same weekly schedule.</p>
+    </div>
+    <div class="plans">
+      <div class="plan">
+        <div class="plan-top">
+          <div class="plan-head"><h3 class="plan-name">Weekly</h3></div>
+          <div class="price"><b>$7.99</b><span>a week</span></div>
+          <p class="small muted">Pay week by week. Good for a short final push.</p>
+        </div>
+        <div class="plan-bottom">
+          <p class="small">Your first full week free. No card needed.</p>
+          <a class="btn btn-card" href="#/signup">Start free week</a>
+        </div>
+      </div>
+      <div class="plan">
+        <div class="plan-top">
+          <div class="plan-head"><h3 class="plan-name">Monthly</h3><span class="badge">Best value · about 28% less</span></div>
+          <div class="price"><b>$25</b><span>a month</span></div>
+          <p class="small muted">About $34.60 a month on Weekly. Good for a full prep cycle.</p>
+        </div>
+        <div class="plan-bottom">
+          <p class="small">Your first full week free. No card needed.</p>
+          <a class="btn btn-card" href="#/signup">Start free week</a>
+        </div>
+      </div>
+    </div>
+    <p class="small muted" style="text-align:center">Cancel anytime. You keep access until your paid week or month ends. No refunds for unused time.</p>
+  </section>
+
+  <section class="wrap faq" aria-labelledby="faq-title">
+    <h2 class="h2" id="faq-title">Questions</h2>
+    <div class="faq-list" id="faq-list">
+      <div class="faq-item open">
+        <h3><button class="faq-q" aria-expanded="true" aria-controls="faq-a-0" id="faq-q-0"><span class="faq-label">Do I need a card to start?</span><svg class="faq-icon" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path class="v" d="M10 5v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></h3>
+        <div class="faq-a" id="faq-a-0" role="region" aria-labelledby="faq-q-0"><div><p>No. Your first full week is free. You pick Weekly ($7.99) or Monthly ($25) only when it ends.</p></div></div>
+      </div>
+      <div class="faq-item">
+        <h3><button class="faq-q" aria-expanded="false" aria-controls="faq-a-1" id="faq-q-1"><span class="faq-label">What happens after the free week?</span><svg class="faq-icon" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path class="v" d="M10 5v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></h3>
+        <div class="faq-a" id="faq-a-1" role="region" aria-labelledby="faq-q-1"><div><p>Pick Weekly ($7.99) or Monthly ($25) to keep getting weekly schedules.</p></div></div>
+      </div>
+      <div class="faq-item">
+        <h3><button class="faq-q" aria-expanded="false" aria-controls="faq-a-2" id="faq-q-2"><span class="faq-label">Can I cancel?</span><svg class="faq-icon" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path class="v" d="M10 5v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></h3>
+        <div class="faq-a" id="faq-a-2" role="region" aria-labelledby="faq-q-2"><div><p>Any time. You keep access until your paid week or month ends. No refunds for unused time.</p></div></div>
+      </div>
+      <div class="faq-item">
+        <h3><button class="faq-q" aria-expanded="false" aria-controls="faq-a-3" id="faq-q-3"><span class="faq-label">Do I need 7Sage?</span><svg class="faq-icon" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path class="v" d="M10 5v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></h3>
+        <div class="faq-a" id="faq-a-3" role="region" aria-labelledby="faq-q-3"><div><p>Yes for screenshots. You can also type your numbers by hand.</p></div></div>
+      </div>
+      <div class="faq-item">
+        <h3><button class="faq-q" aria-expanded="false" aria-controls="faq-a-4" id="faq-q-4"><span class="faq-label">Is the plan made by AI?</span><svg class="faq-icon" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path class="v" d="M10 5v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></h3>
+        <div class="faq-a" id="faq-a-4" role="region" aria-labelledby="faq-q-4"><div><p>No. Fixed rules built from the tutor's coaching method make the plan. AI only reads your screenshots, and you check what it read.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="final" aria-labelledby="final-title">
+    <h2 id="final-title">Get next week's plan from your own analytics</h2>
+    <div class="cta">
+      <a class="btn btn-lg" href="#/signup">Start free week</a>
+      <p class="note">Your first full week free. No card needed.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-top"><span class="logo">DrillMap</span><a class="link link-dark" href="#/login">Log in</a></div>
+    <div class="foot-bottom">
+      <nav class="legal" aria-label="Legal">
+        <a class="link link-dark" href="#/legal/terms">Terms of Service</a>
+        <a class="link link-dark" href="#/legal/privacy">Privacy Policy</a>
+        <a class="link link-dark" href="#/legal/ai-disclosure">AI Disclosure</a>
+      </nav>
+      <p>Plans follow fixed rules. AI only reads your screenshots.</p>
+    </div>
+  </div>
+</footer>
+
+<div class="stub" role="main" aria-live="polite">
+  <p class="muted small">Prototype stop</p>
+  <p>The real site opens <code id="stub-path"></code> here.</p>
+  <a href="#" id="stub-back">Back to the landing page</a>
+</div>
+
+<script>
+const root = document.documentElement;
+root.classList.add('js');
+const params = new URLSearchParams(location.search);
+const mq = matchMedia('(prefers-reduced-motion: reduce)');
+const syncReduce = () => root.classList.toggle('reduce', mq.matches || params.get('reduce') === '1');
+syncReduce();
+mq.addEventListener('change', syncReduce);
+
+const list = document.getElementById('faq-list');
+list.addEventListener('click', (e) => {
+  const btn = e.target.closest('.faq-q');
+  if (!btn) return;
+  const item = btn.closest('.faq-item');
+  const open = item.classList.toggle('open');
+  btn.setAttribute('aria-expanded', String(open));
+});
+
+const tabs = [...document.querySelectorAll('.tab')];
+const activeCopy = document.querySelector('.tabs-active');
+function placePill(tab) {
+  const bar = tab.parentElement.getBoundingClientRect();
+  const r = tab.getBoundingClientRect();
+  activeCopy.style.setProperty('--clip-l', `${r.left - bar.left - 4}px`);
+  activeCopy.style.setProperty('--clip-r', `${bar.right - r.right - 4}px`);
+}
+function selectTab(tab) {
+  tabs.forEach((t) => {
+    const on = t === tab;
+    t.setAttribute('aria-selected', String(on));
+    t.tabIndex = on ? 0 : -1;
+    document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+  });
+  placePill(tab);
+}
+tabs.forEach((t) => t.addEventListener('click', () => selectTab(t)));
+document.querySelector('.tabs').addEventListener('keydown', (e) => {
+  const i = tabs.indexOf(document.activeElement);
+  const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+  if (to === undefined) return;
+  e.preventDefault();
+  const next = tabs[(to + tabs.length) % tabs.length];
+  next.focus();
+  selectTab(next);
+});
+const placeCurrent = () => placePill(tabs.find((t) => t.getAttribute('aria-selected') === 'true'));
+activeCopy.style.transition = 'none';
+document.fonts.ready.then(() => { placeCurrent(); requestAnimationFrame(() => (activeCopy.style.transition = '')); });
+addEventListener('resize', placeCurrent);
+
+const io = new IntersectionObserver((entries) => entries.forEach((en) => {
+  if (en.isIntersecting) { en.target.classList.add('seen'); io.unobserve(en.target); }
+}), { rootMargin: '0px 0px -100px 0px' });
+document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a[href^="#"]:not([href="#"]):not([href^="#/"])');
+  const target = a && document.querySelector(a.getAttribute('href'));
+  if (!target) return;
+  document.querySelectorAll('.reveal:not(.seen)').forEach((el) => {
+    if (el.getBoundingClientRect().top < target.getBoundingClientRect().top) {
+      el.style.transition = 'none';
+      el.classList.add('seen');
+      io.unobserve(el);
+    }
+  });
+});
+
+let savedScroll = 0;
+function route() {
+  const h = location.hash;
+  const onStub = h.startsWith('#/');
+  if (onStub) {
+    if (!document.body.classList.contains('on-stub')) savedScroll = scrollY;
+    document.getElementById('stub-path').textContent = h.slice(1);
+    document.body.classList.add('on-stub');
+    scrollTo({ top: 0, behavior: 'instant' });
+  } else if (document.body.classList.contains('on-stub')) {
+    document.body.classList.remove('on-stub');
+    scrollTo({ top: savedScroll, behavior: 'instant' });
+  }
+}
+document.getElementById('stub-back').addEventListener('click', (e) => { e.preventDefault(); history.back(); });
+addEventListener('hashchange', route);
+route();
+</script>
+</body>
+</html>

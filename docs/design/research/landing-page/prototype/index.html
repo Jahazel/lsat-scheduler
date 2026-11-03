@@ -1,0 +1,55 @@
+<!doctype html>
+<!-- PROTOTYPE, throwaway. Viewer for landing.html at the three board widths. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Landing prototype viewer</title>
+<style>
+:root { --bar: 52px; }
+* { box-sizing: border-box; margin: 0; }
+body { background: #2a2a2a; font: 14px/18px system-ui, sans-serif; color: #fafafa; height: 100vh; overflow: hidden; }
+.bar { height: var(--bar); display: flex; align-items: center; justify-content: center; gap: 8px; padding-inline: 16px; background: #0a0a0a; border-bottom: 1px solid #262626; }
+.bar button { height: 32px; padding-inline: 14px; border-radius: 6px; border: 1px solid #3a3a3a; background: none; color: inherit; font: inherit; cursor: pointer; }
+.bar button[aria-pressed="true"] { background: #fafafa; color: #0a0a0a; border-color: #fafafa; }
+.bar .state { margin-left: 12px; color: #8a8a8a; font-family: ui-monospace, monospace; font-size: 12px; }
+.stage { height: calc(100vh - var(--bar)); overflow: hidden; display: flex; justify-content: center; }
+iframe { border: 0; background: #f6f6f6; transform-origin: top center; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="bar" role="toolbar" aria-label="Prototype controls">
+  <button data-w="1440">Desktop 1440</button>
+  <button data-w="768">Tablet 768</button>
+  <button data-w="390">Phone 390</button>
+  <button id="reduce" aria-pressed="false">Reduced motion</button>
+  <span class="state" id="state"></span>
+</div>
+<div class="stage"><iframe id="frame" title="Landing page prototype"></iframe></div>
+<script>
+const q = new URLSearchParams(location.search);
+let width = Number(q.get('w')) || 1440;
+let reduce = q.get('reduce') === '1';
+const frame = document.getElementById('frame');
+function render() {
+  frame.src = 'landing.html' + (reduce ? '?reduce=1' : '');
+  layout();
+  document.querySelectorAll('[data-w]').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.w) === width)));
+  document.getElementById('reduce').setAttribute('aria-pressed', String(reduce));
+  history.replaceState(null, '', `?w=${width}${reduce ? '&reduce=1' : ''}`);
+}
+function layout() {
+  const stage = frame.parentElement.getBoundingClientRect();
+  const scale = Math.min(1, stage.width / width);
+  frame.style.width = width + 'px';
+  frame.style.height = stage.height / scale + 'px';
+  frame.style.transform = `scale(${scale})`;
+  document.getElementById('state').textContent = `width ${width}px · shown at ${Math.round(scale * 100)}% · motion ${reduce ? 'reduced' : 'full'}`;
+}
+document.querySelectorAll('[data-w]').forEach((b) => b.addEventListener('click', () => { width = Number(b.dataset.w); render(); }));
+document.getElementById('reduce').addEventListener('click', () => { reduce = !reduce; render(); });
+addEventListener('resize', layout);
+render();
+</script>
+</body>
+</html>
