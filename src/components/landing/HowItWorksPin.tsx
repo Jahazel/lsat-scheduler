@@ -65,7 +65,7 @@ export function HowItWorksPin({ steps }: { steps: Step[] }) {
       <div
         ref={pinRef}
         data-testid="how-pin"
-        className="sticky top-[max(64px,calc(32px+50vh-var(--pin-h,0px)/2))] mx-auto grid w-[min(1120px,calc(100%-48px))] gap-10 px-6 py-8 lg:grid-cols-[400px_1fr] lg:items-start lg:gap-18 lg:py-12"
+        className="sticky top-[max(64px,calc(32px+50vh-var(--pin-h,0px)/2))] mx-auto grid w-[min(1120px,calc(100%-48px))] gap-10 md:max-w-[720px] lg:max-w-none px-6 py-8 lg:grid-cols-[400px_1fr] lg:items-start lg:gap-18 lg:py-12"
       >
         <div className="flex flex-col">
           <p className="mb-6 border-b border-dashed border-ink/14 pb-5 text-[15px]/[22px] text-smoke lg:mb-8 lg:pb-6">
