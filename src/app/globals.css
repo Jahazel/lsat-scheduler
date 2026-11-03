@@ -198,16 +198,16 @@ body:has([data-sign-in-page]) > footer { display: none; }
   html:has(#how-it-works) { scroll-behavior: smooth; }
 }
 
-.step-mat { --mat-size: 80% 70%; --mat-spectrum-at: 50% 90%; }
+.step-mat { --mat-size: 80% 70%; --mat-spectrum-at: 50% 90%; --mat-edge: 0%; }
 @media (min-width: 64rem) {
-  .step-mat { --mat-size: 80% 90%; --mat-spectrum-at: 50% 85%; }
+  .step-mat { --mat-size: 80% 90%; --mat-spectrum-at: 50% 85%; --mat-edge: 2%; }
 }
 .step-mat-violet {
   background-image: radial-gradient(
     ellipse var(--mat-size) at 30% 100% in oklab,
     color-mix(in oklab, var(--color-spectrum-violet) 70%, transparent) 0%,
     color-mix(in oklab, var(--color-spectrum-violet) 28%, transparent) 60%,
-    color-mix(in oklab, var(--color-spectrum-violet) 14%, transparent) 100%
+    color-mix(in oklab, var(--color-spectrum-violet) calc(12% + var(--mat-edge)), transparent) 100%
   );
 }
 .step-mat-pink {
@@ -215,7 +215,7 @@ body:has([data-sign-in-page]) > footer { display: none; }
     ellipse var(--mat-size) at 70% 100% in oklab,
     color-mix(in oklab, var(--color-spectrum-pink) 62%, transparent) 0%,
     color-mix(in oklab, var(--color-spectrum-pink) 24%, transparent) 60%,
-    color-mix(in oklab, var(--color-spectrum-pink) 12%, transparent) 100%
+    color-mix(in oklab, var(--color-spectrum-pink) calc(10% + var(--mat-edge)), transparent) 100%
   );
 }
 .step-mat-amber {
@@ -223,7 +223,7 @@ body:has([data-sign-in-page]) > footer { display: none; }
     ellipse var(--mat-size) at 30% 100% in oklab,
     color-mix(in oklab, var(--color-spectrum-amber) 80%, transparent) 0%,
     color-mix(in oklab, var(--color-spectrum-amber) 34%, transparent) 60%,
-    color-mix(in oklab, var(--color-spectrum-amber) 16%, transparent) 100%
+    color-mix(in oklab, var(--color-spectrum-amber) calc(14% + var(--mat-edge)), transparent) 100%
   );
 }
 .step-mat-spectrum {
@@ -232,7 +232,7 @@ body:has([data-sign-in-page]) > footer { display: none; }
     color-mix(in oklab, var(--color-spectrum-amber) 85%, transparent) 0%,
     color-mix(in oklab, var(--color-spectrum-pink) 70%, transparent) 30%,
     color-mix(in oklab, var(--color-spectrum-violet) 45%, transparent) 60%,
-    color-mix(in oklab, var(--color-spectrum-violet) 16%, transparent) 100%
+    color-mix(in oklab, var(--color-spectrum-violet) calc(14% + var(--mat-edge)), transparent) 100%
   );
 }
 
