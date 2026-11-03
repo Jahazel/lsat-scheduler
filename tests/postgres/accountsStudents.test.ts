@@ -315,6 +315,26 @@ it("Study settings refuse a goal the current score has reached since the page op
   expect(await findStudentByAccountId(a.id)).toMatchObject({ currentScore: 168, goalScore: 170 });
 });
 
+it("Study settings refuse the goal when a weekly upload reaches it during the save, and keep the saved goal", async () => {
+  const a = await account("a@example.test");
+  session(a);
+  await onboard();
+
+  let saved: Promise<unknown> = Promise.resolve();
+  await database.owner.transaction(async (tx) => {
+    await tx.execute(sql`update students set current_score = 168 where account_id = ${a.id}`);
+    saved = saveStudySettings({ ...settings, goalScore: 166 });
+    for (let waiting = 0; waiting < 1;) {
+      [{ waiting }] = (await database.owner.execute(sql`
+        select count(*)::int as waiting from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'
+      `)).rows as [{ waiting: number }];
+    }
+  });
+
+  expect(await saved).toEqual({ refused: "goalScore", currentScore: 168 });
+  expect(await findStudentByAccountId(a.id)).toMatchObject({ currentScore: 168, goalScore: 165 });
+});
+
 it("Admin checks and simulated dates use the current Account role", async () => {
   const admin = await account("admin@example.test", "admin");
   const student = await account("student@example.test");
