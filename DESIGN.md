@@ -31,7 +31,7 @@ One light ground: Vellum page, Paper cards, Ink text, one Accent blue.
 | Accent | `text-accent`, `outline-accent`, `bg-accent` | Links, focus rings, progress fills. Never a button or card fill. |
 | Accent tint | `bg-accent/tint`, `bg-accent/faint` | Tinted backgrounds (14% and 8%) |
 | Status | `text-success-ink`, `text-warning-ink`, `text-danger-ink` | Status text; the base color (`bg-success`, …) is for dots and icons |
-| Dark surface | `bg-ink`, `bg-graphite-raised`, `border-graphite-line` | The landing page's sample-week panel |
+| Dark surface | `bg-ink`, `bg-graphite-raised`, `border-graphite-line` | Dark panels on Vellum |
 | Spectrum | `bg-sign-in-glow`; `spectrum-violet`, `spectrum-pink`, `spectrum-amber` | Brand surfaces only: the Log in and Sign up glow, the landing hero glow behind the product screen, and the landing How it works color panels. Never text, buttons, or app screens. |
 
 **Never color alone.** Every status pairs its color with an icon or a word.
@@ -59,7 +59,7 @@ Flat by default. Depth comes from a 1 px Vellum Line border.
 | --- | --- | --- |
 | e0 | `shadow-e0` (none) with a 1 px Vellum Line border | Sidebars, inputs, cards in a panel |
 | e1 | `shadow-e1` | A card that floats over its panel; the phone tab bar |
-| e2 | `shadow-e2` | Hero product panels on Vellum, including the landing page's sample week |
+| e2 | `shadow-e2` | Hero product panels on Vellum |
 | e3 | `shadow-e3` | Menus, popovers, the admin workspace dropdown, toasts |
 
 `shadow-control` is the selected segment of the segmented switch (Onboarding · States).

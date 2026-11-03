@@ -29,8 +29,8 @@ export default function LandingPage() {
 
         <ul className="grid w-full grid-cols-2 gap-y-7 pt-14 md:max-w-[672px] md:gap-y-10 lg:flex lg:w-auto lg:max-w-none lg:divide-x lg:divide-vellum-line">
           {PROOF_NUMBERS.map(({ value, label }) => (
-            <li key={value} className="flex flex-col gap-1 pr-2 md:items-center md:px-8">
-              <span className="text-h3 font-semibold tracking-heading text-ink md:text-h2">{value}</span>
+            <li key={value} className="flex flex-col gap-1 md:items-center md:px-8">
+              <span className="text-h3 font-semibold tracking-heading whitespace-nowrap text-ink md:text-h2">{value}</span>
               <span className="text-small text-smoke">{label}</span>
             </li>
           ))}
@@ -100,7 +100,7 @@ function PlanCard({ id, name, price, per, badge, children }: {
   return (
     <article aria-labelledby={id} className="flex flex-col justify-between gap-8 rounded-md border border-vellum-line bg-paper p-8">
       <div className="flex flex-col gap-3">
-        <div className="flex min-h-6 flex-wrap items-center justify-between gap-2">
+        <div className="flex min-h-6 flex-wrap items-center justify-between gap-y-2">
           <h3 id={id} className="text-h5 font-semibold text-ink">{name}</h3>
           {badge && (
             <span className="flex h-6 items-center rounded-pill bg-accent/tint px-2.5 text-caption font-medium text-accent">{badge}</span>

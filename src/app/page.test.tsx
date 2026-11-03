@@ -28,14 +28,12 @@ describe("Landing page", () => {
 
   it("shows the four proof numbers", () => {
     render(<LandingPage />);
-    for (const [value, label] of [
-      ["178", "Tutor's LSAT score"],
-      ["Stanford Law", "Tutor's law school"],
-      ["200+", "Students coached"],
-      ["3,000+", "Hours coached"],
-    ]) {
-      expect(screen.getByText(value).parentElement?.textContent).toBe(`${value}${label}`);
-    }
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "178Tutor's LSAT score",
+      "Stanford LawTutor's law school",
+      "200+Students coached",
+      "3,000+Hours coached",
+    ]);
   });
 
   it("no longer shows the old sample card", () => {
