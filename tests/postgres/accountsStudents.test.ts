@@ -303,6 +303,18 @@ it("Study settings keep another student's profile and the saved Weekly schedule 
   expect(await loadStudentNavState(b.id, new Date("2026-10-15T12:00:00Z"))).toMatchObject({ hasCurrentWeek: false, uploadNeeded: true });
 });
 
+it("Study settings refuse a goal the current score has reached since the page opened, and keep the saved goal", async () => {
+  const a = await account("a@example.test");
+  session(a);
+  await onboard();
+  await getPostgresDatabase().execute(sql`update students set current_score = 168 where account_id = ${a.id}`);
+
+  expect(await saveStudySettings({ ...settings, goalScore: 166 })).toEqual({ refused: "goalScore", currentScore: 168 });
+  expect(await findStudentByAccountId(a.id)).toMatchObject({ currentScore: 168, goalScore: 165 });
+  expect(await saveStudySettings({ ...settings, goalScore: 170 })).toBeNull();
+  expect(await findStudentByAccountId(a.id)).toMatchObject({ currentScore: 168, goalScore: 170 });
+});
+
 it("Admin checks and simulated dates use the current Account role", async () => {
   const admin = await account("admin@example.test", "admin");
   const student = await account("student@example.test");
@@ -383,9 +395,19 @@ it("make-admin refuses a missing Account and leaves existing Accounts unchanged"
 });
 
 describe.each([
-  { name: "onboarding", save: createStudentProfile, existingProfile: false },
-  { name: "Study settings", save: saveStudySettings, existingProfile: true },
-])("$name input validation", ({ save, existingProfile }) => {
+  {
+    name: "onboarding",
+    save: createStudentProfile,
+    existingProfile: false,
+    refusesGoal: (answer: Promise<unknown>) => expectUnexpectedFailure(database, answer, "ZodError"),
+  },
+  {
+    name: "Study settings",
+    save: saveStudySettings,
+    existingProfile: true,
+    refusesGoal: async (answer: Promise<unknown>) => expect(await answer).toEqual({ refused: "goalScore", currentScore: 150 }),
+  },
+])("$name input validation", ({ save, existingProfile, refusesGoal }) => {
   beforeEach(async () => {
     const owner = await account("validation@example.test");
     session(owner);
@@ -414,7 +436,7 @@ describe.each([
 
   it.each([150, 140])("rejects goal score %i at or below a current score of 150 without changing stored data", async (goalScore) => {
     const before = await studentRows();
-    await expectUnexpectedFailure(database, save({ ...profileInput, goalScore }), "ZodError");
+    await refusesGoal(save({ ...profileInput, goalScore }));
     expect(await studentRows()).toEqual(before);
   });
 
@@ -531,7 +553,7 @@ it("Study settings keep the stored current score and check the goal against it, 
   expect(await saveStudySettings({ ...sendsAScore, goalScore: 170 })).toBeNull();
   expect(await findStudentByAccountId(owner.id)).toMatchObject({ currentScore: 150, goalScore: 170 });
   const before = await studentRows();
-  await expectUnexpectedFailure(database, saveStudySettings({ ...sendsAScore, goalScore: 140 }), "ZodError");
+  expect(await saveStudySettings({ ...sendsAScore, goalScore: 140 })).toEqual({ refused: "goalScore", currentScore: 150 });
   expect(await studentRows()).toEqual(before);
   expect(await updateStudySettings(owner.id, { ...profile, goalScore: 150 }, [])).toBe(false);
   expect(await studentRows()).toEqual(before);
