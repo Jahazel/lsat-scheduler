@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 
 const prices = vi.hoisted(() => ({ PLAN_PRICES: { weeklyCents: 799, monthlyCents: 2500 } }));
 vi.mock("@/lib/planPrices", async (importOriginal) => ({
@@ -73,5 +73,20 @@ describe("Landing page", () => {
     expect(within(monthly).getByText("$39.99")).toBeTruthy();
     expect(within(monthly).getByText("Best value · about 29% less")).toBeTruthy();
     expect(within(monthly).getByText("About $56.30 a month on Weekly. Good for a full prep cycle.")).toBeTruthy();
+  });
+
+  it("switches the hero screen between This week and Progress", () => {
+    window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
+    render(<LandingPage />);
+    const tabs = screen.getByRole("tablist", { name: "Inside the app" });
+    expect(screen.getByRole("tabpanel", { name: "This week" })).toBeTruthy();
+
+    fireEvent.click(within(tabs).getByRole("tab", { name: "Progress" }));
+    expect(within(tabs).getByRole("tab", { name: "Progress" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tabpanel", { name: "Progress" })).toBeTruthy();
+    expect(screen.queryByRole("tabpanel", { name: "This week" })).toBeNull();
+
+    fireEvent.keyDown(within(tabs).getByRole("tab", { name: "Progress" }), { key: "Home" });
+    expect(screen.getByRole("tabpanel", { name: "This week" })).toBeTruthy();
   });
 });
