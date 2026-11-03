@@ -35,7 +35,7 @@ jobs:
         (github.event.action == 'unlabeled' && github.event.label.name == 'agent:blocked')))
     uses: Jahazel/software-factory/.github/workflows/orchestrator.yml@main
     with:
-      cap: 1
+      cap: 2
       trigger-label: ${{ inputs.trigger-label || 'ready-for-agent' }}
       dry-run: ${{ inputs.dry-run == true }}
       # Where a merge conflict goes to a worker. Any other conflict blocks the PR.
