@@ -197,3 +197,19 @@ file name ends in `-desktop`, `-tablet`, or `-phone`.
 
 In data case A the 3 h 45 practice test sits on a 30 min Sunday. The board shows onboarding's hint and does not block
 Save. Spec #464 keeps this as an open question for the tutor.
+
+## Landing page (`landing-page/`)
+
+Exported 2026-11-02 for spec #527 from the Approved page, "Landing page · Chosen design". Motion rows:
+`research/landing-page/motion.md`. The clickable prototype with the approved motion is
+`research/landing-page/prototype/index.html`; its `img/` folder holds the app-screen images the page uses. Each file
+name ends in `-desktop`, `-tablet`, or `-phone`.
+
+| File | Paper board | Screen ticket |
+| --- | --- | --- |
+| `d3-*` | D3 · Landing: Product first (approved direction, default state) | #528, #529, #530, #531, #532 |
+| `top-bar-after-scroll-*` | Top bar after scroll: the view after a "How it works" jump | #528, #531 |
+| `long-data-*` | Data case: $12.99 / $39.99 sample prices, eight questions, two open | #529, #532 |
+
+Prices on the long-data boards are layout tests, not real prices. The three added questions are sample length only.
+Reduced motion has no board; `motion.md` holds its column.
