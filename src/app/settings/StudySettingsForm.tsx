@@ -183,6 +183,7 @@ export function StudySettingsForm({
   const form = useRef<HTMLFormElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const saveButton = useRef<HTMLButtonElement>(null);
+  const runningSave = useRef<Promise<boolean> | null>(null);
   const [focusRequest, requestFocus] = useReducer((count: number) => count + 1, 0);
   const found = messages(draft, knownScore);
   const visible = state.showMessages ? found : null;
@@ -214,14 +215,21 @@ export function StudySettingsForm({
       requestFocus();
       return;
     }
-    const sent = draft;
+    runningSave.current = save(draft);
+    await runningSave.current;
+    runningSave.current = null;
+  }
+
+  async function save(sent: Settings) {
     dispatch({ type: "saveStarted" });
     try {
       const answer = await onSave(toInput(sent));
       dispatch({ type: "saveEnded", sent, answer });
       if (answer && "refused" in answer) requestFocus();
+      return answer === null;
     } catch {
       dispatch({ type: "saveNotSent" });
+      return false;
     }
   }
 
@@ -337,7 +345,7 @@ export function StudySettingsForm({
           buttonRef={saveButton}
         />
         <FailureNotice answer={state.answer} />
-        <LeaveGuard dirty={dirty} />
+        <LeaveGuard dirty={dirty} waitForSave={() => runningSave.current ?? Promise.resolve(true)} />
       </form>
     </>
   );

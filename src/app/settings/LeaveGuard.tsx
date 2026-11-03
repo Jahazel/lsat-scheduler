@@ -4,13 +4,20 @@ import { useEffect, useId, useRef } from "react";
 import { afterExit } from "@/components/ui/afterExit";
 import { cx } from "@/components/ui/classes";
 
-const NAV_TAB = 'nav[aria-label="Primary"] a[href]:not([aria-current="page"])';
 const DIALOG_FOCUS = "focus:outline-2 focus:outline-offset-2 focus:outline-ink";
 
-export function LeaveGuard({ dirty }: { dirty: boolean }) {
+function leavingLink(target: EventTarget | null) {
+  const link = target instanceof Element ? target.closest<HTMLAnchorElement>("a[href]") : null;
+  if (!link || (link.target && link.target !== "_self") || link.hasAttribute("download")) return null;
+  const to = new URL(link.href);
+  const leaves = to.origin === location.origin && (to.pathname !== location.pathname || to.search !== location.search);
+  return leaves ? link : null;
+}
+
+export function LeaveGuard({ dirty, waitForSave }: { dirty: boolean; waitForSave: () => Promise<boolean> }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const stayButton = useRef<HTMLButtonElement>(null);
-  const pressedTab = useRef<HTMLAnchorElement | null>(null);
+  const pressedLink = useRef<HTMLAnchorElement | null>(null);
   const passing = useRef(false);
   const titleId = useId();
   const bodyId = useId();
@@ -20,11 +27,11 @@ export function LeaveGuard({ dirty }: { dirty: boolean }) {
     const onBeforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
     const onClick = (event: MouseEvent) => {
       if (passing.current || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const tab = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>(NAV_TAB) : null;
-      if (!tab) return;
+      const link = leavingLink(event.target);
+      if (!link) return;
       event.preventDefault();
       event.stopPropagation();
-      pressedTab.current = tab;
+      pressedLink.current = link;
       dialog.current?.showModal();
       stayButton.current?.focus();
     };
@@ -38,17 +45,20 @@ export function LeaveGuard({ dirty }: { dirty: boolean }) {
 
   function stay() {
     dialog.current?.close();
-    pressedTab.current?.focus();
+    const link = pressedLink.current;
+    const menuButton = link?.closest('[role="menu"]')?.parentElement?.querySelector<HTMLElement>('[aria-haspopup="menu"]');
+    (menuButton ?? link)?.focus();
   }
 
   async function leave() {
     const closing = dialog.current;
-    const tab = pressedTab.current;
-    if (!closing || !tab) return;
+    const link = pressedLink.current;
+    if (!closing || !link) return;
     closing.close();
-    await afterExit(closing);
+    const [saved] = await Promise.all([waitForSave(), afterExit(closing)]);
+    if (!saved) return;
     passing.current = true;
-    tab.click();
+    link.click();
     passing.current = false;
   }
 

@@ -476,18 +476,28 @@ describe("Study settings leave guard", () => {
     HTMLDialogElement.prototype.getAnimations = () => [];
   });
 
-  function renderWithNav() {
+  function renderWithNav(onSave: (input: StudySettingsInput) => Promise<StudySettingsAnswer> = async () => null) {
+    window.history.pushState({}, "", "/settings");
     const goTo = (event: React.MouseEvent<HTMLAnchorElement>) => {
       event.preventDefault();
       navigated.push(event.currentTarget.getAttribute("href")!);
     };
     render(
       <>
-        <nav aria-label="Primary">
-          <a href="/dashboard" onClick={goTo}>This week</a>
-          <a href="/settings" aria-current="page" onClick={goTo}>Study settings</a>
-        </nav>
-        <StudySettingsForm currentScore={150} saved={saved} today="2026-11-02" goalTestDateOptions={upcomingTestMonths("2026-11-02")} onSave={vi.fn(async (): Promise<FormState> => null)} />
+        <header>
+          <a href="/dashboard" onClick={goTo}>DrillMap</a>
+          <nav aria-label="Primary">
+            <a href="/dashboard" onClick={goTo}>This week</a>
+            <a href="/settings" aria-current="page" onClick={goTo}>Study settings</a>
+          </nav>
+          <div>
+            <button type="button" aria-haspopup="menu" aria-expanded>Account menu</button>
+            <div role="menu">
+              <a role="menuitem" href="/account" onClick={goTo}>Account</a>
+            </div>
+          </div>
+        </header>
+        <StudySettingsForm currentScore={150} saved={saved} today="2026-11-02" goalTestDateOptions={upcomingTestMonths("2026-11-02")} onSave={onSave} />
       </>,
       { wrapper: FailureToastProvider },
     );
@@ -560,6 +570,84 @@ describe("Study settings leave guard", () => {
 
     expect(openDialog()).toBeNull();
     expect(navigated).toEqual(["/dashboard"]);
+  });
+
+  it.each([
+    ["the DrillMap logo", () => screen.getByRole("link", { name: "DrillMap" }), "/dashboard"],
+    ["the Account link", () => screen.getByRole("menuitem", { name: "Account" }), "/account"],
+  ])("asks before following %s with unsaved edits", async (_name, link, href) => {
+    renderWithNav();
+    await typeGoal("170");
+    await userEvent.click(link());
+
+    expect(navigated).toEqual([]);
+    expect(openDialog()).not.toBeNull();
+    await userEvent.click(within(openDialog()!).getByRole("button", { name: "Leave" }));
+    expect(navigated).toEqual([href]);
+  });
+
+  it("returns focus to the account menu button on Stay from the Account link", async () => {
+    renderWithNav();
+    await typeGoal("170");
+    await userEvent.click(screen.getByRole("menuitem", { name: "Account" }));
+    await userEvent.click(within(openDialog()!).getByRole("button", { name: "Stay" }));
+
+    expect(navigated).toEqual([]);
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Account menu" }));
+  });
+
+  function slowSave() {
+    let finish: (outcome: () => StudySettingsAnswer) => void = () => {};
+    const onSave = vi.fn(() => new Promise<StudySettingsAnswer>((resolve, reject) => {
+      finish = (outcome) => {
+        try {
+          resolve(outcome());
+        } catch (error) {
+          reject(error);
+        }
+      };
+    }));
+    return { onSave, finish: (outcome: () => StudySettingsAnswer) => act(async () => finish(outcome)) };
+  }
+
+  async function leaveDuringSave(onSave: () => Promise<StudySettingsAnswer>) {
+    renderWithNav(onSave);
+    await typeGoal("170");
+    await userEvent.click(saveButton()!);
+    await userEvent.click(thisWeek());
+    await userEvent.click(within(openDialog()!).getByRole("button", { name: "Leave" }));
+  }
+
+  it("waits for a running save before leaving, then follows the link once it is saved", async () => {
+    const { onSave, finish } = slowSave();
+    await leaveDuringSave(onSave);
+
+    expect(openDialog()).toBeNull();
+    expect(navigated).toEqual([]);
+    await finish(() => null);
+    expect(navigated).toEqual(["/dashboard"]);
+  });
+
+  it("stays with the edits and the failure toast when the save running at Leave fails", async () => {
+    const { onSave, finish } = slowSave();
+    await leaveDuringSave(onSave);
+    await finish(() => ({ unexpectedFailure: "3f9a2c1b" as FailureCode }));
+
+    expect(navigated).toEqual([]);
+    expect(goalScore().value).toBe("170");
+    expect(screen.getByText(/3f9a2c1b/)).toBeTruthy();
+  });
+
+  it("stays with the edits and the connection note when the save running at Leave cannot reach the server", async () => {
+    const { onSave, finish } = slowSave();
+    await leaveDuringSave(onSave);
+    await finish(() => {
+      throw new TypeError("Failed to fetch");
+    });
+
+    expect(navigated).toEqual([]);
+    expect(goalScore().value).toBe("170");
+    expect(status()?.textContent).toBe("We couldn't save your changes. Check your connection and press Save changes again.");
   });
 
   it("asks the browser to confirm closing or reloading only while edits are unsaved", async () => {
