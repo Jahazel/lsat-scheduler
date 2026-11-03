@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FailureToastProvider } from "@/components/FailureNotice";
 import { everyDay, upcomingTestMonths, type StudySettingsInput } from "@/lib/studentProfile";
 import type { FailureCode, FormState } from "@/lib/unexpectedFailure";
+import type { StudySettingsAnswer } from "./actions";
 import { StudySettingsForm } from "./StudySettingsForm";
 
 const saved: StudySettingsInput = {
@@ -20,7 +21,7 @@ const twoAttempts = [{ score: 152, month: "2025-06" }, { score: 149, month: "202
 const SAVE_NOTE = "Changes apply to your next weekly schedule.";
 const SAVED_NOTE = "Saved. Changes apply to your next weekly schedule.";
 
-function renderForm({ onSave = vi.fn(async (): Promise<FormState> => null), values = saved, currentScore = 150 } = {}) {
+function renderForm({ onSave = vi.fn(async (): Promise<StudySettingsAnswer> => null), values = saved, currentScore = 150 } = {}) {
   render(
     <StudySettingsForm currentScore={currentScore} saved={values} today="2026-11-02" goalTestDateOptions={upcomingTestMonths("2026-11-02")} onSave={onSave} />,
     { wrapper: FailureToastProvider },
@@ -33,11 +34,7 @@ const attemptMonth = (n: number) => screen.getByRole("combobox", { name: `Attemp
 const addAttempt = () => screen.queryByRole("button", { name: "Add attempt" });
 const goalScore = () => screen.getByRole("textbox", { name: "Goal score" }) as HTMLInputElement;
 const saveButton = () => screen.queryByRole("button", { name: /Save changes|Saving…/ }) as HTMLButtonElement | null;
-function status() {
-  const region = screen.queryByRole("status");
-  if (!region) return null;
-  return { textContent: [...region.children].filter((child) => !child.hasAttribute("aria-hidden")).map((child) => child.textContent).join("") };
-}
+const status = () => screen.queryByRole("status");
 
 async function typeGoal(text: string) {
   await userEvent.clear(goalScore());
@@ -91,7 +88,9 @@ describe("Study settings form", () => {
     await userEvent.click(saveButton()!);
 
     expect(saveButton()?.textContent).toBe("Saving…");
-    expect(saveButton()?.disabled).toBe(true);
+    expect(saveButton()?.getAttribute("aria-disabled")).toBe("true");
+    expect(document.activeElement).toBe(saveButton());
+    expect(status()?.textContent).toBe("Saving…");
     expect(goalScore().value).toBe("172");
     expect(onSave).toHaveBeenCalledWith({
       goalScore: 172,
@@ -106,6 +105,7 @@ describe("Study settings form", () => {
     await act(async () => finish(null));
     expect(status()?.textContent).toBe(SAVED_NOTE);
     expect(saveButton()).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("heading", { level: 1, name: "Study settings" }));
     expect(goalScore().value).toBe("172");
 
     act(() => vi.advanceTimersByTime(5900));
@@ -166,6 +166,32 @@ describe("Study settings form", () => {
 
     await typeGoal("180");
     expect(screen.queryByText(/must be higher/)).toBeNull();
+  });
+
+  it("shows the goal message, not the failure toast, when the current score has reached the goal since the page opened", async () => {
+    const onSave = vi.fn(async (): Promise<StudySettingsAnswer> => ({ refused: "goalScore", currentScore: 168 }));
+    renderForm({ onSave });
+    await typeGoal("166");
+    await userEvent.click(saveButton()!);
+
+    expect(screen.getByText("Your goal must be higher than your current score, 168.")).toBeTruthy();
+    expect(screen.getByText("168")).toBeTruthy();
+    expect(goalScore().getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(goalScore());
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(saveButton()?.textContent).toBe("Save changes");
+
+    await typeGoal("170");
+    expect(screen.queryByText(/must be higher/)).toBeNull();
+    await userEvent.click(saveButton()!);
+    expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ goalScore: 170 }));
+  });
+
+  it("leaves focus in the goal score when Enter there saves the form", async () => {
+    renderForm();
+    await typeGoal("170{Enter}");
+    expect(status()?.textContent).toBe(SAVED_NOTE);
+    expect(document.activeElement).toBe(goalScore());
   });
 
   it("refuses a goal score outside the LSAT range", async () => {
