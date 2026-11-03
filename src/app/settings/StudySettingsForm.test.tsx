@@ -3,6 +3,8 @@ import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FailureToastProvider } from "@/components/FailureNotice";
+import { SignOutForm } from "@/components/SignOutForm";
+import type { SignOutAnswer } from "@/lib/requestPolicy";
 import { everyDay, upcomingTestMonths, type StudySettingsInput } from "@/lib/studentProfile";
 import type { FailureCode, FormState } from "@/lib/unexpectedFailure";
 import type { StudySettingsAnswer } from "./actions";
@@ -464,9 +466,11 @@ describe("Official LSAT attempts", () => {
 
 describe("Study settings leave guard", () => {
   let navigated: string[];
+  let logOut: ReturnType<typeof vi.fn<() => Promise<SignOutAnswer>>>;
 
   beforeEach(() => {
     navigated = [];
+    logOut = vi.fn(async (): Promise<SignOutAnswer> => ({ goTo: "/?signedOut=1" }));
     HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
       this.setAttribute("open", "");
     };
@@ -494,6 +498,9 @@ describe("Study settings leave guard", () => {
             <button type="button" aria-haspopup="menu" aria-expanded>Account menu</button>
             <div role="menu">
               <a role="menuitem" href="/account" onClick={goTo}>Account</a>
+              <SignOutForm action={logOut}>
+                <button role="menuitem" type="submit">Log out</button>
+              </SignOutForm>
             </div>
           </div>
         </header>
@@ -648,6 +655,69 @@ describe("Study settings leave guard", () => {
     expect(navigated).toEqual([]);
     expect(goalScore().value).toBe("170");
     expect(status()?.textContent).toBe("We couldn't save your changes. Check your connection and press Save changes again.");
+  });
+
+  describe("Log out", () => {
+    const logOutItem = () => screen.getByRole("menuitem", { name: "Log out" });
+    let assign: ReturnType<typeof vi.fn>;
+
+    function renderSignedIn(onSave?: (input: StudySettingsInput) => Promise<StudySettingsAnswer>) {
+      renderWithNav(onSave);
+      assign = vi.fn();
+      vi.stubGlobal("location", { ...window.location, assign });
+    }
+
+    afterEach(() => vi.unstubAllGlobals());
+
+    it("signs out at once with no dialog when nothing is unsaved", async () => {
+      renderSignedIn();
+      await userEvent.click(logOutItem());
+
+      expect(openDialog()).toBeNull();
+      await vi.waitFor(() => expect(assign).toHaveBeenCalledWith("/?signedOut=1"));
+      expect(logOut).toHaveBeenCalledTimes(1);
+    });
+
+    it("asks before signing out with unsaved edits, and Stay keeps the student and the edits on the page", async () => {
+      renderSignedIn();
+      await typeGoal("170");
+      await userEvent.click(logOutItem());
+
+      const dialog = openDialog()!;
+      expect(within(dialog).getByText("Your changes to Study settings will be lost.")).toBeTruthy();
+      expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: "Stay" }));
+
+      await userEvent.click(within(dialog).getByRole("button", { name: "Stay" }));
+      expect(openDialog()).toBeNull();
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Account menu" }));
+      expect(goalScore().value).toBe("170");
+      expect(logOut).not.toHaveBeenCalled();
+      expect(assign).not.toHaveBeenCalled();
+    });
+
+    it("signs out on Leave without the browser asking again as the signed-out page loads", async () => {
+      renderSignedIn();
+      await typeGoal("170");
+      await userEvent.click(logOutItem());
+      await userEvent.click(within(openDialog()!).getByRole("button", { name: "Leave" }));
+
+      await vi.waitFor(() => expect(assign).toHaveBeenCalledWith("/?signedOut=1"));
+      expect(logOut).toHaveBeenCalledTimes(1);
+      expect(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)).toBe(false);
+    });
+
+    it("waits for a running save before signing out on Leave", async () => {
+      const { onSave, finish } = slowSave();
+      renderSignedIn(onSave);
+      await typeGoal("170");
+      await userEvent.click(saveButton()!);
+      await userEvent.click(logOutItem());
+      await userEvent.click(within(openDialog()!).getByRole("button", { name: "Leave" }));
+
+      expect(logOut).not.toHaveBeenCalled();
+      await finish(() => null);
+      await vi.waitFor(() => expect(assign).toHaveBeenCalledWith("/?signedOut=1"));
+    });
   });
 
   it("asks the browser to confirm closing or reloading only while edits are unsaved", async () => {
