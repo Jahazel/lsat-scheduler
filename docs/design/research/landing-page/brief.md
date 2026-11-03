@@ -76,4 +76,18 @@ Both pricing buttons lead to the same signup. The plan is not chosen on the land
 6. Top bar: does it stay fixed while scrolling, and when does "Start free week" appear in it?
 
 ## Directions
-Not built yet.
+Built 2026-11-02 in Paper, "DrillMap · Design" → Explorations, under the "Landing page · Directions" header. Each is one 1440 px board with a phone-fit note. Exports: [directions/](directions/). Product screens are real exports of approved app boards; the hero shows the This week header with the Saturday and Sunday drill days.
+
+| Direction | Hero | How it works | Inside the app | Pricing | Phone fit |
+| --- | --- | --- | --- | --- | --- |
+| D1 · Closest to Mercury | Centered headline, button, no-card line; proof numbers (48 px) in a row; wide This week screen | Title left, four numbered rows right | Own section: wide Progress screen | Two cards; Monthly carries "Best value · about 28% less" | Shrinks cleanly |
+| D2 · Proof first | Same, but the proof numbers are a full-width ledger at 64 px, the loudest type on the page | Four columns, each with a small app crop | Same as D1 | One bordered panel: "No card needed" strip on top, Weekly and Monthly side by side | Needs care: ledger turns into one column |
+| D3 · Product first | Headline, button, then a This week / Progress tab switch over a tall screen; proof row under it | Four alternating rows of text and a large app screen | Absorbed by the hero tabs | Same as D1 | Needs 1:1 detail crops for the step screens |
+
+Shared by all three: top bar, Questions (title left, list right, first item open), closing band, dark footer.
+
+Critique (impeccable, 2026-11-02): design review scores D1 22/32, D2 20/32, D3 22/32. Fixed before showing: hero screens opened on "Not scheduled" and "Rest day" cards; proof numbers too small in D1 and D3; step numbers below contrast; wrong phone-fit claims in D2 and D3. Open for the chosen direction:
+- The tutor is never named, so the proof has no person behind it.
+- Sample dates in the screens (September–October) do not match each other or today.
+- D2's step crops are too small to read and cut text at the edge.
+- "Do I need 7Sage?" and "Is the plan made by AI?" stay closed by default, though skeptical visitors need them most.
