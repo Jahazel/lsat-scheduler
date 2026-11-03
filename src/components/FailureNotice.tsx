@@ -16,6 +16,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { afterExit } from "@/components/ui/afterExit";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import type { FileRead } from "@/lib/screenshotReadQueue";
 import { isUnexpectedFailure, UNEXPECTED_FAILURE_MESSAGE, type FailureCode, type FormState } from "@/lib/unexpectedFailure";
@@ -24,7 +25,6 @@ type Toast = { code: FailureCode; notice: string; action: string; replaced: bool
 type Toasts = { shown: Toast | null; leaving: Toast | null };
 
 const NO_TOASTS: Toasts = { shown: null, leaving: null };
-const LEAVE_MS = 200;
 const noSubscription = () => () => {};
 
 const close = (toasts: Toasts): Toasts => (toasts.shown ? { shown: null, leaving: toasts.shown } : toasts);
@@ -119,14 +119,19 @@ function ToastCard({ toast, onClose, onLeft }: { toast: Toast; onClose?: () => v
   const [moved, setMoved] = useState(false);
   if (!moved && dialog !== shownIn) setMoved(true);
   const [entered, setEntered] = useState(false);
+  const card = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!onLeft) return;
-    const timer = setTimeout(() => onLeft(toast.code), LEAVE_MS);
-    return () => clearTimeout(timer);
+    let mounted = true;
+    void afterExit(card.current!).then(() => mounted && onLeft(toast.code));
+    return () => {
+      mounted = false;
+    };
   }, [onLeft, toast.code]);
 
   return (
     <div
+      ref={card}
       role={leaving || moved ? undefined : "alert"}
       aria-hidden={leaving || undefined}
       inert={leaving}
@@ -134,9 +139,7 @@ function ToastCard({ toast, onClose, onLeft }: { toast: Toast; onClose?: () => v
       data-replaced={toast.replaced || undefined}
       data-entered={entered || moved || undefined}
       onTransitionEnd={(event) => {
-        if (event.target !== event.currentTarget || event.propertyName !== "opacity") return;
-        if (onLeft) onLeft(toast.code);
-        else setEntered(true);
+        if (event.target === event.currentTarget && event.propertyName === "opacity" && !leaving) setEntered(true);
       }}
       className="failure-toast pointer-events-auto flex w-full items-start gap-3 self-end rounded-md border border-vellum-line bg-paper py-4 pr-1 pl-4 shadow-e3 md:w-[360px]"
     >

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { FieldMessage } from "@/components/StudyProfileFields";
+import { afterExit } from "@/components/ui/afterExit";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { attemptMonths, MAX_OFFICIAL_ATTEMPTS } from "@/lib/studentProfile";
 import type { AttemptMessage, AttemptRow } from "@/lib/studyProfileDraft";
 
-const LEAVE_MS = 120;
 const BOX = `h-10 rounded-sm border bg-paper px-3 text-body text-ink ${FOCUS}`;
 const box = (invalid: boolean) => cx(BOX, invalid ? "border-danger" : "border-vellum-line");
 
@@ -53,12 +54,14 @@ export function OfficialAttemptList({
   function remove(row: AttemptRow) {
     const index = rows.indexOf(row);
     const next = rows[index + 1];
-    setLeaving((list) => [...list, { row, index }]);
-    onRemove(row.id);
-    setTimeout(() => {
+    flushSync(() => {
+      setLeaving((list) => [...list, { row, index }]);
+      onRemove(row.id);
+    });
+    void afterExit(list.current!.querySelector(`[data-attempt-row="${row.id}"]`)!).then(() => {
       pendingFocus.current = next ? `[data-attempt-remove="${next.id}"]` : "[data-attempt-add]";
       setLeaving((list) => list.filter((gone) => gone.row.id !== row.id));
-    }, LEAVE_MS);
+    });
   }
 
   return (
@@ -79,6 +82,7 @@ export function OfficialAttemptList({
             return (
               <div
                 key={row.id}
+                data-attempt-row={row.id}
                 data-added={added.has(row.id) || undefined}
                 data-leaving={leaving || undefined}
                 inert={leaving}

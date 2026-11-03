@@ -118,6 +118,15 @@
   --shadow-control: 0 1px 2px rgb(0 0 0 / 0.08);
 }
 
+@theme static {
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -171,11 +180,11 @@ body:has([data-tab-bar]) .failure-toast-slot { bottom: calc(86px + env(safe-area
 .failure-toast {
   --rise: 12px;
   --drop: 4px;
-  transition: opacity 200ms cubic-bezier(0.2, 0, 0, 1), transform 200ms cubic-bezier(0.2, 0, 0, 1);
+  transition: opacity var(--duration-base) var(--ease-standard), transform var(--duration-base) var(--ease-standard);
 }
 .failure-toast[data-replaced] {
   --rise: 0px;
-  transition-duration: 120ms;
+  transition-duration: var(--duration-fast);
 }
 @starting-style {
   .failure-toast:not([data-entered]) { opacity: 0; transform: translateY(var(--rise)); }
@@ -183,12 +192,12 @@ body:has([data-tab-bar]) .failure-toast-slot { bottom: calc(86px + env(safe-area
 .failure-toast[data-leaving] {
   opacity: 0;
   transform: translateY(var(--drop));
-  transition-duration: 120ms;
-  transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  transition-duration: var(--duration-fast);
+  transition-timing-function: var(--ease-out-strong);
   pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  .failure-toast { --rise: 0px; --drop: 0px; transition-duration: 120ms; }
+  .failure-toast { --rise: 0px; --drop: 0px; transition-duration: var(--duration-fast); }
 }
 
 .save-bar { left: 12px; right: 12px; bottom: 12px; }
@@ -209,43 +218,43 @@ body:has([data-tab-bar]) .save-bar { bottom: calc(86px + env(safe-area-inset-bot
 .save-bar {
   opacity: 0;
   transform: translateY(12px);
-  transition: opacity 120ms cubic-bezier(0.23, 1, 0.32, 1), transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+  transition: opacity var(--duration-fast) var(--ease-out-strong), transform var(--duration-fast) var(--ease-out-strong);
 }
 .save-bar[data-shown] {
   opacity: 1;
   transform: none;
-  transition-duration: 200ms;
-  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  transition-duration: var(--duration-base);
+  transition-timing-function: var(--ease-standard);
 }
-.save-bar-fade { transition: opacity 120ms cubic-bezier(0.23, 1, 0.32, 1); }
+.save-bar-fade { transition: opacity var(--duration-fast) var(--ease-out-strong); }
 .save-bar-fade:not([data-shown]) { opacity: 0; }
 
-.failure-toast-slot { transition: transform 200ms cubic-bezier(0.2, 0, 0, 1); }
+.failure-toast-slot { transition: transform var(--duration-base) var(--ease-standard); }
 body:has(.save-bar[data-shown]) .failure-toast-slot { transform: translateY(-88px); }
 @media (min-width: 48rem) {
   body:has(.save-bar[data-shown]) .failure-toast-slot { transform: translateY(-80px); }
 }
 
-.attempt-row { transition: opacity 200ms cubic-bezier(0.2, 0, 0, 1), transform 200ms cubic-bezier(0.2, 0, 0, 1); }
+.attempt-row { transition: opacity var(--duration-base) var(--ease-standard), transform var(--duration-base) var(--ease-standard); }
 @starting-style {
   .attempt-row[data-added] { opacity: 0; transform: translateY(-6px); }
 }
 .attempt-row[data-leaving] {
   opacity: 0;
-  transition-duration: 120ms;
-  transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  transition-duration: var(--duration-fast);
+  transition-timing-function: var(--ease-out-strong);
 }
 
 .preview-bar {
   transform-origin: left center;
-  transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+  transition: transform var(--duration-fast) var(--ease-out-strong);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .save-bar,
-  .save-bar[data-shown] { transform: none; transition-duration: 120ms; }
+  .save-bar[data-shown] { transform: none; transition-duration: var(--duration-fast); }
   .failure-toast-slot { transition: none; }
-  .attempt-row { transition-property: opacity; transition-duration: 120ms; }
+  .attempt-row { transition-property: opacity; transition-duration: var(--duration-fast); }
   .preview-bar { transition: none; }
 }
 
@@ -253,18 +262,18 @@ body:has(.save-bar[data-shown]) .failure-toast-slot { transform: translateY(-88p
 .leave-dialog::backdrop {
   opacity: 0;
   transition:
-    opacity 120ms cubic-bezier(0.23, 1, 0.32, 1),
-    transform 120ms cubic-bezier(0.23, 1, 0.32, 1),
-    overlay 120ms allow-discrete,
-    display 120ms allow-discrete;
+    opacity var(--duration-fast) var(--ease-out-strong),
+    transform var(--duration-fast) var(--ease-out-strong),
+    overlay var(--duration-fast) allow-discrete,
+    display var(--duration-fast) allow-discrete;
 }
 .leave-dialog { transform: scale(0.98); }
 .leave-dialog::backdrop { background: color-mix(in srgb, var(--color-ink) var(--opacity-muted), transparent); }
 .leave-dialog[open],
 .leave-dialog[open]::backdrop {
   opacity: 1;
-  transition-duration: 320ms;
-  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  transition-duration: var(--duration-slow);
+  transition-timing-function: var(--ease-standard);
 }
 .leave-dialog[open] { transform: none; }
 @starting-style {
@@ -276,7 +285,7 @@ body:has(.save-bar[data-shown]) .failure-toast-slot { transform: translateY(-88p
   .leave-dialog,
   .leave-dialog[open] { transform: none; }
   .leave-dialog[open],
-  .leave-dialog[open]::backdrop { transition-duration: 120ms; }
+  .leave-dialog[open]::backdrop { transition-duration: var(--duration-fast); }
   @starting-style {
     .leave-dialog[open] { transform: none; }
   }

@@ -26,6 +26,7 @@ let reduced = false;
 beforeEach(() => {
   vi.clearAllMocks();
   reduced = false;
+  document.documentElement.removeAttribute("style");
   live = [];
   Element.prototype.animate = animate as unknown as Element["animate"];
   Element.prototype.getAnimations = () => live as unknown as Animation[];
@@ -236,6 +237,7 @@ describe("ProgressMotion", () => {
 
     animate.mockClear();
     reduced = true;
+    document.documentElement.style.setProperty("--duration-fast", ".12s");
     fireEvent.click(screen.getByRole("link", { name: "← All weeks" }));
     show("/progress", <List />, rerender);
     expect(animate).toHaveBeenCalledOnce();
