@@ -3,7 +3,10 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { cx, FOCUS, FOCUS_INSET } from "@/components/ui/classes";
 import type { PastWeekMonth } from "@/lib/progressHistory";
 
-const CARD = "overflow-hidden rounded-md border border-vellum-line bg-paper";
+export const CARD = "overflow-hidden rounded-md border border-vellum-line bg-paper";
+export const GUTTER = "px-5 md:px-8 lg:px-18";
+export const CONTENT = "flex flex-col gap-6 px-4 pt-4 pb-10 md:px-8 md:pt-12 md:pb-18 lg:px-18";
+export const LEAD = "Your past weekly schedules. Open one to see what you planned and checked off.";
 
 function Chevron() {
   return (
@@ -16,8 +19,8 @@ function Chevron() {
 export default function ProgressOverview({ months }: { months: PastWeekMonth[] }) {
   return (
     <>
-      <PageHeader gutter="px-5 md:px-8 lg:px-18" title="Progress" lead="Your past weekly schedules. Open one to see what you planned and checked off." />
-      <div className="flex flex-col gap-6 px-4 pt-4 pb-10 md:px-8 md:pt-12 md:pb-18 lg:px-18">
+      <PageHeader gutter={GUTTER} title="Progress" lead={LEAD} />
+      <div className={CONTENT}>
         {months.length === 0 ? (
           <div className={cx(CARD, "flex flex-col gap-1 px-4 py-6 sm:px-6 sm:py-12")}>
             <p className="text-body font-medium text-ink">No past weeks yet.</p>
