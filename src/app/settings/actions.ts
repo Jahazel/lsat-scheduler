@@ -25,7 +25,11 @@ export async function saveStudySettings(input: StudySettingsInput): Promise<Stud
 
     const { settings, officialAttempts } = parseStudySettings(input, stored.currentScore, await studentSideToday(session.user));
     if (!(await updateStudySettings(session.user.id, settings, officialAttempts))) {
-      throw new Error("Study settings were not saved: the student is gone or the goal is no longer above the current score.");
+      const raised = await findStudentByAccountId(session.user.id);
+      if (raised && goalScoreError(raised.currentScore, settings.goalScore)) {
+        return { refused: "goalScore", currentScore: raised.currentScore };
+      }
+      throw new Error("Study settings were not saved: the student is gone or changed during the save.");
     }
 
     revalidatePath("/", "layout");
