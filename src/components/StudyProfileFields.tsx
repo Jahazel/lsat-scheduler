@@ -125,7 +125,7 @@ export function TestTimeChoice({ value, onChange }: { value: Accommodation; onCh
         {([1, 1.5, 2] satisfies Accommodation[]).map((multiplier) => (
           <label
             key={multiplier}
-            className="flex h-9 flex-1 cursor-pointer items-center justify-center rounded text-small text-smoke transition-colors duration-150 ease-out hover:bg-vellum-line hover:text-ink has-[:checked]:bg-paper has-[:checked]:font-medium has-[:checked]:text-ink has-[:checked]:shadow-control has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent"
+            className="flex h-9 flex-1 cursor-pointer items-center justify-center rounded text-small text-smoke transition-colors duration-(--duration-fast) ease-out hover:bg-vellum-line hover:text-ink has-[:checked]:bg-paper has-[:checked]:font-medium has-[:checked]:text-ink has-[:checked]:shadow-control has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent"
           >
             <input type="radio" name="testTime" className="sr-only" checked={value === multiplier} onChange={() => onChange(multiplier)} />
             {TEST_TIME_LABEL[multiplier]}
