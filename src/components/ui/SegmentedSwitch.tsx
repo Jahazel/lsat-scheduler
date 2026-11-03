@@ -31,7 +31,7 @@ export function SegmentedSwitch<V extends string>({ name, label, options, value,
             "has-checked:bg-paper has-checked:font-medium has-checked:text-ink has-checked:shadow-control",
             "has-disabled:cursor-not-allowed has-disabled:opacity-40 has-disabled:hover:bg-transparent has-disabled:hover:text-smoke",
             "has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent",
-            "transition-colors duration-120 ease-out active:duration-200 has-focus-visible:duration-200 motion-reduce:transition-none",
+            "transition-colors duration-(--duration-fast) ease-out active:duration-(--duration-base) has-focus-visible:duration-(--duration-base) motion-reduce:active:duration-(--duration-fast) motion-reduce:has-focus-visible:duration-(--duration-fast)",
           )}
         >
           <input

@@ -6,20 +6,19 @@ import { IconButton } from "@/components/ui/Button";
 import { useDeferWhilePointerDown } from "@/components/SnapshotReviewFields";
 import { WeekTiles } from "@/components/WeekPreview";
 import { DAY_ORDER } from "@/lib/engine";
-import { formatDuration } from "@/lib/formatDuration";
+import { shortDuration } from "@/lib/formatDuration";
+import { attemptMessage, type OnboardingAttemptRow } from "@/lib/onboardingWizard";
+import type { Accommodation } from "@/lib/studyProfileDraft";
+import { DAY_LABEL, attemptMonths, type upcomingTestMonths } from "@/lib/studentProfile";
 import {
   DAY_SHORT_LABEL,
   TEST_TIME_LABEL,
-  attemptMessage,
   practiceTestDayIsShort,
   practiceTestFact,
   previewWeek,
   weeklyTotalMinutes,
-  type OnboardingAttemptRow,
   type WeekValues,
-} from "@/lib/onboardingWizard";
-import type { Accommodation } from "@/lib/studyProfileDraft";
-import { DAY_LABEL, attemptMonths, type upcomingTestMonths } from "@/lib/studentProfile";
+} from "@/lib/studyWeek";
 import type { DayOfWeek } from "@/lib/types";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
@@ -126,7 +125,7 @@ export function TestTimeChoice({ value, onChange }: { value: Accommodation; onCh
         {([1, 1.5, 2] satisfies Accommodation[]).map((multiplier) => (
           <label
             key={multiplier}
-            className="flex h-9 flex-1 cursor-pointer items-center justify-center rounded text-small text-smoke transition-colors duration-150 ease-out hover:bg-vellum-line hover:text-ink has-[:checked]:bg-paper has-[:checked]:font-medium has-[:checked]:text-ink has-[:checked]:shadow-control has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent"
+            className="flex h-9 flex-1 cursor-pointer items-center justify-center rounded text-small text-smoke transition-colors duration-(--duration-fast) ease-out hover:bg-vellum-line hover:text-ink has-[:checked]:bg-paper has-[:checked]:font-medium has-[:checked]:text-ink has-[:checked]:shadow-control has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent"
           >
             <input type="radio" name="testTime" className="sr-only" checked={value === multiplier} onChange={() => onChange(multiplier)} />
             {TEST_TIME_LABEL[multiplier]}
@@ -347,7 +346,7 @@ export function WeekFields({
         <p className="flex items-baseline justify-between">
           <span className="text-small text-smoke">Weekly total</span>
           <span aria-live="polite" className="text-body font-semibold text-ink">
-            {formatDuration(weeklyTotalMinutes(values))}
+            {shortDuration(weeklyTotalMinutes(values))}
           </span>
         </p>
         <p className="text-small text-smoke">

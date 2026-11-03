@@ -32,7 +32,7 @@ export default function Error({
         <button
           type="button"
           onClick={() => reset()}
-          className="mt-1 inline-flex items-center rounded-sm bg-ink px-4 py-2 text-small font-medium text-chalk transition-colors duration-150 ease-out hover:bg-graphite-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-vellum"
+          className="mt-1 inline-flex items-center rounded-sm bg-ink px-4 py-2 text-small font-medium text-chalk transition-colors duration-(--duration-fast) ease-out hover:bg-graphite-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-vellum"
         >
           Try again
         </button>

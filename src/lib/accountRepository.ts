@@ -14,6 +14,8 @@ export function isAccountId(id: string | null | undefined): id is AccountId {
   return accountIdSchema.safeParse(id).success;
 }
 
+const withAccountId = <Row extends { id: string }>(row: Row) => ({ ...row, id: accountIdSchema.parse(row.id) });
+
 const publicColumns = {
   id: accounts.id,
   email: accounts.email,
@@ -53,7 +55,7 @@ export async function findPasswordAccountByEmail(email: string) {
     .select({ ...publicColumns, passwordHash: accounts.passwordHash })
     .from(accounts)
     .where(eq(accounts.email, sql`normalized_email(${email})`));
-  return account?.passwordHash ? { ...account, passwordHash: account.passwordHash } : null;
+  return account?.passwordHash ? withAccountId({ ...account, passwordHash: account.passwordHash }) : null;
 }
 
 export async function findPasswordAccountById(id: AccountId) {
@@ -92,7 +94,7 @@ export async function markGoogleAccountDeleting(id: AccountId) {
 
 export async function findAccountByGoogleId(googleId: string) {
   const [account] = await getPostgresDatabase().select(publicColumns).from(accounts).where(eq(accounts.googleId, googleId));
-  return account ?? null;
+  return account ? withAccountId(account) : null;
 }
 
 const createdAccount = z.object({ id: accountIdSchema, role: z.enum(accounts.role.enumValues) });

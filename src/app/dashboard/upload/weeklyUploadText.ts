@@ -6,7 +6,7 @@ import type { MissedStemType, Miss, PracticeTestProblem } from "@/lib/practiceTe
 import { isoDateInWeek } from "@/lib/scheduleReasonText";
 import { DAY_LABEL } from "@/lib/studentProfile";
 import type { Activity, AnalyticsSnapshot, DayOfWeek, LRStemType, WeeklySchedule } from "@/lib/types";
-import { MAX_SCORE, MIN_SCORE, type WeeklyUploadBasis } from "@/lib/weeklyUploadPreview";
+import type { WeeklyUploadBasis } from "@/lib/weeklyUploadPreview";
 
 const SHORT_DAY: Record<DayOfWeek, string> = {
   MONDAY: "Mon", TUESDAY: "Tue", WEDNESDAY: "Wed", THURSDAY: "Thu", FRIDAY: "Fri", SATURDAY: "Sat", SUNDAY: "Sun",
@@ -159,11 +159,4 @@ export function problemMessage(problem: Exclude<PracticeTestProblem, { problem: 
     case "score-mismatch":
       return `The score of ${formatSectionScore(problem.score)} does not match the ${problem.missed} missed ${problem.missed === 1 ? "question" : "questions"} we read. Take the screenshot again with every result in view.`;
   }
-}
-
-export function parseScore(text: string): number | null {
-  const trimmed = text.trim();
-  if (!/^\d+$/.test(trimmed)) return null;
-  const score = Number(trimmed);
-  return score >= MIN_SCORE && score <= MAX_SCORE ? score : null;
 }
