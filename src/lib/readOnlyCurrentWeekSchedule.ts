@@ -23,6 +23,7 @@ interface LoadReadOnlyCurrentWeekInput extends ReadOnlyCurrentWeekRepositories {
 export type ReadOnlyCurrentWeekResult =
   | { kind: "schedule"; schedule: PersistedWeeklySchedule; checkIns: ActivityCheckIn[] }
   | { kind: "next_week_preview"; weekStartDate: string }
+  | { kind: "next_week_upload_confirmed"; weekStartDate: string }
   | { kind: "analytics_required" }
   | { kind: "schedule_not_created" };
 
@@ -39,29 +40,32 @@ export async function loadReadOnlyCurrentWeek(input: LoadReadOnlyCurrentWeekInpu
     };
   }
 
-  if (isUploadWeekend(input.now(), input.timezone)) {
-    const nextWeekStartDate = isoDateInWeek(weekStartDate, 7);
-    if (await input.weeklySchedules.findByStudentAndWeek(input.studentId, nextWeekStartDate)) {
-      return { kind: "next_week_preview", weekStartDate: nextWeekStartDate };
-    }
+  const uploadWeekend = isUploadWeekend(input.now(), input.timezone);
+  const nextWeekStartDate = isoDateInWeek(weekStartDate, 7);
+  if (uploadWeekend && await input.weeklySchedules.findByStudentAndWeek(input.studentId, nextWeekStartDate)) {
+    return { kind: "next_week_preview", weekStartDate: nextWeekStartDate };
   }
 
-  const snapshots = approvedForWeek(
-    await input.snapshots.listEligibleForStudent(input.studentId),
-    weekStartDate,
-    input.timezone
-  );
-  return snapshots.length === 0 ? { kind: "analytics_required" } : { kind: "schedule_not_created" };
+  const snapshots = await input.snapshots.listEligibleForStudent(input.studentId);
+  if (approvedForWeek(snapshots, weekStartDate, input.timezone).length > 0) return { kind: "schedule_not_created" };
+  if (uploadWeekend && approvedForWeek(snapshots, nextWeekStartDate, input.timezone).length > 0) {
+    return { kind: "next_week_upload_confirmed", weekStartDate: nextWeekStartDate };
+  }
+  return { kind: "analytics_required" };
 }
 
 const previewStartDate = new Intl.DateTimeFormat("en-US", {
   weekday: "long", month: "short", day: "numeric", timeZone: "UTC",
 });
 
+const formatWeekStart = (weekStartDate: string) => previewStartDate.format(new Date(`${weekStartDate}T00:00:00.000Z`));
+
 export function adminScheduleStateMessage(result: Exclude<ReadOnlyCurrentWeekResult, { kind: "schedule" }>) {
   switch (result.kind) {
     case "next_week_preview":
-      return `This student has saved their plan for next week. It starts ${previewStartDate.format(new Date(`${result.weekStartDate}T00:00:00.000Z`))}.`;
+      return `This student has saved their plan for next week. It starts ${formatWeekStart(result.weekStartDate)}.`;
+    case "next_week_upload_confirmed":
+      return `This student has confirmed their upload for next week, which starts ${formatWeekStart(result.weekStartDate)}. Their plan is saved when they open This week.`;
     case "analytics_required":
       return "This student needs confirmed, eligible analytics before a current weekly schedule can be created.";
     case "schedule_not_created":

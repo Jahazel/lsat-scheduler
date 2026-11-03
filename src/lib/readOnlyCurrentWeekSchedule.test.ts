@@ -115,6 +115,39 @@ describe("loadReadOnlyCurrentWeek", () => {
     );
   });
 
+  it.each([
+    ["Saturday", "2026-09-19T15:00:00.000Z"],
+    ["Sunday", "2026-09-20T15:00:00.000Z"],
+  ])("says next week's upload is confirmed on %s when its plan is not saved yet", async (_day, at) => {
+    const result = await loadReadOnlyCurrentWeek({
+      studentId: "student-1",
+      timezone: "America/Chicago",
+      now: () => new Date(at),
+      ...repositories({ snapshots: [{ ...mockAnalytics, id: "snapshot-1", approvedAt: "2026-09-19T14:00:00.000Z" }] }),
+    });
+
+    expect(result).toEqual({ kind: "next_week_upload_confirmed", weekStartDate: "2026-09-21" });
+    if (result.kind === "schedule") throw new Error("Expected a confirmed next-week upload");
+    expect(adminScheduleStateMessage(result)).toBe(
+      "This student has confirmed their upload for next week, which starts Monday, Sep 21. Their plan is saved when they open This week."
+    );
+  });
+
+  it("still asks for analytics on a weekend when the student has not confirmed next week's upload", async () => {
+    const result = await loadReadOnlyCurrentWeek({
+      studentId: "student-1",
+      timezone: "America/Chicago",
+      now: () => new Date("2026-09-19T15:00:00.000Z"),
+      ...repositories(),
+    });
+
+    expect(result).toEqual({ kind: "analytics_required" });
+    if (result.kind === "schedule") throw new Error("Expected an unmet analytics prerequisite");
+    expect(adminScheduleStateMessage(result)).toBe(
+      "This student needs confirmed, eligible analytics before a current weekly schedule can be created."
+    );
+  });
+
   it("ignores a saved next week from Monday to Friday", async () => {
     const result = await loadReadOnlyCurrentWeek({
       studentId: "student-1",
