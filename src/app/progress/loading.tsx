@@ -1,9 +1,13 @@
+import { Card } from "@/components/ui/Card";
 import { cx } from "@/components/ui/classes";
 import { CARD, CONTENT, GUTTER, LEAD } from "./ProgressOverview";
+import ProgressPlaceholder from "./ProgressPlaceholder";
+import { WEEK_CONTENT, WEEK_HEADER, WEEK_HEADER_ROW, WEEK_PAGER_BUTTONS, WEEK_TITLE_BLOCK } from "./pastWeekLayout";
 
 const TEXT_SIZED_BAR = "rounded bg-vellum-line text-transparent box-decoration-clone";
+const PAGER_BUTTON = "h-10 w-34 rounded-pill bg-vellum-line max-sm:h-11 max-sm:w-auto max-sm:flex-1";
 
-export default function ProgressLoading() {
+function ListPlaceholder() {
   return (
     <div aria-hidden className="min-h-screen animate-pulse">
       <div className={cx("border-b border-vellum-line bg-paper pt-6 pb-6 md:pt-12 md:pb-10", GUTTER)}>
@@ -29,4 +33,53 @@ export default function ProgressLoading() {
       </div>
     </div>
   );
+}
+
+function WeekPlaceholder() {
+  return (
+    <div aria-hidden className="min-h-screen animate-pulse">
+      <div className={WEEK_HEADER}>
+        <span className={cx(TEXT_SIZED_BAR, "text-small font-medium")}>← All weeks</span>
+        <div className={WEEK_HEADER_ROW}>
+          <div className={WEEK_TITLE_BLOCK}>
+            <p className="flex items-center gap-3 text-small">
+              <span className="rounded-pill border border-transparent bg-vellum-line px-2.5 py-0.5 text-caption text-transparent">Past week</span>
+              <span className={TEXT_SIZED_BAR}>0 of 19 done</span>
+            </p>
+            <p className="text-h3 font-medium md:text-h2"><span className={TEXT_SIZED_BAR}>Week of Nov 9</span></p>
+            <p className="flex items-center gap-2 text-small">
+              <span className="size-3.5 shrink-0 rounded-pill bg-vellum-line" />
+              <span className={TEXT_SIZED_BAR}>Flaw or descriptive weakening comes first this week. You missed it most on your last practice test.</span>
+            </p>
+          </div>
+          <div className={WEEK_PAGER_BUTTONS}>
+            <span className={PAGER_BUTTON} />
+            <span className={PAGER_BUTTON} />
+          </div>
+        </div>
+      </div>
+      <div className={cx("flex flex-col gap-4", WEEK_CONTENT)}>
+        {Array.from({ length: 2 }).map((_, i) => (
+          <Card key={i}>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-2">
+              <p className="text-h6 font-medium"><span className={TEXT_SIZED_BAR}>Monday Nov 9</span></p>
+              <span className={cx(TEXT_SIZED_BAR, "text-small")}>Drilling · 1 h 30 min of 1 h 30 min</span>
+            </div>
+            <div className="flex flex-col">
+              {Array.from({ length: 3 }).map((_, row) => (
+                <div key={row} className="flex min-h-9 items-center gap-2.5 px-2">
+                  <span className="size-5 shrink-0 rounded-pill bg-vellum-line" />
+                  <span className={cx(TEXT_SIZED_BAR, "text-small")}>5 Necessary assumption (L2-4)</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function ProgressLoading() {
+  return <ProgressPlaceholder list={<ListPlaceholder />} week={<WeekPlaceholder />} />;
 }
