@@ -134,6 +134,7 @@
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-float: cubic-bezier(0.37, 0, 0.63, 1);
   --duration-reveal: 600ms;
 }
 
@@ -192,6 +193,27 @@ body:has([data-sign-in-page]) > footer { display: none; }
 }
 @media (min-width: 64rem) {
   .hero-glow { --glow-size: 56% 50%; height: 880px; }
+}
+
+@keyframes hero-card-drift-left { from { opacity: 0; transform: translate(-40px, 16px) scale(0.96); } }
+@keyframes hero-card-drift-right { from { opacity: 0; transform: translate(40px, 16px) scale(0.96); } }
+@keyframes hero-card-float { 50% { transform: translateY(-4px); } }
+@keyframes hero-card-depth { to { translate: 0 var(--rise); rotate: var(--turn); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-card-drift { animation: hero-card-drift-right var(--duration-reveal) var(--ease-out-strong) var(--phone-delay) both; }
+  .hero-card-float { animation: hero-card-float 6s var(--ease-float) calc(var(--phone-delay) + var(--duration-reveal) + var(--phase)) infinite; }
+  [data-paused] .hero-card-float { animation-play-state: paused; }
+}
+@media (prefers-reduced-motion: no-preference) and (min-width: 48rem) {
+  [data-side="left"] .hero-card-drift { animation-name: hero-card-drift-left; }
+  .hero-card-drift { animation-delay: var(--delay); }
+  .hero-card-float { animation-delay: calc(var(--delay) + var(--duration-reveal) + var(--phase)); }
+}
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) and (min-width: 48rem) {
+    .hero-card-depth { animation: hero-card-depth linear both; animation-timeline: scroll(root); animation-range: 0 800px; }
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {

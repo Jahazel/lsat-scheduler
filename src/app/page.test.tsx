@@ -11,8 +11,13 @@ vi.mock("@/lib/planPrices", async (importOriginal) => ({
 }));
 import LandingPage from "./page";
 
+const HEADLINE = "Your practice results, turned into next week's plan";
+
 beforeEach(() => {
-  window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
+  window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;  window.IntersectionObserver = class {
+    observe() {}
+    disconnect() {}
+  } as unknown as typeof IntersectionObserver;
 });
 afterEach(() => {
   cleanup();
@@ -22,22 +27,26 @@ afterEach(() => {
 describe("Landing page", () => {
   it("leads with the promise and sends every Start free week to signup", () => {
     render(<LandingPage />);
-    expect(screen.getByRole("heading", { level: 1, name: "Your LSAT week, planned before Monday" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1, name: HEADLINE })).toBeTruthy();
+    expect(screen.getByText(
+      "Upload your analytics every weekend. DrillMap builds Monday to Sunday around the question types you miss most.",
+    )).toBeTruthy();
     const starts = screen.getAllByRole("link", { name: "Start free week" });
     expect(starts.map((link) => link.getAttribute("href"))).toEqual(["/signup", "/signup", "/signup", "/signup"]);
     expect(screen.getAllByText("Your first full week free. No card needed.")).toHaveLength(4);
     expect(screen.getByRole("heading", { level: 2, name: "Get next week's plan from your own analytics" })).toBeTruthy();
   });
 
-  it("shows the four proof numbers", () => {
+  it("keeps the hero to the promise, the sample cards and the This week screen", () => {
     render(<LandingPage />);
-    const hero = screen.getByRole("region", { name: "Your LSAT week, planned before Monday" });
-    expect(within(hero).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
-      "178Tutor's LSAT score",
-      "Stanford LawTutor's law school",
-      "200+Students coached",
-      "3,000+Hours coached",
-    ]);
+    const hero = screen.getByRole("region", { name: HEADLINE });
+    expect(hero.textContent).not.toMatch(/7Sage|178|Stanford|coached/);
+    expect(within(hero).queryByRole("list")).toBeNull();
+    expect(within(hero).queryByRole("tablist")).toBeNull();
+    expect(within(hero).getByRole("group", { name: "Sample plan cards" })).toBeTruthy();
+    const week = within(hero).getByRole("img", { name: "This week screen: your plan for this week, with Monday to Sunday drills" });
+    expect(week.getAttribute("src")).toContain("hero-this-week.png");
+    expect([week.getAttribute("width"), week.getAttribute("height")]).toEqual(["2880", "3094"]);
   });
 
   it("places How it works between the hero and Pricing, as the top bar's jump target", () => {
@@ -116,20 +125,5 @@ describe("Landing page", () => {
     render(<LandingPage />);
     const questions = screen.getByRole("region", { name: "Questions" });
     expect(within(questions).getByText("No. Your first full week is free. You pick Weekly ($12.99) or Monthly ($39.99) only when it ends.")).toBeTruthy();
-  });
-
-  it("switches the hero screen between This week and Progress", () => {
-    window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
-    render(<LandingPage />);
-    const tabs = screen.getByRole("tablist", { name: "Inside the app" });
-    expect(screen.getByRole("tabpanel", { name: "This week" })).toBeTruthy();
-
-    fireEvent.click(within(tabs).getByRole("tab", { name: "Progress" }));
-    expect(within(tabs).getByRole("tab", { name: "Progress" }).getAttribute("aria-selected")).toBe("true");
-    expect(screen.getByRole("tabpanel", { name: "Progress" })).toBeTruthy();
-    expect(screen.queryByRole("tabpanel", { name: "This week" })).toBeNull();
-
-    fireEvent.keyDown(within(tabs).getByRole("tab", { name: "Progress" }), { key: "Home" });
-    expect(screen.getByRole("tabpanel", { name: "This week" })).toBeTruthy();
   });
 });

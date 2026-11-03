@@ -1,43 +1,55 @@
-import { HeroScreens } from "@/components/landing/HeroScreens";
+import Image from "next/image";
+import { HeroCards } from "@/components/landing/HeroCards";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { QuestionList } from "@/components/landing/QuestionList";
 import { FREE_WEEK_NOTE, StartFreeWeekLink } from "@/components/landing/StartFreeWeekLink";
 import { PLAN_PRICES, planPriceText } from "@/lib/planPrices";
 
-const PROOF_NUMBERS = [
-  { value: "178", label: "Tutor's LSAT score" },
-  { value: "Stanford Law", label: "Tutor's law school" },
-  { value: "200+", label: "Students coached" },
-  { value: "3,000+", label: "Hours coached" },
-];
+const HERO_SCREEN_SIZES = "(min-width: 1024px) 1120px, (min-width: 768px) 672px, 840px";
+const HERO_SCREEN_IMAGE = "block h-auto w-[840px] max-w-none md:w-[672px] lg:w-[1120px]";
 
 export default function LandingPage() {
   return (
     <div className="flex flex-col items-center overflow-x-clip bg-vellum px-5 md:px-0">
-      <section aria-labelledby="landing-title" className="relative isolate flex w-full flex-col items-center pt-14 pb-[72px] md:pt-20 md:pb-0 lg:pt-24">
-        <div className="flex w-full flex-col items-center gap-6 text-center md:max-w-[672px] lg:max-w-[880px]">
-          <h1 id="landing-title" className="text-[40px]/[44px] font-semibold tracking-display text-balance text-ink md:text-h2 lg:text-h1">
-            Your LSAT week, planned before Monday
+      <section aria-labelledby="landing-title" className="relative isolate flex w-full flex-col items-center pt-[86px] pb-12 md:pt-[184px] lg:pt-[166px]">
+        <div className="relative z-2 flex w-full flex-col items-center gap-4 text-center md:w-[680px] md:gap-5 lg:w-[800px] lg:gap-6">
+          <h1 id="landing-title" className="text-[42px]/[44px] font-semibold tracking-[-0.04em] text-balance text-ink md:text-[58px]/[60px] lg:text-[76px]/[78px]">
+            Your practice results, turned into next week&apos;s plan
           </h1>
-          <p className="text-body text-smoke md:max-w-[560px] md:text-lead lg:max-w-[640px]">
-            Upload your 7Sage analytics on the weekend. DrillMap plans Monday to Sunday around the question types you miss most.
+          <p className="text-body text-smoke md:w-[520px] md:text-[18px]/[28px] lg:w-[600px] lg:text-lead">
+            Upload your analytics every weekend. DrillMap builds Monday to Sunday around the question types you miss most.
           </p>
         </div>
-        <div className="flex w-full flex-col items-center gap-[14px] pt-10 pb-14">
+        <div className="relative z-2 flex w-full flex-col items-center gap-3 pt-6 md:gap-[14px] md:pt-7 lg:pt-9">
           <StartFreeWeekLink className="h-[52px] w-full px-7 md:w-auto" />
           <p className="text-small text-smoke">{FREE_WEEK_NOTE}</p>
         </div>
 
-        <HeroScreens />
+        <HeroCards />
 
-        <ul className="grid w-full grid-cols-2 gap-y-7 pt-14 md:max-w-[672px] md:gap-y-10 lg:flex lg:w-auto lg:max-w-none lg:divide-x lg:divide-vellum-line">
-          {PROOF_NUMBERS.map(({ value, label }) => (
-            <li key={value} className="flex flex-col gap-1 md:items-center md:px-8">
-              <span className="text-h3 font-semibold tracking-heading whitespace-nowrap text-ink md:text-h2">{value}</span>
-              <span className="text-small text-smoke">{label}</span>
-            </li>
-          ))}
-        </ul>
+        <div className="relative mt-7 flex w-full justify-center md:mt-[110px] lg:mt-[118px]">
+          <div aria-hidden="true" className="hero-glow pointer-events-none absolute top-1/2 left-1/2 -z-10 w-screen -translate-1/2" />
+          <div className="relative z-2 h-[460px] w-full overflow-clip rounded-md bg-paper shadow-e2 md:h-[432px] md:w-[672px] lg:h-[720px] lg:w-[min(1120px,calc(100%-48px))]">
+            <Image
+              src="/landing/hero-app-nav.png"
+              alt=""
+              width={2880}
+              height={144}
+              sizes={HERO_SCREEN_SIZES}
+              loading="eager"
+              className={HERO_SCREEN_IMAGE}
+            />
+            <Image
+              src="/landing/hero-this-week.png"
+              alt="This week screen: your plan for this week, with Monday to Sunday drills"
+              width={2880}
+              height={3094}
+              sizes={HERO_SCREEN_SIZES}
+              loading="eager"
+              className={HERO_SCREEN_IMAGE}
+            />
+          </div>
+        </div>
       </section>
 
       <HowItWorks />
