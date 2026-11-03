@@ -8,6 +8,7 @@ import { FOCUS, cx } from "@/components/ui/classes";
 import type { PastWeek } from "@/lib/progressHistory";
 import { weekNotes } from "@/lib/scheduleCheckInSummary";
 import type { ActivityCheckIn, PersistedWeeklySchedule } from "@/lib/types";
+import { WEEK_CONTENT, WEEK_HEADER, WEEK_HEADER_ROW, WEEK_PAGER_BUTTONS, WEEK_TITLE_BLOCK } from "./pastWeekLayout";
 
 const TEXT_LINK = cx("rounded-xs text-small font-medium text-accent underline-offset-4 hover:underline", FOCUS);
 const monthDay = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -41,10 +42,10 @@ export default function PastWeekView({
 }) {
   const pillClass = "ease-standard! max-sm:h-11 max-sm:flex-1";
   const header = (
-    <header className="border-b border-vellum-line bg-paper px-5 pt-6 pb-6 md:px-8 md:pt-8 md:pb-10 lg:px-18">
+    <header className={WEEK_HEADER}>
       <Link href="/progress" className={TEXT_LINK}>← All weeks</Link>
-      <div className="mt-4 flex flex-col gap-4 md:mt-6 lg:flex-row lg:items-end lg:justify-between lg:gap-6">
-        <div className="flex min-w-0 flex-col gap-2 md:gap-3">
+      <div className={WEEK_HEADER_ROW}>
+        <div className={WEEK_TITLE_BLOCK}>
           <p className="flex items-center gap-3 text-small text-smoke">
             <span className="rounded-pill border border-vellum-line bg-vellum px-2.5 py-0.5 text-caption text-ink">Past week</span>
             {week.done} of {week.total} done
@@ -53,7 +54,7 @@ export default function PastWeekView({
           <HeaderNotes notes={weekNotes(schedule.schedule)} />
         </div>
         {(older || newer) && (
-          <div className="flex shrink-0 gap-2">
+          <div className={WEEK_PAGER_BUTTONS}>
             {older && <ButtonLink href={weekHref(older)} variant="outline" size="md" className={pillClass}>← Older week</ButtonLink>}
             {newer && <ButtonLink href={weekHref(newer)} variant="outline" size="md" className={pillClass}>Newer week →</ButtonLink>}
           </div>
@@ -77,7 +78,7 @@ export default function PastWeekView({
       readOnly
       header={header}
       footer={pager}
-      padding="px-4 pt-4 pb-10 md:px-8 md:pt-8 md:pb-18 lg:px-18 lg:pt-16"
+      padding={WEEK_CONTENT}
     />
   );
 }
