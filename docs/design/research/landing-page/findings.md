@@ -28,6 +28,8 @@ Gaps: no Baymard source applied. No usability study on plan switches or no-card 
 | C. Split hero: copy left, product right | ClickUp, Slack, Lyssna (`refs/1-clickup-*`, `1-slack-*`, `1-lyssna-*`) | Button at the first eye stop; the product answers "what is it" | Often paired with gradient or blob art (anti-reference) | Strong; the sample-week panel is the right column |
 | D. Centered hero, screenshot cropped at the fold | Craft, Linear (`refs/1-craft-*`, `1-linear-*`) | Wide products | No room for proof beside the button; a narrow weekly plan wastes the width | Weak to medium |
 
+Owner pick (2026-11-02): Mercury's centered hero, a form of D ([Mobbin](https://mobbin.com/sites/sections/36860ef7-69eb-4cac-9ad4-cf2c5c097dba), `refs/1-mercury-centered-hero-email-button-app-screen-below`). Its warm off-white ground, dark type, and single blue match the log in and sign up pages. Adapt: Ink button, not a blue fill; no purple glow; a wide This week screen below the buttons, not the narrow sample week.
+
 Lyssna puts the no-card note next to the button. That placement suits "Your first full week free. No card needed."
 
 **Recommendation:** C, with B's type scale for the four numbers under the button.
