@@ -1,3 +1,4 @@
+import { HeroScreens } from "@/components/landing/HeroScreens";
 import { FREE_WEEK_NOTE, StartFreeWeekLink } from "@/components/landing/StartFreeWeekLink";
 import { PLAN_PRICES, planPriceText } from "@/lib/planPrices";
 
@@ -10,8 +11,8 @@ const PROOF_NUMBERS = [
 
 export default function LandingPage() {
   return (
-    <div className="flex flex-col items-center bg-vellum px-5 md:px-0">
-      <section aria-labelledby="landing-title" className="flex w-full flex-col items-center pt-14 pb-[72px] md:pt-20 md:pb-0 lg:pt-24">
+    <div className="flex flex-col items-center overflow-x-clip bg-vellum px-5 md:px-0">
+      <section aria-labelledby="landing-title" className="relative isolate flex w-full flex-col items-center pt-14 pb-[72px] md:pt-20 md:pb-0 lg:pt-24">
         <div className="flex w-full flex-col items-center gap-6 text-center md:max-w-[672px] lg:max-w-[880px]">
           <h1 id="landing-title" className="text-[40px]/[44px] font-semibold tracking-display text-balance text-ink md:text-h2 lg:text-h1">
             Your LSAT week, planned before Monday
@@ -25,7 +26,7 @@ export default function LandingPage() {
           <p className="text-small text-smoke">{FREE_WEEK_NOTE}</p>
         </div>
 
-        {/* Hero This week / Progress tabs and their spectrum glow go here (#530). */}
+        <HeroScreens />
 
         <ul className="grid w-full grid-cols-2 gap-y-7 pt-14 md:max-w-[672px] md:gap-y-10 lg:flex lg:w-auto lg:max-w-none lg:divide-x lg:divide-vellum-line">
           {PROOF_NUMBERS.map(({ value, label }) => (

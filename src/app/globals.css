@@ -133,6 +133,8 @@
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  --duration-reveal: 600ms;
 }
 
 @theme inline {
@@ -171,6 +173,25 @@ body:has([data-sign-in-page]) > footer { display: none; }
     color-mix(in oklab, var(--color-spectrum-violet) 45%, transparent) 55%,
     transparent 75%
   );
+}
+
+.hero-glow {
+  --glow-size: 66% 52%;
+  height: 560px;
+  background-image: radial-gradient(
+    ellipse var(--glow-size) at 50% 50% in oklab,
+    color-mix(in oklab, var(--color-spectrum-amber) 90%, transparent) 0%,
+    color-mix(in oklab, var(--color-spectrum-amber) 80%, transparent) 42%,
+    color-mix(in oklab, var(--color-spectrum-pink) 70%, transparent) 62%,
+    color-mix(in oklab, var(--color-spectrum-violet) 45%, transparent) 80%,
+    transparent 100%
+  );
+}
+@media (min-width: 48rem) {
+  .hero-glow { --glow-size: 62% 50%; height: 616px; }
+}
+@media (min-width: 64rem) {
+  .hero-glow { --glow-size: 56% 50%; height: 880px; }
 }
 
 /* The floating tab bar's top edge sits 78px above the window bottom (StudentTabBar), so 86px leaves 8px. */
