@@ -201,6 +201,7 @@ export function HeroCards() {
       frame = requestAnimationFrame(step);
     }
     const onMove = (event: PointerEvent) => {
+      if (event.pointerType === "touch") return;
       pointer = { x: event.clientX, y: event.clientY };
       kick();
     };

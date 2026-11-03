@@ -14,7 +14,8 @@ import LandingPage from "./page";
 const HEADLINE = "Your practice results, turned into next week's plan";
 
 beforeEach(() => {
-  window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;  window.IntersectionObserver = class {
+  window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
+  window.IntersectionObserver = class {
     observe() {}
     disconnect() {}
   } as unknown as typeof IntersectionObserver;

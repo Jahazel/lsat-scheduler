@@ -51,8 +51,8 @@ function runFrames(count: number) {
 
 const mondayCard = () => screen.getByText("Sufficient assumption").closest("[data-face]") as HTMLElement;
 
-function pointNearMonday() {
-  fireEvent.pointerMove(screen.getByRole("region", { name: "Hero" }), { clientX: 330, clientY: 150 });
+function pointNearMonday(pointerType = "mouse") {
+  fireEvent.pointerMove(screen.getByRole("region", { name: "Hero" }), { clientX: 330, clientY: 150, pointerType });
   runFrames(20);
 }
 
@@ -95,6 +95,12 @@ describe("HeroCards", () => {
     finePointer = false;
     render(<Hero />);
     pointNearMonday();
+    expect(mondayCard().style.transform).toBe("");
+  });
+
+  it("ignores a finger drag on a touchscreen laptop", () => {
+    render(<Hero />);
+    pointNearMonday("touch");
     expect(mondayCard().style.transform).toBe("");
   });
 
