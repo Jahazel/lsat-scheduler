@@ -336,6 +336,20 @@ body:has([data-sign-in-page]) > footer { display: none; }
   .plan-card:hover { transform: none; }
 }
 
+.faq-question { transition: color var(--duration-base) ease; }
+.faq-icon {
+  border-color: var(--color-vellum-line);
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  transition: background-color var(--duration-base) ease, border-color var(--duration-base) ease, color var(--duration-base) ease;
+}
+.faq-row[aria-expanded="true"] .faq-icon { border-color: var(--color-ink); background-color: var(--color-ink); color: var(--color-chalk); }
+@media (hover: hover) and (pointer: fine) {
+  .faq-row:hover .faq-question { color: var(--color-smoke); }
+  .faq-row:hover .faq-icon { border-color: color-mix(in oklab, var(--color-vellum-line), var(--color-ink) 8%); }
+  .faq-row[aria-expanded="true"]:hover .faq-icon { border-color: var(--color-graphite-line); background-color: var(--color-graphite-line); }
+}
+
 /* The floating tab bar's top edge sits 78px above the window bottom (StudentTabBar), so 86px leaves 8px. */
 .failure-toast-slot { bottom: 12px; }
 body:has([data-tab-bar]) .failure-toast-slot { bottom: calc(86px + env(safe-area-inset-bottom)); }
