@@ -49,8 +49,8 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   await page.getByRole("link", { name: "Build my first plan", exact: true }).click();
   await heading("Sign up for DrillMap");
   await goto("/");
-  log("Choose the public Sign up navigation link");
-  await page.locator("header").getByRole("link", { name: "Sign up", exact: true }).click();
+  log("Choose the public Start free week navigation link");
+  await page.locator("header").getByRole("link", { name: "Start free week", exact: true }).click();
   await heading("Sign up for DrillMap");
   log("Choose the signup form's Log in link");
   await page.locator("main").getByRole("link", { name: "Log in", exact: true }).click();

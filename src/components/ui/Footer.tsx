@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FOCUS, cx } from "./classes";
+import { FOCUS_ON_DARK, LANDING_LINK, cx } from "./classes";
 
 const LINKS = [
   { href: "/legal/terms", label: "Terms of Service" },
@@ -7,14 +7,21 @@ const LINKS = [
   { href: "/legal/ai-disclosure", label: "AI Disclosure" },
 ];
 
-export function Footer() {
+export function Footer({ signedIn }: { signedIn: boolean }) {
   return (
     <footer className="flex flex-col gap-12 bg-graphite px-5 pt-16 pb-12 md:px-18">
-      <p className="text-lead leading-h6 font-semibold tracking-heading text-chalk">DrillMap</p>
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-lead leading-h6 font-semibold tracking-heading text-chalk">DrillMap</p>
+        {!signedIn && (
+          <Link href="/login" className={cx("rounded-xs text-small font-medium text-chalk", LANDING_LINK, FOCUS_ON_DARK)}>
+            Log in
+          </Link>
+        )}
+      </div>
       <div className="flex flex-col gap-4 border-t border-graphite-line pt-6 text-small text-fog md:flex-row md:items-center md:justify-between">
         <nav aria-label="Legal" className="flex flex-wrap gap-x-6 gap-y-2">
           {LINKS.map((link) => (
-            <Link key={link.href} href={link.href} className={cx("rounded-xs hover:text-chalk", FOCUS)}>
+            <Link key={link.href} href={link.href} className={cx("rounded-xs pointer-hover:text-chalk", LANDING_LINK, FOCUS_ON_DARK)}>
               {link.label}
             </Link>
           ))}
