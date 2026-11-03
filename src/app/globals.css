@@ -200,6 +200,28 @@ body:has([data-sign-in-page]) > footer { display: none; }
   background-size: 24px 24px;
 }
 
+.section-guides {
+  --guide: repeating-linear-gradient(to bottom, color-mix(in oklab, var(--color-ink) 11%, transparent) 0 4px, transparent 4px 8px);
+  background-image: var(--guide), var(--guide);
+  background-position: 0 0, 100% 0;
+  background-size: 1px 100%;
+  background-repeat: no-repeat;
+}
+@media (min-width: 48rem) {
+  .section-guides {
+    background-image: var(--guide), var(--guide), var(--guide), var(--guide), var(--guide);
+    background-position: 0 0, 25% 0, 50% 0, 75% 0, 100% 0;
+  }
+}
+.section-band::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: 1px;
+  background-image: repeating-linear-gradient(to bottom, color-mix(in oklab, var(--color-ink) 40%, transparent) 0 6px, transparent 6px 12px);
+}
+
 @keyframes hero-card-drift-left { from { opacity: 0; transform: translate(-40px, 16px) scale(0.96); } }
 @keyframes hero-card-drift-right { from { opacity: 0; transform: translate(40px, 16px) scale(0.96); } }
 @keyframes hero-card-float { 50% { transform: translateY(-4px); } }

@@ -35,7 +35,9 @@ describe("Landing page", () => {
     const starts = screen.getAllByRole("link", { name: "Start free week" });
     expect(starts.map((link) => link.getAttribute("href"))).toEqual(["/signup", "/signup", "/signup", "/signup"]);
     expect(screen.getAllByText("Your first full week free. No card needed.")).toHaveLength(4);
-    expect(screen.getByRole("heading", { level: 2, name: "Get next week's plan from your own analytics" })).toBeTruthy();
+    const closing = screen.getByRole("region", { name: "Start" });
+    expect(within(closing).getByText("Get next week's plan from your own analytics")).toBeTruthy();
+    expect(within(closing).getByRole("link", { name: "Start free week" }).getAttribute("href")).toBe("/signup");
   });
 
   it("keeps the hero to the promise, the sample cards and the This week screen", () => {
@@ -56,6 +58,16 @@ describe("Landing page", () => {
     expect(regions).toEqual(["landing-title", "how-it-works", "pricing", "questions-title", "closing-title"]);
   });
 
+  it("opens each section below the hero with a numbered label whose name alone is the heading", () => {
+    render(<LandingPage />);
+    const labels = screen.getAllByRole("heading", { level: 2 });
+    expect(labels.map((label) => label.textContent)).toEqual(["[02]How it works", "[03]Pricing", "[04]FAQ", "[05]Start"]);
+    for (const name of ["How it works", "Pricing", "FAQ", "Start"]) {
+      const section = screen.getByRole("region", { name });
+      expect(within(section).getByRole("heading", { level: 2, name })).toBe(labels.find((label) => section.contains(label)));
+    }
+  });
+
   it("no longer shows the old sample card", () => {
     render(<LandingPage />);
     expect(screen.queryByText("Build my first plan")).toBeNull();
@@ -64,7 +76,7 @@ describe("Landing page", () => {
 
   it("prices both plans in the Pricing section, with the cancel rules", () => {
     render(<LandingPage />);
-    const pricing = screen.getByRole("region", { name: "Your first full week is free" });
+    const pricing = screen.getByRole("region", { name: "Pricing" });
     expect(pricing.id).toBe("pricing");
 
     const weekly = within(pricing).getByRole("article", { name: "Weekly" });
@@ -97,7 +109,7 @@ describe("Landing page", () => {
 
   it("answers the five questions, with only the card question open", () => {
     render(<LandingPage />);
-    const questions = screen.getByRole("region", { name: "Questions" });
+    const questions = screen.getByRole("region", { name: "FAQ" });
     const buttons = within(questions).getAllByRole("button");
     expect(buttons.map((b) => [b.textContent, b.getAttribute("aria-expanded")])).toEqual([
       ["Do I need a card to start?", "true"],
@@ -124,7 +136,7 @@ describe("Landing page", () => {
   it("reads the card answer's prices from the prices module", () => {
     prices.PLAN_PRICES = { weeklyCents: 1299, monthlyCents: 3999 };
     render(<LandingPage />);
-    const questions = screen.getByRole("region", { name: "Questions" });
+    const questions = screen.getByRole("region", { name: "FAQ" });
     expect(within(questions).getByText("No. Your first full week is free. You pick Weekly ($12.99) or Monthly ($39.99) only when it ends.")).toBeTruthy();
   });
 });
