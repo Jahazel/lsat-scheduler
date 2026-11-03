@@ -2,8 +2,10 @@ import Image from "next/image";
 import { HeroCards } from "@/components/landing/HeroCards";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { QuestionList } from "@/components/landing/QuestionList";
+import { RevealSection } from "@/components/landing/RevealSection";
 import { GapBand, SectionGrid, SectionLabel } from "@/components/landing/SectionGrid";
 import { FREE_WEEK_NOTE, StartFreeWeekLink } from "@/components/landing/StartFreeWeekLink";
+import { cx } from "@/components/ui/classes";
 import { PLAN_PRICES, planPriceText } from "@/lib/planPrices";
 
 const HERO_SCREEN_SIZES = "(min-width: 1024px) 1120px, (min-width: 768px) 672px, 840px";
@@ -79,22 +81,24 @@ export default function LandingPage() {
   );
 }
 
+const PLAN_RULE = "border-dashed border-ink/14";
+
 function PricingSection() {
   const price = planPriceText(PLAN_PRICES);
   return (
-    <section id="pricing" aria-labelledby="pricing-title" className="flex w-full scroll-mt-16 flex-col items-center">
+    <RevealSection threshold={0.25} id="pricing" aria-labelledby="pricing-title" className="flex w-full scroll-mt-16 flex-col items-center">
       <SectionLabel id="pricing-title" number="03">Pricing</SectionLabel>
-      <div className="flex w-full flex-col items-center gap-12 pt-8 md:max-w-[672px] md:pt-14 lg:max-w-[1120px] lg:pt-[72px]">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <p className="text-[32px]/[38px] font-semibold tracking-heading text-balance text-ink md:text-h2">
-            Your first full week is free
+      <div className="w-full md:w-[min(720px,calc(100%-48px))] lg:w-[min(1120px,calc(100%-48px))]">
+        <div className="grid gap-5 pt-8 pb-7 md:pt-14 md:pb-10 lg:grid-cols-2 lg:items-end lg:gap-0 lg:px-6 lg:pt-[72px] lg:pb-14">
+          <p className="reveal-item max-w-[480px] text-[32px]/[38px] font-semibold tracking-[-0.03em] text-balance text-ink md:text-[40px]/[46px] lg:text-[48px]/[54px]">
+            Your <span className="spectrum-key">first full week</span> is free
           </p>
-          <p className="text-body text-smoke md:max-w-[600px] md:text-lead">
+          <p className="reveal-item max-w-[400px] text-[17px]/[27px] text-smoke [--reveal-delay:80ms] lg:pl-6">
             Pick a plan when your free week ends. Both plans get the same weekly schedule.
           </p>
         </div>
-        <div className="grid w-full gap-4 md:grid-cols-2 md:gap-6 lg:w-auto lg:grid-cols-[400px_400px]">
-          <PlanCard id="plan-weekly" name="Weekly" price={price.weekly} per="a week">
+        <div className={`grid gap-3 md:grid-cols-2 md:gap-0 md:border-y ${PLAN_RULE}`}>
+          <PlanCard id="plan-weekly" name="Weekly" price={price.weekly} per="a week" className="[--reveal-delay:160ms]">
             Pay week by week. Good for a short final push.
           </PlanCard>
           <PlanCard
@@ -103,15 +107,16 @@ function PricingSection() {
             price={price.monthly}
             per="a month"
             badge={`Best value · ${price.monthlySaving}`}
+            className="[--reveal-delay:240ms]"
           >
             {price.monthOnWeekly}. Good for a full prep cycle.
           </PlanCard>
         </div>
-        <p className="text-center text-small text-smoke">
+        <p className="reveal-item pt-5 text-small text-smoke [--reveal-delay:320ms] lg:px-6">
           Cancel anytime. You keep access until your paid week or month ends. No refunds for unused time.
         </p>
       </div>
-    </section>
+    </RevealSection>
   );
 }
 
@@ -142,32 +147,38 @@ function QuestionsSection() {
   );
 }
 
-function PlanCard({ id, name, price, per, badge, children }: {
+function PlanCard({ id, name, price, per, badge, className, children }: {
   id: string;
   name: string;
   price: string;
   per: string;
   badge?: string;
+  className: string;
   children: React.ReactNode;
 }) {
   return (
-    <article aria-labelledby={id} className="flex flex-col justify-between gap-8 rounded-md border border-vellum-line bg-paper p-8">
-      <div className="flex flex-col gap-3">
-        <div className="flex min-h-6 flex-wrap items-center justify-between gap-y-2">
-          <h3 id={id} className="text-h5 font-semibold text-ink">{name}</h3>
+    <article aria-labelledby={id} className={cx("reveal-item relative isolate flex md:p-4 lg:p-6", badge && "p-3", className)}>
+      {badge && (
+        <div aria-hidden="true" className="absolute inset-0 -z-10 rounded-[18px] step-mat-spectrum [--mat-edge:2%] [--mat-spectrum-at:50%_85%] md:rounded-none" />
+      )}
+      <div className={cx("plan-card flex flex-1 flex-col gap-3 rounded-[14px] border bg-paper p-6 lg:p-8", badge ? "plan-card-best" : "border-vellum-line")}>
+        <div className="flex min-h-[26px] flex-wrap items-center justify-between gap-3 md:flex-nowrap">
+          <h3 id={id} className="font-mono text-caption tracking-[0.06em] text-smoke uppercase">{name}</h3>
           {badge && (
-            <span className="flex h-6 items-center rounded-pill bg-accent/tint px-2.5 text-caption font-medium text-accent">{badge}</span>
+            <span className="flex h-[26px] items-center rounded-pill bg-ink px-2 text-caption font-medium text-chalk lg:px-2.5 lg:text-[13px]/[18px]">
+              {badge}
+            </span>
           )}
         </div>
-        <p className="flex flex-wrap items-baseline gap-x-1.5">
-          <span className="text-h2 font-semibold tracking-heading text-ink">{price}</span>
-          <span className="text-body text-smoke">{per}</span>
+        <p className="flex flex-wrap items-baseline gap-x-2 pt-2">
+          <span className="text-[48px]/[52px] font-semibold tracking-[-0.04em] text-ink tabular-nums lg:text-[56px]/[60px]">{price}</span>
+          <span className="text-[17px] text-smoke">{per}</span>
         </p>
-        <p className="text-small text-smoke">{children}</p>
-      </div>
-      <div className="flex flex-col gap-3">
-        <p className="text-small text-ink">{FREE_WEEK_NOTE}</p>
-        <StartFreeWeekLink className="h-12 w-full" />
+        <p className="mb-7 min-h-12 max-w-[340px] text-[15px]/[24px] text-smoke">{children}</p>
+        <div className={`mt-auto flex flex-col gap-[14px] border-t pt-6 ${PLAN_RULE}`}>
+          <p className="text-small text-ink">{FREE_WEEK_NOTE}</p>
+          <StartFreeWeekLink className="h-12 w-full" />
+        </div>
       </div>
     </article>
   );
