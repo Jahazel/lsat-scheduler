@@ -36,6 +36,11 @@ describe("serverErrors", () => {
     ]);
   });
 
+  it("returns the app's caught Server Action and Route Handler failures", () => {
+    const failure = " POST /dashboard 200 in 30ms\nUnexpected failure on /dashboard (29276fc7): Error\n GET /dashboard 200 in 20ms";
+    expect(serverErrors(failure)).toEqual(["Unexpected failure on /dashboard (29276fc7): Error"]);
+  });
+
   it("returns nothing for a log of successful requests", () => {
     expect(serverErrors(" GET /login 200 in 85ms\n POST /settings 303 in 12ms\n")).toEqual([]);
   });

@@ -1,5 +1,5 @@
 const COLOUR = /\u001b\[[0-9;?]*[A-Za-z]/g;
-const STARTS = /^ ?⨯ |^FATAL\b|^\[auth\]\[error\]|^\[browser\]|^ ?\w*Error: |^\{"event":/;
+const STARTS = /^ ?⨯ |^FATAL\b|^\[auth\]\[error\]|^\[browser\]|^ ?\w*Error: |^\{"event":|^Unexpected failure on /;
 const CONTINUES = /^(\s{2,}|\t|> |\[auth\]\[(cause|details)\])/;
 
 export function serverErrors(text) {
