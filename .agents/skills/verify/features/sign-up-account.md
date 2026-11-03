@@ -54,7 +54,7 @@ Steps:
 
 ## Gotchas
 
-- A signed-in student visiting `/signup` or `/login` redirects to `/dashboard`. From there, an Account without a Student goes to `/onboarding`, and a week without a weekly schedule goes to `/dashboard/upload`. An Admin lands on `/admin`.
+- A signed-in student visiting `/`, `/signup`, or `/login` redirects to `/dashboard`. From there, an Account without a Student goes to `/onboarding`, and a week without a weekly schedule goes to `/dashboard/upload`. An Admin lands on `/admin`.
 - To force step 2 to fail, connect to the run's database as the owner and add a `before delete` trigger on `activity_check_ins` that raises. Drop it before the retry. `inspect` does not read `deleting_since` or `deletion_list`; read them with `psql` on the run database.
 - Admin Accounts have no deletion form. Their deletion card shows `Admin account` and `This action is not available for admin accounts.` Verify student deletion with a student Account.
 - A minted session counts as a fresh sign-in for 10 minutes. Mint the deleting student's session just before the deletion steps.
