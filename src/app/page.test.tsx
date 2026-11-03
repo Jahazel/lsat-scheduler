@@ -78,6 +78,8 @@ describe("Landing page", () => {
     render(<LandingPage />);
     const pricing = screen.getByRole("region", { name: "Pricing" });
     expect(pricing.id).toBe("pricing");
+    expect(within(pricing).getByText((_, el) => el?.textContent === "Your first full week is free")).toBeTruthy();
+    expect(within(pricing).getByText("Pick a plan when your free week ends. Both plans get the same weekly schedule.")).toBeTruthy();
 
     const weekly = within(pricing).getByRole("article", { name: "Weekly" });
     expect(within(weekly).getByText("$7.99")).toBeTruthy();
