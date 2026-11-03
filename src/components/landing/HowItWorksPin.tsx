@@ -115,7 +115,7 @@ export function HowItWorksPin({ steps }: { steps: Step[] }) {
           ))}
           {steps.map(({ key, screen }, index) => (
             <div key={key} data-state={stateOf(index)} className="how-shot absolute inset-0 overflow-clip rounded-md bg-paper shadow-e2">
-              <Image src={screen.src} alt="" width={screen.width} height={screen.height} sizes="(min-width: 1024px) 624px, 672px" className="size-full object-cover object-left-top" />
+              <Image src={screen.src} alt="" width={screen.width} height={screen.height} sizes="(min-width: 1024px) 624px, 672px" loading="eager" className="size-full object-cover object-left-top" />
             </div>
           ))}
         </div>

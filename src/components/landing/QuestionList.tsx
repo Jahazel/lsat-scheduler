@@ -69,7 +69,7 @@ export function QuestionList({ questions, className }: { questions: Question[]; 
                 visibility: open ? "visible" : "hidden",
                 transition: [
                   !shown.reduced && "grid-template-rows var(--duration-base) var(--ease-out-strong)",
-                  `opacity ${fade} var(--ease-out-strong)`,
+                  `opacity ${fade} ${shown.reduced ? "ease" : "var(--ease-out-strong)"}`,
                   `visibility 0s linear ${open ? "0s" : fade}`,
                 ].filter(Boolean).join(", "),
               }}

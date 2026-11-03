@@ -67,7 +67,7 @@ export function HowItWorks() {
                 <div aria-hidden="true" className={`step-mat step-mat-${tone} absolute inset-0 -z-10 rounded-lg md:rounded-[24px]`} />
                 <div className="relative h-[380px] w-full overflow-clip rounded-md bg-paper shadow-e2 md:h-[400px] md:w-[624px]">
                   <Image src={screen.src} alt={screen.alt} width={screen.width} height={screen.height} sizes="624px" className={`${SHOT_IMAGE} hidden md:block`} />
-                  <Image src={phoneScreen.src} alt={phoneScreen.alt} width={phoneScreen.width} height={phoneScreen.height} sizes="100vw" className={`${SHOT_IMAGE} md:hidden`} />
+                  <Image src={phoneScreen.src} alt={phoneScreen.alt} width={phoneScreen.width} height={phoneScreen.height} sizes="100vw" loading={index === STEPS.length - 1 ? "eager" : "lazy"} className={`${SHOT_IMAGE} md:hidden`} />
                 </div>
               </div>
             </li>

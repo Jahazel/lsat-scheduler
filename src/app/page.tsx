@@ -15,7 +15,7 @@ const HERO_SCREEN_IMAGE = "block h-auto w-[840px] max-w-none md:w-[672px] lg:w-[
 export default function LandingPage() {
   return (
     <div className="flex flex-col items-center overflow-x-clip bg-vellum px-5 md:px-0">
-      <section aria-labelledby="landing-title" className="relative isolate flex w-full flex-col items-center pt-[86px] pb-12 md:pt-[184px] lg:pt-[166px]">
+      <section aria-labelledby="landing-title" className="relative isolate flex w-full flex-col items-center overflow-y-clip pt-[86px] pb-12 md:pt-[184px] lg:pt-[166px]">
         <div aria-hidden="true" className="hero-dots pointer-events-none absolute inset-y-0 left-1/2 -z-20 w-screen -translate-x-1/2" />
         <div className="relative z-2 flex w-full flex-col items-center gap-4 text-center md:w-[680px] md:gap-5 lg:w-[800px] lg:gap-6">
           <h1 id="landing-title" className="text-[42px]/[44px] font-semibold tracking-[-0.04em] text-balance text-ink md:text-[58px]/[60px] lg:text-[76px]/[78px]">
@@ -121,7 +121,7 @@ function QuestionsSection() {
     <RevealSection threshold={0.2} aria-labelledby="questions-title" className="flex w-full flex-col items-center">
       <SectionLabel id="questions-title" number="04">FAQ</SectionLabel>
       <div className="grid w-full gap-5 pt-8 md:w-[min(720px,calc(100%-48px))] md:gap-8 md:pt-14 lg:w-[min(1120px,calc(100%-48px))] lg:grid-cols-4 lg:items-start lg:gap-0 lg:pt-[72px]">
-        <p className="reveal-item text-[32px]/[38px] font-semibold tracking-[-0.03em] text-ink md:text-[40px]/[46px] lg:sticky lg:top-28 lg:px-6 lg:text-[48px]/[54px]">
+        <p aria-hidden="true" className="reveal-item text-[32px]/[38px] font-semibold tracking-[-0.03em] text-ink md:text-[40px]/[46px] lg:sticky lg:top-28 lg:px-6 lg:text-[48px]/[54px]">
           FAQ
         </p>
         <QuestionList

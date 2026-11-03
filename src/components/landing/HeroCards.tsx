@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { cx } from "@/components/ui/classes";
+import { FOCUS_INSET, cx } from "@/components/ui/classes";
 
 type Card = {
   side: "left" | "right";
@@ -140,6 +140,15 @@ export function HeroCards() {
   const rowRef = useRef<HTMLDivElement>(null);
   const [activeDot, setActiveDot] = useState(0);
   const [heroOffScreen, setHeroOffScreen] = useState(false);
+  const [swipeRow, setSwipeRow] = useState(false);
+
+  useEffect(() => {
+    const wide = matchMedia("(min-width: 48rem)");
+    const sync = () => setSwipeRow(!wide.matches);
+    sync();
+    wide.addEventListener("change", sync);
+    return () => wide.removeEventListener("change", sync);
+  }, []);
 
   useEffect(() => {
     const row = rowRef.current;
@@ -241,12 +250,14 @@ export function HeroCards() {
         ref={rowRef}
         role="group"
         aria-label="Sample plan cards"
+        tabIndex={swipeRow ? 0 : undefined}
         data-paused={heroOffScreen || undefined}
         onScroll={followSwipe}
         className={cx(
-          "relative z-3 -mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pt-9 pb-5",
+          "relative z-3 -mx-5 flex w-[calc(100%+40px)] snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pt-9 pb-12 -mb-7",
           "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-          "md:pointer-events-none md:absolute md:inset-0 md:mx-0 md:block md:w-auto md:overflow-visible md:p-0",
+          FOCUS_INSET,
+          "md:pointer-events-none md:absolute md:inset-0 md:m-0 md:block md:w-auto md:overflow-visible md:p-0",
         )}
       >
         {CARDS.map(({ side, place, face, motion, body }, index) => (
