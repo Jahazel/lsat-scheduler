@@ -41,7 +41,7 @@ export default function ProgressOverview({ months }: { months: PastWeekMonth[] }
                       "grid min-h-16 grid-cols-[1fr_auto_16px] items-center gap-x-3 gap-y-2.5 px-4 py-3.5 [grid-template-areas:'dates_count_chevron'_'bar_bar_chevron']",
                       "sm:grid-cols-[140px_minmax(0,200px)_1fr_24px] sm:gap-4 sm:px-6 sm:py-0 sm:[grid-template-areas:'dates_bar_count_chevron']",
                       "lg:grid-cols-[200px_minmax(0,320px)_1fr_24px] lg:gap-6",
-                      "transition-colors duration-120 ease-standard hover:bg-vellum active:bg-vellum-line",
+                      "transition-colors duration-(--duration-fast) ease-standard hover:bg-vellum active:bg-vellum-line",
                       FOCUS_INSET,
                     )}
                   >

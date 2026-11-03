@@ -12,8 +12,8 @@ import { FOCUS } from "./ui/classes";
 
 
 const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline ${FOCUS}`;
-export const STEP_PRIMARY = `h-11 flex-1 rounded-sm bg-ink text-body font-medium text-chalk transition-colors duration-150 ease-out hover:bg-graphite-raised disabled:cursor-not-allowed disabled:bg-vellum-line disabled:text-smoke ${FOCUS}`;
-export const STEP_SECONDARY = `h-11 w-28 shrink-0 rounded-sm border border-vellum-line bg-paper text-body font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum disabled:cursor-not-allowed disabled:text-fog ${FOCUS}`;
+export const STEP_PRIMARY = `h-11 flex-1 rounded-sm bg-ink text-body font-medium text-chalk transition-colors duration-(--duration-fast) ease-out hover:bg-graphite-raised disabled:cursor-not-allowed disabled:bg-vellum-line disabled:text-smoke ${FOCUS}`;
+export const STEP_SECONDARY = `h-11 w-28 shrink-0 rounded-sm border border-vellum-line bg-paper text-body font-medium text-ink transition-colors duration-(--duration-fast) ease-out hover:bg-vellum disabled:cursor-not-allowed disabled:text-fog ${FOCUS}`;
 
 export const boxId = (type: AnalyticsType, prefix = "") => `${prefix}accuracy-${type.replace(/\W+/g, "-")}`;
 export const statementId = (index: number) => `statement-${index}`;
@@ -152,7 +152,7 @@ export function ConfirmBar({ label, saving, locked, note, onBack, onConfirm }: {
           disabled={saving}
           onClick={onConfirm}
           aria-describedby="confirm-note"
-          className={`h-11 flex-1 rounded-sm text-body font-medium transition-colors duration-150 ease-out ${FOCUS} ${
+          className={`h-11 flex-1 rounded-sm text-body font-medium transition-colors duration-(--duration-fast) ease-out ${FOCUS} ${
             saving
               ? "cursor-wait bg-graphite-raised text-chalk"
               : locked
@@ -664,7 +664,7 @@ function ScreenshotToggle({ section, file }: { section: AnalyticsSection; file: 
           <span className="text-small font-medium text-ink">{`${url ? "Hide" : "Show"} your ${section} screenshot`}</span>
           <span className="truncate font-mono text-caption text-smoke">{file.name}</span>
         </span>
-        <svg aria-hidden viewBox="0 0 16 16" className={`size-4 shrink-0 transition-transform duration-150 ${url ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg aria-hidden viewBox="0 0 16 16" className={`size-4 shrink-0 transition-transform duration-(--duration-fast) motion-reduce:transition-none ${url ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 6l4 4 4-4" />
         </svg>
       </button>

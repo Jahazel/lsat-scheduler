@@ -268,6 +268,11 @@ describe("Study settings form", () => {
     await userEvent.click(saveButton()!);
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ dailyCapacityMinutes: everyDay(150) }));
   });
+
+  it("shows the Weekly total the way the week board does", () => {
+    renderForm();
+    expect(screen.getByText("Weekly total").nextElementSibling?.textContent).toBe("12 h 30");
+  });
 });
 
 describe("Study settings week preview", () => {

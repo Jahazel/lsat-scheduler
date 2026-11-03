@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { finishDeletion } from "../../src/lib/accountDeletion";
 import { accountIdSchema, findAccountByGoogleId, markGoogleAccountDeleting } from "../../src/lib/accountRepository";
 import { admitAccount } from "../../src/lib/signInGate";
 import { setUpAppTestDatabase } from "./appTestDatabase";
@@ -69,7 +70,15 @@ it("finishes a Deleting Account's deletion, also when it is Disabled", async () 
 
 it("finishes the deletion when the mark lands after the Account was read", async () => {
   const read = await account("race@example.test");
-  expect(await markGoogleAccountDeleting(accountIdSchema.parse(read.id))).toBe(true);
+  expect(await markGoogleAccountDeleting(read.id)).toBe(true);
+  expect(await admitAccount(read, { route: ROUTE, realNow: NOW })).toBe("accountDeleted");
+  expect(await stored(read.id)).toBeNull();
+});
+
+it("refuses as deleted when the Account is gone after it was read", async () => {
+  const read = await account("gone@example.test");
+  await markGoogleAccountDeleting(read.id);
+  expect(await finishDeletion(read.id, ROUTE)).toBe("deleted");
   expect(await admitAccount(read, { route: ROUTE, realNow: NOW })).toBe("accountDeleted");
   expect(await stored(read.id)).toBeNull();
 });
