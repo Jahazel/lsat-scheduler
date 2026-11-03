@@ -91,6 +91,8 @@ Color (owner asked for color, 2026-11-02): all three heroes put the Log in page'
 - D2: a violet-to-amber rule tops the proof ledger, and the closing band turns Graphite with the glow rising behind a Chalk button.
 - D3: each How it works screen sits on its own color panel: violet, pink, amber, then the full spectrum for "Repeat every weekend".
 
+**Chosen (owner, 2026-11-02): D3 · Product first.** Tablet and phone boards sit next to the desktop board on Explorations ([tablet](directions/d3-tablet-768.png), [phone](directions/d3-phone-390@2x.png)). At tablet and phone, each How it works step becomes one color panel with its text above its screen. On phone, steps 1, 2 and 4 show the real phone app screens.
+
 Critique (impeccable, 2026-11-02): design review scores D1 22/32, D2 20/32, D3 22/32. Fixed before showing: hero screens opened on "Not scheduled" and "Rest day" cards; proof numbers too small in D1 and D3; step numbers below contrast; wrong phone-fit claims in D2 and D3. Open for the chosen direction:
 - The tutor is never named, so the proof has no person behind it.
 - Sample dates in the screens (September–October) do not match each other or today.
