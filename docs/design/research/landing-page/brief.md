@@ -86,6 +86,11 @@ Built 2026-11-02 in Paper, "DrillMap · Design" → Explorations, under the "Lan
 
 Shared by all three: top bar, Questions (title left, list right, first item open), closing band, dark footer.
 
+Color (owner asked for color, 2026-11-02): all three heroes put the Log in page's spectrum glow (violet, pink, amber) behind the This week screen, so the landing page and Log in look like one product. Buttons stay Ink; Accent blue stays for links and progress. Each direction then uses the spectrum once more in its own way:
+- D1: a "sunrise" glow rises from the bottom of the closing band.
+- D2: a violet-to-amber rule tops the proof ledger, and the closing band turns Graphite with the glow rising behind a Chalk button.
+- D3: each How it works screen sits on its own color panel: violet, pink, amber, then the full spectrum for "Repeat every weekend".
+
 Critique (impeccable, 2026-11-02): design review scores D1 22/32, D2 20/32, D3 22/32. Fixed before showing: hero screens opened on "Not scheduled" and "Rest day" cards; proof numbers too small in D1 and D3; step numbers below contrast; wrong phone-fit claims in D2 and D3. Open for the chosen direction:
 - The tutor is never named, so the proof has no person behind it.
 - Sample dates in the screens (September–October) do not match each other or today.
