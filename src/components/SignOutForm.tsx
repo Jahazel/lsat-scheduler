@@ -22,7 +22,7 @@ export function SignOutForm({ action, children, ...props }: Omit<ComponentProps<
 }) {
   const [failure, formAction] = useActionState(async (): Promise<FormState> => followSignOut(await action()), null);
   return (
-    <form action={formAction} {...props}>
+    <form action={formAction} data-leaves-page {...props}>
       {children}
       <FailureNotice answer={failure} />
     </form>
