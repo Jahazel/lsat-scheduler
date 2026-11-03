@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@custom-variant pointer-hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
 @theme {
   --color-*: initial;
   --text-*: initial;
