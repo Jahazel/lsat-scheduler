@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 
 const prices = vi.hoisted(() => ({ PLAN_PRICES: { weeklyCents: 799, monthlyCents: 2500 } }));
@@ -11,6 +11,9 @@ vi.mock("@/lib/planPrices", async (importOriginal) => ({
 }));
 import LandingPage from "./page";
 
+beforeEach(() => {
+  window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
+});
 afterEach(() => {
   cleanup();
   prices.PLAN_PRICES = { weeklyCents: 799, monthlyCents: 2500 };
@@ -28,12 +31,19 @@ describe("Landing page", () => {
 
   it("shows the four proof numbers", () => {
     render(<LandingPage />);
-    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+    const hero = screen.getByRole("region", { name: "Your LSAT week, planned before Monday" });
+    expect(within(hero).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
       "178Tutor's LSAT score",
       "Stanford LawTutor's law school",
       "200+Students coached",
       "3,000+Hours coached",
     ]);
+  });
+
+  it("places How it works between the hero and Pricing, as the top bar's jump target", () => {
+    render(<LandingPage />);
+    const regions = screen.getAllByRole("region").map((region) => region.id || region.getAttribute("aria-labelledby"));
+    expect(regions).toEqual(["landing-title", "how-it-works", "pricing", "closing-title"]);
   });
 
   it("no longer shows the old sample card", () => {
