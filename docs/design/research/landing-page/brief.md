@@ -102,6 +102,8 @@ Critique (impeccable, 2026-11-02): design review scores D1 22/32, D2 20/32, D3 2
 ## Prototype
 Owner approved the D3 desktop, tablet and phone boards (2026-11-02). The clickable prototype is [prototype/index.html](prototype/index.html): it switches between 1440, 768 and 390 px and turns reduced motion on and off. It walks the whole flow map. Pages outside the landing page show a stand-in that names the real path. Screenshots and a motion video: [prototype/shots/](prototype/shots/).
 
+Owner approved the prototype and its motion as one set (2026-11-02).
+
 Motion, chosen with `animate` and reviewed with `impeccable`:
 
 | Action | Motion |
@@ -118,3 +120,13 @@ Motion, chosen with `animate` and reviewed with `impeccable`:
 | Reduced motion | No slide, wipe, scale or height change; tab and question fades stay at 120 ms; anchor jumps are instant. |
 
 Token note: the project's `--ease-exit` (`cubic-bezier(0.4, 0, 1, 1)`) is an ease-in curve, which the motion rules ban for UI. The prototype does not use it. The prototype adds `--ease-in-out-strong` (`cubic-bezier(0.77, 0, 0.175, 1)`) for the tab pill.
+
+## States and data cases
+Built 2026-11-02 in Paper on Explorations, under the D3 boards. Exports: [states/](states/). Motion for every transition: [motion.md](motion.md).
+
+| State or data case | Board |
+| --- | --- |
+| Default | The approved D3 boards ([desktop](directions/d3-product-first.png), [tablet](directions/d3-tablet-768.png), [phone](directions/d3-phone-390@2x.png)) |
+| Top bar after scroll | One screen-size view after a "How it works" jump: [1440](states/top-bar-after-scroll-1440.png), [768](states/top-bar-after-scroll-768.png), [390](states/top-bar-after-scroll-390@2x.png) |
+| Reduced motion | Same boards. Every frame is a still end state, so nothing differs on a board; the differences are in [motion.md](motion.md). |
+| FAQ item open, $12.99 four-digit price, eight questions | Two questions open at once, $12.99 and $39.99 sample prices, eight questions: [1440](states/long-data-1440.png), [768](states/long-data-768.png), [390](states/long-data-390@2x.png) |
