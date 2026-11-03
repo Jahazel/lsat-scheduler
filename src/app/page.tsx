@@ -12,6 +12,7 @@ export default function LandingPage() {
   return (
     <div className="flex flex-col items-center overflow-x-clip bg-vellum px-5 md:px-0">
       <section aria-labelledby="landing-title" className="relative isolate flex w-full flex-col items-center pt-[86px] pb-12 md:pt-[184px] lg:pt-[166px]">
+        <div aria-hidden="true" className="hero-dots pointer-events-none absolute inset-y-0 left-1/2 -z-20 w-screen -translate-x-1/2" />
         <div className="relative z-2 flex w-full flex-col items-center gap-4 text-center md:w-[680px] md:gap-5 lg:w-[800px] lg:gap-6">
           <h1 id="landing-title" className="text-[42px]/[44px] font-semibold tracking-[-0.04em] text-balance text-ink md:text-[58px]/[60px] lg:text-[76px]/[78px]">
             Your practice results, turned into next week&apos;s plan

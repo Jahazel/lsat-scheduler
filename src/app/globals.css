@@ -195,6 +195,11 @@ body:has([data-sign-in-page]) > footer { display: none; }
   .hero-glow { --glow-size: 56% 50%; height: 880px; }
 }
 
+.hero-dots {
+  background-image: radial-gradient(circle at 12px 12px, color-mix(in oklab, var(--color-ink) 10%, transparent) 1px, transparent 1.5px);
+  background-size: 24px 24px;
+}
+
 @keyframes hero-card-drift-left { from { opacity: 0; transform: translate(-40px, 16px) scale(0.96); } }
 @keyframes hero-card-drift-right { from { opacity: 0; transform: translate(40px, 16px) scale(0.96); } }
 @keyframes hero-card-float { 50% { transform: translateY(-4px); } }
