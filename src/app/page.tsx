@@ -1,5 +1,6 @@
 import { HeroScreens } from "@/components/landing/HeroScreens";
 import { HowItWorks } from "@/components/landing/HowItWorks";
+import { QuestionList } from "@/components/landing/QuestionList";
 import { FREE_WEEK_NOTE, StartFreeWeekLink } from "@/components/landing/StartFreeWeekLink";
 import { PLAN_PRICES, planPriceText } from "@/lib/planPrices";
 
@@ -43,7 +44,7 @@ export default function LandingPage() {
 
       <PricingSection />
 
-      {/* Questions go here (#532). */}
+      <QuestionsSection />
 
       <section aria-labelledby="closing-title" className="flex w-full flex-col items-center gap-8 py-24 md:pt-32 md:pb-28 lg:pt-40 lg:pb-32">
         <h2 id="closing-title" className="text-center text-[36px]/[40px] font-semibold tracking-display text-balance text-ink md:max-w-[600px] md:text-h2 lg:max-w-[800px] lg:text-h1">
@@ -87,6 +88,30 @@ function PricingSection() {
       <p className="text-center text-small text-smoke">
         Cancel anytime. You keep access until your paid week or month ends. No refunds for unused time.
       </p>
+    </section>
+  );
+}
+
+function QuestionsSection() {
+  const price = planPriceText(PLAN_PRICES);
+  const plans = `Weekly (${price.weekly}) or Monthly (${price.monthly})`;
+  return (
+    <section aria-labelledby="questions-title" className="flex w-full flex-col gap-8 pt-[72px] md:max-w-[672px] md:pt-24 lg:max-w-[1120px] lg:flex-row lg:items-start lg:gap-24 lg:pt-40">
+      <h2 id="questions-title" className="text-[32px]/[38px] font-semibold tracking-heading text-ink md:text-h2 lg:w-[360px] lg:shrink-0">
+        Questions
+      </h2>
+      <QuestionList
+        questions={[
+          { question: "Do I need a card to start?", answer: `No. Your first full week is free. You pick ${plans} only when it ends.` },
+          { question: "What happens after the free week?", answer: `Pick ${plans} to keep getting weekly schedules.` },
+          { question: "Can I cancel?", answer: "Any time. You keep access until your paid week or month ends. No refunds for unused time." },
+          { question: "Do I need 7Sage?", answer: "Yes for screenshots. You can also type your numbers by hand." },
+          {
+            question: "Is the plan made by AI?",
+            answer: "No. Fixed rules built from the tutor's coaching method make the plan. AI only reads your screenshots, and you check what it read.",
+          },
+        ]}
+      />
     </section>
   );
 }

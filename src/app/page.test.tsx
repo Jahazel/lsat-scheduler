@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, isInaccessible, render, screen, within } from "@testing-library/react";
 
 const prices = vi.hoisted(() => ({ PLAN_PRICES: { weeklyCents: 799, monthlyCents: 2500 } }));
 vi.mock("@/lib/planPrices", async (importOriginal) => ({
@@ -43,7 +43,7 @@ describe("Landing page", () => {
   it("places How it works between the hero and Pricing, as the top bar's jump target", () => {
     render(<LandingPage />);
     const regions = screen.getAllByRole("region").map((region) => region.id || region.getAttribute("aria-labelledby"));
-    expect(regions).toEqual(["landing-title", "how-it-works", "pricing", "closing-title"]);
+    expect(regions).toEqual(["landing-title", "how-it-works", "pricing", "questions-title", "closing-title"]);
   });
 
   it("no longer shows the old sample card", () => {
@@ -83,6 +83,39 @@ describe("Landing page", () => {
     expect(within(monthly).getByText("$39.99")).toBeTruthy();
     expect(within(monthly).getByText("Best value · about 29% less")).toBeTruthy();
     expect(within(monthly).getByText("About $56.30 a month on Weekly. Good for a full prep cycle.")).toBeTruthy();
+  });
+
+  it("answers the five questions, with only the card question open", () => {
+    render(<LandingPage />);
+    const questions = screen.getByRole("region", { name: "Questions" });
+    const buttons = within(questions).getAllByRole("button");
+    expect(buttons.map((b) => [b.textContent, b.getAttribute("aria-expanded")])).toEqual([
+      ["Do I need a card to start?", "true"],
+      ["What happens after the free week?", "false"],
+      ["Can I cancel?", "false"],
+      ["Do I need 7Sage?", "false"],
+      ["Is the plan made by AI?", "false"],
+    ]);
+    expect(within(questions).getByText("No. Your first full week is free. You pick Weekly ($7.99) or Monthly ($25) only when it ends.")).toBeTruthy();
+    expect(isInaccessible(within(questions).getByText("Yes for screenshots. You can also type your numbers by hand."))).toBe(true);
+
+    for (const b of buttons.slice(1)) fireEvent.click(b);
+    expect(within(questions).getAllByRole("button").every((b) => b.getAttribute("aria-expanded") === "true")).toBe(true);
+    for (const answer of [
+      "Pick Weekly ($7.99) or Monthly ($25) to keep getting weekly schedules.",
+      "Any time. You keep access until your paid week or month ends. No refunds for unused time.",
+      "Yes for screenshots. You can also type your numbers by hand.",
+      "No. Fixed rules built from the tutor's coaching method make the plan. AI only reads your screenshots, and you check what it read.",
+    ]) {
+      expect(isInaccessible(within(questions).getByText(answer))).toBe(false);
+    }
+  });
+
+  it("reads the card answer's prices from the prices module", () => {
+    prices.PLAN_PRICES = { weeklyCents: 1299, monthlyCents: 3999 };
+    render(<LandingPage />);
+    const questions = screen.getByRole("region", { name: "Questions" });
+    expect(within(questions).getByText("No. Your first full week is free. You pick Weekly ($12.99) or Monthly ($39.99) only when it ends.")).toBeTruthy();
   });
 
   it("switches the hero screen between This week and Progress", () => {
