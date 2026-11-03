@@ -19,6 +19,10 @@ beforeEach(() => {
     observe() {}
     disconnect() {}
   } as unknown as typeof IntersectionObserver;
+  window.ResizeObserver = class {
+    observe() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
 });
 afterEach(() => {
   cleanup();
@@ -56,6 +60,25 @@ describe("Landing page", () => {
     render(<LandingPage />);
     const regions = screen.getAllByRole("region").map((region) => region.id || region.getAttribute("aria-labelledby"));
     expect(regions).toEqual(["landing-title", "how-it-works", "pricing", "questions-title", "closing-title"]);
+  });
+
+  it("walks through How it works as one ordered list of four steps, with a progress button for each", () => {
+    render(<LandingPage />);
+    const how = screen.getByRole("region", { name: "How it works" });
+    const [steps] = within(how).getAllByRole("list");
+    expect(within(how).getAllByRole("list")).toHaveLength(1);
+    expect(within(steps).getAllByRole("heading", { level: 3 }).map((title) => title.textContent)).toEqual([
+      "1 Tell us about your prep",
+      "2 Upload your practice analytics",
+      "3 Get your week",
+      "4 Repeat every weekend",
+    ]);
+    expect(within(how).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual([
+      "Go to step 1: Tell us about your prep",
+      "Go to step 2: Upload your practice analytics",
+      "Go to step 3: Get your week",
+      "Go to step 4: Repeat every weekend",
+    ]);
   });
 
   it("opens each section below the hero with a numbered label whose name alone is the heading", () => {
