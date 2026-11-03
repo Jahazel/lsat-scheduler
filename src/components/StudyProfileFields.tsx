@@ -6,20 +6,19 @@ import { IconButton } from "@/components/ui/Button";
 import { useDeferWhilePointerDown } from "@/components/SnapshotReviewFields";
 import { WeekTiles } from "@/components/WeekPreview";
 import { DAY_ORDER } from "@/lib/engine";
-import { formatDuration } from "@/lib/formatDuration";
+import { shortDuration } from "@/lib/formatDuration";
+import { attemptMessage, type OnboardingAttemptRow } from "@/lib/onboardingWizard";
+import type { Accommodation } from "@/lib/studyProfileDraft";
+import { DAY_LABEL, attemptMonths, type upcomingTestMonths } from "@/lib/studentProfile";
 import {
   DAY_SHORT_LABEL,
   TEST_TIME_LABEL,
-  attemptMessage,
   practiceTestDayIsShort,
   practiceTestFact,
   previewWeek,
   weeklyTotalMinutes,
-  type OnboardingAttemptRow,
   type WeekValues,
-} from "@/lib/onboardingWizard";
-import type { Accommodation } from "@/lib/studyProfileDraft";
-import { DAY_LABEL, attemptMonths, type upcomingTestMonths } from "@/lib/studentProfile";
+} from "@/lib/studyWeek";
 import type { DayOfWeek } from "@/lib/types";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
@@ -347,7 +346,7 @@ export function WeekFields({
         <p className="flex items-baseline justify-between">
           <span className="text-small text-smoke">Weekly total</span>
           <span aria-live="polite" className="text-body font-semibold text-ink">
-            {formatDuration(weeklyTotalMinutes(values))}
+            {shortDuration(weeklyTotalMinutes(values))}
           </span>
         </p>
         <p className="text-small text-smoke">

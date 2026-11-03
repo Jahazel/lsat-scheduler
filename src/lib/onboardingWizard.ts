@@ -17,7 +17,7 @@ import { summarizeAnalyticsRows } from "./analytics";
 import type { SnapshotApprovalMetadata } from "./analyticsSnapshots";
 import { currentWeekInTimezone } from "./currentWeeklySchedule";
 import { DAY_ORDER, generateWeek } from "./engine";
-import { formatDuration, shortDuration } from "./formatDuration";
+import { formatDuration } from "./formatDuration";
 import { mockRules } from "./mockData";
 import type { ExtractReply } from "./screenshotUpload";
 import {
@@ -25,7 +25,6 @@ import {
   type AnalyticsReading, type QueuedFile, type ReadQueue,
 } from "./screenshotReadQueue";
 import {
-  DAY_LABEL,
   everyDay,
   goalScoreError,
   type OfficialAttempt,
@@ -44,6 +43,7 @@ import {
   type Accommodation,
   type AttemptRow,
 } from "./studyProfileDraft";
+import { testTimeName, type WeekValues } from "./studyWeek";
 import { testCountdown, testCountdownLabel } from "./testCountdown";
 import type { Activity, AnalyticsExtractedRow, AnalyticsSection, DayOfWeek } from "./types";
 
@@ -53,17 +53,13 @@ const STEPS: WizardStep[] = ["goal", "week", "analytics", "review"];
 
 type ScoreBox = "currentScore" | "goalScore";
 
-export interface WizardValues {
+export interface WizardValues extends WeekValues {
   currentScore: string;
   goalScore: string;
   goalTestDate: string;
   accommodationMultiplier: Accommodation;
-  dailyCapacityMinutes: Record<DayOfWeek, number>;
   allDaysMinutes: number;
-  preferredPracticeTestDay: DayOfWeek | null;
 }
-
-export type WeekValues = Pick<WizardValues, "dailyCapacityMinutes" | "preferredPracticeTestDay">;
 
 export type OnboardingAttemptRow = AttemptRow & { leftScore: boolean; leftRow: boolean };
 
@@ -113,22 +109,6 @@ export type WizardAction =
   | { type: "saveRefused"; message: string };
 
 const DEFAULT_DAILY_MINUTES = 90;
-
-export const DAY_SHORT_LABEL: Record<DayOfWeek, string> = {
-  MONDAY: "Mon",
-  TUESDAY: "Tue",
-  WEDNESDAY: "Wed",
-  THURSDAY: "Thu",
-  FRIDAY: "Fri",
-  SATURDAY: "Sat",
-  SUNDAY: "Sun",
-};
-
-export const TEST_TIME_LABEL: Record<Accommodation, string> = {
-  1: "Standard",
-  1.5: "1.5× time",
-  2: "2× time",
-};
 
 export function initialWizardState(): WizardState {
   return {
@@ -207,27 +187,6 @@ function addAttemptRow(state: WizardState): WizardState {
   return rows ? { ...state, attempts: { ...attempts, rows, nextId: attempts.nextId + 1 } } : state;
 }
 
-function testTimeName(accommodation: Accommodation): string {
-  return accommodation === 1 ? "standard time" : TEST_TIME_LABEL[accommodation];
-}
-
-export function practiceTestMinutes(accommodation: Accommodation): number {
-  return Math.round(mockRules.ptDurationMinutes * mockRules.accommodationTimeMultiplier[accommodation]);
-}
-
-export function weeklyTotalMinutes(values: WeekValues): number {
-  return DAY_ORDER.reduce((sum, day) => sum + values.dailyCapacityMinutes[day], 0);
-}
-
-export function practiceTestFact(accommodation: Accommodation): string {
-  return `A full practice test takes ${shortDuration(practiceTestMinutes(accommodation))} with ${testTimeName(accommodation)}.`;
-}
-
-export function practiceTestDayIsShort(values: WeekValues, accommodation: Accommodation): boolean {
-  const day = values.preferredPracticeTestDay;
-  return day !== null && values.dailyCapacityMinutes[day] < practiceTestMinutes(accommodation);
-}
-
 const utcDay = (isoDate: string) => new Date(`${isoDate}T00:00:00.000Z`);
 
 export function previewHeader(values: WizardValues, firstName: string, today: string) {
@@ -243,24 +202,6 @@ export function previewHeader(values: WizardValues, firstName: string, today: st
     scores,
     target: `by ${date} · ${days} ${days === 1 ? "day" : "days"} away`,
     countdown: testCountdownLabel(countdown),
-  };
-}
-
-export function previewWeek(values: WeekValues) {
-  const longest = Math.max(...DAY_ORDER.map((day) => values.dailyCapacityMinutes[day]));
-  const day = values.preferredPracticeTestDay;
-  return {
-    summary: `${formatDuration(weeklyTotalMinutes(values))} of study · ${day ? `practice test on ${DAY_LABEL[day]}` : "practice-test day not chosen"}`,
-    days: DAY_ORDER.map((weekday) => {
-      const minutes = values.dailyCapacityMinutes[weekday];
-      return {
-        day: weekday,
-        label: DAY_SHORT_LABEL[weekday],
-        time: shortDuration(minutes),
-        practiceTest: weekday === day,
-        barShare: minutes / longest,
-      };
-    }),
   };
 }
 

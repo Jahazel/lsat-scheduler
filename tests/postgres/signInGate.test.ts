@@ -69,7 +69,7 @@ it("finishes a Deleting Account's deletion, also when it is Disabled", async () 
 
 it("finishes the deletion when the mark lands after the Account was read", async () => {
   const read = await account("race@example.test");
-  expect(await markGoogleAccountDeleting(accountIdSchema.parse(read.id))).toBe(true);
+  expect(await markGoogleAccountDeleting(read.id)).toBe(true);
   expect(await admitAccount(read, { route: ROUTE, realNow: NOW })).toBe("accountDeleted");
   expect(await stored(read.id)).toBeNull();
 });

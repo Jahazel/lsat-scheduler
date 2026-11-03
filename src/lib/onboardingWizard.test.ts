@@ -4,13 +4,9 @@ import {
   blockedReason,
   confirmSnapshotInput,
   initialWizardState,
-  practiceTestFact,
-  practiceTestDayIsShort,
-  practiceTestMinutes,
   profileWithAttempts,
   previewHeader,
   previewDrills,
-  previewWeek,
   scoreMessages,
   screenshot,
   toProfileInput,
@@ -24,6 +20,7 @@ import { generateWeek } from "./engine";
 import { accuracyMessage, addTypeOptions, boxText, emptyListNote } from "./reviewDraft";
 import { mockRules } from "./mockData";
 import { everyDay } from "./studentProfile";
+import { practiceTestDayIsShort, practiceTestFact, practiceTestMinutes, previewWeek } from "./studyWeek";
 import type { AnalyticsExtractedRow } from "./types";
 
 function draftOf(state: WizardState) {
