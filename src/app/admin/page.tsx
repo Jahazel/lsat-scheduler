@@ -34,7 +34,7 @@ export default async function AdminPage() {
                 <li key={student.id}>
                   <Link
                     href={`/admin/students/${student.id}`}
-                    className="group flex items-center gap-4 px-1 py-4 transition-colors duration-150 ease-out hover:bg-vellum-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-vellum"
+                    className="group flex items-center gap-4 px-1 py-4 transition-colors duration-(--duration-fast) ease-out hover:bg-vellum-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-vellum"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
