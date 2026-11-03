@@ -26,5 +26,6 @@ Capture the action, resulting UI, and persisted records. Retain evidence through
 - [Analytics and This week](weekly-schedule.md): the weekly upload (screenshots and practice-test sections), snapshot review and approval, saved schedule views, activity check-ins, and the daily analytics save limit.
 - [Progress](progress.md): empty state, finished-week summaries, past-week details, and legacy deep links.
 - [Admin](admin.md): all-student read-only views, workspace switching, Simulated date, Sample analytics snapshots, and resets.
+- [Landing page](landing-page.md): the signed-out `/` page at 1440, 768 and 390 px, its Start free week links, Pricing, and the signed-in redirect.
 
-Public `/legal/terms`, `/legal/privacy`, and `/legal/ai-disclosure` pages remain accessible while signed out. The landing page's sample study plan and signup links are part of the sign-up recipe. Billing is deferred in the README. The app has no notification signup: the unused lead form was removed on issue 303.
+Public `/legal/terms`, `/legal/privacy`, and `/legal/ai-disclosure` pages remain accessible while signed out. The landing page's signup links are part of the sign-up recipe; [landing page](landing-page.md) covers its sections and widths. Billing is deferred in the README. The app has no notification signup: the unused lead form was removed on issue 303.

@@ -45,8 +45,8 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   assert.equal(initial.accounts.length, 0, "Smoke requires an empty disposable database.");
   await goto("/");
   await capture("landing");
-  log("Choose Build my first plan");
-  await page.getByRole("link", { name: "Build my first plan", exact: true }).click();
+  log("Choose the hero Start free week");
+  await page.locator("main").getByRole("link", { name: "Start free week", exact: true }).first().click();
   await heading("Sign up for DrillMap");
   await goto("/");
   log("Choose the public Sign up navigation link");
@@ -224,7 +224,7 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   await deletion.getByLabel("Type DELETE to confirm", { exact: true }).fill("DELETE");
   log("Delete the disposable student's Account");
   await page.getByRole("button", { name: "Delete account", exact: true }).click();
-  await page.getByRole("link", { name: "Build my first plan", exact: true }).waitFor();
+  await page.locator("main").getByRole("link", { name: "Start free week", exact: true }).first().waitFor();
   const deleted = records("records-deleted");
   for (const collection of ["accounts", "students", "analytics_snapshots", "weekly_schedules", "activity_check_ins"]) assert.equal(deleted[collection].length, 0);
   log("Reload Account in the second browser after the deletion");
