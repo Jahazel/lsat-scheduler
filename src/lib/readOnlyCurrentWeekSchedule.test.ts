@@ -115,6 +115,20 @@ describe("loadReadOnlyCurrentWeek", () => {
     );
   });
 
+  it("reports this week's upload before a saved next-week preview on a weekend", async () => {
+    const result = await loadReadOnlyCurrentWeek({
+      studentId: "student-1",
+      timezone: "America/Chicago",
+      now: () => new Date("2026-09-19T15:00:00.000Z"),
+      ...repositories({
+        savedWeeks: ["2026-09-21"],
+        snapshots: [{ ...mockAnalytics, id: "snapshot-1", approvedAt: "2026-09-16T14:00:00.000Z" }],
+      }),
+    });
+
+    expect(result).toEqual({ kind: "schedule_not_created" });
+  });
+
   it.each([
     ["Saturday", "2026-09-19T15:00:00.000Z"],
     ["Sunday", "2026-09-20T15:00:00.000Z"],

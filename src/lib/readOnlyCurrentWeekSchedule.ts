@@ -40,14 +40,14 @@ export async function loadReadOnlyCurrentWeek(input: LoadReadOnlyCurrentWeekInpu
     };
   }
 
+  const snapshots = await input.snapshots.listEligibleForStudent(input.studentId);
+  if (approvedForWeek(snapshots, weekStartDate, input.timezone).length > 0) return { kind: "schedule_not_created" };
+
   const uploadWeekend = isUploadWeekend(input.now(), input.timezone);
   const nextWeekStartDate = isoDateInWeek(weekStartDate, 7);
   if (uploadWeekend && await input.weeklySchedules.findByStudentAndWeek(input.studentId, nextWeekStartDate)) {
     return { kind: "next_week_preview", weekStartDate: nextWeekStartDate };
   }
-
-  const snapshots = await input.snapshots.listEligibleForStudent(input.studentId);
-  if (approvedForWeek(snapshots, weekStartDate, input.timezone).length > 0) return { kind: "schedule_not_created" };
   if (uploadWeekend && approvedForWeek(snapshots, nextWeekStartDate, input.timezone).length > 0) {
     return { kind: "next_week_upload_confirmed", weekStartDate: nextWeekStartDate };
   }
