@@ -22,7 +22,7 @@ export default function LandingPage() {
             DrillMap reads your LSAT analytics and turns them into a practical week of drilling, review, and recovery.
           </p>
           <div className="mt-9 flex flex-wrap items-center gap-4">
-            <Link href="/signup" className="rounded-sm bg-ink px-6 py-3 text-body font-medium text-chalk transition-colors duration-150 ease-out hover:bg-graphite-raised">
+            <Link href="/signup" className="rounded-sm bg-ink px-6 py-3 text-body font-medium text-chalk transition-colors duration-(--duration-fast) ease-out hover:bg-graphite-raised">
               Build my first plan
             </Link>
             <span className="text-small text-smoke">Your first week is free.</span>

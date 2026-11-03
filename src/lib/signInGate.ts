@@ -1,10 +1,10 @@
 import { finishDeletionOnSignIn, type DeletingLoginRefusal } from "./accountDeletion";
-import { recordSignIn } from "./accountRepository";
+import { recordSignIn, type AccountId } from "./accountRepository";
 import type { SecurityLogRoute } from "./securityLog";
 
 export type SignInRefusal = "accountDisabled" | DeletingLoginRefusal;
 
-type GatedAccount = { id: string; disabledAt: Date | null; deletingSince: Date | null };
+type GatedAccount = { id: AccountId; disabledAt: Date | null; deletingSince: Date | null };
 
 export async function admitAccount(
   account: GatedAccount, { route, realNow }: { route: SecurityLogRoute; realNow: Date },

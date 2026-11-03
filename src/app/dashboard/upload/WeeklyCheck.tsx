@@ -16,6 +16,7 @@ import { mockRules } from "@/lib/mockData";
 import type { HiddenResult, PracticeTestResult } from "@/lib/practiceTestResult";
 import { confirmLock, reviewDraftReducer, startDraft } from "@/lib/reviewDraft";
 import { DAY_LABEL } from "@/lib/studentProfile";
+import { inScoreRange, parseScoreText } from "@/lib/studyProfileDraft";
 import type { LRStemType } from "@/lib/types";
 import type { Answer } from "@/lib/unexpectedFailure";
 import type { PracticeTestApprovalInput } from "@/lib/weeklyUpload";
@@ -24,7 +25,7 @@ import {
 } from "@/lib/weeklyUploadPreview";
 import type { confirmWeeklyUpload, WeeklyUploadConfirmResult } from "./actions";
 import type { WeeklyUploadRead } from "./WeeklyUpload";
-import { checkPreviewDrills, formatSectionScore, parseScore, planText } from "./weeklyUploadText";
+import { checkPreviewDrills, formatSectionScore, planText } from "./weeklyUploadText";
 
 const SCORE_ID = "current-score";
 const SCORE_MESSAGE = `Enter a score from ${MIN_SCORE} to ${MAX_SCORE}.`;
@@ -144,7 +145,8 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
   const part: PracticeTestPart = practiceTest ? "read" : basis.hadPracticeTest ? "skipped" : "none";
   const statements = statementsFor(source, typed, part, text.lastWeek);
 
-  const score = parseScore(scoreText);
+  const typedScore = parseScoreText(scoreText);
+  const score = inScoreRange(typedScore) ? typedScore : null;
   const lock = confirmLock(review);
   const reason = lock && lock.fix.at !== "statements" ? lock.reason
     : score === null ? "Enter a score from 120 to 180 to confirm."

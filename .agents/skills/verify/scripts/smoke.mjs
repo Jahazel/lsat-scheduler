@@ -179,7 +179,7 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   log("Set goal score 168, apply 30 minutes to all days, and save");
   await capture("settings-before-save");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
-  await page.locator('[role="status"] > :not([aria-hidden])').filter({ hasText: "Saved. Changes apply to your next weekly schedule." }).waitFor();
+  await page.getByRole("status").filter({ hasText: "Saved. Changes apply to your next weekly schedule." }).waitFor();
   assert.equal(new URL(page.url()).pathname, "/settings");
   await goto("/settings");
   await heading("Study settings");

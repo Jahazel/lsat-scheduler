@@ -1,6 +1,6 @@
 import { DAY_ORDER } from "@/lib/engine";
 import { shortDuration } from "@/lib/formatDuration";
-import { DAY_SHORT_LABEL, weeklyTotalMinutes, type WeekValues } from "@/lib/onboardingWizard";
+import { DAY_SHORT_LABEL, weeklyTotalMinutes, type WeekValues } from "@/lib/studyWeek";
 
 const SHORTEST_FULL_BAR_MINUTES = 60;
 const SHORT_BAR_SHARE = 0.25;

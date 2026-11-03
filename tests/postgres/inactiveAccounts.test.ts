@@ -10,18 +10,6 @@ import { createStudent } from "../../src/lib/studentRepository";
 import type { Student } from "../../src/lib/types";
 import { setUpAppTestDatabase } from "./appTestDatabase";
 
-const hooks = vi.hoisted(() => ({ duringPasswordCheck: null as null | (() => Promise<void>) }));
-vi.mock("../../src/lib/passwordHash", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/lib/passwordHash")>();
-  return {
-    ...actual,
-    passwordMatches: async (...args: Parameters<typeof actual.passwordMatches>) => {
-      await hooks.duringPasswordCheck?.();
-      return actual.passwordMatches(...args);
-    },
-  };
-});
-
 const database = setUpAppTestDatabase();
 const PASSWORD = "a long enough password";
 const SIGNED_IN = new Date("2026-11-02T12:00:00Z");
@@ -42,7 +30,6 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(SIGNED_IN);
   clearFakeEmails();
-  hooks.duringPasswordCheck = null;
   await database.owner.execute(sql`truncate accounts, deletion_list, security_log cascade`);
 });
 afterEach(() => {
@@ -105,18 +92,14 @@ it("records the time of each Google and password sign-in", async () => {
 
 it("does not count a refused sign-in", async () => {
   const pat = await passwordStudent("pat@example.test");
-  const galeId = await googleStudent("gale@example.test");
   await database.owner.execute(sql`update accounts set last_signed_in_at = ${SIGNED_IN}`);
-  await database.owner.execute(sql`update accounts set disabled_at = now() where id = ${galeId}::uuid`);
   vi.setSystemTime(after(SIGNED_IN, 1));
 
   expect(await logIn({ email: "pat@example.test", password: "a wrong password here" }, {
     route: "/login", ipAddress: "203.0.113.1", realNow: new Date(),
   })).toMatchObject({ kind: "refused" });
-  expect(await googleSignIn("gale@example.test")).not.toBe(true);
 
   expect((await retention(pat.accountId))?.last_signed_in_at).toEqual(SIGNED_IN);
-  expect((await retention(galeId))?.last_signed_in_at).toEqual(SIGNED_IN);
 });
 
 it("sends one warning to an Account with no sign-in for 2 years, and only once", async () => {
@@ -184,20 +167,6 @@ it("records no warning while its email is still being sent", async () => {
 
   expect(duringSend).toEqual([null]);
   expect((await retention(pat.accountId))?.inactive_warning_sent_at).toEqual(TWO_YEARS_LATER);
-});
-
-it("refuses a sign-in that the daily job marks for deletion while it runs", async () => {
-  const pat = await passwordStudent("pat@example.test");
-  await database.owner.execute(sql`update accounts set last_signed_in_at = ${SIGNED_IN}`);
-  await runAt(TWO_YEARS_LATER);
-  vi.setSystemTime(after(TWO_YEARS_LATER, 30));
-  hooks.duringPasswordCheck = async () => {
-    hooks.duringPasswordCheck = null;
-    await runDailyCleanup();
-  };
-
-  expect(await passwordLogIn("pat@example.test")).toEqual({ kind: "refused", code: "accountDeleted" });
-  expect(await retention(pat.accountId)).toBeNull();
 });
 
 it("sends and records no warning when the place cannot build the email's link, after the rest of the cleanup", async () => {

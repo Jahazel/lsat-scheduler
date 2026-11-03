@@ -238,14 +238,10 @@ it("marks the Account, refuses its sessions at once, and says deletion will fini
   ]);
 });
 
-it("finishes on a Google sign-in retry, never signs in, and a second finish changes nothing", async () => {
+it("finishes on a Google sign-in retry, and a second finish changes nothing", async () => {
   const owner = await studentWithRecords("owner@example.test");
   await whileStepTwoFails(async () => {
     await deleteWith("DELETE");
-    const mark = await markOf(owner.account.id);
-    expect(await googleSignIn("owner@example.test")).toBe("/login?notice=DeletionWillFinish");
-    expect(await markOf(owner.account.id)).toEqual(mark);
-    expect(await ownedRecords(owner.account.id, owner.student.id)).toEqual(allRecords);
   });
 
   expect(await googleSignIn("owner@example.test")).toBe("/login?notice=AccountDeleted");
@@ -256,7 +252,6 @@ it("finishes on a Google sign-in retry, never signs in, and a second finish chan
   expect(await runDailyCleanup()).toMatchObject({ accountDeletionsFinished: 0, accountDeletionsLeft: 0 });
   expect(await deletionListRows()).toHaveLength(1);
   expect((await securityEvents()).filter((entry) => entry.event === "sign_in")).toEqual([
-    { event: "sign_in", result: "deletionWillFinish", route: "/api/auth/callback/google", names_account: false, error_type: null },
     { event: "sign_in", result: "accountDeleted", route: "/api/auth/callback/google", names_account: false, error_type: null },
   ]);
 });

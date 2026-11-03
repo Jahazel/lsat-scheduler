@@ -50,7 +50,7 @@ import type { createStudentProfile } from "./actions";
 import LivePreview from "./LivePreview";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
-const SMALL_BUTTON = `h-10 self-start rounded-sm border border-vellum-line bg-paper px-[18px] text-small font-medium text-ink transition-colors duration-150 ease-out hover:bg-vellum ${FOCUS}`;
+const SMALL_BUTTON = `h-10 self-start rounded-sm border border-vellum-line bg-paper px-[18px] text-small font-medium text-ink transition-colors duration-(--duration-fast) ease-out hover:bg-vellum ${FOCUS}`;
 const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline ${FOCUS}`;
 const CHANGE_LATER = "You can change these any time in Study settings.";
 

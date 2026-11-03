@@ -28,6 +28,7 @@ import {
 } from "@/lib/screenshotUpload";
 import type { ScanningOff } from "@/lib/scanSpending";
 import { DAY_LABEL } from "@/lib/studentProfile";
+import { inScoreRange, parseScoreText } from "@/lib/studyProfileDraft";
 import { mostMissedType } from "@/lib/engine";
 import { mockRules } from "@/lib/mockData";
 import type { AnalyticsExtractedRow, AnalyticsSection, AnalyticsSnapshot, LRStemType, WeeklySchedule } from "@/lib/types";
@@ -35,7 +36,7 @@ import {
   plannedWeekAnalytics, previewPlannedWeek, MAX_SCORE, MIN_SCORE, type WeeklyUploadBasis,
 } from "@/lib/weeklyUploadPreview";
 import {
-  firstDrills, formatSectionScore, missLabel, missedCountSentence, missedTypesInOrder, parseScore, planText, problemMessage, sectionTitle,
+  firstDrills, formatSectionScore, missLabel, missedCountSentence, missedTypesInOrder, planText, problemMessage, sectionTitle,
   weekSummary, weekTiles,
 } from "./weeklyUploadText";
 
@@ -182,7 +183,8 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
     setReads((current) => moveFiles(current, (upload) => upload.id === id, "waiting"));
   }
 
-  const score = parseScore(scoreText);
+  const typedScore = parseScoreText(scoreText);
+  const score = inScoreRange(typedScore) ? typedScore : null;
   const tileRejection = sections.map((upload) => rejections[`file-${upload.id}`]).find(Boolean);
   const scoreError = score === null ? SCORE_ERROR : undefined;
 
