@@ -1,0 +1,712 @@
+<!doctype html>
+<!-- PROTOTYPE, throwaway. Landing hero H1 · Orbit (#551). Open index.html to switch widths. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DrillMap · Landing hero prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --color-graphite: #141414;
+  --color-vellum: #F6F6F6;
+  --color-paper: #FFFFFF;
+  --color-vellum-line: #E4E4E4;
+  --color-ink: #0A0A0A;
+  --color-chalk: #FAFAFA;
+  --color-fog: #8A8A8A;
+  --color-smoke: #5C5C5C;
+  --color-accent: #123A94;
+  --color-success-ink: #1D6B3A;
+  --color-spectrum-violet: #7C5CFF;
+  --color-spectrum-pink: #FF4FA3;
+  --color-spectrum-amber: #FFB23F;
+  --radius-sm: 6px;
+
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --duration-reveal: 600ms;
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  /* Idle float only: easeInOutSine (easings.net). A sine curve keeps the bob even; the strong ease-in-out would snap at each end. */
+  --ease-float: cubic-bezier(0.37, 0, 0.63, 1);
+  --ease-hover: ease;
+}
+* { box-sizing: border-box; margin: 0; }
+html { scroll-behavior: smooth; }
+html.reduce { scroll-behavior: auto; }
+body { background: var(--color-vellum); color: var(--color-ink); font-family: Geist, system-ui, sans-serif; font-size: 16px; line-height: 24px; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; background: var(--color-ink); color: var(--color-chalk); border-radius: var(--radius-sm); font-weight: 500; white-space: nowrap; transition: background-color var(--duration-fast) var(--ease-hover), transform var(--duration-fast) var(--ease-out-strong); }
+.btn:active { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) { .btn:hover { background: #262626; } .nav a:not(.btn):hover { color: var(--color-ink); } }
+.nav a:not(.btn) { transition: color var(--duration-fast) var(--ease-hover); }
+
+/* Top bar */
+.top { position: sticky; top: 0; z-index: 20; height: 64px; background: color-mix(in oklab, var(--color-vellum) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--color-vellum-line); display: flex; justify-content: center; }
+.top-in { width: min(1120px, 100% - 64px); display: flex; align-items: center; justify-content: space-between; }
+.nav { display: flex; align-items: center; gap: 40px; }
+.logo { font-size: 20px; line-height: 24px; font-weight: 600; letter-spacing: -0.02em; }
+.links { display: flex; gap: 28px; font-size: 14px; line-height: 20px; color: var(--color-smoke); }
+.right { display: flex; align-items: center; gap: 20px; font-size: 14px; font-weight: 500; }
+.right .btn { height: 36px; padding-inline: 16px; }
+
+/* Hero */
+.hero { position: relative; overflow: clip; display: flex; flex-direction: column; align-items: center; padding-bottom: 48px; }
+.grid { position: absolute; inset: 0; background-image: radial-gradient(circle at 12px 12px, #0A0A0A1A 1px, transparent 1.5px); background-size: 24px 24px; pointer-events: none; }
+.glow { position: absolute; left: 50%; top: 436px; width: 1200px; height: 700px; translate: -50% 0; background: radial-gradient(ellipse 50% 50% at 50% 50% in oklab, #7C5CFFB3 0%, #FF4FA373 40%, #FFB23F40 62%, #F6F6F600 100%); pointer-events: none; }
+.copy { position: relative; z-index: 2; width: 800px; padding-top: 166px; display: flex; flex-direction: column; align-items: center; gap: 24px; text-align: center; }
+h1 { font-size: 76px; line-height: 78px; font-weight: 600; letter-spacing: -0.04em; text-wrap: balance; }
+.sub { width: 600px; font-size: 20px; line-height: 30px; color: var(--color-smoke); }
+.action { position: relative; z-index: 2; padding-top: 36px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.action .btn { height: 52px; padding-inline: 28px; font-size: 16px; }
+.note { font-size: 14px; line-height: 18px; color: var(--color-smoke); }
+.screen { position: relative; z-index: 2; margin-top: 118px; width: 1120px; border-radius: 16px; overflow: clip; background: var(--color-paper); border: 1px solid var(--color-vellum-line); box-shadow: 0 24px 60px #3C1E782E; }
+.screen img { display: block; width: 100%; }
+
+/* Cards. Three layers so each transform lives on its own element:
+   .card = position + tilt; .drift = one-time entrance; .float = idle bob. */
+.cards { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.card { position: absolute; transform-origin: 0 0; }
+.face { width: 236px; background: var(--color-paper); border: 1px solid var(--color-vellum-line); border-radius: 14px; box-shadow: 0 12px 32px #0A0A0A14; padding: 16px; display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
+.face.dark { background: var(--color-ink); border-color: var(--color-ink); color: var(--color-chalk); width: 188px; padding: 18px; gap: 4px; }
+.lab { display: flex; align-items: center; gap: 8px; font-family: "Geist Mono", ui-monospace, monospace; font-size: 12px; line-height: 16px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-smoke); }
+.lab i { width: 10px; height: 10px; border-radius: 999px; flex-shrink: 0; }
+.t { font-size: 18px; line-height: 24px; font-weight: 600; }
+.s { font-size: 14px; line-height: 18px; color: var(--color-smoke); }
+.big { font-size: 36px; line-height: 40px; font-weight: 600; letter-spacing: -0.03em; }
+.big span { color: var(--color-fog); font-weight: 400; }
+.dark .big { font-size: 44px; line-height: 46px; }
+.dark .s { color: #FAFAFAB8; }
+.done { flex-direction: row; align-items: center; gap: 12px; width: 228px; padding: 14px 16px; }
+.check { width: 24px; height: 24px; border-radius: 6px; background: var(--color-ink); display: grid; place-items: center; flex-shrink: 0; }
+.bar { display: flex; align-items: center; gap: 8px; }
+.bar b { width: 96px; height: 6px; border-radius: 999px; background: var(--color-vellum); overflow: hidden; }
+.bar b::before { content: ""; display: block; width: 60%; height: 100%; border-radius: inherit; background: var(--color-spectrum-amber); }
+.mono { white-space: nowrap; font-family: "Geist Mono", ui-monospace, monospace; font-size: 12px; line-height: 16px; color: var(--color-smoke); }
+
+/* Desktop positions, from the 1440 board (hero top = board y 64). */
+.c1 { left: calc(50% - 656px); top: 132px; rotate: -6deg; }
+.c2 { left: calc(50% - 672px); top: 348px; rotate: 4deg; }
+.c2 .face { width: 212px; padding: 18px; gap: 6px; }
+.c3 { left: calc(50% - 624px); top: 546px; rotate: -3deg; }
+.c4 { left: calc(50% + 420px); top: 120px; rotate: 5deg; }
+.c4 .face { width: 252px; }
+.c5 { left: calc(50% + 484px); top: 340px; rotate: -5deg; }
+.c6 { left: calc(50% + 400px); top: 536px; rotate: 3deg; }
+
+/* Entrance: rare (once per visit), purpose = explanation; the week's pieces gather around the promise.
+   CSS animation so it stays smooth while the page is still loading. transform + opacity only.
+   600 ms (--duration-reveal, the marketing reveal token), strong ease-out, 60 ms stagger. */
+@keyframes drift-l { from { opacity: 0; transform: translate(-40px, 16px) scale(0.96); } }
+@keyframes drift-r { from { opacity: 0; transform: translate(40px, 16px) scale(0.96); } }
+@keyframes float { 50% { transform: translateY(-4px); } }
+html:not(.reduce) .drift { animation: var(--drift) var(--duration-reveal) var(--ease-out-strong) both; animation-delay: var(--d); }
+html:not(.reduce) .float { animation: float 6s var(--ease-float) infinite; animation-delay: calc(var(--d) + var(--duration-reveal) + var(--phase)); }
+.c1, .c2, .c3 { --drift: drift-l; }
+.c4, .c5, .c6 { --drift: drift-r; }
+.c1 .drift, .c1 .float { --d: 120ms; --phase: 0s; }
+.c4 .drift, .c4 .float { --d: 180ms; --phase: -1.4s; }
+.c2 .drift, .c2 .float { --d: 240ms; --phase: -2.8s; }
+.c5 .drift, .c5 .float { --d: 300ms; --phase: -0.7s; }
+.c3 .drift, .c3 .float { --d: 360ms; --phase: -3.6s; }
+.c6 .drift, .c6 .float { --d: 420ms; --phase: -2.1s; }
+html.paused .float { animation-play-state: paused; }
+
+/* Scroll: occasional, purpose = spatial depth as the screen rises past the cards.
+   CSS scroll-driven animation (off the main thread), linear because the scroll is the clock.
+   Each card rises at its own rate and turns a little, so the layer reads as depth, not a block. */
+@supports (animation-timeline: scroll()) {
+  @keyframes par { to { translate: 0 var(--py); rotate: var(--pr); } }
+  @media (min-width: 768px) {
+    html:not(.reduce) .par { animation: par linear both; animation-timeline: scroll(root); animation-range: 0 800px; }
+  }
+}
+.c1 .par { --py: -60px; --pr: -2deg; }
+.c2 .par { --py: -110px; --pr: 2deg; }
+.c3 .par { --py: -150px; --pr: -3deg; }
+.c4 .par { --py: -80px; --pr: 2deg; }
+.c5 .par { --py: -130px; --pr: -2deg; }
+.c6 .par { --py: -160px; --pr: 3deg; }
+
+/* Cursor nearness: decorative mouse tracking on a marketing page, pointer devices only.
+   Driven by a small spring in JS (it must follow the cursor and be interruptible).
+   The card leans toward the cursor, lifts, straightens part of its tilt, and its shadow deepens.
+   The deeper shadow is a pseudo-element whose opacity changes, so no box-shadow repaint. */
+.face { position: relative; will-change: transform; }
+.face::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 24px 48px #3C1E7833; opacity: var(--near, 0); pointer-events: none; }
+
+
+.dots { display: none; }
+
+/* Tablet, from the 768 board: four cards, two above the headline, two on the screen edges. */
+@media (max-width: 1023px) {
+  .top-in { width: calc(100% - 64px); }
+  .links { display: none; }
+  .copy { width: 680px; padding-top: 184px; gap: 20px; }
+  h1 { font-size: 58px; line-height: 60px; }
+  .sub { width: 520px; font-size: 18px; line-height: 28px; }
+  .action { padding-top: 28px; }
+  .glow { top: 584px; width: 968px; height: 520px; }
+  .screen { width: calc(100% - 80px); margin-top: 110px; border-radius: 14px; }
+  .c3, .c5 { display: none; }
+  .c1 { left: 28px; top: 28px; } .c1 .face { width: 216px; }
+  .c4 { left: auto; right: 28px; top: 20px; } .c4 .face { width: 220px; }
+  .c2 { left: 14px; top: 548px; } .c2 .face { width: 214px; }
+  .c6 { left: auto; right: 16px; top: 594px; } .c6 .face { width: 232px; }
+}
+
+/* Phone, from the 390 board: three cards in one sideways-swipe row. Native scroll snap, no custom motion. */
+@media (max-width: 767px) {
+  .top { height: 56px; }
+  .top-in { width: calc(100% - 32px); }
+  .logo { font-size: 18px; }
+  .right { gap: 16px; } .right .btn { padding-inline: 14px; }
+  .copy { width: calc(100% - 32px); padding-top: 86px; gap: 16px; }
+  h1 { font-size: 42px; line-height: 44px; }
+  .sub { width: auto; font-size: 16px; line-height: 24px; }
+  .action { width: calc(100% - 32px); padding-top: 24px; gap: 12px; }
+  .action .btn { width: 100%; }
+  .glow { top: 600px; width: 790px; height: 440px; }
+  .cards { position: relative; inset: auto; z-index: 3; width: 100%; display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 36px 16px 20px; scroll-padding-inline: 16px; scrollbar-width: none; pointer-events: auto; }
+  .cards::-webkit-scrollbar { display: none; }
+  .card { position: relative; left: auto !important; right: auto !important; top: auto !important; flex-shrink: 0; scroll-snap-align: start; transform-origin: 50% 50%; }
+  .c3, .c4, .c5 { display: none; }
+  .c1 { rotate: -3deg; } .c2 { rotate: 2deg; } .c6 { rotate: -2deg; }
+  .c1 .face, .c6 .face { width: 200px; } .c2 .face { width: 210px; }
+  .c2 .big { font-size: 30px; line-height: 34px; }
+  .c1, .c2, .c6 { --drift: drift-r; }
+  .c1 .drift, .c1 .float { --d: 120ms; } .c2 .drift, .c2 .float { --d: 180ms; } .c6 .drift, .c6 .float { --d: 240ms; }
+  .dots { display: flex; gap: 6px; position: relative; z-index: 3; }
+  .dots i { height: 6px; width: 6px; border-radius: 999px; background: #0A0A0A33; transition: width var(--duration-base) var(--ease-in-out-strong), background-color var(--duration-base) var(--ease-in-out-strong); }
+  .dots i.on { width: 18px; background: var(--color-ink); }
+  .screen { width: calc(100% - 32px); margin-top: 28px; border-radius: 12px; }
+}
+
+/* Reduced motion: no drift, no float, no dot slide. Cards sit in place. */
+html.reduce .drift, html.reduce .float, html.reduce .par { animation: none; }
+html.reduce .btn { transition: background-color var(--duration-fast) var(--ease-hover); }
+html.reduce .btn:active { transform: none; }
+html.reduce .dots i { transition: none; }
+
+/* Stand-ins for the rest of the page and other routes */
+.rest { position: relative; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 0 16px 96px; border-top: 1px solid var(--color-vellum-line); scroll-margin-top: 64px; }
+.rest .sec-head { margin-bottom: 64px; width: min(1120px, calc(100% - 16px)); }
+.rest h2 { font-size: 32px; line-height: 40px; letter-spacing: -0.02em; }
+.rest p { color: var(--color-smoke); text-align: center; max-width: 520px; }
+.route { position: fixed; inset: 0; z-index: 50; background: var(--color-vellum); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; padding: 16px; }
+.route.on { display: flex; }
+.route code { font-family: "Geist Mono", monospace; background: var(--color-paper); border: 1px solid var(--color-vellum-line); padding: 2px 8px; border-radius: 6px; }
+.route .btn { height: 44px; padding-inline: 20px; }
+.state { position: fixed; right: 12px; bottom: 12px; z-index: 60; font: 12px/16px "Geist Mono", monospace; background: var(--color-graphite); color: var(--color-chalk); padding: 8px 10px; border-radius: 8px; opacity: 0.9; }
+
+/* How it works: pinned scroll story (tablet and desktop). Phone stacks the steps. */
+.how { position: relative; scroll-margin-top: 64px; border-top: 1px solid var(--color-vellum-line); }
+/* The pin is only as tall as its content and sticks under the top bar; the run below it is the scroll distance for the four steps. */
+.how-run { height: calc(4 * 62vh); }
+.how-pin { position: sticky; top: max(64px, calc(32px + 50vh - var(--pin-h, 0px) / 2)); max-width: 1120px; margin: 0 auto; padding: 0 24px; display: grid; grid-template-columns: 400px 1fr; gap: 72px; align-items: start; padding-block: 48px; }
+/* Two groups: the section intro above a dashed rule, then the step (count, title, text) as one tight unit, then the bar. */
+.how-copy { display: flex; flex-direction: column; gap: 0; }
+.how-head { display: flex; flex-direction: column; }
+.how-sub { font-size: 15px; line-height: 22px; color: var(--color-smoke); padding-bottom: 24px; margin-bottom: 32px; border-bottom: 1px dashed color-mix(in oklab, var(--color-ink) 14%, transparent); }
+.how-head h2 { font-size: 15px; line-height: 20px; font-weight: 500; color: var(--color-ink); }
+.how-head .count { font: 12px/16px "Geist Mono", ui-monospace, monospace; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-fog); font-variant-numeric: tabular-nums; margin-bottom: 12px; }
+
+.slot { position: relative; height: 136px; }
+.st { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 12px; opacity: 0; visibility: hidden; transform: translateY(14px);
+  transition: opacity var(--duration-fast) var(--ease-out-strong), transform var(--duration-slow) var(--ease-out-strong), visibility 0s linear var(--duration-slow); }
+.st.before { transform: translateY(-14px); }
+.st.on { opacity: 1; visibility: visible; transform: none; transition-duration: var(--duration-base), var(--duration-slow), 0s; transition-delay: 80ms, 80ms, 0s; }
+
+.st h3 { font-size: 30px; line-height: 38px; font-weight: 500; letter-spacing: -0.02em; color: var(--color-ink); }
+.key { position: relative; white-space: nowrap; }
+/* Key phrase: an underline in the step's panel color that draws in from the left after the title arrives. */
+.key::after { content: ""; position: absolute; left: 0; right: 0; bottom: 1px; height: 3px; border-radius: 2px; background: var(--ring); transform: scaleX(0); transform-origin: left; transition: transform 0s linear var(--duration-slow); pointer-events: none; }
+.st.on .key::after { transform: scaleX(1); transition: transform var(--duration-reveal) var(--ease-out-strong) 240ms; }
+html.reduce .st .key::after { transform: scaleX(1); transition: none; }
+.st p { font-size: 17px; line-height: 27px; font-weight: 400; color: #6B6B6B; max-width: 380px; }
+.segs { display: flex; gap: 8px; margin-top: 12px; }
+.seg { flex: 1; height: 28px; padding: 0; border: 0; background: none; cursor: pointer; display: flex; align-items: center; }
+.seg b { display: block; width: 100%; height: 2px; border-radius: 999px; background: var(--color-vellum-line); overflow: hidden; }
+.seg b::before { content: ""; display: block; height: 100%; background: var(--color-ink); transform-origin: left; transform: scaleX(var(--fill, 0)); }
+/* The screen shrinks to fit short windows, so the pinned block never overflows under the top bar. */
+.stage { position: relative; aspect-ratio: 624 / 400; width: min(100%, 624px, (100vh - 64px - 192px) * 1.56); justify-self: end; }
+.mat { position: absolute; inset: -40px; border-radius: 28px; opacity: 0; transition: opacity var(--duration-reveal) var(--ease-out-strong); }
+.mat.on { opacity: 1; }
+.shot { position: absolute; inset: 0; border-radius: 12px; overflow: clip; background: var(--color-paper); box-shadow: 0 24px 60px #3C1E782E; opacity: 0; transform: translateY(28px) scale(0.98);
+  transition: opacity var(--duration-slow) var(--ease-out-strong), transform var(--duration-reveal) var(--ease-out-strong); }
+.shot.before { transform: translateY(-28px) scale(0.98); }
+.shot.on { opacity: 1; transform: none; }
+.shot img { width: 100%; height: 100%; object-fit: cover; object-position: left top; display: block; }
+.m1 { background: radial-gradient(ellipse 80% 90% at 30% 100% in oklab, color-mix(in oklab, var(--color-spectrum-violet) 70%, transparent), color-mix(in oklab, var(--color-spectrum-violet) 28%, transparent) 60%, color-mix(in oklab, var(--color-spectrum-violet) 14%, transparent)); }
+.m2 { background: radial-gradient(ellipse 80% 90% at 70% 100% in oklab, color-mix(in oklab, var(--color-spectrum-pink) 62%, transparent), color-mix(in oklab, var(--color-spectrum-pink) 24%, transparent) 60%, color-mix(in oklab, var(--color-spectrum-pink) 12%, transparent)); }
+.m3 { background: radial-gradient(ellipse 80% 90% at 30% 100% in oklab, color-mix(in oklab, var(--color-spectrum-amber) 80%, transparent), color-mix(in oklab, var(--color-spectrum-amber) 34%, transparent) 60%, color-mix(in oklab, var(--color-spectrum-amber) 16%, transparent)); }
+.m4 { background: radial-gradient(circle farthest-corner at 50% 85% in oklab, color-mix(in oklab, var(--color-spectrum-amber) 85%, transparent), color-mix(in oklab, var(--color-spectrum-pink) 70%, transparent) 30%, color-mix(in oklab, var(--color-spectrum-violet) 45%, transparent) 60%, color-mix(in oklab, var(--color-spectrum-violet) 16%, transparent)); }
+/* Section grid (owner reference: Profound): faint dashed column guides behind every section below the hero,
+   a full-width rule and a "[02] Name" label open each section, and a darker dashed line runs down the middle of the gap between sections. */
+main { position: relative; }
+.guides { --dash: color-mix(in oklab, var(--color-ink) 11%, transparent); --g: repeating-linear-gradient(to bottom, var(--dash) 0 4px, transparent 4px 8px);
+  position: absolute; left: 50%; translate: -50% 0; width: min(1120px, calc(100% - 48px)); top: 0; bottom: 0; pointer-events: none;
+  background-image: var(--g), var(--g), var(--g), var(--g), var(--g); background-size: 1px 100%; background-repeat: no-repeat; background-position: 0 0, 25% 0, 50% 0, 75% 0, 100% 0; }
+.band { position: relative; height: 128px; }
+.band::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: repeating-linear-gradient(to bottom, color-mix(in oklab, var(--color-ink) 40%, transparent) 0 6px, transparent 6px 12px); }
+.sec-head { width: min(1120px, calc(100% - 48px)); margin: 0 auto; padding: 14px 24px; border-bottom: 1px dashed color-mix(in oklab, var(--color-ink) 14%, transparent); font: 13px/20px "Geist Mono", ui-monospace, monospace; color: var(--color-ink); text-align: left; align-self: center; }
+.sec-head span { color: var(--color-fog); margin-right: 6px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.how-stack { display: none; }
+
+/* Pricing (iteration 1). Laid on the four guide columns: heading on columns 1–2, subtitle on 3–4,
+   each plan two columns wide so its edges sit on the guides. Monthly sits on the spectrum panel, like the last How it works step. */
+.price { position: relative; border-top: 1px solid var(--color-vellum-line); scroll-margin-top: 64px; padding-bottom: 128px; }
+.price-in { width: min(1120px, calc(100% - 48px)); margin: 0 auto; }
+.price-top { display: grid; grid-template-columns: 1fr 1fr; align-items: end; padding: 72px 24px 56px; }
+.price h2 { font-size: 48px; line-height: 54px; font-weight: 600; letter-spacing: -0.03em; max-width: 480px; text-wrap: balance; }
+.price h2 .key::after { height: 4px; bottom: 2px; }
+.price-side { padding-left: 24px; display: flex; flex-direction: column; gap: 20px; }
+.price-side p { font-size: 17px; line-height: 27px; color: #6B6B6B; max-width: 400px; }
+.plans { display: grid; grid-template-columns: 1fr 1fr; border-block: 1px dashed color-mix(in oklab, var(--color-ink) 14%, transparent); }
+.plan { position: relative; isolation: isolate; padding: 24px; display: flex; }
+.plan .mat { inset: 0; border-radius: 0; z-index: -1; opacity: 1; transition: none; }
+.plan-card { flex: 1; background: var(--color-paper); border: 1px solid var(--color-vellum-line); border-radius: 14px; padding: 32px; display: flex; flex-direction: column; gap: 12px; }
+.plan-card .why { margin-bottom: 28px; }
+/* Hover: seen often, so near-imperceptible. Feedback that the card is one unit with its button.
+   Pointer devices only; 200 ms ease (color-style change); the deeper shadow is a pseudo-element's opacity, so no box-shadow repaint. */
+.plan-card { position: relative; transition: transform var(--duration-base) var(--ease-hover), border-color var(--duration-base) var(--ease-hover); }
+.plan-card::after { content: ""; position: absolute; inset: -1px; border-radius: inherit; box-shadow: 0 16px 40px #3C1E7824; opacity: 0; transition: opacity var(--duration-base) var(--ease-hover); pointer-events: none; }
+@media (hover: hover) and (pointer: fine) {
+  .plan-card:hover { transform: translateY(-2px); border-color: #D4D4D4; }
+  .best .plan-card:hover { border-color: transparent; }
+  .plan-card:hover::after { opacity: 1; }
+}
+html.reduce .plan-card:hover { transform: none; }
+.best .plan-card { border-color: transparent; box-shadow: 0 24px 60px #3C1E782E; }
+.plan-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 26px; }
+.plan h3 { font: 12px/16px "Geist Mono", ui-monospace, monospace; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-smoke); font-weight: 400; }
+.badge { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 999px; font-size: 13px; line-height: 18px; font-weight: 500; color: var(--color-chalk); background: var(--color-ink); }
+.amt { display: flex; align-items: baseline; gap: 8px; padding-top: 8px; }
+.amt b { font-size: 56px; line-height: 60px; font-weight: 600; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.amt span { font-size: 17px; color: var(--color-smoke); }
+.why { font-size: 15px; line-height: 24px; color: #6B6B6B; max-width: 340px; min-height: 48px; }
+.plan-foot { margin-top: auto; padding-top: 24px; border-top: 1px dashed color-mix(in oklab, var(--color-ink) 14%, transparent); display: flex; flex-direction: column; gap: 14px; }
+.plan-foot p { font-size: 14px; line-height: 20px; color: var(--color-ink); }
+.plan-foot .btn { height: 48px; font-size: 16px; }
+.fine { padding: 20px 24px 0; font-size: 14px; line-height: 20px; color: var(--color-smoke); }
+
+/* Reveal on first scroll-in: rare (once per visit), purpose = preventing a jarring change as the section arrives.
+   Class-toggled CSS transition, transform + opacity only, 600 ms reveal token, strong ease-out, 80 ms stagger. */
+html:not(.reduce) .price .rv { opacity: 0; transform: translateY(16px); transition: opacity var(--duration-reveal) var(--ease-out-strong), transform var(--duration-reveal) var(--ease-out-strong); transition-delay: var(--rd, 0ms); }
+html:not(.reduce) .price.in .rv { opacity: 1; transform: none; }
+.price .price-side { --rd: 80ms; } .price .plan:nth-child(1) { --rd: 160ms; } .price .plan:nth-child(2) { --rd: 240ms; } .price .fine { --rd: 320ms; }
+.price .key::after { transform: scaleX(0); }
+.price.in .key::after { transform: scaleX(1); transition: transform var(--duration-reveal) var(--ease-out-strong) 360ms; }
+html.reduce .price .rv { transition: opacity var(--duration-fast) ease; }
+html.reduce .price:not(.in) .rv { opacity: 0; }
+html.reduce .price .key::after { transform: scaleX(1); transition: none; }
+@media (max-width: 1023px) {
+  .price-in { width: min(720px, calc(100% - 48px)); }
+  .price-top { grid-template-columns: 1fr; gap: 20px; padding: 56px 0 40px; }
+  .price h2 { font-size: 40px; line-height: 46px; }
+  .price-side { padding-left: 0; }
+  .plan { padding: 16px; }
+  .plan-card { padding: 24px; }
+  .amt b { font-size: 48px; line-height: 52px; }
+  .badge { font-size: 12px; padding: 0 8px; }
+  .fine { padding-inline: 0; }
+}
+@media (max-width: 767px) {
+  .price { padding-bottom: 56px; }
+  .price-in { width: calc(100% - 32px); }
+  .price-top { padding: 32px 0 28px; }
+  .price h2 { font-size: 32px; line-height: 38px; }
+  .plans { grid-template-columns: 1fr; border-block: 0; gap: 12px; }
+  .plan { padding: 0; }
+  .plan .mat { border-radius: 18px; }
+  .best { padding: 12px; }
+  .plan-head { flex-wrap: wrap; }
+}
+/* Questions (iteration 1). Owner references: Legend (numbered rows, square +/- button, dashed rules) and Aave (title with a short line beside the list).
+   Title on guide column 1, the list on columns 2–4 so each row starts on a guide. First question open, like the live page. */
+.faq { position: relative; border-top: 1px solid var(--color-vellum-line); scroll-margin-top: 64px; padding-bottom: 128px; }
+.faq-in { width: min(1120px, calc(100% - 48px)); margin: 0 auto; display: grid; grid-template-columns: 1fr 3fr; align-items: start; padding-top: 72px; }
+.faq-top { padding: 0 24px; position: sticky; top: 112px; }
+.faq h2 { font-size: 48px; line-height: 54px; font-weight: 600; letter-spacing: -0.03em; }
+.faq-list { list-style: none; padding: 0; border-top: 1px dashed color-mix(in oklab, var(--color-ink) 14%, transparent); }
+.faq-list li { border-bottom: 1px dashed color-mix(in oklab, var(--color-ink) 14%, transparent); }
+.faq-list h3 { font: inherit; }
+.q { width: 100%; display: grid; grid-template-columns: 48px 1fr 32px; align-items: center; gap: 16px; padding: 24px 24px; border: 0; background: none; text-align: left; cursor: pointer; color: var(--color-ink); font-family: inherit; font-size: 20px; line-height: 28px; font-weight: 500; letter-spacing: -0.01em; }
+.q:focus-visible { outline: 2px solid var(--color-ink); outline-offset: -2px; border-radius: 8px; }
+.q .n { font: 12px/16px "Geist Mono", ui-monospace, monospace; letter-spacing: 0.06em; color: var(--color-fog); font-variant-numeric: tabular-nums; }
+.q .ic { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--color-vellum-line); background: var(--color-paper); display: grid; place-items: center; color: var(--color-ink); transition: background-color var(--duration-base) var(--ease-hover), border-color var(--duration-base) var(--ease-hover), color var(--duration-base) var(--ease-hover); }
+.q .ic .bar { transform-origin: 8px 8px; transition: transform var(--duration-base) var(--ease-out-strong); }
+.q[aria-expanded="true"] .ic { background: var(--color-ink); border-color: var(--color-ink); color: var(--color-chalk); }
+.q[aria-expanded="true"] .ic .bar { transform: scaleY(0); }
+/* Answer: the accordion is the one sanctioned height animation (grid rows 0fr → 1fr), 200 ms strong ease-out, same as the live QuestionList. */
+.a { display: grid; grid-template-rows: 0fr; opacity: 0; visibility: hidden; transition: grid-template-rows var(--duration-base) var(--ease-out-strong), opacity var(--duration-base) var(--ease-out-strong), visibility 0s linear var(--duration-base); }
+.a.open { grid-template-rows: 1fr; opacity: 1; visibility: visible; transition-delay: 0s; }
+.a > div { overflow: hidden; }
+.a p { padding: 0 72px 28px 88px; font-size: 17px; line-height: 27px; color: #6B6B6B; max-width: 720px; }
+@media (hover: hover) and (pointer: fine) {
+  .q:hover .t { color: var(--color-smoke); }
+  .q:hover .ic { border-color: #D4D4D4; }
+  .q[aria-expanded="true"]:hover .ic { background: #262626; border-color: #262626; }
+}
+.q .t { transition: color var(--duration-base) var(--ease-hover); }
+html.reduce .a { transition: opacity var(--duration-fast) ease, visibility 0s linear var(--duration-fast); }
+html.reduce .a.open { transition-delay: 0s; }
+html.reduce .q .ic .bar { transition: none; }
+html:not(.reduce) .faq .rv { opacity: 0; transform: translateY(16px); transition: opacity var(--duration-reveal) var(--ease-out-strong), transform var(--duration-reveal) var(--ease-out-strong); transition-delay: var(--rd, 0ms); }
+html:not(.reduce) .faq.in .rv { opacity: 1; transform: none; }
+.faq-list li:nth-child(1) { --rd: 80ms; } .faq-list li:nth-child(2) { --rd: 140ms; } .faq-list li:nth-child(3) { --rd: 200ms; } .faq-list li:nth-child(4) { --rd: 260ms; } .faq-list li:nth-child(5) { --rd: 320ms; }
+html.reduce .faq .rv { transition: opacity var(--duration-fast) ease; }
+html.reduce .faq:not(.in) .rv { opacity: 0; }
+@media (max-width: 1023px) {
+  .faq-in { width: min(720px, calc(100% - 48px)); grid-template-columns: 1fr; gap: 32px; padding-top: 56px; }
+  .faq-top { position: static; padding: 0; }
+  .faq h2 { font-size: 40px; line-height: 46px; }
+  .q { padding: 22px 0; grid-template-columns: 40px 1fr 32px; font-size: 18px; line-height: 26px; }
+  .a p { padding: 0 48px 24px 56px; }
+}
+@media (max-width: 767px) {
+  .faq { padding-bottom: 56px; }
+  .faq-in { width: calc(100% - 32px); padding-top: 32px; gap: 20px; }
+  .faq h2 { font-size: 32px; line-height: 38px; }
+  .q { grid-template-columns: 32px 1fr 32px; gap: 12px; padding: 20px 0; font-size: 17px; line-height: 24px; }
+  .a p { padding: 0 0 20px 44px; font-size: 16px; line-height: 25px; }
+}
+/* Closing band (option D, owner reference: Stripe "Ready to get started?"). The ask on guide columns 1–2, left aligned;
+   two signposts on columns 3 and 4 send a still-unsure reader back to Pricing or How it works. */
+.close { position: relative; border-top: 1px solid var(--color-vellum-line); }
+.split { width: min(1120px, calc(100% - 48px)); margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr; align-items: start; padding: 128px 0 144px; }
+.ask { padding: 0 24px; display: flex; flex-direction: column; align-items: flex-start; gap: 20px; }
+.ask h2 { font-size: 44px; line-height: 50px; font-weight: 600; letter-spacing: -0.03em; max-width: 480px; text-wrap: balance; }
+.ask > p { font-size: 17px; line-height: 27px; color: #6B6B6B; }
+.ask .btns { display: flex; gap: 10px; padding-top: 12px; }
+.ask .btn { height: 48px; padding-inline: 22px; font-size: 16px; gap: 6px; }
+.ghost { display: inline-flex; align-items: center; justify-content: center; height: 48px; padding-inline: 22px; border-radius: var(--radius-sm); border: 1px solid var(--color-vellum-line); background: var(--color-paper); font-size: 16px; font-weight: 500; transition: border-color var(--duration-fast) var(--ease-hover); }
+.sign { padding: 0 24px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.sign .ico { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--color-vellum-line); background: var(--color-paper); display: grid; place-items: center; margin-bottom: 16px; }
+.sign h3 { font-size: 16px; line-height: 22px; font-weight: 600; }
+.sign p { font-size: 15px; line-height: 23px; color: #6B6B6B; }
+.sign a { margin-top: 8px; font-size: 15px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; transition: color var(--duration-fast) var(--ease-hover); }
+.sign a svg, .ask .btn svg { transition: transform var(--duration-fast) var(--ease-hover); }
+/* Hover: pointer only, near-imperceptible. The arrow nudges 2 px toward where the link goes; the ghost button's border darkens. */
+@media (hover: hover) and (pointer: fine) {
+  .ghost:hover { border-color: #C8C8C8; }
+  .sign a:hover { color: var(--color-smoke); }
+  .sign a:hover svg, .ask .btn:hover svg { transform: translateX(2px); }
+}
+html.reduce .sign a:hover svg, html.reduce .ask .btn:hover svg { transform: none; }
+.foot { position: relative; z-index: 1; background: var(--color-graphite); color: #FAFAFAB8; }
+.foot-in { width: min(1120px, calc(100% - 48px)); margin: 0 auto; padding: 56px 24px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+.foot-in .logo { color: var(--color-chalk); }
+.foot-in nav { display: flex; gap: 28px; }
+/* Reveal: same as Pricing and FAQ. Once, at 25% in view; ask, then the two signposts, 80 ms apart. */
+html:not(.reduce) .close .rv { opacity: 0; transform: translateY(16px); transition: opacity var(--duration-reveal) var(--ease-out-strong), transform var(--duration-reveal) var(--ease-out-strong); transition-delay: var(--rd, 0ms); }
+html:not(.reduce) .close.in .rv { opacity: 1; transform: none; }
+.close .sign:nth-child(2) { --rd: 160ms; } .close .sign:nth-child(3) { --rd: 240ms; }
+html.reduce .close .rv { transition: opacity var(--duration-fast) ease; }
+html.reduce .close:not(.in) .rv { opacity: 0; }
+@media (max-width: 1023px) {
+  .split { width: min(720px, calc(100% - 48px)); grid-template-columns: 1fr 1fr; row-gap: 56px; padding: 96px 0 112px; }
+  .ask { grid-column: 1 / -1; padding: 0; }
+  .sign { padding: 0 24px 0 0; }
+  .close .sign:nth-child(2) { --rd: 80ms; } .close .sign:nth-child(3) { --rd: 160ms; }
+  .foot-in { width: min(720px, calc(100% - 48px)); padding-inline: 0; }
+}
+@media (max-width: 767px) {
+  .split { width: calc(100% - 32px); grid-template-columns: 1fr; row-gap: 40px; padding: 56px 0 64px; }
+  .ask h2 { font-size: 34px; line-height: 40px; }
+  .ask .btns { flex-direction: column; width: 100%; }
+  .ask .btn, .ghost { width: 100%; }
+  .sign { padding: 0; }
+  .foot-in { width: calc(100% - 32px); padding: 40px 0; flex-direction: column; align-items: flex-start; gap: 20px; }
+}
+html.reduce .st, html.reduce .shot, html.reduce .mat { transform: none; transition-duration: var(--duration-fast); transition-delay: 0s; }
+@media (max-width: 1023px) {
+  .how-pin { grid-template-columns: 1fr; grid-template-rows: auto auto; gap: 40px; max-width: 720px; padding-block: 32px; }
+  /* Tablet: the screen always fills the column width so its UI stays legible; a short window crops its bottom instead of shrinking it. */
+  .stage { justify-self: stretch; width: 100%; aspect-ratio: auto; height: clamp(190px, 100vh - 64px - 64px - 40px - 290px, 430px); }
+  .how-sub { margin-bottom: 24px; padding-bottom: 20px; }
+  .slot { height: 140px; }
+  .mat { inset: -24px; }
+}
+@media (max-width: 767px) {
+  .how { padding: 0 0 24px; }
+  .how-stack { padding: 24px 16px 0; }
+  .how-pin, .how-run { display: none; }
+  .guides { width: calc(100% - 32px); background-image: var(--g), var(--g); background-position: 0 0, 100% 0; }
+  .band { height: 56px; }
+  .sec-head { width: calc(100% - 32px); padding: 12px 0; }
+  .how-stack { display: flex; flex-direction: column; gap: 20px; }
+  .how-stack h2 { font-size: 32px; line-height: 38px; font-weight: 600; text-align: center; }
+  .how-stack > p { color: var(--color-smoke); text-align: center; margin-bottom: 20px; }
+  .card-step { position: relative; isolation: isolate; padding: 28px 20px 20px; display: flex; flex-direction: column; gap: 8px; }
+  .card-step .mat { inset: 0; opacity: 1; z-index: -1; border-radius: 16px; }
+  .card-step h3 { font-size: 22px; line-height: 28px; font-weight: 600; }
+  .card-step h3 span, .card-step p { color: var(--color-smoke); }
+  .card-step img { margin-top: 16px; width: 100%; height: 380px; object-fit: cover; object-position: left top; border-radius: 10px; box-shadow: 0 12px 32px #0A0A0A14; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <div class="nav"><a class="logo" href="#top">DrillMap</a><div class="links"><a href="#how">How it works</a><a href="#pricing">Pricing</a></div></div>
+    <div class="right nav"><a href="#" data-route="/login">Log in</a><a class="btn" href="#" data-route="/signup">Start free week</a></div>
+  </div>
+</header>
+
+<main id="top">
+<div class="guides" id="guides" aria-hidden="true"></div>
+<section class="hero" aria-labelledby="hero-h">
+  <div class="grid" aria-hidden="true"></div>
+  <div class="glow" aria-hidden="true"></div>
+
+  <div class="copy">
+    <h1 id="hero-h">Your practice results, turned into next week's plan</h1>
+    <p class="sub">Upload your analytics every weekend. DrillMap builds Monday to Sunday around the question types you miss most.</p>
+  </div>
+  <div class="action">
+    <a class="btn" href="#" data-route="/signup">Start free week</a>
+    <span class="note">Your first full week free. No card needed.</span>
+  </div>
+
+  <div class="cards" id="cards" aria-label="Sample plan cards">
+    <div class="card c1"><div class="par"><div class="drift"><div class="float"><div class="face">
+      <div class="lab"><i style="background:var(--color-spectrum-violet)"></i>Monday</div>
+      <div class="t">Sufficient assumption</div><div class="s">3 drills · 45 min</div>
+    </div></div></div></div></div>
+    <div class="card c2"><div class="par"><div class="drift"><div class="float"><div class="face">
+      <div class="lab">PT score</div>
+      <div class="big">158 <span>→</span> 165</div><div class="s">Goal by the January test</div>
+    </div></div></div></div></div>
+    <div class="card c3"><div class="par"><div class="drift"><div class="float"><div class="face done">
+      <div class="check"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 7.2 L5.8 10 L11 4.2" fill="none" stroke="#FAFAFA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div><div style="font-size:15px;line-height:20px;font-weight:500">Weaken · 12 questions</div><div style="font-size:13px;line-height:18px;color:var(--color-success-ink)">Done Tuesday</div></div>
+    </div></div></div></div></div>
+    <div class="card c4"><div class="par"><div class="drift"><div class="float"><div class="face">
+      <div class="lab"><i style="background:var(--color-spectrum-amber)"></i>Saturday</div>
+      <div class="t">Timed section</div><div class="bar"><b></b><span class="mono">21 of 35 min</span></div>
+    </div></div></div></div></div>
+    <div class="card c5"><div class="par"><div class="drift"><div class="float"><div class="face dark">
+      <div class="big">125</div><div class="s">days to test</div>
+    </div></div></div></div></div>
+    <div class="card c6"><div class="par"><div class="drift"><div class="float"><div class="face">
+      <div class="lab"><i style="background:var(--color-spectrum-pink)"></i>Weakest type</div>
+      <div class="t">Flaw</div><div class="s">Missed 4 of 10 on your last PT</div>
+    </div></div></div></div></div>
+  </div>
+  <div class="dots" id="dots" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
+
+  <div class="screen"><img src="img/app-nav.png?v=2x" alt=""><img src="img/this-week.png?v=2x" alt="This week screen: your plan for this week, with Monday to Sunday drills"></div>
+</section>
+
+<div class="band" aria-hidden="true"></div>
+<section class="how" id="how" aria-labelledby="how-h"><h2 class="sec-head" id="how-h"><span aria-hidden="true">[02]</span>How it works</h2><div class="how-pin"><div class="how-copy"><div class="how-head"><p class="how-sub">Four steps. The last one repeats every weekend.</p><span class="count" aria-hidden="true">Step <span id="count">01 / 04</span></span></div><ol class="sr"><li><h3>1. Tell us about your prep</h3><p>Your scores, your study hours, and your goal test date.</p></li><li><h3>2. Upload your 7Sage analytics</h3><p>Two screenshots. You check every number we read before we save it. You can also type them by hand.</p></li><li><h3>3. Get your week</h3><p>A Monday–Sunday plan aimed at your weakest question types. Check off each drill as you go.</p></li><li><h3>4. Repeat every weekend</h3><p>Upload new analytics. Next week's plan adjusts to what changed.</p></li></ol><div class="slot" id="slot"><div class="st on" aria-hidden="true"><h3>Tell us about <span class="key" style="--ring:color-mix(in oklab, var(--color-spectrum-violet) 75%, transparent)">your prep</span></h3><p>Your scores, your study hours, and your goal test date.</p></div><div class="st" aria-hidden="true"><h3>Upload your <span class="key" style="--ring:color-mix(in oklab, var(--color-spectrum-pink) 75%, transparent)">7Sage analytics</span></h3><p>Two screenshots. You check every number we read before we save it. You can also type them by hand.</p></div><div class="st" aria-hidden="true"><h3>Get <span class="key" style="--ring:color-mix(in oklab, var(--color-spectrum-amber) 75%, transparent)">your week</span></h3><p>A Monday–Sunday plan aimed at your weakest question types. Check off each drill as you go.</p></div><div class="st" aria-hidden="true"><h3>Repeat <span class="key" style="--ring:linear-gradient(90deg in oklab, var(--color-spectrum-violet), var(--color-spectrum-pink), var(--color-spectrum-amber))">every weekend</span></h3><p>Upload new analytics. Next week's plan adjusts to what changed.</p></div></div><div class="segs" id="segs"><button class="seg" type="button" data-i="0" aria-label="Go to step 1: Tell us about your prep"><b></b></button><button class="seg" type="button" data-i="1" aria-label="Go to step 2: Upload your 7Sage analytics"><b></b></button><button class="seg" type="button" data-i="2" aria-label="Go to step 3: Get your week"><b></b></button><button class="seg" type="button" data-i="3" aria-label="Go to step 4: Repeat every weekend"><b></b></button></div></div><div class="stage" aria-hidden="true"><div class="mat m1 on"></div><div class="mat m2"></div><div class="mat m3"></div><div class="mat m4"></div><div class="shot on"><img src="img/step-1-prep.png?v=2x" alt=""></div><div class="shot"><img src="img/step-2-check.png?v=2x" alt=""></div><div class="shot"><img src="img/step-3-week.png?v=2x" alt=""></div><div class="shot"><img src="img/step-4-repeat.png?v=2x" alt=""></div></div></div><div class="how-run"></div><div class="how-stack"><p>Four steps. The last one repeats every weekend.</p><div class="card-step"><div class="mat m1"></div><h3><span>1 </span>Tell us about your prep</h3><p>Your scores, your study hours, and your goal test date.</p><img src="img/step-1-prep-phone.png" alt="Set your target screen"></div><div class="card-step"><div class="mat m2"></div><h3><span>2 </span>Upload your 7Sage analytics</h3><p>Two screenshots. You check every number we read before we save it. You can also type them by hand.</p><img src="img/step-2-check-phone.png" alt="Check what we read screen"></div><div class="card-step"><div class="mat m3"></div><h3><span>3 </span>Get your week</h3><p>A Monday–Sunday plan aimed at your weakest question types. Check off each drill as you go.</p><img src="img/step-3-week-phone.png" alt="This week screen"></div><div class="card-step"><div class="mat m4"></div><h3><span>4 </span>Repeat every weekend</h3><p>Upload new analytics. Next week's plan adjusts to what changed.</p><img src="img/step-4-repeat-phone.png" alt="Plan next week screen"></div></div></section>
+<div class="band" aria-hidden="true"></div>
+<section class="price" id="pricing" aria-labelledby="price-h">
+  <div class="sec-head"><span aria-hidden="true">[03]</span>Pricing</div>
+  <div class="price-in">
+    <div class="price-top">
+      <h2 id="price-h" class="rv">Your <span class="key" style="--ring:linear-gradient(90deg in oklab, var(--color-spectrum-violet), var(--color-spectrum-pink), var(--color-spectrum-amber))">first full week</span> is free</h2>
+      <div class="price-side rv">
+        <p>Pick a plan when your free week ends. Both plans get the same weekly schedule.</p>
+      </div>
+    </div>
+    <div class="plans">
+      <article class="plan rv" aria-labelledby="plan-weekly">
+        <div class="plan-card">
+          <div class="plan-head"><h3 id="plan-weekly">Weekly</h3></div>
+          <p class="amt"><b>$7.99</b><span>a week</span></p>
+          <p class="why">Pay week by week. Good for a short final push.</p>
+          <div class="plan-foot"><p>Your first full week free. No card needed.</p><a class="btn" href="#" data-route="/signup">Start free week</a></div>
+        </div>
+      </article>
+      <article class="plan best rv" aria-labelledby="plan-monthly">
+        <div class="mat m4 on" aria-hidden="true"></div>
+        <div class="plan-card">
+          <div class="plan-head"><h3 id="plan-monthly">Monthly</h3><span class="badge">Best value · about 28% less</span></div>
+          <p class="amt"><b>$25</b><span>a month</span></p>
+          <p class="why">About $34.60 a month on Weekly. Good for a full prep cycle.</p>
+          <div class="plan-foot"><p>Your first full week free. No card needed.</p><a class="btn" href="#" data-route="/signup">Start free week</a></div>
+        </div>
+      </article>
+    </div>
+    <p class="fine rv">Cancel anytime. You keep access until your paid week or month ends. No refunds for unused time.</p>
+  </div>
+</section>
+<div class="band" aria-hidden="true"></div>
+<section class="faq" id="questions" aria-labelledby="faq-h">
+  <div class="sec-head"><span aria-hidden="true">[04]</span>FAQ</div>
+  <div class="faq-in">
+    <div class="faq-top rv"><h2 id="faq-h">FAQ</h2></div>
+    <ul class="faq-list">
+      <li class="rv"><h3><button class="q" type="button" id="q0" aria-expanded="true" aria-controls="a0"><span class="n" aria-hidden="true">Q01</span><span class="t">Do I need a card to start?</span><span class="ic" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3.5 8h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path class="bar" d="M8 3.5v9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span></button></h3>
+        <div class="a open" id="a0" role="region" aria-labelledby="q0"><div><p>No. Your first full week is free. You pick Weekly ($7.99) or Monthly ($25) only when it ends.</p></div></div></li>
+      <li class="rv"><h3><button class="q" type="button" id="q1" aria-expanded="false" aria-controls="a1"><span class="n" aria-hidden="true">Q02</span><span class="t">What happens after the free week?</span><span class="ic" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3.5 8h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path class="bar" d="M8 3.5v9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span></button></h3>
+        <div class="a" id="a1" role="region" aria-labelledby="q1"><div><p>Pick Weekly ($7.99) or Monthly ($25) to keep getting weekly schedules.</p></div></div></li>
+      <li class="rv"><h3><button class="q" type="button" id="q2" aria-expanded="false" aria-controls="a2"><span class="n" aria-hidden="true">Q03</span><span class="t">Can I cancel?</span><span class="ic" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3.5 8h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path class="bar" d="M8 3.5v9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span></button></h3>
+        <div class="a" id="a2" role="region" aria-labelledby="q2"><div><p>Any time. You keep access until your paid week or month ends. No refunds for unused time.</p></div></div></li>
+      <li class="rv"><h3><button class="q" type="button" id="q3" aria-expanded="false" aria-controls="a3"><span class="n" aria-hidden="true">Q04</span><span class="t">Do I need 7Sage?</span><span class="ic" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3.5 8h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path class="bar" d="M8 3.5v9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span></button></h3>
+        <div class="a" id="a3" role="region" aria-labelledby="q3"><div><p>Yes for screenshots. You can also type your numbers by hand.</p></div></div></li>
+      <li class="rv"><h3><button class="q" type="button" id="q4" aria-expanded="false" aria-controls="a4"><span class="n" aria-hidden="true">Q05</span><span class="t">Is the plan made by AI?</span><span class="ic" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3.5 8h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path class="bar" d="M8 3.5v9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span></button></h3>
+        <div class="a" id="a4" role="region" aria-labelledby="q4"><div><p>No. Fixed rules built from the tutor's coaching method make the plan. AI only reads your screenshots, and you check what it read.</p></div></div></li>
+    </ul>
+  </div>
+</section>
+<div class="band" aria-hidden="true"></div>
+<section class="close" id="start" aria-labelledby="close-h">
+  <div class="sec-head"><span aria-hidden="true">[05]</span>Start</div>
+  <div class="split">
+    <div class="ask rv"><h2 id="close-h">Get next week's plan from your own analytics</h2><p>Your first full week free. No card needed.</p><div class="btns"><a class="btn" href="#" data-route="/signup">Start free week <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a class="ghost" href="#" data-route="/login">Log in</a></div></div>
+    <div class="sign rv"><span class="ico"><svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10.6V4a1 1 0 0 1 1-1h6.6a1 1 0 0 1 .7.3l5.4 5.4a1 1 0 0 1 0 1.4l-6.6 6.6a1 1 0 0 1-1.4 0L3.3 11.3a1 1 0 0 1-.3-.7Z" fill="none" stroke="var(--color-spectrum-violet)" stroke-width="1.5"/><circle cx="7" cy="7" r="1.3" fill="var(--color-spectrum-violet)"/></svg></span><h3>See what you'll pay</h3><p>Weekly ($7.99) or Monthly ($25). Pick one when your free week ends.</p><a href="#pricing">Pricing <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>
+    <div class="sign rv"><span class="ico"><svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M15.5 8A6 6 0 0 0 4.6 6.2M4.5 12a6 6 0 0 0 10.9 1.8" fill="none" stroke="var(--color-spectrum-pink)" stroke-width="1.5" stroke-linecap="round"/><path d="M4.2 3v3.6h3.6M15.8 17v-3.6h-3.6" fill="none" stroke="var(--color-spectrum-pink)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h3>See how it works</h3><p>Four steps. The last one repeats every weekend.</p><a href="#how">How it works <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>
+  </div>
+</section>
+</main>
+<footer class="foot"><div class="foot-in"><span class="logo">DrillMap</span><nav><a href="#" data-route="/login">Log in</a><a href="#" data-route="/terms">Terms</a><a href="#" data-route="/privacy">Privacy</a></nav></div></footer>
+
+<div class="route" id="route" role="dialog" aria-modal="true" aria-labelledby="route-h">
+  <h2 id="route-h" style="font-size:28px;line-height:36px">Stand-in page</h2>
+  <p>The real app opens <code id="route-path"></code> here.</p>
+  <button class="btn" id="route-back">Back to the landing page</button>
+</div>
+<div class="state" id="state" aria-live="polite"></div>
+
+<script>
+const root = document.documentElement;
+const params = new URLSearchParams(location.search);
+const mq = matchMedia('(prefers-reduced-motion: reduce)');
+const syncReduce = () => root.classList.toggle('reduce', mq.matches || params.get('reduce') === '1');
+syncReduce(); mq.addEventListener('change', syncReduce);
+
+const state = document.getElementById('state');
+const show = (msg) => { state.textContent = `${innerWidth}px · motion ${root.classList.contains('reduce') ? 'reduced' : 'full'} · ${msg}`; };
+show('loaded');
+addEventListener('resize', () => show('resized'));
+
+// Pause the idle float while the hero is off screen: no motion nobody sees.
+new IntersectionObserver(([e]) => { root.classList.toggle('paused', !e.isIntersecting); show(e.isIntersecting ? 'hero in view' : 'hero off screen, float paused'); }).observe(document.querySelector('.hero'));
+
+const route = document.getElementById('route');
+document.querySelectorAll('[data-route]').forEach((a) => a.addEventListener('click', (ev) => {
+  ev.preventDefault();
+  document.getElementById('route-path').textContent = a.dataset.route;
+  route.classList.add('on'); document.getElementById('route-back').focus();
+  show(`opened ${a.dataset.route}`);
+}));
+document.getElementById('route-back').addEventListener('click', () => { route.classList.remove('on'); show('back on landing'); });
+
+// Phone swipe row: dot follows the card nearest the left edge.
+const cards = document.getElementById('cards');
+const dots = [...document.querySelectorAll('#dots i')];
+cards.addEventListener('scroll', () => {
+  const visible = [...cards.querySelectorAll('.card')].filter((c) => getComputedStyle(c).display !== 'none');
+  const left = cards.getBoundingClientRect().left;
+  let best = 0, bestD = Infinity;
+  visible.forEach((c, i) => { const d = Math.abs(c.getBoundingClientRect().left - left - 16); if (d < bestD) { bestD = d; best = i; } });
+  if (cards.scrollLeft >= cards.scrollWidth - cards.clientWidth - 2) best = visible.length - 1;
+  dots.forEach((d, i) => d.classList.toggle('on', i === best));
+  show(`card ${best + 1} of ${visible.length}`);
+}, { passive: true });
+
+// Cursor nearness. Spring per card: stiffness 0.12, damping 0.72 per frame (about bounce 0.2).
+const fine = matchMedia('(hover: hover) and (pointer: fine)');
+const RADIUS = 200;
+const faces = [...document.querySelectorAll('.face')].map((el) => ({ el, tilt: parseFloat(getComputedStyle(el.closest('.card')).rotate) || 0, x: 0, y: 0, r: 0, k: 0, vx: 0, vy: 0, vr: 0, vk: 0, tx: 0, ty: 0, tr: 0, tk: 0 }));
+let pointer = null, raf = 0;
+const active = () => fine.matches && !root.classList.contains('reduce') && innerWidth >= 768;
+const hero = document.querySelector('.hero');
+hero.addEventListener('pointermove', (e) => { pointer = { x: e.clientX, y: e.clientY }; kick(); });
+hero.addEventListener('pointerleave', () => { pointer = null; kick(); });
+addEventListener('scroll', () => { if (pointer) kick(); }, { passive: true });
+function kick() { if (!raf && active()) raf = requestAnimationFrame(step); }
+function step() {
+  raf = 0;
+  let moving = false, nearest = 0;
+  for (const f of faces) {
+    f.tx = f.ty = f.tr = f.tk = 0;
+    if (pointer) {
+      const b = f.el.getBoundingClientRect();
+      if (b.width) {
+        const dx = pointer.x - (b.left + b.width / 2), dy = pointer.y - (b.top + b.height / 2);
+        const d = Math.hypot(dx, dy) - Math.min(b.width, b.height) / 2;
+        const n = Math.max(0, 1 - Math.max(0, d) / RADIUS);
+        const s = n * n * (3 - 2 * n); // smoothstep, so the pull starts gently at the edge of the radius
+        const len = Math.hypot(dx, dy) || 1;
+        f.tx = (dx / len) * 5 * s; f.ty = (dy / len) * 5 * s - 4 * s;
+        f.tr = -f.tilt * 0.3 * s; f.tk = s;
+        nearest = Math.max(nearest, s);
+      }
+    }
+    for (const [p, v, t] of [['x', 'vx', 'tx'], ['y', 'vy', 'ty'], ['r', 'vr', 'tr'], ['k', 'vk', 'tk']]) {
+      f[v] = (f[v] + (f[t] - f[p]) * 0.12) * 0.72; f[p] += f[v];
+      if (Math.abs(f[v]) > 0.001 || Math.abs(f[t] - f[p]) > 0.001) moving = true;
+    }
+    f.el.style.transform = `translate(${f.x.toFixed(2)}px, ${f.y.toFixed(2)}px) rotate(${f.r.toFixed(2)}deg) scale(${(1 + 0.015 * f.k).toFixed(4)})`;
+    f.el.style.setProperty('--near', (0.6 * f.k).toFixed(3));
+  }
+  if (moving) raf = requestAnimationFrame(step);
+  if (pointer) show(`cursor pull ${nearest.toFixed(2)}`);
+}
+
+// How it works: the step follows scroll position inside the tall track; the pinned panel swaps text and screen in place.
+const how = document.getElementById('how');
+const tEls = [...document.querySelectorAll('#slot .st')], shotEls = [...how.querySelectorAll('.stage .shot')], matEls = [...how.querySelectorAll('.stage .mat')];
+const segEls = [...document.querySelectorAll('#segs .seg')];
+let cur = -1;
+const howPin = how.querySelector('.how-pin');
+const howRange = () => how.offsetHeight - howPin.offsetHeight;
+const pinTop = () => parseFloat(getComputedStyle(howPin).top);
+const setPinH = () => how.style.setProperty('--pin-h', `${howPin.offsetHeight}px`);
+setPinH(); new ResizeObserver(setPinH).observe(howPin);
+function howTick() {
+  if (innerWidth < 768) return;
+  const p = Math.min(1, Math.max(0, (pinTop() - how.getBoundingClientRect().top) / howRange()));
+  const n = Math.min(3, Math.floor(p * 4));
+  segEls.forEach((s) => s.querySelector('b').style.setProperty('--fill', Math.min(1, Math.max(0, p * 4 - +s.dataset.i)).toFixed(3)));
+  if (n === cur) return;
+  cur = n;
+  for (const list of [tEls, shotEls, matEls]) list.forEach((el, i) => { el.classList.toggle('on', i === n); el.classList.toggle('before', i < n); });
+  segEls.forEach((s) => s.toggleAttribute('aria-current', +s.dataset.i === n));
+  document.getElementById('count').textContent = `0${n + 1} / 04`;
+  show(`how it works step ${n + 1} of 4`);
+}
+addEventListener('scroll', howTick, { passive: true });
+addEventListener('resize', howTick);
+howTick();
+segEls.forEach((s) => s.addEventListener('click', () => {
+  const top = how.getBoundingClientRect().top + scrollY - pinTop();
+  scrollTo({ top: top + (+s.dataset.i / 4) * howRange() + 2, behavior: root.classList.contains('reduce') ? 'auto' : 'smooth' });
+}));
+// Column guides start under the hero, so its dot grid and floating cards stay clean.
+const guides = document.getElementById('guides'), heroEl = document.querySelector('.hero');
+const placeGuides = () => { guides.style.top = `${heroEl.offsetTop + heroEl.offsetHeight}px`; };
+placeGuides(); addEventListener('resize', placeGuides);
+// Pricing reveals once, when a quarter of it is on screen.
+const priceEl = document.getElementById('pricing');
+const priceIO = new IntersectionObserver(([e]) => { if (e.isIntersecting) { priceEl.classList.add('in'); show('pricing revealed'); priceIO.disconnect(); } }, { threshold: 0.25 });
+priceIO.observe(priceEl);
+// Questions: reveal once like Pricing; each row toggles on its own (several can be open), first open by default.
+const faqEl = document.getElementById('questions');
+const faqIO = new IntersectionObserver(([e]) => { if (e.isIntersecting) { faqEl.classList.add('in'); show('questions revealed'); faqIO.disconnect(); } }, { threshold: 0.2 });
+faqIO.observe(faqEl);
+faqEl.querySelectorAll('.q').forEach((b) => b.addEventListener('click', () => {
+  const open = b.getAttribute('aria-expanded') !== 'true';
+  b.setAttribute('aria-expanded', String(open));
+  document.getElementById(b.getAttribute('aria-controls')).classList.toggle('open', open);
+  show(`question ${b.id.slice(1) * 1 + 1} ${open ? 'open' : 'closed'}`);
+}));
+// Closing band reveals once, like Pricing.
+const closeEl = document.getElementById('start');
+const closeIO = new IntersectionObserver(([e]) => { if (e.isIntersecting) { closeEl.classList.add('in'); show('closing band revealed'); closeIO.disconnect(); } }, { threshold: 0.25 });
+closeIO.observe(closeEl);
+</script>
+</body>
+</html>
