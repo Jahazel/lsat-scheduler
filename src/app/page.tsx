@@ -2,6 +2,7 @@ import Image from "next/image";
 import { HeroCards } from "@/components/landing/HeroCards";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { QuestionList } from "@/components/landing/QuestionList";
+import { GapBand, SectionGrid, SectionLabel } from "@/components/landing/SectionGrid";
 import { FREE_WEEK_NOTE, StartFreeWeekLink } from "@/components/landing/StartFreeWeekLink";
 import { PLAN_PRICES, planPriceText } from "@/lib/planPrices";
 
@@ -53,21 +54,27 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <HowItWorks />
-
-      <PricingSection />
-
-      <QuestionsSection />
-
-      <section aria-labelledby="closing-title" className="flex w-full flex-col items-center gap-8 py-24 md:pt-32 md:pb-28 lg:pt-40 lg:pb-32">
-        <h2 id="closing-title" className="text-center text-[36px]/[40px] font-semibold tracking-display text-balance text-ink md:max-w-[600px] md:text-h2 lg:max-w-[800px] lg:text-h1">
-          Get next week&apos;s plan from your own analytics
-        </h2>
-        <div className="flex flex-col items-center gap-[14px]">
-          <StartFreeWeekLink className="h-[52px] px-7" />
-          <p className="text-small text-smoke">{FREE_WEEK_NOTE}</p>
-        </div>
-      </section>
+      <SectionGrid>
+        <GapBand />
+        <HowItWorks />
+        <GapBand />
+        <PricingSection />
+        <GapBand />
+        <QuestionsSection />
+        <GapBand />
+        <section aria-labelledby="closing-title" className="flex w-full flex-col items-center">
+          <SectionLabel id="closing-title" number="05">Start</SectionLabel>
+          <div className="flex flex-col items-center gap-8 pt-8 pb-24 md:pt-14 md:pb-28 lg:pt-[72px] lg:pb-32">
+            <p className="text-center text-[36px]/[40px] font-semibold tracking-display text-balance text-ink md:max-w-[600px] md:text-h2 lg:max-w-[800px] lg:text-h1">
+              Get next week&apos;s plan from your own analytics
+            </p>
+            <div className="flex flex-col items-center gap-[14px]">
+              <StartFreeWeekLink className="h-[52px] px-7" />
+              <p className="text-small text-smoke">{FREE_WEEK_NOTE}</p>
+            </div>
+          </div>
+        </section>
+      </SectionGrid>
     </div>
   );
 }
@@ -75,32 +82,35 @@ export default function LandingPage() {
 function PricingSection() {
   const price = planPriceText(PLAN_PRICES);
   return (
-    <section id="pricing" aria-labelledby="pricing-title" className="flex w-full scroll-mt-16 flex-col items-center gap-12 pt-[72px] md:max-w-[672px] md:pt-24 lg:max-w-[1120px] lg:pt-40">
-      <div className="flex flex-col items-center gap-4 text-center">
-        <h2 id="pricing-title" className="text-[32px]/[38px] font-semibold tracking-heading text-balance text-ink md:text-h2">
-          Your first full week is free
-        </h2>
-        <p className="text-body text-smoke md:max-w-[600px] md:text-lead">
-          Pick a plan when your free week ends. Both plans get the same weekly schedule.
+    <section id="pricing" aria-labelledby="pricing-title" className="flex w-full scroll-mt-16 flex-col items-center">
+      <SectionLabel id="pricing-title" number="03">Pricing</SectionLabel>
+      <div className="flex w-full flex-col items-center gap-12 pt-8 md:max-w-[672px] md:pt-14 lg:max-w-[1120px] lg:pt-[72px]">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <p className="text-[32px]/[38px] font-semibold tracking-heading text-balance text-ink md:text-h2">
+            Your first full week is free
+          </p>
+          <p className="text-body text-smoke md:max-w-[600px] md:text-lead">
+            Pick a plan when your free week ends. Both plans get the same weekly schedule.
+          </p>
+        </div>
+        <div className="grid w-full gap-4 md:grid-cols-2 md:gap-6 lg:w-auto lg:grid-cols-[400px_400px]">
+          <PlanCard id="plan-weekly" name="Weekly" price={price.weekly} per="a week">
+            Pay week by week. Good for a short final push.
+          </PlanCard>
+          <PlanCard
+            id="plan-monthly"
+            name="Monthly"
+            price={price.monthly}
+            per="a month"
+            badge={`Best value · ${price.monthlySaving}`}
+          >
+            {price.monthOnWeekly}. Good for a full prep cycle.
+          </PlanCard>
+        </div>
+        <p className="text-center text-small text-smoke">
+          Cancel anytime. You keep access until your paid week or month ends. No refunds for unused time.
         </p>
       </div>
-      <div className="grid w-full gap-4 md:grid-cols-2 md:gap-6 lg:w-auto lg:grid-cols-[400px_400px]">
-        <PlanCard id="plan-weekly" name="Weekly" price={price.weekly} per="a week">
-          Pay week by week. Good for a short final push.
-        </PlanCard>
-        <PlanCard
-          id="plan-monthly"
-          name="Monthly"
-          price={price.monthly}
-          per="a month"
-          badge={`Best value · ${price.monthlySaving}`}
-        >
-          {price.monthOnWeekly}. Good for a full prep cycle.
-        </PlanCard>
-      </div>
-      <p className="text-center text-small text-smoke">
-        Cancel anytime. You keep access until your paid week or month ends. No refunds for unused time.
-      </p>
     </section>
   );
 }
@@ -109,22 +119,25 @@ function QuestionsSection() {
   const price = planPriceText(PLAN_PRICES);
   const plans = `Weekly (${price.weekly}) or Monthly (${price.monthly})`;
   return (
-    <section aria-labelledby="questions-title" className="flex w-full flex-col gap-8 pt-[72px] md:max-w-[672px] md:pt-24 lg:max-w-[1120px] lg:flex-row lg:items-start lg:gap-24 lg:pt-40">
-      <h2 id="questions-title" className="text-[32px]/[38px] font-semibold tracking-heading text-ink md:text-h2 lg:w-[360px] lg:shrink-0">
-        Questions
-      </h2>
-      <QuestionList
-        questions={[
-          { question: "Do I need a card to start?", answer: `No. Your first full week is free. You pick ${plans} only when it ends.` },
-          { question: "What happens after the free week?", answer: `Pick ${plans} to keep getting weekly schedules.` },
-          { question: "Can I cancel?", answer: "Any time. You keep access until your paid week or month ends. No refunds for unused time." },
-          { question: "Do I need 7Sage?", answer: "Yes for screenshots. You can also type your numbers by hand." },
-          {
-            question: "Is the plan made by AI?",
-            answer: "No. Fixed rules built from the tutor's coaching method make the plan. AI only reads your screenshots, and you check what it read.",
-          },
-        ]}
-      />
+    <section aria-labelledby="questions-title" className="flex w-full flex-col items-center">
+      <SectionLabel id="questions-title" number="04">FAQ</SectionLabel>
+      <div className="flex w-full flex-col gap-8 pt-8 md:max-w-[672px] md:pt-14 lg:max-w-[1120px] lg:flex-row lg:items-start lg:gap-24 lg:pt-[72px]">
+        <p className="text-[32px]/[38px] font-semibold tracking-heading text-ink md:text-h2 lg:w-[360px] lg:shrink-0">
+          FAQ
+        </p>
+        <QuestionList
+          questions={[
+            { question: "Do I need a card to start?", answer: `No. Your first full week is free. You pick ${plans} only when it ends.` },
+            { question: "What happens after the free week?", answer: `Pick ${plans} to keep getting weekly schedules.` },
+            { question: "Can I cancel?", answer: "Any time. You keep access until your paid week or month ends. No refunds for unused time." },
+            { question: "Do I need 7Sage?", answer: "Yes for screenshots. You can also type your numbers by hand." },
+            {
+              question: "Is the plan made by AI?",
+              answer: "No. Fixed rules built from the tutor's coaching method make the plan. AI only reads your screenshots, and you check what it read.",
+            },
+          ]}
+        />
+      </div>
     </section>
   );
 }
