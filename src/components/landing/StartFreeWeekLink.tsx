@@ -3,7 +3,15 @@ import { FOCUS, cx } from "@/components/ui/classes";
 
 export const FREE_WEEK_NOTE = "Your first full week free. No card needed.";
 
-export function StartFreeWeekLink({ className }: { className?: string }) {
+export function LinkArrow() {
+  return (
+    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" className="link-arrow">
+      <path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function StartFreeWeekLink({ className, arrow }: { className?: string; arrow?: boolean }) {
   return (
     <Link
       href="/signup"
@@ -17,6 +25,7 @@ export function StartFreeWeekLink({ className }: { className?: string }) {
       )}
     >
       Start free week
+      {arrow && <LinkArrow />}
     </Link>
   );
 }

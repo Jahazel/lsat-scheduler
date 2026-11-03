@@ -1,11 +1,12 @@
 import Image from "next/image";
+import Link from "next/link";
 import { HeroCards } from "@/components/landing/HeroCards";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { QuestionList } from "@/components/landing/QuestionList";
 import { RevealSection } from "@/components/landing/RevealSection";
 import { GapBand, SectionGrid, SectionLabel } from "@/components/landing/SectionGrid";
-import { FREE_WEEK_NOTE, StartFreeWeekLink } from "@/components/landing/StartFreeWeekLink";
-import { cx } from "@/components/ui/classes";
+import { FREE_WEEK_NOTE, LinkArrow, StartFreeWeekLink } from "@/components/landing/StartFreeWeekLink";
+import { FOCUS, cx } from "@/components/ui/classes";
 import { PLAN_PRICES, planPriceText } from "@/lib/planPrices";
 
 const HERO_SCREEN_SIZES = "(min-width: 1024px) 1120px, (min-width: 768px) 672px, 840px";
@@ -64,18 +65,7 @@ export default function LandingPage() {
         <GapBand />
         <QuestionsSection />
         <GapBand />
-        <section aria-labelledby="closing-title" className="flex w-full flex-col items-center">
-          <SectionLabel id="closing-title" number="05">Start</SectionLabel>
-          <div className="flex flex-col items-center gap-8 pt-8 pb-24 md:pt-14 md:pb-28 lg:pt-[72px] lg:pb-32">
-            <p className="text-center text-[36px]/[40px] font-semibold tracking-display text-balance text-ink md:max-w-[600px] md:text-h2 lg:max-w-[800px] lg:text-h1">
-              Get next week&apos;s plan from your own analytics
-            </p>
-            <div className="flex flex-col items-center gap-[14px]">
-              <StartFreeWeekLink className="h-[52px] px-7" />
-              <p className="text-small text-smoke">{FREE_WEEK_NOTE}</p>
-            </div>
-          </div>
-        </section>
+        <ClosingSection />
       </SectionGrid>
     </div>
   );
@@ -120,9 +110,13 @@ function PricingSection() {
   );
 }
 
-function QuestionsSection() {
+function bothPlans() {
   const price = planPriceText(PLAN_PRICES);
-  const plans = `Weekly (${price.weekly}) or Monthly (${price.monthly})`;
+  return `Weekly (${price.weekly}) or Monthly (${price.monthly})`;
+}
+
+function QuestionsSection() {
+  const plans = bothPlans();
   return (
     <RevealSection threshold={0.2} aria-labelledby="questions-title" className="flex w-full flex-col items-center">
       <SectionLabel id="questions-title" number="04">FAQ</SectionLabel>
@@ -145,6 +139,86 @@ function QuestionsSection() {
         />
       </div>
     </RevealSection>
+  );
+}
+
+function ClosingSection() {
+  return (
+    <RevealSection threshold={0.25} aria-labelledby="closing-title" className="flex w-full flex-col items-center">
+      <SectionLabel id="closing-title" number="05">Start</SectionLabel>
+      <div className="grid w-full gap-y-10 pt-14 pb-16 md:w-[min(720px,calc(100%-48px))] md:grid-cols-2 md:gap-y-14 md:pt-24 md:pb-28 lg:w-[min(1120px,calc(100%-48px))] lg:grid-cols-4 lg:items-start lg:pt-32 lg:pb-36">
+        <div className="reveal-item flex flex-col items-start gap-5 md:col-span-2 lg:px-6">
+          <p className="max-w-[480px] text-[34px]/[40px] font-semibold tracking-[-0.03em] text-balance text-ink md:text-[44px]/[50px]">
+            Get next week&apos;s plan from your own analytics
+          </p>
+          <p className="text-[17px]/[27px] text-smoke">{FREE_WEEK_NOTE}</p>
+          <div className="flex w-full flex-col gap-2.5 pt-3 md:w-auto md:flex-row">
+            <StartFreeWeekLink arrow className="h-12 w-full gap-1.5 px-[22px] md:w-auto" />
+            <Link
+              href="/login"
+              className={cx(
+                "login-ghost inline-flex h-12 items-center justify-center rounded-sm border bg-paper px-[22px] text-body font-medium text-ink",
+                FOCUS,
+              )}
+            >
+              Log in
+            </Link>
+          </div>
+        </div>
+        <Signpost icon={<PriceTagIcon />} title="See what you'll pay" href="#pricing" link="Pricing" className="[--reveal-delay:80ms]">
+          {bothPlans()}. Pick one when your free week ends.
+        </Signpost>
+        <Signpost icon={<RepeatIcon />} title="See how it works" href="#how-it-works" link="How it works" className="[--reveal-delay:160ms]">
+          Four steps. The last one repeats every weekend.
+        </Signpost>
+      </div>
+    </RevealSection>
+  );
+}
+
+function Signpost({ icon, title, href, link, className, children }: {
+  icon: React.ReactNode;
+  title: string;
+  href: string;
+  link: string;
+  className: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cx("reveal-item flex flex-col items-start gap-2 md:pr-6 lg:pl-6", className)}>
+      <span className="mb-4 grid size-10 place-items-center rounded-[10px] border border-vellum-line bg-paper">{icon}</span>
+      <h3 className="text-[16px]/[22px] font-semibold text-ink">{title}</h3>
+      <p className="text-[15px]/[23px] text-smoke">{children}</p>
+      <a href={href} className={cx("signpost-link mt-2 inline-flex items-center gap-1 rounded-xs text-[15px] font-medium text-ink", FOCUS)}>
+        {link}
+        <LinkArrow />
+      </a>
+    </div>
+  );
+}
+
+function PriceTagIcon() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" className="text-spectrum-violet">
+      <path
+        d="M3 10.6V4a1 1 0 0 1 1-1h6.6a1 1 0 0 1 .7.3l5.4 5.4a1 1 0 0 1 0 1.4l-6.6 6.6a1 1 0 0 1-1.4 0L3.3 11.3a1 1 0 0 1-.3-.7Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <circle cx="7" cy="7" r="1.3" fill="currentColor" />
+    </svg>
+  );
+}
+
+function RepeatIcon() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" className="text-spectrum-pink">
+      <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M15.5 8A6 6 0 0 0 4.6 6.2M4.5 12a6 6 0 0 0 10.9 1.8" />
+        <path d="M4.2 3v3.6h3.6M15.8 17v-3.6h-3.6" />
+      </g>
+    </svg>
   );
 }
 

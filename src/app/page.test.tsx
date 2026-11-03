@@ -163,6 +163,33 @@ describe("Landing page", () => {
     }
   });
 
+  it("closes with the ask and two signposts back to Pricing and How it works", () => {
+    render(<LandingPage />);
+    const closing = screen.getByRole("region", { name: "Start" });
+    expect(within(closing).getByRole("link", { name: "Start free week" }).getAttribute("href")).toBe("/signup");
+    expect(within(closing).getByRole("link", { name: "Log in" }).getAttribute("href")).toBe("/login");
+    expect(within(closing).getByText("Your first full week free. No card needed.")).toBeTruthy();
+
+    const signposts = within(closing).getAllByRole("heading", { level: 3 });
+    expect(signposts.map((title) => title.textContent)).toEqual(["See what you'll pay", "See how it works"]);
+    expect(within(closing).getByText("Weekly ($7.99) or Monthly ($25). Pick one when your free week ends.")).toBeTruthy();
+    expect(within(closing).getByText("Four steps. The last one repeats every weekend.")).toBeTruthy();
+
+    const pricing = within(closing).getByRole("link", { name: "Pricing" });
+    const how = within(closing).getByRole("link", { name: "How it works" });
+    expect(pricing.getAttribute("href")).toBe("#pricing");
+    expect(how.getAttribute("href")).toBe("#how-it-works");
+    expect(document.getElementById("pricing")).toBe(screen.getByRole("region", { name: "Pricing" }));
+    expect(document.getElementById("how-it-works")).toBe(screen.getByRole("region", { name: "How it works" }));
+  });
+
+  it("reads the Pricing signpost's prices from the prices module", () => {
+    prices.PLAN_PRICES = { weeklyCents: 1299, monthlyCents: 3999 };
+    render(<LandingPage />);
+    const closing = screen.getByRole("region", { name: "Start" });
+    expect(within(closing).getByText("Weekly ($12.99) or Monthly ($39.99). Pick one when your free week ends.")).toBeTruthy();
+  });
+
   it("reads the card answer's prices from the prices module", () => {
     prices.PLAN_PRICES = { weeklyCents: 1299, monthlyCents: 3999 };
     render(<LandingPage />);
