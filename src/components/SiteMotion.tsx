@@ -2,9 +2,10 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { durationMs, fadeIn, isPlainClick, motionToken, reducedMotion, riseFrom, stopAtCurrentFrame } from "@/lib/motion";
+import { durationMs, fadeIn, fadeOut, isPlainClick, motionToken, reducedMotion, riseFrom, stopAtCurrentFrame } from "@/lib/motion";
 
 const SIGN_IN = new Set(["/signup", "/login"]);
+const IN_SCOPE = new Set(["/", ...SIGN_IN]);
 export const movesBetween = (from: string, to: string) => (from === "/" && SIGN_IN.has(to)) || (SIGN_IN.has(from) && to === "/");
 
 type Target = { path: string; fromHistory: boolean };
@@ -17,15 +18,6 @@ function setBusy(el: HTMLElement, busy: boolean) {
   el.toggleAttribute("inert", busy);
   if (busy) el.setAttribute("aria-busy", "true");
   else el.removeAttribute("aria-busy");
-}
-
-function fadeOutFromCurrentFrame(el: HTMLElement) {
-  const from = stopAtCurrentFrame(el);
-  return el.animate([from, { opacity: 0, transform: "none" }], {
-    duration: durationMs("--duration-fast") * Number(from.opacity),
-    easing: motionToken("--ease-exit"),
-    fill: "forwards",
-  });
 }
 
 function glideLogo(from: DOMRect | null) {
@@ -53,6 +45,7 @@ export default function SiteMotion() {
   useLayoutEffect(() => {
     const from = shown.current;
     shown.current = pathname;
+    if (!IN_SCOPE.has(pathname)) history.scrollRestoration = "auto";
     const arriving = target.current;
     if (from === pathname || !arriving) return;
     target.current = null;
@@ -84,12 +77,14 @@ export default function SiteMotion() {
     }
 
     function leave(next: Target) {
+      // The browser restores scroll before popstate, which would move the old page before it fades out. This entry and the pushed one take their spot from `scrolls`.
+      history.scrollRestoration = "manual";
       target.current = next;
       const old = regions();
       leaving.current = old;
       if (old.some((el) => el.contains(document.activeElement))) document.querySelector("main")?.focus({ preventScroll: true });
       for (const el of old) setBusy(el, true);
-      const exits = reducedMotion() ? [] : old.map(fadeOutFromCurrentFrame);
+      const exits = reducedMotion() ? [] : old.map((el) => fadeOut(el, { shorten: true }));
       return Promise.all(exits.map((exit) => exit.finished)).then(() => {
         if (target.current !== next) return false;
         logoFrom.current = visibleLogo()?.getBoundingClientRect() ?? null;

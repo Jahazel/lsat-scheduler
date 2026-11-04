@@ -168,6 +168,7 @@ describe("SiteMotion", () => {
     finishExits();
     await vi.waitFor(() => expect(mocks.push).toHaveBeenCalled());
     show("/signup", rerender);
+    expect(history.scrollRestoration).toBe("manual");
 
     const router = vi.fn();
     addEventListener("popstate", router);
@@ -247,6 +248,7 @@ describe("SiteMotion", () => {
     show("/login", rerender);
     fireEvent.click(screen.getByRole("link", { name: "Terms" }));
     show("/dashboard", rerender);
+    expect(history.scrollRestoration).toBe("auto");
     fireEvent.click(screen.getByRole("link", { name: "DrillMap" }));
     document.removeEventListener("click", browser);
     expect(passedThrough).toEqual([true, true, true, true]);
