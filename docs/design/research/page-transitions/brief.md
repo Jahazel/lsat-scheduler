@@ -19,7 +19,7 @@ A visitor moves from the landing page into sign up or log in, and a new student 
 | Verify email | Taps "Sign up again" or "Log in" | Sign up or Log in |
 | Any sign-in page | Taps the logo | Landing |
 | Any sign-in page | Taps Terms, Privacy, or AI disclosure | That legal page |
-| Any page in scope | Presses the browser's back button | The previous page |
+| Any page in scope | Presses the browser's back button | The previous page (in onboarding, the page before onboarding, not the previous step) |
 | Sign up or log in | Signs in for the first time | Onboarding (may show its loading placeholder first) |
 | Onboarding step | Taps "Continue" | The next step (Goal → Week → Analytics → Review) |
 | Onboarding step | Taps "Back" | The previous step |
@@ -32,7 +32,7 @@ A visitor moves from the landing page into sign up or log in, and a new student 
 | Sign-in page ↔ sign-in page | Moving between sign up, log in, forgot password, reset password, verify email | The layout and the preview panel stay still. Only the form and the preview card content change. |
 | Onboarding · Continue | Moving to the next step | The new step moves in a few pixels from the right (about 8–12 px). The step label and frame stay still. |
 | Onboarding · Back | Moving to the previous step | The new step moves in a few pixels from the left. |
-| Browser back | The browser's back button | The same fade as a forward click, with no direction. Onboarding steps keep their direction. |
+| Browser back | The browser's back button | The same fade as a forward click, with no direction. Onboarding steps are not history entries, so back leaves onboarding; only the in-page Back button moves to the previous step. |
 | Loading placeholder → page | Onboarding loads after sign-in | The placeholder fades out and the page fades in. |
 | Phone width | Any move in scope at phone width | The same motion with a smaller rise. |
 | Reduced motion | The device has "reduce motion" on | A plain fade with no movement, or no motion. |
