@@ -117,7 +117,11 @@ describe("Signup", () => {
       expect(entrances).toHaveLength(2);
       expect(entrances[0].contains(heading)).toBe(true);
     } finally {
-      Object.assign(Element.prototype, { animate: saved.animate, getAnimations: saved.getAnimations });
+      const prototype: Partial<Element> = Element.prototype;
+      if (saved.animate) prototype.animate = saved.animate;
+      else delete prototype.animate;
+      if (saved.getAnimations) prototype.getAnimations = saved.getAnimations;
+      else delete prototype.getAnimations;
       window.matchMedia = saved.matchMedia;
     }
   });
