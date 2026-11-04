@@ -1,0 +1,415 @@
+<!doctype html>
+<!--
+  PROTOTYPE, throw away. Page transitions (#580).
+  Question: do the page and step transitions feel smooth and match Progress at 1440, 768, and 390?
+  Open this file in a browser. No build, no server, no saved data.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE · Page transitions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --vellum: #F6F6F6; --paper: #FFFFFF; --line: #E4E4E4; --ink: #0A0A0A;
+  --fog: #8A8A8A; --smoke: #5C5C5C; --accent: #123A94;
+  font-family: Geist, ui-sans-serif, system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #2A2A2A; color: var(--ink); }
+button, input { font: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+
+#stage { position: fixed; inset: 0 0 132px 0; display: flex; justify-content: center; align-items: flex-start; padding-top: 16px; overflow: hidden; }
+#scaler { transform-origin: top center; }
+#frame { background: var(--vellum); overflow-y: auto; overflow-x: hidden; container-type: inline-size; container-name: app; border-radius: 6px; box-shadow: 0 0 0 1px #000; position: relative; }
+#main { min-height: 100%; display: flex; flex-direction: column; }
+#main > .si, #main > .ob { flex: 1; }
+
+/* ---------- shared ---------- */
+.logo { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 17px; letter-spacing: -0.02em; position: relative; z-index: 2; }
+.logo i { width: 22px; height: 22px; border-radius: 6px; background: linear-gradient(135deg, #7C5CFF, #FF4FA3 55%, #FFB23F); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 48px; padding: 0 22px; border-radius: 6px; background: var(--ink); color: #fff; font-weight: 500; border: 0; cursor: pointer; }
+.btn.ghost { background: var(--paper); color: var(--ink); border: 1px solid var(--line); }
+.btn.sm { height: 40px; padding: 0 16px; font-size: 14px; }
+.btn.full { width: 100%; }
+.link { color: var(--accent); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; background: none; border: 0; padding: 0; }
+.label { font: 12px/16px "Geist Mono", monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--smoke); }
+h1:focus { outline: none; }
+
+/* ---------- top bars ---------- */
+.top { position: sticky; top: 0; z-index: 5; height: 64px; padding: 0 48px; }
+.top-bg { position: absolute; inset: 0; background: var(--vellum); border-bottom: 1px solid var(--line); }
+.top-in { position: relative; max-width: 1120px; height: 64px; margin: 0 auto; display: flex; align-items: center; gap: 40px; }
+.top-nav { flex: 1; display: flex; align-items: center; justify-content: space-between; font-size: 14px; }
+.top-nav .sec { display: flex; gap: 28px; color: var(--smoke); }
+.top-nav .act { display: flex; gap: 20px; align-items: center; }
+.tabs { display: flex; gap: 4px; }
+.tab { padding: 8px 12px; border-radius: 6px; color: var(--smoke); }
+.tab[aria-current] { background: var(--paper); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 12px; }
+
+/* ---------- landing ---------- */
+.hero { max-width: 1120px; margin: 0 auto; padding: 120px 48px 96px; }
+.hero h1 { font-size: 64px; line-height: 66px; letter-spacing: -0.035em; margin: 16px 0 20px; max-width: 760px; }
+.hero p.lead { font-size: 20px; line-height: 30px; color: var(--smoke); max-width: 560px; margin: 0 0 32px; }
+.ctas { display: flex; gap: 10px; }
+.steps4 { max-width: 1120px; margin: 0 auto; padding: 0 48px 120px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.steps4 div { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 24px; min-height: 160px; }
+.steps4 b { display: block; margin: 12px 0 6px; }
+.steps4 p { margin: 0; color: var(--smoke); font-size: 14px; line-height: 20px; }
+.legal-page { max-width: 640px; margin: 0 auto; padding: 96px 24px; }
+.legal-page h1 { font-size: 48px; line-height: 52px; letter-spacing: -0.02em; margin: 0 0 24px; }
+.legal-page p { color: var(--smoke); line-height: 26px; }
+
+/* ---------- sign-in frame ---------- */
+.si { display: flex; min-height: 100%; background: var(--paper); }
+.si-left { width: 680px; flex-shrink: 0; display: flex; flex-direction: column; padding: 32px 120px; min-height: 860px; }
+.si-logo { height: 40px; display: flex; align-items: center; }
+.si-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 48px 0; }
+.si-form { max-width: 400px; display: flex; flex-direction: column; gap: 32px; }
+.si-form h1 { font-size: 28px; line-height: 34px; letter-spacing: -0.02em; margin: 0 0 8px; }
+.si-form .lead { margin: 0; color: var(--smoke); }
+.fields { display: flex; flex-direction: column; gap: 16px; }
+.field label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+.field input { width: 100%; height: 44px; border: 1px solid var(--line); border-radius: 6px; padding: 0 12px; background: var(--paper); }
+.or { display: flex; align-items: center; gap: 12px; color: var(--fog); font-size: 13px; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.switch { font-size: 14px; color: var(--smoke); }
+.legal-nav { display: flex; gap: 24px; font-size: 14px; color: var(--smoke); }
+.si-right { flex: 1; padding: 16px 16px 16px 0; display: flex; }
+.panel { position: relative; flex: 1; border-radius: 12px; background: var(--vellum); overflow: hidden; display: grid; place-items: center; }
+.glow { position: absolute; left: -10%; right: -10%; bottom: -55%; height: 110%; border-radius: 50%; background: radial-gradient(closest-side, rgba(124,92,255,.22), rgba(255,79,163,.12), transparent); }
+.card { position: relative; width: 440px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 8px 24px rgba(0,0,0,.06); }
+.card .row { display: flex; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; }
+.card .dot { width: 16px; height: 16px; border-radius: 50%; border: 1.3px solid var(--fog); flex-shrink: 0; }
+.card .dot.on { background: var(--ink); border-color: var(--ink); }
+.card .num { font: 13px "Geist Mono", monospace; color: var(--smoke); width: 20px; }
+
+/* ---------- onboarding ---------- */
+.ob { display: grid; grid-template-columns: 680px 1fr; }
+.ob-left { display: flex; justify-content: center; align-items: center; padding: 64px 40px; }
+.ob-col { width: 440px; display: flex; flex-direction: column; gap: 8px; }
+.ob-step { display: flex; flex-direction: column; gap: 24px; }
+.ob-step h1 { font-size: 28px; line-height: 34px; letter-spacing: -0.02em; margin: 0; }
+.ob-step .lead { margin: 0; color: var(--smoke); }
+.ob-actions { display: flex; gap: 10px; }
+.days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.days span { height: 44px; border: 1px solid var(--line); border-radius: 6px; display: grid; place-items: center; font-size: 13px; background: var(--paper); }
+.days span.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.drop { border: 1.5px dashed var(--line); border-radius: 10px; height: 140px; display: grid; place-items: center; color: var(--smoke); font-size: 14px; background: var(--paper); }
+.ob-preview { padding: 16px 16px 16px 0; display: flex; }
+.ob-preview .panel { min-height: 700px; }
+.skel { background: #ECECEC; border-radius: 6px; }
+
+/* ---------- this week ---------- */
+.band { max-width: 1120px; margin: 0 auto; padding: 48px 48px 24px; }
+.band h1 { font-size: 48px; line-height: 52px; letter-spacing: -0.02em; margin: 8px 0; }
+.band p { color: var(--smoke); margin: 0; }
+.daylist { max-width: 1120px; margin: 0 auto; padding: 0 48px 96px; display: flex; flex-direction: column; gap: 12px; }
+.day { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 20px 24px; display: flex; justify-content: space-between; }
+
+/* ---------- widths ---------- */
+@container app (max-width: 1023px) {
+  .si-right, .ob-preview { display: none; }
+  .si-left { width: 100%; }
+  .ob { grid-template-columns: 1fr; }
+  .steps4 { grid-template-columns: repeat(2, 1fr); }
+}
+@container app (max-width: 600px) {
+  .top { padding: 0 20px; }
+  .top-nav .sec, .tabs { display: none; }
+  .top-nav { justify-content: flex-end; }
+  .hero { padding: 64px 20px 56px; }
+  .hero h1 { font-size: 40px; line-height: 44px; }
+  .ctas { flex-direction: column; }
+  .steps4 { grid-template-columns: 1fr; padding: 0 20px 64px; }
+  .si-left { padding: 32px 20px; min-height: 760px; }
+  .ob-left { padding: 32px 20px; }
+  .ob-col { width: 100%; }
+  .band, .daylist { padding-left: 20px; padding-right: 20px; }
+  .band h1 { font-size: 36px; line-height: 40px; }
+}
+
+/* ---------- prototype controls ---------- */
+#bar { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); width: min(1100px, calc(100% - 24px)); background: #111; color: #eee; border-radius: 12px; padding: 10px 14px; font: 12px/1.4 "Geist Mono", ui-monospace, monospace; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+#bar .grp { display: inline-flex; align-items: center; gap: 4px; margin: 2px 14px 2px 0; }
+#bar b { color: #FFB23F; font-weight: 400; margin-right: 4px; }
+#bar button { background: #222; border: 1px solid #333; color: #ddd; border-radius: 6px; padding: 3px 8px; cursor: pointer; font: inherit; }
+#bar button[aria-pressed="true"] { background: #FFB23F; color: #111; border-color: #FFB23F; }
+#state { margin-top: 6px; color: #9a9a9a; }
+#state em { color: #fff; font-style: normal; }
+</style>
+</head>
+<body>
+<div id="stage"><div id="scaler"><div id="frame"><div id="main" tabindex="-1" style="outline:none"></div></div></div></div>
+
+<div id="bar" aria-label="Prototype controls">
+  <span class="grp"><b>WIDTH</b><button data-w="1440">1440</button><button data-w="768">768</button><button data-w="390">390</button></span>
+  <span class="grp"><b>MOTION</b><button data-m="system">Follow system</button><button data-m="full">Full</button><button data-m="reduced">Reduced</button><button id="slowmo">Slow ×5</button></span>
+  <span class="grp"><b>LOAD</b><button data-n="fast">Fast (no placeholder)</button><button data-n="slow">Slow (placeholder)</button></span>
+  <br>
+  <span class="grp"><b>OPEN</b><button data-go="#/">Landing</button><button data-go="#/reset-password">Reset link</button><button data-go="#/onboarding">Onboarding</button><button data-go="#/dashboard">This week</button></span>
+  <div id="state"></div>
+</div>
+
+<script>
+// ---------- motion values (DrillMap tokens; same pairing as Progress) ----------
+const FAST = 120, BASE = 200;
+const EXIT = "cubic-bezier(0.4, 0, 1, 1)";        // --ease-exit
+const STANDARD = "cubic-bezier(0.2, 0, 0, 1)";    // --ease-standard
+
+const S = { width: 1440, motion: "system", slow: false, net: "fast", route: null, step: 0, last: "—", focus: "—", timing: "—" };
+const sysReduced = matchMedia("(prefers-reduced-motion: reduce)");
+const reduced = () => S.motion === "reduced" || (S.motion === "system" && sysReduced.matches);
+const ms = t => t * (S.slow ? 5 : 1);
+const phone = () => S.width <= 600;
+const main = document.getElementById("main"), frame = document.getElementById("frame");
+
+// ---------- routes ----------
+const ROUTES = {
+  "/": { page: "landing", shell: "marketing" },
+  "/legal/terms": { page: "terms", shell: "marketing" },
+  "/signup": { page: "signup", shell: "signin" },
+  "/login": { page: "login", shell: "signin" },
+  "/forgot-password": { page: "forgot", shell: "signin" },
+  "/reset-password": { page: "reset", shell: "signin" },
+  "/verify-email": { page: "verify", shell: "signin" },
+  "/onboarding": { page: "onboarding", shell: "onboarding" },
+  "/dashboard": { page: "thisweek", shell: "app" },
+};
+const LOADING = { page: "loading", shell: "onboarding" };
+const parse = h => ROUTES[(h || "#/").slice(1)] || ROUTES["/"];
+
+// ---------- views ----------
+const logo = href => `<a class="logo" data-logo href="${href}"><i></i>DrillMap</a>`;
+function marketingBar() {
+  return `<header class="top"><div class="top-bg" data-fade></div><div class="top-in">${logo("#/")}
+    <nav class="top-nav" data-fade><div class="sec"><a href="#/">How it works</a><a href="#/">Pricing</a></div>
+    <div class="act"><a href="#/login" style="font-weight:500">Log in</a><a class="btn sm" href="#/signup">Start free week</a></div></nav></div></header>`;
+}
+function appBar(kind) {
+  const right = kind === "app"
+    ? `<nav class="tabs"><a class="tab" aria-current="page" href="#/dashboard">This week</a><a class="tab" href="#/dashboard">Progress</a><a class="tab" href="#/dashboard">Study settings</a></nav><span class="avatar">AB</span>`
+    : `<span style="font-size:14px;color:var(--smoke)">Log out</span>`;
+  return `<header class="top"><div class="top-bg" data-fade></div><div class="top-in">${logo("#/dashboard")}
+    <div class="top-nav" data-fade style="justify-content:flex-end;gap:16px">${right}</div></div></header>`;
+}
+
+function landing() {
+  return marketingBar() + `
+  <section class="hero" data-swap><p class="label">LSAT study plans</p>
+    <h1 tabindex="-1">Get next week's plan from your own analytics</h1>
+    <p class="lead">Upload your 7Sage analytics each weekend. DrillMap builds the week around what you missed.</p>
+    <div class="ctas"><a class="btn" href="#/signup">Start free week →</a><a class="btn ghost" href="#/login">Log in</a></div></section>
+  <section class="steps4" data-swap>${["Set your goal", "Pick your days", "Add your analytics", "Get your week"].map((t, i) =>
+    `<div><span class="label">0${i + 1}</span><b>${t}</b><p>A short line about this step, as on the landing page.</p></div>`).join("")}</section>`;
+}
+function terms() {
+  return marketingBar() + `<article class="legal-page" data-swap><p class="label">Legal</p><h1 tabindex="-1">Terms</h1>
+    <p>Sample legal text. The real page holds the Terms of Service.</p><p><a class="link" href="#/signup">Back to Sign up</a></p></article>`;
+}
+
+const FORMS = {
+  signup: () => `<div><h1 tabindex="-1">Create your account</h1><p class="lead">Your first full week is free. No card needed.</p></div>
+    <button class="btn ghost full">Continue with Google</button><div class="or">or with email</div>
+    <div class="fields"><div class="field"><label>Email</label><input value="alex@example.com"></div><div class="field"><label>Password</label><input type="password" value="password12"></div></div>
+    <a class="btn full" href="#/verify-email">Create account</a>
+    <p class="switch">Already have an account? <a class="link" href="#/login">Log in</a></p>`,
+  login: () => `<div><h1 tabindex="-1">Log in to DrillMap</h1><p class="lead">Your plan for this week is ready.</p></div>
+    <button class="btn ghost full">Continue with Google</button><div class="or">or with email</div>
+    <div class="fields"><div class="field"><label>Email</label><input value="alex@example.com"></div><div class="field"><label>Password</label><input type="password" value="password12"></div>
+    <a class="link" style="font-size:14px;align-self:flex-start" href="#/forgot-password">Forgot password?</a></div>
+    <button class="btn full" data-open-app>Log in</button>
+    <p class="switch">New to DrillMap? <a class="link" href="#/signup">Sign up</a></p>`,
+  forgot: () => `<div><h1 tabindex="-1">Reset your password</h1><p class="lead">We will email you a link to choose a new one.</p></div>
+    <div class="fields"><div class="field"><label>Email</label><input value="alex@example.com"></div></div>
+    <button class="btn full">Send reset link</button><p class="switch">Remember it? <a class="link" href="#/login">Log in</a></p>`,
+  reset: () => `<div><h1 tabindex="-1">Choose a new password</h1><p class="lead">Use at least 10 characters.</p></div>
+    <div class="fields"><div class="field"><label>New password</label><input type="password" value="password12"></div></div>
+    <button class="btn full">Save password</button><p class="switch">Back to <a class="link" href="#/login">Log in</a></p>`,
+  verify: () => `<div><h1 tabindex="-1">Check your email</h1><p class="lead">We sent a link to alex@example.com. Open it to start your free week.</p></div>
+    <button class="btn full" data-open-app>Open the link (prototype)</button>
+    <a class="btn ghost full" href="#/signup">Sign up again</a><p class="switch">Already verified? <a class="link" href="#/login">Log in</a></p>`,
+};
+const PREVIEWS = {
+  signup: () => `<span class="label">How your week starts</span>${["Set your target score", "Pick your study days", "Add two analytics screenshots", "Get Monday's plan"].map((t, i) => `<div class="row"><span class="num">0${i + 1}</span>${t}</div>`).join("")}`,
+  login: () => `<span class="label">Today · Tuesday</span>${[["Logical Reasoning drill · 35 min", 1], ["Inference set · 20 min", 0], ["Review missed questions · 15 min", 0]].map(([t, on]) => `<div class="row"><span class="dot${on ? " on" : ""}"></span>${t}</div>`).join("")}`,
+  mail: () => `<span class="label">Can't find the email?</span>${["Check your spam folder", "Search for “DrillMap”", "Wait a minute, then try again"].map(t => `<div class="row"><span class="dot"></span>${t}</div>`).join("")}`,
+};
+const previewFor = p => (p === "signup" ? PREVIEWS.signup : p === "login" ? PREVIEWS.login : PREVIEWS.mail)();
+function signin(p) {
+  return `<div class="si"><div class="si-left"><div class="si-logo">${logo("#/")}</div>
+    <div class="si-mid"><div class="si-form" data-swap>${FORMS[p]()}</div></div>
+    <nav class="legal-nav" data-fade><a href="#/legal/terms">Terms</a><a href="#/legal/terms">Privacy</a><a href="#/legal/terms">AI disclosure</a></nav></div>
+    <div class="si-right" data-fade><div class="panel"><div class="glow"></div><div class="card" data-swap>${previewFor(p)}</div></div></div></div>`;
+}
+
+const STEPS = [
+  { label: "Step 1 of 4 · Goal", title: "Set your target", lead: "Where you are now, where you want to be, and when.",
+    body: `<div class="fields"><div class="field"><label>Current score</label><input value="152"></div><div class="field"><label>Target score</label><input value="165"></div><div class="field"><label>Test date</label><input value="January 2027"></div></div>` },
+  { label: "Step 2 of 4 · Week", title: "Pick your study days", lead: "Choose the days you can study and how long.",
+    body: `<div class="days">${["M", "T", "W", "T", "F", "S", "S"].map((d, i) => `<span class="${i === 6 ? "" : "on"}">${d}</span>`).join("")}</div>` },
+  { label: "Step 3 of 4 · Analytics", title: "Add your 7Sage analytics", lead: "Two screenshots, or the same values typed by you, tell us what to drill first.",
+    body: `<div class="drop">Drop two screenshots here</div><button class="link" style="align-self:flex-start;font-size:14px" data-finish>Skip for now</button>` },
+  { label: "Step 4 of 4 · Review", title: "Check the values", lead: "Fix anything we read wrong, then get your week.",
+    body: `<div class="fields"><div class="field"><label>Weakest question type</label><input value="Inference"></div><div class="field"><label>Accuracy</label><input value="68%"></div></div>` },
+];
+function onboarding() {
+  const s = STEPS[S.step], last = S.step === STEPS.length - 1;
+  return appBar("onboarding") + `<div class="ob"><div class="ob-left"><div class="ob-col" data-swap>
+    <p class="label">${s.label}</p>
+    <div class="ob-step" data-step><div><h1 tabindex="-1">${s.title}</h1><p class="lead">${s.lead}</p></div>${s.body}
+      <div class="ob-actions">${S.step ? `<button class="btn ghost" data-back>Back</button>` : ""}<button class="btn" ${last ? "data-finish" : "data-next"}>${last ? "Looks right" : "Continue"}</button></div></div>
+  </div></div>
+  <div class="ob-preview" data-fade><div class="panel"><div class="glow"></div><div class="card" data-swap><span class="label">Your week so far</span>
+    ${STEPS.slice(0, S.step + 1).map((x, i) => `<div class="row"><span class="dot${i < S.step ? " on" : ""}"></span>${x.title}</div>`).join("")}</div></div></div></div>`;
+}
+function loading() {
+  return appBar("onboarding") + `<div class="ob"><div class="ob-left"><div class="ob-col" data-swap style="gap:16px">
+    <div class="skel" style="height:16px;width:140px"></div><div class="skel" style="height:34px;width:260px"></div><div class="skel" style="height:20px;width:360px"></div>
+    <div class="skel" style="height:44px"></div><div class="skel" style="height:44px"></div><div class="skel" style="height:48px;width:120px"></div>
+    <span class="label" style="color:var(--fog)">Loading placeholder, shaped like onboarding</span></div></div>
+  <div class="ob-preview" data-fade><div class="panel"><div class="glow"></div><div class="card" data-swap><div class="skel" style="height:16px;width:120px"></div><div class="skel" style="height:44px"></div></div></div></div></div>`;
+}
+function thisweek() {
+  return appBar("app") + `<section class="band" data-swap><p class="label">This week · Nov 2 – 8</p><h1 tabindex="-1">This week</h1><p>Your first weekly schedule. It starts Monday.</p></section>
+  <div class="daylist" data-swap>${["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map(d => `<div class="day"><b>${d}</b><span style="color:var(--smoke)">3 activities · 70 min</span></div>`).join("")}</div>`;
+}
+const VIEW = { landing, terms, onboarding, loading, thisweek, signup: () => signin("signup"), login: () => signin("login"), forgot: () => signin("forgot"), reset: () => signin("reset"), verify: () => signin("verify") };
+
+// ---------- the one transition engine ----------
+let running = [], gen = 0;
+const settle = a => a.finished.catch(() => {});
+const outermost = selector => {
+  const all = [...main.querySelectorAll(selector)];
+  return all.filter(el => !all.some(other => other !== el && other.contains(el)));
+};
+async function swap(kind, render, { selector, dx = 0, glide = false }) {
+  const my = ++gen, red = reduced();
+  for (const a of running) { try { a.commitStyles(); } catch {} a.cancel(); }
+  running = [];
+  main.inert = true; main.setAttribute("aria-busy", "true");
+  if (main.contains(document.activeElement)) main.focus({ preventScroll: true });
+  const oldLogo = main.querySelector("[data-logo]")?.getBoundingClientRect();
+  const out = red ? [] : outermost(selector).map(el => {
+    const o = +getComputedStyle(el).opacity;
+    return el.animate([{ opacity: o }, { opacity: 0, transform: dx ? `translateX(${-dx}px)` : "none" }],
+      { duration: ms(FAST) * o, easing: EXIT, fill: "forwards" });
+  });
+  running = out;
+  await Promise.all(out.map(settle));
+  if (my !== gen) return false;
+
+  render();
+  main.inert = false; main.removeAttribute("aria-busy");
+  const rise = phone() ? 4 : 8;
+  const incoming = outermost(selector);
+  running = incoming.filter(Boolean).map(el => el.animate(
+    red ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: dx ? `translateX(${dx}px)` : `translateY(${rise}px)` }, { opacity: 1, transform: "none" }],
+    { duration: ms(red ? FAST : BASE), easing: STANDARD, fill: "backwards" }));
+  const newLogo = main.querySelector("[data-logo]");
+  let glided = false;
+  if (glide && !red && oldLogo && newLogo) {
+    const r = newLogo.getBoundingClientRect(), x = (oldLogo.left - r.left) / S.scale, y = (oldLogo.top - r.top) / S.scale;
+    if (Math.abs(x) + Math.abs(y) > 0.5) glided = true, running.push(newLogo.animate([{ transform: `translate(${x}px, ${y}px)` }, { transform: "none" }], { duration: ms(BASE), easing: STANDARD }));
+  }
+  const h1 = main.querySelector("h1");
+  h1?.focus({ preventScroll: true });
+  S.last = kind;
+  S.focus = h1 ? `heading “${h1.textContent}”` : "—";
+  S.timing = red ? `fade in ${ms(FAST)} ms, no movement` : `out ${ms(FAST)} ms exit easing → in ${ms(BASE)} ms standard easing, ${dx ? `${Math.abs(dx)} px slide` : `${rise} px rise`}${glided ? ", logo glides to its new spot" : ""}`;
+  showState();
+  await Promise.all(running.map(settle));
+  return my === gen;
+}
+
+function show(route, how) {
+  const prev = S.route;
+  S.route = route;
+  if (!prev) { main.innerHTML = VIEW[route.page](); S.last = "first load, no motion"; showState(); return; }
+  const same = prev.shell === route.shell;
+  const kind = route.page === "onboarding" && prev.page === "loading" ? "placeholder → page"
+    : same ? (route.shell === "signin" ? "sign-in swap (frame stays)" : "content swap (top bar stays)") : "page fade-through";
+  const restore = how === "browser back/forward" ? scrolls.get(current) ?? 0 : 0;
+  return swap(`${kind}${how ? ` · ${how}` : ""}`, () => { main.innerHTML = VIEW[route.page](); frame.scrollTop = restore; },
+    { selector: same ? "[data-swap]" : "[data-fade],[data-swap]", glide: !same });
+}
+const scrolls = new Map();
+let entry = 0, current = 0;
+function nav(hash) {
+  if (hash === location.hash || (hash === "#/" && !location.hash)) return;
+  scrolls.set(current, frame.scrollTop);
+  current = ++entry;
+  history.pushState({ id: current }, "", hash);
+  open(parse(hash), "link");
+}
+function open(route, how) {
+  if (route.page === "onboarding") S.step = 0;
+  if (route.page === "onboarding" && S.net === "slow" && S.route?.page !== "loading") {
+    show(LOADING, how);
+    const at = location.hash;
+    setTimeout(() => { if (location.hash === at && S.route === LOADING) show(route); }, ms(1400));
+    return;
+  }
+  show(route, how);
+}
+function stepTo(n) {
+  if (n === S.step || n < 0 || n >= STEPS.length) return;
+  const dir = n > S.step ? 1 : -1;
+  S.step = n;
+  swap(dir > 0 ? "onboarding step · Continue" : "onboarding step · Back", () => { main.innerHTML = onboarding(); },
+    { selector: "[data-step]", dx: dir * 8 });
+}
+
+addEventListener("popstate", () => {
+  scrolls.set(current, frame.scrollTop);
+  current = history.state?.id ?? 0;
+  open(parse(location.hash), "browser back/forward");
+});
+document.addEventListener("click", e => {
+  const a = e.target.closest('#main a[href^="#/"]');
+  if (a) { e.preventDefault(); nav(a.getAttribute("href")); return; }
+  if (e.target.closest("[data-next]")) stepTo(S.step + 1);
+  else if (e.target.closest("[data-back]")) stepTo(S.step - 1);
+  else if (e.target.closest("[data-finish]")) nav("#/dashboard");
+  else if (e.target.closest("[data-open-app]")) nav("#/onboarding");
+});
+
+// ---------- controls ----------
+function fit() {
+  const stage = document.getElementById("stage"), sc = document.getElementById("scaler");
+  const scale = Math.min(1, (stage.clientWidth - 32) / S.width);
+  frame.style.width = S.width + "px";
+  frame.style.height = (stage.clientHeight - 16) / scale + "px";
+  sc.style.transform = `scale(${scale})`;
+  S.scale = scale;
+}
+function press() {
+  document.querySelectorAll("[data-w]").forEach(b => b.setAttribute("aria-pressed", +b.dataset.w === S.width));
+  document.querySelectorAll("[data-m]").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === S.motion));
+  document.querySelectorAll("[data-n]").forEach(b => b.setAttribute("aria-pressed", b.dataset.n === S.net));
+  document.getElementById("slowmo").setAttribute("aria-pressed", S.slow);
+}
+function showState() {
+  const r = S.route || {};
+  document.getElementById("state").innerHTML =
+    `url <em>${(location.hash || "#/").slice(1)}</em> · page <em>${r.page}${r.page === "onboarding" ? ` step ${S.step + 1}` : ""}</em> · motion <em>${reduced() ? "reduced" : "full"}</em>${S.slow ? " ×5 slow" : ""} · history entries <em>${history.length}</em><br>` +
+    `last transition <em>${S.last}</em> · <em>${S.timing}</em> · focus <em>${S.focus}</em>`;
+}
+document.querySelectorAll("[data-w]").forEach(b => b.onclick = () => { S.width = +b.dataset.w; fit(); press(); showState(); });
+document.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { S.motion = b.dataset.m; press(); showState(); });
+document.querySelectorAll("[data-n]").forEach(b => b.onclick = () => { S.net = b.dataset.n; press(); showState(); });
+document.getElementById("slowmo").onclick = () => { S.slow = !S.slow; press(); showState(); };
+document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => nav(b.dataset.go));
+sysReduced.addEventListener("change", showState);
+addEventListener("resize", () => { fit(); showState(); });
+
+fit(); press();
+history.replaceState({ id: 0 }, "", location.hash || "#/");
+open(parse(location.hash));
+</script>
+</body>
+</html>
