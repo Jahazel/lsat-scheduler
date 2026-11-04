@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Link from "next/link";
-import { StrictMode } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { StrictMode, useState } from "react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const mocks = vi.hoisted(() => ({ push: vi.fn(), pathname: "/" }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }), usePathname: () => mocks.pathname }));
-import SiteMotion from "./SiteMotion";
+import SiteMotion, { fadeFormThrough } from "./SiteMotion";
 
 type Live = { el: Element; keyframes: Keyframe[]; options: KeyframeAnimationOptions; finish: () => void };
 let live: Live[] = [];
@@ -46,10 +46,11 @@ beforeEach(() => {
   Element.prototype.getAnimations = function (this: Element) { return live.filter((a) => a.el === this) as unknown as Animation[]; };
   Element.prototype.getBoundingClientRect = function (this: Element) {
     if (!this.hasAttribute("data-page-logo")) return new DOMRect();
-    return this.closest("[data-sign-in-page]") ? SIGN_IN_LOGO : TOP_BAR_LOGO;
+    if (!this.closest("[data-sign-in-page]")) return TOP_BAR_LOGO;
+    return new DOMRect(SIGN_IN_LOGO.x, SIGN_IN_LOGO.y - window.scrollY, SIGN_IN_LOGO.width, SIGN_IN_LOGO.height);
   };
   window.matchMedia = ((query: string) => ({ matches: (reduced && query.includes("reduce")) || (phone && query.includes("390px")) })) as typeof window.matchMedia;
-  window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
+  window.scrollTo = vi.fn(({ top }: ScrollToOptions) => { window.scrollY = top ?? 0; }) as unknown as typeof window.scrollTo;
   window.scrollY = 0;
 });
 afterEach(cleanup);
@@ -75,14 +76,21 @@ function Landing() {
   );
 }
 
-function SignIn({ title }: { title: string }) {
+function SignIn({ title, notice, children }: { title: string; notice?: string; children?: React.ReactNode }) {
   return (
     <main tabIndex={-1}>
       <div data-sign-in-page>
         <Link data-page-logo href="/">DrillMap</Link>
-        <div data-page-fade style={{ opacity: 1 }}>
+        <div data-page-swap style={{ opacity: 1 }}>
           <h1 tabIndex={-1}>{title}</h1>
+          {notice && <p role="status">{notice}</p>}
+          {children}
+        </div>
+        <nav data-page-fade aria-label="Legal" style={{ opacity: 1 }}>
           <a href="/legal/terms">Terms</a>
+        </nav>
+        <div data-page-fade aria-label="Preview panel" style={{ opacity: 1 }}>
+          <div data-page-swap aria-label="Preview card" style={{ opacity: 1 }}>Preview</div>
         </div>
       </div>
     </main>
@@ -91,14 +99,21 @@ function SignIn({ title }: { title: string }) {
 
 const PAGES: Record<string, () => React.ReactNode> = {
   "/": () => <Landing />,
-  "/signup": () => <SignIn title="Sign up for DrillMap" />,
-  "/login": () => <SignIn title="Log in to DrillMap" />,
+  "/signup": () => <SignIn title="Sign up for DrillMap"><a href="/login">Log in</a></SignIn>,
+  "/login": () => (
+    <SignIn title="Log in to DrillMap" notice={location.search ? "Your password is changed. Log in with the new one." : undefined}>
+      <a href="/forgot-password">Forgot password?</a>
+      <a href="/signup">Sign up</a>
+    </SignIn>
+  ),
+  "/forgot-password": () => <SignIn title="Reset your password"><a href="/login">Log in</a></SignIn>,
   "/dashboard": () => <main><h1 tabIndex={-1}>This week</h1><Link href="/">DrillMap</Link></main>,
 };
 
-function show(path: string, rerender?: (ui: React.ReactNode) => void) {
+function show(url: string, rerender?: (ui: React.ReactNode) => void) {
+  const path = new URL(url, location.origin).pathname;
   mocks.pathname = path;
-  history.replaceState(null, "", path);
+  history.replaceState(null, "", url);
   const ui = <>{PAGES[path]()}<SiteMotion /></>;
   if (rerender) rerender(ui);
   else return render(ui);
@@ -124,9 +139,11 @@ describe("SiteMotion", () => {
     show("/signup", rerender);
     expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: "instant" });
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sign up for DrillMap" }));
-    expect(entrances()).toHaveLength(1);
-    expect(entrances()[0].keyframes).toEqual([{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }]);
-    expect(entrances()[0].options).toEqual({ duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" });
+    expect(entrances().map((a) => a.el.getAttribute("aria-label") ?? "form")).toEqual(["form", "Legal", "Preview panel"]);
+    for (const entrance of entrances()) {
+      expect(entrance.keyframes).toEqual([{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }]);
+      expect(entrance.options).toEqual({ duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" });
+    }
     expect(glides()).toHaveLength(1);
     expect(glides()[0].keyframes).toEqual([{ transform: "translate(-72px, -12px)" }, { transform: "none" }]);
     expect(glides()[0].options).toEqual({ duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" });
@@ -227,8 +244,7 @@ describe("SiteMotion", () => {
     const form = screen.getByRole("heading", { name: "Log in to DrillMap" }).parentElement!;
     form.style.opacity = "0.5";
     await click("DrillMap");
-    const exit = exits().at(-1)!;
-    expect(exit.el).toBe(form);
+    const exit = exits().find((a) => a.el === form)!;
     expect(exit.keyframes[0]).toMatchObject({ opacity: "0.5" });
     expect(exit.options.duration).toBe(60);
   });
@@ -240,7 +256,8 @@ describe("SiteMotion", () => {
     expect(exits()).toHaveLength(0);
     await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/signup", { scroll: false }));
     show("/signup", rerender);
-    expect(entrances().map((a) => [a.keyframes, a.options])).toEqual([[[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "linear" }]]);
+    expect(entrances()).toHaveLength(3);
+    for (const entrance of entrances()) expect([entrance.keyframes, entrance.options]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "linear" }]);
     expect(glides()).toHaveLength(0);
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sign up for DrillMap" }));
   });
@@ -303,7 +320,114 @@ describe("SiteMotion", () => {
     await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledOnce());
     mocks.pathname = "/signup";
     rerender(<StrictMode><SignIn title="Sign up for DrillMap" /><SiteMotion /></StrictMode>);
-    expect(entrances()).toHaveLength(1);
+    expect(entrances()).toHaveLength(3);
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sign up for DrillMap" }));
+  });
+
+  describe("between sign-in pages", () => {
+    const formOf = (title: string) => screen.getByRole("heading", { name: title }).parentElement!;
+    const card = () => screen.getByLabelText("Preview card");
+    const anchors = () => [screen.getByRole("navigation", { name: "Legal" }), screen.getByLabelText("Preview panel"), screen.getByRole("link", { name: "DrillMap" })];
+
+    it("fades only the form and the preview card, rises them in, and focuses the form heading", async () => {
+      const { rerender } = show("/signup")!;
+      window.scrollY = 116;
+      await click("Log in");
+      expect(exits().map((a) => a.el)).toEqual([formOf("Sign up for DrillMap"), card()]);
+      for (const exit of exits()) expect(exit.options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)" });
+      for (const anchor of anchors()) {
+        expect(anchor.hasAttribute("inert")).toBe(false);
+        expect(anchor.hasAttribute("aria-busy")).toBe(false);
+      }
+      expect(formOf("Sign up for DrillMap").hasAttribute("inert")).toBe(true);
+      expect(card().getAttribute("aria-busy")).toBe("true");
+      finishExits();
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/login", { scroll: false }));
+
+      show("/login", rerender);
+      expect(entrances().map((a) => a.el)).toEqual([formOf("Log in to DrillMap"), card()]);
+      for (const entrance of entrances()) {
+        expect(entrance.keyframes).toEqual([{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }]);
+        expect(entrance.options).toEqual({ duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" });
+      }
+      expect(calls.some((a) => anchors().includes(a.el as HTMLElement))).toBe(false);
+      expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: "instant" });
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Log in to DrillMap" }));
+    });
+
+    it("moves Log in to Forgot password and back with the same form fade, and Back waits for the fade-out", async () => {
+      const { rerender } = show("/login")!;
+      await click("Forgot password?");
+      finishExits();
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/forgot-password", { scroll: false }));
+      show("/forgot-password", rerender);
+      expect(entrances()).toHaveLength(2);
+
+      const router = vi.fn();
+      addEventListener("popstate", router);
+      history.replaceState(null, "", "/login");
+      dispatchEvent(new PopStateEvent("popstate"));
+      expect(router).not.toHaveBeenCalled();
+      expect(exits().slice(-2).map((a) => a.el)).toEqual([formOf("Reset your password"), card()]);
+      finishExits();
+      await vi.waitFor(() => expect(router).toHaveBeenCalledOnce());
+      removeEventListener("popstate", router);
+
+      calls = [];
+      show("/login", rerender);
+      expect(entrances().map((a) => a.el)).toEqual([formOf("Log in to DrillMap"), card()]);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Log in to DrillMap" }));
+    });
+
+    it("fades a notice at the top of the form in with the form", async () => {
+      const { rerender } = show("/forgot-password")!;
+      await click("Log in");
+      finishExits();
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalled());
+      show("/login?notice=passwordChanged", rerender);
+      const notice = screen.getByRole("status");
+      const fadingIn = entrances().filter((a) => a.el.contains(notice));
+      expect(fadingIn.map((a) => a.el)).toEqual([formOf("Log in to DrillMap")]);
+    });
+
+    it("only fades the form and card in for 120 ms under reduced motion", async () => {
+      reduced = true;
+      const { rerender } = show("/login")!;
+      await click("Sign up");
+      expect(exits()).toHaveLength(0);
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/signup", { scroll: false }));
+      show("/signup", rerender);
+      expect(entrances().map((a) => a.el)).toEqual([formOf("Sign up for DrillMap"), card()]);
+      for (const entrance of entrances()) expect([entrance.keyframes, entrance.options]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "linear" }]);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sign up for DrillMap" }));
+    });
+
+    function SignupThenCheckEmail() {
+      const [sent, setSent] = useState(false);
+      return sent
+        ? <SignIn title="Check your email"><button type="button" onClick={() => fadeFormThrough(() => setSent(false))}>Sign up again</button></SignIn>
+        : <SignIn title="Sign up for DrillMap"><button type="button" onClick={() => fadeFormThrough(() => setSent(true))}>Create account</button></SignIn>;
+    }
+
+    it("fades the form through when the page changes its own content, as Sign up does after Create account", async () => {
+      mocks.pathname = "/signup";
+      render(<><SignupThenCheckEmail /><SiteMotion /></>);
+      fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+      expect(exits().map((a) => a.el)).toEqual([formOf("Sign up for DrillMap"), card()]);
+      expect(formOf("Sign up for DrillMap").hasAttribute("inert")).toBe(true);
+      expect(screen.queryByRole("heading", { name: "Check your email" })).toBeNull();
+      await act(async () => finishExits());
+
+      expect(entrances().map((a) => a.el)).toEqual([formOf("Check your email"), card()]);
+      expect(entrances()[0].keyframes[0]).toEqual({ opacity: 0, transform: "translateY(8px)" });
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Check your email" }));
+      expect(calls.some((a) => anchors().includes(a.el as HTMLElement))).toBe(false);
+      expect(card().hasAttribute("inert")).toBe(false);
+
+      fireEvent.click(screen.getByRole("button", { name: "Sign up again" }));
+      await act(async () => finishExits());
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sign up for DrillMap" }));
+      expect(live.some((a) => a.options.fill === "forwards")).toBe(false);
+    });
   });
 });
