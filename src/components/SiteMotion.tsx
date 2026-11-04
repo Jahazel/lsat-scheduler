@@ -2,14 +2,23 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef } from "react";
+import { flushSync } from "react-dom";
 import { durationMs, fadeIn, fadeOut, isPlainClick, motionToken, reducedMotion, riseFrom, stopAtCurrentFrame } from "@/lib/motion";
 
-const SIGN_IN = new Set(["/signup", "/login"]);
-export const movesBetween = (from: string, to: string) => (from === "/" && SIGN_IN.has(to)) || (SIGN_IN.has(from) && to === "/");
+const SIGN_IN = new Set(["/signup", "/login", "/forgot-password", "/reset-password", "/verify-email"]);
 
-type Target = { path: string; fromHistory: boolean };
+type Motion = "page" | "form";
+function motionBetween(from: string, to: string): Motion | null {
+  if (SIGN_IN.has(from) && SIGN_IN.has(to)) return from === to ? null : "form";
+  return (from === "/" && SIGN_IN.has(to)) || (SIGN_IN.has(from) && to === "/") ? "page" : null;
+}
 
-const regions = () => [...document.querySelectorAll<HTMLElement>("[data-page-fade]")];
+type Target = { path: string; fromHistory: boolean; motion: Motion };
+
+function regions(motion: Motion) {
+  const found = [...document.querySelectorAll<HTMLElement>(motion === "page" ? "[data-page-fade], [data-page-swap]" : "[data-page-swap]")];
+  return found.filter((el) => !found.some((outer) => outer !== el && outer.contains(el)));
+}
 const visibleLogo = () => [...document.querySelectorAll<HTMLElement>("[data-page-logo]")].find((logo) => logo.getBoundingClientRect().width > 0);
 const rise = () => (matchMedia("(max-width: 390px)").matches ? 4 : 8);
 
@@ -32,6 +41,33 @@ function glideLogo(from: DOMRect | null) {
   });
 }
 
+function fadeAway(old: HTMLElement[]) {
+  if (old.some((el) => el.contains(document.activeElement))) document.querySelector("main")?.focus({ preventScroll: true });
+  for (const el of old) setBusy(el, true);
+  const exits = reducedMotion() ? [] : old.map((el) => fadeOut(el, { shorten: true }));
+  return Promise.all(exits.map((exit) => exit.finished)).then(() => true, () => false);
+}
+
+function arrive(motion: Motion) {
+  document.querySelector<HTMLElement>("main h1")?.focus({ preventScroll: true });
+  for (const el of regions(motion)) fadeIn(el, riseFrom(rise()));
+}
+
+export function fadeFormThrough(update: () => void) {
+  const old = regions("form");
+  const leavingPage = old.some((el) => el.hasAttribute("inert"));
+  if (!old.length || leavingPage || !("animate" in Element.prototype)) return update();
+  fadeAway(old).then((ok) => {
+    if (!ok) return;
+    for (const el of old) {
+      for (const animation of el.getAnimations()) animation.cancel();
+      setBusy(el, false);
+    }
+    flushSync(update);
+    arrive("form");
+  });
+}
+
 export default function SiteMotion() {
   const router = useRouter();
   const pathname = usePathname();
@@ -46,7 +82,11 @@ export default function SiteMotion() {
     const from = shown.current;
     shown.current = pathname;
     const arriving = target.current;
-    if (from === pathname || !arriving) return;
+    if (from === pathname) return;
+    if (!arriving) {
+      if (from && motionBetween(from, pathname) === "form") arrive("form");
+      return;
+    }
     target.current = null;
     heldAt.current = null;
     for (const el of leaving.current) {
@@ -62,8 +102,7 @@ export default function SiteMotion() {
     scrolls.current.set(pathname, top);
     glideLogo(logoFrom.current);
     logoFrom.current = null;
-    document.querySelector<HTMLElement>("main h1")?.focus({ preventScroll: true });
-    for (const el of regions()) fadeIn(el, riseFrom(rise()));
+    arrive(arriving.motion);
   }, [pathname]);
 
   useEffect(() => {
@@ -81,16 +120,13 @@ export default function SiteMotion() {
 
     function leave(next: Target) {
       target.current = next;
-      const old = regions();
+      const old = regions(next.motion);
       leaving.current = old;
-      if (old.some((el) => el.contains(document.activeElement))) document.querySelector("main")?.focus({ preventScroll: true });
-      for (const el of old) setBusy(el, true);
-      const exits = reducedMotion() ? [] : old.map((el) => fadeOut(el, { shorten: true }));
-      return Promise.all(exits.map((exit) => exit.finished)).then(() => {
-        if (target.current !== next) return false;
-        logoFrom.current = visibleLogo()?.getBoundingClientRect() ?? null;
+      return fadeAway(old).then((ok) => {
+        if (!ok || target.current !== next) return false;
+        logoFrom.current = next.motion === "page" ? visibleLogo()?.getBoundingClientRect() ?? null : null;
         return true;
-      }, () => false);
+      });
     }
 
     function onClick(event: MouseEvent) {
@@ -108,19 +144,21 @@ export default function SiteMotion() {
         }
         comeBack();
       }
-      if (!shown.current || !movesBetween(shown.current, to)) return;
+      const motion = shown.current && motionBetween(shown.current, to);
+      if (!shown.current || !motion) return;
       event.preventDefault();
       scrolls.current.set(shown.current, scrollY);
-      leave({ path: to, fromHistory: false }).then((ok) => ok && router.push(url.pathname + url.search + url.hash, { scroll: false }));
+      leave({ path: to, fromHistory: false, motion }).then((ok) => ok && router.push(url.pathname + url.search + url.hash, { scroll: false }));
     }
 
     function holdPopStateUntilFadedOut(event: PopStateEvent) {
       if (replaying) return;
       if (target.current) comeBack();
       const to = location.pathname;
-      if (!shown.current || !movesBetween(shown.current, to)) return;
+      const motion = shown.current && motionBetween(shown.current, to);
+      if (!shown.current || !motion) return;
       const from = shown.current;
-      const left = leave({ path: to, fromHistory: true });
+      const left = leave({ path: to, fromHistory: true, motion });
       if (reducedMotion()) return;
       event.stopImmediatePropagation();
       // Chrome restores the new entry's scroll after popstate; the old page keeps its spot until it has faded out.

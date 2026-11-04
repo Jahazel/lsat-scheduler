@@ -22,7 +22,7 @@ export function SignInFrame({ title, lead, preview, children }: {
         <div className="flex h-10 items-center">
           <Logo href="/" />
         </div>
-        <div data-page-fade className="flex grow flex-col justify-center py-12">
+        <div data-page-swap className="flex grow flex-col justify-center py-12">
           <div className="flex w-full max-w-100 flex-col gap-8">
             <div className="flex flex-col gap-2">
               <h1 tabIndex={-1} className="text-h3 font-semibold text-ink outline-none">{title}</h1>
@@ -42,7 +42,7 @@ export function SignInFrame({ title, lead, preview, children }: {
       <div data-page-fade aria-hidden className="hidden grow py-4 pr-4 lg:flex">
         <div className="relative flex grow items-center justify-center overflow-clip rounded-lg bg-vellum">
           <div className="absolute -right-[10%] -bottom-[55%] -left-[10%] h-[110%] rounded-[50%] bg-sign-in-glow" />
-          <div className="relative flex w-110 shrink-0 flex-col gap-5 rounded-md border border-vellum-line bg-paper p-6 shadow-e2">
+          <div data-page-swap className="relative flex w-110 shrink-0 flex-col gap-5 rounded-md border border-vellum-line bg-paper p-6 shadow-e2">
             {preview}
           </div>
         </div>

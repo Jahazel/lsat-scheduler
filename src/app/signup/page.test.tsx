@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const actions = vi.hoisted(() => ({ signUpWithGoogle: vi.fn(), signUpWithPassword: vi.fn() }));
@@ -84,5 +84,45 @@ describe("Signup", () => {
     await userEvent.click(screen.getByRole("button", { name: "Create account" }));
     expect(await screen.findByRole("heading", { name: "Check your email" })).toBeTruthy();
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
+  it("keeps the form on screen until it has faded out, then fades Check your email in and focuses its heading", async () => {
+    const exits: { finish: () => void }[] = [];
+    const entrances: Element[] = [];
+    const animate = vi.fn(function (this: Element, _keyframes: Keyframe[], options: KeyframeAnimationOptions) {
+      let finish!: () => void;
+      const finished = new Promise<void>((resolve) => { finish = resolve; });
+      if (options.fill === "forwards") exits.push({ finish });
+      else { entrances.push(this); finish(); }
+      return { finished, cancel: () => {} };
+    });
+    const saved = { animate: Element.prototype.animate, getAnimations: Element.prototype.getAnimations, matchMedia: window.matchMedia };
+    Element.prototype.animate = animate as unknown as Element["animate"];
+    Element.prototype.getAnimations = () => [];
+    window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
+    try {
+      actions.signUpWithPassword.mockResolvedValue({ kind: "checkYourEmail", email: "maya.chen@fastmail.com" });
+      render(<main><SignupPage /></main>);
+      await fillIn();
+      await userEvent.click(screen.getByRole("checkbox"));
+      await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+      await waitFor(() => expect(exits).toHaveLength(2));
+      expect(screen.getByRole("heading", { name: "Sign up for DrillMap" })).toBeTruthy();
+      expect(screen.queryByRole("heading", { name: "Check your email" })).toBeNull();
+      await act(async () => exits.forEach((exit) => exit.finish()));
+
+      const heading = screen.getByRole("heading", { name: "Check your email" });
+      expect(document.activeElement).toBe(heading);
+      expect(entrances).toHaveLength(2);
+      expect(entrances[0].contains(heading)).toBe(true);
+    } finally {
+      const prototype: Partial<Element> = Element.prototype;
+      if (saved.animate) prototype.animate = saved.animate;
+      else delete prototype.animate;
+      if (saved.getAnimations) prototype.getAnimations = saved.getAnimations;
+      else delete prototype.getAnimations;
+      window.matchMedia = saved.matchMedia;
+    }
   });
 });
