@@ -194,7 +194,7 @@ describe("Landing page", () => {
     expect(document.getElementById("how-it-works")).toBe(screen.getByRole("region", { name: "How it works" }));
   });
 
-  it("sends the signpost links through the site router, so Back from another page can restore the landing page", () => {
+  it("sends the signpost links through the site router, not the browser", () => {
     const push = vi.fn();
     render(
       <RouterContext.Provider value={{ push, prefetch: () => Promise.resolve(), pathname: "/", asPath: "/" } as unknown as NextRouter}>
@@ -204,8 +204,8 @@ describe("Landing page", () => {
     const closing = screen.getByRole("region", { name: "Start" });
     for (const [name, hash] of [["Pricing", "#pricing"], ["How it works", "#how-it-works"]]) {
       push.mockClear();
-      const browserFollowedLink = fireEvent.click(within(closing).getByRole("link", { name }));
-      expect(browserFollowedLink).toBe(false);
+      const defaultPrevented = !fireEvent.click(within(closing).getByRole("link", { name }));
+      expect(defaultPrevented).toBe(true);
       expect(push).toHaveBeenCalledWith(`/${hash}`, expect.anything());
     }
   });
