@@ -189,10 +189,10 @@ function Signpost({ icon, title, href, link, className, children }: {
       <span className="mb-4 grid size-10 place-items-center rounded-[10px] border border-vellum-line bg-paper">{icon}</span>
       <h3 className="text-[16px]/[22px] font-semibold text-ink">{title}</h3>
       <p className="text-[15px]/[23px] text-smoke">{children}</p>
-      <a href={href} className={cx("signpost-link mt-2 inline-flex items-center gap-1 rounded-xs text-[15px] font-medium text-ink", FOCUS)}>
+      <Link href={href} className={cx("signpost-link mt-2 inline-flex items-center gap-1 rounded-xs text-[15px] font-medium text-ink", FOCUS)}>
         {link}
         <LinkArrow />
-      </a>
+      </Link>
     </div>
   );
 }
