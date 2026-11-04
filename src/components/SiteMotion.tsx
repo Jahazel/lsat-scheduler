@@ -5,7 +5,6 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { durationMs, fadeIn, fadeOut, isPlainClick, motionToken, reducedMotion, riseFrom, stopAtCurrentFrame } from "@/lib/motion";
 
 const SIGN_IN = new Set(["/signup", "/login"]);
-const IN_SCOPE = new Set(["/", ...SIGN_IN]);
 export const movesBetween = (from: string, to: string) => (from === "/" && SIGN_IN.has(to)) || (SIGN_IN.has(from) && to === "/");
 
 type Target = { path: string; fromHistory: boolean };
@@ -45,7 +44,6 @@ export default function SiteMotion() {
   useLayoutEffect(() => {
     const from = shown.current;
     shown.current = pathname;
-    if (!IN_SCOPE.has(pathname)) history.scrollRestoration = "auto";
     const arriving = target.current;
     if (from === pathname || !arriving) return;
     target.current = null;
@@ -66,9 +64,11 @@ export default function SiteMotion() {
 
   useEffect(() => {
     let replaying = false;
+    let heldAt: number | null = null;
 
     function comeBack() {
       target.current = null;
+      heldAt = null;
       for (const el of leaving.current) {
         setBusy(el, false);
         fadeIn(el, stopAtCurrentFrame(el));
@@ -77,8 +77,6 @@ export default function SiteMotion() {
     }
 
     function leave(next: Target) {
-      // The browser restores scroll before popstate, which would move the old page before it fades out. This entry and the pushed one take their spot from `scrolls`.
-      history.scrollRestoration = "manual";
       target.current = next;
       const old = regions();
       leaving.current = old;
@@ -118,28 +116,33 @@ export default function SiteMotion() {
       if (target.current) comeBack();
       const to = location.pathname;
       if (!shown.current || !movesBetween(shown.current, to)) return;
+      const from = shown.current;
       const left = leave({ path: to, fromHistory: true });
       if (reducedMotion()) return;
       event.stopImmediatePropagation();
+      // Chrome restores the new entry's scroll after popstate; the old page keeps its spot until it has faded out.
+      heldAt = scrolls.current.get(from) ?? scrollY;
       left.then((ok) => {
         if (!ok) return;
+        heldAt = null;
         replaying = true;
         dispatchEvent(new PopStateEvent("popstate", { state: history.state }));
         replaying = false;
       });
     }
 
-    function recordSettledScroll() {
-      if (!target.current && shown.current) scrolls.current.set(shown.current, scrollY);
+    function onScroll() {
+      if (heldAt !== null && scrollY !== heldAt) scrollTo({ top: heldAt, behavior: "instant" });
+      else if (!target.current && shown.current) scrolls.current.set(shown.current, scrollY);
     }
 
     addEventListener("click", onClick, { capture: true });
     addEventListener("popstate", holdPopStateUntilFadedOut, { capture: true });
-    addEventListener("scroll", recordSettledScroll, { passive: true });
+    addEventListener("scroll", onScroll, { passive: true });
     return () => {
       removeEventListener("click", onClick, { capture: true });
       removeEventListener("popstate", holdPopStateUntilFadedOut, { capture: true });
-      removeEventListener("scroll", recordSettledScroll);
+      removeEventListener("scroll", onScroll);
     };
   }, [router]);
 

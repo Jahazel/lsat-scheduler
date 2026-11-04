@@ -161,20 +161,23 @@ describe("SiteMotion", () => {
     expect(document.activeElement).toBe(document.querySelector("main"));
   });
 
-  it("returns to the scroll spot on Back, holding Back until the fade-out ends", async () => {
+  it("holds Back until the fade-out ends, keeps the old page at its own scroll spot, and returns the landing page to its spot", async () => {
     const { rerender } = show("/")!;
     window.scrollY = 640;
     await click("Start free week");
     finishExits();
     await vi.waitFor(() => expect(mocks.push).toHaveBeenCalled());
     show("/signup", rerender);
-    expect(history.scrollRestoration).toBe("manual");
 
     const router = vi.fn();
     addEventListener("popstate", router);
-    window.scrollY = 0;
+    window.scrollY = 120;
+    dispatchEvent(new Event("scroll"));
+    window.scrollY = 30;
     history.replaceState(null, "", "/");
     dispatchEvent(new PopStateEvent("popstate"));
+    dispatchEvent(new Event("scroll"));
+    expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 120, behavior: "instant" });
     expect(router).not.toHaveBeenCalled();
     expect(exits().at(-1)!.keyframes.at(-1)).toMatchObject({ opacity: 0 });
     finishExits();
@@ -248,7 +251,6 @@ describe("SiteMotion", () => {
     show("/login", rerender);
     fireEvent.click(screen.getByRole("link", { name: "Terms" }));
     show("/dashboard", rerender);
-    expect(history.scrollRestoration).toBe("auto");
     fireEvent.click(screen.getByRole("link", { name: "DrillMap" }));
     document.removeEventListener("click", browser);
     expect(passedThrough).toEqual([true, true, true, true]);
