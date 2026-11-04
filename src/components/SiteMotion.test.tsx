@@ -4,8 +4,8 @@ import Link from "next/link";
 import { StrictMode, useState } from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 
-const mocks = vi.hoisted(() => ({ push: vi.fn(), pathname: "/" }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }), usePathname: () => mocks.pathname }));
+const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), pathname: "/" }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push, replace: mocks.replace }), usePathname: () => mocks.pathname }));
 import SiteMotion, { fadeFormThrough } from "./SiteMotion";
 
 type Live = { el: Element; keyframes: Keyframe[]; options: KeyframeAnimationOptions; finish: () => void };
@@ -28,6 +28,7 @@ const entrances = () => calls.filter((a) => a.options.fill !== "forwards" && !(a
 const glides = () => calls.filter((a) => (a.el as HTMLElement).hasAttribute("data-page-logo"));
 const TOP_BAR_LOGO = new DOMRect(48, 20, 80, 24);
 const SIGN_IN_LOGO = new DOMRect(120, 32, 80, 24);
+const ROUTER_ENTRY = { __NA: true };
 let reduced = false;
 let phone = false;
 
@@ -191,8 +192,8 @@ describe("SiteMotion", () => {
     window.scrollY = 120;
     dispatchEvent(new Event("scroll"));
     window.scrollY = 30;
-    history.replaceState(null, "", "/");
-    dispatchEvent(new PopStateEvent("popstate"));
+    history.replaceState(ROUTER_ENTRY, "", "/");
+    dispatchEvent(new PopStateEvent("popstate", { state: ROUTER_ENTRY }));
     dispatchEvent(new Event("scroll"));
     expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 120, behavior: "instant" });
     expect(router).not.toHaveBeenCalled();
@@ -208,6 +209,41 @@ describe("SiteMotion", () => {
     dispatchEvent(new Event("scroll"));
     expect(window.scrollTo).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your practice results" }));
+  });
+
+  describe("Back to a landing entry the router did not write, such as a hash the browser added", () => {
+    async function backToBrowserHash(rerender: (ui: React.ReactNode) => void) {
+      await click("Log in");
+      finishExits();
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalled());
+      show("/login", rerender);
+      history.replaceState(null, "", "/#pricing");
+      dispatchEvent(new PopStateEvent("popstate", { state: null }));
+    }
+
+    it("asks the router for the landing page once Log in has faded out, then frees and fades it in", async () => {
+      const { rerender } = show("/#pricing")!;
+      await backToBrowserHash(rerender);
+      expect(mocks.replace).not.toHaveBeenCalled();
+      finishExits();
+      await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/#pricing", { scroll: false }));
+
+      show("/#pricing", rerender);
+      expect(document.querySelectorAll("[inert]")).toHaveLength(0);
+      expect(entrances().at(-1)!.keyframes.at(-1)).toMatchObject({ opacity: 1 });
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your practice results" }));
+    });
+
+    it("asks the router for the landing page under reduced motion instead of leaving Log in inert", async () => {
+      reduced = true;
+      const { rerender } = show("/#pricing")!;
+      await backToBrowserHash(rerender);
+      await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/#pricing", { scroll: false }));
+
+      show("/#pricing", rerender);
+      expect(document.querySelectorAll("[inert]")).toHaveLength(0);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your practice results" }));
+    });
   });
 
   it("starts one navigation when a link is clicked twice", async () => {
@@ -301,8 +337,8 @@ describe("SiteMotion", () => {
     finishExits();
     await vi.waitFor(() => expect(mocks.push).toHaveBeenCalled());
     show("/login", rerender);
-    history.replaceState(null, "", "/");
-    dispatchEvent(new PopStateEvent("popstate"));
+    history.replaceState(ROUTER_ENTRY, "", "/");
+    dispatchEvent(new PopStateEvent("popstate", { state: ROUTER_ENTRY }));
     mocks.pathname = "/dashboard";
     rerender(<>{PAGES["/dashboard"]()}<SiteMotion /></>);
     vi.mocked(window.scrollTo).mockClear();
@@ -365,8 +401,8 @@ describe("SiteMotion", () => {
 
       const router = vi.fn();
       addEventListener("popstate", router);
-      history.replaceState(null, "", "/login");
-      dispatchEvent(new PopStateEvent("popstate"));
+      history.replaceState(ROUTER_ENTRY, "", "/login");
+      dispatchEvent(new PopStateEvent("popstate", { state: ROUTER_ENTRY }));
       expect(router).not.toHaveBeenCalled();
       expect(exits().slice(-2).map((a) => a.el)).toEqual([formOf("Reset your password"), card()]);
       finishExits();
