@@ -1,8 +1,8 @@
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen px-6 py-12">
+    <div data-page-fade className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-2xl">
-        <h1 className="text-h3 font-semibold text-ink">Privacy Policy</h1>
+        <h1 tabIndex={-1} className="text-h3 font-semibold text-ink outline-none">Privacy Policy</h1>
         <div className="mt-4 space-y-4 text-small leading-body text-smoke">
           <p>
             DrillMap stores the account and study information needed to provide your study plan, including your
