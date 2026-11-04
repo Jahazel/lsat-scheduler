@@ -6,7 +6,7 @@ import { afterSignOut, EXEMPT_ROUTES, PUBLIC_PAGES, requestPolicy, type RequestF
 
 const SITE = "https://drillmap.xyz";
 const sameSite = (facts: Partial<RequestFacts>): RequestFacts => ({
-  method: "POST", pathname: "/settings", search: "", origin: SITE, contentType: "text/plain;charset=UTF-8", siteUrl: `${SITE}/`, enforceCsp: false, development: false, ...facts,
+  method: "POST", pathname: "/settings", origin: SITE, contentType: "text/plain;charset=UTF-8", siteUrl: `${SITE}/`, enforceCsp: false, development: false, ...facts,
 });
 
 describe("forged requests", () => {
@@ -216,12 +216,9 @@ describe("private responses", () => {
 });
 
 describe("sign-out", () => {
-  const search = (path: string) => new URL(path, SITE).search;
-
-  it("clears the browser cache on the address a sign-out loads", () => {
-    for (const path of [afterSignOut("/"), afterSignOut("/login")]) {
-      const { pathname } = new URL(path, SITE);
-      expect(page({ pathname, search: search(path) }).responseHeaders["Clear-Site-Data"], path).toBe('"cache"');
+  it("sends no Clear-Site-Data on the pages a sign-out loads", () => {
+    for (const pathname of ["/", "/login"]) {
+      expect(page({ pathname }).responseHeaders, pathname).not.toHaveProperty("Clear-Site-Data");
     }
   });
 
@@ -229,13 +226,6 @@ describe("sign-out", () => {
     for (const notice of [PASSWORD_CHANGED_PATH, loginRefusalPath("deletionWillFinish")] as const) {
       const url = new URL(afterSignOut(notice), SITE);
       expect(url.searchParams.get("notice")).toBe(new URL(notice, SITE).searchParams.get("notice"));
-      expect(page({ pathname: url.pathname, search: url.search }).responseHeaders["Clear-Site-Data"], notice).toBe('"cache"');
-    }
-  });
-
-  it("leaves the cache alone on every other response", () => {
-    for (const facts of [{}, { pathname: "/" }, { pathname: "/login", search: "?notice=EmailVerified" }, { method: "POST" }]) {
-      expect(page(facts).responseHeaders).not.toHaveProperty("Clear-Site-Data");
     }
   });
 });
