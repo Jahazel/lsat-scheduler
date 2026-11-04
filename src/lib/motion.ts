@@ -34,3 +34,6 @@ export function fadeIn(el: HTMLElement, from: Keyframe = { opacity: 0 }) {
   if (reducedMotion()) return el.animate([{ opacity: from.opacity }, { opacity: 1 }], { duration: durationMs("--duration-fast"), easing: "linear" });
   return el.animate([from, { opacity: 1, transform: "none" }], { duration: durationMs("--duration-base"), easing: motionToken("--ease-standard") });
 }
+
+export const isPlainClick = (event: { button: number; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean }) =>
+  event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;

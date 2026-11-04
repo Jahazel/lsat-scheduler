@@ -6,10 +6,11 @@ const SECTION_LINK = cx("rounded-xs text-small text-smoke pointer-hover:text-ink
 
 export default function SignedOutTopBar() {
   return (
-    <header className="sticky top-0 z-40 border-b border-vellum-line bg-vellum px-5 md:px-12">
+    <header className="sticky top-0 z-40 px-5 md:px-12">
+      <div data-page-fade aria-hidden className="absolute inset-0 -z-10 border-b border-vellum-line bg-vellum" />
       <div className="mx-auto flex h-16 max-w-content items-center gap-10">
         <Logo href="/" />
-        <nav aria-label="Primary" className="flex flex-1 items-center justify-end md:justify-between">
+        <nav data-page-fade aria-label="Primary" className="flex flex-1 items-center justify-end md:justify-between">
           <div className="hidden gap-7 md:flex">
             <Link href="/#how-it-works" className={SECTION_LINK}>How it works</Link>
             <Link href="/#pricing" className={SECTION_LINK}>Pricing</Link>

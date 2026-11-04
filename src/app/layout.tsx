@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { AdminTestProvider } from "@/components/AdminTestContext";
 import { FailureToastProvider } from "@/components/FailureNotice";
 import SiteHeader from "@/components/nav/SiteHeader";
+import SiteMotion from "@/components/SiteMotion";
 import { Footer } from "@/components/ui/Footer";
 import { WORKSPACE_NAV_BREAKPOINT } from "@/components/nav/workspaceBreakpoint";
 import "./globals.css";
@@ -36,8 +37,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <AdminTestProvider key={`${session?.user?.id ?? "anonymous"}:${session?.user?.role ?? "student"}`}>
           <FailureToastProvider>
             <SiteHeader />
-            <main className="flex-1">{children}</main>
+            <main tabIndex={-1} className="flex-1 outline-none">{children}</main>
             <Footer signedIn={!!session?.user} />
+            <SiteMotion />
           </FailureToastProvider>
         </AdminTestProvider>
       </body>
