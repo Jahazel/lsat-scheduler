@@ -55,7 +55,8 @@ function arrive(motion: Motion) {
 
 export function fadeFormThrough(update: () => void) {
   const old = regions("form");
-  if (!old.length || !("animate" in Element.prototype)) return update();
+  const leavingPage = old.some((el) => el.hasAttribute("inert"));
+  if (!old.length || leavingPage || !("animate" in Element.prototype)) return update();
   fadeAway(old).then((ok) => {
     if (!ok) return;
     for (const el of old) {
@@ -81,7 +82,11 @@ export default function SiteMotion() {
     const from = shown.current;
     shown.current = pathname;
     const arriving = target.current;
-    if (from === pathname || !arriving) return;
+    if (from === pathname) return;
+    if (!arriving) {
+      if (from && motionBetween(from, pathname) === "form") arrive("form");
+      return;
+    }
     target.current = null;
     heldAt.current = null;
     for (const el of leaving.current) {

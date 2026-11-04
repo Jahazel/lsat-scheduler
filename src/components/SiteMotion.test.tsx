@@ -406,7 +406,12 @@ describe("SiteMotion", () => {
       const [sent, setSent] = useState(false);
       return sent
         ? <SignIn title="Check your email"><button type="button" onClick={() => fadeFormThrough(() => setSent(false))}>Sign up again</button></SignIn>
-        : <SignIn title="Sign up for DrillMap"><button type="button" onClick={() => fadeFormThrough(() => setSent(true))}>Create account</button></SignIn>;
+        : (
+          <SignIn title="Sign up for DrillMap">
+            <button type="button" onClick={() => fadeFormThrough(() => setSent(true))}>Create account</button>
+            <a href="/login">Log in</a>
+          </SignIn>
+        );
     }
 
     it("fades the form through when the page changes its own content, as Sign up does after Create account", async () => {
@@ -428,6 +433,26 @@ describe("SiteMotion", () => {
       await act(async () => finishExits());
       expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sign up for DrillMap" }));
       expect(live.some((a) => a.options.fill === "forwards")).toBe(false);
+    });
+
+    it("shows Check your email at once and still follows the link when the answer lands during a link's fade-out", async () => {
+      mocks.pathname = "/signup";
+      history.replaceState(null, "", "/signup");
+      render(<><SignupThenCheckEmail /><SiteMotion /></>);
+      await click("Log in");
+      fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+      expect(screen.getByRole("heading", { name: "Check your email" })).toBeTruthy();
+      finishExits();
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/login", { scroll: false }));
+    });
+
+    it("fades in the form, with its notice, when a form sends the visitor to another sign-in page", async () => {
+      const { rerender } = show("/forgot-password")!;
+      show("/login?notice=passwordChanged", rerender);
+      expect(exits()).toHaveLength(0);
+      expect(entrances().map((a) => a.el)).toEqual([formOf("Log in to DrillMap"), card()]);
+      expect(formOf("Log in to DrillMap").contains(screen.getByRole("status"))).toBe(true);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Log in to DrillMap" }));
     });
   });
 });
