@@ -9,7 +9,7 @@ Every protected request checks the current Account in the database. A deleted, d
 - `session-role-change` refuses every open session after the owner changes the Account's role.
 - `session-deleted` refuses the open sessions of a deleted Account.
 - `session-sign-out-all` ends every session of the Account from the Account page, including the current browser. The ordinary "Log out" ends only the current browser.
-- `session-sign-out-cache` clears the browser cache on every sign-out, including password change and Account deletion, so the next person on the same browser sees none of the last student's pages (launch check A5).
+- `session-sign-out-cache` keeps every private page out of the browser cache with `Cache-Control: private, no-store`, so after any sign-out, including password change and Account deletion, the next person on the same browser sees none of the last student's pages (launch check A5). Sign-out sends no `Clear-Site-Data`: it made Log out hang on a large browser cache.
 - `session-time-limits` ends sessions on time. The Postgres tests in `tests/postgres/accountSessions.test.ts` prove the time limits with a fake clock. A browser run cannot wait 14 days.
 
 ## How to get to it (user POV)
