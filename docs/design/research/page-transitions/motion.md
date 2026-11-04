@@ -1,0 +1,33 @@
+# Motion spec: page transitions
+
+The owner approved this motion in the prototype on 2026-11-04 (`prototype/index.html`). It is the same motion set as Progress (`../progress/motion.md`), so the site moves one way everywhere.
+
+Durations are the design-system tokens: fast 120 ms, base 200 ms. Easings: standard `cubic-bezier(0.2, 0, 0, 1)` (`--ease-standard`), exit `cubic-bezier(0.4, 0, 1, 1)` (`--ease-exit`). Reduced motion follows the design system: drop movement, keep a 120 ms fade in.
+
+Purpose of every row: prevent a jarring change. Each page change happens a few times per visit, so a short fade is in budget. Properties are `opacity` and `transform` only.
+
+**Token conflict.** `--ease-exit` is an ease-in curve. The animate rules forbid ease-in on UI because it delays the start of the motion. Progress already ships with it, and the owner's goal is one motion everywhere, so these rows use it too. A follow-up changes the token itself in `src/app/globals.css`, which fixes Progress and these pages together.
+
+## Terms
+
+- **Fade through**: the old content fades out (fast, exit easing). Then the new content fades in (base, standard easing) and rises 8 px, or 4 px on a phone (390 px and narrower).
+- **Anchors**: the parts that stay still during a change. They never fade.
+- **Shared axis**: the same as fade through, but the content moves sideways 8 px instead of rising, to show direction.
+
+| Element | Trigger | Motion | Duration token | Reduced motion |
+| --- | --- | --- | --- | --- |
+| Page content | Landing → Sign up or Log in ("Start free week" in the top bar, hero, or closing section; "Log in") | Fade through. The top bar leaves with the landing content. The logo does not fade: it glides from the top-bar spot to the sign-in corner. Focus moves to the page heading. | Out: fast, exit easing. In: base, standard easing. Logo glide: base, standard easing. | 120 ms fade in, no movement, no glide. The logo stays visible. Same focus. |
+| Page content | Any sign-in page → Landing (taps the logo) | Fade through, the reverse path. The logo glides back to the top-bar spot. Focus moves to the page heading. | As above | As above |
+| Form and preview card | Sign-in page → sign-in page (Sign up ↔ Log in, Log in → Forgot password, Forgot password → Log in, Reset password → Log in, Sign up submit → Verify email, Verify email → Sign up or Log in) | Fade through on the form column and the preview card only. Anchors: the frame, the logo, the preview panel, and the legal links. A notice or error message at the top of the form fades with the form. Focus moves to the form heading. | Out: fast, exit easing. In: base, standard easing. | 120 ms fade in on the form and card, no movement. Same focus. |
+| Page content | Landing → Terms, Privacy, or AI disclosure | Fade through on the page content. Anchor: the top bar. Focus moves to the page heading. | Out: fast, exit easing. In: base, standard easing. | 120 ms fade in, no movement. Same focus. |
+| Page content | Sign-in page → Terms, Privacy, or AI disclosure | Fade through, the same as Landing → Sign up in reverse: the logo glides to the top-bar spot. | As the Landing rows | As the Landing rows |
+| Page content | Sign up or Log in → Onboarding (first sign-in), fast load | Fade through. The logo glides to the onboarding top-bar spot when its spot differs. Focus moves to the step heading. | Out: fast, exit easing. In: base, standard easing. | 120 ms fade in, no movement, no glide. Same focus. |
+| Loading placeholder | Onboarding is still loading after sign-in | Sign-in page → placeholder: fade through. Placeholder → first step: the placeholder content fades out and the step fades in and rises. Anchors: the top bar and the preview panel. With a fast load there is no placeholder. | Out: fast, exit easing. In: base, standard easing. | 120 ms fade in, no movement. |
+| Onboarding step | "Continue" → next step (Goal → Week → Analytics → Review; "Check the values" on Analytics → Review) | Shared axis: the step fades out while it moves 8 px left, then the next step fades in from 8 px on the right. Anchors: the step label, the top bar, and the preview panel. 8 px at every width so the direction still shows on a phone. Focus moves to the step heading. | Out: fast, exit easing. In: base, standard easing. | 120 ms fade in, no movement. Same focus. |
+| Onboarding step | "Back" → previous step | Shared axis, mirrored: out to the right, in from 8 px on the left. Same anchors and focus. | As above | As above |
+| Page content | Onboarding → This week ("Skip for now" or finishing Review) | Fade through. The logo glides when its spot differs. Focus moves to the page heading. This is the only signed-in page in scope. | Out: fast, exit easing. In: base, standard easing. | 120 ms fade in, no movement, no glide. Same focus. |
+| Page content | Browser Back or Forward between pages in scope | The same motion as the link that leads to the same page, with no direction. The page returns to the scroll spot the student left. Onboarding steps are not history entries, so Back leaves onboarding. | As the matching row | As the matching row |
+| Page content | A second click while a transition runs | The running transition continues from where it is, toward the newest target. It never jumps back to full opacity. A second click on the same link adds no history entry. The old content cannot be clicked while it fades out (it is inert and marked busy with `aria-busy`). | Out phase shortens in step with the opacity left. | Same |
+| Page content | Google sign-in, or a browser that cannot run page motion | None. The page changes as it does today. Nothing breaks. | — | Same |
+
+Each heading takes focus with no visible ring, which is the usual pattern when the page moves focus. The next Tab stop shows the ring. A full change takes about 320 ms (120 ms out, then 200 ms in).
