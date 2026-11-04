@@ -19,7 +19,6 @@ export const slideFrom = (x: number, opacity = 0): Keyframe => ({ opacity, trans
 export const riseFrom = (y: number, opacity = 0): Keyframe => ({ opacity, transform: `translateY(${y}px)` });
 
 // Starts from the current frame, so a second change continues instead of jumping. The content stays busy until fadeIn.
-// With `shorten`, the time shrinks in step with the opacity left.
 export function fadeOut(el: HTMLElement, { to = 0, x = 0, shorten = false }: { to?: number; x?: number; shorten?: boolean } = {}) {
   el.setAttribute("aria-busy", "true");
   const from = stopAtCurrentFrame(el);
