@@ -40,6 +40,7 @@ export default function SiteMotion() {
   const leaving = useRef<HTMLElement[]>([]);
   const logoFrom = useRef<DOMRect | null>(null);
   const scrolls = useRef(new Map<string, number>());
+  const heldAt = useRef<number | null>(null);
 
   useLayoutEffect(() => {
     const from = shown.current;
@@ -47,6 +48,7 @@ export default function SiteMotion() {
     const arriving = target.current;
     if (from === pathname || !arriving) return;
     target.current = null;
+    heldAt.current = null;
     for (const el of leaving.current) {
       for (const animation of el.getAnimations()) animation.cancel();
       setBusy(el, false);
@@ -55,7 +57,9 @@ export default function SiteMotion() {
     const redirected = arriving.path !== pathname;
     if (redirected) return;
 
-    scrollTo({ top: arriving.fromHistory ? scrolls.current.get(pathname) ?? 0 : 0, behavior: "instant" });
+    const top = arriving.fromHistory ? scrolls.current.get(pathname) ?? 0 : 0;
+    scrollTo({ top, behavior: "instant" });
+    scrolls.current.set(pathname, top);
     glideLogo(logoFrom.current);
     logoFrom.current = null;
     document.querySelector<HTMLElement>("main h1")?.focus({ preventScroll: true });
@@ -64,11 +68,10 @@ export default function SiteMotion() {
 
   useEffect(() => {
     let replaying = false;
-    let heldAt: number | null = null;
 
     function comeBack() {
       target.current = null;
-      heldAt = null;
+      heldAt.current = null;
       for (const el of leaving.current) {
         setBusy(el, false);
         fadeIn(el, stopAtCurrentFrame(el));
@@ -121,10 +124,10 @@ export default function SiteMotion() {
       if (reducedMotion()) return;
       event.stopImmediatePropagation();
       // Chrome restores the new entry's scroll after popstate; the old page keeps its spot until it has faded out.
-      heldAt = scrolls.current.get(from) ?? scrollY;
+      heldAt.current = scrolls.current.get(from) ?? scrollY;
       left.then((ok) => {
         if (!ok) return;
-        heldAt = null;
+        heldAt.current = null;
         replaying = true;
         dispatchEvent(new PopStateEvent("popstate", { state: history.state }));
         replaying = false;
@@ -132,7 +135,8 @@ export default function SiteMotion() {
     }
 
     function onScroll() {
-      if (heldAt !== null && scrollY !== heldAt) scrollTo({ top: heldAt, behavior: "instant" });
+      const pin = heldAt.current;
+      if (pin !== null && scrollY !== pin) scrollTo({ top: pin, behavior: "instant" });
       else if (!target.current && shown.current) scrolls.current.set(shown.current, scrollY);
     }
 

@@ -186,6 +186,10 @@ describe("SiteMotion", () => {
 
     show("/", rerender);
     expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 640, behavior: "instant" });
+    vi.mocked(window.scrollTo).mockClear();
+    window.scrollY = 900;
+    dispatchEvent(new Event("scroll"));
+    expect(window.scrollTo).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your practice results" }));
   });
 
@@ -272,6 +276,22 @@ describe("SiteMotion", () => {
     expect(footer.hasAttribute("aria-busy")).toBe(false);
     expect(live.some((a) => a.el === footer)).toBe(false);
     expect(entrances()).toHaveLength(0);
+  });
+
+  it("lets the page scroll again when a redirect lands during a held Back", async () => {
+    const { rerender } = show("/")!;
+    await click("Log in");
+    finishExits();
+    await vi.waitFor(() => expect(mocks.push).toHaveBeenCalled());
+    show("/login", rerender);
+    history.replaceState(null, "", "/");
+    dispatchEvent(new PopStateEvent("popstate"));
+    mocks.pathname = "/dashboard";
+    rerender(<>{PAGES["/dashboard"]()}<SiteMotion /></>);
+    vi.mocked(window.scrollTo).mockClear();
+    window.scrollY = 300;
+    dispatchEvent(new Event("scroll"));
+    expect(window.scrollTo).not.toHaveBeenCalled();
   });
 
   it("shows the first page without motion under Strict Mode, and still moves to Sign up", async () => {
