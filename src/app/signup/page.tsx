@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { startTransition, useActionState, useState, type FormEvent } from "react";
+import { startTransition, useActionState, useEffect, useState, type FormEvent } from "react";
 import { ActionForm, FailureNotice } from "@/components/FailureNotice";
+import { fadeFormThrough } from "@/components/SiteMotion";
 import { GoogleButton } from "@/components/signIn/GoogleButton";
 import { OrWithEmail, SubmitButton } from "@/components/signIn/PasswordFormParts";
 import { SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";
@@ -19,14 +20,19 @@ const LEGAL_LINK = cx("rounded-xs font-medium text-accent underline underline-of
 
 export default function SignupPage() {
   const [attempt, setAttempt] = useState(0);
-  return <Signup key={attempt} onSignUpAgain={() => setAttempt((count) => count + 1)} />;
+  return <Signup key={attempt} onSignUpAgain={() => fadeFormThrough(() => setAttempt((count) => count + 1))} />;
 }
 
 function Signup({ onSignUpAgain }: { onSignUpAgain: () => void }) {
   const [state, formAction, pending] = useActionState(signUpWithPassword, initialState);
   const notice = <FailureNotice answer={state} />;
+  const sentTo = !isUnexpectedFailure(state) && state.kind === "checkYourEmail" ? state.email : null;
+  const [shownSentTo, setShownSentTo] = useState<string | null>(null);
+  useEffect(() => {
+    if (sentTo) fadeFormThrough(() => setShownSentTo(sentTo));
+  }, [sentTo]);
 
-  if (!isUnexpectedFailure(state) && state.kind === "checkYourEmail") return <>{notice}<CheckYourEmail email={state.email} onSignUpAgain={onSignUpAgain} /></>;
+  if (shownSentTo) return <>{notice}<CheckYourEmail email={shownSentTo} onSignUpAgain={onSignUpAgain} /></>;
 
   // Submitting by hand keeps the typed values: a form action would clear the form when it returns an error.
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -35,7 +41,7 @@ function Signup({ onSignUpAgain }: { onSignUpAgain: () => void }) {
     startTransition(() => formAction(formData));
   }
 
-  const errors = isUnexpectedFailure(state) ? {} : state.errors;
+  const errors = isUnexpectedFailure(state) || state.kind !== "form" ? {} : state.errors;
   return (
     <>
       {notice}
