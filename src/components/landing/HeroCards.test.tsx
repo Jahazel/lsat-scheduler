@@ -5,15 +5,17 @@ import { HeroCards } from "./HeroCards";
 
 let reduced = false;
 let finePointer = true;
+let phone = false;
 let frames: FrameRequestCallback[] = [];
 
 beforeEach(() => {
   reduced = false;
   finePointer = true;
+  phone = false;
   frames = [];
   window.innerWidth = 1440;
   window.matchMedia = ((query: string) => ({
-    matches: query.includes("reduce") ? reduced : query.includes("pointer: fine") ? finePointer : false,
+    matches: query.includes("reduce") ? reduced : query.includes("pointer: fine") ? finePointer : query.includes("min-width: 48rem") ? !phone : false,
     addEventListener() {},
     removeEventListener() {},
   })) as unknown as typeof window.matchMedia;
@@ -70,6 +72,16 @@ describe("HeroCards", () => {
       "Weakest typeFlawMissed 4 of 10 on your last PT",
     ]);
     expect(within(group).queryByText(/7Sage/)).toBeNull();
+  });
+
+  it("lets a keyboard reach the phone swipe row, and only below 768 px", () => {
+    phone = true;
+    render(<Hero />);
+    expect(screen.getByRole("group", { name: "Sample plan cards" }).tabIndex).toBe(0);
+    cleanup();
+    phone = false;
+    render(<Hero />);
+    expect(screen.getByRole("group", { name: "Sample plan cards" }).hasAttribute("tabindex")).toBe(false);
   });
 
   it("leans a card toward a nearby mouse pointer and settles back when the pointer leaves", () => {

@@ -14,7 +14,7 @@ import LandingPage from "./page";
 const HEADLINE = "Your practice results, turned into next week's plan";
 
 beforeEach(() => {
-  window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
+  window.matchMedia = (() => ({ matches: false, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
   window.IntersectionObserver = class {
     observe() {}
     disconnect() {}
@@ -88,6 +88,15 @@ describe("Landing page", () => {
     for (const name of ["How it works", "Pricing", "FAQ", "Start"]) {
       const section = screen.getByRole("region", { name });
       expect(within(section).getByRole("heading", { level: 2, name })).toBe(labels.find((label) => section.contains(label)));
+    }
+  });
+
+  it("reads the FAQ and Pricing section names once, from their labels", () => {
+    render(<LandingPage />);
+    for (const name of ["Pricing", "FAQ"]) {
+      const section = screen.getByRole("region", { name });
+      const read = within(section).getAllByText(name).filter((element) => !isInaccessible(element));
+      expect(read).toEqual([within(section).getByRole("heading", { level: 2, name })]);
     }
   });
 

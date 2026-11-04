@@ -102,7 +102,7 @@ describe("QuestionList", () => {
     const answer = answerOf("Question 2?");
     expect(answer.style.gridTemplateRows).toBe("1fr");
     expect(answer.style.transition).not.toContain("grid-template-rows");
-    expect(answer.style.transition).toContain("opacity var(--duration-fast) var(--ease-out-strong)");
+    expect(answer.style.transition).toContain("opacity var(--duration-fast) ease,");
     const bar = button("Question 2?").querySelector("[data-testid='question-icon-bar']") as SVGElement;
     expect(bar.style.transition).toBe("none");
   });

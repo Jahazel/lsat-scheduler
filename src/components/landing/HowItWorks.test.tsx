@@ -98,6 +98,14 @@ describe("HowItWorks", () => {
     ]);
   });
 
+  it("loads the step screens that can be the largest paint after a scrolled reload eagerly", () => {
+    render(<HowItWorks />);
+    const pinScreens = [...screen.getByTestId("how-pin").querySelectorAll("img")];
+    expect(pinScreens.map((img) => img.getAttribute("loading"))).toEqual(["eager", "eager", "eager", "eager"]);
+    const phoneScreens = within(screen.getByRole("list")).getAllByRole("img").filter((img) => img.getAttribute("src")?.includes("-phone"));
+    expect(phoneScreens.map((img) => img.getAttribute("loading"))).toEqual(["lazy", "lazy", "lazy", "eager"]);
+  });
+
   it("hides the swapping step copy and screens from screen readers", () => {
     render(<HowItWorks />);
     const pinTitles = screen.getAllByText((_, element) => element?.tagName === "P" && TITLES.includes(element.textContent ?? ""));
