@@ -9,6 +9,8 @@ vi.mock("@/lib/planPrices", async (importOriginal) => ({
     return prices.PLAN_PRICES;
   },
 }));
+import { RouterContext } from "next/dist/shared/lib/router-context.shared-runtime";
+import type { NextRouter } from "next/router";
 import LandingPage from "./page";
 
 const HEADLINE = "Your practice results, turned into next week's plan";
@@ -190,6 +192,22 @@ describe("Landing page", () => {
     expect(how.getAttribute("href")).toBe("#how-it-works");
     expect(document.getElementById("pricing")).toBe(screen.getByRole("region", { name: "Pricing" }));
     expect(document.getElementById("how-it-works")).toBe(screen.getByRole("region", { name: "How it works" }));
+  });
+
+  it("sends the signpost links through the site router, not the browser", () => {
+    const push = vi.fn();
+    render(
+      <RouterContext.Provider value={{ push, prefetch: () => Promise.resolve(), pathname: "/", asPath: "/" } as unknown as NextRouter}>
+        <LandingPage />
+      </RouterContext.Provider>,
+    );
+    const closing = screen.getByRole("region", { name: "Start" });
+    for (const [name, hash] of [["Pricing", "#pricing"], ["How it works", "#how-it-works"]]) {
+      push.mockClear();
+      const defaultPrevented = !fireEvent.click(within(closing).getByRole("link", { name }));
+      expect(defaultPrevented).toBe(true);
+      expect(push).toHaveBeenCalledWith(`/${hash}`, expect.anything());
+    }
   });
 
   it("reads the Pricing signpost's prices from the prices module", () => {
