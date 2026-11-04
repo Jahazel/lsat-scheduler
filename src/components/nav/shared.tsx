@@ -19,6 +19,7 @@ export function Logo({ href, compact = false }: { href: string; compact?: boolea
   return (
     <Link
       href={href}
+      data-page-logo
       className={cx(
         "shrink-0 rounded-xs font-semibold text-ink",
         compact ? "text-h5" : "text-lead leading-h6 tracking-heading",

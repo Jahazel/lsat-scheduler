@@ -9,7 +9,7 @@ const LINKS = [
 
 export function Footer({ signedIn }: { signedIn: boolean }) {
   return (
-    <footer className="flex flex-col gap-12 bg-graphite px-5 pt-16 pb-12 md:px-18">
+    <footer data-page-fade className="flex flex-col gap-12 bg-graphite px-5 pt-16 pb-12 md:px-18">
       <div className="flex items-center justify-between gap-4">
         <p className="text-lead leading-h6 font-semibold tracking-heading text-chalk">DrillMap</p>
         {!signedIn && (

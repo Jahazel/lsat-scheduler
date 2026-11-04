@@ -19,10 +19,12 @@ export const slideFrom = (x: number, opacity = 0): Keyframe => ({ opacity, trans
 export const riseFrom = (y: number, opacity = 0): Keyframe => ({ opacity, transform: `translateY(${y}px)` });
 
 // Starts from the current frame, so a second change continues instead of jumping. The content stays busy until fadeIn.
-export function fadeOut(el: HTMLElement, { to = 0, x = 0 }: { to?: number; x?: number } = {}) {
+export function fadeOut(el: HTMLElement, { to = 0, x = 0, shorten = false }: { to?: number; x?: number; shorten?: boolean } = {}) {
   el.setAttribute("aria-busy", "true");
-  return el.animate([stopAtCurrentFrame(el), { opacity: to, transform: `translateX(${-x}px)` }], {
-    duration: durationMs("--duration-fast"),
+  const from = stopAtCurrentFrame(el);
+  const left = shorten ? (Number(from.opacity) - to) / (1 - to) : 1;
+  return el.animate([from, { opacity: to, transform: `translateX(${-x}px)` }], {
+    duration: durationMs("--duration-fast") * left,
     easing: motionToken("--ease-exit"),
     fill: "forwards",
   });
@@ -34,3 +36,6 @@ export function fadeIn(el: HTMLElement, from: Keyframe = { opacity: 0 }) {
   if (reducedMotion()) return el.animate([{ opacity: from.opacity }, { opacity: 1 }], { duration: durationMs("--duration-fast"), easing: "linear" });
   return el.animate([from, { opacity: 1, transform: "none" }], { duration: durationMs("--duration-base"), easing: motionToken("--ease-standard") });
 }
+
+export const isPlainClick = (event: { button: number; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean }) =>
+  event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;

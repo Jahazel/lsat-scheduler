@@ -2,15 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, type MouseEvent, type ReactNode } from "react";
-import { fadeIn, fadeOut, reducedMotion, slideFrom, stopAtCurrentFrame } from "@/lib/motion";
+import { fadeIn, fadeOut, isPlainClick, reducedMotion, slideFrom, stopAtCurrentFrame } from "@/lib/motion";
 
 const SLIDE = 8;
 const DIMMED = 0.5;
 
 type WeekOrList = string | null;
 
-const isPlainClick = (event: { button: number; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean }) =>
-  event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
 const hrefOf = (url: URL | Location) => url.pathname + url.search;
 const hrefFor = (shown: WeekOrList) => (shown ? `/progress?week=${shown}` : "/progress");
 
