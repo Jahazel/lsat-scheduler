@@ -12,7 +12,6 @@ export default auth(async (req) => {
   const { refused: forged, csp, responseHeaders } = requestPolicy({
     method: req.method,
     pathname: req.nextUrl.pathname,
-    search: req.nextUrl.search,
     origin: req.headers.get("origin"),
     contentType: req.headers.get("content-type"),
     siteUrl: configuredSiteUrl(),

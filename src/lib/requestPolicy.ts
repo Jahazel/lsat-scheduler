@@ -4,7 +4,6 @@ import type { Answer } from "./unexpectedFailure";
 export type RequestFacts = {
   method: string;
   pathname: string;
-  search: string;
   origin: string | null;
   contentType: string | null;
   /** The place's configured site address. Never read from the request's `Host` header. */
@@ -133,6 +132,5 @@ export function requestPolicy(facts: RequestFacts): RequestPolicy {
   const responseHeaders: Record<string, string> = { ...SECURITY_HEADERS, [csp.header]: csp.value };
   if (NO_REFERRER_PAGES.has(facts.pathname)) responseHeaders["Referrer-Policy"] = "no-referrer";
   if (!READS_ONLY.has(facts.method.toUpperCase()) || !isPublicPage(facts.pathname)) responseHeaders["Cache-Control"] = "private, no-store";
-  if (new URLSearchParams(facts.search).has(SIGNED_OUT_PARAM)) responseHeaders["Clear-Site-Data"] = '"cache"';
   return { refused: forgedRequestRefusal(facts), csp, responseHeaders };
 }

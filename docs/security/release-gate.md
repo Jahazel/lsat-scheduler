@@ -93,7 +93,7 @@ Each row needs a policy before its exact limits can be written. The policy ticke
 | A2 | A submitted owner, role, or operator field cannot change who owns a record or who has power. | Auto | F10 | None needed | Not tested |
 | A3 | An admin can view a student's weekly schedule. The view creates no weekly schedule and writes nothing. | Auto, Copy | ADR 0003, domain model | None needed | Not tested |
 | A4 | Admin test actions, such as a simulated date or a sample analytics snapshot, change only the admin's own student side. | Auto | Domain model | None needed | Not tested |
-| A5 | Student A opens this week, progress, settings, and the Account page, then signs out. Sign-out sends `Clear-Site-Data: "cache"`. Student B signs in on the same browser. The back button, a reload, and each of student A's addresses show none of student A's data, from the browser or the CDN. | Real | F13 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)); [Browser and data rules](issue-76-decisions.md) | Not tested |
+| A5 | Student A opens this week, progress, settings, and the Account page, then signs out. Student B signs in on the same browser. The back button, a reload, and each of student A's addresses show none of student A's data, from the browser or the CDN. | Real | F13 | Browser and data ([#76](https://github.com/Jahazel/lsat-scheduler/issues/76)); [Browser and data rules](issue-76-decisions.md) | Not tested |
 
 ### B. Sign-in and accounts
 
