@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, type MouseEvent, type ReactNode } from "react";
+import { fadeIn, fadeOut, reducedMotion, slideFrom, stopAtCurrentFrame } from "@/lib/motion";
 
 const SLIDE = 8;
 const DIMMED = 0.5;
@@ -10,35 +11,11 @@ type WeekOrList = string | null;
 
 const isPlainClick = (event: { button: number; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean }) =>
   event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
-const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-const motionToken = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-const ms = (name: string) => {
-  const duration = motionToken(name);
-  return parseFloat(duration) * (duration.endsWith("ms") ? 1 : 1000);
-};
 const hrefOf = (url: URL | Location) => url.pathname + url.search;
 const hrefFor = (shown: WeekOrList) => (shown ? `/progress?week=${shown}` : "/progress");
 
 function slideBetween(from: WeekOrList, to: WeekOrList) {
   return from && to ? (to < from ? -SLIDE : SLIDE) : 0;
-}
-
-function stopAtCurrentFrame(el: HTMLElement): Keyframe {
-  const { opacity, transform } = getComputedStyle(el);
-  for (const animation of el.getAnimations()) animation.cancel();
-  return { opacity, transform };
-}
-
-// Next keeps the old page on screen until a same-route navigation's page arrives.
-function dim(el: HTMLElement, x: number) {
-  el.setAttribute("aria-busy", "true");
-  return el.animate([stopAtCurrentFrame(el), { opacity: DIMMED, transform: `translateX(${-x}px)` }], { duration: ms("--duration-fast"), easing: motionToken("--ease-exit"), fill: "forwards" });
-}
-
-function fadeIn(el: HTMLElement, x: number, from: Keyframe = { opacity: DIMMED, transform: `translateX(${x}px)` }) {
-  el.removeAttribute("aria-busy");
-  if (reducedMotion()) el.animate([{ opacity: from.opacity }, { opacity: 1 }], { duration: ms("--duration-fast"), easing: "linear" });
-  else el.animate([from, { opacity: 1, transform: "none" }], { duration: ms("--duration-base"), easing: motionToken("--ease-standard") });
 }
 
 const PageShown = createContext<(shown: WeekOrList, requested: string | null, page: HTMLElement) => void>(() => {});
@@ -64,14 +41,15 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     const el = ref.current!;
     const from = shown.current ?? null;
     if (from === null) listScroll.current = scrollY;
-    if (reducedMotion()) dim(el, 0);
-    else return dim(el, slideBetween(from, to));
+    // Next keeps the old page on screen until a same-route navigation's page arrives, so it dims instead of fading out.
+    if (reducedMotion()) fadeOut(el, { to: DIMMED });
+    else return fadeOut(el, { to: DIMMED, x: slideBetween(from, to) });
   }
 
   function returnToCommitted() {
     target.current = null;
     const el = ref.current!;
-    fadeIn(el, 0, stopAtCurrentFrame(el));
+    fadeIn(el, stopAtCurrentFrame(el));
   }
 
   const pageShown = useCallback((to: WeekOrList, requested: string | null, page: HTMLElement) => {
@@ -84,7 +62,7 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     const el = ref.current!;
     // Back to an unknown-week bookmark dimmed a list that comes back unchanged.
     if (from === to) {
-      if (el.getAnimations().some((animation) => animation.effect?.getTiming().fill === "forwards")) fadeIn(el, 0, stopAtCurrentFrame(el));
+      if (el.getAnimations().some((animation) => animation.effect?.getTiming().fill === "forwards")) fadeIn(el, stopAtCurrentFrame(el));
       return;
     }
     for (const animation of el.getAnimations()) animation.cancel();
@@ -96,7 +74,7 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
       scrollTo(0, 0);
       page.querySelector("h1")?.focus({ preventScroll: true });
     }
-    fadeIn(el, slideBetween(from, to));
+    fadeIn(el, slideFrom(slideBetween(from, to), DIMMED));
   }, []);
 
   useLayoutEffect(() => function showFirstPageWithoutMotionWhenRemounted() {
