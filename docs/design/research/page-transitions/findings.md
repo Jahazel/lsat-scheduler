@@ -20,7 +20,7 @@ DrillMap fit is judged against these facts from the repo:
 - Works when: the two pages share one header and the visitor should feel they stayed on one site.
 - Tradeoffs: the anchor must sit at the same spot on both pages. DrillMap's landing top bar and the sign-in logo are not in the same spot today.
 - DrillMap fit: strong. It is the same fade through as Progress. The logo is the anchor to keep still.
-- Owner: —
+- Owner: like (accepted the recommendation, 2026-11-04)
 
 ### 1B. Whole-page swap with different chrome
 - Examples (desktop web, motion **inferred**): [Kajabi onboarding flow](https://mobbin.com/flows/8fe9c347-0e57-442a-8bde-53c5db4c1d2d) (a full marketing nav, then a free-trial page with no nav), [Square sign up from referral](https://mobbin.com/flows/cab10c35-7722-4353-8755-128b4514a675) (centered logo only).
@@ -46,14 +46,14 @@ Researcher's view: 1A. Keep the logo still; fade the rest.
 - Works when: both pages use the same two-column frame at the same size.
 - Tradeoffs: the frame must be one shared element. Today each page builds its own `SignInFrame`, so a shared layout is needed. That is a code change, not a design choice.
 - DrillMap fit: strong. It matches the brief.
-- Owner: —
+- Owner: like (accepted the recommendation, 2026-11-04)
 
 ### 2B. Panel content changes too
 - Examples (desktop web, motion **inferred**): Sprig again. The log-in panel shows a photo with a report card. The sign-up panel shows a gradient with a customer quote. The panel frame is the same; the content is not.
 - Works when: each page has its own message in the panel.
 - Tradeoffs: the panel content needs its own short fade. If it fades more slowly than the form, the two halves look out of step.
 - DrillMap fit: strong. DrillMap's preview card content changes per page. Fade it with the form, on the same tokens.
-- Owner: —
+- Owner: like (accepted the recommendation, 2026-11-04)
 
 ### 2C. Whole page fades, panel included
 - Examples (desktop web): [incident.io sign up](https://mobbin.com/screens/437e0f78-2a51-426d-84bd-121eebee389b) (panel on the left) and [Searchable create account](https://mobbin.com/screens/67108345-cd0e-47f4-bb3d-fff2befd189e) (panel on the right).
@@ -72,7 +72,7 @@ Researcher's view: 2A with 2B. Hold the frame; fade the form and the card togeth
 - Works when: the steps are in a fixed order, so Continue goes one way and Back goes the other.
 - Tradeoffs: a long slide reads as a slideshow. Next's own demo uses a 60 px slide for page routes ([Next.js, View transitions](https://nextjs.org/docs/app/guides/view-transitions)). That is far more than DrillMap wants.
 - DrillMap fit: strong at 8 to 12 px. 8 px matches Progress exactly. NN/g says most animations should run 100 to 500 ms, and entering elements run slightly longer than exiting ones ([NN/g, Animation duration](https://www.nngroup.com/articles/animation-duration/)). Progress's 120 ms out and 200 ms in follows that.
-- Owner: —
+- Owner: like (accepted the recommendation, 2026-11-04)
 
 ### 3B. Fade only, direction shown by the step label
 - Examples (desktop web, motion **inferred**): Laravel Cloud and Kajabi above also show a step count or bar.
@@ -99,7 +99,7 @@ Researcher's view: 3A at 8 px (up to 12 px), with the Progress timings.
 - Works when: the placeholder matches the page's layout, so the swap changes content and not position.
 - Tradeoffs: onboarding needs a placeholder shaped like its page. Today it uses the generic app placeholder.
 - DrillMap fit: strong. Progress did this in #569: its placeholder is shaped like the page.
-- Owner: —
+- Owner: like (accepted the recommendation, 2026-11-04)
 
 ### 4B. Old page stays dimmed until the next one arrives
 - Examples: DrillMap's own Progress. The old page stops at 50 % opacity, and the new page fades in from 50 % ([motion.md](../progress/motion.md)).
@@ -126,7 +126,7 @@ Researcher's view: 4A, with no placeholder at all when the page is ready within 
 - Works when: the goal is that these pages feel like Progress.
 - Tradeoffs: the fade is quick, so a student who looks away may miss it. Apple: "Aim for brevity and precision in feedback animations" ([Apple HIG, Motion](https://developer.apple.com/design/human-interface-guidelines/motion)).
 - DrillMap fit: strong. Every value is already a token.
-- Owner: —
+- Owner: like (accepted the recommendation, 2026-11-04)
 
 ### 5B. Use the Material defaults (300 ms)
 - Facts: "Shared axis and fade through: 300ms" is the Material default ([Material Components, Motion](https://github.com/material-components/material-components-android/blob/master/docs/theming/Motion.md)).
@@ -151,21 +151,21 @@ Researcher's view: 5A.
 - Works when: the page starts a transition only on a real change.
 - Tradeoffs: onboarding's Continue and Back must be ignored while a step is saving.
 - DrillMap fit: matches the brief and Progress. It needs a test: two quick clicks give one history entry.
-- Owner: —
+- Owner: like (accepted the recommendation, 2026-11-04)
 
 ### 6B. Phone: same motion, smaller rise
 - Examples (mobile, motion **inferred**): [Me+ log in](https://mobbin.com/flows/cc2d9de9-2e89-47fe-8389-f90f34aeb336) and [Kitchen Stories log in](https://mobbin.com/flows/c135b423-a476-4018-9373-5f379ba4b143). Both show log in as a full-screen page with no side panel.
 - Works when: the layout is one column, so only the form moves.
 - Tradeoffs: a long slide on a narrow screen crosses the whole width.
 - DrillMap fit: strong. Use a 4 to 6 px rise. This is a design choice, not a sourced number.
-- Owner: —
+- Owner: like (accepted the recommendation, 2026-11-04)
 
 ### 6C. Reduced motion: keep the fade, drop the movement
 - Facts: `prefers-reduced-motion: reduce` asks for less movement, "preferably to the point where all non-essential movement is removed" ([web.dev, prefers-reduced-motion](https://web.dev/articles/prefers-reduced-motion)). Next's guide says directional slides are "the most common trigger for motion sensitivity," while crossfades "carry less risk" ([Next.js, View transitions](https://nextjs.org/docs/app/guides/view-transitions)). Apple: "Make motion optional" ([Apple HIG, Motion](https://developer.apple.com/design/human-interface-guidelines/motion)).
 - Works when: the fade is short and has no movement.
 - Tradeoffs: none that stand out.
 - DrillMap fit: strong. It is the Progress rule: a 120 ms fade only.
-- Owner: —
+- Owner: like (accepted the recommendation, 2026-11-04)
 
 ## Flow and motion
 
