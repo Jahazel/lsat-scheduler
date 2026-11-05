@@ -1,0 +1,653 @@
+<!doctype html>
+<!--
+  PROTOTYPE, throw away. Loading states (#637).
+  This week while it loads: the placeholder, then the real page. The frame (index.html) shows it at 1440, 768 and 390 px.
+  ?load=fast|typical|slow|hold sets how long the page takes. ?rm=1 previews reduced motion.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PROTOTYPE · This week loading</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --vellum: #F6F6F6; --paper: #FFFFFF; --line: #E4E4E4; --ink: #0A0A0A; --chalk: #FAFAFA;
+  --fog: #8A8A8A; --smoke: #5C5C5C; --accent: #123A94;
+  --fast: 120ms; --base: 200ms; --slow: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1); --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1); --ease-float: cubic-bezier(0.37, 0, 0.63, 1);
+  --rise: 8px;
+  font-family: Geist, ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--vellum); color: var(--ink); }
+body { min-height: 100dvh; }
+html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
+
+/* ---------- app shell: stays still while the page loads ---------- */
+.nav { height: 72px; padding: 0 72px; display: flex; align-items: center; gap: 32px; background: var(--paper); border-bottom: 1px solid var(--line); position: relative; z-index: 2; }
+.brand { font-weight: 600; font-size: 18px; letter-spacing: -0.02em; }
+.tabs { display: flex; gap: 4px; font-size: 14px; }
+.tab { padding: 8px 14px; border-radius: 999px; }
+.tab[aria-current] { background: var(--vellum); }
+.nav-end { margin-left: auto; display: flex; align-items: center; gap: 20px; font-size: 16px; color: var(--smoke); }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--vellum); color: var(--ink); display: grid; place-items: center; font-size: 12px; }
+.pill-now { display: none; }
+.tabbar { display: none; }
+.tabbar:empty { display: none !important; }
+
+/* ---------- page: real content and placeholder share one grid cell ---------- */
+.stack { display: grid; }
+.stack > * { grid-area: 1 / 1; min-width: 0; }
+
+.header { background: var(--paper); border-bottom: 1px solid var(--line); padding: 48px 72px 40px; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.header .eyebrow { margin: 0; font-size: 14px; line-height: 18px; color: var(--smoke); }
+.header h1 { margin: 12px 0; font-size: 48px; line-height: 52px; font-weight: 500; letter-spacing: -0.02em; }
+.header .lead { margin: 0; font-size: 20px; line-height: 30px; color: var(--smoke); }
+.notes { list-style: none; margin: 12px 0 0; padding: 0; font-size: 14px; line-height: 18px; color: var(--smoke); }
+.reminder { display: flex; align-items: center; justify-content: center; gap: 12px; height: 48px; padding: 0 72px; background: var(--vellum); border-bottom: 1px solid var(--line); font-size: 16px; }
+.reminder p { margin: 0; }
+.reminder a { font-weight: 500; border-bottom: 1px solid var(--ink); }
+.notes li + li { margin-top: 4px; }
+.notes li::before { content: "ⓘ"; margin-right: 8px; }
+.pace { width: 360px; flex-shrink: 0; }
+.pace-top { display: flex; justify-content: space-between; align-items: baseline; }
+.pace-top b { font-size: 22px; line-height: 28px; font-weight: 500; color: var(--accent); }
+.pace-top span { font-size: 14px; line-height: 18px; color: var(--smoke); }
+.bar { height: 8px; border-radius: 999px; background: var(--line); margin: 12px 0 8px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 32%; background: var(--accent); border-radius: 999px; }
+.pace-bottom { display: flex; justify-content: flex-end; font-size: 14px; line-height: 18px; }
+
+.week { padding: 64px 72px 96px; display: flex; flex-direction: column; gap: 16px; }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.day-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; padding: 0 8px; }
+.day-head h2 { margin: 0; font-size: 16px; line-height: 24px; font-weight: 500; }
+.day-head h2 span { font-size: 14px; font-weight: 400; color: var(--smoke); }
+.day-meta { font-size: 14px; line-height: 18px; color: var(--smoke); }
+.day-empty { margin: 0; padding: 0 8px; font-size: 14px; line-height: 18px; color: var(--smoke); }
+.rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.row { display: flex; align-items: flex-start; gap: 2px; min-height: 36px; }
+.circle-slot { width: 32px; height: 36px; flex-shrink: 0; display: grid; place-items: center; }
+.label { min-width: 0; flex: 1; font-size: 14px; line-height: 18px; padding: 9px 0; }
+.diff { white-space: nowrap; }
+.row[data-done] .label { color: var(--smoke); text-decoration: line-through; text-decoration-color: var(--fog); }
+
+/* ---------- placeholder shapes: the real markup, text made into grey bars (as Progress does) ---------- */
+.ph .sk { color: transparent; background: var(--line); border-radius: 4px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.ph .sk-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--line); }
+.ph .bar { background: var(--line); }
+.ph .notes li::before { content: none; }
+.ph { pointer-events: none; }
+
+/* ---------- load choreography (shared by every variant) ---------- */
+/* Hidden for the first 150 ms, so a fast load never flashes a placeholder. */
+.ph { opacity: 0; }
+[data-phase="placeholder"] .ph { opacity: 1; transition: opacity var(--base) var(--ease-standard); }
+/* The placeholder leaves on an ease-out curve: the project's --ease-exit is an ease-in curve, which holds the grey shapes on screen at the moment the page arrives. */
+[data-phase="handoff"] .ph, [data-phase="done"] .ph { opacity: 0; transition: opacity var(--fast) var(--ease-standard); }
+[data-phase="done"] .ph { visibility: hidden; }
+.real { visibility: hidden; }
+[data-phase="handoff"] .real, [data-phase="done"] .real { visibility: visible; }
+/* Fast load: no placeholder, the page fades in as it does on any page change. */
+[data-fast] .real .part { animation: fade-rise var(--base) var(--ease-standard) both; }
+
+@keyframes fade-rise { from { opacity: 0; transform: translateY(var(--rise)); } }
+@keyframes fade-in { from { opacity: 0; } }
+
+/* Section 1 pick, Sweep: one light band crosses the whole page; the page rises in, top to bottom, 40 ms apart. */
+.ph { overflow: hidden; position: relative; }
+.ph::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  /* lighten only brightens the grey bars; the white and vellum surfaces are already lighter than the band. */
+  background: linear-gradient(100deg, transparent 0 35%, #F3F3F3 50%, transparent 65% 100%);
+  mix-blend-mode: lighten;
+  transform: translateX(-100%);
+  animation: sweep 1.6s linear infinite;
+}
+@keyframes sweep { to { transform: translateX(100%); } }
+[data-phase="handoff"] .real .part { animation: fade-rise var(--base) var(--ease-standard) calc(var(--i) * 40ms) both; }
+
+
+/* ---------- other pages (section 2) ---------- */
+.crumb { color: var(--fog); margin-left: -20px; }
+.switcher { font-size: 14px; margin-left: -20px; }
+.logout { font-size: 14px; color: var(--ink); font-weight: 500; }
+.muted { color: var(--smoke); }
+.small { font-size: 14px; line-height: 18px; }
+.accent { color: var(--accent); }
+.u { text-decoration: underline; }
+.h28 { margin: 0; font-size: 28px; line-height: 34px; font-weight: 500; letter-spacing: -0.02em; }
+.h22 { margin: 0; font-size: 22px; line-height: 28px; font-weight: 500; letter-spacing: -0.02em; }
+.danger { color: #C23532; }
+.lead-s { margin: 8px 0 0; font-size: 16px; line-height: 24px; color: var(--smoke); }
+.bignum { font-size: 22px; line-height: 28px; font-weight: 500; }
+.tag { display: inline-block; padding: 2px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; line-height: 18px; color: var(--smoke); vertical-align: middle; }
+.tag.blue { border: 0; background: #DCE3F2; color: var(--accent); padding: 1px 8px; }
+.tag.gray { border: 0; background: var(--line); }
+.link { color: var(--accent); font-size: 14px; font-weight: 500; }
+.content { max-width: 1120px; margin: 0 auto; padding: 64px 0 96px; display: flex; flex-direction: column; gap: 24px; }
+.card.pad { padding: 32px; gap: 12px; }
+.card .muted { margin: 0; }
+.field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.flabel { font-size: 14px; line-height: 18px; font-weight: 500; }
+.hint { font-size: 12px; line-height: 16px; color: var(--smoke); }
+.box { display: flex; align-items: center; height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); font-size: 16px; min-width: 0; }
+.box.num { width: 96px; justify-content: flex-end; }
+.select i { margin-left: auto; font-style: normal; }
+.btn { display: inline-flex; align-items: center; justify-content: center; height: 44px; padding: 0 20px; border-radius: 8px; font-size: 16px; font-weight: 500; white-space: nowrap; }
+.btn.outline { border: 1px solid var(--line); background: var(--paper); }
+.btn.outline.danger { border-color: #C23532; }
+.btn.wide { width: 100%; }
+.btn.pill { border-radius: 999px; background: #9A9A9A; color: var(--chalk); height: 48px; }
+.btn.muted-btn { background: var(--line); color: var(--smoke); }
+.seg3, .seg2 { display: flex; padding: 4px; border-radius: 8px; background: var(--vellum); font-size: 14px; }
+.seg3 > span, .seg2 > span { flex: 1; text-align: center; padding: 9px 8px; border-radius: 6px; color: var(--smoke); }
+.seg3 > .on, .seg2 > .on { background: var(--paper); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / 0.08); }
+.grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; margin: 20px 0 8px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.weekgrid { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 40px; margin-top: 20px; }
+.drow { display: grid; grid-template-columns: 68px 1fr 1fr 64px; gap: 8px; align-items: center; min-height: 53px; border-bottom: 1px solid var(--line); padding: 0 12px; font-size: 14px; }
+.drow .box { height: 34px; font-size: 14px; }
+.drow.all { background: var(--vellum); border-radius: 8px; border: 0; }
+.drow .btn { height: 34px; padding: 0 12px; font-size: 14px; }
+.radio { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--smoke); justify-self: center; }
+.radio.on { border: 6px solid var(--accent); }
+.total { display: flex; justify-content: space-between; padding: 20px 12px 0; font-size: 14px; }
+.preview { display: flex; flex-direction: column; gap: 8px; border-left: 1px solid var(--line); padding-left: 40px; }
+.eyebrow-mono { font-family: ui-monospace, monospace; font-size: 12px; letter-spacing: 0.1em; color: var(--smoke); }
+.pbar { display: grid; grid-template-columns: 48px 1fr 56px; align-items: center; gap: 0; font-size: 14px; }
+.pbar i { height: 20px; background: #DCE3F2; } .pbar i.pt { background: var(--accent); }
+.pbar span:last-child { text-align: right; }
+.row2 { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 24px; }
+.row2.top { align-items: flex-end; }
+.grow { flex: 1; min-width: 0; max-width: 560px; }
+.lines { list-style: none; padding: 0; margin: 20px 0 0; border-top: 1px solid var(--line); }
+.lines li { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.confirm { width: 360px; display: flex; flex-direction: column; gap: 16px; }
+.confirm .btn { width: 100%; }
+.acct { margin-top: 12px; }
+.split { display: grid; grid-template-columns: 680px 1fr; min-height: calc(100dvh - 72px); }
+.split-main { background: var(--paper); border-right: 1px solid var(--line); }
+.split-inner { width: 440px; margin: 0 0 0 120px; padding: 80px 0 64px; display: flex; flex-direction: column; gap: 32px; }
+.split-inner .lead-s { margin-top: -24px; }
+.split-side { padding: 80px 72px; display: flex; flex-direction: column; gap: 16px; }
+.split-side p { margin: 0; }
+.score-row { display: flex; align-items: flex-end; gap: 16px; }
+.score-row .field { flex-shrink: 0; }
+.hint.wide { font-size: 14px; line-height: 18px; padding-bottom: 4px; }
+.sec { display: flex; flex-direction: column; gap: 12px; }
+.sec-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; } .sec-head b { font-size: 16px; font-weight: 500; }
+.drop { display: flex; align-items: center; gap: 16px; padding: 28px 24px; border: 1px dashed #BDBDBD; border-radius: 8px; background: var(--vellum); line-height: 24px; }
+.drop b { font-weight: 500; }
+.drop-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--paper); border: 1px solid var(--line); display: grid; place-items: center; flex-shrink: 0; }
+.infobox { padding: 20px; border-radius: 8px; background: var(--vellum); font-size: 14px; line-height: 20px; }
+.admin-list { max-width: 672px; margin: 0 auto; padding: 48px 0 96px; }
+.people { list-style: none; margin: 32px 0 0; padding: 0; border-top: 1px solid var(--line); }
+.people li { display: flex; flex-direction: column; gap: 6px; padding: 16px 4px; border-bottom: 1px solid var(--line); }
+.admin-strip { background: var(--paper); padding: 24px 72px 0; }
+.admin-strip p { margin: 16px 0 0; padding-bottom: 0; }
+.ob { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; padding: 120px 0 0 120px; min-height: calc(100dvh - 72px); }
+.ob-form { width: 440px; display: flex; flex-direction: column; gap: 24px; }
+.ob-form .lead-s { margin-top: -16px; }
+.ob-preview { background: var(--paper); border-radius: 12px 0 0 0; box-shadow: 0 24px 60px rgb(10 10 10 / 0.08); align-self: stretch; }
+.mini-nav { display: flex; align-items: center; gap: 12px; padding: 16px 28px; border-bottom: 1px solid var(--line); }
+.mini-head { display: flex; flex-direction: column; gap: 16px; padding: 32px 28px; border-bottom: 1px solid var(--line); }
+.mini-card { margin: 24px 28px 0; border: 1px solid var(--line); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.mini-card i { display: block; height: 8px; border-radius: 4px; background: var(--vellum); }
+.ph .box, .ph .btn, .ph .seg3, .ph .seg2 { color: transparent; }
+.ph .box > .sk, .ph .btn > .sk { color: transparent; }
+.ph .seg3 > span, .ph .seg2 > span { box-shadow: none; }
+.ph .radio { border-color: var(--line); }
+.ph .pbar i, .ph .tag { background: var(--line); border-color: transparent; }
+.ph .btn.pill, .ph .btn.muted-btn { background: var(--line); }
+.ph .btn.outline.danger { border-color: var(--line); }
+.ph .u { text-decoration: none; }
+.ph .danger { color: transparent; }
+.ph .drop-icon { background: var(--line); border-color: transparent; color: transparent; }
+
+/* Section 2 pick, Mirror: every line, field and button is a grey shape in its exact spot. */
+.ph .box { background: var(--line); border-color: transparent; }
+
+@media (max-width: 1023px) {
+  .content { padding: 48px 72px 80px; }
+  .grid4 { grid-template-columns: 1fr 1fr; }
+  .weekgrid { grid-template-columns: 1fr; }
+  .preview { border-left: 0; padding-left: 0; }
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .split-inner { width: auto; margin: 0; padding: 64px 72px; }
+  .split-main { border-right: 0; }
+  .ob { grid-template-columns: 1fr; padding: 64px 72px; }
+  .ob-form { width: auto; }
+  .ob-preview { display: none; }
+  .row2.top { flex-direction: column; align-items: stretch; }
+  .confirm { width: auto; }
+}
+@media (max-width: 767px) {
+  .content { padding: 24px 20px 120px; gap: 16px; }
+  .card.pad { padding: 20px; }
+  .grid4 { gap: 16px; }
+  .grid4 > :nth-child(n + 3) { grid-column: 1 / -1; }
+  .drow { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 32px; }
+  .switcher { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav { min-width: 0; }
+  .h28 { overflow-wrap: anywhere; }
+  .row2 { flex-direction: column; align-items: stretch; }
+  .row2 .btn { width: 100%; }
+  .confirm { width: auto; }
+  .drow { padding: 0 4px; }
+  .split-inner { padding: 32px 20px; gap: 24px; }
+  .split-inner .lead-s { margin-top: -16px; }
+  .split-side { padding: 32px 20px 120px; }
+  .score-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .admin-list { padding: 40px 24px; }
+  .admin-strip { padding: 24px 20px 0; }
+  .ob { padding: 40px 20px 120px; }
+  .crumb, .switcher { margin-left: -4px; }
+  .admin-strip .row2 { flex-direction: row; align-items: center; }
+  .nav .tag { display: none; }
+}
+
+/* ---------- Progress (keeps its own layout; gets the new motion) ---------- */
+.pg-content { padding: 48px 72px 72px; display: flex; flex-direction: column; gap: 24px; }
+.pg-card { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.pg-month { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 20px 24px; }
+.pg-month h2 { margin: 0; font-size: 20px; line-height: 26px; font-weight: 500; letter-spacing: -0.01em; }
+.pg-week { display: grid; grid-template-columns: 200px minmax(0, 320px) 1fr 24px; align-items: center; gap: 24px; min-height: 64px; padding: 0 24px; border-top: 1px solid var(--line); cursor: pointer; transition: background-color var(--fast) var(--ease-standard); }
+@media (hover: hover) and (pointer: fine) { .real .pg-week:hover { background: var(--vellum); } }
+.pg-week:active { background: var(--line); }
+.pg-week .wbar { height: 4px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.pg-week .wbar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.pg-week .cnt { justify-self: end; font-size: 14px; color: var(--smoke); }
+.pg-week .chev { justify-self: end; color: var(--fog); }
+.wk-head { background: var(--paper); border-bottom: 1px solid var(--line); padding: 32px 72px 40px; }
+.wk-row { margin-top: 24px; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+.wk-title { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.wk-title h1 { margin: 0; font-size: 48px; line-height: 52px; font-weight: 500; letter-spacing: -0.02em; }
+.wk-meta { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--smoke); margin: 0; }
+.wk-note { margin: 0; font-size: 14px; color: var(--smoke); }
+.pager { display: flex; gap: 8px; flex-shrink: 0; }
+.pager .btn { height: 40px; width: 136px; padding: 0; border-radius: 999px; font-size: 14px; }
+.wk-content { padding: 64px 72px 72px; display: flex; flex-direction: column; gap: 16px; }
+.ph .wbar i { display: none; }
+.ph .pager .btn { background: var(--line); border-color: transparent; color: transparent; }
+.ph .tag { color: transparent; }
+@media (max-width: 1023px) { .pg-content { padding: 48px 32px 72px; } .wk-head { padding: 32px 32px 40px; } .wk-row { flex-direction: column; align-items: stretch; gap: 16px; } .wk-content { padding: 32px 32px 72px; } .pg-week { grid-template-columns: 140px minmax(0, 200px) 1fr 24px; gap: 16px; } }
+@media (max-width: 767px) {
+  .pg-content { padding: 16px 16px 120px; }
+  .pg-month { padding: 16px; }
+  .pg-week { grid-template-columns: 1fr auto 16px; grid-template-areas: "d c v" "b b v"; gap: 10px 12px; padding: 14px 16px; }
+  .pg-week > :nth-child(1) { grid-area: d; } .pg-week .wbar { grid-area: b; } .pg-week .cnt { grid-area: c; } .pg-week .chev { grid-area: v; }
+  .wk-head { padding: 24px 20px; } .wk-title h1 { font-size: 28px; line-height: 34px; } .wk-row { margin-top: 16px; }
+  .pager .btn { flex: 1; width: auto; height: 44px; }
+  .wk-content { padding: 16px 16px 120px; }
+}
+/* Progress's own list ↔ week motion (#580, unchanged): the old page dims and slides 8 px while the next one loads. */
+.stack[data-leaving] { opacity: 0.5; transform: translateX(var(--slide, 0)); transition: opacity var(--fast) var(--ease-exit), transform var(--fast) var(--ease-exit); }
+[data-rm] .stack[data-leaving] { transform: none; }
+/* Clickable paths in the prototype. */
+/* Phone: taps answer on press, never wait for a double-tap, and never select a tab's label. */
+/* The app moves focus to the new page's heading without a ring (outline-none in PastWeekView). */
+h1:focus { outline: none; }
+[data-go] { cursor: pointer; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.tab[data-go]:active, .tabbar [data-go]:active, .avatar:active { opacity: 0.6; transition: opacity var(--fast) ease; }
+.people li[data-go]:active { background: var(--vellum); }
+.real [data-go]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- reduced motion (device setting, or ?rm=1 in the frame) ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .ph::after { animation: none !important; }
+  [data-phase="handoff"] .real .part, [data-fast] .real .part { animation: fade-in var(--fast) var(--ease-standard) both !important; }
+}
+[data-rm] .ph::after { animation: none !important; }
+[data-rm][data-phase="handoff"] .real .part, [data-rm][data-fast] .real .part { animation: fade-in var(--fast) var(--ease-standard) both !important; }
+
+/* ---------- tablet ---------- */
+@media (max-width: 1023px) {
+  .nav { padding: 0 72px; }
+  .header { flex-direction: column; align-items: stretch; gap: 24px; }
+  .pace { width: 100%; }
+}
+/* ---------- phone ---------- */
+@media (max-width: 767px) {
+  :root { --rise: 4px; }
+  .nav { height: 56px; padding: 0 20px; gap: 12px; }
+  .tabs, .nav-end .days { display: none; }
+  .pill-now { display: inline; padding: 5px 12px; border-radius: 999px; background: var(--vellum); font-size: 14px; color: var(--ink); }
+  .nav-end { gap: 12px; }
+  .header { padding: 24px 20px; gap: 24px; }
+  .header .eyebrow { font-size: 12px; line-height: 16px; }
+  .header h1 { font-size: 28px; line-height: 34px; margin: 6px 0; }
+  .header .lead { font-size: 16px; line-height: 24px; }
+  .week { padding: 32px 20px 120px; }
+  .card { padding: 16px 12px; }
+  /* Same rule as the real phone bar: the current-tab pill hides below 360 px. */
+  .pill-now { display: none; }
+  @media (min-width: 360px) { .pill-now { display: inline; } }
+  .reminder { height: auto; flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px 20px; font-size: 14px; }
+  .tabbar { display: grid; grid-template-columns: repeat(3, 1fr); position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 4;
+    background: var(--paper); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px rgb(10 10 10 / 0.06); }
+  .tabbar span { min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; color: var(--smoke); }
+  .tabbar span[aria-current] { color: var(--ink); font-weight: 600; }
+  .tabbar i { width: 20px; height: 20px; border: 1.5px solid currentColor; border-radius: 6px; }
+}
+</style>
+</head>
+<body>
+<nav class="nav" id="nav"></nav>
+
+<main class="stack" id="stack" aria-busy="true">
+  <div class="ph" id="ph" aria-hidden="true"></div>
+  <div class="real" id="real"></div>
+</main>
+<p id="status" class="sr-only" role="status" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"></p>
+
+<nav class="tabbar" id="tabbar" aria-label="Primary"></nav>
+
+<script>
+const params = new URLSearchParams(location.search);
+const LOAD = { fast: 100, typical: 1400, slow: 5000, hold: Infinity }[params.get("load") || "typical"];
+const root = document.documentElement;
+if (params.get("rm") === "1") root.dataset.rm = "";
+
+const OPEN = '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="7.4" fill="none" stroke="#5C5C5C" stroke-width="1.2"/></svg>';
+const DONE = '<svg viewBox="0 0 14 14" width="16" height="16" aria-hidden="true"><circle cx="7" cy="7" r="7" fill="#0A0A0A"/><path d="M4.1 7.2l2 2 3.8-4.1" fill="none" stroke="#FAFAFA" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+const DEMO_WEEK = [
+  { day: "Monday", date: "Nov 2", kind: "Drilling · 1 h 28 min of 1 h 30 min", rows: [["10 Necessary + Sufficient assumption (L2-4)", true], ["1 RC Passage Science L3", true]] },
+  { day: "Tuesday", date: "Nov 3", kind: "Drilling · 1 h 33 min of 1 h 30 min", rows: [["5 Flaw or descriptive weakening (L2-4)", true], ["5 Parallel flawed method of reasoning (L3-5)", false], ["1 Full LR Section", false]] },
+  { day: "Wednesday", date: "Nov 4", kind: "Drilling · 1 h 34 min of 1 h 30 min", rows: [["10 Strengthen + Weaken (L2-4)", false], ["5 PSA - find the rule (L2-4)", false], ["5 Inference (L2-4)", false], ["2 RC Passages Humanities L2, Law L4", false]] },
+  { day: "Thursday", date: "Nov 5", kind: "Rest day · 0 min of 1 h 30 min", rows: [], empty: "Rest day. Nothing planned." },
+  { day: "Friday", date: "Nov 6", kind: "Practice test · 3 h 8 min of 3 h 30 min", rows: [["Practice Test (from PT 130+)", false]] },
+  { day: "Saturday", date: "Nov 7", kind: "Practice-test review · 3 h of 3 h 30 min", rows: [["PT Review + Blind Review", false]] },
+  { day: "Sunday", date: "Nov 8", kind: "Drilling · 1 h 30 min of 1 h 30 min", rows: [["5 Must be true (L3-5)", false]] },
+];
+
+// Worst case: longest real type pairs, five-row days, a moved rest day, two header notes, the upload reminder above the header.
+const WORST_WEEK = [
+  { day: "Monday", date: "Nov 2", kind: "Drilling · 1 h 45 min of 1 h 30 min", rows: [["10 Flaw or descriptive weakening + Weaken (L3-5)", true], ["10 Parallel flawed method of reasoning + Parallel method of reasoning (L3-5)", false], ["5 PSA - find or complete the application (L3-5)", false], ["5 Lack of support v. false conclusion (L2-4)", false], ["2 RC Passages Comparative L5, Humanities L3", false]] },
+  { day: "Tuesday", date: "Nov 3", kind: "Not scheduled · 0 min of 1 h 30 min", rows: [], empty: "Not scheduled because this weekly schedule started Wednesday." },
+  { day: "Wednesday", date: "Nov 4", kind: "Drilling · 2 h 4 min of 1 h 30 min", rows: [["10 Necessary + Sufficient assumption (L2-4)", false], ["5 Strengthen (L3-5)", false], ["5 Inference (L2-4)", false], ["1 RC Passage Science L3", false], ["1 Full LR Section", false]] },
+  { day: "Thursday", date: "Nov 5", kind: "Drilling · 15 min of 30 min", rows: [["1 RC Passage Art L2", false]] },
+  { day: "Friday", date: "Nov 6", kind: "Practice test · 3 h 8 min of 3 h 30 min", rows: [["Practice Test (from PT 130+)", false]] },
+  { day: "Saturday", date: "Nov 7", kind: "Practice-test review · 3 h of 3 h 30 min", rows: [["PT Review + Blind Review", false], ["1 Full RC Section", false]] },
+  { day: "Sunday", date: "Nov 8", kind: "Rest day · 0 min of 1 h 30 min", rows: [], empty: "Rest day. Nothing planned." },
+];
+// Sparse: the first week of a new student, started Saturday. No notes, two days with activities.
+const SPARSE_WEEK = DEMO_WEEK.map((d, i) => i < 5 ? { ...d, kind: "Not scheduled · 0 min of 1 h 30 min", rows: [], empty: "Not scheduled because this weekly schedule started Saturday." } : d);
+const DATA = params.get("data") || "demo";
+const WEEK = { demo: DEMO_WEEK, worst: WORST_WEEK, sparse: SPARSE_WEEK }[DATA];
+const NOTES = { demo: ["Necessary assumption comes first this week. You missed it most on your last practice test."],
+  worst: ["Flaw or descriptive weakening comes first this week. You missed it most on your last practice test.", "Your rest day moved to Sunday because your practice test is on Friday."], sparse: [] }[DATA];
+
+// The placeholder cannot know the week, so it shows a typical one: same days, typical row lengths.
+const PH_ROWS = [["10 Necessary + Sufficient assumption (L2-4)", "1 RC Passage Science L3"], ["5 Flaw or descriptive weakening (L2-4)", "5 Parallel method (L3-5)", "1 Full LR Section"],
+  ["10 Strengthen + Weaken (L2-4)", "5 PSA - find the rule (L2-4)", "5 Inference (L2-4)"], [], ["Practice Test (from PT 130+)"], ["PT Review + Blind Review"], ["5 Must be true (L3-5)"]];
+
+const sk = (t) => `<span class="sk">${t}</span>`;
+const PAGE = params.get("page") || "week";
+// D: student data. L: fixed wording. Mirror greys both; they stay apart so the copy reads as data or wording.
+const D = (ph, x) => (ph ? sk(x) : x);
+const L = (ph, x) => (ph ? sk(x) : x);
+// Same rule as the app: a difficulty such as "(L2-4)" never breaks across lines.
+const labelHtml = (label) => label.replace(/\((L\d-\d)\)$/, '<span class="diff">($1)</span>');
+
+function header(ph, { lead = true } = {}) {
+  const t = (x) => D(ph, x);
+  const notes = ph ? ["Necessary assumption comes first this week. You missed it most on your last practice test."] : NOTES;
+  const reminder = !ph && DATA === "worst" ? `<aside class="reminder part" style="--i:0"><p>Next week starts Monday. Add your screenshots to build your weekly schedule.</p><a data-go="upload" tabindex="0" role="link">Plan next week</a></aside>` : "";
+  return `${reminder}<header class="header part" style="--i:0">
+    <div>
+      <p class="eyebrow">${t("Week of November 2")}</p>
+      <h1>${L(ph, "Your plan for this week")}</h1>
+      ${lead ? `<p class="lead">${L(ph, "Your plan is set. Check off as you go.")}</p>` : ""}
+      ${notes.length ? `<ul class="notes">${notes.map((n) => `<li>${t(n)}</li>`).join("")}</ul>` : ""}
+    </div>
+    <div class="pace">
+      <div class="pace-top"><b>${t("13 remaining")}</b><span>${t("6 of 19 done")}</span></div>
+      <div class="bar">${ph ? "" : "<i></i>"}</div>
+      <div class="pace-bottom">${t("On pace")}</div>
+    </div>
+  </header>`;
+}
+
+function week(ph) {
+  return `<div class="week">${WEEK.map((d, di) => {
+    const rows = ph ? PH_ROWS[di].map((label) => [label, false]) : d.rows;
+    const t = (x) => D(ph, x);
+    return `<section class="card part" style="--i:${di + 1}">
+      <div class="day-head"><h2>${ph ? sk(`${d.day} ${d.date}`) : `${d.day} <span>${d.date}</span>`}</h2><span class="day-meta">${t(d.kind)}</span></div>
+      ${rows.length ? `<ul class="rows">${rows.map(([label, done]) => `<li class="row" ${done ? "data-done" : ""}>
+        <span class="circle-slot">${ph ? '<span class="sk-dot"></span>' : done ? DONE : OPEN}</span><span class="label">${t(labelHtml(label))}</span></li>`).join("")}</ul>`
+        : `<p class="day-empty">${t(d.empty)}</p>`}
+    </section>`;
+  }).join("")}</div>`;
+}
+
+const ph = document.getElementById("ph");
+const real = document.getElementById("real");
+const stack = document.getElementById("stack");
+const status = document.getElementById("status");
+// ---------- app shells (they stay still while a page loads) ----------
+const TAB = { week: "This week", upload: "This week", settings: "Study settings", account: null, progress: "Progress", "progress-week": "Progress" };
+function STUDENT_NAV() {
+  const now = TAB[PAGE_NOW];
+  const GO = { "This week": "week", Progress: "progress", "Study settings": "settings" };
+  const tabs = ["This week", "Progress", "Study settings"].map((t) => `<span class="tab" data-go="${GO[t]}" ${t === now ? 'aria-current="page"' : ""}>${t}</span>`).join("");
+  document.getElementById("tabbar").innerHTML = [["This week", "This week"], ["Progress", "Progress"], ["Study settings", "Settings"]]
+    .map(([t, short]) => `<span ${t === now ? 'aria-current="page"' : ""}><i></i>${short}</span>`).join("");
+  return `<nav class="nav" aria-label="Main"><span class="brand">DrillMap</span><div class="tabs">${tabs}</div>
+    <div class="nav-end"><span class="days">208 days to test</span>${now ? `<span class="pill-now">${now}</span>` : ""}<span class="avatar">AM</span></div></nav>`;
+}
+function ADMIN_NAV() {
+  return `<nav class="nav" aria-label="Main"><span class="brand">DrillMap</span><span class="crumb">/</span><span class="switcher">All students ⌄</span>
+    <div class="nav-end"><span class="logout">Log out</span></div></nav>`;
+}
+function ONBOARDING_NAV() {
+  return `<nav class="nav" aria-label="Main"><span class="brand">DrillMap</span><div class="nav-end"><span class="logout">Log out</span></div></nav>`;
+}
+
+// ---------- shared pieces ----------
+const pageHeader = (ph, title, lead, extra = "") => `<header class="header part" style="--i:0"><div>
+  <h1>${L(ph, title)}</h1>${lead ? `<p class="lead">${L(ph, lead)}</p>` : ""}${extra}</div></header>`;
+// A form control: a box with its value inside.
+const box = (ph, value, cls = "") => `<span class="box ${cls}">${D(ph, value)}</span>`;
+const select = (ph, value, cls = "") => `<span class="box select ${cls}">${D(ph, value)}<i>⌄</i></span>`;
+const btn = (ph, label, cls = "") => `<span class="btn ${cls}">${L(ph, label)}</span>`;
+const field = (ph, label, control, hint = "") => `<div class="field"><span class="flabel">${L(ph, label)}</span>${control}${hint ? `<span class="hint">${L(ph, hint)}</span>` : ""}</div>`;
+
+// ---------- Weekly upload ----------
+function upload(ph) {
+  const zone = (name) => `<div class="drop"><span class="drop-icon">↥</span><span><b>${L(ph, name)}</b><br><span class="muted">${L(ph, "Drop it here or choose a file")}</span></span></div>`;
+  return `<div class="split">
+    <section class="split-main part" style="--i:0"><div class="split-inner">
+      <h1 class="h28">${D(ph, "Plan this week")}</h1>
+      <p class="lead-s">${D(ph, "Your plan starts today and runs to Sunday, Nov 8. Last week had no practice test, so we need only your 2 analytics screenshots.")}</p>
+      <div class="score-row part" style="--i:1">${field(ph, "Current score", box(ph, "150", "num"))}<span class="hint wide">${L(ph, "From your study settings. Type a new score if your latest practice test changed it. We save it there too.")}</span></div>
+      <div class="sec part" style="--i:2"><div class="sec-head"><b>${L(ph, "7Sage analytics")}</b><span class="muted">${L(ph, "Screenshots or typed")}</span></div>
+        <div class="seg2"><span class="on">${L(ph, "Screenshots")}</span><span>${L(ph, "Type them")}</span></div>
+        ${zone("Logical Reasoning screenshot")}${zone("Reading Comprehension screenshot")}
+        <p class="small muted">${L(ph, "PNG, JPG, or WEBP, 4 MB or less each. Tall screenshots are fine.")}</p></div>
+      <div class="sec part" style="--i:3"><div class="sec-head"><b>${L(ph, "Practice test review")}</b><span class="muted">${D(ph, "Not needed this week")}</span></div>
+        <div class="infobox">${D(ph, "No practice test on last week's plan. This week's order comes from your analytics only.")}</div></div>
+      <div class="part" style="--i:4">${btn(ph, "Read my screenshots", "wide pill")}</div>
+    </div></section>
+    <aside class="split-side part" style="--i:1"><b>${L(ph, "Where to find it")}</b><p class="small"><b>${L(ph, "7Sage analytics")}</b><br><span class="muted">${L(ph, "Same as when you signed up: the Logical Reasoning and Reading Comprehension parts of your Analytics page.")}</span></p></aside>
+  </div>`;
+}
+
+// ---------- Study settings ----------
+function settings(ph) {
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const row = (d) => `<div class="drow"><span>${L(ph, d)}</span>${select(ph, "1 h")}${select(ph, "30 min")}<span class="radio ${d === "Sat" ? "on" : ""}"></span></div>`;
+  const bar = (d) => `<div class="pbar"><span>${L(ph, d)}</span><i class="${d === "Sat" ? "pt" : ""}"></i><span>${D(ph, "1 h 30")}</span></div>`;
+  return `${pageHeader(ph, "Study settings", "Your goal and your week. Changes apply to your next weekly schedule.")}
+  <div class="content">
+    <section class="card pad part" style="--i:1"><h2 class="h22">${L(ph, "Goal")}</h2><p class="muted">${L(ph, "Where you are now, where you want to be, and when.")}</p>
+      <div class="grid4">${field(ph, "Current PT score", `<span class="bignum">${D(ph, "150")}</span>`, "Updates with each weekly upload")}${field(ph, "Goal score", box(ph, "165"))}${field(ph, "Goal test month", select(ph, "June 2027"))}${field(ph, "Test time", `<span class="seg3"><span class="on">${L(ph, "Standard")}</span><span>${L(ph, "1.5× time")}</span><span>${L(ph, "2× time")}</span></span>`)}</div>
+      <div class="field"><span class="flabel">${L(ph, "Official LSAT attempts")}</span><span class="muted small">${D(ph, "No official attempts yet")}</span><span class="small u">${L(ph, "+ Add attempt")}</span></div>
+    </section>
+    <section class="card pad part" style="--i:2"><h2 class="h22">${L(ph, "Week")}</h2><p class="muted">${L(ph, "How much time you can study each day. Each day needs at least 30 min.")}</p>
+      <div class="weekgrid"><div class="days"><div class="drow all"><span>${L(ph, "All days")}</span>${select(ph, "1 h")}${select(ph, "30 min")}${btn(ph, "Apply", "outline")}</div>${days.map(row).join("")}
+        <div class="total"><span class="muted">${L(ph, "Weekly total")}</span><b>${D(ph, "10 h 30")}</b></div></div>
+        <div class="preview"><span class="eyebrow-mono">${L(ph, "PREVIEW · NEXT WEEKLY SCHEDULE")}</span><span class="bignum">${D(ph, "150 → 165")}</span><span class="accent small">${D(ph, "by June 2027 · 10 h 30 a week")}</span>${days.map(bar).join("")}</div></div>
+    </section>
+  </div>`;
+}
+
+// ---------- Account ----------
+function account(ph) {
+  const items = ["Your profile", "Approved and legacy analytics snapshots", "Weekly schedules", "Activity check-ins"];
+  return `${pageHeader(ph, "Account", null, `<p class="lead acct">${D(ph, "amy@example.test")} <span class="tag">${D(ph, "Google sign-in")}</span></p>`)}
+  <div class="content">
+    <section class="card pad row2 part" style="--i:1"><div><h2 class="h22">${L(ph, "Sessions")}</h2><p class="muted">${L(ph, "Sign out of every browser and device where you use DrillMap, including this one.")}</p></div>${btn(ph, "Sign out of all devices", "outline")}</section>
+    <section class="card pad part" style="--i:2"><div class="row2 top"><div class="grow"><h2 class="h22 danger">${L(ph, "Delete account")}</h2><p class="muted">${L(ph, "This permanently removes from active storage:")}</p>
+      <ul class="lines">${items.map((i) => `<li>${L(ph, i)}</li>`).join("")}</ul></div>
+      <div class="confirm">${field(ph, "Type DELETE to confirm", box(ph, ""))}${btn(ph, "Delete account", "outline danger")}</div></div></section>
+  </div>`;
+}
+
+// ---------- Admin: all students ----------
+function adminList(ph) {
+  const people = ph ? [["amy", "amy@example.test · 10 h 30 min per week"], ["benjamin", "benjamin@example.test · 9 h per week"], ["cy", "cy@example.test · 12 h per week"], ["dana", "dana@example.test · 10 h 30 min per week"], ["eli", "eli@example.test · 7 h 30 min per week"]]
+    : [["amy", "amy@example.test · 10 h 30 min per week"], ["ben", "ben@example.test · 10 h 30 min per week"], ["cy", "cy@example.test · 10 h 30 min per week"]];
+  return `<div class="admin-list"><h1 class="h28 part" style="--i:0">${L(ph, "All students")}</h1>
+    <ul class="people">${people.map(([n, m], i) => `<li class="part" style="--i:${i + 1}" ${ph ? "" : 'data-go="admin-student" tabindex="0" role="link"'}><span>${D(ph, n)} <span class="tag blue">${D(ph, "Needs analytics")}</span></span><span class="muted small">${D(ph, m)}</span></li>`).join("")}</ul></div>`;
+}
+
+// ---------- Admin: one student (the read-only This week under an admin strip) ----------
+function adminStudent(ph) {
+  return `<div class="admin-strip part" style="--i:0"><div class="row2"><span class="link" ${ph ? "" : 'data-go="admin" data-back tabindex="0" role="link"'}>${L(ph, "← All students")}</span><span class="tag gray">${L(ph, "Viewing as admin — read only")}</span></div>
+    <p class="small muted">${D(ph, "amy@example.test")}</p></div>${header(ph, { lead: false })}${week(ph)}`;
+}
+
+// ---------- Onboarding, step 1 ----------
+function onboarding(ph) {
+  return `<div class="ob">
+    <section class="ob-form part" style="--i:0"><span class="eyebrow-mono">${L(ph, "STEP 1 OF 4 · GOAL")}</span><h1 class="h28">${L(ph, "Set your target")}</h1><p class="lead-s">${L(ph, "Where you are now, where you want to be, and when.")}</p>
+      <div class="grid2">${field(ph, "Current PT score", box(ph, ""))}${field(ph, "Goal score", box(ph, ""))}</div>
+      ${field(ph, "Goal test date", select(ph, "Select a test date"))}
+      ${field(ph, "Test time", `<span class="seg3 full"><span class="on">${L(ph, "Standard")}</span><span>${L(ph, "1.5× time")}</span><span>${L(ph, "2× time")}</span></span>`)}
+      <span ${ph ? "" : 'data-go="week" tabindex="0" role="button"'}>${btn(ph, "Continue", "wide muted-btn")}</span></section>
+    <aside class="ob-preview part" style="--i:1"><div class="mini-nav"><b>${L(ph, "DrillMap")}</b><span class="tag gray">${L(ph, "This week")}</span></div>
+      <div class="mini-head"><span class="small muted">${D(ph, "Hi cy · 7Sage · standard time")}</span><span class="bignum">${L(ph, "— → —")}</span></div>
+      ${[3, 2, 3].map((n) => `<div class="mini-card">${Array.from({ length: n }, (_, i) => `<i style="width:${[40, 70, 55][i]}%"></i>`).join("")}</div>`).join("")}</aside>
+  </div>`;
+}
+
+// ---------- Progress ----------
+const MONTHS = {
+  demo: [["October 2026", [["Oct 26 – Nov 1", 17], ["Oct 19 – 25", 19], ["Oct 12 – 18", 12]]]],
+  worst: [["October 2026", [["Oct 26 – Nov 1", 0], ["Oct 19 – 25", 19], ["Oct 12 – 18", 7], ["Oct 5 – 11", 1]]], ["September 2026", [["Sep 28 – Oct 4", 14], ["Sep 21 – 27", 19]]]],
+  sparse: [["October 2026", [["Oct 26 – Nov 1", 1]]]],
+}[DATA];
+const LEAD_P = "Your past weekly schedules. Open one to see what you planned and checked off.";
+function progressList(ph) {
+  // The placeholder keeps Progress's own shape: one month, three weeks.
+  const months = ph ? [["November 2026", [["Nov 16 – 22", 0], ["Nov 16 – 22", 0], ["Nov 16 – 22", 0]]]] : MONTHS;
+  return `${pageHeader(ph, "Progress", LEAD_P)}<div class="pg-content">${months.map(([m, weeks], mi) => `<section class="pg-card part" style="--i:${mi + 1}">
+    <div class="pg-month"><h2>${D(ph, m)}</h2><span class="small muted">${D(ph, `${weeks.length} ${weeks.length === 1 ? "week" : "weeks"}`)}</span></div>
+    ${weeks.map(([label, done]) => `<div class="pg-week" ${ph ? "" : 'data-go="progress-week" tabindex="0" role="link"'}><span>${D(ph, label)}</span><span class="wbar"><i style="width:${Math.round(done / 19 * 100)}%"></i></span><span class="cnt">${D(ph, `${done} of 19 done`)}</span><span class="chev">${ph ? "" : "›"}</span></div>`).join("")}
+  </section>`).join("")}</div>`;
+}
+function progressWeek(ph) {
+  const days = DEMO_WEEK.map((d) => ({ ...d, rows: d.rows.map(([l], i) => [l, i !== 1]) }));
+  const cards = ph ? [0, 1].map(() => ({ day: "Monday", date: "Nov 9", kind: "Drilling · 1 h 30 min of 1 h 30 min", rows: [["5 Necessary assumption (L2-4)"], ["5 Necessary assumption (L2-4)"], ["5 Necessary assumption (L2-4)"]] })) : days;
+  return `<header class="wk-head part" style="--i:0"><span class="link" ${ph ? "" : 'data-go="progress" data-back tabindex="0" role="link"'}>${L(ph, "← All weeks")}</span>
+    <div class="wk-row"><div class="wk-title"><p class="wk-meta"><span class="tag">${L(ph, "Past week")}</span>${D(ph, ph ? "0 of 19 done" : "17 of 19 done")}</p>
+      <h1 tabindex="-1">${D(ph, ph ? "Week of Nov 9" : "Week of Oct 26")}</h1>
+      <p class="wk-note">${D(ph, "Flaw or descriptive weakening comes first this week. You missed it most on your last practice test.")}</p></div>
+      <div class="pager">${btn(ph, "← Older week", "outline")}${btn(ph, "Newer week →", "outline")}</div></div></header>
+  <div class="wk-content">${cards.map((d, di) => `<section class="card part" style="--i:${di + 1}">
+      <div class="day-head"><h2>${ph ? sk(`${d.day} ${d.date}`) : `${d.day} <span>${d.date}</span>`}</h2><span class="day-meta">${D(ph, d.kind)}</span></div>
+      ${d.rows.length ? `<ul class="rows">${d.rows.map(([label, done]) => `<li class="row" ${done ? "data-done" : ""}><span class="circle-slot">${ph ? '<span class="sk-dot"></span>' : done ? DONE : OPEN}</span><span class="label">${D(ph, labelHtml(label))}</span></li>`).join("")}</ul>` : `<p class="day-empty">${D(ph, d.empty)}</p>`}
+    </section>`).join("")}</div>`;
+}
+
+const PAGES = { week: [STUDENT_NAV, (ph) => header(ph) + week(ph)], upload: [STUDENT_NAV, upload], settings: [STUDENT_NAV, settings], account: [STUDENT_NAV, account],
+  progress: [STUDENT_NAV, progressList], "progress-week": [STUDENT_NAV, progressWeek],
+  admin: [ADMIN_NAV, adminList], "admin-student": [ADMIN_NAV, adminStudent], onboarding: [ONBOARDING_NAV, onboarding] };
+
+// ---------- clickable paths ----------
+// Each element with data-go opens that page the way the app does: placeholder after 150 ms, then the handoff.
+function wire(html) {
+  return html.replace('<span class="avatar">', '<span class="avatar" data-go="account" title="Account">');
+}
+let PAGE_NOW = PAGE;
+let timers = [];
+const later = (fn, ms) => { if (ms !== Infinity) timers.push(setTimeout(fn, ms)); };
+
+function render(name, { cached = false, spent = 0 } = {}) {
+  timers.forEach(clearTimeout); timers = [];
+  PAGE_NOW = name;
+  const [nav, page] = PAGES[name];
+  document.getElementById("tabbar").innerHTML = "";
+  const navEl = document.querySelector("nav.nav");
+  const navHtml = wire(nav());
+  // The shell stays still: only swap it when it differs (student ↔ admin ↔ onboarding), and only the current tab changes.
+  if (navEl.outerHTML !== navHtml) navEl.outerHTML = navHtml;
+  for (const [i, el] of [...document.querySelectorAll("#tabbar > span")].entries()) el.dataset.go = ["week", "progress", "settings"][i];
+  root.dataset.page = name;
+  delete root.dataset.fast;
+  stack.removeAttribute("data-leaving");
+  ph.innerHTML = page(true);
+  real.innerHTML = page(false);
+  scrollTo(0, 0);
+  if (cached) {
+    // A page the browser already has (Back): no placeholder; it fades in as on any fast load.
+    root.dataset.phase = ""; root.dataset.fast = ""; void real.offsetWidth; root.dataset.phase = "handoff";
+    later(() => { root.dataset.phase = "done"; }, 900);
+    return;
+  }
+  root.dataset.phase = "";
+  stack.setAttribute("aria-busy", "true");
+  status.textContent = "";
+  // `spent`: time the old page already waited dimmed (Progress), so the placeholder and the page keep the same clock.
+  if (LOAD - spent > 0) later(() => { root.dataset.phase = "placeholder"; }, Math.max(0, 150 - spent));
+  later(arrive, Math.max(0, LOAD - spent));
+}
+
+function arrive() {
+  if (root.dataset.phase !== "placeholder") root.dataset.fast = "";
+  root.dataset.phase = "handoff";
+  stack.removeAttribute("aria-busy");
+  status.textContent = "Page loaded";
+  later(() => { root.dataset.phase = "done"; real.querySelector("h1")?.focus?.({ preventScroll: true }); }, 900);
+}
+
+function go(name) {
+  if (!PAGES[name]) return;
+  history.pushState({ page: name }, "", `?${new URLSearchParams({ ...Object.fromEntries(params), page: name })}`);
+  const progressPair = new Set(["progress", "progress-week"]);
+  if (progressPair.has(PAGE_NOW) && progressPair.has(name)) {
+    // Inside Progress the old page dims and slides first (its own motion), then the next page loads as usual.
+    stack.style.setProperty("--slide", name === "progress-week" ? "-8px" : "8px");
+    stack.setAttribute("data-leaving", "");
+    timers.forEach(clearTimeout); timers = [];
+    const spent = Math.min(LOAD, 150);
+    later(() => { stack.removeAttribute("data-leaving"); render(name, { spent }); }, spent);
+    return;
+  }
+  render(name);
+}
+
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-go]");
+  if (!el || el.closest(".ph")) return;
+  if (el.hasAttribute("data-back") && history.state) { history.back(); return; }
+  go(el.dataset.go);
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  const el = e.target.closest?.("[data-go]");
+  if (el) { e.preventDefault(); el.click(); }
+});
+addEventListener("popstate", (e) => render(e.state?.page || PAGE, { cached: true }));
+
+history.replaceState({ page: PAGE }, "");
+render(PAGE);
+</script>
+</body>
+</html>
