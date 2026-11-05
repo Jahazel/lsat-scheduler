@@ -337,6 +337,50 @@ describe("ScheduleCheckInView", () => {
       expect(stepCount()).toBe("Step 1 of 5");
     });
 
+    it("shows each card's 7Sage screenshot and loads all five when the guide opens", async () => {
+      const loaded: string[] = [];
+      const BrowserImage = window.Image;
+      window.Image = class {
+        set src(value: string) { loaded.push(value); }
+      } as unknown as typeof window.Image;
+      try {
+        const user = await openGuide();
+        expect(loaded).toHaveLength(5);
+        const shown = [within(guide()).getByRole("img", { name: "7Sage, step 1" }).getAttribute("src")];
+        for (const step of [2, 3, 4, 5]) {
+          await user.click(within(guide()).getByRole("button", { name: `Step ${step}` }));
+          shown.push(within(guide()).getByRole("img", { name: `7Sage, step ${step}` }).getAttribute("src"));
+        }
+        expect(shown).toEqual(loaded);
+        expect(new Set(shown).size).toBe(5);
+      } finally {
+        window.Image = BrowserImage;
+      }
+    });
+
+    it("zooms the screenshot to real size and back, and fits it again on another card", async () => {
+      const user = await openGuide();
+      const zoom = () => within(guide()).getByRole("button", { name: /screenshot/ });
+      expect(zoom().getAttribute("aria-label")).toBe("Show the screenshot at real size");
+      expect(zoom().getAttribute("aria-pressed")).toBe("false");
+      expect(within(guide()).getByText("Tap to zoom")).toBeTruthy();
+
+      await user.click(zoom());
+      expect(zoom().getAttribute("aria-label")).toBe("Fit the screenshot");
+      expect(zoom().getAttribute("aria-pressed")).toBe("true");
+      expect(within(guide()).queryByText("Tap to zoom")).toBeNull();
+      expect(stepCount()).toBe("Step 1 of 5");
+
+      await user.click(zoom());
+      expect(zoom().getAttribute("aria-pressed")).toBe("false");
+
+      await user.click(zoom());
+      await user.click(within(guide()).getByRole("button", { name: "Next step" }));
+      expect(zoom().getAttribute("aria-label")).toBe("Show the screenshot at real size");
+      expect(zoom().getAttribute("aria-pressed")).toBe("false");
+      expect(within(guide()).getByText("Tap to zoom")).toBeTruthy();
+    });
+
     const slides = () => animate.mock.calls.map(([keyframes, options]) =>
       ({ from: (keyframes as Keyframe[])[0], delay: (options as KeyframeAnimationOptions).delay }));
 

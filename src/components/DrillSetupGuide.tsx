@@ -1,10 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import { difficultyText, SEVEN_SAGE_URL, type DrillSetupGuide as GuideContent, type FilterPass, type StepText } from "@/lib/drillSetupGuide";
 import { durationMs, motionToken, reducedMotion } from "@/lib/motion";
 import { Dialog } from "@/components/ui/Dialog";
-import { FOCUS, cx } from "@/components/ui/classes";
+import { FOCUS, FOCUS_INSET, cx } from "@/components/ui/classes";
 
 const PRESS = cx(
   "touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-97 motion-reduce:active:scale-100",
@@ -12,6 +13,15 @@ const PRESS = cx(
   FOCUS,
 );
 const OUTLINE = cx("inline-flex h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xs border border-vellum-line bg-paper px-3.5 text-small font-medium text-ink pointer-hover:bg-vellum", PRESS);
+
+// The partner's slides, with personal details blurred. The repository is public: only these blurred copies may ship.
+const SCREENSHOTS = [
+  { src: "/drill-setup-guide/step-1-open-drills.png", width: 1312, height: 964 },
+  { src: "/drill-setup-guide/step-2-new-drill.png", width: 1312, height: 904 },
+  { src: "/drill-setup-guide/step-3-customize.png", width: 1312, height: 813 },
+  { src: "/drill-setup-guide/step-4-filter-and-add.png", width: 984, height: 1114 },
+  { src: "/drill-setup-guide/step-5-review-and-save.png", width: 1294, height: 1107 },
+];
 
 type Move = { direction: 1 | -1; animate: boolean };
 
@@ -101,18 +111,25 @@ export function DrillSetupGuide({ open, onClose, returnFocusTo, day, label, guid
 }) {
   const titleId = useId();
   const title = useRef<HTMLParagraphElement>(null);
-  const screenshot = useRef<HTMLDivElement>(null);
+  const screenshot = useRef<HTMLButtonElement>(null);
   const step = useRef<HTMLDivElement>(null);
   const back = useRef<HTMLButtonElement>(null);
   const next = useRef<HTMLButtonElement>(null);
   const [card, setCard] = useState(0);
   const [move, setMove] = useState<Move | null>(null);
+  const [zoomed, setZoomed] = useState(false);
   const last = guide.steps.length - 1;
   const current = guide.steps[card]!;
+  const screenshotOf = SCREENSHOTS[card]!;
 
   useEffect(() => {
     if (open) title.current?.focus();
   }, [open]);
+
+  // Load every screenshot now, so moving between cards never shows an empty picture.
+  useEffect(() => {
+    for (const { src } of SCREENSHOTS) new window.Image().src = src;
+  }, []);
 
   useLayoutEffect(() => {
     if (!move) return;
@@ -125,6 +142,7 @@ export function DrillSetupGuide({ open, onClose, returnFocusTo, day, label, guid
     if (to === 0 && document.activeElement === back.current) next.current?.focus();
     setMove({ direction: to > card ? 1 : -1, animate });
     setCard(to);
+    setZoomed(false);
   }
 
   function onKeyDown(event: KeyboardEvent) {
@@ -150,8 +168,25 @@ export function DrillSetupGuide({ open, onClose, returnFocusTo, day, label, guid
           </button>
         </div>
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain md:grid md:grid-cols-[minmax(0,1.6fr)_minmax(300px,1fr)] md:grid-rows-[minmax(0,1fr)] md:overflow-hidden">
-          <div className="relative h-[max(140px,calc(100dvh-460px))] shrink-0 overflow-hidden bg-vellum md:h-auto">
-            <div ref={screenshot} className="absolute inset-x-4 top-4 bottom-0 md:inset-6" />
+          <div className={cx("relative h-[max(140px,calc(100dvh-460px))] shrink-0 bg-vellum md:h-auto",
+            zoomed ? "overflow-auto overscroll-contain" : "overflow-hidden")}>
+            <button ref={screenshot} type="button" aria-pressed={zoomed}
+              aria-label={zoomed ? "Fit the screenshot" : "Show the screenshot at real size"} onClick={() => setZoomed(!zoomed)}
+              className={cx("touch-manipulation [-webkit-tap-highlight-color:transparent]", FOCUS_INSET, zoomed
+                ? "block cursor-zoom-out"
+                : "absolute inset-x-4 top-4 bottom-0 flex cursor-zoom-in items-end justify-center md:inset-6 md:items-center")}>
+              <Image src={screenshotOf.src} width={screenshotOf.width} height={screenshotOf.height} alt={`7Sage, step ${card + 1}`}
+                unoptimized loading="eager" draggable={false}
+                className={zoomed
+                  ? "block h-auto w-[1040px] max-w-none md:w-[1312px]"
+                  : "block h-auto max-h-full w-auto max-w-full rounded-t-xs ring-1 ring-ink/8 md:rounded-xs"} />
+            </button>
+            {!zoomed && (
+              <span aria-hidden="true"
+                className="pointer-events-none absolute top-2 right-2 rounded-pill bg-ink/64 px-2 py-0.5 text-caption leading-[18px] text-chalk md:hidden">
+                Tap to zoom
+              </span>
+            )}
           </div>
           <div className="flex flex-[1_0_auto] flex-col px-4 pt-4 md:min-h-0 md:overflow-y-auto md:overscroll-contain md:border-l md:border-vellum-line md:p-6">
             <div ref={step} className="flex flex-col gap-2.5">
