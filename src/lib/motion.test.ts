@@ -68,6 +68,7 @@ describe("page motion", () => {
     it("never takes a negative or endless time when the content is fainter than the end", () => {
       expect(durationFrom("0.5", 1)).toBe(120);
       expect(durationFrom("0.2", 0.4)).toBeCloseTo(40);
+      expect(durationFrom("1", 1.5)).toBe(120);
     });
   });
 });

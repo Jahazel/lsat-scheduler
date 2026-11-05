@@ -23,7 +23,7 @@ export function fadeOut(el: HTMLElement, { to = 0, x = 0, shorten = false }: { t
   el.setAttribute("aria-busy", "true");
   const from = stopAtCurrentFrame(el);
   const distance = Math.abs(Number(from.opacity) - to);
-  const left = !shorten ? 1 : distance === 0 ? 0 : Math.min(1, distance / (1 - to));
+  const left = !shorten ? 1 : distance === 0 ? 0 : Math.min(1, distance / Math.max(0, 1 - to));
   return el.animate([from, { opacity: to, transform: `translateX(${-x}px)` }], {
     duration: durationMs("--duration-fast") * left,
     easing: motionToken("--ease-exit"),
