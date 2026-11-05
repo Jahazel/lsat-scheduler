@@ -4,9 +4,9 @@ import Link from "next/link";
 import { StrictMode, useState } from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 
-const mocks = vi.hoisted(() => ({ push: vi.fn(), pathname: "/" }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }), usePathname: () => mocks.pathname }));
-import SiteMotion, { fadeFormThrough } from "./SiteMotion";
+const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), pathname: "/" }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push, replace: mocks.replace }), usePathname: () => mocks.pathname }));
+import SiteMotion, { PageCue, fadeFormThrough } from "./SiteMotion";
 
 type Live = { el: Element; keyframes: Keyframe[]; options: KeyframeAnimationOptions; finish: () => void };
 let live: Live[] = [];
@@ -28,6 +28,7 @@ const entrances = () => calls.filter((a) => a.options.fill !== "forwards" && !(a
 const glides = () => calls.filter((a) => (a.el as HTMLElement).hasAttribute("data-page-logo"));
 const TOP_BAR_LOGO = new DOMRect(48, 20, 80, 24);
 const SIGN_IN_LOGO = new DOMRect(120, 32, 80, 24);
+const ROUTER_ENTRY = { __NA: true };
 let reduced = false;
 let phone = false;
 
@@ -52,24 +53,48 @@ beforeEach(() => {
   window.matchMedia = ((query: string) => ({ matches: (reduced && query.includes("reduce")) || (phone && query.includes("390px")) })) as typeof window.matchMedia;
   window.scrollTo = vi.fn(({ top }: ScrollToOptions) => { window.scrollY = top ?? 0; }) as unknown as typeof window.scrollTo;
   window.scrollY = 0;
+  Element.prototype.scrollIntoView = vi.fn();
 });
 afterEach(cleanup);
+
+function TopBar() {
+  return (
+    <header>
+      <Link data-page-logo href="/">DrillMap</Link>
+      <nav data-page-fade aria-label="Primary" style={{ opacity: 1 }}>
+        <Link href="/#how-it-works">How it works</Link>
+        <a href="/login">Log in</a>
+        <a href="/signup">Start free week</a>
+      </nav>
+    </header>
+  );
+}
 
 function Landing() {
   return (
     <>
-      <header>
-        <Link data-page-logo href="/">DrillMap</Link>
-        <nav data-page-fade style={{ opacity: 1 }}>
-          <a href="/login">Log in</a>
-          <a href="/signup">Start free week</a>
-        </nav>
-      </header>
+      <TopBar />
       <main tabIndex={-1}>
         <div data-page-fade style={{ opacity: 1 }}>
           <h1 tabIndex={-1}>Your practice results</h1>
           <a href="/signup">Start free week</a>
           <a href="/progress">Progress</a>
+          <section id="how-it-works">How it works</section>
+          <a href="/legal/terms">Terms of Service</a>
+        </div>
+      </main>
+    </>
+  );
+}
+
+function Legal({ title }: { title: string }) {
+  return (
+    <>
+      <TopBar />
+      <main tabIndex={-1}>
+        <div data-page-fade aria-label="Legal text" style={{ opacity: 1 }}>
+          <h1 tabIndex={-1}>{title}</h1>
+          <a href="/legal/privacy">Privacy Policy</a>
         </div>
       </main>
     </>
@@ -79,7 +104,8 @@ function Landing() {
 function SignIn({ title, notice, children }: { title: string; notice?: string; children?: React.ReactNode }) {
   return (
     <main tabIndex={-1}>
-      <div data-sign-in-page>
+      <div data-sign-in-page style={{ opacity: 1 }}>
+        <PageCue page="sign-in" />
         <Link data-page-logo href="/">DrillMap</Link>
         <div data-page-swap style={{ opacity: 1 }}>
           <h1 tabIndex={-1}>{title}</h1>
@@ -107,6 +133,8 @@ const PAGES: Record<string, () => React.ReactNode> = {
     </SignIn>
   ),
   "/forgot-password": () => <SignIn title="Reset your password"><a href="/login">Log in</a></SignIn>,
+  "/legal/terms": () => <Legal title="Terms of Service" />,
+  "/legal/privacy": () => <Legal title="Privacy Policy" />,
   "/dashboard": () => <main><h1 tabIndex={-1}>This week</h1><Link href="/">DrillMap</Link></main>,
 };
 
@@ -191,8 +219,8 @@ describe("SiteMotion", () => {
     window.scrollY = 120;
     dispatchEvent(new Event("scroll"));
     window.scrollY = 30;
-    history.replaceState(null, "", "/");
-    dispatchEvent(new PopStateEvent("popstate"));
+    history.replaceState(ROUTER_ENTRY, "", "/");
+    dispatchEvent(new PopStateEvent("popstate", { state: ROUTER_ENTRY }));
     dispatchEvent(new Event("scroll"));
     expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 120, behavior: "instant" });
     expect(router).not.toHaveBeenCalled();
@@ -208,6 +236,41 @@ describe("SiteMotion", () => {
     dispatchEvent(new Event("scroll"));
     expect(window.scrollTo).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your practice results" }));
+  });
+
+  describe("Back to a landing entry the router did not write, such as a hash the browser added", () => {
+    async function backToBrowserHash(rerender: (ui: React.ReactNode) => void) {
+      await click("Log in");
+      finishExits();
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalled());
+      show("/login", rerender);
+      history.replaceState(null, "", "/#pricing");
+      dispatchEvent(new PopStateEvent("popstate", { state: null }));
+    }
+
+    it("asks the router for the landing page once Log in has faded out, then frees and fades it in", async () => {
+      const { rerender } = show("/#pricing")!;
+      await backToBrowserHash(rerender);
+      expect(mocks.replace).not.toHaveBeenCalled();
+      finishExits();
+      await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/#pricing", { scroll: false }));
+
+      show("/#pricing", rerender);
+      expect(document.querySelectorAll("[inert]")).toHaveLength(0);
+      expect(entrances().at(-1)!.keyframes.at(-1)).toMatchObject({ opacity: 1 });
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your practice results" }));
+    });
+
+    it("asks the router for the landing page under reduced motion instead of leaving Log in inert", async () => {
+      reduced = true;
+      const { rerender } = show("/#pricing")!;
+      await backToBrowserHash(rerender);
+      await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/#pricing", { scroll: false }));
+
+      show("/#pricing", rerender);
+      expect(document.querySelectorAll("[inert]")).toHaveLength(0);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your practice results" }));
+    });
   });
 
   it("starts one navigation when a link is clicked twice", async () => {
@@ -269,12 +332,10 @@ describe("SiteMotion", () => {
     const { rerender } = show("/")!;
     fireEvent.click(screen.getAllByRole("link", { name: "Start free week" })[0], { metaKey: true });
     fireEvent.click(screen.getByRole("link", { name: "Progress" }));
-    show("/login", rerender);
-    fireEvent.click(screen.getByRole("link", { name: "Terms" }));
     show("/dashboard", rerender);
     fireEvent.click(screen.getByRole("link", { name: "DrillMap" }));
     document.removeEventListener("click", browser);
-    expect(passedThrough).toEqual([true, true, true, true]);
+    expect(passedThrough).toEqual([true, true, true]);
     expect(animate).not.toHaveBeenCalled();
     expect(mocks.push).not.toHaveBeenCalled();
   });
@@ -301,8 +362,8 @@ describe("SiteMotion", () => {
     finishExits();
     await vi.waitFor(() => expect(mocks.push).toHaveBeenCalled());
     show("/login", rerender);
-    history.replaceState(null, "", "/");
-    dispatchEvent(new PopStateEvent("popstate"));
+    history.replaceState(ROUTER_ENTRY, "", "/");
+    dispatchEvent(new PopStateEvent("popstate", { state: ROUTER_ENTRY }));
     mocks.pathname = "/dashboard";
     rerender(<>{PAGES["/dashboard"]()}<SiteMotion /></>);
     vi.mocked(window.scrollTo).mockClear();
@@ -322,6 +383,107 @@ describe("SiteMotion", () => {
     rerender(<StrictMode><SignIn title="Sign up for DrillMap" /><SiteMotion /></StrictMode>);
     expect(entrances()).toHaveLength(3);
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sign up for DrillMap" }));
+  });
+
+  describe("legal pages", () => {
+    const topBar = () => screen.getByRole("navigation", { name: "Primary" });
+    const legalText = () => screen.getByLabelText("Legal text");
+
+    it("fades only the landing content to Terms under a still top bar, with a rise and focus on the heading", async () => {
+      const { rerender } = show("/")!;
+      window.scrollY = 2400;
+      await click("Terms of Service");
+      expect(exits().map((a) => a.el)).toEqual([screen.getByRole("heading", { name: "Your practice results" }).parentElement]);
+      expect(exits()[0].options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)" });
+      expect(topBar().hasAttribute("inert")).toBe(false);
+      finishExits();
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/legal/terms", { scroll: false }));
+
+      show("/legal/terms", rerender);
+      expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: "instant" });
+      expect(entrances().map((a) => a.el)).toEqual([legalText()]);
+      expect(entrances()[0].keyframes).toEqual([{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }]);
+      expect(entrances()[0].options).toEqual({ duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" });
+      expect(glides()).toHaveLength(0);
+      expect(calls.some((a) => topBar().contains(a.el))).toBe(false);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Terms of Service" }));
+    });
+
+    it("fades from one legal page to another under the same still top bar", async () => {
+      const { rerender } = show("/legal/terms")!;
+      await click("Privacy Policy");
+      expect(exits().map((a) => a.el)).toEqual([legalText()]);
+      finishExits();
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/legal/privacy", { scroll: false }));
+      show("/legal/privacy", rerender);
+      expect(entrances().map((a) => a.el)).toEqual([legalText()]);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Privacy Policy" }));
+    });
+
+    it("returns to the landing page at its scroll spot on Back, with the top bar still", async () => {
+      const { rerender } = show("/")!;
+      window.scrollY = 2400;
+      await click("Terms of Service");
+      finishExits();
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalled());
+      show("/legal/terms", rerender);
+
+      const router = vi.fn();
+      addEventListener("popstate", router);
+      history.replaceState(ROUTER_ENTRY, "", "/");
+      dispatchEvent(new PopStateEvent("popstate", { state: ROUTER_ENTRY }));
+      expect(exits().at(-1)!.el).toBe(legalText());
+      expect(topBar().hasAttribute("inert")).toBe(false);
+      finishExits();
+      await vi.waitFor(() => expect(router).toHaveBeenCalledOnce());
+      removeEventListener("popstate", router);
+
+      show("/", rerender);
+      expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 2400, behavior: "instant" });
+      expect(calls.some((a) => topBar().contains(a.el))).toBe(false);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your practice results" }));
+    });
+
+    it("lands on the landing section a top-bar link names", async () => {
+      const { rerender } = show("/legal/terms")!;
+      await click("How it works");
+      finishExits();
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/#how-it-works", { scroll: false }));
+      vi.mocked(window.scrollTo).mockClear();
+      show("/#how-it-works", rerender);
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalledOnce();
+      expect(vi.mocked(Element.prototype.scrollIntoView).mock.contexts[0]).toBe(document.getElementById("how-it-works"));
+      expect(window.scrollTo).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your practice results" }));
+    });
+
+    it("fades a sign-in page through to Terms and glides the logo to the top-bar spot", async () => {
+      const { rerender } = show("/login")!;
+      await click("Terms");
+      expect(exits().map((a) => a.el.getAttribute("aria-label") ?? "form")).toEqual(["form", "Legal", "Preview panel"]);
+      finishExits();
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/legal/terms", { scroll: false }));
+
+      show("/legal/terms", rerender);
+      expect(entrances().map((a) => a.el)).toEqual([topBar(), legalText()]);
+      for (const entrance of entrances()) expect(entrance.keyframes[0]).toEqual({ opacity: 0, transform: "translateY(8px)" });
+      expect(glides()).toHaveLength(1);
+      expect(glides()[0].keyframes).toEqual([{ transform: "translate(72px, 12px)" }, { transform: "none" }]);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Terms of Service" }));
+    });
+
+    it("only fades the legal page in for 120 ms under reduced motion, with no movement and no glide", async () => {
+      reduced = true;
+      const { rerender } = show("/signup")!;
+      await click("Terms");
+      expect(exits()).toHaveLength(0);
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/legal/terms", { scroll: false }));
+      show("/legal/terms", rerender);
+      expect(entrances()).toHaveLength(2);
+      for (const entrance of entrances()) expect([entrance.keyframes, entrance.options]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "linear" }]);
+      expect(glides()).toHaveLength(0);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Terms of Service" }));
+    });
   });
 
   describe("between sign-in pages", () => {
@@ -365,8 +527,8 @@ describe("SiteMotion", () => {
 
       const router = vi.fn();
       addEventListener("popstate", router);
-      history.replaceState(null, "", "/login");
-      dispatchEvent(new PopStateEvent("popstate"));
+      history.replaceState(ROUTER_ENTRY, "", "/login");
+      dispatchEvent(new PopStateEvent("popstate", { state: ROUTER_ENTRY }));
       expect(router).not.toHaveBeenCalled();
       expect(exits().slice(-2).map((a) => a.el)).toEqual([formOf("Reset your password"), card()]);
       finishExits();
@@ -453,6 +615,204 @@ describe("SiteMotion", () => {
       expect(entrances().map((a) => a.el)).toEqual([formOf("Log in to DrillMap"), card()]);
       expect(formOf("Log in to DrillMap").contains(screen.getByRole("status"))).toBe(true);
       expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Log in to DrillMap" }));
+    });
+  });
+
+  describe("into and out of onboarding", () => {
+    const fadeOuts = () => calls.filter((a) => a.options.fill === "forwards" && Number(a.options.duration) > 0);
+    const holds = () => calls.filter((a) => a.options.fill === "forwards" && a.options.duration === 0 && !(a.el as HTMLElement).hasAttribute("data-page-logo"));
+    const copy = () => document.querySelector<HTMLElement>("[data-page-copy]");
+    const region = (name: string) => screen.getByLabelText(name);
+    const settle = () => act(async () => {});
+    const finishCopy = () => act(async () => {
+      for (const a of live.filter((a) => a.el.closest("[data-page-copy]"))) a.finish();
+    });
+
+    function SignedInBar({ logoHref = "/" }: { logoHref?: string }) {
+      return (
+        <header>
+          <Link data-page-logo href={logoHref}>DrillMap</Link>
+          <div data-page-fade aria-label="Top bar">Log out</div>
+        </header>
+      );
+    }
+    const Pending = () => <><SignedInBar /><main tabIndex={-1} /></>;
+    const Placeholder = () => (
+      <>
+        <SignedInBar />
+        <main tabIndex={-1}>
+          <div style={{ opacity: 1 }}>
+            <PageCue page="placeholder" />
+            <div data-page-swap aria-label="Step placeholder" style={{ opacity: 1 }} />
+            <aside data-page-fade aria-label="Panel placeholder" style={{ opacity: 1 }}>
+              <div data-page-swap aria-label="Card placeholder" style={{ opacity: 1 }} />
+            </aside>
+          </div>
+        </main>
+      </>
+    );
+    const Onboarding = () => (
+      <>
+        <SignedInBar />
+        <main tabIndex={-1}>
+          <div style={{ opacity: 1 }}>
+            <PageCue page="onboarding" />
+            <div data-page-swap aria-label="Step" style={{ opacity: 1 }}>
+              <h1 tabIndex={-1}>Set your target</h1>
+              <button type="button">Skip for now</button>
+            </div>
+            <aside data-page-fade aria-label="Panel" style={{ opacity: 1 }}>
+              <div data-page-swap aria-label="Card" style={{ opacity: 1 }}>Preview</div>
+            </aside>
+          </div>
+        </main>
+      </>
+    );
+    const ThisWeek = () => (
+      <>
+        <SignedInBar logoHref="/dashboard" />
+        <main tabIndex={-1}>
+          <div data-page-fade aria-label="This week page" style={{ opacity: 1 }}>
+            <PageCue page="this-week" />
+            <h1 tabIndex={-1}>This week</h1>
+          </div>
+        </main>
+      </>
+    );
+
+    function at(path: string, page: React.ReactNode, rerender?: (ui: React.ReactNode) => void) {
+      mocks.pathname = path;
+      const ui = <>{page}<SiteMotion /></>;
+      if (rerender) rerender(ui);
+      else return render(ui);
+    }
+
+    async function logIn() {
+      const { rerender } = at("/login", PAGES["/login"]())!;
+      at("/login", <Pending />, rerender);
+      await settle();
+      return rerender;
+    }
+
+    it("keeps Log in on screen as an inert copy until onboarding shows, then fades it through with the logo glide", async () => {
+      const rerender = await logIn();
+      expect(copy()?.textContent).toContain("Log in to DrillMap");
+      expect(copy()!.inert).toBe(true);
+      expect(copy()!.getAttribute("aria-busy")).toBe("true");
+      expect(holds().map((a) => a.el)).toEqual([region("Top bar")]);
+      expect(region("Top bar").hasAttribute("inert")).toBe(true);
+      expect(region("Top bar").getAttribute("aria-busy")).toBe("true");
+      expect(fadeOuts()).toHaveLength(0);
+
+      at("/onboarding", <Onboarding />, rerender);
+      expect(fadeOuts()).toHaveLength(1);
+      expect(fadeOuts()[0].keyframes.at(-1)).toMatchObject({ opacity: 0 });
+      expect(fadeOuts()[0].options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)" });
+      expect(entrances()).toHaveLength(0);
+      expect(document.activeElement).not.toBe(screen.getByRole("heading", { name: "Set your target" }));
+
+      await finishCopy();
+      expect(copy()).toBeNull();
+      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar", "Step", "Panel"]);
+      for (const entrance of entrances()) {
+        expect(entrance.keyframes).toEqual([{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }]);
+        expect(entrance.options).toEqual({ duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" });
+      }
+      expect(glides().at(-1)!.keyframes).toEqual([{ transform: "translate(72px, 12px)" }, { transform: "none" }]);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Set your target" }));
+      expect(document.querySelectorAll("[inert], [aria-busy]")).toHaveLength(0);
+    });
+
+    it("on a slow load, fades Log in to the placeholder, then swaps only the step and card under a still top bar and panel", async () => {
+      const rerender = await logIn();
+      at("/onboarding", <Placeholder />, rerender);
+      await finishCopy();
+      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar", "Step placeholder", "Panel placeholder"]);
+      calls = [];
+
+      at("/onboarding", <Onboarding />, rerender);
+      await settle();
+      expect(copy()?.querySelectorAll("[data-page-swap]")).toHaveLength(2);
+      expect(fadeOuts().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Step placeholder", "Card placeholder"]);
+      expect(entrances()).toHaveLength(0);
+
+      await finishCopy();
+      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Step", "Card"]);
+      expect(entrances()[0].keyframes[0]).toEqual({ opacity: 0, transform: "translateY(8px)" });
+      expect(calls.some((a) => ["Top bar", "Panel"].includes(a.el.getAttribute("aria-label")!))).toBe(false);
+      expect(glides()).toHaveLength(0);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Set your target" }));
+    });
+
+    it("on a fast load, never shows the placeholder", async () => {
+      const rerender = await logIn();
+      at("/onboarding", <Placeholder />, rerender);
+      at("/onboarding", <Onboarding />, rerender);
+      await settle();
+      await finishCopy();
+      expect(calls.filter((a) => a.el.getAttribute("aria-label")?.includes("placeholder") && a.options.fill !== "forwards")).toHaveLength(0);
+      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar", "Step", "Panel"]);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Set your target" }));
+    });
+
+    it("fades onboarding through to This week after Skip for now, and moves focus to its heading", async () => {
+      const { rerender } = at("/onboarding", <Onboarding />)!;
+      at("/dashboard", <Pending />, rerender);
+      await settle();
+      expect(copy()?.textContent).toContain("Set your target");
+      at("/dashboard/upload", <ThisWeek />, rerender);
+      expect(fadeOuts()).toHaveLength(1);
+      await finishCopy();
+      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar", "This week page"]);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "This week" }));
+    });
+
+    it("leaves onboarding with the same fade when Back lands on a page that sends the student back to onboarding", async () => {
+      const { rerender } = at("/onboarding", <Onboarding />)!;
+      history.replaceState(ROUTER_ENTRY, "", "/login");
+      const router = vi.fn();
+      addEventListener("popstate", router);
+      dispatchEvent(new PopStateEvent("popstate", { state: ROUTER_ENTRY }));
+      removeEventListener("popstate", router);
+      expect(router).toHaveBeenCalledOnce();
+
+      at("/dashboard", <Pending />, rerender);
+      await settle();
+      at("/onboarding", <Onboarding />, rerender);
+      expect(fadeOuts()).toHaveLength(1);
+      await finishCopy();
+      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar", "Step", "Panel"]);
+    });
+
+    it("drops the copy with no motion when Log in leads to This week, and This week reached any other way does not move", async () => {
+      const rerender = await logIn();
+      at("/dashboard", <ThisWeek />, rerender);
+      expect(copy()).toBeNull();
+      expect(fadeOuts()).toHaveLength(0);
+      expect(entrances()).toHaveLength(0);
+      expect(live).toHaveLength(0);
+
+      at("/progress", <main><h1>Progress</h1></main>, rerender);
+      at("/dashboard", <ThisWeek />, rerender);
+      await settle();
+      expect(entrances()).toHaveLength(0);
+    });
+
+    it("drops the copy at once under reduced motion and fades onboarding in for 120 ms with no movement and no glide", async () => {
+      reduced = true;
+      const rerender = await logIn();
+      expect(copy()).not.toBeNull();
+      at("/onboarding", <Onboarding />, rerender);
+      expect(copy()).toBeNull();
+      await settle();
+      expect(fadeOuts()).toHaveLength(0);
+      expect(glides().filter((a) => a.options.fill !== "forwards")).toHaveLength(0);
+      for (const entrance of entrances()) {
+        expect(entrance.keyframes).toEqual([{ opacity: 0 }, { opacity: 1 }]);
+        expect(entrance.options).toEqual({ duration: 120, easing: "linear" });
+      }
+      expect(entrances()).toHaveLength(3);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Set your target" }));
     });
   });
 });

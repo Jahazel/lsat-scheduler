@@ -6,8 +6,7 @@ import { activeDraft, previewDrills, previewHeader, screenshot, type PreviewDril
 import { DrillList, type DrillItem } from "@/components/WeekPreview";
 import { LiveWeekPreview } from "@/components/StudyProfileFields";
 import { ScreenshotCard } from "@/components/SnapshotReviewFields";
-
-const SKELETON = "h-2 rounded bg-vellum";
+import { PREVIEW_CARD, PREVIEW_PANEL, SKELETON } from "./shell";
 
 interface LivePreviewProps {
   state: WizardState;
@@ -42,8 +41,8 @@ export default function LivePreview({ state, firstName, initials, today }: LiveP
 
   const header = previewHeader(state.values, firstName, today);
   return (
-    <aside aria-label="Preview of This week" className="hidden overflow-hidden bg-vellum pl-8 pt-30 lg:flex xl:pl-18">
-      <div className="flex w-full max-w-[880px] flex-col rounded-tl-sm bg-paper shadow-e2">
+    <aside data-page-fade aria-label="Preview of This week" className={PREVIEW_PANEL}>
+      <div data-page-swap className={PREVIEW_CARD}>
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-vellum-line px-5 xl:px-7">
           <div className="flex items-center gap-5">
             <span className="text-body font-semibold tracking-[-0.02em] text-ink">DrillMap</span>

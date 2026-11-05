@@ -7,6 +7,7 @@ import { findStudentByAccountId } from "@/lib/studentRepository";
 import type { Student } from "@/lib/types";
 import { listWeeklySchedulesForStudent } from "@/lib/weeklyScheduleRepository";
 import { openWeeklyUpload } from "@/lib/weeklyUpload";
+import { PageCue } from "@/components/SiteMotion";
 import WeeklyUploadFlow from "./WeeklyUploadFlow";
 
 export default async function WeeklyUploadPage() {
@@ -32,5 +33,10 @@ export default async function WeeklyUploadPage() {
   const basis = openWeeklyUpload({ clock, student, schedules, snapshots });
   if (!basis) redirect("/dashboard");
 
-  return <WeeklyUploadFlow basis={basis} initialScore={doc.currentScore} scanningOff={await readScanningOff(clock.real)} />;
+  return (
+    <div data-page-fade>
+      <PageCue page="this-week" />
+      <WeeklyUploadFlow basis={basis} initialScore={doc.currentScore} scanningOff={await readScanningOff(clock.real)} />
+    </div>
+  );
 }

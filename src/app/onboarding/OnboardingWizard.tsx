@@ -11,6 +11,7 @@ import {
 } from "react";
 import { FailureNotice, LastFinishedReadNotice } from "@/components/FailureNotice";
 import { ScanningOffNote } from "@/components/ScanningOffNote";
+import { PageCue } from "@/components/SiteMotion";
 import { DropZone } from "@/components/ui/DropZone";
 import { FileRow, WaitNote } from "@/components/ui/FileRow";
 import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
@@ -48,6 +49,7 @@ import { isUnexpectedFailure } from "@/lib/unexpectedFailure";
 import { MAX_OFFICIAL_ATTEMPTS, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { createStudentProfile } from "./actions";
 import LivePreview from "./LivePreview";
+import { ONBOARDING_COLUMN, ONBOARDING_GRID } from "./shell";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 const SMALL_BUTTON = `h-10 self-start rounded-sm border border-vellum-line bg-paper px-[18px] text-small font-medium text-ink transition-colors duration-(--duration-fast) ease-out hover:bg-vellum ${FOCUS}`;
@@ -123,9 +125,10 @@ export default function OnboardingWizard({
   }
 
   return (
-    <div className="lg:grid lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-[520px_minmax(0,1fr)] xl:grid-cols-[680px_minmax(0,1fr)]">
-      <div className="flex justify-center px-5 py-8 lg:items-center lg:px-10 lg:py-16">
-        <div className="w-full lg:max-w-[440px]">
+    <div className={ONBOARDING_GRID}>
+      <PageCue page="onboarding" />
+      <div className={ONBOARDING_COLUMN}>
+        <div data-page-swap className="w-full lg:max-w-[440px]">
           {state.step === "goal" && <GoalStep state={state} dispatch={dispatch} goalTestDateOptions={goalTestDateOptions} today={today} />}
           {state.step === "week" && <WeekStep state={state} dispatch={dispatch} />}
           {state.step === "analytics" && (

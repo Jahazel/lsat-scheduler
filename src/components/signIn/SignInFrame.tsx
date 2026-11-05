@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Logo } from "@/components/nav/shared";
+import { PageCue } from "@/components/SiteMotion";
 import { FOCUS, cx } from "@/components/ui/classes";
 import type { LoginNotice } from "@/lib/loginNotice";
 
@@ -18,6 +19,7 @@ export function SignInFrame({ title, lead, preview, children }: {
 }) {
   return (
     <div data-sign-in-page className="flex min-h-screen bg-paper">
+      <PageCue page="sign-in" />
       <div className="flex w-full flex-col px-5 py-8 md:px-30 lg:w-170 lg:shrink-0">
         <div className="flex h-10 items-center">
           <Logo href="/" />

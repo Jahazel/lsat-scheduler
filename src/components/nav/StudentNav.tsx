@@ -115,7 +115,7 @@ export default function StudentNav(props: StudentNavProps & { workspaceSwitcher?
           {props.workspaceSwitcher && <span className="text-fog" aria-hidden data-workspace-separator="true">/</span>}
           {props.workspaceSwitcher}
         </div>
-        <div className="flex items-center gap-3">
+        <div data-page-fade className="flex items-center gap-3">
           {currentTab && (
             <span className="hidden whitespace-nowrap rounded-pill bg-vellum px-3 py-[5px] text-small text-ink min-[360px]:inline">{currentTab.label}</span>
           )}
@@ -131,7 +131,7 @@ export default function StudentNav(props: StudentNavProps & { workspaceSwitcher?
               {props.workspaceSwitcher && <span className="text-fog" aria-hidden data-workspace-separator="true">/</span>}
               {props.workspaceSwitcher}
             </div>
-            <nav aria-label="Primary" className="flex gap-1">
+            <nav data-page-fade aria-label="Primary" className="flex gap-1">
               {TABS.map((tab) => (
                 <NavTab key={tab.href} href={tab.href} current={isActive(tab.href)}>
                   {tab.label}
@@ -140,7 +140,7 @@ export default function StudentNav(props: StudentNavProps & { workspaceSwitcher?
               ))}
             </nav>
           </div>
-          <div className="flex items-center justify-end gap-6 whitespace-nowrap">
+          <div data-page-fade className="flex items-center justify-end gap-6 whitespace-nowrap">
             {props.countdownLabel && (
               <span className="hidden @[900px]:inline-flex">
                 <Countdown label={props.countdownLabel} isTestDay={props.isTestDay} />
@@ -163,6 +163,7 @@ export function StudentTabBar({ uploadNeeded, withWorkspaceSwitcher = false }: {
     <nav
       aria-label="Primary"
       data-tab-bar
+      data-page-fade
       data-workspace-tabs={withWorkspaceSwitcher || undefined}
       className={cx("fixed inset-x-3 bottom-3 z-40 grid grid-cols-3 rounded-md border border-vellum-line bg-paper pb-[env(safe-area-inset-bottom)] shadow-e1", withWorkspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.mobileTabBar : "md:hidden")}
     >

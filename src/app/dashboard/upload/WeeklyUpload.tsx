@@ -312,7 +312,7 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
     <div className="grid grid-cols-[minmax(0,1fr)] bg-paper lg:min-h-[calc(100vh-var(--spacing-18))] lg:grid-cols-[minmax(0,680px)_minmax(0,1fr)] lg:grid-rows-[auto_1fr]">
       <div className="flex flex-col gap-10 px-5 pt-8 lg:px-30 lg:pt-18">
         <header className="flex flex-col gap-2">
-          <h1 className="text-h3 font-semibold text-ink">{text.title}</h1>
+          <h1 tabIndex={-1} className="text-h3 font-semibold text-ink outline-none">{text.title}</h1>
           <p className="text-body text-smoke">{lead}</p>
         </header>
 

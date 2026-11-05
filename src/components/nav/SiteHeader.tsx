@@ -61,7 +61,9 @@ export default async function SiteHeader() {
       <header className={HEADER}>
         <div className={BAR}>
           <Logo href="/" />
-          <LogOutButton />
+          <div data-page-fade>
+            <LogOutButton />
+          </div>
         </div>
       </header>
     );
