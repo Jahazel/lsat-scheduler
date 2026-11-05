@@ -100,7 +100,7 @@ export default async function DashboardPage({
         ) : undefined}
         today={localDateInTimezone(now, SCHEDULE_TIMEZONE)}
         uploadReminder={!preview && showsUploadReminder(snapshots, now, SCHEDULE_TIMEZONE)}
-        thisWeek={{ linkedActivityId: (Array.isArray(drill) ? drill[0] : drill) ?? null }}
+        thisWeek={{ drillLink: (Array.isArray(drill) ? drill[0] : drill) ?? null }}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 export default function AppLoading() {
   return (
-    <div className="min-h-screen px-6 py-12">
+    <div data-arrival-fade className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-2xl animate-pulse">
         <div className="flex items-end justify-between gap-4">
           <div className="h-7 w-24 rounded bg-vellum-line" />

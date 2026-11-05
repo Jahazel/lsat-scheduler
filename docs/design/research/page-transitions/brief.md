@@ -47,7 +47,7 @@ A visitor moves from the landing page into sign up or log in, and a new student 
 
 ## Out of scope
 - Moves between app pages (This week, Progress, Study settings, Account, Admin). The owner chose the signed-out pages and onboarding for now. This week is the only app page included, reached from onboarding or, since the owner's change on 2026-11-05, from Log in.
-- "Continue with Google", which leaves the site for Google's page.
+- The fade-out of the sign-in page when "Continue with Google" leaves the site for Google's page. Since the owner's change on 2026-11-05, the page after Google (onboarding, This week, or Admin) fades in.
 - Browsers without page-motion support. They keep today's plain page change.
 - In-page motion that already exists, such as landing reveals and FAQ rows.
 

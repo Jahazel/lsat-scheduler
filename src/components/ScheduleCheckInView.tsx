@@ -32,7 +32,7 @@ interface ScheduleCheckInViewProps {
   /** The student's local date (YYYY-MM-DD). Adds the pace status and the Today label. */
   today?: string;
   uploadReminder?: boolean;
-  thisWeek?: { linkedActivityId: string | null };
+  thisWeek?: { drillLink: string | null };
 }
 
 const shortDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -87,20 +87,31 @@ function SetUpButton({ label, expanded, onOpen, ref }: {
   );
 }
 
-function linkedDrill(schedule: WeeklySchedule, activityId: string) {
+const drillLink = (schedule: WeeklySchedule, activityId: string) => `${schedule.weekOf}:${activityId}`;
+
+function linkedDrill(schedule: WeeklySchedule, link: string) {
   for (const day of DAY_ORDER) {
-    const index = schedule.days[day].activities.findIndex((_, index) => scheduleActivityId(day, index) === activityId);
+    const index = schedule.days[day].activities.findIndex((_, index) => drillLink(schedule, scheduleActivityId(day, index)) === link);
     const activity = schedule.days[day].activities[index];
     const guide = activity && drillSetupGuide(activity);
-    if (guide) return { activityId, day, label: activityLabel(activity), guide };
+    if (guide) return { activityId: scheduleActivityId(day, index), day, label: activityLabel(activity), guide };
   }
 }
 
-function removeDrillLink() {
+const GUIDE_ENTRY = "drillSetupGuide";
+
+function guideEntryLink(): string | undefined {
+  const link: unknown = history.state?.[GUIDE_ENTRY];
+  return typeof link === "string" ? link : undefined;
+}
+
+function clearGuideEntry() {
   const url = new URL(location.href);
-  if (!url.searchParams.has(DRILL_LINK_PARAMETER)) return;
+  if (!url.searchParams.has(DRILL_LINK_PARAMETER) && guideEntryLink() === undefined) return;
   url.searchParams.delete(DRILL_LINK_PARAMETER);
-  history.replaceState(history.state, "", url);
+  const state = { ...history.state };
+  delete state[GUIDE_ENTRY];
+  history.replaceState(state, "", url);
 }
 
 interface OpenGuide {
@@ -134,9 +145,8 @@ export default function ScheduleCheckInView({
   const [openGuide, setOpenGuide] = useState<OpenGuide | null>(null);
   const setUpButtons = useRef(new Map<string, HTMLButtonElement>());
   const guideEntry = useRef<"none" | "open" | "closing">("none");
-  const linkOpened = useRef(false);
-  const linkedActivityId = thisWeek?.linkedActivityId ?? null;
-  const linked = linkedActivityId === null ? undefined : linkedDrill(schedule, linkedActivityId);
+  const openedOnLoad = useRef(false);
+  const link = thisWeek?.drillLink ?? null;
   const usesHistory = thisWeek !== undefined;
   const doneIds = doneActivityIds(savedCheckIns);
   const totalActivities = scheduledActivityCount(schedule);
@@ -146,10 +156,11 @@ export default function ScheduleCheckInView({
     (due, day, index) => dates[index]! <= today ? due + schedule.days[day].activities.length : due, 0);
   const practiceTestDays = DAY_ORDER.filter((day) => schedule.days[day].type === "practice_test");
 
-  function showGuide(activityId: string, day: DayOfWeek, label: string, guide: DrillSetupGuideContent, opener: HTMLElement) {
+  function showGuide(activityId: string, day: DayOfWeek, label: string, guide: DrillSetupGuideContent, opener: HTMLElement,
+    entryUrl = location.href) {
     setOpenGuide((previous) => ({ key: (previous?.key ?? 0) + 1, activityId, day: dayName(day), label, guide, opener, open: true }));
     if (!usesHistory || guideEntry.current === "open") return;
-    history.pushState(null, "", location.href);
+    history.pushState({ [GUIDE_ENTRY]: drillLink(schedule, activityId) }, "", entryUrl);
     guideEntry.current = "open";
   }
 
@@ -163,19 +174,24 @@ export default function ScheduleCheckInView({
   useEffect(() => {
     if (!usesHistory) return;
     function onPopState() {
-      if (guideEntry.current === "none") return;
       if (guideEntry.current === "open") setOpenGuide((previous) => previous && { ...previous, open: false });
       guideEntry.current = "none";
-      removeDrillLink();
+      clearGuideEntry();
     }
     addEventListener("popstate", onPopState);
     return () => removeEventListener("popstate", onPopState);
   }, [usesHistory]);
 
   useEffect(() => {
-    if (!linked || linkOpened.current) return;
-    linkOpened.current = true;
-    showGuide(linked.activityId, linked.day, linked.label, linked.guide, setUpButtons.current.get(linked.activityId)!);
+    if (!usesHistory || openedOnLoad.current) return;
+    openedOnLoad.current = true;
+    const reloaded = guideEntryLink();
+    const opening = reloaded ?? link;
+    const linked = opening === null ? undefined : linkedDrill(schedule, opening);
+    const entryUrl = location.href;
+    if (reloaded !== undefined && linked) guideEntry.current = "open";
+    else if (reloaded !== undefined || linked) clearGuideEntry();
+    if (linked) showGuide(linked.activityId, linked.day, linked.label, linked.guide, setUpButtons.current.get(linked.activityId)!, entryUrl);
   });
 
   function toggle(activityId: string) {
@@ -213,7 +229,7 @@ export default function ScheduleCheckInView({
       />}
       <FailureNotice action={lastSave?.activityId} answer={lastSave?.answer ?? null} />
       <div className={cx("flex flex-col gap-4", padding)}>
-        {linkedActivityId !== null && !linked && (
+        {link !== null && !linkedDrill(schedule, link) && (
           <p role="status" className="rounded-md bg-vellum px-4 py-2.5 text-small text-ink">That drill is not in this week.</p>
         )}
         {DAY_ORDER.map((day, dayIndex) => {

@@ -918,4 +918,78 @@ describe("SiteMotion", () => {
       expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Set your target" }));
     });
   });
+
+  describe("after a Google sign-in", () => {
+    const Page = ({ cue }: { cue?: "placeholder" | "onboarding" | "this-week" | "admin" }) => <div>{cue && <PageCue page={cue} />}</div>;
+    const marked = () => document.documentElement.getAttribute("data-arrival");
+    const noted = () => document.cookie.includes("drillmap-arrival");
+    const settle = () => act(async () => {});
+    beforeEach(() => {
+      document.cookie = "drillmap-arrival=google; path=/";
+      document.documentElement.setAttribute("data-arrival", "google");
+    });
+    afterEach(() => {
+      document.cookie = "drillmap-arrival=; max-age=0; path=/";
+      document.documentElement.removeAttribute("data-arrival");
+    });
+
+    it("keeps the note through a loading screen, so a page that redirects after it still fades in", () => {
+      mocks.pathname = "/onboarding";
+      render(<><Page cue="placeholder" /><SiteMotion signedIn /></>);
+      expect(noted()).toBe(true);
+    });
+
+    it("clears the note when the page itself shows, and drops the mark when that page leaves", async () => {
+      mocks.pathname = "/admin";
+      const { rerender } = render(<><Page key="admin" cue="admin" /><SiteMotion signedIn /></>);
+      expect(noted()).toBe(false);
+      await settle();
+      expect(marked()).toBe("google");
+      mocks.pathname = "/admin/students/1";
+      rerender(<><Page key="student" /><SiteMotion signedIn /></>);
+      await settle();
+      expect(marked()).toBeNull();
+    });
+
+    it("keeps the mark when a loading screen redirects in the page, until the page it lands on leaves", async () => {
+      mocks.pathname = "/dashboard";
+      const { rerender } = render(<><Page key="loading" /><SiteMotion signedIn /></>);
+      mocks.pathname = "/onboarding";
+      rerender(<><Page key="placeholder" cue="placeholder" /><SiteMotion signedIn /></>);
+      rerender(<><Page key="wizard" cue="onboarding" /><SiteMotion signedIn /></>);
+      await settle();
+      expect(marked()).toBe("google");
+      mocks.pathname = "/dashboard";
+      rerender(<><Page key="this-week" cue="this-week" /><SiteMotion signedIn /></>);
+      await settle();
+      expect(marked()).toBeNull();
+    });
+
+    it("drops the mark when This week, streamed in after its loading screen, leaves", async () => {
+      mocks.pathname = "/dashboard";
+      const { rerender } = render(<><Page key="loading" /><SiteMotion signedIn /></>);
+      rerender(<><Page key="this-week" cue="this-week" /><SiteMotion signedIn /></>);
+      mocks.pathname = "/settings";
+      rerender(<><Page key="settings" /><SiteMotion signedIn /></>);
+      await settle();
+      expect(marked()).toBeNull();
+    });
+
+    it("drops the mark when onboarding leaves as a still copy for This week", async () => {
+      mocks.pathname = "/onboarding";
+      const { rerender } = render(<><main><Page key="wizard" cue="onboarding" /></main><SiteMotion signedIn /></>);
+      mocks.pathname = "/dashboard";
+      rerender(<><main><Page key="this-week" cue="this-week" /></main><SiteMotion signedIn /></>);
+      await settle();
+      expect(document.querySelector("[data-page-copy]")).not.toBeNull();
+      expect(marked()).toBeNull();
+    });
+
+    it("keeps the mark through Strict Mode's second run of the page cue", async () => {
+      mocks.pathname = "/dashboard";
+      render(<StrictMode><Page cue="this-week" /><SiteMotion signedIn /></StrictMode>);
+      await settle();
+      expect(marked()).toBe("google");
+    });
+  });
 });

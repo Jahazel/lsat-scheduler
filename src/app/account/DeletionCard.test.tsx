@@ -49,6 +49,13 @@ describe("Account deletion card", () => {
     expect(screen.queryByLabelText("Type DELETE to confirm")).toBeNull();
   });
 
+  it("returns from Google to Account with no arrival fade", () => {
+    document.cookie = "drillmap-arrival=; max-age=0; path=/";
+    render(<DeletionCard mode={{ kind: "google", signedInRecently: false }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    expect(document.cookie).not.toContain("drillmap-arrival");
+  });
+
   it("shows the Admin notice instead of any form", () => {
     render(<DeletionCard mode={{ kind: "admin" }} />);
     expect(screen.getByText("Admin account")).toBeTruthy();
