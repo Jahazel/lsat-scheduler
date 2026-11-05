@@ -975,6 +975,16 @@ describe("SiteMotion", () => {
       expect(marked()).toBeNull();
     });
 
+    it("drops the mark when onboarding leaves as a still copy for This week", async () => {
+      mocks.pathname = "/onboarding";
+      const { rerender } = render(<><main><Page key="wizard" cue="onboarding" /></main><SiteMotion signedIn /></>);
+      mocks.pathname = "/dashboard";
+      rerender(<><main><Page key="this-week" cue="this-week" /></main><SiteMotion signedIn /></>);
+      await settle();
+      expect(document.querySelector("[data-page-copy]")).not.toBeNull();
+      expect(marked()).toBeNull();
+    });
+
     it("keeps the mark through Strict Mode's second run of the page cue", async () => {
       mocks.pathname = "/dashboard";
       render(<StrictMode><Page cue="this-week" /><SiteMotion signedIn /></StrictMode>);

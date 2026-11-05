@@ -148,7 +148,7 @@ function expectArrival(next: Omit<Arrival, "giveUp">) {
 
 function pageLeft(page: CuePage, root: HTMLElement) {
   if (root === arrivalPage) queueMicrotask(() => {
-    if (root.isConnected) return;
+    if (root.isConnected && !root.closest("[data-page-copy]")) return;
     arrivalPage = null;
     document.documentElement.removeAttribute("data-arrival");
   });
