@@ -96,9 +96,10 @@ describe("Signup", () => {
       else { entrances.push(this); finish(); }
       return { finished, cancel: () => {} };
     });
-    const saved = { animate: Element.prototype.animate, getAnimations: Element.prototype.getAnimations, matchMedia: window.matchMedia };
+    const saved = { animate: Element.prototype.animate, getAnimations: Element.prototype.getAnimations, getClientRects: Element.prototype.getClientRects, matchMedia: window.matchMedia };
     Element.prototype.animate = animate as unknown as Element["animate"];
     Element.prototype.getAnimations = () => [];
+    Element.prototype.getClientRects = () => [new DOMRect()] as unknown as DOMRectList;
     window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
     try {
       actions.signUpWithPassword.mockResolvedValue({ kind: "checkYourEmail", email: "maya.chen@fastmail.com" });
@@ -122,6 +123,7 @@ describe("Signup", () => {
       else delete prototype.animate;
       if (saved.getAnimations) prototype.getAnimations = saved.getAnimations;
       else delete prototype.getAnimations;
+      Element.prototype.getClientRects = saved.getClientRects;
       window.matchMedia = saved.matchMedia;
     }
   });
