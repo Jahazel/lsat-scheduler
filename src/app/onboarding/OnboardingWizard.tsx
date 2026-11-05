@@ -9,6 +9,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import { flushSync } from "react-dom";
 import { FailureNotice, LastFinishedReadNotice } from "@/components/FailureNotice";
 import { ScanningOffNote } from "@/components/ScanningOffNote";
 import { PageCue } from "@/components/SiteMotion";
@@ -45,6 +46,7 @@ import { SIGN_IN_EXPIRED, SignInAgainLink } from "@/components/SignInExpired";
 import { nextRead } from "@/lib/screenshotReadQueue";
 import { SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, SCREENSHOT_NOTICE, checkScreenshotType, extractScreenshot } from "@/lib/screenshotUpload";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "@/lib/types";
+import { fadeIn, fadeOut, reducedMotion, slideFrom } from "@/lib/motion";
 import { isUnexpectedFailure } from "@/lib/unexpectedFailure";
 import { MAX_OFFICIAL_ATTEMPTS, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { createStudentProfile } from "./actions";
@@ -68,6 +70,8 @@ interface OnboardingWizardProps {
 
 type Dispatch = (action: WizardAction) => void;
 
+const STEP_SLIDE = 8;
+
 export default function OnboardingWizard({
   firstName,
   initials,
@@ -83,6 +87,24 @@ export default function OnboardingWizard({
   const draft = activeDraft(state);
   const { screenshots } = state;
   const [saveAnswer, setSaveAnswer] = useState<Awaited<ReturnType<typeof onSave>>>();
+  const stepRegion = useRef<HTMLDivElement>(null);
+
+  function send(action: WizardAction) {
+    const el = stepRegion.current!;
+    const changesStep = (action.type === "continue" || action.type === "back") && wizardReducer(state, action).step !== state.step;
+    if (!changesStep || !("animate" in Element.prototype)) return dispatch(action);
+    const x = action.type === "continue" ? STEP_SLIDE : -STEP_SLIDE;
+    const show = () => {
+      for (const animation of el.getAnimations()) animation.cancel();
+      el.inert = false;
+      flushSync(() => dispatch(action));
+      fadeIn(el, slideFrom(x));
+    };
+    if (reducedMotion()) return show();
+    if (el.contains(document.activeElement)) document.querySelector<HTMLElement>("main")?.focus({ preventScroll: true });
+    el.inert = true;
+    fadeOut(el, { x, shorten: true }).finished.then(() => el.isConnected && show(), () => {});
+  }
 
   useEffect(() => {
     const next = nextRead(screenshots, SECTIONS);
@@ -129,12 +151,15 @@ export default function OnboardingWizard({
       <PageCue page="onboarding" />
       <div className={ONBOARDING_COLUMN}>
         <div data-page-swap className="w-full lg:max-w-[440px]">
-          {state.step === "goal" && <GoalStep state={state} dispatch={dispatch} goalTestDateOptions={goalTestDateOptions} today={today} />}
-          {state.step === "week" && <WeekStep state={state} dispatch={dispatch} />}
-          {state.step === "analytics" && (
-            <AnalyticsStep state={state} scanningOff={scanningOff} dispatch={dispatch} onSkip={skipForNow} onFile={readScreenshot} />
-          )}
-          {state.step === "review" && draft && <ReviewStep state={state} draft={draft} dispatch={dispatch} onConfirm={confirmSnapshot} />}
+          <p className="mb-2 font-mono text-label uppercase text-smoke">{stepLabel(state.step)}</p>
+          <div ref={stepRegion} data-onboarding-step>
+            {state.step === "goal" && <GoalStep state={state} dispatch={send} goalTestDateOptions={goalTestDateOptions} today={today} />}
+            {state.step === "week" && <WeekStep state={state} dispatch={send} />}
+            {state.step === "analytics" && (
+              <AnalyticsStep state={state} scanningOff={scanningOff} dispatch={send} onSkip={skipForNow} onFile={readScreenshot} />
+            )}
+            {state.step === "review" && draft && <ReviewStep state={state} draft={draft} dispatch={send} onConfirm={confirmSnapshot} />}
+          </div>
         </div>
       </div>
       <LivePreview state={state} firstName={firstName} initials={initials} today={today} />
@@ -152,7 +177,6 @@ function StepHeading({ state, title, lede }: { state: WizardState; title: string
   }, [changedStep]);
   return (
     <div className="flex flex-col gap-2">
-      <p className="font-mono text-label uppercase text-smoke">{stepLabel(state.step)}</p>
       <h1 ref={heading} tabIndex={-1} className="text-h3 font-semibold text-ink outline-none">
         {title}
       </h1>
