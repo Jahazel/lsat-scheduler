@@ -893,6 +893,7 @@ describe("SiteMotion", () => {
       expect(copy()).toBeNull();
       expect(fadeOuts()).toHaveLength(0);
       expect(entrances()).toHaveLength(0);
+      expect(live).toHaveLength(0);
 
       at("/progress", <main><h1>Progress</h1></main>, rerender);
       at("/dashboard", <ThisWeek />, rerender);

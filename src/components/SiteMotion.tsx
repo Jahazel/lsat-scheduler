@@ -8,6 +8,7 @@ import { durationMs, fadeIn, fadeOut, isPlainClick, motionToken, reducedMotion, 
 const SIGN_IN = new Set(["/signup", "/login", "/forgot-password", "/reset-password", "/verify-email"]);
 const UNDER_TOP_BAR = new Set(["/", "/legal/terms", "/legal/privacy", "/legal/ai-disclosure"]);
 const ONBOARDING = "/onboarding";
+const THIS_WEEK = ["/dashboard", "/dashboard/upload"];
 
 type Motion = "whole-page" | "under-top-bar" | "swap";
 function motionBetween(from: string, to: string, signedIn: boolean): Motion | null {
@@ -93,10 +94,10 @@ export function fadeFormThrough(update: () => void) {
 // So the page that goes stays on screen as a still copy until the next page's PageCue reports, then the copy fades out.
 type CuePage = "sign-in" | "placeholder" | "onboarding" | "this-week";
 const LEADS_TO: Record<CuePage, { pages: CuePage[]; paths: string[] }> = {
-  "sign-in": { pages: ["placeholder", "onboarding", "this-week"], paths: [ONBOARDING, "/dashboard", "/dashboard/upload"] },
+  "sign-in": { pages: ["placeholder", "onboarding", "this-week"], paths: [ONBOARDING, ...THIS_WEEK] },
   placeholder: { pages: ["onboarding"], paths: [ONBOARDING] },
   // Back, or the logo, sends a student who has not finished onboarding through This week and back to onboarding.
-  onboarding: { pages: ["this-week", "placeholder", "onboarding"], paths: ["/dashboard", "/dashboard/upload", ONBOARDING] },
+  onboarding: { pages: ["this-week", "placeholder", "onboarding"], paths: [...THIS_WEEK, ONBOARDING] },
   "this-week": { pages: [], paths: [] },
 };
 const GIVE_UP_MS = 5000;
