@@ -25,8 +25,8 @@ Plain same-origin link clicks between the landing page `/` and the sign-in pages
 
 Use Playwright, because the checks read element state during the fade. Read state with short `page.evaluate` calls; do not set it.
 
-- At 1440 px, open `/`, wait for `networkidle`, and scroll with `page.mouse.wheel(0, 600)`. Click `main >> role=link[name="Start free week"] >> nth=0`. Right after the click, read every `[data-page-fade]`: each must have `aria-busy="true"` and `inert`. Wait for `/signup` and the `Sign up for DrillMap` heading. Read `getAnimations()` on the visible `[data-page-logo]`: expect one animation whose first keyframe is a `translate(...)`. Expect `document.activeElement` to be the `H1`.
-- On `/signup`, click `role=link[name="Log in"] >> nth=0`. Right after the click, every `[data-page-swap]` has `aria-busy="true"` and no `[data-page-fade]` region does. Wait for `Log in to DrillMap`.
+- At 1440 px, open `/`, wait for `networkidle`, scroll with `page.mouse.wheel(0, 600)`, and wait until `scrollY` is 600. Click the top bar `Log in`: `page.getByRole("banner").getByRole("link", { name: "Log in" })`. It stays on screen after the scroll. Right after the click, read every `[data-page-fade]`: each must have `aria-busy="true"` and `inert`. Wait for `/login` and the `Log in to DrillMap` heading. Read `getAnimations()` on the visible `[data-page-logo]`: expect one animation whose first keyframe is a `translate(...)`. Expect `document.activeElement` to be the `H1`.
+- On `/login`, click `role=link[name="Sign up"] >> nth=0`. Right after the click, every `[data-page-swap]` has `aria-busy="true"` and no `[data-page-fade]` region does. Wait for `Sign up for DrillMap`.
 - Press Back twice and wait for `/`. Expect `scrollY` equal to the spot you left (600). A scroll made with `window.scrollTo` in `page.evaluate` is not a reliable start for this check; scroll with the mouse wheel.
 - Call `page.emulateMedia({ reducedMotion: "reduce" })`, click the top bar `Log in`, and expect no animation on any `[data-page-logo]`.
 - Repeat at 768 and 390 px when the change touches layout. At 390 px the rise is 4 px.
@@ -40,3 +40,4 @@ Use Playwright, because the checks read element state during the fade. Read stat
 - Read the fade-out state right after the click. The fast exit ends quickly, and the arrival removes `inert` and `aria-busy`.
 - A `[data-page-swap]` inside a `[data-page-fade]` animates only through its outer region on a page change.
 - Server changes are not held: the copy is what fades. Reading the old page's `inert` state after `Log in` finds nothing; read `[data-page-copy]` instead.
+- A Playwright click scrolls its target into view first. In the Back scroll check, click only a link that is already on screen after the scroll, such as the top bar `Log in`; a link in `main` moves the page before the click and Back then returns to that new spot.
