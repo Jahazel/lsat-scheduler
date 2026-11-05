@@ -1,0 +1,157 @@
+<!doctype html>
+<!--
+  PROTOTYPE, throw away. Loading states (#637), section 3: the button spinner.
+  Four real places a button waits on the server. Click a button to see its wait.
+  ?load=fast|typical|slow|hold sets how long the server takes. ?rm=1 previews reduced motion.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PROTOTYPE · Button waits</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --vellum: #F6F6F6; --paper: #FFFFFF; --line: #E4E4E4; --ink: #0A0A0A; --chalk: #FAFAFA; --graphite-line: #262626;
+  --fog: #8A8A8A; --smoke: #5C5C5C; --accent: #123A94; --success: #3FB950;
+  --fast: 120ms; --base: 200ms; --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  font-family: Geist, ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--vellum); color: var(--ink); }
+html { -webkit-tap-highlight-color: transparent; }
+button { font: inherit; cursor: pointer; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 48px 72px 160px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.where { grid-column: 1 / -1; margin: 0; font-size: 14px; color: var(--smoke); }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 32px; display: flex; flex-direction: column; gap: 16px; }
+.card h2 { margin: 0; font-size: 22px; line-height: 28px; font-weight: 500; letter-spacing: -0.02em; }
+.card p { margin: 0; color: var(--smoke); font-size: 16px; line-height: 24px; }
+.tagline { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fog); }
+.input { height: 44px; border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; display: flex; align-items: center; font-size: 16px; }
+.note { min-height: 18px; font-size: 14px; line-height: 18px; color: var(--smoke); }
+.wide { grid-column: 1 / -1; }
+
+/* ---------- buttons (same looks as src/components/ui/Button.tsx and the save bar) ---------- */
+.btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; border: 0; border-radius: 999px; font-weight: 500;
+  transition: background-color var(--fast) ease, opacity var(--fast) ease, scale var(--fast) var(--ease-out-strong); }
+.btn:active:not([aria-disabled]) { scale: 0.97; }
+.btn.lg { height: 48px; padding: 0 22px; font-size: 16px; }
+.btn.md { height: 40px; padding: 0 18px; font-size: 14px; }
+.btn.primary { background: var(--ink); color: var(--chalk); }
+@media (hover: hover) and (pointer: fine) { .btn.primary:hover { background: var(--graphite-line); } .btn.outline:hover { background: var(--vellum); } }
+.btn.outline { background: var(--paper); color: var(--ink); border: 1px solid var(--line); }
+.btn.full { width: 100%; }
+.btn.bar { height: 40px; padding: 0 20px; border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 14px; font-weight: 600; }
+.btn[aria-disabled] { cursor: default; opacity: 0.72; }
+.btn[data-wait] { flex-shrink: 0; }
+.savebar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; padding: 12px 12px 12px 24px; border-radius: 12px; background: var(--ink); color: var(--chalk); font-size: 14px; box-shadow: 0 16px 48px rgb(10 10 10 / 0.12); }
+
+/* The spinner slot: it takes no room until the wait starts, and the button keeps its width (set in JS). */
+.spin { display: none; width: 16px; height: 16px; flex-shrink: 0; }
+.md .spin, .bar .spin { width: 14px; height: 14px; }
+.btn[data-wait] .spin { display: block; animation: spin-in var(--base) var(--ease-out-strong) both; }
+@keyframes spin-in { from { opacity: 0; scale: 0.9; } }
+.spin svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* Section 3 pick, Ring: a faint full ring with a short bright head chasing round it. */
+.spin svg { animation: turn 900ms linear infinite; }
+@keyframes turn { to { rotate: 360deg; } }
+
+@media (prefers-reduced-motion: reduce) { .spin svg { animation: none !important; } .btn[data-wait] .spin { animation: fade var(--fast) ease both; } }
+[data-rm] .spin svg { animation: none !important; }
+[data-rm] .btn[data-wait] .spin { animation: fade var(--fast) ease both; }
+@keyframes fade { from { opacity: 0; } }
+
+@media (max-width: 767px) {
+  .wrap { grid-template-columns: 1fr; padding: 24px 20px 120px; gap: 16px; }
+  .card { padding: 20px; }
+  .savebar { padding-left: 16px; font-size: 13px; }
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <p class="where">Click any button. Each one waits as long as the frame's load time, then finishes.</p>
+
+  <section class="card">
+    <span class="tagline">Log in</span>
+    <div class="input">amy@example.test</div>
+    <div class="input">••••••••••</div>
+    <button class="btn lg primary full" data-label="Log in">Log in</button>
+    <span class="note" role="status"></span>
+  </section>
+
+  <section class="card">
+    <span class="tagline">Account · Sessions</span>
+    <h2>Sessions</h2>
+    <p>Sign out of every browser and device where you use DrillMap, including this one.</p>
+    <div><button class="btn md outline" data-label="Sign out of all devices" data-wait-label="Signing out…">Sign out of all devices</button></div>
+    <span class="note" role="status"></span>
+  </section>
+
+  <section class="card">
+    <span class="tagline">Onboarding · Step 1</span>
+    <h2>Set your target</h2>
+    <p>Where you are now, where you want to be, and when.</p>
+    <button class="btn lg primary full" data-label="Continue">Continue</button>
+    <span class="note" role="status"></span>
+  </section>
+
+  <section class="card">
+    <span class="tagline">Forgot password</span>
+    <div class="input">amy@example.test</div>
+    <button class="btn lg primary full" data-label="Send reset link" data-wait-label="Sending…">Send reset link</button>
+    <span class="note" role="status"></span>
+  </section>
+
+  <section class="wide">
+    <span class="tagline">Study settings · save bar</span>
+    <div class="savebar"><span>You have unsaved changes.</span><button class="btn bar" data-label="Save changes" data-wait-label="Saving…">Save changes</button></div>
+    <span class="note" role="status"></span>
+  </section>
+</main>
+
+<script>
+const params = new URLSearchParams(location.search);
+const WAIT = { fast: 100, typical: 1600, slow: 5000, hold: Infinity }[params.get("load") || "typical"];
+if (params.get("rm") === "1") document.documentElement.dataset.rm = "";
+// Worst case: real labels whose wait text is longer than the label, or that have no wait text, in content-width buttons.
+if (params.get("data") === "worst") {
+  const [, sessions, , , save] = document.querySelectorAll(".btn");
+  Object.assign(sessions.dataset, { label: "Change password", waitLabel: "Changing password…" });
+  sessions.closest("section").querySelector("h2").textContent = "Password";
+  sessions.closest("section").querySelector(".tagline").textContent = "Account · Password";
+  save.dataset.label = "Save changes";
+  save.removeAttribute("data-wait-label");
+}
+
+const SPINNER = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-opacity="0.25" stroke-width="1.75"/><path d="M8 1.75a6.25 6.25 0 0 1 5.4 3.1" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>';
+
+for (const button of document.querySelectorAll(".btn")) {
+  const label = button.dataset.label;
+  button.innerHTML = `<span class="spin">${SPINNER}</span><span class="text">${label}</span>`;
+  const note = button.closest("section").querySelector(".note");
+  button.addEventListener("click", () => {
+    if (button.hasAttribute("aria-disabled")) return;
+    // The button never gets narrower, so nothing beside it moves. It grows only when the wait text is longer than the label.
+    const width = button.getBoundingClientRect().width;
+    button.style.minWidth = `${width}px`;
+    button.setAttribute("aria-disabled", "true");
+    button.dataset.wait = "";
+    button.querySelector(".text").textContent = button.dataset.waitLabel || label;
+    note.textContent = "";
+    if (WAIT === Infinity) return;
+    setTimeout(() => {
+      button.removeAttribute("aria-disabled");
+      delete button.dataset.wait;
+      button.querySelector(".text").textContent = label;
+      button.style.minWidth = "";
+      note.textContent = "Done. In the app this step moves on.";
+    }, WAIT);
+  });
+}
+</script>
+</body>
+</html>
