@@ -12,7 +12,11 @@ export function isAppCspViolation(text, sourceUrl) {
   return text.includes("Content Security Policy") && !NEXT_DEVTOOLS_CHUNK.test(sourceUrl);
 }
 
-export async function drive(directory, name, steps) {
+export function chromiumLaunchOptions({ showScrollbars = false } = {}) {
+  return showScrollbars ? { headless: true, ignoreDefaultArgs: ["--hide-scrollbars"] } : { headless: true };
+}
+
+export async function drive(directory, name, steps, options) {
   if (!directory || !/^[a-z0-9-]+$/.test(name ?? "")) throw new Error("Usage: drive(.verification/evidence/<run-name>, <lowercase-drive-name>, steps)");
   const run = resolve(root, directory);
   const out = resolve(run, name);
@@ -26,7 +30,7 @@ export async function drive(directory, name, steps) {
   const logStart = statSync(resolve(run, "app.log")).size;
   const modulePath = process.env.VERIFY_PLAYWRIGHT_MODULE || resolve(run, "scratch/tools/node_modules/playwright/index.mjs");
   const { chromium } = await import(pathToFileURL(modulePath).href);
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch(chromiumLaunchOptions(options));
   const actions = [];
   const sessions = [];
 
