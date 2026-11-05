@@ -865,9 +865,31 @@ describe("SiteMotion", () => {
       expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar", "Step", "Panel"]);
     });
 
-    it("drops the copy with no motion when Log in leads to This week, and This week reached any other way does not move", async () => {
+    it("keeps Log in on screen until This week shows, then fades it through with the logo glide and focus on the heading", async () => {
       const rerender = await logIn();
       at("/dashboard", <ThisWeek />, rerender);
+      expect(fadeOuts()).toHaveLength(1);
+      expect(entrances()).toHaveLength(0);
+
+      await finishCopy();
+      expect(copy()).toBeNull();
+      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar", "This week page"]);
+      expect(entrances()[1].keyframes[0]).toEqual({ opacity: 0, transform: "translateY(8px)" });
+      expect(glides().at(-1)!.keyframes).toEqual([{ transform: "translate(72px, 12px)" }, { transform: "none" }]);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "This week" }));
+      expect(document.querySelectorAll("[inert], [aria-busy]")).toHaveLength(0);
+    });
+
+    it("fades Log in through to the weekly upload when This week first asks for analytics", async () => {
+      const rerender = await logIn();
+      at("/dashboard/upload", <ThisWeek />, rerender);
+      await finishCopy();
+      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar", "This week page"]);
+    });
+
+    it("drops the Log in copy with no motion when the next page is not This week or onboarding, and This week reached any other way does not move", async () => {
+      const rerender = await logIn();
+      at("/admin", <main><h1>Admin</h1></main>, rerender);
       expect(copy()).toBeNull();
       expect(fadeOuts()).toHaveLength(0);
       expect(entrances()).toHaveLength(0);

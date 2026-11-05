@@ -46,7 +46,7 @@ A visitor moves from the landing page into sign up or log in, and a new student 
 - Keyboard users: focus moves to the new page or step heading after the motion, as onboarding does today.
 
 ## Out of scope
-- Moves between app pages (This week, Progress, Study settings, Account, Admin). The owner chose the signed-out pages and onboarding for now. Onboarding → This week is the only app page included.
+- Moves between app pages (This week, Progress, Study settings, Account, Admin). The owner chose the signed-out pages and onboarding for now. This week is the only app page included, reached from onboarding or, since the owner's change on 2026-11-05, from Log in.
 - "Continue with Google", which leaves the site for Google's page.
 - Browsers without page-motion support. They keep today's plain page change.
 - In-page motion that already exists, such as landing reveals and FAQ rows.
