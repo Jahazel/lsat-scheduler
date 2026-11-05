@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { generateWeek } from "@/lib/engine";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "@/lib/mockData";
@@ -13,7 +13,24 @@ import { FailureToastProvider } from "./FailureNotice";
 import ScheduleCheckInView from "./ScheduleCheckInView";
 
 afterEach(cleanup);
+let reducedMotion = false;
+const animate = vi.fn(function (this: Element, keyframes: Keyframe[], options: KeyframeAnimationOptions) {
+  return { keyframes, options, cancel() {} } as unknown as Animation;
+});
+
 beforeEach(() => {
+  reducedMotion = false;
+  animate.mockClear();
+  Element.prototype.animate = animate as unknown as Element["animate"];
+  Element.prototype.getAnimations = () => [];
+  window.matchMedia = ((query: string) => ({ matches: reducedMotion && query.includes("reduce") })) as typeof window.matchMedia;
+  HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+    this.removeAttribute("open");
+    this.dispatchEvent(new Event("close"));
+  };
   saveActivityCheckIn.mockReset();
   saveActivityCheckIn.mockImplementation(async (input: Omit<ActivityCheckIn, "id">) => ({ id: "saved", ...input }));
 });
@@ -170,7 +187,7 @@ describe("ScheduleCheckInView", () => {
     await userEvent.keyboard(" {Enter}");
     expect(saveActivityCheckIn).not.toHaveBeenCalled();
     expect(doneRow!.textContent).toBe("1 Full LR Section, done");
-    expect(openRow!.textContent).toMatch(/, not done$/);
+    expect(openRow!.textContent).toContain(", not done");
     expect(within(dayCard("Monday")).getByText("1 Full LR Section").className).toContain("line-through");
     expect(screen.getByText("1 of 18 done")).toBeTruthy();
   });
@@ -199,5 +216,166 @@ describe("ScheduleCheckInView", () => {
 
     expect(screen.queryByRole("complementary", { name: "Reminder" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Plan next week" })).toBeNull();
+  });
+
+  describe("drill setup guide", () => {
+    const paired = "10 Weaken + Strengthen (L2-4)";
+    const renderWeek = (props: { checkIns?: ActivityCheckIn[]; readOnly?: boolean } = {}) =>
+      render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={props.checkIns ?? []} readOnly={props.readOnly} />);
+    const setUp = (label: string) => screen.getByRole("button", { name: `Set up ${label}` });
+    const guide = () => screen.getByRole("dialog");
+    const stepCount = () => within(guide()).getByText(/^Step \d of 5$/).textContent;
+
+    async function openGuide(label = paired) {
+      const user = userEvent.setup();
+      renderWeek();
+      await user.click(setUp(label));
+      return user;
+    }
+
+    it("offers Set up on LR and RC drill rows only, on done rows and in the read-only view too", () => {
+      const { unmount } = renderWeek({ checkIns: [done("TUESDAY:0")] });
+      const setUps = screen.getAllByRole("button", { name: /^Set up / }).map((button) => button.getAttribute("aria-label"));
+      expect(setUps).toEqual(expect.arrayContaining([`Set up ${paired}`, "Set up 5 Conditional reasoning (L2-4)",
+        "Set up 1 RC Passage Art L2", "Set up 2 RC Passages Humanities L2, Science L4"]));
+      expect(setUps).not.toContain("Set up 1 Full LR Section");
+      expect(within(dayCard("Saturday")).queryByRole("button", { name: /^Set up/ })).toBeNull();
+      expect(within(dayCard("Sunday")).queryByRole("button", { name: /^Set up/ })).toBeNull();
+      expect(within(dayCard("Monday")).getAllByRole("button", { name: /^Set up/ })).toHaveLength(1);
+      unmount();
+
+      renderWeek({ readOnly: true });
+      expect(setUp(paired).getAttribute("aria-haspopup")).toBe("dialog");
+      expect(screen.getAllByRole("button", { name: /^Set up / })).toHaveLength(setUps.length);
+    });
+
+    it("opens the guide from Set up without checking the row off", async () => {
+      await openGuide();
+      expect(screen.getByRole("checkbox", { name: paired, hidden: true }).getAttribute("aria-checked")).toBe("false");
+      expect(saveActivityCheckIn).not.toHaveBeenCalled();
+      expect(setUp(paired).getAttribute("aria-expanded")).toBe("true");
+    });
+
+    it("opens named for the day and the drill, with focus on its title and on step 1", async () => {
+      await openGuide();
+      expect(guide().getAttribute("open")).not.toBeNull();
+      expect(screen.getByRole("dialog", { name: `Drill setup guide · Tuesday · ${paired}` })).toBe(guide());
+      expect(document.activeElement?.textContent).toBe(`Drill setup guide · Tuesday · ${paired}`);
+      expect(stepCount()).toBe("Step 1 of 5");
+      expect(within(guide()).getByRole("heading", { name: "Open Drills on 7Sage" })).toBeTruthy();
+      expect(within(guide()).getByRole("button", { name: "Back" })).toHaveProperty("disabled", true);
+      const link = within(guide()).getByRole("link", { name: "Open 7Sage drills (opens in a new tab)" });
+      expect(link.getAttribute("target")).toBe("_blank");
+      expect(within(guide()).getByRole("button", { name: "Step 1" }).getAttribute("aria-current")).toBe("step");
+    });
+
+    it("moves between cards with Next step, Back, the dots, and the arrow keys", async () => {
+      const user = await openGuide();
+      await user.click(within(guide()).getByRole("button", { name: "Next step" }));
+      expect(stepCount()).toBe("Step 2 of 5");
+      expect(within(guide()).getByText("Under", { exact: false }).textContent).toBe("Under Logical Reasoning, click New drill.");
+      await user.click(within(guide()).getByRole("button", { name: "Back" }));
+      expect(stepCount()).toBe("Step 1 of 5");
+      expect(document.activeElement).toBe(within(guide()).getByRole("button", { name: "Next step" }));
+
+      await user.click(within(guide()).getByRole("button", { name: "Step 5" }));
+      expect(stepCount()).toBe("Step 5 of 5");
+      expect(within(guide()).getByRole("button", { name: "Step 5" }).getAttribute("aria-current")).toBe("step");
+      expect(within(guide()).getByRole("button", { name: "Step 1" }).getAttribute("aria-current")).toBeNull();
+      await user.keyboard("{ArrowLeft}");
+      expect(stepCount()).toBe("Step 4 of 5");
+      await user.keyboard("{ArrowRight}{ArrowRight}");
+      expect(stepCount()).toBe("Step 5 of 5");
+    });
+
+    it("shows the paired drill's filters on card 4: one pass per type, half the questions each", async () => {
+      const user = await openGuide();
+      await user.click(within(guide()).getByRole("button", { name: "Step 4" }));
+      expect(within(guide()).getByRole("heading", { name: "Filter and add questions" })).toBeTruthy();
+      expect(within(guide()).getByText("Section:", { exact: false }).textContent).toBe("Section: Logical Reasoning");
+      const table = within(guide()).getByRole("table");
+      expect(within(table).getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual(["Tags", "Difficulty (guess)", "Add"]);
+      expect(within(table).getAllByRole("row").slice(1).map((row) => within(row).getAllByRole("cell").map((cell) => cell.textContent)))
+        .toEqual([["Weaken", "2 to 4", "5"], ["Strengthen", "2 to 4", "5"], ["Total: 10 questions"]]);
+      expect(within(guide()).getAllByRole("link", { name: /^Open 7Sage drills/ })).toHaveLength(1);
+    });
+
+    it("marks RC Tags as a guess and adds one passage per pass, easier passage first", async () => {
+      const user = await openGuide("2 RC Passages Humanities L2, Science L4");
+      await user.click(within(guide()).getByRole("button", { name: "Step 4" }));
+      const table = within(guide()).getByRole("table");
+      expect(within(table).getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual(["Tags (guess)", "Difficulty (guess)", "Add"]);
+      expect(within(table).getAllByRole("row").slice(1).map((row) => within(row).getAllByRole("cell").map((cell) => cell.textContent)))
+        .toEqual([["Humanities", "2", "1"], ["Science", "4", "1"], ["Total: 2 passages"]]);
+      await user.click(within(guide()).getByRole("button", { name: "Next step" }));
+      expect(within(guide()).getByText("Check that it says", { exact: false }).textContent)
+        .toBe("Check that it says 2 passages selected. Click Save & share, then start the drill.");
+    });
+
+    it.each([
+      ["Done on the last card", async (user: ReturnType<typeof userEvent.setup>) => {
+        await user.click(within(guide()).getByRole("button", { name: "Step 5" }));
+        await user.click(within(guide()).getByRole("button", { name: "Done" }));
+      }],
+      ["Escape", (user: ReturnType<typeof userEvent.setup>) => user.keyboard("{Escape}")],
+      ["the close button", (user: ReturnType<typeof userEvent.setup>) => user.click(screen.getByRole("button", { name: "Close the drill setup guide" }))],
+    ])("closes on %s and returns focus to that row's Set up", async (_, close) => {
+      const user = await openGuide();
+      await close(user);
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      await waitFor(() => expect(document.activeElement).toBe(setUp(paired)));
+      expect(setUp(paired).getAttribute("aria-expanded")).toBe("false");
+      expect(saveActivityCheckIn).not.toHaveBeenCalled();
+    });
+
+    it("opens each time on step 1", async () => {
+      const user = await openGuide();
+      await user.click(within(guide()).getByRole("button", { name: "Step 3" }));
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      await user.click(setUp(paired));
+      expect(stepCount()).toBe("Step 1 of 5");
+    });
+
+    const slides = () => animate.mock.calls.map(([keyframes, options]) =>
+      ({ from: (keyframes as Keyframe[])[0], delay: (options as KeyframeAnimationOptions).delay }));
+
+    it("slides the new card's content in from the side moved to, the step text 40 ms after the screenshot, but not on open", async () => {
+      const user = await openGuide();
+      expect(animate).not.toHaveBeenCalled();
+
+      await user.click(within(guide()).getByRole("button", { name: "Next step" }));
+      expect(slides()).toEqual([
+        { from: { opacity: 0, transform: "translateX(12px)" }, delay: 0 },
+        { from: { opacity: 0, transform: "translateX(12px)" }, delay: 40 },
+      ]);
+
+      animate.mockClear();
+      await user.click(within(guide()).getByRole("button", { name: "Back" }));
+      expect(slides().map((slide) => slide.from.transform)).toEqual(["translateX(-12px)", "translateX(-12px)"]);
+    });
+
+    it("moves with the arrow keys after a click on plain text leaves focus on the guide itself", async () => {
+      await openGuide();
+      fireEvent.keyDown(guide(), { key: "ArrowRight" });
+      expect(stepCount()).toBe("Step 2 of 5");
+    });
+
+    it("changes the card at once on a held arrow key", async () => {
+      await openGuide();
+      fireEvent.keyDown(document.activeElement!, { key: "ArrowRight", repeat: true });
+      expect(stepCount()).toBe("Step 2 of 5");
+      expect(animate).not.toHaveBeenCalled();
+    });
+
+    it("only fades the new card in when the student asks for less motion", async () => {
+      reducedMotion = true;
+      const user = await openGuide();
+      await user.click(within(guide()).getByRole("button", { name: "Next step" }));
+      expect(slides().map((slide) => slide.from)).toEqual([
+        { opacity: 0, transform: "translateX(0px)" },
+        { opacity: 0, transform: "translateX(0px)" },
+      ]);
+    });
   });
 });
