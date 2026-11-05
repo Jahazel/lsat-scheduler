@@ -1,0 +1,97 @@
+"use client";
+
+import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
+import { afterExit } from "./afterExit";
+import { IconButton } from "./Button";
+import { cx } from "./classes";
+
+const CloseContext = createContext<() => void>(() => {});
+
+type DialogProps = {
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+  className?: string;
+} & ({ "aria-label": string } | { "aria-labelledby": string });
+
+/**
+ * A modal on the native `<dialog>`. The caller owns `open`; Escape, a click on the dimmed page and
+ * `DialogClose` ask to close through `onClose`. Setting `open` to false plays the close motion, then
+ * closes the dialog and focuses the control that had focus when it opened.
+ */
+export function Dialog({ open, onClose, children, className, ...label }: DialogProps) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  const pressStartedOutside = useRef(false);
+  const isOpen = useRef(open);
+
+  useEffect(() => {
+    isOpen.current = open;
+    const element = dialog.current;
+    if (!element) return;
+    if (open) {
+      element.removeAttribute("data-closing");
+      if (!element.open) {
+        opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        element.showModal();
+      }
+      return;
+    }
+    if (!element.open) return;
+    element.setAttribute("data-closing", "");
+    let cancelled = false;
+    void afterExit(element).then(() => {
+      if (cancelled) return;
+      element.removeAttribute("data-closing");
+      element.close();
+      opener.current?.focus();
+      opener.current = null;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  return (
+    <dialog
+      ref={dialog}
+      {...label}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        onClose();
+      }}
+      onClose={() => {
+        if (isOpen.current) onClose();
+      }}
+      onPointerDown={(event) => {
+        pressStartedOutside.current = event.target === event.currentTarget;
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget && pressStartedOutside.current) onClose();
+      }}
+      className="ui-dialog fixed inset-0 m-0 h-dvh w-full max-h-none max-w-none overflow-hidden overscroll-contain bg-transparent p-3 md:p-6"
+    >
+      <div className="pointer-events-none flex h-full items-center justify-center">
+        <div className={cx("ui-dialog-panel pointer-events-auto max-h-full max-w-full overflow-auto rounded-lg bg-paper shadow-e3", className)}>
+          <CloseContext.Provider value={onClose}>{children}</CloseContext.Provider>
+        </div>
+      </div>
+    </dialog>
+  );
+}
+
+export function DialogClose({ label = "Close", className }: { label?: string; className?: string }) {
+  const close = useContext(CloseContext);
+  return (
+    <IconButton label={label} onClick={close} className={className}>
+      <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+        <path d="M2 2l10 10M12 2L2 12" />
+      </svg>
+    </IconButton>
+  );
+}

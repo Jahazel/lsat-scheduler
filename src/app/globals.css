@@ -533,3 +533,24 @@ body:has(.save-bar[data-shown]) .failure-toast-slot { transform: translateY(-88p
     .leave-dialog[open] { transform: none; }
   }
 }
+
+html:has(.ui-dialog[open]) { overflow: hidden; }
+.ui-dialog,
+.ui-dialog::backdrop { transition: opacity var(--duration-base) ease-out; }
+.ui-dialog::backdrop { background: color-mix(in srgb, var(--color-ink) var(--opacity-muted), transparent); }
+.ui-dialog-panel { transition: scale var(--duration-base) var(--ease-out-strong); }
+@starting-style {
+  .ui-dialog[open],
+  .ui-dialog[open]::backdrop { opacity: 0; }
+  .ui-dialog[open] .ui-dialog-panel { scale: 0.96; }
+}
+.ui-dialog[data-closing],
+.ui-dialog[data-closing]::backdrop { opacity: 0; transition-duration: var(--duration-fast); }
+.ui-dialog[data-closing] .ui-dialog-panel { scale: 0.96; transition-duration: var(--duration-fast); }
+@media (prefers-reduced-motion: reduce) {
+  .ui-dialog-panel,
+  .ui-dialog[data-closing] .ui-dialog-panel { scale: none; transition: none; }
+  @starting-style {
+    .ui-dialog[open] .ui-dialog-panel { scale: none; }
+  }
+}
