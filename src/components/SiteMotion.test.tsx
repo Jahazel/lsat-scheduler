@@ -58,7 +58,11 @@ beforeEach(() => {
   window.scrollY = 0;
   Element.prototype.scrollIntoView = vi.fn();
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  sessionStorage.clear();
+});
 
 function TopBar({ hidden }: { hidden?: boolean }) {
   return (
@@ -484,6 +488,40 @@ describe("SiteMotion", () => {
       show("/", rerender);
       expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 2400, behavior: "instant" });
       expect(calls.some((a) => topBar().contains(a.el))).toBe(false);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your practice results" }));
+    });
+
+    async function reloadTermsThenBack() {
+      const first = show("/")!;
+      window.scrollY = 2400;
+      await click("Terms of Service");
+      finishExits();
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalled());
+      show("/legal/terms", first.rerender);
+      first.unmount();
+
+      const { rerender } = show("/legal/terms")!;
+      const router = vi.fn();
+      addEventListener("popstate", router);
+      history.replaceState(ROUTER_ENTRY, "", "/");
+      dispatchEvent(new PopStateEvent("popstate", { state: ROUTER_ENTRY }));
+      finishExits();
+      await vi.waitFor(() => expect(router).toHaveBeenCalledOnce());
+      removeEventListener("popstate", router);
+      show("/", rerender);
+    }
+
+    it("returns to the landing page at its scroll spot on Back after the legal page is reloaded", async () => {
+      await reloadTermsThenBack();
+      expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 2400, behavior: "instant" });
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your practice results" }));
+    });
+
+    it("lands at the top on Back after a reload when the browser refuses storage", async () => {
+      vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new DOMException("blocked", "SecurityError"); });
+      vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new DOMException("blocked", "SecurityError"); });
+      await reloadTermsThenBack();
+      expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: "instant" });
       expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your practice results" }));
     });
 
