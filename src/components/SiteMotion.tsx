@@ -164,13 +164,16 @@ export default function SiteMotion() {
       if (!shown.current || !motion) return;
       const from = shown.current;
       const left = leave({ path: to, hash: "", fromHistory: true, motion });
-      if (reducedMotion()) return;
+      // Next's router does not render a popstate for an entry it did not write, such as a hash the browser added.
+      const routerEntry = Boolean(history.state?.__NA);
+      if (reducedMotion() && routerEntry) return;
       event.stopImmediatePropagation();
       // Chrome restores the new entry's scroll after popstate; the old page keeps its spot until it has faded out.
       heldAt.current = scrolls.current.get(from) ?? scrollY;
       left.then((ok) => {
         if (!ok) return;
         heldAt.current = null;
+        if (!routerEntry) return router.replace(location.pathname + location.search + location.hash, { scroll: false });
         replaying = true;
         dispatchEvent(new PopStateEvent("popstate", { state: history.state }));
         replaying = false;
