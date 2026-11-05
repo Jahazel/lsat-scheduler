@@ -198,6 +198,10 @@ _Avoid_: drill block, practice set
 One drill of 10 LR questions across two question types the tutor pairs, such as Necessary and Sufficient assumption. It counts as 5 questions of each of its two types. A weekly schedule holds two when the current score is 160 or higher and one otherwise, never more than one per drilling day. The two in one week share no type.
 _Avoid_: 5+5 unit, combo drill
 
+**Drill setup guide**:
+The step-by-step instructions for building one drill as a hand-picked drill on 7Sage, filled in with that drill's question types, difficulty, and count.
+_Avoid_: 7Sage drill guide, how to drill, tutorial
+
 **Drilling ratio**:
 The fixed proportion of LR to RC drilling within one weekly schedule: 10 LR questions for every RC passage. Full sections and practice tests are counted separately.
 _Avoid_: LR/RC balance, study-time split
