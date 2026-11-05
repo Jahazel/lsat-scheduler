@@ -15,6 +15,7 @@ import { postgresActivityCheckIns } from "@/lib/activityCheckInRepository";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import type { Student } from "@/lib/types";
 import ScheduleCheckInView from "@/components/ScheduleCheckInView";
+import { PageCue } from "@/components/SiteMotion";
 import { CurrentWeekReport } from "@/components/AdminTestContext";
 
 const previewStartDate = new Intl.DateTimeFormat("en-US", {
@@ -77,7 +78,8 @@ export default async function DashboardPage({
   ]);
 
   return (
-    <div className="min-h-screen">
+    <div data-page-fade className="min-h-screen">
+      <PageCue page="this-week" />
       {isAdminUser(session.user) && (
         <CurrentWeekReport week={currentWeekInTimezone(now, SCHEDULE_TIMEZONE)} hasSchedule={!preview} hasPreview={preview} />
       )}
