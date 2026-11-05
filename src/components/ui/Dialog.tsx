@@ -10,6 +10,7 @@ const CloseContext = createContext<() => void>(() => {});
 type DialogProps = {
   open: boolean;
   onClose: () => void;
+  returnFocusTo?: HTMLElement | null;
   children: ReactNode;
   className?: string;
 } & ({ "aria-label": string } | { "aria-labelledby": string });
@@ -17,9 +18,10 @@ type DialogProps = {
 /**
  * A modal on the native `<dialog>`. The caller owns `open`; Escape, a click on the dimmed page and
  * `DialogClose` ask to close through `onClose`. Setting `open` to false plays the close motion, then
- * closes the dialog and focuses the control that had focus when it opened.
+ * closes the dialog and focuses `returnFocusTo`, or else the control that had focus when it opened.
+ * Pass `returnFocusTo` from a click handler: Safari and Firefox on macOS do not focus a clicked button.
  */
-export function Dialog({ open, onClose, children, className, ...label }: DialogProps) {
+export function Dialog({ open, onClose, returnFocusTo, children, className, ...label }: DialogProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   const pressStartedOutside = useRef(false);
@@ -32,7 +34,7 @@ export function Dialog({ open, onClose, children, className, ...label }: DialogP
     if (open) {
       element.removeAttribute("data-closing");
       if (!element.open) {
-        opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        opener.current = returnFocusTo ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
         element.showModal();
       }
       return;
@@ -50,7 +52,7 @@ export function Dialog({ open, onClose, children, className, ...label }: DialogP
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, returnFocusTo]);
 
   return (
     <dialog

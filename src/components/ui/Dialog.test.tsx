@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { Dialog, DialogClose } from "./Dialog";
@@ -26,12 +26,19 @@ afterEach(cleanup);
 
 function Page() {
   const [open, setOpen] = useState(false);
+  const [opener, setOpener] = useState<HTMLElement | null>(null);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        onClick={(event) => {
+          setOpener(event.currentTarget);
+          setOpen(true);
+        }}
+      >
         Set up
       </button>
-      <Dialog open={open} onClose={() => setOpen(false)} aria-label="Drill setup guide">
+      <Dialog open={open} onClose={() => setOpen(false)} returnFocusTo={opener} aria-label="Drill setup guide">
         <p>Step 1 of 5</p>
         <DialogClose />
       </Dialog>
@@ -82,6 +89,18 @@ describe("Dialog", () => {
     await endCloseMotion();
 
     expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Set up" }));
+  });
+
+  it("returns focus to the opener it was given when the click did not focus it, as in Safari", async () => {
+    const user = userEvent.setup();
+    render(<Page />);
+    fireEvent.click(screen.getByRole("button", { name: "Set up" }));
+    expect(document.activeElement).toBe(document.body);
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await endCloseMotion();
+
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Set up" }));
   });
 
