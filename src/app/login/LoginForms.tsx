@@ -21,7 +21,7 @@ export function LoginForms({ urlNotice, googleFailure }: { urlNotice: LoginNotic
       {googleFailure && <FailureNoticeOnArrival code={googleFailure} />}
       {notice?.place === "aboveGoogle" && <Notice notice={notice} />}
       <ActionForm action={signInWithGoogle}>
-        <GoogleButton look="light" />
+        <GoogleButton look="light" fadesNextPage />
       </ActionForm>
       <OrWithEmail />
       <form action={logInAction} className="flex flex-col gap-8">

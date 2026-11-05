@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { flushSync } from "react-dom";
+import { forgetGoogleArrival } from "@/lib/googleArrival";
 import { durationMs, fadeIn, fadeOut, isPlainClick, motionToken, reducedMotion, riseFrom, stopAtCurrentFrame } from "@/lib/motion";
 
 const SIGN_IN = new Set(["/signup", "/login", "/forgot-password", "/reset-password", "/verify-email"]);
@@ -92,13 +93,14 @@ export function fadeFormThrough(update: () => void) {
 
 // A server change (a form action's redirect, or a loading placeholder giving way) replaces a page before it can fade.
 // So the page that goes stays on screen as a still copy until the next page's PageCue reports, then the copy fades out.
-type CuePage = "sign-in" | "placeholder" | "onboarding" | "this-week";
+type CuePage = "sign-in" | "placeholder" | "onboarding" | "this-week" | "admin";
 const LEADS_TO: Record<CuePage, { pages: CuePage[]; paths: string[] }> = {
   "sign-in": { pages: ["placeholder", "onboarding", "this-week"], paths: [ONBOARDING, ...THIS_WEEK] },
   placeholder: { pages: ["onboarding"], paths: [ONBOARDING] },
   // Back, or the logo, sends a student who has not finished onboarding through This week and back to onboarding.
   onboarding: { pages: ["this-week", "placeholder", "onboarding"], paths: [...THIS_WEEK, ONBOARDING] },
   "this-week": { pages: [], paths: [] },
+  admin: { pages: [], paths: [] },
 };
 const GIVE_UP_MS = 5000;
 
@@ -209,6 +211,8 @@ function dropCopyIfNoPageFollows(pathname: string) {
 }
 
 function pageArrived(page: CuePage, root: HTMLElement) {
+  // A loading screen can still redirect with a full page load, which needs the note to fade in.
+  if (page !== "placeholder") forgetGoogleArrival();
   keepLeavingPage();
   if (copy && !LEADS_TO[copy.from].pages.includes(page)) dropCopy();
   if (copy) {
@@ -259,7 +263,10 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
     shown.current = pathname;
     const arriving = target.current;
     if (from === pathname) return;
-    if (from) dropCopyIfNoPageFollows(pathname);
+    if (from) {
+      document.documentElement.removeAttribute("data-arrival");
+      dropCopyIfNoPageFollows(pathname);
+    }
     if (!arriving) {
       if (from && motionBetween(from, pathname, signedIn) === "swap") arrive("swap");
       return;

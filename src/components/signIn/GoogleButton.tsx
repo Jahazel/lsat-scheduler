@@ -3,18 +3,20 @@
 import Image from "next/image";
 import { useFormStatus } from "react-dom";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
+import { noteGoogleArrival } from "@/lib/googleArrival";
 
 const LOOKS = {
   dark: "border-ink bg-ink text-chalk hover:bg-graphite-raised",
   light: "border-vellum-line bg-paper text-ink hover:bg-vellum",
 };
 
-export function GoogleButton({ look = "dark" }: { look?: keyof typeof LOOKS }) {
+export function GoogleButton({ look = "dark", fadesNextPage = false }: { look?: keyof typeof LOOKS; fadesNextPage?: boolean }) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
       disabled={pending}
+      onClick={fadesNextPage ? noteGoogleArrival : undefined}
       className={cx(
         "flex h-12 w-full items-center justify-center gap-3 rounded-sm border text-body leading-[20px] font-medium",
         "disabled:opacity-muted",

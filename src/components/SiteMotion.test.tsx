@@ -918,4 +918,28 @@ describe("SiteMotion", () => {
       expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Set your target" }));
     });
   });
+
+  describe("after a Google sign-in", () => {
+    afterEach(() => document.documentElement.removeAttribute("data-arrival"));
+
+    it("keeps the arrival note through a loading screen, so a page that redirects after it still fades in", () => {
+      document.cookie = "drillmap-arrival=google; path=/";
+      document.documentElement.setAttribute("data-arrival", "google");
+      mocks.pathname = "/dashboard";
+      render(<><div><PageCue page="placeholder" /></div><SiteMotion signedIn /></>);
+      expect(document.cookie).toContain("drillmap-arrival=google");
+    });
+
+    it("clears the arrival note when the page itself shows, and lets the next page change with no fade", () => {
+      document.cookie = "drillmap-arrival=google; path=/";
+      document.documentElement.setAttribute("data-arrival", "google");
+      mocks.pathname = "/admin";
+      const { rerender } = render(<><div><PageCue page="admin" /></div><SiteMotion signedIn /></>);
+      expect(document.cookie).not.toContain("drillmap-arrival");
+      expect(document.documentElement.getAttribute("data-arrival")).toBe("google");
+      mocks.pathname = "/admin/students/1";
+      rerender(<><div><PageCue page="admin" /></div><SiteMotion signedIn /></>);
+      expect(document.documentElement.hasAttribute("data-arrival")).toBe(false);
+    });
+  });
 });
