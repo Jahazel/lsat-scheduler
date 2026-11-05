@@ -111,6 +111,7 @@ type Arrival = { motion: Motion; pages: CuePage[]; ready: Promise<void>; logo: D
 let leaving: Leaving | null = null;
 let copy: Copy | null = null;
 let arrival: Arrival | null = null;
+let arrivalPage: HTMLElement | null = null;
 const waiting = new Set<HTMLElement>();
 
 function wait(el: HTMLElement) {
@@ -146,6 +147,11 @@ function expectArrival(next: Omit<Arrival, "giveUp">) {
 }
 
 function pageLeft(page: CuePage, root: HTMLElement) {
+  if (root === arrivalPage) queueMicrotask(() => {
+    if (root.isConnected) return;
+    arrivalPage = null;
+    document.documentElement.removeAttribute("data-arrival");
+  });
   if (!LEADS_TO[page].pages.length || !("animate" in Element.prototype)) return;
   const els = page === "placeholder" ? [...root.querySelectorAll<HTMLElement>("[data-page-swap]")] : [root];
   if (els.some((el) => waiting.has(el) || el.closest("[inert]") || el.querySelector("[inert]"))) return;
@@ -212,7 +218,10 @@ function dropCopyIfNoPageFollows(pathname: string) {
 
 function pageArrived(page: CuePage, root: HTMLElement) {
   // A loading screen can still redirect with a full page load, which needs the note to fade in.
-  if (page !== "placeholder") forgetGoogleArrival();
+  if (page !== "placeholder" && hasGoogleArrivalNote()) {
+    forgetGoogleArrival();
+    arrivalPage = root;
+  }
   keepLeavingPage();
   if (copy && !LEADS_TO[copy.from].pages.includes(page)) dropCopy();
   if (copy) {
@@ -257,18 +266,13 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
     storeScroll(path, top);
   };
   const heldAt = useRef<number | null>(null);
-  const arrivalShown = useRef(false);
 
   useLayoutEffect(() => {
     const from = shown.current;
     shown.current = pathname;
     const arriving = target.current;
     if (from === pathname) return;
-    if (from) {
-      if (arrivalShown.current) document.documentElement.removeAttribute("data-arrival");
-      dropCopyIfNoPageFollows(pathname);
-    }
-    arrivalShown.current = !hasGoogleArrivalNote();
+    if (from) dropCopyIfNoPageFollows(pathname);
     if (!arriving) {
       if (from && motionBetween(from, pathname, signedIn) === "swap") arrive("swap");
       return;
