@@ -28,7 +28,7 @@ One light ground: Vellum page, Paper cards, Ink text, one Accent blue.
 | Text, secondary | `text-smoke` | All secondary text under 18 px |
 | Text, muted | `text-fog` | Placeholders, disabled labels, icons, text at 18 px and up |
 | Primary action | `bg-ink text-chalk`, hover `bg-graphite-raised` | Primary buttons and selected segments |
-| Accent | `text-accent`, `outline-accent`, `bg-accent` | Links, focus rings, progress fills. Never a button or card fill. |
+| Accent | `text-accent`, `outline-accent`, `bg-accent` | Links, focus rings, progress fills, and one button: the drill setup guide's Next step / Done button (`src/components/DrillSetupGuide.tsx`). Never any other button fill, and never a card fill. |
 | Accent tint | `bg-accent/tint`, `bg-accent/faint` | Tinted backgrounds (14% and 8%) |
 | Status | `text-success-ink`, `text-warning-ink`, `text-danger-ink` | Status text; the base color (`bg-success`, …) is for dots and icons |
 | Dark surface | `bg-ink`, `bg-graphite-raised`, `border-graphite-line` | Dark panels on Vellum |
@@ -68,9 +68,10 @@ Flat by default. Depth comes from a 1 px Vellum Line border.
 
 - **Two registers.** The landing page is a brand surface: proof numbers (178, Stanford Law, 200+ students) get their own
   visual step, never body size. The signed-in app is a calm weekly tool: flat, bordered, Accent only for links, focus,
-  and progress.
+  progress, and the drill setup guide's step button.
 - **Focus.** Every control shows a 2 px Accent focus ring with a 2 px offset.
-- **Motion.** 120 ms for hover, 200 ms for press and focus, 320 ms for overlays; honor `prefers-reduced-motion`.
+- **Motion.** 120 ms for hover, 200 ms for press and focus; overlays such as the Dialog open in 200 ms
+  and close in 120 ms (see `docs/design/research/drill-setup-guide/motion.md`); honor `prefers-reduced-motion`.
 - **Admin controls.** Admins get a workspace dropdown next to the wordmark and, on their student side, a test-controls
   dock for the simulated date. Past dates show a "Past" label; the current date shows "Today" and `aria-current="date"`.
 - **Don't** build a generic SaaS landing page or a legacy test-prep look (see PRODUCT.md).
