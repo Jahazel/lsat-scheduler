@@ -217,7 +217,7 @@ function dropCopyIfNoPageFollows(pathname: string) {
 }
 
 function pageArrived(page: CuePage, root: HTMLElement) {
-  // A loading screen can still redirect with a full page load, which needs the note to fade in.
+  // A loading screen can still redirect, and the page it lands on needs the note to fade in.
   if (page !== "placeholder" && hasGoogleArrivalNote()) {
     forgetGoogleArrival();
     arrivalPage = root;
