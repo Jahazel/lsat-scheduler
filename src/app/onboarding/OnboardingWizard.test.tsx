@@ -1062,3 +1062,120 @@ describe("OnboardingWizard · screenshot notice", () => {
     expect(screen.queryByText(NOTICE)).toBeNull();
   });
 });
+
+describe("OnboardingWizard · step slide", () => {
+  type Running = { el: Element; keyframes: Keyframe[]; options: KeyframeAnimationOptions; finish: () => void };
+  let live: Running[] = [];
+  let all: Running[] = [];
+  let reduced = false;
+
+  function animate(this: Element, keyframes: Keyframe[], options: KeyframeAnimationOptions) {
+    let finish!: () => void;
+    let reject!: (error: Error) => void;
+    const finished = new Promise<void>((resolve, fail) => { finish = resolve; reject = fail; });
+    finished.catch(() => {});
+    const running: Running = { el: this, keyframes, options, finish };
+    const animation = { finished, cancel: () => { live = live.filter((a) => a !== running); reject(new Error("AbortError")); } };
+    live.push(running);
+    all.push(running);
+    if (options.fill !== "forwards") finish();
+    return animation;
+  }
+  const finishExits = () => live.filter((a) => a.options.fill === "forwards").forEach((a) => a.finish());
+  const stepRegion = () => screen.getByRole("heading", { level: 1 }).closest<HTMLElement>("[data-onboarding-step]")!;
+
+  async function onAnalyticsWithMotion() {
+    const steps = await fillGoalAndWeek();
+    const tokens = document.documentElement.style;
+    tokens.setProperty("--duration-fast", "120ms");
+    tokens.setProperty("--duration-base", "200ms");
+    tokens.setProperty("--ease-standard", "cubic-bezier(0.2, 0, 0, 1)");
+    tokens.setProperty("--ease-exit", "cubic-bezier(0.4, 0, 1, 1)");
+    Element.prototype.animate = animate as unknown as Element["animate"];
+    Element.prototype.getAnimations = function (this: Element) { return live.filter((a) => a.el === this).map((a) => ({ cancel: () => { live = live.filter((b) => b !== a); } })) as unknown as Animation[]; };
+    window.matchMedia = ((query: string) => ({ matches: reduced && query.includes("reduce") })) as typeof window.matchMedia;
+    // jsdom computes no opacity for unstyled elements; a browser reports 1.
+    stepRegion().style.opacity = "1";
+    return steps;
+  }
+
+  beforeEach(() => {
+    live = [];
+    all = [];
+    reduced = false;
+  });
+  afterEach(() => {
+    Reflect.deleteProperty(Element.prototype, "animate");
+    Reflect.deleteProperty(Element.prototype, "getAnimations");
+    Reflect.deleteProperty(window, "matchMedia");
+    document.documentElement.removeAttribute("style");
+  });
+
+  it("Back slides the step out to the right, then the previous step in from the left, and only the step moves", async () => {
+    const { user } = await onAnalyticsWithMotion();
+    const region = stepRegion();
+
+    await user.click(screen.getByRole("button", { name: "Back" }));
+
+    expect(all.map((a) => a.el)).toEqual([region]);
+    expect(region.contains(screen.getByText("Step 3 of 4 · Analytics"))).toBe(false);
+    expect(all[0].keyframes.at(-1)).toEqual({ opacity: 0, transform: "translateX(8px)" });
+    expect(all[0].options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" });
+    expect(region.inert).toBe(true);
+    expect(region.getAttribute("aria-busy")).toBe("true");
+    expect(screen.getByRole("heading", { name: "Add your 7Sage analytics" })).toBeDefined();
+
+    finishExits();
+    await waitFor(() => expect(screen.getByText("Step 2 of 4 · Week")).toBeDefined());
+    expect(all.map((a) => a.el)).toEqual([region, region]);
+    expect(all[1].keyframes).toEqual([{ opacity: 0, transform: "translateX(-8px)" }, { opacity: 1, transform: "none" }]);
+    expect(all[1].options).toMatchObject({ duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" });
+    expect(region.inert).toBe(false);
+    expect(region.hasAttribute("aria-busy")).toBe(false);
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Plan your week" }));
+  });
+
+  it("Continue slides the step out to the left, then the next step in from the right", async () => {
+    const { user } = await onAnalyticsWithMotion();
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    finishExits();
+    await waitFor(() => expect(screen.getByText("Step 2 of 4 · Week")).toBeDefined());
+    all = [];
+
+    await user.click(continueButton());
+    expect(all[0].keyframes.at(-1)).toEqual({ opacity: 0, transform: "translateX(-8px)" });
+    finishExits();
+
+    await waitFor(() => expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined());
+    expect(all[1].keyframes[0]).toEqual({ opacity: 0, transform: "translateX(8px)" });
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Add your 7Sage analytics" }));
+  });
+
+  it("a second press during the slide continues from the current frame", async () => {
+    const { user } = await onAnalyticsWithMotion();
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    finishExits();
+    await waitFor(() => expect(screen.getByText("Step 2 of 4 · Week")).toBeDefined());
+    all = [];
+
+    const region = stepRegion();
+    Object.assign(region.style, { opacity: "0.5", transform: "translateX(-4px)" });
+    await user.click(screen.getByRole("button", { name: "Back" }));
+
+    expect(all[0].keyframes).toEqual([{ opacity: "0.5", transform: "translateX(-4px)" }, { opacity: 0, transform: "translateX(8px)" }]);
+    expect(all[0].options.duration).toBe(60);
+  });
+
+  it("with reduced motion, shows the next step at once and fades it in over 120 ms with no movement", async () => {
+    reduced = true;
+    const { user } = await onAnalyticsWithMotion();
+
+    await user.click(screen.getByRole("button", { name: "Back" }));
+
+    expect(screen.getByText("Step 2 of 4 · Week")).toBeDefined();
+    expect(all).toHaveLength(1);
+    expect(all[0].keyframes).toEqual([{ opacity: 0 }, { opacity: 1 }]);
+    expect(all[0].options.duration).toBe(120);
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Plan your week" }));
+  });
+});
