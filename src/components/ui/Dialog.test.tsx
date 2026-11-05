@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { Dialog, DialogClose } from "./Dialog";
 
 let finishExit: () => void;
@@ -22,9 +22,12 @@ beforeEach(() => {
   };
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
-function Page() {
+function Page({ onKeyDown }: { onKeyDown?: (event: KeyboardEvent<HTMLDialogElement>) => void }) {
   const [open, setOpen] = useState(false);
   const [opener, setOpener] = useState<HTMLElement | null>(null);
   return (
@@ -38,7 +41,7 @@ function Page() {
       >
         Set up
       </button>
-      <Dialog open={open} onClose={() => setOpen(false)} returnFocusTo={opener} aria-label="Drill setup guide">
+      <Dialog open={open} onClose={() => setOpen(false)} returnFocusTo={opener} onKeyDown={onKeyDown} aria-label="Drill setup guide">
         <p>Step 1 of 5</p>
         <DialogClose />
       </Dialog>
@@ -48,9 +51,9 @@ function Page() {
 
 const guide = () => screen.getByRole("dialog", { name: "Drill setup guide" });
 
-async function openGuide() {
+async function openGuide(onKeyDown?: (event: KeyboardEvent<HTMLDialogElement>) => void) {
   const user = userEvent.setup();
-  render(<Page />);
+  render(<Page onKeyDown={onKeyDown} />);
   await user.click(screen.getByRole("button", { name: "Set up" }));
   return user;
 }
@@ -90,6 +93,31 @@ describe("Dialog", () => {
 
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Set up" }));
+  });
+
+  it("passes keys other than Escape to its onKeyDown, and still closes on Escape", async () => {
+    const keys: string[] = [];
+    const user = await openGuide((event) => keys.push(event.key));
+    screen.getByRole("button", { name: "Close" }).focus();
+
+    await user.keyboard("{ArrowRight}");
+    expect(keys).toEqual(["ArrowRight"]);
+    expect(guide().hasAttribute("data-closing")).toBe(false);
+
+    await user.keyboard("{Escape}");
+    expect(keys).toEqual(["ArrowRight"]);
+    await endCloseMotion();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it.each([
+    ["keeps the page's scrollbar space when the page has a scrollbar", 1009, true],
+    ["reserves no scrollbar space when the page has no scrollbar", 1024, false],
+  ])("%s", async (_, pageWidth, reserved) => {
+    vi.spyOn(window, "innerWidth", "get").mockReturnValue(1024);
+    vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(pageWidth);
+    await openGuide();
+    expect(document.documentElement.hasAttribute("data-page-scrollbar")).toBe(reserved);
   });
 
   it("returns focus to the opener it was given when the click did not focus it, as in Safari", async () => {

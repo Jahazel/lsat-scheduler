@@ -21,6 +21,7 @@ type DialogProps = {
  * `DialogClose` ask to close through `onClose`. Setting `open` to false plays the close motion, then
  * closes the dialog and focuses `returnFocusTo`, or else the control that had focus when it opened.
  * Pass `returnFocusTo` from a click handler: Safari and Firefox on macOS do not focus a clicked button.
+ * While open the page cannot scroll; a page that had a scrollbar keeps its width, so nothing behind moves.
  */
 export function Dialog({ open, onClose, returnFocusTo, onKeyDown, children, className, ...label }: DialogProps) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -36,6 +37,8 @@ export function Dialog({ open, onClose, returnFocusTo, onKeyDown, children, clas
       element.removeAttribute("data-closing");
       if (!element.open) {
         opener.current = returnFocusTo ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+        const page = document.documentElement;
+        page.toggleAttribute("data-page-scrollbar", window.innerWidth > page.clientWidth);
         element.showModal();
       }
       return;
