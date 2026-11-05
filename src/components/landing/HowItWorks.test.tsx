@@ -116,8 +116,8 @@ describe("HowItWorks", () => {
     const phone = listScreens.filter((img) => img.getAttribute("src")?.includes("-phone"));
     const desktop = listScreens.filter((img) => !img.getAttribute("src")?.includes("-phone"));
     const pin = [...screen.getByTestId("how-pin").querySelectorAll("img")];
-    expect(phone.map(blankWhen)).toEqual(Array(4).fill("(width >= 48rem)"));
-    expect([...desktop, ...pin].map(blankWhen)).toEqual(Array(8).fill("(width < 48rem)"));
+    expect(phone.map(blankWhen)).toEqual(Array(4).fill("(min-width: 768px)"));
+    expect([...desktop, ...pin].map(blankWhen)).toEqual(Array(8).fill("not all and (min-width: 768px)"));
     expect(desktop.map((img) => img.getAttribute("srcset"))).toEqual(pin.map((img) => img.getAttribute("srcset")));
     expect(desktop.map((img) => img.getAttribute("sizes"))).toEqual(pin.map((img) => img.getAttribute("sizes")));
   });

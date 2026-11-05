@@ -7,7 +7,7 @@ import { FOCUS } from "@/components/ui/classes";
 export type Shot = { src: string; alt: string; width: number; height: number };
 export type Step = { lead: string; key: string; body: string; tone: "violet" | "pink" | "amber" | "spectrum"; screen: Shot };
 
-const HIDDEN_WIDTHS = { desktop: "(width < 48rem)", phone: "(width >= 48rem)" };
+const HIDDEN_WIDTHS = { desktop: "not all and (min-width: 768px)", phone: "(min-width: 768px)" };
 const NO_DOWNLOAD_SRC = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 export function StepScreen({ shot, alt = shot.alt, on, className }: { shot: Shot; alt?: string; on: "phone" | "desktop"; className: string }) {
