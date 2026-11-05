@@ -10,8 +10,8 @@ const UNDER_TOP_BAR = new Set(["/", "/legal/terms", "/legal/privacy", "/legal/ai
 const ONBOARDING = "/onboarding";
 
 type Motion = "whole-page" | "under-top-bar" | "swap";
-function motionBetween(from: string, to: string): Motion | null {
-  if (from === to) return null;
+function motionBetween(from: string, to: string, signedIn: boolean): Motion | null {
+  if (signedIn || from === to) return null;
   if (SIGN_IN.has(from) && SIGN_IN.has(to)) return "swap";
   if (UNDER_TOP_BAR.has(from) && UNDER_TOP_BAR.has(to)) return "under-top-bar";
   return (UNDER_TOP_BAR.has(from) && SIGN_IN.has(to)) || (SIGN_IN.has(from) && UNDER_TOP_BAR.has(to)) ? "whole-page" : null;
@@ -21,7 +21,7 @@ type Target = { path: string; hash: string; fromHistory: boolean; motion: Motion
 
 function regions(motion: Motion) {
   const found = [...document.querySelectorAll<HTMLElement>(motion === "swap" ? "[data-page-swap]" : "[data-page-fade], [data-page-swap]")]
-    .filter((el) => !el.closest("[data-page-copy]") && (motion !== "under-top-bar" || !el.closest("header")));
+    .filter((el) => el.getClientRects().length && !el.closest("[data-page-copy]") && (motion !== "under-top-bar" || !el.closest("header")));
   return found.filter((el) => !found.some((outer) => outer !== el && outer.contains(el)));
 }
 const visibleLogo = () => [...document.querySelectorAll<HTMLElement>("[data-page-logo]")].find((logo) => logo.getBoundingClientRect().width > 0);
@@ -223,7 +223,7 @@ export function PageCue({ page }: { page: CuePage }) {
   return <span ref={ref} hidden />;
 }
 
-export default function SiteMotion() {
+export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const shown = useRef<string | null>(null);
@@ -240,7 +240,7 @@ export default function SiteMotion() {
     if (from === pathname) return;
     if (from) dropCopyIfNoPageFollows(pathname);
     if (!arriving) {
-      if (from && motionBetween(from, pathname) === "swap") arrive("swap");
+      if (from && motionBetween(from, pathname, signedIn) === "swap") arrive("swap");
       return;
     }
     target.current = null;
@@ -260,7 +260,7 @@ export default function SiteMotion() {
     glideLogo(logoFrom.current);
     logoFrom.current = null;
     arrive(arriving.motion);
-  }, [pathname]);
+  }, [pathname, signedIn]);
 
   useEffect(() => {
     let replaying = false;
@@ -301,7 +301,7 @@ export default function SiteMotion() {
         }
         comeBack();
       }
-      const motion = shown.current && motionBetween(shown.current, to);
+      const motion = shown.current && motionBetween(shown.current, to, signedIn);
       if (!shown.current || !motion) return;
       event.preventDefault();
       scrolls.current.set(shown.current, scrollY);
@@ -312,7 +312,7 @@ export default function SiteMotion() {
       if (replaying) return;
       if (target.current) comeBack();
       const to = location.pathname;
-      const motion = shown.current && motionBetween(shown.current, to);
+      const motion = shown.current && motionBetween(shown.current, to, signedIn);
       if (!shown.current || !motion) return;
       const from = shown.current;
       const left = leave({ path: to, hash: "", fromHistory: true, motion });
@@ -346,7 +346,7 @@ export default function SiteMotion() {
       removeEventListener("popstate", holdPopStateUntilFadedOut, { capture: true });
       removeEventListener("scroll", onScroll);
     };
-  }, [router]);
+  }, [router, signedIn]);
 
   return null;
 }

@@ -40,9 +40,34 @@ describe("page motion", () => {
     expect(animate.mock.calls[1]).toEqual([[{ opacity: 0, transform: "translateX(-8px)" }, { opacity: 1, transform: "none" }], timing]);
   });
 
-  it("only fades in, over the fast duration, under reduced motion", () => {
+  it("only fades in, over the fast duration with the standard easing, under reduced motion", () => {
     reduced = true;
     fadeIn(document.createElement("div"), riseFrom(8));
-    expect(animate.mock.calls[0]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "linear" }]);
+    expect(animate.mock.calls[0]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "cubic-bezier(0.2, 0, 0, 1)" }]);
+  });
+
+  describe("a shortened fade-out from the current frame", () => {
+    const durationFrom = (opacity: string, to: number) => {
+      const el = document.createElement("div");
+      el.style.opacity = opacity;
+      fadeOut(el, { to, shorten: true });
+      return (animate.mock.calls.at(-1) as unknown as [Keyframe[], KeyframeAnimationOptions])[1].duration;
+    };
+
+    it("takes the share of the fast duration that is left", () => {
+      expect(durationFrom("1", 0)).toBe(120);
+      expect(durationFrom("0.5", 0)).toBe(60);
+      expect(durationFrom("0.7", 0.4)).toBeCloseTo(60);
+    });
+
+    it("takes no time when it is already at its end, even fading to full opacity", () => {
+      expect(durationFrom("1", 1)).toBe(0);
+      expect(durationFrom("0.4", 0.4)).toBe(0);
+    });
+
+    it("never takes a negative or endless time when the content is fainter than the end", () => {
+      expect(durationFrom("0.5", 1)).toBe(120);
+      expect(durationFrom("0.2", 0.4)).toBeCloseTo(40);
+    });
   });
 });

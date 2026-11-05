@@ -255,10 +255,11 @@ describe("ProgressMotion", () => {
     animate.mockClear();
     reduced = true;
     document.documentElement.style.setProperty("--duration-fast", ".12s");
+    document.documentElement.style.setProperty("--ease-standard", "cubic-bezier(0.2, 0, 0, 1)");
     fireEvent.click(screen.getByRole("link", { name: "← All weeks" }));
     show("/progress", <List />, rerender);
     expect(animate).toHaveBeenCalledTimes(2);
     expect(keyframes(0).at(-1)).toMatchObject({ opacity: 0.5, transform: "translateX(0px)" });
-    expect(animate.mock.calls[1]).toEqual([[{ opacity: 0.5 }, { opacity: 1 }], { duration: 120, easing: "linear" }]);
+    expect(animate.mock.calls[1]).toEqual([[{ opacity: 0.5 }, { opacity: 1 }], { duration: 120, easing: "cubic-bezier(0.2, 0, 0, 1)" }]);
   });
 });

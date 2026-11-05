@@ -2,7 +2,7 @@
 
 The owner approved this motion in the prototype on 2026-11-04 (`prototype/index.html`). It is the same motion set as Progress (`../progress/motion.md`), so the site moves one way everywhere.
 
-Durations are the design-system tokens: fast 120 ms, base 200 ms. Easings: standard `cubic-bezier(0.2, 0, 0, 1)` (`--ease-standard`), exit `cubic-bezier(0.4, 0, 1, 1)` (`--ease-exit`). Reduced motion follows the design system: drop movement, keep a 120 ms fade in.
+Durations are the design-system tokens: fast 120 ms, base 200 ms. Easings: standard `cubic-bezier(0.2, 0, 0, 1)` (`--ease-standard`), exit `cubic-bezier(0.4, 0, 1, 1)` (`--ease-exit`). Reduced motion follows the design system: drop movement, keep a 120 ms fade in with the standard easing (`--ease-standard`).
 
 Purpose of every row: prevent a jarring change. Each page change happens a few times per visit, so a short fade is in budget. Properties are `opacity` and `transform` only.
 
@@ -29,5 +29,6 @@ Purpose of every row: prevent a jarring change. Each page change happens a few t
 | Page content | Browser Back or Forward between pages in scope | The same motion as the link that leads to the same page, with no direction. The page returns to the scroll spot the student left. Onboarding steps are not history entries, so Back leaves onboarding. | As the matching row | As the matching row |
 | Page content | A second click while a transition runs | The running transition continues from where it is, toward the newest target. It never jumps back to full opacity. A second click on the same link adds no history entry. The old content cannot be clicked while it fades out (it is inert and marked busy with `aria-busy`). | Out phase shortens in step with the opacity left. | Same |
 | Page content | Google sign-in, or a browser that cannot run page motion | None. The page changes as it does today. Nothing breaks. | — | Same |
+| Page content | A signed-in student opens Terms, Privacy, or AI disclosure, or leaves one (the footer links, the logo) | None. Signed-in pages change with no motion, so a redirect after the logo never shows half a change. Signed-out visits keep the legal rows above. | — | Same |
 
 Each heading takes focus with no visible ring, which is the usual pattern when the page moves focus. The next Tab stop shows the ring. A full change takes about 320 ms (120 ms out, then 200 ms in).

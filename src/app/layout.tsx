@@ -39,7 +39,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             <SiteHeader />
             <main tabIndex={-1} className="flex-1 outline-none">{children}</main>
             <Footer signedIn={!!session?.user} />
-            <SiteMotion />
+            <SiteMotion signedIn={!!session?.user} />
           </FailureToastProvider>
         </AdminTestProvider>
       </body>
