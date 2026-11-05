@@ -19,6 +19,21 @@ function motionBetween(from: string, to: string, signedIn: boolean): Motion | nu
 
 type Target = { path: string; hash: string; fromHistory: boolean; motion: Motion };
 
+const SCROLL_KEY = "drillmap:scroll:";
+function storedScroll(path: string) {
+  try {
+    const stored = sessionStorage.getItem(SCROLL_KEY + path);
+    return stored === null ? undefined : Number(stored);
+  } catch {
+    return undefined;
+  }
+}
+function storeScroll(path: string, top: number) {
+  try {
+    sessionStorage.setItem(SCROLL_KEY + path, String(top));
+  } catch {}
+}
+
 function regions(motion: Motion) {
   const found = [...document.querySelectorAll<HTMLElement>(motion === "swap" ? "[data-page-swap]" : "[data-page-fade], [data-page-swap]")]
     .filter((el) => el.getClientRects().length && !el.closest("[data-page-copy]") && (motion !== "under-top-bar" || !el.closest("header")));
@@ -231,6 +246,11 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
   const leaving = useRef<HTMLElement[]>([]);
   const logoFrom = useRef<DOMRect | null>(null);
   const scrolls = useRef(new Map<string, number>());
+  const savedScroll = (path: string) => scrolls.current.get(path) ?? storedScroll(path);
+  const saveScroll = (path: string, top: number) => {
+    scrolls.current.set(path, top);
+    storeScroll(path, top);
+  };
   const heldAt = useRef<number | null>(null);
 
   useLayoutEffect(() => {
@@ -255,8 +275,8 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
 
     const section = arriving.hash && document.getElementById(arriving.hash.slice(1));
     if (section) section.scrollIntoView({ behavior: "instant" });
-    else scrollTo({ top: arriving.fromHistory ? scrolls.current.get(pathname) ?? 0 : 0, behavior: "instant" });
-    scrolls.current.set(pathname, scrollY);
+    else scrollTo({ top: arriving.fromHistory ? savedScroll(pathname) ?? 0 : 0, behavior: "instant" });
+    saveScroll(pathname, scrollY);
     glideLogo(logoFrom.current);
     logoFrom.current = null;
     arrive(arriving.motion);
@@ -304,7 +324,7 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
       const motion = shown.current && motionBetween(shown.current, to, signedIn);
       if (!shown.current || !motion) return;
       event.preventDefault();
-      scrolls.current.set(shown.current, scrollY);
+      saveScroll(shown.current, scrollY);
       leave({ path: to, hash: url.hash, fromHistory: false, motion }).then((ok) => ok && router.push(url.pathname + url.search + url.hash, { scroll: false }));
     }
 
@@ -321,7 +341,7 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
       if (reducedMotion() && routerEntry) return;
       event.stopImmediatePropagation();
       // Chrome restores the new entry's scroll after popstate; the old page keeps its spot until it has faded out.
-      heldAt.current = scrolls.current.get(from) ?? scrollY;
+      heldAt.current = savedScroll(from) ?? scrollY;
       left.then((ok) => {
         if (!ok) return;
         heldAt.current = null;
@@ -335,7 +355,7 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
     function onScroll() {
       const pin = heldAt.current;
       if (pin !== null && scrollY !== pin) scrollTo({ top: pin, behavior: "instant" });
-      else if (!target.current && shown.current) scrolls.current.set(shown.current, scrollY);
+      else if (!target.current && shown.current) saveScroll(shown.current, scrollY);
     }
 
     addEventListener("click", onClick, { capture: true });
