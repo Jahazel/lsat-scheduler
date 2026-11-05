@@ -68,6 +68,8 @@ describe("page placeholder", () => {
     expect(screen.getByText("Grey header").closest("[aria-hidden]")).not.toBeNull();
     expect(screen.queryByRole("status")).toBeNull();
     rerender(<Page />);
+    expect(screen.getByRole("status").textContent).toBe("");
+    act(() => vi.advanceTimersToNextFrame());
     expect(screen.getByRole("status").textContent).toBe("This week loaded");
   });
 
@@ -117,11 +119,19 @@ describe("page placeholder", () => {
     }
   });
 
+  it("leaves the motion to the sign-in handoff when it holds the page busy", () => {
+    render(<div aria-busy="true"><Page /></div>);
+    expect(sectionArrivals()).toEqual([]);
+    act(() => vi.advanceTimersToNextFrame());
+    expect(screen.getByRole("status").textContent).toBe("This week loaded");
+  });
+
   it("leaves a page the server already put on screen where it is", () => {
     const container = document.createElement("div");
     container.innerHTML = renderToString(<Page />);
     document.body.append(container);
     render(<Page />, { container, hydrate: true });
+    act(() => vi.advanceTimersToNextFrame());
     expect(sectionArrivals()).toEqual([]);
     expect(screen.getByRole("status").textContent).toBe("");
   });

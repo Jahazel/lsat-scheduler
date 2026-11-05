@@ -65,7 +65,10 @@ export function PageArrival({ page }: { page: string }) {
   useLayoutEffect(() => {
     if (!openedByApp) return;
     const status = ref.current!;
-    status.textContent = `${page} loaded`;
+    // Screen readers announce a status line only when its text changes after it is on the page.
+    const announce = requestAnimationFrame(() => { status.textContent = `${page} loaded`; });
+    // SiteMotion's sign-in handoff holds the page busy and fades it in whole.
+    if (status.closest("[aria-busy]")) return () => cancelAnimationFrame(announce);
     const sections = [...status.parentElement!.querySelectorAll<HTMLElement>("[data-page-section]")];
     const still = reducedMotion();
     const rise = matchMedia("(max-width: 767px)").matches ? 4 : 8;
@@ -78,7 +81,10 @@ export function PageArrival({ page }: { page: string }) {
         fill: "backwards",
       },
     ));
-    return () => arrivals.forEach((arrival) => arrival.cancel());
+    return () => {
+      cancelAnimationFrame(announce);
+      arrivals.forEach((arrival) => arrival.cancel());
+    };
   }, [openedByApp, page]);
   return <p ref={ref} role="status" className="sr-only" />;
 }
