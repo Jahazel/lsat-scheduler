@@ -2,9 +2,9 @@ import Link from "next/link";
 
 export default function AIDisclosurePage() {
   return (
-    <div className="min-h-screen px-6 py-12">
+    <div data-page-fade className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-2xl">
-        <h1 className="text-h3 font-semibold text-ink">How DrillMap uses AI</h1>
+        <h1 tabIndex={-1} className="text-h3 font-semibold text-ink outline-none">How DrillMap uses AI</h1>
         <div className="mt-4 space-y-4 text-small leading-body text-smoke">
           <p>
             DrillMap uses AI for one task only: reading the numbers in your 7Sage analytics screenshot. Anthropic&apos;s
