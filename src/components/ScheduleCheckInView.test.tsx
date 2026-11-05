@@ -423,16 +423,23 @@ describe("ScheduleCheckInView", () => {
     });
 
     describe("on This week", () => {
-      const renderThisWeek = (activityId: string | null) => {
-        history.replaceState({ entry: "this week" }, "", activityId === null ? "/dashboard" : `/dashboard?drill=${activityId}`);
-        return render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]}
-          thisWeek={{ linkedActivityId: activityId }} />);
+      const thisWeek = () => week().weekOf;
+      const link = (activityId: string, weekOf = thisWeek()) => `${weekOf}:${activityId}`;
+      const renderThisWeek = (drillLink: string | null, schedule = week()) => {
+        history.replaceState({ entry: "this week" }, "", drillLink === null ? "/dashboard" : `/dashboard?drill=${drillLink}`);
+        return render(<ScheduleCheckInView scheduleId="schedule-1" schedule={schedule} student={mockStudent} checkIns={[]}
+          thisWeek={{ drillLink }} />);
       };
       const onThisWeekEntry = () => expect(history.state).toEqual({ entry: "this week" });
+      const reload = (unmount: () => void, drillLink: string | null = null) => {
+        unmount();
+        return render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]}
+          thisWeek={{ drillLink }} />);
+      };
 
       it("opens the guide for the drill a link names, and closing it takes the drill out of the address", async () => {
         const user = userEvent.setup();
-        renderThisWeek("TUESDAY:0");
+        renderThisWeek(link("TUESDAY:0"));
         expect(screen.getByRole("dialog", { name: `Drill setup guide · Tuesday · ${paired}` }).getAttribute("open")).not.toBeNull();
         expect(stepCount()).toBe("Step 1 of 5");
         expect(screen.queryByText("That drill is not in this week.")).toBeNull();
@@ -444,12 +451,57 @@ describe("ScheduleCheckInView", () => {
         expect(document.activeElement).toBe(setUp(paired));
       });
 
-      it.each([["a drill from another week", "SUNDAY:7"], ["a full section", "MONDAY:0"], ["nonsense", "x"]])(
-        "shows the notice and no guide for a link to %s", (_, activityId) => {
-          renderThisWeek(activityId);
-          expect(screen.getByRole("status").textContent).toBe("That drill is not in this week.");
-          expect(screen.queryByRole("dialog")).toBeNull();
-        });
+      it.each([
+        ["a drill from another week", () => link("TUESDAY:0", "2026-08-17")],
+        ["a drill that names no week", () => "TUESDAY:0"],
+        ["a slot this week does not have", () => link("SUNDAY:7")],
+        ["a full section", () => link("MONDAY:0")],
+        ["nonsense", () => "x"],
+      ])("shows the notice and no guide for a link to %s", (_, drillLink) => {
+        renderThisWeek(drillLink());
+        expect(screen.getByRole("status").textContent).toBe("That drill is not in this week.");
+        expect(screen.queryByRole("dialog")).toBeNull();
+      });
+
+      it("shows the notice and no guide on next week's preview for a link from this week", () => {
+        const nextWeek = generateWeek(mockStudent, { ...mockAnalytics, weekOf: "2026-08-31" }, mockRules, mockStudentName);
+        renderThisWeek(link("TUESDAY:0"), nextWeek);
+        expect(screen.getByRole("status").textContent).toBe("That drill is not in this week.");
+        expect(screen.queryByRole("dialog")).toBeNull();
+      });
+
+      it("does not bring the drill back on Forward after Back closes a guide a link opened, now or after a reload", async () => {
+        const { unmount } = renderThisWeek(link("TUESDAY:0"));
+        history.back();
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+        await waitFor(() => expect(location.search).toBe(""));
+
+        history.forward();
+        await waitFor(() => expect(location.search).toBe(""));
+        await waitFor(() => expect(history.state).toEqual({}));
+        expect(screen.queryByRole("dialog")).toBeNull();
+
+        reload(unmount);
+        expect(screen.queryByRole("dialog")).toBeNull();
+      });
+
+      it.each([
+        ["Set up", async () => { const view = renderThisWeek(null); await userEvent.setup().click(setUp(paired)); return view; }],
+        ["a link", async () => renderThisWeek(link("TUESDAY:0"))],
+      ])("keeps the same guide open after a reload, with no extra history entry, when %s opened it", async (_, open) => {
+        const { unmount } = await open();
+        const entries = history.length;
+        const drillLink = new URLSearchParams(location.search).get("drill");
+
+        reload(unmount, drillLink);
+        expect(screen.getByRole("dialog", { name: `Drill setup guide · Tuesday · ${paired}` }).getAttribute("open")).not.toBeNull();
+        expect(history.length).toBe(entries);
+
+        history.back();
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+        onThisWeekEntry();
+        expect(location.search).toBe("");
+      });
 
       it("closes the guide on the browser's Back and stays on This week, with focus back on Set up", async () => {
         const user = userEvent.setup();
