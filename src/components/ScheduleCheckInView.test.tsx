@@ -355,6 +355,12 @@ describe("ScheduleCheckInView", () => {
       expect(slides().map((slide) => slide.from.transform)).toEqual(["translateX(-12px)", "translateX(-12px)"]);
     });
 
+    it("moves with the arrow keys after a click on plain text leaves focus on the guide itself", async () => {
+      await openGuide();
+      fireEvent.keyDown(guide(), { key: "ArrowRight" });
+      expect(stepCount()).toBe("Step 2 of 5");
+    });
+
     it("changes the card at once on a held arrow key", async () => {
       await openGuide();
       fireEvent.keyDown(document.activeElement!, { key: "ArrowRight", repeat: true });

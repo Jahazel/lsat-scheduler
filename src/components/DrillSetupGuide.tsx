@@ -134,8 +134,9 @@ export function DrillSetupGuide({ open, onClose, returnFocusTo, day, label, guid
   }
 
   return (
-    <Dialog open={open} onClose={onClose} returnFocusTo={returnFocusTo} aria-labelledby={titleId} className="h-[680px] w-[1080px]">
-      <div className="flex h-full flex-col" onKeyDown={onKeyDown}>
+    <Dialog open={open} onClose={onClose} returnFocusTo={returnFocusTo} aria-labelledby={titleId} onKeyDown={onKeyDown}
+      className="h-[680px] w-[1080px]">
+      <div className="flex h-full flex-col">
         <div className="flex items-center gap-3 border-b border-vellum-line py-3 pr-3 pl-5">
           <p id={titleId} ref={title} tabIndex={-1}
             className="line-clamp-2 min-w-0 flex-1 text-[13px] leading-[18px] text-smoke focus:outline-none md:line-clamp-none">
