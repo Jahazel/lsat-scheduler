@@ -249,19 +249,16 @@ body:has([data-sign-in-page]) > footer { display: none; }
   html:has(#how-it-works) { scroll-behavior: smooth; }
 }
 
-@keyframes page-arrive { from { opacity: 0; transform: translateY(8px); } }
-@keyframes page-arrive-phone { from { opacity: 0; transform: translateY(4px); } }
-@keyframes page-arrive-fade { from { opacity: 0; } }
-html[data-arrival] :is([data-page-fade], [data-page-swap]):not(:is([data-page-fade], [data-page-swap]) *) {
+@keyframes page-arrive { from { opacity: 0; transform: translateY(var(--arrive-rise)); } }
+:where(html[data-arrival] :is([data-page-fade], [data-page-swap], [data-arrival-fade]):not(:is([data-page-fade], [data-page-swap], [data-page-copy]) *)) {
+  --arrive-rise: 8px;
   animation: page-arrive var(--duration-base) var(--ease-standard) both;
 }
 @media (max-width: 390px) {
-  html[data-arrival] :is([data-page-fade], [data-page-swap]):not(:is([data-page-fade], [data-page-swap]) *) { animation-name: page-arrive-phone; }
+  html[data-arrival] :is([data-page-fade], [data-page-swap], [data-arrival-fade]) { --arrive-rise: 4px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  html[data-arrival] :is([data-page-fade], [data-page-swap]):not(:is([data-page-fade], [data-page-swap]) *) {
-    animation: page-arrive-fade var(--duration-fast) var(--ease-standard) both;
-  }
+  html[data-arrival] :is([data-page-fade], [data-page-swap], [data-arrival-fade]) { --arrive-rise: 0px; animation-duration: var(--duration-fast); }
 }
 
 .step-mat { --mat-size: 80% 70%; --mat-spectrum-at: 50% 90%; --mat-edge: 0%; }

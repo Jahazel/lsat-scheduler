@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { flushSync } from "react-dom";
-import { forgetGoogleArrival } from "@/lib/googleArrival";
+import { forgetGoogleArrival, hasGoogleArrivalNote } from "@/lib/googleArrival";
 import { durationMs, fadeIn, fadeOut, isPlainClick, motionToken, reducedMotion, riseFrom, stopAtCurrentFrame } from "@/lib/motion";
 
 const SIGN_IN = new Set(["/signup", "/login", "/forgot-password", "/reset-password", "/verify-email"]);
@@ -257,6 +257,7 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
     storeScroll(path, top);
   };
   const heldAt = useRef<number | null>(null);
+  const arrivalShown = useRef(false);
 
   useLayoutEffect(() => {
     const from = shown.current;
@@ -264,9 +265,10 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
     const arriving = target.current;
     if (from === pathname) return;
     if (from) {
-      document.documentElement.removeAttribute("data-arrival");
+      if (arrivalShown.current) document.documentElement.removeAttribute("data-arrival");
       dropCopyIfNoPageFollows(pathname);
     }
+    arrivalShown.current = !hasGoogleArrivalNote();
     if (!arriving) {
       if (from && motionBetween(from, pathname, signedIn) === "swap") arrive("swap");
       return;

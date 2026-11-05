@@ -930,6 +930,19 @@ describe("SiteMotion", () => {
       expect(document.cookie).toContain("drillmap-arrival=google");
     });
 
+    it("keeps the arrival mark when the loading screen redirects in the page, so the next page still fades in", () => {
+      document.cookie = "drillmap-arrival=google; path=/";
+      document.documentElement.setAttribute("data-arrival", "google");
+      mocks.pathname = "/dashboard";
+      const { rerender } = render(<><div /><SiteMotion signedIn /></>);
+      mocks.pathname = "/onboarding";
+      rerender(<><div><PageCue page="onboarding" /></div><SiteMotion signedIn /></>);
+      expect(document.documentElement.getAttribute("data-arrival")).toBe("google");
+      mocks.pathname = "/dashboard";
+      rerender(<><div><PageCue page="this-week" /></div><SiteMotion signedIn /></>);
+      expect(document.documentElement.hasAttribute("data-arrival")).toBe(false);
+    });
+
     it("clears the arrival note when the page itself shows, and lets the next page change with no fade", () => {
       document.cookie = "drillmap-arrival=google; path=/";
       document.documentElement.setAttribute("data-arrival", "google");
