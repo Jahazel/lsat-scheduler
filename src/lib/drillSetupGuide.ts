@@ -1,6 +1,7 @@
 import type { Activity, LRDrill, RCDrill } from "./types";
 
 export const SEVEN_SAGE_URL = "https://7sage.com/";
+export const DRILL_LINK_PARAMETER = "drill";
 
 export type StepText = (string | { value: string })[];
 

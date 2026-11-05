@@ -421,5 +421,69 @@ describe("ScheduleCheckInView", () => {
         { opacity: 0, transform: "translateX(0px)" },
       ]);
     });
+
+    describe("on This week", () => {
+      const renderThisWeek = (activityId: string | null) => {
+        history.replaceState({ entry: "this week" }, "", activityId === null ? "/dashboard" : `/dashboard?drill=${activityId}`);
+        return render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]}
+          thisWeek={{ linkedActivityId: activityId }} />);
+      };
+      const onThisWeekEntry = () => expect(history.state).toEqual({ entry: "this week" });
+
+      it("opens the guide for the drill a link names, and closing it takes the drill out of the address", async () => {
+        const user = userEvent.setup();
+        renderThisWeek("TUESDAY:0");
+        expect(screen.getByRole("dialog", { name: `Drill setup guide · Tuesday · ${paired}` }).getAttribute("open")).not.toBeNull();
+        expect(stepCount()).toBe("Step 1 of 5");
+        expect(screen.queryByText("That drill is not in this week.")).toBeNull();
+
+        await user.click(screen.getByRole("button", { name: "Close the drill setup guide" }));
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+        await waitFor(onThisWeekEntry);
+        await waitFor(() => expect(location.search).toBe(""));
+        expect(document.activeElement).toBe(setUp(paired));
+      });
+
+      it.each([["a drill from another week", "SUNDAY:7"], ["a full section", "MONDAY:0"], ["nonsense", "x"]])(
+        "shows the notice and no guide for a link to %s", (_, activityId) => {
+          renderThisWeek(activityId);
+          expect(screen.getByRole("status").textContent).toBe("That drill is not in this week.");
+          expect(screen.queryByRole("dialog")).toBeNull();
+        });
+
+      it("closes the guide on the browser's Back and stays on This week, with focus back on Set up", async () => {
+        const user = userEvent.setup();
+        renderThisWeek(null);
+        await user.click(setUp(paired));
+        expect(history.state).not.toEqual({ entry: "this week" });
+
+        history.back();
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+        onThisWeekEntry();
+        await waitFor(() => expect(document.activeElement).toBe(setUp(paired)));
+        expect(location.pathname).toBe("/dashboard");
+      });
+
+      it("takes the guide's history entry back off when it closes another way", async () => {
+        const user = userEvent.setup();
+        renderThisWeek(null);
+        await user.click(setUp(paired));
+        await user.keyboard("{Escape}");
+        await waitFor(onThisWeekEntry);
+        expect(screen.queryByRole("dialog")).toBeNull();
+
+        await user.click(setUp(paired));
+        expect(guide().getAttribute("open")).not.toBeNull();
+        history.back();
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+        onThisWeekEntry();
+      });
+
+      it("adds no history entry outside This week", async () => {
+        history.replaceState({ entry: "progress" }, "", "/progress");
+        await openGuide();
+        expect(history.state).toEqual({ entry: "progress" });
+      });
+    });
   });
 });
