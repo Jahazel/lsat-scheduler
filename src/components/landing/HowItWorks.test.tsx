@@ -98,12 +98,35 @@ describe("HowItWorks", () => {
     ]);
   });
 
-  it("loads the step screens that can be the largest paint after a scrolled reload eagerly", () => {
+  it("loads every step screen eagerly, so a scrolled reload never paints a lazy one first", () => {
     render(<HowItWorks />);
-    const pinScreens = [...screen.getByTestId("how-pin").querySelectorAll("img")];
-    expect(pinScreens.map((img) => img.getAttribute("loading"))).toEqual(["eager", "eager", "eager", "eager"]);
-    const phoneScreens = within(screen.getByRole("list")).getAllByRole("img").filter((img) => img.getAttribute("src")?.includes("-phone"));
-    expect(phoneScreens.map((img) => img.getAttribute("loading"))).toEqual(["lazy", "lazy", "lazy", "eager"]);
+    const screens = [...screen.getByRole("region", { name: "How it works" }).querySelectorAll("img")];
+    expect(screens).toHaveLength(12);
+    expect(screens.every((img) => img.getAttribute("loading") === "eager")).toBe(true);
+  });
+
+  it("downloads each step screen only at the widths that show it", () => {
+    render(<HowItWorks />);
+    const blankWhen = (img: Element) => {
+      const source = img.closest("picture")?.querySelector("source");
+      expect(source?.getAttribute("srcset")).toMatch(/^data:image\//);
+      return source?.getAttribute("media");
+    };
+    const listScreens = within(screen.getByRole("list")).getAllByRole("img");
+    const phone = listScreens.filter((img) => img.getAttribute("src")?.includes("-phone"));
+    const desktop = listScreens.filter((img) => !img.getAttribute("src")?.includes("-phone"));
+    const pin = [...screen.getByTestId("how-pin").querySelectorAll("img")];
+    expect(phone.map(blankWhen)).toEqual(Array(4).fill("(width >= 48rem)"));
+    expect([...desktop, ...pin].map(blankWhen)).toEqual(Array(8).fill("(width < 48rem)"));
+    expect(desktop.map((img) => img.getAttribute("srcset"))).toEqual(pin.map((img) => img.getAttribute("srcset")));
+    expect(desktop.map((img) => img.getAttribute("sizes"))).toEqual(pin.map((img) => img.getAttribute("sizes")));
+  });
+
+  it("reads the section name once, from its label", () => {
+    render(<HowItWorks />);
+    const section = screen.getByRole("region", { name: "How it works" });
+    const read = within(section).getAllByText("How it works").filter((element) => !isInaccessible(element));
+    expect(read).toEqual([within(section).getByRole("heading", { level: 2, name: "How it works" })]);
   });
 
   it("hides the swapping step copy and screens from screen readers", () => {

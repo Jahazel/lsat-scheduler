@@ -1,5 +1,4 @@
-import Image from "next/image";
-import { HowItWorksPin, type Shot, type Step } from "./HowItWorksPin";
+import { HowItWorksPin, StepScreen, type Shot, type Step } from "./HowItWorksPin";
 import { SectionLabel } from "./SectionGrid";
 
 const STEPS: (Step & { phoneScreen: Shot })[] = [
@@ -49,7 +48,7 @@ export function HowItWorks() {
       <SectionLabel id="how-title" number="02">How it works</SectionLabel>
       <div className="flex w-full flex-col items-center gap-10 pt-8 md:w-[720px] md:gap-14 md:pt-14 pin:contents">
         <div className="flex flex-col items-center gap-4 text-center pin:hidden">
-          <p className="text-[32px]/[38px] font-semibold tracking-heading text-ink md:text-h2">How it works</p>
+          <p aria-hidden="true" className="text-[32px]/[38px] font-semibold tracking-heading text-ink md:text-h2">How it works</p>
           <p className="text-body text-smoke md:max-w-[600px] md:text-lead">
             Four steps. The last one repeats every weekend, so each new plan starts from your latest results.
           </p>
@@ -66,8 +65,8 @@ export function HowItWorks() {
               <div className="pin:hidden">
                 <div aria-hidden="true" className={`step-mat step-mat-${tone} absolute inset-0 -z-10 rounded-lg md:rounded-[24px]`} />
                 <div className="relative h-[380px] w-full overflow-clip rounded-md bg-paper shadow-e2 md:h-[400px] md:w-[624px]">
-                  <Image src={screen.src} alt={screen.alt} width={screen.width} height={screen.height} sizes="624px" className={`${SHOT_IMAGE} hidden md:block`} />
-                  <Image src={phoneScreen.src} alt={phoneScreen.alt} width={phoneScreen.width} height={phoneScreen.height} sizes="100vw" loading={index === STEPS.length - 1 ? "eager" : "lazy"} className={`${SHOT_IMAGE} md:hidden`} />
+                  <StepScreen shot={screen} on="desktop" className={`${SHOT_IMAGE} hidden md:block`} />
+                  <StepScreen shot={phoneScreen} on="phone" className={`${SHOT_IMAGE} md:hidden`} />
                 </div>
               </div>
             </li>

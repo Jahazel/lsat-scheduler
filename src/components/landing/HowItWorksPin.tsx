@@ -7,6 +7,18 @@ import { FOCUS } from "@/components/ui/classes";
 export type Shot = { src: string; alt: string; width: number; height: number };
 export type Step = { lead: string; key: string; body: string; tone: "violet" | "pink" | "amber" | "spectrum"; screen: Shot };
 
+const HIDDEN_WIDTHS = { desktop: "(width < 48rem)", phone: "(width >= 48rem)" };
+const NO_DOWNLOAD_SRC = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+export function StepScreen({ shot, alt = shot.alt, on, className }: { shot: Shot; alt?: string; on: "phone" | "desktop"; className: string }) {
+  return (
+    <picture>
+      <source media={HIDDEN_WIDTHS[on]} srcSet={NO_DOWNLOAD_SRC} />
+      <Image src={shot.src} alt={alt} width={shot.width} height={shot.height} sizes={on === "desktop" ? "(min-width: 1024px) 624px, 672px" : "100vw"} loading="eager" className={className} />
+    </picture>
+  );
+}
+
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 const twoDigits = (value: number) => String(value).padStart(2, "0");
 
@@ -115,7 +127,7 @@ export function HowItWorksPin({ steps }: { steps: Step[] }) {
           ))}
           {steps.map(({ key, screen }, index) => (
             <div key={key} data-state={stateOf(index)} className="how-shot absolute inset-0 overflow-clip rounded-md bg-paper shadow-e2">
-              <Image src={screen.src} alt="" width={screen.width} height={screen.height} sizes="(min-width: 1024px) 624px, 672px" loading="eager" className="size-full object-cover object-left-top" />
+              <StepScreen shot={screen} alt="" on="desktop" className="size-full object-cover object-left-top" />
             </div>
           ))}
         </div>
