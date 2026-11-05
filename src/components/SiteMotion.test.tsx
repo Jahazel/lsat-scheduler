@@ -45,8 +45,11 @@ beforeEach(() => {
   tokens.setProperty("--ease-exit", "cubic-bezier(0.4, 0, 1, 1)");
   Element.prototype.animate = animate as unknown as Element["animate"];
   Element.prototype.getAnimations = function (this: Element) { return live.filter((a) => a.el === this) as unknown as Animation[]; };
+  Element.prototype.getClientRects = function (this: Element) {
+    return (this.closest("[hidden]") ? [] : [new DOMRect()]) as unknown as DOMRectList;
+  };
   Element.prototype.getBoundingClientRect = function (this: Element) {
-    if (!this.hasAttribute("data-page-logo")) return new DOMRect();
+    if (!this.hasAttribute("data-page-logo") || this.closest("[hidden]")) return new DOMRect();
     if (!this.closest("[data-sign-in-page]")) return TOP_BAR_LOGO;
     return new DOMRect(SIGN_IN_LOGO.x, SIGN_IN_LOGO.y - window.scrollY, SIGN_IN_LOGO.width, SIGN_IN_LOGO.height);
   };
@@ -57,9 +60,9 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-function TopBar() {
+function TopBar({ hidden }: { hidden?: boolean }) {
   return (
-    <header>
+    <header hidden={hidden}>
       <Link data-page-logo href="/">DrillMap</Link>
       <nav data-page-fade aria-label="Primary" style={{ opacity: 1 }}>
         <Link href="/#how-it-works">How it works</Link>
@@ -103,23 +106,27 @@ function Legal({ title }: { title: string }) {
 
 function SignIn({ title, notice, children }: { title: string; notice?: string; children?: React.ReactNode }) {
   return (
-    <main tabIndex={-1}>
-      <div data-sign-in-page style={{ opacity: 1 }}>
-        <PageCue page="sign-in" />
-        <Link data-page-logo href="/">DrillMap</Link>
-        <div data-page-swap style={{ opacity: 1 }}>
-          <h1 tabIndex={-1}>{title}</h1>
-          {notice && <p role="status">{notice}</p>}
-          {children}
+    <>
+      <TopBar hidden />
+      <main tabIndex={-1}>
+        <div data-sign-in-page style={{ opacity: 1 }}>
+          <PageCue page="sign-in" />
+          <Link data-page-logo href="/">DrillMap</Link>
+          <div data-page-swap style={{ opacity: 1 }}>
+            <h1 tabIndex={-1}>{title}</h1>
+            {notice && <p role="status">{notice}</p>}
+            {children}
+          </div>
+          <nav data-page-fade aria-label="Legal" style={{ opacity: 1 }}>
+            <a href="/legal/terms">Terms</a>
+          </nav>
+          <div data-page-fade aria-label="Preview panel" style={{ opacity: 1 }}>
+            <div data-page-swap aria-label="Preview card" style={{ opacity: 1 }}>Preview</div>
+          </div>
         </div>
-        <nav data-page-fade aria-label="Legal" style={{ opacity: 1 }}>
-          <a href="/legal/terms">Terms</a>
-        </nav>
-        <div data-page-fade aria-label="Preview panel" style={{ opacity: 1 }}>
-          <div data-page-swap aria-label="Preview card" style={{ opacity: 1 }}>Preview</div>
-        </div>
-      </div>
-    </main>
+      </main>
+      <footer hidden data-page-fade aria-label="Footer" style={{ opacity: 1 }}>Footer</footer>
+    </>
   );
 }
 
@@ -142,7 +149,7 @@ function show(url: string, rerender?: (ui: React.ReactNode) => void) {
   const path = new URL(url, location.origin).pathname;
   mocks.pathname = path;
   history.replaceState(null, "", url);
-  const ui = <>{PAGES[path]()}<SiteMotion /></>;
+  const ui = <>{PAGES[path]()}<SiteMotion signedIn={false} /></>;
   if (rerender) rerender(ui);
   else return render(ui);
 }
@@ -320,7 +327,7 @@ describe("SiteMotion", () => {
     await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/signup", { scroll: false }));
     show("/signup", rerender);
     expect(entrances()).toHaveLength(3);
-    for (const entrance of entrances()) expect([entrance.keyframes, entrance.options]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "linear" }]);
+    for (const entrance of entrances()) expect([entrance.keyframes, entrance.options]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "cubic-bezier(0.2, 0, 0, 1)" }]);
     expect(glides()).toHaveLength(0);
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sign up for DrillMap" }));
   });
@@ -340,9 +347,25 @@ describe("SiteMotion", () => {
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
+  it("leaves the hidden top bar and footer of a sign-in page still, on the way in and on the way out", async () => {
+    const { rerender } = show("/")!;
+    await click("Start free week");
+    finishExits();
+    await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/signup", { scroll: false }));
+    show("/signup", rerender);
+    const arrivals = calls;
+    calls = [];
+    await click("DrillMap");
+    const hidden = [...document.querySelectorAll("[hidden]")].filter((el) => el.matches("header, footer"));
+    expect(hidden).toHaveLength(2);
+    expect([...arrivals, ...calls].filter((a) => hidden.some((el) => el.contains(a.el)))).toEqual([]);
+    expect(hidden.some((el) => el.querySelector("[inert], [aria-busy]") || el.matches("[inert], [aria-busy]"))).toBe(false);
+    expect(exits().map((a) => a.el.getAttribute("aria-label") ?? "form")).toEqual(["form", "Legal", "Preview panel"]);
+  });
+
   it("shows a redirected page as it is and frees the content that stays on screen", async () => {
     mocks.pathname = "/";
-    const withFooter = (page: React.ReactNode) => <>{page}<footer data-page-fade style={{ opacity: 1 }}>Footer</footer><SiteMotion /></>;
+    const withFooter = (page: React.ReactNode) => <>{page}<footer data-page-fade style={{ opacity: 1 }}>Footer</footer><SiteMotion signedIn={false} /></>;
     const { rerender } = render(withFooter(<Landing />));
     await click("Log in");
     finishExits();
@@ -365,7 +388,7 @@ describe("SiteMotion", () => {
     history.replaceState(ROUTER_ENTRY, "", "/");
     dispatchEvent(new PopStateEvent("popstate", { state: ROUTER_ENTRY }));
     mocks.pathname = "/dashboard";
-    rerender(<>{PAGES["/dashboard"]()}<SiteMotion /></>);
+    rerender(<>{PAGES["/dashboard"]()}<SiteMotion signedIn={false} /></>);
     vi.mocked(window.scrollTo).mockClear();
     window.scrollY = 300;
     dispatchEvent(new Event("scroll"));
@@ -374,13 +397,13 @@ describe("SiteMotion", () => {
 
   it("shows the first page without motion under Strict Mode, and still moves to Sign up", async () => {
     mocks.pathname = "/";
-    const { rerender } = render(<StrictMode><Landing /><SiteMotion /></StrictMode>);
+    const { rerender } = render(<StrictMode><Landing /><SiteMotion signedIn={false} /></StrictMode>);
     expect(animate).not.toHaveBeenCalled();
     await click("Start free week");
     finishExits();
     await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledOnce());
     mocks.pathname = "/signup";
-    rerender(<StrictMode><SignIn title="Sign up for DrillMap" /><SiteMotion /></StrictMode>);
+    rerender(<StrictMode><SignIn title="Sign up for DrillMap" /><SiteMotion signedIn={false} /></StrictMode>);
     expect(entrances()).toHaveLength(3);
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sign up for DrillMap" }));
   });
@@ -388,6 +411,26 @@ describe("SiteMotion", () => {
   describe("legal pages", () => {
     const topBar = () => screen.getByRole("navigation", { name: "Primary" });
     const legalText = () => screen.getByLabelText("Legal text");
+
+    it("lets a signed-in student leave a legal page with no motion, so a redirect from the logo changes the page in one step", async () => {
+      const passedThrough: boolean[] = [];
+      const browser = (event: MouseEvent) => { passedThrough.push(!event.defaultPrevented); event.preventDefault(); };
+      document.addEventListener("click", browser);
+      mocks.pathname = "/legal/terms";
+      const { rerender } = render(<><Legal title="Terms of Service" /><SiteMotion signedIn /></>);
+      fireEvent.click(screen.getByRole("link", { name: "DrillMap" }));
+      fireEvent.click(screen.getByRole("link", { name: "Privacy Policy" }));
+      mocks.pathname = "/legal/privacy";
+      rerender(<><Legal title="Privacy Policy" /><SiteMotion signedIn /></>);
+      history.replaceState(ROUTER_ENTRY, "", "/legal/terms");
+      const back = new PopStateEvent("popstate", { state: ROUTER_ENTRY });
+      dispatchEvent(back);
+      document.removeEventListener("click", browser);
+      expect(passedThrough).toEqual([true, true]);
+      expect(animate).not.toHaveBeenCalled();
+      expect(legalText().hasAttribute("inert")).toBe(false);
+      expect(mocks.push).not.toHaveBeenCalled();
+    });
 
     it("fades only the landing content to Terms under a still top bar, with a rise and focus on the heading", async () => {
       const { rerender } = show("/")!;
@@ -480,7 +523,7 @@ describe("SiteMotion", () => {
       await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/legal/terms", { scroll: false }));
       show("/legal/terms", rerender);
       expect(entrances()).toHaveLength(2);
-      for (const entrance of entrances()) expect([entrance.keyframes, entrance.options]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "linear" }]);
+      for (const entrance of entrances()) expect([entrance.keyframes, entrance.options]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "cubic-bezier(0.2, 0, 0, 1)" }]);
       expect(glides()).toHaveLength(0);
       expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Terms of Service" }));
     });
@@ -560,7 +603,7 @@ describe("SiteMotion", () => {
       await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/signup", { scroll: false }));
       show("/signup", rerender);
       expect(entrances().map((a) => a.el)).toEqual([formOf("Sign up for DrillMap"), card()]);
-      for (const entrance of entrances()) expect([entrance.keyframes, entrance.options]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "linear" }]);
+      for (const entrance of entrances()) expect([entrance.keyframes, entrance.options]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "cubic-bezier(0.2, 0, 0, 1)" }]);
       expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sign up for DrillMap" }));
     });
 
@@ -578,7 +621,7 @@ describe("SiteMotion", () => {
 
     it("fades the form through when the page changes its own content, as Sign up does after Create account", async () => {
       mocks.pathname = "/signup";
-      render(<><SignupThenCheckEmail /><SiteMotion /></>);
+      render(<><SignupThenCheckEmail /><SiteMotion signedIn={false} /></>);
       fireEvent.click(screen.getByRole("button", { name: "Create account" }));
       expect(exits().map((a) => a.el)).toEqual([formOf("Sign up for DrillMap"), card()]);
       expect(formOf("Sign up for DrillMap").hasAttribute("inert")).toBe(true);
@@ -600,7 +643,7 @@ describe("SiteMotion", () => {
     it("shows Check your email at once and still follows the link when the answer lands during a link's fade-out", async () => {
       mocks.pathname = "/signup";
       history.replaceState(null, "", "/signup");
-      render(<><SignupThenCheckEmail /><SiteMotion /></>);
+      render(<><SignupThenCheckEmail /><SiteMotion signedIn={false} /></>);
       await click("Log in");
       fireEvent.click(screen.getByRole("button", { name: "Create account" }));
       expect(screen.getByRole("heading", { name: "Check your email" })).toBeTruthy();
@@ -682,7 +725,7 @@ describe("SiteMotion", () => {
 
     function at(path: string, page: React.ReactNode, rerender?: (ui: React.ReactNode) => void) {
       mocks.pathname = path;
-      const ui = <>{page}<SiteMotion /></>;
+      const ui = <>{page}<SiteMotion signedIn /></>;
       if (rerender) rerender(ui);
       else return render(ui);
     }
@@ -809,7 +852,7 @@ describe("SiteMotion", () => {
       expect(glides().filter((a) => a.options.fill !== "forwards")).toHaveLength(0);
       for (const entrance of entrances()) {
         expect(entrance.keyframes).toEqual([{ opacity: 0 }, { opacity: 1 }]);
-        expect(entrance.options).toEqual({ duration: 120, easing: "linear" });
+        expect(entrance.options).toEqual({ duration: 120, easing: "cubic-bezier(0.2, 0, 0, 1)" });
       }
       expect(entrances()).toHaveLength(3);
       expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Set your target" }));
