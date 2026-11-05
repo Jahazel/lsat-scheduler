@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fadeIn, fadeOut, riseFrom, slideFrom } from "./motion";
 
-const animate = vi.fn(() => ({}) as Animation);
+const animate = vi.fn<(keyframes: Keyframe[], options: KeyframeAnimationOptions) => Animation>(() => ({}) as Animation);
 let reduced = false;
 
 beforeEach(() => {
@@ -43,6 +43,18 @@ describe("page motion", () => {
   it("only fades in, over the fast duration, under reduced motion", () => {
     reduced = true;
     fadeIn(document.createElement("div"), riseFrom(8));
-    expect(animate.mock.calls[0]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "linear" }]);
+    expect(animate.mock.calls[0]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "cubic-bezier(0.2, 0, 0, 1)" }]);
+  });
+
+  it.each([
+    { opacity: "0.5", to: 0, duration: 60 },
+    { opacity: "0.5", to: 1, duration: 0 },
+    { opacity: "1", to: 1, duration: 0 },
+    { opacity: "0.2", to: 0.5, duration: 0 },
+  ])("shortens a fade out from opacity $opacity to $to into $duration ms", ({ opacity, to, duration }) => {
+    const el = document.createElement("div");
+    el.style.opacity = opacity;
+    fadeOut(el, { to, shorten: true });
+    expect(animate.mock.calls[0][1]).toMatchObject({ duration });
   });
 });

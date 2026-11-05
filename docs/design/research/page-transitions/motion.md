@@ -2,7 +2,7 @@
 
 The owner approved this motion in the prototype on 2026-11-04 (`prototype/index.html`). It is the same motion set as Progress (`../progress/motion.md`), so the site moves one way everywhere.
 
-Durations are the design-system tokens: fast 120 ms, base 200 ms. Easings: standard `cubic-bezier(0.2, 0, 0, 1)` (`--ease-standard`), exit `cubic-bezier(0.4, 0, 1, 1)` (`--ease-exit`). Reduced motion follows the design system: drop movement, keep a 120 ms fade in.
+Durations are the design-system tokens: fast 120 ms, base 200 ms. Easings: standard `cubic-bezier(0.2, 0, 0, 1)` (`--ease-standard`), exit `cubic-bezier(0.4, 0, 1, 1)` (`--ease-exit`). Reduced motion follows the design system: drop movement, keep a 120 ms fade in with the standard easing (`--ease-standard`), as in the prototype.
 
 Purpose of every row: prevent a jarring change. Each page change happens a few times per visit, so a short fade is in budget. Properties are `opacity` and `transform` only.
 
@@ -28,6 +28,7 @@ Purpose of every row: prevent a jarring change. Each page change happens a few t
 | Page content | Onboarding → This week ("Skip for now" or finishing Review) | Fade through. The logo glides when its spot differs. Focus moves to the page heading. This is the only signed-in page in scope. | Out: fast, exit easing. In: base, standard easing. | 120 ms fade in, no movement, no glide. Same focus. |
 | Page content | Browser Back or Forward between pages in scope | The same motion as the link that leads to the same page, with no direction. The page returns to the scroll spot the student left. Onboarding steps are not history entries, so Back leaves onboarding. | As the matching row | As the matching row |
 | Page content | A second click while a transition runs | The running transition continues from where it is, toward the newest target. It never jumps back to full opacity. A second click on the same link adds no history entry. The old content cannot be clicked while it fades out (it is inert and marked busy with `aria-busy`). | Out phase shortens in step with the opacity left. | Same |
+| Page content | A signed-in student or admin on Terms, Privacy, or AI disclosure follows any link (the logo, another legal page, Back) | None. The page changes in one step, as other signed-in pages do. Signed out, the legal rows above apply. | — | Same |
 | Page content | Google sign-in, or a browser that cannot run page motion | None. The page changes as it does today. Nothing breaks. | — | Same |
 
 Each heading takes focus with no visible ring, which is the usual pattern when the page moves focus. The next Tab stop shows the ring. A full change takes about 320 ms (120 ms out, then 200 ms in).

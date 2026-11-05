@@ -50,6 +50,10 @@ beforeEach(() => {
     if (!this.closest("[data-sign-in-page]")) return TOP_BAR_LOGO;
     return new DOMRect(SIGN_IN_LOGO.x, SIGN_IN_LOGO.y - window.scrollY, SIGN_IN_LOGO.width, SIGN_IN_LOGO.height);
   };
+  // jsdom has no layout. An element under display: none, as the top bar and footer are on sign-in pages, has no box.
+  Element.prototype.getClientRects = function (this: Element) {
+    return (this.closest("[style*='display: none']") ? [] : [new DOMRect()]) as unknown as DOMRectList;
+  };
   window.matchMedia = ((query: string) => ({ matches: (reduced && query.includes("reduce")) || (phone && query.includes("390px")) })) as typeof window.matchMedia;
   window.scrollTo = vi.fn(({ top }: ScrollToOptions) => { window.scrollY = top ?? 0; }) as unknown as typeof window.scrollTo;
   window.scrollY = 0;
@@ -138,11 +142,11 @@ const PAGES: Record<string, () => React.ReactNode> = {
   "/dashboard": () => <main><h1 tabIndex={-1}>This week</h1><Link href="/">DrillMap</Link></main>,
 };
 
-function show(url: string, rerender?: (ui: React.ReactNode) => void) {
+function show(url: string, rerender?: (ui: React.ReactNode) => void, signedIn = false) {
   const path = new URL(url, location.origin).pathname;
   mocks.pathname = path;
   history.replaceState(null, "", url);
-  const ui = <>{PAGES[path]()}<SiteMotion /></>;
+  const ui = <>{PAGES[path]()}<SiteMotion signedIn={signedIn} /></>;
   if (rerender) rerender(ui);
   else return render(ui);
 }
@@ -320,7 +324,7 @@ describe("SiteMotion", () => {
     await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/signup", { scroll: false }));
     show("/signup", rerender);
     expect(entrances()).toHaveLength(3);
-    for (const entrance of entrances()) expect([entrance.keyframes, entrance.options]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "linear" }]);
+    for (const entrance of entrances()) expect([entrance.keyframes, entrance.options]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "cubic-bezier(0.2, 0, 0, 1)" }]);
     expect(glides()).toHaveLength(0);
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sign up for DrillMap" }));
   });
@@ -340,9 +344,42 @@ describe("SiteMotion", () => {
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
+  it("gives the hidden top bar and footer no animation on a sign-in page", async () => {
+    mocks.pathname = "/";
+    const page = (content: React.ReactNode, hidden: boolean) => (
+      <>
+        <div style={hidden ? { display: "none" } : undefined}><TopBar /></div>
+        {content}
+        <footer data-page-fade style={{ opacity: 1, ...(hidden ? { display: "none" } : {}) }}>Footer</footer>
+        <SiteMotion signedIn={false} />
+      </>
+    );
+    const { rerender } = render(page(<main tabIndex={-1}><div data-page-fade><h1 tabIndex={-1}>Your practice results</h1><a href="/signup">Start free week</a></div></main>, false));
+    await click("Start free week");
+    finishExits();
+    await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/signup", { scroll: false }));
+    mocks.pathname = "/signup";
+    rerender(page(PAGES["/signup"](), true));
+    expect(entrances().map((a) => a.el.getAttribute("aria-label") ?? "form")).toEqual(["form", "Legal", "Preview panel"]);
+    expect(entrances().some((a) => a.el.closest("[style*='display: none']"))).toBe(false);
+  });
+
+  it("changes a signed-in student's legal page in one step when they click the logo or another legal page", () => {
+    const passedThrough: boolean[] = [];
+    const browser = (event: MouseEvent) => { passedThrough.push(!event.defaultPrevented); event.preventDefault(); };
+    document.addEventListener("click", browser);
+    show("/legal/terms", undefined, true);
+    fireEvent.click(screen.getByRole("link", { name: "DrillMap" }));
+    fireEvent.click(screen.getByRole("link", { name: "Privacy Policy" }));
+    document.removeEventListener("click", browser);
+    expect(passedThrough).toEqual([true, true]);
+    expect(animate).not.toHaveBeenCalled();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
   it("shows a redirected page as it is and frees the content that stays on screen", async () => {
     mocks.pathname = "/";
-    const withFooter = (page: React.ReactNode) => <>{page}<footer data-page-fade style={{ opacity: 1 }}>Footer</footer><SiteMotion /></>;
+    const withFooter = (page: React.ReactNode) => <>{page}<footer data-page-fade style={{ opacity: 1 }}>Footer</footer><SiteMotion signedIn={false} /></>;
     const { rerender } = render(withFooter(<Landing />));
     await click("Log in");
     finishExits();
@@ -365,7 +402,7 @@ describe("SiteMotion", () => {
     history.replaceState(ROUTER_ENTRY, "", "/");
     dispatchEvent(new PopStateEvent("popstate", { state: ROUTER_ENTRY }));
     mocks.pathname = "/dashboard";
-    rerender(<>{PAGES["/dashboard"]()}<SiteMotion /></>);
+    rerender(<>{PAGES["/dashboard"]()}<SiteMotion signedIn={false} /></>);
     vi.mocked(window.scrollTo).mockClear();
     window.scrollY = 300;
     dispatchEvent(new Event("scroll"));
@@ -374,13 +411,13 @@ describe("SiteMotion", () => {
 
   it("shows the first page without motion under Strict Mode, and still moves to Sign up", async () => {
     mocks.pathname = "/";
-    const { rerender } = render(<StrictMode><Landing /><SiteMotion /></StrictMode>);
+    const { rerender } = render(<StrictMode><Landing /><SiteMotion signedIn={false} /></StrictMode>);
     expect(animate).not.toHaveBeenCalled();
     await click("Start free week");
     finishExits();
     await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledOnce());
     mocks.pathname = "/signup";
-    rerender(<StrictMode><SignIn title="Sign up for DrillMap" /><SiteMotion /></StrictMode>);
+    rerender(<StrictMode><SignIn title="Sign up for DrillMap" /><SiteMotion signedIn={false} /></StrictMode>);
     expect(entrances()).toHaveLength(3);
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sign up for DrillMap" }));
   });
@@ -480,7 +517,7 @@ describe("SiteMotion", () => {
       await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/legal/terms", { scroll: false }));
       show("/legal/terms", rerender);
       expect(entrances()).toHaveLength(2);
-      for (const entrance of entrances()) expect([entrance.keyframes, entrance.options]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "linear" }]);
+      for (const entrance of entrances()) expect([entrance.keyframes, entrance.options]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "cubic-bezier(0.2, 0, 0, 1)" }]);
       expect(glides()).toHaveLength(0);
       expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Terms of Service" }));
     });
@@ -560,7 +597,7 @@ describe("SiteMotion", () => {
       await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/signup", { scroll: false }));
       show("/signup", rerender);
       expect(entrances().map((a) => a.el)).toEqual([formOf("Sign up for DrillMap"), card()]);
-      for (const entrance of entrances()) expect([entrance.keyframes, entrance.options]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "linear" }]);
+      for (const entrance of entrances()) expect([entrance.keyframes, entrance.options]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "cubic-bezier(0.2, 0, 0, 1)" }]);
       expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sign up for DrillMap" }));
     });
 
@@ -578,7 +615,7 @@ describe("SiteMotion", () => {
 
     it("fades the form through when the page changes its own content, as Sign up does after Create account", async () => {
       mocks.pathname = "/signup";
-      render(<><SignupThenCheckEmail /><SiteMotion /></>);
+      render(<><SignupThenCheckEmail /><SiteMotion signedIn={false} /></>);
       fireEvent.click(screen.getByRole("button", { name: "Create account" }));
       expect(exits().map((a) => a.el)).toEqual([formOf("Sign up for DrillMap"), card()]);
       expect(formOf("Sign up for DrillMap").hasAttribute("inert")).toBe(true);
@@ -600,7 +637,7 @@ describe("SiteMotion", () => {
     it("shows Check your email at once and still follows the link when the answer lands during a link's fade-out", async () => {
       mocks.pathname = "/signup";
       history.replaceState(null, "", "/signup");
-      render(<><SignupThenCheckEmail /><SiteMotion /></>);
+      render(<><SignupThenCheckEmail /><SiteMotion signedIn={false} /></>);
       await click("Log in");
       fireEvent.click(screen.getByRole("button", { name: "Create account" }));
       expect(screen.getByRole("heading", { name: "Check your email" })).toBeTruthy();
@@ -682,7 +719,7 @@ describe("SiteMotion", () => {
 
     function at(path: string, page: React.ReactNode, rerender?: (ui: React.ReactNode) => void) {
       mocks.pathname = path;
-      const ui = <>{page}<SiteMotion /></>;
+      const ui = <>{page}<SiteMotion signedIn={false} /></>;
       if (rerender) rerender(ui);
       else return render(ui);
     }
@@ -809,7 +846,7 @@ describe("SiteMotion", () => {
       expect(glides().filter((a) => a.options.fill !== "forwards")).toHaveLength(0);
       for (const entrance of entrances()) {
         expect(entrance.keyframes).toEqual([{ opacity: 0 }, { opacity: 1 }]);
-        expect(entrance.options).toEqual({ duration: 120, easing: "linear" });
+        expect(entrance.options).toEqual({ duration: 120, easing: "cubic-bezier(0.2, 0, 0, 1)" });
       }
       expect(entrances()).toHaveLength(3);
       expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Set your target" }));

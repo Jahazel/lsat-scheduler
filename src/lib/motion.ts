@@ -22,7 +22,7 @@ export const riseFrom = (y: number, opacity = 0): Keyframe => ({ opacity, transf
 export function fadeOut(el: HTMLElement, { to = 0, x = 0, shorten = false }: { to?: number; x?: number; shorten?: boolean } = {}) {
   el.setAttribute("aria-busy", "true");
   const from = stopAtCurrentFrame(el);
-  const left = shorten ? (Number(from.opacity) - to) / (1 - to) : 1;
+  const left = !shorten ? 1 : to < 1 ? Math.min(Math.max((Number(from.opacity) - to) / (1 - to), 0), 1) : 0;
   return el.animate([from, { opacity: to, transform: `translateX(${-x}px)` }], {
     duration: durationMs("--duration-fast") * left,
     easing: motionToken("--ease-exit"),
@@ -33,7 +33,7 @@ export function fadeOut(el: HTMLElement, { to = 0, x = 0, shorten = false }: { t
 // Reduced motion keeps only the opacity of `from`.
 export function fadeIn(el: HTMLElement, from: Keyframe = { opacity: 0 }) {
   el.removeAttribute("aria-busy");
-  if (reducedMotion()) return el.animate([{ opacity: from.opacity }, { opacity: 1 }], { duration: durationMs("--duration-fast"), easing: "linear" });
+  if (reducedMotion()) return el.animate([{ opacity: from.opacity }, { opacity: 1 }], { duration: durationMs("--duration-fast"), easing: motionToken("--ease-standard") });
   return el.animate([from, { opacity: 1, transform: "none" }], { duration: durationMs("--duration-base"), easing: motionToken("--ease-standard") });
 }
 

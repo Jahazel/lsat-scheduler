@@ -2,7 +2,7 @@
 
 The owner approved this motion in the prototype on 2026-10-28 (`prototype/index.html`).
 
-Durations are the design-system tokens: fast 120 ms, base 200 ms, slow 320 ms. Easings: standard `cubic-bezier(0.2, 0, 0, 1)`, exit `cubic-bezier(0.4, 0, 1, 1)`. Reduced motion follows the design system: drop movement, keep 120 ms fades.
+Durations are the design-system tokens: fast 120 ms, base 200 ms, slow 320 ms. Easings: standard `cubic-bezier(0.2, 0, 0, 1)`, exit `cubic-bezier(0.4, 0, 1, 1)`. Reduced motion follows the design system: drop movement, keep 120 ms fades. A fade in uses the standard easing (`--ease-standard`); a fade out keeps the exit easing.
 
 | Element | Trigger | Motion | Duration token | Reduced motion |
 | --- | --- | --- | --- | --- |
