@@ -535,6 +535,7 @@ body:has(.save-bar[data-shown]) .failure-toast-slot { transform: translateY(-88p
 }
 
 html:has(.ui-dialog[open]) { overflow: hidden; }
+html[data-page-scrollbar]:has(.ui-dialog[open]) { scrollbar-gutter: stable; }
 .ui-dialog,
 .ui-dialog::backdrop { transition: opacity var(--duration-base) ease-out; }
 .ui-dialog::backdrop { background: color-mix(in srgb, var(--color-ink) var(--opacity-muted), transparent); }
