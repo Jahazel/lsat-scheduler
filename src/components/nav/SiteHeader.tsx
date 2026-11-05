@@ -58,8 +58,7 @@ export default async function SiteHeader() {
   const state = user.id ? await loadStudentNavState(user.id, await studentSideNow(user)) : null;
   if (!state) {
     return (
-      <header className="sticky top-0 z-40">
-        <div data-page-fade aria-hidden className="absolute inset-0 -z-10 border-b border-vellum-line bg-paper" />
+      <header className={HEADER}>
         <div className={BAR}>
           <Logo href="/" />
           <div data-page-fade>

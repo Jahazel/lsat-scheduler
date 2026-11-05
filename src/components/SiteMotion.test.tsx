@@ -700,6 +700,8 @@ describe("SiteMotion", () => {
       expect(copy()!.inert).toBe(true);
       expect(copy()!.getAttribute("aria-busy")).toBe("true");
       expect(holds().map((a) => a.el)).toEqual([region("Top bar")]);
+      expect(region("Top bar").hasAttribute("inert")).toBe(true);
+      expect(region("Top bar").getAttribute("aria-busy")).toBe("true");
       expect(fadeOuts()).toHaveLength(0);
 
       at("/onboarding", <Onboarding />, rerender);
@@ -718,6 +720,7 @@ describe("SiteMotion", () => {
       }
       expect(glides().at(-1)!.keyframes).toEqual([{ transform: "translate(72px, 12px)" }, { transform: "none" }]);
       expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Set your target" }));
+      expect(document.querySelectorAll("[inert], [aria-busy]")).toHaveLength(0);
     });
 
     it("on a slow load, fades Log in to the placeholder, then swaps only the step and card under a still top bar and panel", async () => {

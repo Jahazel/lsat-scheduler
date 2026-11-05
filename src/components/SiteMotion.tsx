@@ -97,18 +97,23 @@ const waiting = new Set<HTMLElement>();
 
 function wait(el: HTMLElement) {
   waiting.add(el);
+  setBusy(el, true);
   for (const animation of el.getAnimations()) animation.cancel();
   el.animate([{ opacity: 0 }, { opacity: 0 }], { duration: 0, fill: "forwards" });
 }
 
 function stopWaiting() {
-  for (const el of waiting) for (const animation of el.getAnimations()) animation.cancel();
+  for (const el of waiting) {
+    setBusy(el, false);
+    for (const animation of el.getAnimations()) animation.cancel();
+  }
   waiting.clear();
 }
 
 function reveal(motion: Motion, logo: DOMRect | null) {
   for (const el of regions(motion)) {
     waiting.delete(el);
+    setBusy(el, false);
     for (const animation of el.getAnimations()) animation.cancel();
     fadeIn(el, riseFrom(rise()));
   }
