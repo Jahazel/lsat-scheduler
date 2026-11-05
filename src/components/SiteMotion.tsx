@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { flushSync } from "react-dom";
+import { forgetGoogleArrival, hasGoogleArrivalNote } from "@/lib/googleArrival";
 import { durationMs, fadeIn, fadeOut, isPlainClick, motionToken, reducedMotion, riseFrom, stopAtCurrentFrame } from "@/lib/motion";
 
 const SIGN_IN = new Set(["/signup", "/login", "/forgot-password", "/reset-password", "/verify-email"]);
@@ -92,13 +93,14 @@ export function fadeFormThrough(update: () => void) {
 
 // A server change (a form action's redirect, or a loading placeholder giving way) replaces a page before it can fade.
 // So the page that goes stays on screen as a still copy until the next page's PageCue reports, then the copy fades out.
-type CuePage = "sign-in" | "placeholder" | "onboarding" | "this-week";
+type CuePage = "sign-in" | "placeholder" | "onboarding" | "this-week" | "admin";
 const LEADS_TO: Record<CuePage, { pages: CuePage[]; paths: string[] }> = {
   "sign-in": { pages: ["placeholder", "onboarding", "this-week"], paths: [ONBOARDING, ...THIS_WEEK] },
   placeholder: { pages: ["onboarding"], paths: [ONBOARDING] },
   // Back, or the logo, sends a student who has not finished onboarding through This week and back to onboarding.
   onboarding: { pages: ["this-week", "placeholder", "onboarding"], paths: [...THIS_WEEK, ONBOARDING] },
   "this-week": { pages: [], paths: [] },
+  admin: { pages: [], paths: [] },
 };
 const GIVE_UP_MS = 5000;
 
@@ -109,6 +111,7 @@ type Arrival = { motion: Motion; pages: CuePage[]; ready: Promise<void>; logo: D
 let leaving: Leaving | null = null;
 let copy: Copy | null = null;
 let arrival: Arrival | null = null;
+let arrivalPage: HTMLElement | null = null;
 const waiting = new Set<HTMLElement>();
 
 function wait(el: HTMLElement) {
@@ -144,6 +147,11 @@ function expectArrival(next: Omit<Arrival, "giveUp">) {
 }
 
 function pageLeft(page: CuePage, root: HTMLElement) {
+  if (root === arrivalPage) queueMicrotask(() => {
+    if (root.isConnected && !root.closest("[data-page-copy]")) return;
+    arrivalPage = null;
+    document.documentElement.removeAttribute("data-arrival");
+  });
   if (!LEADS_TO[page].pages.length || !("animate" in Element.prototype)) return;
   const els = page === "placeholder" ? [...root.querySelectorAll<HTMLElement>("[data-page-swap]")] : [root];
   if (els.some((el) => waiting.has(el) || el.closest("[inert]") || el.querySelector("[inert]"))) return;
@@ -209,6 +217,11 @@ function dropCopyIfNoPageFollows(pathname: string) {
 }
 
 function pageArrived(page: CuePage, root: HTMLElement) {
+  // A loading screen can still redirect, and the page it lands on needs the note to fade in.
+  if (page !== "placeholder" && hasGoogleArrivalNote()) {
+    forgetGoogleArrival();
+    arrivalPage = root;
+  }
   keepLeavingPage();
   if (copy && !LEADS_TO[copy.from].pages.includes(page)) dropCopy();
   if (copy) {

@@ -28,6 +28,13 @@ async function logInAs(email: string, password: string) {
 const field = (label: string) => screen.getByLabelText(label) as HTMLInputElement;
 
 describe("Login", () => {
+  it("leaves a note so the page after Google fades in", async () => {
+    document.cookie = "drillmap-arrival=; max-age=0; path=/";
+    await renderLogin();
+    await userEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    expect(document.cookie).toContain("drillmap-arrival=google");
+  });
+
   it("offers Continue with Google, then the email and password form, and a way to Signup", async () => {
     await renderLogin();
     expect(screen.getByRole("heading", { name: "Log in to DrillMap" })).toBeTruthy();

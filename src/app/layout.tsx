@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AdminTestProvider } from "@/components/AdminTestContext";
 import { FailureToastProvider } from "@/components/FailureNotice";
@@ -7,6 +8,7 @@ import SiteHeader from "@/components/nav/SiteHeader";
 import SiteMotion from "@/components/SiteMotion";
 import { Footer } from "@/components/ui/Footer";
 import { WORKSPACE_NAV_BREAKPOINT } from "@/components/nav/workspaceBreakpoint";
+import { ARRIVAL_COOKIE } from "@/lib/googleArrival";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,9 +28,11 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const session = await auth();
+  const arriving = !!session?.user && (await cookies()).has(ARRIVAL_COOKIE);
   return (
     <html
       lang="en"
+      data-arrival={arriving ? "google" : undefined}
       data-scroll-behavior="smooth"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >

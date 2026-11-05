@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { PageCue } from "@/components/SiteMotion";
 import { listStudentIdsWithApprovedAnalytics } from "@/lib/analyticsSnapshotRepository";
 import { formatDuration } from "@/lib/formatDuration";
 import { listStudentsWithOwners } from "@/lib/studentRepository";
@@ -18,7 +19,8 @@ export default async function AdminPage() {
   const studentIdsWithAnalytics = new Set(snapshots);
 
   return (
-    <div className="min-h-screen px-6 py-12">
+    <div data-page-fade className="min-h-screen px-6 py-12">
+      <PageCue page="admin" />
       <div className="mx-auto max-w-2xl">
         <h1 className="text-h3 font-semibold text-ink">All students</h1>
 

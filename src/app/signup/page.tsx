@@ -48,7 +48,7 @@ function Signup({ onSignUpAgain }: { onSignUpAgain: () => void }) {
       <SignInFrame title="Sign up for DrillMap" lead="Use Google, or your email and a password." preview={<StepsPreview />}>
         <div className="flex flex-col gap-3">
           <ActionForm action={signUpWithGoogle}>
-            <GoogleButton look="light" />
+            <GoogleButton look="light" fadesNextPage />
           </ActionForm>
           <p className="text-small leading-[20px] text-smoke">
             By continuing with Google, you agree to the <Link href="/legal/terms" className={LEGAL_LINK}>Terms of Service</Link> and{" "}

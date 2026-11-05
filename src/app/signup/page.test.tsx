@@ -40,6 +40,13 @@ describe("Signup", () => {
     expect(actions.signUpWithPassword).not.toHaveBeenCalled();
   });
 
+  it("leaves a note so the page after Google fades in", async () => {
+    document.cookie = "drillmap-arrival=; max-age=0; path=/";
+    render(<SignupPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    expect(document.cookie).toContain("drillmap-arrival=google");
+  });
+
   it("shows a refusal beside its field and keeps what the student typed", async () => {
     actions.signUpWithPassword.mockResolvedValue({ kind: "form", errors: { terms: "Tick the box to continue." } });
     render(<SignupPage />);
