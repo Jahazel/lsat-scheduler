@@ -53,24 +53,48 @@ beforeEach(() => {
   window.matchMedia = ((query: string) => ({ matches: (reduced && query.includes("reduce")) || (phone && query.includes("390px")) })) as typeof window.matchMedia;
   window.scrollTo = vi.fn(({ top }: ScrollToOptions) => { window.scrollY = top ?? 0; }) as unknown as typeof window.scrollTo;
   window.scrollY = 0;
+  Element.prototype.scrollIntoView = vi.fn();
 });
 afterEach(cleanup);
+
+function TopBar() {
+  return (
+    <header>
+      <Link data-page-logo href="/">DrillMap</Link>
+      <nav data-page-fade aria-label="Primary" style={{ opacity: 1 }}>
+        <Link href="/#how-it-works">How it works</Link>
+        <a href="/login">Log in</a>
+        <a href="/signup">Start free week</a>
+      </nav>
+    </header>
+  );
+}
 
 function Landing() {
   return (
     <>
-      <header>
-        <Link data-page-logo href="/">DrillMap</Link>
-        <nav data-page-fade style={{ opacity: 1 }}>
-          <a href="/login">Log in</a>
-          <a href="/signup">Start free week</a>
-        </nav>
-      </header>
+      <TopBar />
       <main tabIndex={-1}>
         <div data-page-fade style={{ opacity: 1 }}>
           <h1 tabIndex={-1}>Your practice results</h1>
           <a href="/signup">Start free week</a>
           <a href="/progress">Progress</a>
+          <section id="how-it-works">How it works</section>
+          <a href="/legal/terms">Terms of Service</a>
+        </div>
+      </main>
+    </>
+  );
+}
+
+function Legal({ title }: { title: string }) {
+  return (
+    <>
+      <TopBar />
+      <main tabIndex={-1}>
+        <div data-page-fade aria-label="Legal text" style={{ opacity: 1 }}>
+          <h1 tabIndex={-1}>{title}</h1>
+          <a href="/legal/privacy">Privacy Policy</a>
         </div>
       </main>
     </>
@@ -108,6 +132,8 @@ const PAGES: Record<string, () => React.ReactNode> = {
     </SignIn>
   ),
   "/forgot-password": () => <SignIn title="Reset your password"><a href="/login">Log in</a></SignIn>,
+  "/legal/terms": () => <Legal title="Terms of Service" />,
+  "/legal/privacy": () => <Legal title="Privacy Policy" />,
   "/dashboard": () => <main><h1 tabIndex={-1}>This week</h1><Link href="/">DrillMap</Link></main>,
 };
 
@@ -305,12 +331,10 @@ describe("SiteMotion", () => {
     const { rerender } = show("/")!;
     fireEvent.click(screen.getAllByRole("link", { name: "Start free week" })[0], { metaKey: true });
     fireEvent.click(screen.getByRole("link", { name: "Progress" }));
-    show("/login", rerender);
-    fireEvent.click(screen.getByRole("link", { name: "Terms" }));
     show("/dashboard", rerender);
     fireEvent.click(screen.getByRole("link", { name: "DrillMap" }));
     document.removeEventListener("click", browser);
-    expect(passedThrough).toEqual([true, true, true, true]);
+    expect(passedThrough).toEqual([true, true, true]);
     expect(animate).not.toHaveBeenCalled();
     expect(mocks.push).not.toHaveBeenCalled();
   });
@@ -358,6 +382,107 @@ describe("SiteMotion", () => {
     rerender(<StrictMode><SignIn title="Sign up for DrillMap" /><SiteMotion /></StrictMode>);
     expect(entrances()).toHaveLength(3);
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sign up for DrillMap" }));
+  });
+
+  describe("legal pages", () => {
+    const topBar = () => screen.getByRole("navigation", { name: "Primary" });
+    const legalText = () => screen.getByLabelText("Legal text");
+
+    it("fades only the landing content to Terms under a still top bar, with a rise and focus on the heading", async () => {
+      const { rerender } = show("/")!;
+      window.scrollY = 2400;
+      await click("Terms of Service");
+      expect(exits().map((a) => a.el)).toEqual([screen.getByRole("heading", { name: "Your practice results" }).parentElement]);
+      expect(exits()[0].options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)" });
+      expect(topBar().hasAttribute("inert")).toBe(false);
+      finishExits();
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/legal/terms", { scroll: false }));
+
+      show("/legal/terms", rerender);
+      expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: "instant" });
+      expect(entrances().map((a) => a.el)).toEqual([legalText()]);
+      expect(entrances()[0].keyframes).toEqual([{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }]);
+      expect(entrances()[0].options).toEqual({ duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" });
+      expect(glides()).toHaveLength(0);
+      expect(calls.some((a) => topBar().contains(a.el))).toBe(false);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Terms of Service" }));
+    });
+
+    it("fades from one legal page to another under the same still top bar", async () => {
+      const { rerender } = show("/legal/terms")!;
+      await click("Privacy Policy");
+      expect(exits().map((a) => a.el)).toEqual([legalText()]);
+      finishExits();
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/legal/privacy", { scroll: false }));
+      show("/legal/privacy", rerender);
+      expect(entrances().map((a) => a.el)).toEqual([legalText()]);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Privacy Policy" }));
+    });
+
+    it("returns to the landing page at its scroll spot on Back, with the top bar still", async () => {
+      const { rerender } = show("/")!;
+      window.scrollY = 2400;
+      await click("Terms of Service");
+      finishExits();
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalled());
+      show("/legal/terms", rerender);
+
+      const router = vi.fn();
+      addEventListener("popstate", router);
+      history.replaceState(ROUTER_ENTRY, "", "/");
+      dispatchEvent(new PopStateEvent("popstate", { state: ROUTER_ENTRY }));
+      expect(exits().at(-1)!.el).toBe(legalText());
+      expect(topBar().hasAttribute("inert")).toBe(false);
+      finishExits();
+      await vi.waitFor(() => expect(router).toHaveBeenCalledOnce());
+      removeEventListener("popstate", router);
+
+      show("/", rerender);
+      expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 2400, behavior: "instant" });
+      expect(calls.some((a) => topBar().contains(a.el))).toBe(false);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your practice results" }));
+    });
+
+    it("lands on the landing section a top-bar link names", async () => {
+      const { rerender } = show("/legal/terms")!;
+      await click("How it works");
+      finishExits();
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/#how-it-works", { scroll: false }));
+      vi.mocked(window.scrollTo).mockClear();
+      show("/#how-it-works", rerender);
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalledOnce();
+      expect(vi.mocked(Element.prototype.scrollIntoView).mock.contexts[0]).toBe(document.getElementById("how-it-works"));
+      expect(window.scrollTo).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your practice results" }));
+    });
+
+    it("fades a sign-in page through to Terms and glides the logo to the top-bar spot", async () => {
+      const { rerender } = show("/login")!;
+      await click("Terms");
+      expect(exits().map((a) => a.el.getAttribute("aria-label") ?? "form")).toEqual(["form", "Legal", "Preview panel"]);
+      finishExits();
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/legal/terms", { scroll: false }));
+
+      show("/legal/terms", rerender);
+      expect(entrances().map((a) => a.el)).toEqual([topBar(), legalText()]);
+      for (const entrance of entrances()) expect(entrance.keyframes[0]).toEqual({ opacity: 0, transform: "translateY(8px)" });
+      expect(glides()).toHaveLength(1);
+      expect(glides()[0].keyframes).toEqual([{ transform: "translate(72px, 12px)" }, { transform: "none" }]);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Terms of Service" }));
+    });
+
+    it("only fades the legal page in for 120 ms under reduced motion, with no movement and no glide", async () => {
+      reduced = true;
+      const { rerender } = show("/signup")!;
+      await click("Terms");
+      expect(exits()).toHaveLength(0);
+      await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/legal/terms", { scroll: false }));
+      show("/legal/terms", rerender);
+      expect(entrances()).toHaveLength(2);
+      for (const entrance of entrances()) expect([entrance.keyframes, entrance.options]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "linear" }]);
+      expect(glides()).toHaveLength(0);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Terms of Service" }));
+    });
   });
 
   describe("between sign-in pages", () => {

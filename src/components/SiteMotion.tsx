@@ -6,17 +6,21 @@ import { flushSync } from "react-dom";
 import { durationMs, fadeIn, fadeOut, isPlainClick, motionToken, reducedMotion, riseFrom, stopAtCurrentFrame } from "@/lib/motion";
 
 const SIGN_IN = new Set(["/signup", "/login", "/forgot-password", "/reset-password", "/verify-email"]);
+const UNDER_TOP_BAR = new Set(["/", "/legal/terms", "/legal/privacy", "/legal/ai-disclosure"]);
 
-type Motion = "page" | "form";
+type Motion = "whole-page" | "under-top-bar" | "form-and-card";
 function motionBetween(from: string, to: string): Motion | null {
-  if (SIGN_IN.has(from) && SIGN_IN.has(to)) return from === to ? null : "form";
-  return (from === "/" && SIGN_IN.has(to)) || (SIGN_IN.has(from) && to === "/") ? "page" : null;
+  if (from === to) return null;
+  if (SIGN_IN.has(from) && SIGN_IN.has(to)) return "form-and-card";
+  if (UNDER_TOP_BAR.has(from) && UNDER_TOP_BAR.has(to)) return "under-top-bar";
+  return (UNDER_TOP_BAR.has(from) && SIGN_IN.has(to)) || (SIGN_IN.has(from) && UNDER_TOP_BAR.has(to)) ? "whole-page" : null;
 }
 
-type Target = { path: string; fromHistory: boolean; motion: Motion };
+type Target = { path: string; hash: string; fromHistory: boolean; motion: Motion };
 
 function regions(motion: Motion) {
-  const found = [...document.querySelectorAll<HTMLElement>(motion === "page" ? "[data-page-fade], [data-page-swap]" : "[data-page-swap]")];
+  const found = [...document.querySelectorAll<HTMLElement>(motion === "form-and-card" ? "[data-page-swap]" : "[data-page-fade], [data-page-swap]")]
+    .filter((el) => motion !== "under-top-bar" || !el.closest("header"));
   return found.filter((el) => !found.some((outer) => outer !== el && outer.contains(el)));
 }
 const visibleLogo = () => [...document.querySelectorAll<HTMLElement>("[data-page-logo]")].find((logo) => logo.getBoundingClientRect().width > 0);
@@ -54,7 +58,7 @@ function arrive(motion: Motion) {
 }
 
 export function fadeFormThrough(update: () => void) {
-  const old = regions("form");
+  const old = regions("form-and-card");
   const leavingPage = old.some((el) => el.hasAttribute("inert"));
   if (!old.length || leavingPage || !("animate" in Element.prototype)) return update();
   fadeAway(old).then((ok) => {
@@ -64,7 +68,7 @@ export function fadeFormThrough(update: () => void) {
       setBusy(el, false);
     }
     flushSync(update);
-    arrive("form");
+    arrive("form-and-card");
   });
 }
 
@@ -84,7 +88,7 @@ export default function SiteMotion() {
     const arriving = target.current;
     if (from === pathname) return;
     if (!arriving) {
-      if (from && motionBetween(from, pathname) === "form") arrive("form");
+      if (from && motionBetween(from, pathname) === "form-and-card") arrive("form-and-card");
       return;
     }
     target.current = null;
@@ -97,9 +101,10 @@ export default function SiteMotion() {
     const redirected = arriving.path !== pathname;
     if (redirected) return;
 
-    const top = arriving.fromHistory ? scrolls.current.get(pathname) ?? 0 : 0;
-    scrollTo({ top, behavior: "instant" });
-    scrolls.current.set(pathname, top);
+    const section = arriving.hash && document.getElementById(arriving.hash.slice(1));
+    if (section) section.scrollIntoView({ behavior: "instant" });
+    else scrollTo({ top: arriving.fromHistory ? scrolls.current.get(pathname) ?? 0 : 0, behavior: "instant" });
+    scrolls.current.set(pathname, scrollY);
     glideLogo(logoFrom.current);
     logoFrom.current = null;
     arrive(arriving.motion);
@@ -124,7 +129,7 @@ export default function SiteMotion() {
       leaving.current = old;
       return fadeAway(old).then((ok) => {
         if (!ok || target.current !== next) return false;
-        logoFrom.current = next.motion === "page" ? visibleLogo()?.getBoundingClientRect() ?? null : null;
+        logoFrom.current = next.motion === "whole-page" ? visibleLogo()?.getBoundingClientRect() ?? null : null;
         return true;
       });
     }
@@ -148,7 +153,7 @@ export default function SiteMotion() {
       if (!shown.current || !motion) return;
       event.preventDefault();
       scrolls.current.set(shown.current, scrollY);
-      leave({ path: to, fromHistory: false, motion }).then((ok) => ok && router.push(url.pathname + url.search + url.hash, { scroll: false }));
+      leave({ path: to, hash: url.hash, fromHistory: false, motion }).then((ok) => ok && router.push(url.pathname + url.search + url.hash, { scroll: false }));
     }
 
     function holdPopStateUntilFadedOut(event: PopStateEvent) {
@@ -158,7 +163,7 @@ export default function SiteMotion() {
       const motion = shown.current && motionBetween(shown.current, to);
       if (!shown.current || !motion) return;
       const from = shown.current;
-      const left = leave({ path: to, fromHistory: true, motion });
+      const left = leave({ path: to, hash: "", fromHistory: true, motion });
       // Next's router does not render a popstate for an entry it did not write, such as a hash the browser added.
       const routerEntry = Boolean(history.state?.__NA);
       if (reducedMotion() && routerEntry) return;
