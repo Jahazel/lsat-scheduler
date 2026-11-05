@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { afterExit } from "./afterExit";
 import { IconButton } from "./Button";
 import { cx } from "./classes";
@@ -11,6 +11,7 @@ type DialogProps = {
   open: boolean;
   onClose: () => void;
   returnFocusTo?: HTMLElement | null;
+  onKeyDown?: (event: KeyboardEvent<HTMLDialogElement>) => void;
   children: ReactNode;
   className?: string;
 } & ({ "aria-label": string } | { "aria-labelledby": string });
@@ -21,7 +22,7 @@ type DialogProps = {
  * closes the dialog and focuses `returnFocusTo`, or else the control that had focus when it opened.
  * Pass `returnFocusTo` from a click handler: Safari and Firefox on macOS do not focus a clicked button.
  */
-export function Dialog({ open, onClose, returnFocusTo, children, className, ...label }: DialogProps) {
+export function Dialog({ open, onClose, returnFocusTo, onKeyDown, children, className, ...label }: DialogProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   const pressStartedOutside = useRef(false);
@@ -63,7 +64,7 @@ export function Dialog({ open, onClose, returnFocusTo, children, className, ...l
         onClose();
       }}
       onKeyDown={(event) => {
-        if (event.key !== "Escape") return;
+        if (event.key !== "Escape") return onKeyDown?.(event);
         event.preventDefault();
         onClose();
       }}

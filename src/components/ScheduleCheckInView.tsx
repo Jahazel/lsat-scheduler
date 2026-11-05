@@ -16,7 +16,9 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { ReminderStrip } from "@/components/ui/ReminderStrip";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StatusIcon } from "@/components/ui/StatusIcon";
-import { MOTION, cx } from "@/components/ui/classes";
+import { FOCUS, MOTION, cx } from "@/components/ui/classes";
+import { DrillSetupGuide } from "@/components/DrillSetupGuide";
+import { drillSetupGuide, type DrillSetupGuide as DrillSetupGuideContent } from "@/lib/drillSetupGuide";
 
 interface ScheduleCheckInViewProps {
   scheduleId: string;
@@ -45,25 +47,48 @@ function dayKind(plan: DayPlan, practiceTestDays: DayPlan["day"][]) {
   }
 }
 
-function ActivityRow({ label, done, onToggle }: { label: string; done: boolean; onToggle?: () => void }) {
-  const row = "flex min-h-9 w-full items-center gap-0.5 rounded-xs pr-2 text-left";
+function ActivityRow({ label, done, onToggle, setUp }: { label: string; done: boolean; onToggle?: () => void; setUp?: ReactNode }) {
+  const row = "flex min-h-9 min-w-0 flex-1 items-start gap-0.5 rounded-xs pr-2 text-left";
   const content = <>
-    <span className="flex size-8 shrink-0 items-center justify-center">
+    <span className="flex h-9 w-8 shrink-0 items-center justify-center">
       <span className="flex rounded-pill outline-offset-2 group-focus-visible:outline-2 group-focus-visible:outline-accent">
         <StatusIcon name={done ? "check-disc" : "open-circle"} className={done ? undefined : "group-hover:text-ink group-focus-visible:text-ink"} />
       </span>
     </span>
-    <span className={cx("min-w-0 flex-1 text-small", done ? "text-smoke line-through decoration-fog" : "text-ink")}>{label}</span>
+    <span className={cx("min-w-0 flex-1 py-[9px] text-small", done ? "text-smoke line-through decoration-fog" : "text-ink")}>{label}</span>
   </>;
-  if (!onToggle) return <li className={row}>{content}<span className="sr-only">{done ? ", done" : ", not done"}</span></li>;
+  if (!onToggle) return <li className="flex items-start gap-1"><span className={row}>{content}<span className="sr-only">{done ? ", done" : ", not done"}</span></span>{setUp}</li>;
   return (
-    <li>
+    <li className="flex items-start gap-1">
       <button type="button" role="checkbox" aria-checked={done} onClick={onToggle}
         className={cx("group cursor-pointer hover:bg-vellum focus-visible:outline-none", row, MOTION)}>
         {content}
       </button>
+      {setUp}
     </li>
   );
+}
+
+function SetUpButton({ label, expanded, onOpen }: { label: string; expanded: boolean; onOpen: (opener: HTMLElement) => void }) {
+  return (
+    <button type="button" aria-haspopup="dialog" aria-expanded={expanded} aria-label={`Set up ${label}`}
+      onClick={(event) => onOpen(event.currentTarget)}
+      className={cx("mt-0.5 h-8 shrink-0 whitespace-nowrap rounded-sm px-2.5 text-small font-medium text-smoke pointer-hover:text-ink",
+        "touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-97 motion-reduce:active:scale-100",
+        "[transition:color_var(--duration-fast)_ease-out,scale_var(--duration-fast)_var(--ease-out-strong)]", FOCUS)}>
+      Set up
+    </button>
+  );
+}
+
+interface OpenGuide {
+  key: number;
+  activityId: string;
+  day: string;
+  label: string;
+  guide: DrillSetupGuideContent;
+  opener: HTMLElement;
+  open: boolean;
 }
 
 export default function ScheduleCheckInView({
@@ -83,6 +108,7 @@ export default function ScheduleCheckInView({
   const confirmedCheckIns = useRef(checkIns);
   const pendingSaves = useRef(new Map<string, number>());
   const [, startTransition] = useTransition();
+  const [openGuide, setOpenGuide] = useState<OpenGuide | null>(null);
   const doneIds = doneActivityIds(savedCheckIns);
   const totalActivities = scheduledActivityCount(schedule);
   const doneActivities = totalActivities - remainingActivityCount(schedule, savedCheckIns);
@@ -158,7 +184,12 @@ export default function ScheduleCheckInView({
                   <ul className="flex flex-col">
                     {plan.activities.map((activity, index) => {
                       const activityId = activityIds[index]!;
-                      return <ActivityRow key={activityId} label={activityLabel(activity)} done={doneIds.has(activityId)}
+                      const label = activityLabel(activity);
+                      const guide = drillSetupGuide(activity);
+                      const setUp = guide && <SetUpButton label={label} expanded={openGuide?.open === true && openGuide.activityId === activityId}
+                        onOpen={(opener) => setOpenGuide((previous) =>
+                          ({ key: (previous?.key ?? 0) + 1, activityId, day: dayName(day), label, guide, opener, open: true }))} />;
+                      return <ActivityRow key={activityId} label={label} done={doneIds.has(activityId)} setUp={setUp}
                         onToggle={readOnly ? undefined : () => toggle(activityId)} />;
                     })}
                   </ul>
@@ -169,6 +200,9 @@ export default function ScheduleCheckInView({
         })}
         {footer}
       </div>
+      {openGuide && <DrillSetupGuide key={openGuide.key} open={openGuide.open} returnFocusTo={openGuide.opener}
+        onClose={() => setOpenGuide((previous) => previous && { ...previous, open: false })}
+        day={openGuide.day} label={openGuide.label} guide={openGuide.guide} />}
     </>
   );
 }
