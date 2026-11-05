@@ -1,13 +1,13 @@
 "use client";
 
-import { useRef, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode, type Ref } from "react";
 import { DAY_ORDER } from "@/lib/engine";
 import { activityLabel } from "@/lib/activityLabel";
 import { formatDuration } from "@/lib/formatDuration";
 import { plannedActivityMinutes, scheduleActivityId } from "@/lib/currentWeeklySchedule";
 import { doneActivityIds, formatScheduleWeekOf, remainingActivityCount, scheduledActivityCount, weekNotes } from "@/lib/scheduleCheckInSummary";
 import { dayName, isoDateInWeek } from "@/lib/scheduleReasonText";
-import type { ActivityCheckIn, DayPlan, Student, WeeklySchedule } from "@/lib/types";
+import type { ActivityCheckIn, DayOfWeek, DayPlan, Student, WeeklySchedule } from "@/lib/types";
 import { saveActivityCheckIn } from "@/app/dashboard/actions";
 import { FailureNotice } from "@/components/FailureNotice";
 import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
@@ -18,7 +18,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StatusIcon } from "@/components/ui/StatusIcon";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { DrillSetupGuide } from "@/components/DrillSetupGuide";
-import { drillSetupGuide, type DrillSetupGuide as DrillSetupGuideContent } from "@/lib/drillSetupGuide";
+import { DRILL_LINK_PARAMETER, drillSetupGuide, type DrillSetupGuide as DrillSetupGuideContent } from "@/lib/drillSetupGuide";
 
 interface ScheduleCheckInViewProps {
   scheduleId: string;
@@ -32,6 +32,7 @@ interface ScheduleCheckInViewProps {
   /** The student's local date (YYYY-MM-DD). Adds the pace status and the Today label. */
   today?: string;
   uploadReminder?: boolean;
+  thisWeek?: { linkedActivityId: string | null };
 }
 
 const shortDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -69,9 +70,14 @@ function ActivityRow({ label, done, onToggle, setUp }: { label: string; done: bo
   );
 }
 
-function SetUpButton({ label, expanded, onOpen }: { label: string; expanded: boolean; onOpen: (opener: HTMLElement) => void }) {
+function SetUpButton({ label, expanded, onOpen, ref }: {
+  label: string;
+  expanded: boolean;
+  onOpen: (opener: HTMLElement) => void;
+  ref: Ref<HTMLButtonElement>;
+}) {
   return (
-    <button type="button" aria-haspopup="dialog" aria-expanded={expanded} aria-label={`Set up ${label}`}
+    <button ref={ref} type="button" aria-haspopup="dialog" aria-expanded={expanded} aria-label={`Set up ${label}`}
       onClick={(event) => onOpen(event.currentTarget)}
       className={cx("mt-0.5 h-8 shrink-0 whitespace-nowrap rounded-sm px-2.5 text-small font-medium text-smoke pointer-hover:text-ink",
         "touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-97 motion-reduce:active:scale-100",
@@ -79,6 +85,22 @@ function SetUpButton({ label, expanded, onOpen }: { label: string; expanded: boo
       Set up
     </button>
   );
+}
+
+function linkedDrill(schedule: WeeklySchedule, activityId: string) {
+  for (const day of DAY_ORDER) {
+    const index = schedule.days[day].activities.findIndex((_, index) => scheduleActivityId(day, index) === activityId);
+    const activity = schedule.days[day].activities[index];
+    const guide = activity && drillSetupGuide(activity);
+    if (guide) return { activityId, day, label: activityLabel(activity), guide };
+  }
+}
+
+function removeDrillLink() {
+  const url = new URL(location.href);
+  if (!url.searchParams.has(DRILL_LINK_PARAMETER)) return;
+  url.searchParams.delete(DRILL_LINK_PARAMETER);
+  history.replaceState(history.state, "", url);
 }
 
 interface OpenGuide {
@@ -102,6 +124,7 @@ export default function ScheduleCheckInView({
   padding = "px-5 pt-8 pb-16 md:px-18 md:pt-16 md:pb-24",
   today,
   uploadReminder = false,
+  thisWeek,
 }: ScheduleCheckInViewProps) {
   const [savedCheckIns, setSavedCheckIns] = useState(checkIns);
   const [lastSave, setLastSave] = useState<{ activityId: string; answer: Answer<ActivityCheckIn> } | null>(null);
@@ -109,6 +132,12 @@ export default function ScheduleCheckInView({
   const pendingSaves = useRef(new Map<string, number>());
   const [, startTransition] = useTransition();
   const [openGuide, setOpenGuide] = useState<OpenGuide | null>(null);
+  const setUpButtons = useRef(new Map<string, HTMLButtonElement>());
+  const guideEntry = useRef<"none" | "open" | "closing">("none");
+  const linkOpened = useRef(false);
+  const linkedActivityId = thisWeek?.linkedActivityId ?? null;
+  const linked = linkedActivityId === null ? undefined : linkedDrill(schedule, linkedActivityId);
+  const usesHistory = thisWeek !== undefined;
   const doneIds = doneActivityIds(savedCheckIns);
   const totalActivities = scheduledActivityCount(schedule);
   const doneActivities = totalActivities - remainingActivityCount(schedule, savedCheckIns);
@@ -116,6 +145,38 @@ export default function ScheduleCheckInView({
   const dueSoFar = today === undefined ? undefined : DAY_ORDER.reduce(
     (due, day, index) => dates[index]! <= today ? due + schedule.days[day].activities.length : due, 0);
   const practiceTestDays = DAY_ORDER.filter((day) => schedule.days[day].type === "practice_test");
+
+  function showGuide(activityId: string, day: DayOfWeek, label: string, guide: DrillSetupGuideContent, opener: HTMLElement) {
+    setOpenGuide((previous) => ({ key: (previous?.key ?? 0) + 1, activityId, day: dayName(day), label, guide, opener, open: true }));
+    if (!usesHistory || guideEntry.current === "open") return;
+    history.pushState(null, "", location.href);
+    guideEntry.current = "open";
+  }
+
+  function closeGuide() {
+    setOpenGuide((previous) => previous && { ...previous, open: false });
+    if (guideEntry.current !== "open") return;
+    guideEntry.current = "closing";
+    history.back();
+  }
+
+  useEffect(() => {
+    if (!usesHistory) return;
+    function onPopState() {
+      if (guideEntry.current === "none") return;
+      if (guideEntry.current === "open") setOpenGuide((previous) => previous && { ...previous, open: false });
+      guideEntry.current = "none";
+      removeDrillLink();
+    }
+    addEventListener("popstate", onPopState);
+    return () => removeEventListener("popstate", onPopState);
+  }, [usesHistory]);
+
+  useEffect(() => {
+    if (!linked || linkOpened.current) return;
+    linkOpened.current = true;
+    showGuide(linked.activityId, linked.day, linked.label, linked.guide, setUpButtons.current.get(linked.activityId)!);
+  });
 
   function toggle(activityId: string) {
     const status = doneIds.has(activityId) ? "not_started" : "completed";
@@ -152,6 +213,9 @@ export default function ScheduleCheckInView({
       />}
       <FailureNotice action={lastSave?.activityId} answer={lastSave?.answer ?? null} />
       <div className={cx("flex flex-col gap-4", padding)}>
+        {linkedActivityId !== null && !linked && (
+          <p role="status" className="rounded-md bg-vellum px-4 py-2.5 text-small text-ink">That drill is not in this week.</p>
+        )}
         {DAY_ORDER.map((day, dayIndex) => {
           const plan = schedule.days[day];
           const plannedMinutes = Math.round(plan.activities.reduce((total, activity) => total + plannedActivityMinutes(activity), 0));
@@ -187,8 +251,11 @@ export default function ScheduleCheckInView({
                       const label = activityLabel(activity);
                       const guide = drillSetupGuide(activity);
                       const setUp = guide && <SetUpButton label={label} expanded={openGuide?.open === true && openGuide.activityId === activityId}
-                        onOpen={(opener) => setOpenGuide((previous) =>
-                          ({ key: (previous?.key ?? 0) + 1, activityId, day: dayName(day), label, guide, opener, open: true }))} />;
+                        ref={(button) => {
+                          if (button) setUpButtons.current.set(activityId, button);
+                          else setUpButtons.current.delete(activityId);
+                        }}
+                        onOpen={(opener) => showGuide(activityId, day, label, guide, opener)} />;
                       return <ActivityRow key={activityId} label={label} done={doneIds.has(activityId)} setUp={setUp}
                         onToggle={readOnly ? undefined : () => toggle(activityId)} />;
                     })}
@@ -201,7 +268,7 @@ export default function ScheduleCheckInView({
         {footer}
       </div>
       {openGuide && <DrillSetupGuide key={openGuide.key} open={openGuide.open} returnFocusTo={openGuide.opener}
-        onClose={() => setOpenGuide((previous) => previous && { ...previous, open: false })}
+        onClose={closeGuide}
         day={openGuide.day} label={openGuide.label} guide={openGuide.guide} />}
     </>
   );

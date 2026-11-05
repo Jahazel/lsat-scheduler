@@ -15,6 +15,7 @@ import { postgresActivityCheckIns } from "@/lib/activityCheckInRepository";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import type { Student } from "@/lib/types";
 import ScheduleCheckInView from "@/components/ScheduleCheckInView";
+import { DRILL_LINK_PARAMETER } from "@/lib/drillSetupGuide";
 import { PageCue } from "@/components/SiteMotion";
 import { CurrentWeekReport } from "@/components/AdminTestContext";
 
@@ -22,14 +23,14 @@ const previewStartDate = new Intl.DateTimeFormat("en-US", {
   weekday: "long", month: "short", day: "numeric", timeZone: "UTC",
 });
 
-type DashboardSearchParams = { historyWeek?: string | string[] };
+type DashboardSearchParams = { historyWeek?: string | string[]; [DRILL_LINK_PARAMETER]?: string | string[] };
 
 export default async function DashboardPage({
   searchParams,
 }: {
   searchParams: Promise<DashboardSearchParams>;
 }) {
-  const { historyWeek } = await searchParams;
+  const { historyWeek, [DRILL_LINK_PARAMETER]: drill } = await searchParams;
   // Past weeks moved to Progress; keep old deep links working.
   const pastWeek = Array.isArray(historyWeek) ? historyWeek[0] : historyWeek;
   if (pastWeek) redirect(`/progress?week=${encodeURIComponent(pastWeek)}`);
@@ -99,6 +100,7 @@ export default async function DashboardPage({
         ) : undefined}
         today={localDateInTimezone(now, SCHEDULE_TIMEZONE)}
         uploadReminder={!preview && showsUploadReminder(snapshots, now, SCHEDULE_TIMEZONE)}
+        thisWeek={{ linkedActivityId: (Array.isArray(drill) ? drill[0] : drill) ?? null }}
       />
     </div>
   );
