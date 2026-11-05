@@ -32,7 +32,7 @@ export function PageHeader({ eyebrow, title, lead, notes = [], aside, gutter = "
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between lg:gap-4">
         <div className="flex min-w-0 flex-1 flex-col gap-1.5 md:gap-3">
           {eyebrow && <p className="text-caption text-smoke md:text-small">{eyebrow}</p>}
-          <h1 className="text-h3 font-medium text-ink md:text-h2">{title}</h1>
+          <h1 tabIndex={-1} className="text-h3 font-medium text-ink outline-none md:text-h2">{title}</h1>
           {lead && <p className="text-body text-smoke md:text-lead">{lead}</p>}
           <HeaderNotes notes={notes} />
         </div>

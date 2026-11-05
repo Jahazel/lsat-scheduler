@@ -6,7 +6,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 
 const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), pathname: "/" }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push, replace: mocks.replace }), usePathname: () => mocks.pathname }));
-import SiteMotion, { fadeFormThrough } from "./SiteMotion";
+import SiteMotion, { PageCue, fadeFormThrough } from "./SiteMotion";
 
 type Live = { el: Element; keyframes: Keyframe[]; options: KeyframeAnimationOptions; finish: () => void };
 let live: Live[] = [];
@@ -104,7 +104,8 @@ function Legal({ title }: { title: string }) {
 function SignIn({ title, notice, children }: { title: string; notice?: string; children?: React.ReactNode }) {
   return (
     <main tabIndex={-1}>
-      <div data-sign-in-page>
+      <div data-sign-in-page style={{ opacity: 1 }}>
+        <PageCue page="sign-in" />
         <Link data-page-logo href="/">DrillMap</Link>
         <div data-page-swap style={{ opacity: 1 }}>
           <h1 tabIndex={-1}>{title}</h1>
@@ -614,6 +615,201 @@ describe("SiteMotion", () => {
       expect(entrances().map((a) => a.el)).toEqual([formOf("Log in to DrillMap"), card()]);
       expect(formOf("Log in to DrillMap").contains(screen.getByRole("status"))).toBe(true);
       expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Log in to DrillMap" }));
+    });
+  });
+
+  describe("into and out of onboarding", () => {
+    const fadeOuts = () => calls.filter((a) => a.options.fill === "forwards" && Number(a.options.duration) > 0);
+    const holds = () => calls.filter((a) => a.options.fill === "forwards" && a.options.duration === 0 && !(a.el as HTMLElement).hasAttribute("data-page-logo"));
+    const copy = () => document.querySelector<HTMLElement>("[data-page-copy]");
+    const region = (name: string) => screen.getByLabelText(name);
+    const settle = () => act(async () => {});
+    const finishCopy = () => act(async () => {
+      for (const a of live.filter((a) => a.el.closest("[data-page-copy]"))) a.finish();
+    });
+
+    function SignedInBar({ logoHref = "/" }: { logoHref?: string }) {
+      return (
+        <header>
+          <Link data-page-logo href={logoHref}>DrillMap</Link>
+          <div data-page-fade aria-label="Top bar">Log out</div>
+        </header>
+      );
+    }
+    const Pending = () => <><SignedInBar /><main tabIndex={-1} /></>;
+    const Placeholder = () => (
+      <>
+        <SignedInBar />
+        <main tabIndex={-1}>
+          <div style={{ opacity: 1 }}>
+            <PageCue page="placeholder" />
+            <div data-page-swap aria-label="Step placeholder" style={{ opacity: 1 }} />
+            <aside data-page-fade aria-label="Panel placeholder" style={{ opacity: 1 }}>
+              <div data-page-swap aria-label="Card placeholder" style={{ opacity: 1 }} />
+            </aside>
+          </div>
+        </main>
+      </>
+    );
+    const Onboarding = () => (
+      <>
+        <SignedInBar />
+        <main tabIndex={-1}>
+          <div style={{ opacity: 1 }}>
+            <PageCue page="onboarding" />
+            <div data-page-swap aria-label="Step" style={{ opacity: 1 }}>
+              <h1 tabIndex={-1}>Set your target</h1>
+              <button type="button">Skip for now</button>
+            </div>
+            <aside data-page-fade aria-label="Panel" style={{ opacity: 1 }}>
+              <div data-page-swap aria-label="Card" style={{ opacity: 1 }}>Preview</div>
+            </aside>
+          </div>
+        </main>
+      </>
+    );
+    const ThisWeek = () => (
+      <>
+        <SignedInBar logoHref="/dashboard" />
+        <main tabIndex={-1}>
+          <div data-page-fade aria-label="This week page" style={{ opacity: 1 }}>
+            <PageCue page="this-week" />
+            <h1 tabIndex={-1}>This week</h1>
+          </div>
+        </main>
+      </>
+    );
+
+    function at(path: string, page: React.ReactNode, rerender?: (ui: React.ReactNode) => void) {
+      mocks.pathname = path;
+      const ui = <>{page}<SiteMotion /></>;
+      if (rerender) rerender(ui);
+      else return render(ui);
+    }
+
+    async function logIn() {
+      const { rerender } = at("/login", PAGES["/login"]())!;
+      at("/login", <Pending />, rerender);
+      await settle();
+      return rerender;
+    }
+
+    it("keeps Log in on screen as an inert copy until onboarding shows, then fades it through with the logo glide", async () => {
+      const rerender = await logIn();
+      expect(copy()?.textContent).toContain("Log in to DrillMap");
+      expect(copy()!.inert).toBe(true);
+      expect(copy()!.getAttribute("aria-busy")).toBe("true");
+      expect(holds().map((a) => a.el)).toEqual([region("Top bar")]);
+      expect(fadeOuts()).toHaveLength(0);
+
+      at("/onboarding", <Onboarding />, rerender);
+      expect(fadeOuts()).toHaveLength(1);
+      expect(fadeOuts()[0].keyframes.at(-1)).toMatchObject({ opacity: 0 });
+      expect(fadeOuts()[0].options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)" });
+      expect(entrances()).toHaveLength(0);
+      expect(document.activeElement).not.toBe(screen.getByRole("heading", { name: "Set your target" }));
+
+      await finishCopy();
+      expect(copy()).toBeNull();
+      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar", "Step", "Panel"]);
+      for (const entrance of entrances()) {
+        expect(entrance.keyframes).toEqual([{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }]);
+        expect(entrance.options).toEqual({ duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" });
+      }
+      expect(glides().at(-1)!.keyframes).toEqual([{ transform: "translate(72px, 12px)" }, { transform: "none" }]);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Set your target" }));
+    });
+
+    it("on a slow load, fades Log in to the placeholder, then swaps only the step and card under a still top bar and panel", async () => {
+      const rerender = await logIn();
+      at("/onboarding", <Placeholder />, rerender);
+      await finishCopy();
+      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar", "Step placeholder", "Panel placeholder"]);
+      calls = [];
+
+      at("/onboarding", <Onboarding />, rerender);
+      await settle();
+      expect(copy()?.querySelectorAll("[data-page-swap]")).toHaveLength(2);
+      expect(fadeOuts().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Step placeholder", "Card placeholder"]);
+      expect(entrances()).toHaveLength(0);
+
+      await finishCopy();
+      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Step", "Card"]);
+      expect(entrances()[0].keyframes[0]).toEqual({ opacity: 0, transform: "translateY(8px)" });
+      expect(calls.some((a) => ["Top bar", "Panel"].includes(a.el.getAttribute("aria-label")!))).toBe(false);
+      expect(glides()).toHaveLength(0);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Set your target" }));
+    });
+
+    it("on a fast load, never shows the placeholder", async () => {
+      const rerender = await logIn();
+      at("/onboarding", <Placeholder />, rerender);
+      at("/onboarding", <Onboarding />, rerender);
+      await settle();
+      await finishCopy();
+      expect(calls.filter((a) => a.el.getAttribute("aria-label")?.includes("placeholder") && a.options.fill !== "forwards")).toHaveLength(0);
+      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar", "Step", "Panel"]);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Set your target" }));
+    });
+
+    it("fades onboarding through to This week after Skip for now, and moves focus to its heading", async () => {
+      const { rerender } = at("/onboarding", <Onboarding />)!;
+      at("/dashboard", <Pending />, rerender);
+      await settle();
+      expect(copy()?.textContent).toContain("Set your target");
+      at("/dashboard/upload", <ThisWeek />, rerender);
+      expect(fadeOuts()).toHaveLength(1);
+      await finishCopy();
+      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar", "This week page"]);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "This week" }));
+    });
+
+    it("leaves onboarding with the same fade when Back lands on a page that sends the student back to onboarding", async () => {
+      const { rerender } = at("/onboarding", <Onboarding />)!;
+      history.replaceState(ROUTER_ENTRY, "", "/login");
+      const router = vi.fn();
+      addEventListener("popstate", router);
+      dispatchEvent(new PopStateEvent("popstate", { state: ROUTER_ENTRY }));
+      removeEventListener("popstate", router);
+      expect(router).toHaveBeenCalledOnce();
+
+      at("/dashboard", <Pending />, rerender);
+      await settle();
+      at("/onboarding", <Onboarding />, rerender);
+      expect(fadeOuts()).toHaveLength(1);
+      await finishCopy();
+      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar", "Step", "Panel"]);
+    });
+
+    it("drops the copy with no motion when Log in leads to This week, and This week reached any other way does not move", async () => {
+      const rerender = await logIn();
+      at("/dashboard", <ThisWeek />, rerender);
+      expect(copy()).toBeNull();
+      expect(fadeOuts()).toHaveLength(0);
+      expect(entrances()).toHaveLength(0);
+      expect(live).toHaveLength(0);
+
+      at("/progress", <main><h1>Progress</h1></main>, rerender);
+      at("/dashboard", <ThisWeek />, rerender);
+      await settle();
+      expect(entrances()).toHaveLength(0);
+    });
+
+    it("drops the copy at once under reduced motion and fades onboarding in for 120 ms with no movement and no glide", async () => {
+      reduced = true;
+      const rerender = await logIn();
+      expect(copy()).not.toBeNull();
+      at("/onboarding", <Onboarding />, rerender);
+      expect(copy()).toBeNull();
+      await settle();
+      expect(fadeOuts()).toHaveLength(0);
+      expect(glides().filter((a) => a.options.fill !== "forwards")).toHaveLength(0);
+      for (const entrance of entrances()) {
+        expect(entrance.keyframes).toEqual([{ opacity: 0 }, { opacity: 1 }]);
+        expect(entrance.options).toEqual({ duration: 120, easing: "linear" });
+      }
+      expect(entrances()).toHaveLength(3);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Set your target" }));
     });
   });
 });
