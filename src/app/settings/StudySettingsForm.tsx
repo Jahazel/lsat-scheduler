@@ -3,6 +3,7 @@
 import { useEffect, useId, useReducer, useRef, type FormEvent, type ReactNode, type Ref } from "react";
 import { FailureNotice } from "@/components/FailureNotice";
 import { FieldMessage, GoalTestDateSelect, ScoreInput, TestTimeChoice, WeekFields } from "@/components/StudyProfileFields";
+import { Button } from "@/components/ui/Button";
 import { FOCUS, cx } from "@/components/ui/classes";
 import { DAY_ORDER } from "@/lib/engine";
 import { attemptMonths, dailyCapacityError, everyDay, type StudySettingsInput, type upcomingTestMonths } from "@/lib/studentProfile";
@@ -393,20 +394,20 @@ function SaveBar({ shown, phase, sendFailed, buttonRef }: { shown: boolean; phas
             {SAVED_NOTE}
           </p>
         </div>
-        <button
+        <Button
           ref={buttonRef}
           type="submit"
-          aria-disabled={saving || undefined}
+          variant="bare"
+          size="md"
+          waiting={saving}
+          waitLabel="Saving…"
           inert={saved}
           aria-hidden={saved || undefined}
           data-shown={!saved || undefined}
-          className={cx(
-            "save-bar-fade h-10 shrink-0 rounded-sm bg-paper px-5 text-small font-semibold text-ink aria-disabled:opacity-60",
-            FOCUS,
-          )}
+          className={cx("save-bar-fade h-10 shrink-0 rounded-sm bg-paper px-5 text-small font-semibold text-ink", FOCUS)}
         >
-          {saving ? "Saving…" : "Save changes"}
-        </button>
+          Save changes
+        </Button>
       </div>
     </div>
   );

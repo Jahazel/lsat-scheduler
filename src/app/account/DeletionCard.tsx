@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { ActionForm, FailureNotice } from "@/components/FailureNotice";
 import { followSignOut } from "@/components/SignOutForm";
 import { GoogleButton } from "@/components/signIn/GoogleButton";
+import { Button } from "@/components/ui/Button";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { ADMIN_RESTRICTED_ACTION_MESSAGE } from "@/lib/accessControl";
 import { CURRENT_PASSWORD_MESSAGES } from "@/lib/currentPasswordMessages";
@@ -137,18 +138,20 @@ function ConfirmationFields({ refusal, currentPassword }: {
           </p>
         )}
       </div>
-      <button
+      <Button
         type="submit"
-        disabled={pending}
+        variant="bare"
+        waiting={pending}
+        waitLabel="Deleting…"
         className={cx(
           "flex h-11 items-center justify-center rounded-sm border border-danger bg-paper text-body leading-[20px] font-medium text-danger-ink",
-          "hover:bg-danger/faint disabled:opacity-strong",
+          "hover:bg-danger/faint",
           MOTION,
           FOCUS,
         )}
       >
-        {pending ? "Deleting…" : "Delete account"}
-      </button>
+        Delete account
+      </Button>
       {pending && <p className="text-small text-smoke">Deleting your account. This takes a few seconds.</p>}
       <FailureNotice answer={refusal} />
     </>

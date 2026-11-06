@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { FailureNotice } from "@/components/FailureNotice";
 import { followSignOut } from "@/components/SignOutForm";
+import { Button } from "@/components/ui/Button";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
 import { changePassword, type PasswordChangeRefusal } from "./actions";
@@ -46,18 +47,20 @@ export function ChangePasswordCard() {
           helper="At least 8 characters. A long phrase works well."
           error={shown?.field === "newPassword" ? shown.message : undefined}
         />
-        <button
+        <Button
           type="submit"
-          disabled={pending}
+          variant="bare"
+          waiting={pending}
+          waitLabel="Changing password…"
           className={cx(
             "flex h-11 items-center justify-center rounded-sm border border-vellum-line bg-paper text-body leading-[20px] font-medium text-ink",
-            "hover:bg-vellum disabled:opacity-strong",
+            "hover:bg-vellum",
             MOTION,
             FOCUS,
           )}
         >
-          {pending ? "Changing password…" : "Change password"}
-        </button>
+          Change password
+        </Button>
         <FailureNotice answer={refusal} />
       </form>
     </section>

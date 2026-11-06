@@ -230,8 +230,7 @@ describe("OnboardingWizard", () => {
     const { user } = await fillGoalAndWeek(onSave);
 
     await user.click(screen.getByRole("button", { name: "Skip for now" }));
-    const saving = screen.getByRole("button", { name: "Saving…" }) as HTMLButtonElement;
-    expect(saving.disabled).toBe(true);
+    expect(screen.getByRole("button", { name: "Saving…" }).getAttribute("aria-disabled")).toBe("true");
     expect((screen.getByRole("button", { name: "Back" }) as HTMLButtonElement).disabled).toBe(true);
 
     failSave(new Error("offline"));

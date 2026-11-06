@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { FormEvent } from "react";
 import { Button, ButtonLink, IconButton } from "./Button";
 import { Checkbox } from "./Checkbox";
 import { DropZone } from "./DropZone";
@@ -63,6 +64,54 @@ describe("Button", () => {
     expect(screen.getByRole("button", { name: "Book a demo" }).className).toMatch(/border-vellum-line.*h-10/);
     expect(screen.getByRole("link", { name: "Get a demo" }).className).toMatch(/hover:bg-vellum-line.*h-12/);
     expect(screen.getByRole("button", { name: "Scroll to top" }).className).toContain("size-8");
+  });
+});
+
+describe("Button waiting", () => {
+  it("shows the ring and its wait text, dims, and stays focusable", () => {
+    render(<Button waiting waitLabel="Saving…">Save changes</Button>);
+    const button = screen.getByRole("button", { name: "Saving…" });
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(button.querySelector("svg")).not.toBeNull();
+    button.focus();
+    expect(button).toBe(document.activeElement);
+  });
+
+  it("keeps its own label when it has no wait text", () => {
+    render(<Button waiting>Continue</Button>);
+    expect(screen.getByRole("button", { name: "Continue" }).querySelector("svg")).not.toBeNull();
+  });
+
+  it("ignores a second press, by pointer and by Enter in its form", async () => {
+    const onClick = vi.fn();
+    const onSubmit = vi.fn((event: FormEvent) => event.preventDefault());
+    render(
+      <form onSubmit={onSubmit}>
+        <input aria-label="Email" />
+        <Button type="submit" waiting waitLabel="Sending…" onClick={onClick}>Send reset link</Button>
+      </form>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Sending…" }));
+    await userEvent.type(screen.getByLabelText("Email"), "a{Enter}");
+    expect(onClick).not.toHaveBeenCalled();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("keeps its label in place, hidden from screen readers, so it never gets narrower than before the wait", () => {
+    render(<Button waiting waitLabel="Saving…">Save changes</Button>);
+    const button = screen.getByRole("button", { name: "Saving…" });
+    expect(button.textContent).toBe("Save changesSaving…");
+  });
+
+  it("returns to its label and takes presses again when the wait ends", async () => {
+    const onClick = vi.fn();
+    const { rerender } = render(<Button waiting waitLabel="Saving…" onClick={onClick}>Save changes</Button>);
+    rerender(<Button waiting={false} waitLabel="Saving…" onClick={onClick}>Save changes</Button>);
+    const button = screen.getByRole("button", { name: "Save changes" });
+    expect(button.hasAttribute("aria-disabled")).toBe(false);
+    expect(button.querySelector("svg")).toBeNull();
+    await userEvent.click(button);
+    expect(onClick).toHaveBeenCalledOnce();
   });
 });
 

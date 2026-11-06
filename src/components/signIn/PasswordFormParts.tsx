@@ -1,6 +1,7 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
+import { Button } from "@/components/ui/Button";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 
 export function OrWithEmail() {
@@ -17,17 +18,19 @@ export function OrWithEmail() {
 export function SubmitButton({ label, workingLabel, pending: submitting }: { label: string; workingLabel?: string; pending?: boolean }) {
   const pending = useFormStatus().pending || !!submitting;
   return (
-    <button
+    <Button
       type="submit"
-      disabled={pending}
+      variant="bare"
+      waiting={pending}
+      waitLabel={workingLabel}
       className={cx(
         "flex h-12 w-full items-center justify-center rounded-sm border border-ink bg-ink text-body leading-[20px] font-medium text-chalk",
-        "hover:bg-graphite-raised disabled:opacity-muted",
+        "hover:bg-graphite-raised",
         MOTION,
         FOCUS,
       )}
     >
-      {pending && workingLabel ? workingLabel : label}
-    </button>
+      {label}
+    </Button>
   );
 }

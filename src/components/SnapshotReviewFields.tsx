@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { Button } from "@/components/ui/Button";
 import { Checkbox as SharedCheckbox } from "@/components/ui/Checkbox";
 import { SECTION_NAME, isTyped, lowestPassageType, type ReviewRow, type Statement } from "@/lib/analyticsReview";
 import {
@@ -146,22 +147,19 @@ export function ConfirmBar({ label, saving, locked, note, onBack, onConfirm }: {
         <button type="button" disabled={saving} onClick={onBack} className={STEP_SECONDARY}>
           Back
         </button>
-        <button
-          type="button"
-          aria-disabled={locked && !saving ? true : undefined}
-          disabled={saving}
+        <Button
+          variant="bare"
+          waiting={saving}
+          waitLabel="Saving…"
+          aria-disabled={locked || undefined}
           onClick={onConfirm}
           aria-describedby="confirm-note"
           className={`h-11 flex-1 rounded-sm text-body font-medium transition-colors duration-(--duration-fast) ease-out ${FOCUS} ${
-            saving
-              ? "cursor-wait bg-graphite-raised text-chalk"
-              : locked
-                ? "cursor-not-allowed bg-vellum-line text-smoke"
-                : "bg-ink text-chalk hover:bg-graphite-raised"
+            locked && !saving ? "cursor-not-allowed bg-vellum-line text-smoke" : "bg-ink text-chalk hover:bg-graphite-raised"
           }`}
         >
-          {saving ? "Saving…" : label}
-        </button>
+          {label}
+        </Button>
       </div>
       <p id="confirm-note" role="status" className="text-center text-small text-smoke">
         {note}

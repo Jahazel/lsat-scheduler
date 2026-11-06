@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { SignOutForm } from "@/components/SignOutForm";
+import { Button } from "@/components/ui/Button";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { signOutAllDevices } from "./actions";
 
@@ -47,13 +48,15 @@ function ConfirmButtons({ onCancel }: { onCancel: () => void }) {
       <button type="button" onClick={onCancel} disabled={pending} className={cx(OUTLINE, "sm:w-28")}>
         Cancel
       </button>
-      <button
+      <Button
         type="submit"
-        disabled={pending}
-        className={cx(BUTTON, "sm:min-w-52 bg-ink text-chalk hover:bg-graphite-raised disabled:opacity-strong", MOTION, FOCUS)}
+        variant="bare"
+        waiting={pending}
+        waitLabel="Signing out…"
+        className={cx(BUTTON, "sm:min-w-52 bg-ink text-chalk hover:bg-graphite-raised", MOTION, FOCUS)}
       >
-        {pending ? "Signing out…" : "Sign out of all devices"}
-      </button>
+        Sign out of all devices
+      </Button>
     </div>
   );
 }

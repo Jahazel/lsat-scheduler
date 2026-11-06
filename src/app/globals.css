@@ -276,6 +276,16 @@ body:has([data-sign-in-page]) > footer { display: none; }
   .page-placeholder-sweep { display: none; }
 }
 
+@keyframes button-ring-in { from { opacity: 0; scale: 0.9; } }
+@keyframes button-ring-fade { from { opacity: 0; } }
+@keyframes button-ring-turn { to { rotate: 360deg; } }
+.button-ring { animation: button-ring-in var(--duration-base) var(--ease-out-strong) both; }
+.button-ring > svg { animation: button-ring-turn 900ms linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .button-ring { animation: button-ring-fade var(--duration-fast) ease both; }
+  .button-ring > svg { animation: none; }
+}
+
 .step-mat { --mat-size: 80% 70%; --mat-spectrum-at: 50% 90%; --mat-edge: 0%; }
 @media (min-width: 64rem) {
   .step-mat { --mat-size: 80% 90%; --mat-spectrum-at: 50% 85%; --mat-edge: 2%; }

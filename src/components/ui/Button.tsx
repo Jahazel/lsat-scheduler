@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ButtonHTMLAttributes, ComponentProps } from "react";
+import type { ButtonHTMLAttributes, ComponentProps, MouseEvent } from "react";
 import { FOCUS, MOTION, cx } from "./classes";
 
 export type ButtonVariant = "primary" | "outline" | "text";
@@ -29,8 +29,51 @@ export function buttonClass({ variant = "primary", size = "lg" }: { variant?: Bu
 
 type Look = { variant?: ButtonVariant; size?: ButtonSize };
 
-export function Button({ variant, size, className, type = "button", ...props }: ButtonHTMLAttributes<HTMLButtonElement> & Look) {
-  return <button type={type} className={cx(buttonClass({ variant, size }), className)} {...props} />;
+/** `variant="bare"` keeps a screen's own button look, given in `className`; `size` then picks only the ring's size. */
+type ButtonProps = ComponentProps<"button"> & {
+  variant?: ButtonVariant | "bare";
+  size?: ButtonSize;
+  waiting?: boolean;
+  waitLabel?: string;
+};
+
+export function Button({ variant, size, className, type = "button", waiting = false, waitLabel, children, onClick, ...props }: ButtonProps) {
+  const look = variant === "bare" ? "" : buttonClass({ variant, size });
+  return (
+    <button
+      type={type}
+      className={cx(look, "data-waiting:shrink-0 data-waiting:cursor-default data-waiting:opacity-strong", className)}
+      {...props}
+      {...(waiting
+        ? { "data-waiting": "", "aria-disabled": true, onClick: (event: MouseEvent<HTMLButtonElement>) => event.preventDefault() }
+        : { onClick })}
+    >
+      {waiting ? (
+        <span className="inline-grid place-items-center *:col-start-1 *:row-start-1">
+          <span aria-hidden className="invisible">
+            {children}
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <Ring size={size} />
+            {waitLabel ?? children}
+          </span>
+        </span>
+      ) : (
+        children
+      )}
+    </button>
+  );
+}
+
+function Ring({ size = "lg" }: { size?: ButtonSize }) {
+  return (
+    <span aria-hidden className={cx("button-ring shrink-0", size === "md" ? "size-3.5" : "size-4")}>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" className="block size-full overflow-visible">
+        <circle cx="8" cy="8" r="6.25" strokeOpacity="0.25" />
+        <path d="M8 1.75a6.25 6.25 0 0 1 5.4 3.1" strokeLinecap="round" />
+      </svg>
+    </span>
+  );
 }
 
 export function ButtonLink({ variant, size, className, ...props }: ComponentProps<typeof Link> & Look) {
