@@ -26,7 +26,7 @@ export function FileRow({ title, detail, action, bar, tone = "default", children
     <div
       {...props}
       className={cx(
-        "flex flex-col gap-3 rounded-md border p-4 outline-none transition-[border-color] duration-(--duration-base) ease-[ease] motion-reduce:transition-none",
+        "flex flex-col gap-3 rounded-md border p-4 outline-none transition-[border-color] duration-(--duration-base) ease-[ease]",
         tone === "danger" ? "border-danger" : tone === "warning" ? "border-warning/55" : "border-vellum-line",
         className,
       )}

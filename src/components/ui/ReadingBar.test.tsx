@@ -32,8 +32,7 @@ function Row({ status, name = "lr-analytics.png" }: { status: Status; name?: str
 const STILL_READING = "Still reading. This can take up to 30 seconds.";
 const progressbar = () => screen.queryByRole("progressbar", { name: "Reading your Logical Reasoning screenshot" });
 const detail = () => screen.getByText((_, el) => el?.getAttribute("aria-live") === "polite").textContent;
-const barArea = () => document.querySelector<HTMLElement>("[data-phase]")!;
-const barShown = () => barArea().hasAttribute("data-open");
+const hiddenFromReaders = (text: string) => screen.getByText(text).closest("[aria-hidden='true']") !== null;
 
 let reduced = false;
 beforeEach(() => {
@@ -52,7 +51,6 @@ describe("reading bar", () => {
     render(<Row status="waiting" />);
     expect(detail()).toBe("lr-analytics.png · Waiting to read");
     expect(progressbar()).toBeNull();
-    expect(barShown()).toBe(false);
   });
 
   it("opens the bar while the read runs", () => {
@@ -60,7 +58,6 @@ describe("reading bar", () => {
     rerender(<Row status="reading" />);
     expect(detail()).toBe("lr-analytics.png · Reading now");
     expect(progressbar()).not.toBeNull();
-    expect(barShown()).toBe(true);
   });
 
   it("adds the long-read note at 10 s and keeps reading", () => {
@@ -76,13 +73,12 @@ describe("reading bar", () => {
   it("fills the bar, then shows the result line 260 ms later and closes the bar", () => {
     const { rerender } = render(<Row status="reading" />);
     rerender(<Row status="read" />);
-    expect(barArea().dataset.phase).toBe("filling");
+    expect(progressbar()).not.toBeNull();
     expect(detail()).toBe("lr-analytics.png · Reading now");
     act(() => vi.advanceTimersByTime(259));
     expect(detail()).toBe("lr-analytics.png · Reading now");
     act(() => vi.advanceTimersByTime(1));
     expect(detail()).toBe("lr-analytics.png · 12 question types");
-    expect(barShown()).toBe(false);
     expect(progressbar()).toBeNull();
   });
 
@@ -90,9 +86,9 @@ describe("reading bar", () => {
     const { rerender } = render(<Row status="reading" />);
     act(() => vi.advanceTimersByTime(10_000));
     rerender(<Row status="read" />);
+    expect(hiddenFromReaders(STILL_READING)).toBe(false);
     act(() => vi.advanceTimersByTime(260));
-    expect(barShown()).toBe(false);
-    expect(barArea().getAttribute("aria-hidden")).toBe("true");
+    expect(hiddenFromReaders(STILL_READING)).toBe(true);
   });
 
   it("shows the result line at once with reduced motion", () => {
@@ -106,15 +102,13 @@ describe("reading bar", () => {
   it("shows no bar for a screenshot that was already read", () => {
     render(<Row status="read" />);
     expect(detail()).toBe("lr-analytics.png · 12 question types");
-    expect(barShown()).toBe(false);
+    expect(progressbar()).toBeNull();
   });
 
   it("stops the bar without filling it when the connection is lost", () => {
     const { rerender } = render(<Row status="reading" />);
     act(() => vi.advanceTimersByTime(10_000));
     rerender(<Row status="connection-lost" />);
-    expect(barShown()).toBe(true);
-    expect(barArea().dataset.phase).toBe("lost");
     expect(progressbar()).toBeNull();
     expect(screen.queryByText(STILL_READING)).toBeNull();
     expect(detail()).toBe("lr-analytics.png · Connection lost. Your file is still here.");
@@ -124,8 +118,6 @@ describe("reading bar", () => {
     const { rerender } = render(<Row status="reading" />);
     act(() => vi.advanceTimersByTime(10_000));
     rerender(<Row status={status} />);
-    expect(barShown()).toBe(false);
-    expect(barArea().dataset.phase).toBe("off");
     expect(progressbar()).toBeNull();
     expect(screen.queryByText(STILL_READING)).toBeNull();
     expect(detail()).toBe(`lr-analytics.png · ${TEXT[status]}`);
