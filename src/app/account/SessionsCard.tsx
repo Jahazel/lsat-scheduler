@@ -12,7 +12,7 @@ const OUTLINE = cx(BUTTON, "border border-vellum-line bg-paper text-ink hover:bg
 export function SessionsCard() {
   const [confirming, setConfirming] = useState(false);
   return (
-    <section className="flex flex-col gap-6 rounded-md border border-vellum-line bg-paper p-5 md:p-8">
+    <section data-page-section className="flex flex-col gap-6 rounded-md border border-vellum-line bg-paper p-5 md:p-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-16">
         <div className="flex flex-col gap-2">
           <h2 className="text-h4 font-semibold text-ink">Sessions</h2>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { PageCue } from "@/components/SiteMotion";
+import { PageArrival } from "@/components/PagePlaceholder";
 import { listStudentIdsWithApprovedAnalytics } from "@/lib/analyticsSnapshotRepository";
 import { formatDuration } from "@/lib/formatDuration";
 import { listStudentsWithOwners } from "@/lib/studentRepository";
@@ -21,11 +22,12 @@ export default async function AdminPage() {
   return (
     <div data-page-fade className="min-h-screen px-6 py-12">
       <PageCue page="admin" />
+      <PageArrival page="All students" />
       <div className="mx-auto max-w-2xl">
-        <h1 className="text-h3 font-semibold text-ink">All students</h1>
+        <h1 data-page-section className="text-h3 font-semibold text-ink">All students</h1>
 
         {students.length === 0 ? (
-          <div className="mt-8 flex flex-col items-center gap-3 border-y border-vellum-line px-6 py-16 text-center">
+          <div data-page-section className="mt-8 flex flex-col items-center gap-3 border-y border-vellum-line px-6 py-16 text-center">
             <p className="text-small text-smoke">No students have completed onboarding yet.</p>
           </div>
         ) : (
@@ -33,7 +35,7 @@ export default async function AdminPage() {
             {students.map((student) => {
               const needsAnalytics = !studentIdsWithAnalytics.has(student.id);
               return (
-                <li key={student.id}>
+                <li key={student.id} data-page-section>
                   <Link
                     href={`/admin/students/${student.id}`}
                     className="group flex items-center gap-4 px-1 py-4 transition-colors duration-(--duration-fast) ease-out hover:bg-vellum-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-vellum"
