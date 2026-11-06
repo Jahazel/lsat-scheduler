@@ -6,6 +6,11 @@ import type { PastWeekMonth } from "@/lib/progressHistory";
 export const CARD = "overflow-hidden rounded-md border border-vellum-line bg-paper";
 export const GUTTER = "px-5 md:px-8 lg:px-18";
 export const CONTENT = "flex flex-col gap-6 px-4 pt-4 pb-10 md:px-8 md:pt-12 md:pb-18 lg:px-18";
+export const WEEK_ROW = cx(
+  "grid min-h-16 grid-cols-[1fr_auto_16px] items-center gap-x-3 gap-y-2.5 px-4 py-3.5 [grid-template-areas:'dates_count_chevron'_'bar_bar_chevron']",
+  "sm:grid-cols-[140px_minmax(0,200px)_1fr_24px] sm:gap-4 sm:px-6 sm:py-0 sm:[grid-template-areas:'dates_bar_count_chevron']",
+  "lg:grid-cols-[200px_minmax(0,320px)_1fr_24px] lg:gap-6",
+);
 export const LEAD = "Your past weekly schedules. Open one to see what you planned and checked off.";
 
 function Chevron() {
@@ -19,10 +24,10 @@ function Chevron() {
 export default function ProgressOverview({ months }: { months: PastWeekMonth[] }) {
   return (
     <>
-      <PageHeader gutter={GUTTER} title="Progress" lead={LEAD} />
+      <div data-page-section><PageHeader gutter={GUTTER} title="Progress" lead={LEAD} /></div>
       <div className={CONTENT}>
         {months.length === 0 ? (
-          <div className={cx(CARD, "flex flex-col gap-1 px-4 py-6 sm:px-6 sm:py-12")}>
+          <div data-page-section className={cx(CARD, "flex flex-col gap-1 px-4 py-6 sm:px-6 sm:py-12")}>
             <p className="text-body font-medium text-ink">No past weeks yet.</p>
             <p className="text-small text-smoke">Each week shows up here after it ends.</p>
             <Link href="/dashboard" className={cx("mt-3 self-start rounded-xs text-small font-medium text-accent hover:underline", FOCUS)}>
@@ -30,7 +35,7 @@ export default function ProgressOverview({ months }: { months: PastWeekMonth[] }
             </Link>
           </div>
         ) : months.map(({ month, weeks }) => (
-          <section key={month} aria-label={month} className={CARD}>
+          <section key={month} data-page-section aria-label={month} className={CARD}>
             <div className="flex items-baseline justify-between gap-4 p-4 sm:px-6 sm:py-5">
               <h2 className="text-h5 font-medium tracking-heading text-ink">{month}</h2>
               <span className="text-small text-smoke">{weeks.length} {weeks.length === 1 ? "week" : "weeks"}</span>
@@ -41,9 +46,7 @@ export default function ProgressOverview({ months }: { months: PastWeekMonth[] }
                   <Link
                     href={`/progress?week=${week.weekStartDate}`}
                     className={cx(
-                      "grid min-h-16 grid-cols-[1fr_auto_16px] items-center gap-x-3 gap-y-2.5 px-4 py-3.5 [grid-template-areas:'dates_count_chevron'_'bar_bar_chevron']",
-                      "sm:grid-cols-[140px_minmax(0,200px)_1fr_24px] sm:gap-4 sm:px-6 sm:py-0 sm:[grid-template-areas:'dates_bar_count_chevron']",
-                      "lg:grid-cols-[200px_minmax(0,320px)_1fr_24px] lg:gap-6",
+                      WEEK_ROW,
                       "transition-colors duration-(--duration-fast) ease-standard hover:bg-vellum active:bg-vellum-line",
                       FOCUS_INSET,
                     )}
