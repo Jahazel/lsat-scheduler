@@ -298,7 +298,8 @@ describe("ProgressMotion", () => {
     await wait(1);
     expect(placeholderShown(container)).toBe(true);
     expect(screen.queryByRole("heading", { name: "Week of 2026-10-12" })).toBeNull();
-    expect(container.querySelector(".page-placeholder-sweep")!.closest("[aria-busy]")).toBeNull();
+    expect(screen.getByText("Past week").closest("[aria-hidden]")).not.toBeNull();
+    expect(screen.getByText("Past week").closest("[aria-busy]")).toBeNull();
 
     animate.mockClear();
     show("/progress?week=2026-10-05", <WeekWithSections week="2026-10-05" />, rerender);
@@ -323,6 +324,18 @@ describe("ProgressMotion", () => {
     expect(placeholderShown(container)).toBe(false);
     await wait(1);
     expect(placeholderShown(container)).toBe(true);
+  });
+
+  it("drops the first click's placeholder when a second click starts within its wait", async () => {
+    vi.useFakeTimers();
+    const { container } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
+    fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
+    finishExits();
+    await act(async () => {});
+    await wait(100);
+    fireEvent.click(screen.getByRole("link", { name: "← All weeks" }));
+    await wait(100);
+    expect(placeholderShown(container)).toBe(false);
   });
 
   it("shows no placeholder when the next week arrives within 150 ms", async () => {

@@ -164,6 +164,7 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
       return returnToCommitted();
     }
     const week = url.searchParams.get("week");
+    clearTimeout(placeholderTimer.current);
     const destination = (target.current = hrefFor(week));
     const request = () => {
       navigate();
@@ -177,8 +178,8 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
   return (
     <PageShown.Provider value={pageShown}>
       <div ref={ref} onClickCapture={onClickCapture}>
-        <div ref={pageArea} hidden={placeholder !== null}>{children}</div>
         {placeholder && <PagePlaceholder wait={0}>{placeholder === "week" ? <WeekShapes /> : <ListShapes />}</PagePlaceholder>}
+        <div ref={pageArea} hidden={placeholder !== null}>{children}</div>
       </div>
     </PageShown.Provider>
   );
