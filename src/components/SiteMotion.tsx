@@ -91,7 +91,7 @@ export function fadeFormThrough(update: () => void) {
   });
 }
 
-// A server change (a form action's redirect, or a loading placeholder giving way) replaces a page before it can fade.
+// A server change (a form action's redirect) replaces a page before it can fade.
 // So the page that goes stays on screen as a still copy until the next page's PageCue reports, then the copy fades out.
 type CuePage = "sign-in" | "placeholder" | "onboarding" | "this-week" | "admin";
 const LEADS_TO: Record<CuePage, { pages: CuePage[]; paths: string[] }> = {
@@ -106,7 +106,7 @@ const GIVE_UP_MS = 5000;
 
 type Leaving = { page: CuePage; parts: { el: HTMLElement; rect: DOMRect; opacity: string }[]; logo: DOMRect | null };
 type Copy = { from: CuePage; layer: HTMLElement; logo: DOMRect | null; giveUp: number };
-type Arrival = { motion: Motion; pages: CuePage[]; ready: Promise<void>; logo: DOMRect | null; giveUp: number };
+type Arrival = { motion: Motion; pages: CuePage[]; ready: Promise<void>; logo: DOMRect | null; giveUp: number; placeholderShown?: true };
 
 let leaving: Leaving | null = null;
 let copy: Copy | null = null;
@@ -152,11 +152,9 @@ function pageLeft(page: CuePage, root: HTMLElement) {
     arrivalPage = null;
     document.documentElement.removeAttribute("data-arrival");
   });
-  if (!LEADS_TO[page].pages.length || !("animate" in Element.prototype)) return;
-  const els = page === "placeholder" ? [...root.querySelectorAll<HTMLElement>("[data-page-swap]")] : [root];
-  if (els.some((el) => waiting.has(el) || el.closest("[inert]") || el.querySelector("[inert]"))) return;
-  const logo = page === "placeholder" ? null : visibleLogo()?.getBoundingClientRect() ?? null;
-  leaving = { page, logo, parts: els.map((el) => ({ el, rect: el.getBoundingClientRect(), opacity: getComputedStyle(el).opacity })) };
+  if (page === "placeholder" || !LEADS_TO[page].pages.length || !("animate" in Element.prototype)) return;
+  if (waiting.has(root) || root.closest("[inert]") || root.querySelector("[inert]")) return;
+  leaving = { page, logo: visibleLogo()?.getBoundingClientRect() ?? null, parts: [{ el: root, rect: root.getBoundingClientRect(), opacity: getComputedStyle(root).opacity }] };
   queueMicrotask(keepLeavingPage);
 }
 
@@ -190,7 +188,7 @@ function keepLeavingPage() {
     logo.setAttribute("data-copy-logo", "");
   }
   document.body.append(layer);
-  for (const el of regions(left.page === "placeholder" ? "swap" : "whole-page")) wait(el);
+  for (const el of regions("whole-page")) wait(el);
   copy = { from: left.page, layer, logo: left.logo, giveUp: window.setTimeout(dropCopy, GIVE_UP_MS) };
 }
 
@@ -227,10 +225,16 @@ function pageArrived(page: CuePage, root: HTMLElement) {
   if (copy) {
     const held = copy;
     copy = null;
-    expectArrival({ motion: held.from === "placeholder" ? "swap" : "whole-page", pages: LEADS_TO[held.from].pages, ready: fadeCopy(held), logo: held.logo });
+    expectArrival({ motion: "whole-page", pages: LEADS_TO[held.from].pages, ready: fadeCopy(held), logo: held.logo });
   }
   const expected = arrival;
   if (!expected || !expected.pages.includes(page)) return;
+  if (expected.placeholderShown) {
+    clearTimeout(expected.giveUp);
+    arrival = null;
+    document.querySelector<HTMLElement>("main h1")?.focus({ preventScroll: true });
+    return;
+  }
   for (const el of regions(expected.motion)) wait(el);
   if (page === "placeholder") expectArrival({ ...expected, pages: LEADS_TO.placeholder.pages });
   else {
@@ -238,7 +242,9 @@ function pageArrived(page: CuePage, root: HTMLElement) {
     arrival = null;
   }
   expected.ready.then(() => {
-    if (root.isConnected) reveal(expected.motion, expected.logo);
+    if (!root.isConnected) return;
+    reveal(expected.motion, expected.logo);
+    if (page === "placeholder" && arrival?.ready === expected.ready) arrival.placeholderShown = true;
   });
 }
 

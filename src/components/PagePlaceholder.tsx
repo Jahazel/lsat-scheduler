@@ -56,6 +56,7 @@ export function PagePlaceholder({ children }: { children: ReactNode }) {
 }
 
 const noChange = () => () => {};
+const heldBySignInHandoff = (section: HTMLElement) => section.closest("[aria-busy]") !== null;
 
 // React has no hydration flag; useSyncExternalStore reads its server snapshot only while hydrating.
 export function PageArrival({ page }: { page: string }) {
@@ -67,9 +68,7 @@ export function PageArrival({ page }: { page: string }) {
     const status = ref.current!;
     // Screen readers announce a status line only when its text changes after it is on the page.
     const announce = requestAnimationFrame(() => { status.textContent = `${page} loaded`; });
-    // SiteMotion's sign-in handoff holds the page busy and fades it in whole.
-    if (status.closest("[aria-busy]")) return () => cancelAnimationFrame(announce);
-    const sections = [...status.parentElement!.querySelectorAll<HTMLElement>("[data-page-section]")];
+    const sections = [...status.parentElement!.querySelectorAll<HTMLElement>("[data-page-section]")].filter((section) => !heldBySignInHandoff(section));
     const still = reducedMotion();
     const rise = matchMedia("(max-width: 767px)").matches ? 4 : 8;
     const arrivals = sections.map((section, index) => section.animate(

@@ -126,6 +126,19 @@ describe("page placeholder", () => {
     expect(screen.getByRole("status").textContent).toBe("This week loaded");
   });
 
+  it("leaves the sections the sign-in handoff holds busy to it, when the status line sits outside them", () => {
+    render(
+      <div>
+        <PageArrival page="Onboarding" />
+        <div aria-busy="true"><section data-page-section>Set your target</section></div>
+        <aside aria-busy="true"><div data-page-section>Preview</div></aside>
+      </div>,
+    );
+    expect(sectionArrivals()).toEqual([]);
+    act(() => vi.advanceTimersToNextFrame());
+    expect(screen.getByRole("status").textContent).toBe("Onboarding loaded");
+  });
+
   it("leaves a page the server already put on screen where it is", () => {
     const container = document.createElement("div");
     container.innerHTML = renderToString(<Page />);
