@@ -52,7 +52,7 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
   function showPlaceholderIfSlow(to: WeekOrList) {
     clearTimeout(placeholderTimer.current);
     placeholderTimer.current = setTimeout(() => {
-      pageArea.current!.hidden = true;
+      pageArea.current!.style.visibility = "hidden";
       scrollTo(0, 0);
       setPlaceholder(to === null ? "list" : "week");
     }, PLACEHOLDER_WAIT_MS);
@@ -60,8 +60,8 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
 
   const endPlaceholder = useCallback(() => {
     clearTimeout(placeholderTimer.current);
-    const wasShown = pageArea.current!.hidden;
-    pageArea.current!.hidden = false;
+    const wasShown = pageArea.current!.style.visibility === "hidden";
+    pageArea.current!.style.visibility = "";
     setPlaceholder(null);
     return wasShown;
   }, []);
@@ -177,9 +177,13 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
 
   return (
     <PageShown.Provider value={pageShown}>
-      <div ref={ref} onClickCapture={onClickCapture}>
-        {placeholder && <PagePlaceholder wait={0}>{placeholder === "week" ? <WeekShapes /> : <ListShapes />}</PagePlaceholder>}
-        <div ref={pageArea} hidden={placeholder !== null}>{children}</div>
+      <div ref={ref} onClickCapture={onClickCapture} className="relative">
+        <div ref={pageArea} style={placeholder ? { visibility: "hidden" } : undefined}>{children}</div>
+        {placeholder && (
+          <div className="absolute inset-x-0 top-0">
+            <PagePlaceholder wait={0}>{placeholder === "week" ? <WeekShapes /> : <ListShapes />}</PagePlaceholder>
+          </div>
+        )}
       </div>
     </PageShown.Provider>
   );
