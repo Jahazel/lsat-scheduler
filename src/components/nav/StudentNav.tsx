@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SignOutForm } from "@/components/SignOutForm";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { NavTab } from "@/components/ui/NavTab";
 import { NavIcon } from "./NavIcon";
-import { DESKTOP_BAR, Logo, MOBILE_BAR, TABS, isTabActive } from "./shared";
+import { DESKTOP_BAR, Logo, MOBILE_BAR, TABS, isTabActive, tabHref } from "./shared";
 import type { SignOutAnswer } from "@/lib/requestPolicy";
 import { WORKSPACE_NAV_BREAKPOINT } from "./workspaceBreakpoint";
 
@@ -31,6 +31,7 @@ function UploadDot({ className }: { className?: string }) {
 
 function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<StudentNavProps, "initials" | "email" | "countdownLabel" | "logOut"> & { compact: boolean }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
 
@@ -62,7 +63,11 @@ function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<S
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Account menu for ${email}`}
-        onClick={() => setOpen((wasOpen) => !wasOpen)}
+        onClick={() => {
+          // The menu mounts hidden, so Next does not prefetch the Account link and its loading screen would not show.
+          if (!open) router.prefetch("/account");
+          setOpen(!open);
+        }}
         className={cx(
           "flex shrink-0 items-center justify-center rounded-pill bg-vellum font-medium text-ink hover:bg-vellum-line",
           compact ? "size-8 text-caption" : "size-10 text-small",
@@ -133,9 +138,9 @@ export default function StudentNav(props: StudentNavProps & { workspaceSwitcher?
             </div>
             <nav data-page-fade aria-label="Primary" className="flex gap-1">
               {TABS.map((tab) => (
-                <NavTab key={tab.href} href={tab.href} current={isActive(tab.href)}>
+                <NavTab key={tab.href} href={tabHref(tab, props.uploadNeeded)} current={isActive(tab.href)}>
                   {tab.label}
-                  {tab.flagsUpload && props.uploadNeeded && <UploadDot />}
+                  {tab.uploadHref && props.uploadNeeded && <UploadDot />}
                 </NavTab>
               ))}
             </nav>
@@ -172,7 +177,7 @@ export function StudentTabBar({ uploadNeeded, withWorkspaceSwitcher = false }: {
         return (
           <Link
             key={tab.href}
-            href={tab.href}
+            href={tabHref(tab, uploadNeeded)}
             aria-current={active ? "page" : undefined}
             className={cx(
               "flex min-h-16 flex-col items-center justify-center gap-1 text-caption",
@@ -182,7 +187,7 @@ export function StudentTabBar({ uploadNeeded, withWorkspaceSwitcher = false }: {
           >
             <span className="relative flex h-7 w-12 items-center justify-center">
               <NavIcon name={tab.icon} />
-              {tab.flagsUpload && uploadNeeded && <UploadDot className="absolute right-2 top-0.5 ring-2 ring-paper" />}
+              {tab.uploadHref && uploadNeeded && <UploadDot className="absolute right-2 top-0.5 ring-2 ring-paper" />}
             </span>
             {tab.short}
           </Link>
