@@ -311,22 +311,24 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] bg-paper lg:min-h-[calc(100vh-var(--spacing-18))] lg:grid-cols-[minmax(0,680px)_minmax(0,1fr)] lg:grid-rows-[auto_1fr]">
       <div className="flex flex-col gap-10 px-5 pt-8 lg:px-30 lg:pt-18">
-        <header className="flex flex-col gap-2">
+        <header data-page-section className="flex flex-col gap-2">
           <h1 tabIndex={-1} className="text-h3 font-semibold text-ink outline-none">{text.title}</h1>
           <p className="text-body text-smoke">{lead}</p>
         </header>
 
-        <TextInput
-          inline
-          label="Current score"
-          inputMode="numeric"
-          value={scoreText}
-          onChange={(event) => setScoreText(event.target.value)}
-          error={scoreError}
-          helper={prepTest !== undefined
-            ? `Your score on practice test ${prepTest}? Type it here. We save it to your study settings.`
-            : "From your study settings. Type a new score if your latest practice test changed it. We save it there too."}
-        />
+        <div data-page-section>
+          <TextInput
+            inline
+            label="Current score"
+            inputMode="numeric"
+            value={scoreText}
+            onChange={(event) => setScoreText(event.target.value)}
+            error={scoreError}
+            helper={prepTest !== undefined
+              ? `Your score on practice test ${prepTest}? Type it here. We save it to your study settings.`
+              : "From your study settings. Type a new score if your latest practice test changed it. We save it there too."}
+          />
+        </div>
 
         {summarized && (needsSections || !typed) && (
           <ReadSummary analytics={shownAnalytics} sections={needsSections ? sections : []} onAnalytics={addAnalytics} onReplace={replaceSection} />
@@ -451,7 +453,7 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
         )}
       </div>
 
-      <aside className="flex flex-col gap-6 px-5 pt-10 lg:row-span-2 lg:border-l lg:border-vellum-line lg:bg-vellum lg:p-18">
+      <aside data-page-section className="flex flex-col gap-6 px-5 pt-10 lg:row-span-2 lg:border-l lg:border-vellum-line lg:bg-vellum lg:p-18">
         {trend && practiceTest && (
           <WhatWeFound result={practiceTest} analytics={trend} goesFirst={goesFirst} score={score} week={text.week} />
         )}
@@ -463,7 +465,7 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
         {!found && <WhereToFind needsSections={needsSections} lastWeek={text.lastWeek} />}
       </aside>
 
-      <div className="flex flex-col gap-4 px-5 pt-10 pb-12 lg:px-30 lg:pb-18">
+      <div data-page-section className="flex flex-col gap-4 px-5 pt-10 pb-12 lg:px-30 lg:pb-18">
         {offerRead ? (
           <Button className="w-full" onClick={() => moveAnalytics("added", "waiting")}>Read my screenshots</Button>
         ) : started || (typed && !needsSections) ? (
@@ -484,7 +486,7 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
 
 function UploadGroup({ title, count, className, children }: { title: string; count: ReactNode; className?: string; children: ReactNode }) {
   return (
-    <section className={cx("flex flex-col gap-3", className)}>
+    <section data-page-section className={cx("flex flex-col gap-3", className)}>
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="text-body font-semibold text-ink">{title}</h2>
         <span className="text-small text-smoke">{count}</span>
