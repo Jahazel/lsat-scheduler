@@ -17,7 +17,7 @@ export function chromiumLaunchOptions({ showScrollbars = false } = {}) {
 }
 
 export async function drive(directory, name, steps, options) {
-  if (!directory || !/^[a-z0-9-]+$/.test(name ?? "")) throw new Error("Usage: drive(.verification/evidence/<run-name>, <lowercase-drive-name>, steps)");
+  if (!directory || !/^[a-z0-9-]+$/.test(name ?? "")) throw new Error("Usage: drive(.verification/evidence/<run-name>, <lowercase-drive-name>, steps[, { showScrollbars: true }])");
   const run = resolve(root, directory);
   const out = resolve(run, name);
   const base = resolve(root, ".verification/evidence");

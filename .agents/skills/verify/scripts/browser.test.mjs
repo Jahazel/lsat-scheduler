@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chromiumLaunchOptions, isAppCspViolation } from "./browser.mjs";
+import { chromiumLaunchOptions, drive, isAppCspViolation } from "./browser.mjs";
 
 const violation = "Applying inline style violates the following Content Security Policy directive 'style-src 'self' 'nonce-abc''.";
 const devtools = "http://127.0.0.1:3100/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_1a2b3c.js";
@@ -28,5 +28,12 @@ describe("chromiumLaunchOptions", () => {
 
   it("drops the hide-scrollbars switch when asked to show scrollbars", () => {
     expect(chromiumLaunchOptions({ showScrollbars: true })).toEqual({ headless: true, ignoreDefaultArgs: ["--hide-scrollbars"] });
+  });
+});
+
+describe("drive", () => {
+  it("names every argument, including the optional scrollbar option, when called wrongly", async () => {
+    await expect(drive(undefined, "Not A Name", async () => {})).rejects.toThrow(
+      "Usage: drive(.verification/evidence/<run-name>, <lowercase-drive-name>, steps[, { showScrollbars: true }])");
   });
 });
