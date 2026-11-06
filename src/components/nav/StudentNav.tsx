@@ -64,7 +64,7 @@ function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<S
         aria-expanded={open}
         aria-label={`Account menu for ${email}`}
         onClick={() => {
-          // The menu mounts hidden, so Next does not prefetch the Account link and its loading screen would not show.
+          // The Account link is hidden until the menu opens, so its own prefetch starts too late for a quick tap to show its loading screen.
           if (!open) router.prefetch("/account");
           setOpen(!open);
         }}
