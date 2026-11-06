@@ -286,6 +286,24 @@ body:has([data-sign-in-page]) > footer { display: none; }
   .button-ring > svg { animation: none; }
 }
 
+.reading-area { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--duration-base) var(--ease-standard); }
+.reading-area[data-open] { grid-template-rows: 1fr; }
+.reading-area > * { min-height: 0; overflow: hidden; }
+@keyframes reading-segment { from { transform: translateX(-100%); } to { transform: translateX(280%); } }
+@keyframes reading-note-in { from { opacity: 0; } }
+.reading-segment { --segment: 36%; width: var(--segment); transform: translateX(-100%); }
+.reading-area[data-phase="reading"] .reading-segment { animation: reading-segment 1.4s var(--ease-in-out-strong) infinite; }
+.reading-area[data-phase="lost"] .reading-segment { left: calc(50% - var(--segment) / 2); transform: none; background-color: var(--color-fog); }
+.reading-fill { transform-origin: left center; transform: scaleX(0); }
+.reading-area:is([data-phase="filling"], [data-phase="filled"]) .reading-fill { transform: scaleX(1); transition: transform var(--duration-base) var(--ease-out-strong); }
+.reading-area:is([data-phase="filling"], [data-phase="filled"]) .reading-segment { opacity: 0; transition: opacity var(--duration-fast) ease; }
+.reading-note { animation: reading-note-in var(--duration-base) ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .reading-area, .reading-area[data-phase] :is(.reading-fill, .reading-segment) { transition: none; }
+  .reading-area[data-phase="reading"] .reading-segment { animation: none; width: 100%; transform: none; opacity: 0.35; }
+  .reading-note { animation: none; }
+}
+
 .step-mat { --mat-size: 80% 70%; --mat-spectrum-at: 50% 90%; --mat-edge: 0%; }
 @media (min-width: 64rem) {
   .step-mat { --mat-size: 80% 90%; --mat-spectrum-at: 50% 85%; --mat-edge: 2%; }

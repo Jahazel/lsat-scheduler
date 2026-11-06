@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import WeeklyUpload from "./WeeklyUpload";
@@ -9,6 +9,10 @@ import { PT158_FIXTURES } from "@/lib/practiceTestFixtures/pt158";
 import type { LRSectionReading, SectionReading } from "@/lib/practiceTestResult";
 import type { WeeklyUploadBasis } from "@/lib/weeklyUploadPreview";
 
+const rowDetail = (text: string | RegExp) => (_: string, el: Element | null) =>
+  el?.getAttribute("aria-live") === "polite" && (typeof text === "string" ? el.textContent === text : text.test(el.textContent ?? ""));
+
+beforeEach(() => { vi.stubGlobal("matchMedia", () => ({ matches: false })); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 const WEDNESDAY = { plans: "this_week", startsOn: "WEDNESDAY" } as const;
@@ -77,7 +81,7 @@ async function readAll(user: ReturnType<typeof userEvent.setup>, names = SECTION
   await queueEmpty();
 }
 
-const queueEmpty = () => waitFor(() => expect(screen.queryAllByText(/ · (Waiting to read|Reading now)$/)).toHaveLength(0), { timeout: 4000 });
+const queueEmpty = () => waitFor(() => expect(screen.queryAllByText(rowDetail(/ · (Waiting to read|Reading now)$/))).toHaveLength(0), { timeout: 4000 });
 
 describe("WeeklyUpload", () => {
   it("asks for 6 screenshots with the score from Study settings and the read button off", () => {
@@ -112,9 +116,9 @@ describe("WeeklyUpload", () => {
     await readAll(user);
 
     expect(screen.getByText("Next week starts Monday, Oct 5. We read all 6 screenshots. Check them, then build your weekly schedule.")).toBeDefined();
-    expect(screen.getByText("lr-analytics.png · 3 question types")).toBeDefined();
+    expect(screen.getByText(rowDetail("lr-analytics.png · 3 question types"))).toBeDefined();
     expect(screen.getByText("Section 1 · Reading Comprehension")).toBeDefined();
-    expect(screen.getByText("pt158-s1.png · score −9")).toBeDefined();
+    expect(screen.getByText(rowDetail("pt158-s1.png · score −9"))).toBeDefined();
     expect(screen.getByText("Section 3 · Logical Reasoning")).toBeDefined();
     expect(screen.getByText("Your score on practice test 158? Type it here. We save it to your study settings.")).toBeDefined();
     const summary = screen.getByRole("heading", { name: "Screenshots" }).closest("section") as HTMLElement;
@@ -166,7 +170,7 @@ describe("WeeklyUpload", () => {
 
     await addAnalytics(user);
     await user.click(button("Read my screenshots"));
-    await screen.findByText("rc-analytics.png · 5 passage types");
+    await screen.findByText(rowDetail("rc-analytics.png · 5 passage types"));
     expect(screen.queryByRole("region", { name: "What we found" })).toBeNull();
     expect(within(screen.getByRole("region", { name: "Next week" })).getByText("Monday's drills").textContent).toBe("Monday's drills · Oct 5");
     expect(screen.queryByText("Goes first")).toBeNull();
@@ -179,7 +183,7 @@ describe("WeeklyUpload", () => {
 
     await addAnalytics(user);
     await user.click(button("Read my screenshots"));
-    await screen.findByText("rc-analytics.png · 0 passage types");
+    await screen.findByText(rowDetail("rc-analytics.png · 0 passage types"));
     expect(screen.queryByRole("alert")).toBeNull();
     expect(button("Check the values").disabled).toBe(false);
   });
@@ -255,7 +259,7 @@ describe("WeeklyUpload", () => {
     expect(button("Check the values").disabled).toBe(true);
 
     await user.upload(screen.getByLabelText("Section 3 is missing file"), png("pt158-s3.png"));
-    expect(await screen.findByText("pt158-s3.png · score −4")).toBeDefined();
+    expect(await screen.findByText(rowDetail("pt158-s3.png · score −4"))).toBeDefined();
     expect(screen.queryByText("Section 3 is missing")).toBeNull();
     expect(button("Check the values").disabled).toBe(false);
   });
@@ -267,12 +271,12 @@ describe("WeeklyUpload", () => {
     stubServer({ "pt158-s4.png": cut, "pt158-s4-full.png": sample(4) });
     const { user } = setup();
     await readAll(user);
-    const row = screen.getByText("pt158-s4.png · ends at Q20").closest("[data-file-row]") as HTMLElement;
+    const row = screen.getByText(rowDetail("pt158-s4.png · ends at Q20")).closest("[data-file-row]") as HTMLElement;
     expect(within(row).getByText("Section 4 stops at Q20. A Logical Reasoning section has 24 to 26 questions. Take the screenshot again, down to the last one.")).toBeDefined();
     expect(button("Check the values").disabled).toBe(true);
 
     await user.upload(screen.getByLabelText("Replacement for pt158-s4.png"), png("pt158-s4-full.png"));
-    expect(await screen.findByText("pt158-s4-full.png · score −2")).toBeDefined();
+    expect(await screen.findByText(rowDetail("pt158-s4-full.png · score −2"))).toBeDefined();
     expect(button("Check the values").disabled).toBe(false);
   });
 
@@ -321,7 +325,7 @@ describe("WeeklyUpload", () => {
     stubServer({ "pt158-s3.png": cut, "pt158-s4.png": new Response(null, { status: 502 }) });
     const { user } = setup();
     await readAll(user);
-    const cutRow = (await screen.findByText("pt158-s3.png · ends at Q20")).closest("[data-file-row]") as HTMLElement;
+    const cutRow = (await screen.findByText(rowDetail("pt158-s3.png · ends at Q20"))).closest("[data-file-row]") as HTMLElement;
     expect(within(cutRow).getByText(/^Section 3 stops at Q20\./)).toBeDefined();
     const failedRow = screen.getByText("We couldn't read this screenshot").closest("[data-file-row]") as HTMLElement;
     expect(within(failedRow).getByText("Couldn't read that screenshot. Try again or a clearer image.")).toBeDefined();
@@ -334,7 +338,7 @@ describe("WeeklyUpload", () => {
     const { user } = setup();
     await readAll(user, ["pt158-s1.png", "pt158-s2.png", "pt158-s3.png", "wrong.png"]);
     await user.upload(screen.getByLabelText("Section 4 is missing file"), png("pt158-s4.png"));
-    expect(await screen.findByText("pt158-s4.png · score −2")).toBeDefined();
+    expect(await screen.findByText(rowDetail("pt158-s4.png · score −2"))).toBeDefined();
 
     await user.upload(screen.getAllByLabelText("Replacement for wrong.png")[0], png("unreadable.png"));
     expect(await screen.findByText("Couldn't read that screenshot. Try again or a clearer image.")).toBeDefined();
@@ -392,7 +396,7 @@ describe("WeeklyUpload", () => {
       return Response.json({ reading: sample(2) });
     });
     await user.click(within(row).getByRole("button", { name: "Try again" }));
-    expect(await screen.findByText("pt158-s2.png · Reading now")).toBeDefined();
+    expect(await screen.findByText(rowDetail("pt158-s2.png · Reading now"))).toBeDefined();
     expect(screen.getByRole("alert")).toBeDefined();
     reply();
     await queueEmpty();
@@ -448,9 +452,11 @@ describe("WeeklyUpload", () => {
     await addSections(user);
     await user.click(button("Read my screenshots"));
 
-    expect(screen.getByText("lr-analytics.png · Reading now")).toBeDefined();
-    expect(screen.getByText("rc-analytics.png · Waiting to read")).toBeDefined();
-    expect(screen.getAllByText(/^pt158-s\d\.png · Waiting to read$/)).toHaveLength(4);
+    expect(screen.getByText(rowDetail("lr-analytics.png · Reading now"))).toBeDefined();
+    expect(screen.getByRole("progressbar", { name: "Reading your Logical Reasoning screenshot" })).toBeDefined();
+    expect(screen.queryByRole("progressbar", { name: "Reading your Reading Comprehension screenshot" })).toBeNull();
+    expect(screen.getByText(rowDetail("rc-analytics.png · Waiting to read"))).toBeDefined();
+    expect(screen.getAllByText(rowDetail(/^pt158-s\d\.png · Waiting to read$/))).toHaveLength(4);
     expect(button("Reading 1 of 6…").disabled).toBe(true);
     expect(screen.getByText("Each screenshot takes up to 30 seconds.")).toBeDefined();
     releaseFirstRead();
@@ -467,7 +473,7 @@ describe("WeeklyUpload", () => {
     const { user } = setup();
     await readAll(user);
 
-    expect(screen.getByText("lr-analytics.png · 3 question types")).toBeDefined();
+    expect(screen.getByText(rowDetail("lr-analytics.png · 3 question types"))).toBeDefined();
     expect(screen.getAllByText(message)).toHaveLength(5);
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
     expect(server).toHaveBeenCalledTimes(2);
@@ -516,11 +522,11 @@ describe("WeeklyUpload", () => {
     await user.click(button("Read my screenshots"));
     await queueEmpty();
     expect(screen.getByText("We're still reading your last screenshot. Wait a moment, then try this one.")).toBeDefined();
-    expect(screen.getByText("rc-analytics.png · 5 passage types")).toBeDefined();
+    expect(screen.getByText(rowDetail("rc-analytics.png · 5 passage types"))).toBeDefined();
 
     stubServer();
     await user.click(screen.getByRole("button", { name: "Try again" }));
-    expect(await screen.findByText("lr-analytics.png · 3 question types")).toBeDefined();
+    expect(await screen.findByText(rowDetail("lr-analytics.png · 3 question types"))).toBeDefined();
     expect(server).toHaveBeenCalledTimes(2);
   });
 
@@ -532,7 +538,7 @@ describe("WeeklyUpload", () => {
 
     const retry = stubServer();
     await user.click(screen.getByRole("button", { name: "Try again" }));
-    await screen.findByText("pt158-s2.png · score −2");
+    await screen.findByText(rowDetail("pt158-s2.png · score −2"));
     expect(retry).toHaveBeenCalledOnce();
     expect(button("Check the values").disabled).toBe(false);
   });
@@ -563,7 +569,7 @@ describe("WeeklyUpload · Type them", () => {
     await queueEmpty();
 
     expect(fetchSpy).toHaveBeenCalledTimes(6);
-    expect(screen.getByText("lr-analytics.png · 3 question types")).toBeDefined();
+    expect(screen.getByText(rowDetail("lr-analytics.png · 3 question types"))).toBeDefined();
     expect(button("Check the values").disabled).toBe(false);
   }, 15_000);
 
@@ -584,7 +590,7 @@ describe("WeeklyUpload · Type them", () => {
     await addAnalytics(user);
     await addSections(user);
     await user.click(button("Read my screenshots"));
-    await screen.findByText("lr-analytics.png · Reading now");
+    await screen.findByText(rowDetail("lr-analytics.png · Reading now"));
 
     await user.click(screen.getByLabelText("Type them"));
     releaseLr();
@@ -665,7 +671,7 @@ describe("WeeklyUpload · screenshot notice", () => {
 
     await addAnalytics(user);
     await user.click(button("Read my screenshots"));
-    await screen.findByText("rc-analytics.png · 5 passage types");
+    await screen.findByText(rowDetail("rc-analytics.png · 5 passage types"));
     expect(screen.getAllByText(NOTICE).length).toBeGreaterThan(0);
   });
 

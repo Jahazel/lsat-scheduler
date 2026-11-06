@@ -10,6 +10,9 @@ import type { FailureCode } from "@/lib/unexpectedFailure";
 import { FailureToastProvider } from "@/components/FailureNotice";
 import OnboardingWizard from "./OnboardingWizard";
 
+const rowDetail = (text: string | RegExp) => (_: string, el: Element | null) =>
+  el?.getAttribute("aria-live") === "polite" && (typeof text === "string" ? el.textContent === text : text.test(el.textContent ?? ""));
+
 beforeEach(() => {
   vi.stubGlobal(
     "URL",
@@ -18,6 +21,7 @@ beforeEach(() => {
       static revokeObjectURL = vi.fn();
     },
   );
+  vi.stubGlobal("matchMedia", () => ({ matches: false }));
 });
 afterEach(() => {
   cleanup();
@@ -327,7 +331,7 @@ describe("OnboardingWizard", () => {
       expect((screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement).disabled).toBe(true);
 
       await upload(user);
-      expect(screen.getByText("lr-analytics.png · Reading now")).toBeDefined();
+      expect(screen.getByText(rowDetail("lr-analytics.png · Reading now"))).toBeDefined();
       expect(screen.getByRole("progressbar", { name: "Reading your Logical Reasoning screenshot" })).toBeDefined();
       expect(checkTheValues().disabled).toBe(true);
       expect(screen.getByRole("button", { name: "Skip for now" })).toBeDefined();
@@ -340,7 +344,7 @@ describe("OnboardingWizard", () => {
       expect(checkTheValues().disabled).toBe(true);
 
       await upload(user, rcScreenshot, "RC");
-      expect(await screen.findByText("rc-analytics.png · 5 passage types")).toBeDefined();
+      expect(await screen.findByText(rowDetail("rc-analytics.png · 5 passage types"))).toBeDefined();
       expect(screen.getByText("Logical Reasoning · found 2 rows")).toBeDefined();
       expect(screen.getByText("You can replace either screenshot before you confirm.")).toBeDefined();
       await user.click(checkTheValues());
@@ -379,11 +383,11 @@ describe("OnboardingWizard", () => {
       await upload(user);
       expect((await screen.findByRole("alert")).textContent).toBe(TOAST_TEXT);
       expect(screen.getAllByText("Something went wrong. Try again.")).toHaveLength(1);
-      expect(screen.getByText("lr-analytics.png · not read")).toBeDefined();
+      expect(screen.getByText(rowDetail("lr-analytics.png · not read"))).toBeDefined();
       expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();
 
       await user.click(screen.getByRole("button", { name: "Try again" }));
-      expect(await screen.findByText("lr-analytics.png · Reading now")).toBeDefined();
+      expect(await screen.findByText(rowDetail("lr-analytics.png · Reading now"))).toBeDefined();
       expect(screen.getByRole("alert")).toBeDefined();
       finishRetry(rows);
       expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
@@ -432,7 +436,7 @@ describe("OnboardingWizard", () => {
       expect(screen.getByText(/lr-analytics\.png/)).toBeDefined();
 
       await upload(user, rcScreenshot, "RC");
-      expect(await screen.findByText("rc-analytics.png · 5 passage types")).toBeDefined();
+      expect(await screen.findByText(rowDetail("rc-analytics.png · 5 passage types"))).toBeDefined();
       expect(checkTheValues().disabled).toBe(false);
     });
 
@@ -492,7 +496,7 @@ describe("OnboardingWizard", () => {
 
       await upload(user, new File(["png"], "first.png", { type: "image/png" }));
       await upload(user);
-      expect(screen.getByText("lr-analytics.png · Waiting to read")).toBeDefined();
+      expect(screen.getByText(rowDetail("lr-analytics.png · Waiting to read"))).toBeDefined();
       expect(extract).toHaveBeenCalledOnce();
       replies[0]({ kind: "cannot-read" });
       await waitFor(() => expect(extract).toHaveBeenCalledTimes(2));
@@ -510,11 +514,11 @@ describe("OnboardingWizard", () => {
 
       await upload(user);
       await upload(user, rcScreenshot, "RC");
-      expect(screen.getByText("rc-analytics.png · Waiting to read")).toBeDefined();
+      expect(screen.getByText(rowDetail("rc-analytics.png · Waiting to read"))).toBeDefined();
       expect(extract).toHaveBeenCalledOnce();
 
       finishLr(rows);
-      expect(await screen.findByText("rc-analytics.png · 5 passage types")).toBeDefined();
+      expect(await screen.findByText(rowDetail("rc-analytics.png · 5 passage types"))).toBeDefined();
       expect(extract).toHaveBeenCalledTimes(2);
     });
 
@@ -538,7 +542,7 @@ describe("OnboardingWizard", () => {
       const { user } = await fillGoalAndWeek(undefined, extract);
 
       await upload(user);
-      expect(await screen.findByText("lr-analytics.png · Reading took too long and stopped.")).toBeDefined();
+      expect(await screen.findByText(rowDetail("lr-analytics.png · Reading took too long and stopped."))).toBeDefined();
       await user.click(screen.getByRole("button", { name: "Try again" }));
 
       expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
@@ -1006,7 +1010,7 @@ describe("OnboardingWizard · Type them", () => {
   it("shows no screenshot on the typed check page, even after one was uploaded", async () => {
     const { user } = await fillGoalAndWeek();
     await upload(user, rcScreenshot, "RC");
-    await screen.findByText("rc-analytics.png · 5 passage types");
+    await screen.findByText(rowDetail("rc-analytics.png · 5 passage types"));
 
     await user.click(screen.getByLabelText("Type them"));
     await addType(user, "Diagram");
