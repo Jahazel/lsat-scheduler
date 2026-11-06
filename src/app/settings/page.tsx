@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { PageArrival } from "@/components/PagePlaceholder";
 import { auth } from "@/auth";
 import { studentSideToday } from "@/lib/studentClock";
 import { upcomingTestMonths } from "@/lib/studentProfile";
@@ -16,6 +17,7 @@ export default async function StudySettingsPage() {
 
   return (
     <div className="min-h-screen bg-vellum">
+      <PageArrival page="Study settings" />
       <StudySettingsForm
         currentScore={student.currentScore}
         saved={{

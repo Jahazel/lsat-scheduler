@@ -20,6 +20,7 @@ export function DeletionCard({ mode }: { mode: DeletionMode }) {
   return (
     <section
       id="delete-account"
+      data-page-section
       className="flex flex-col gap-8 rounded-md border border-vellum-line bg-paper p-5 md:flex-row md:justify-between md:gap-16 md:p-8"
     >
       <div className="flex max-w-[560px] grow flex-col gap-4">

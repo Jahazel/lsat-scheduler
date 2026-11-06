@@ -7,6 +7,7 @@ import { findPasswordAccountById, isAccountId } from "@/lib/accountRepository";
 import { ChangePasswordCard } from "./ChangePasswordCard";
 import { DeletionCard } from "./DeletionCard";
 import { SessionsCard } from "./SessionsCard";
+import { PageArrival } from "@/components/PagePlaceholder";
 
 export default async function AccountPage() {
   const session = await auth();
@@ -22,7 +23,8 @@ export default async function AccountPage() {
 
   return (
     <div className="min-h-screen bg-vellum">
-      <header className="border-b border-vellum-line bg-paper px-5 pt-6 pb-6 md:px-18 md:pt-12 md:pb-10">
+      <PageArrival page="Account" />
+      <header data-page-section className="border-b border-vellum-line bg-paper px-5 pt-6 pb-6 md:px-18 md:pt-12 md:pb-10">
         <div className="mx-auto flex max-w-content flex-col gap-3">
           <h1 className="text-h3 font-semibold text-ink md:text-h2">Account</h1>
           <div className="flex flex-wrap items-center gap-2">

@@ -19,7 +19,7 @@ export function ChangePasswordCard() {
   const shown = pending || isUnexpectedFailure(refusal) ? null : refusal;
 
   return (
-    <section className="flex flex-col gap-8 rounded-md border border-vellum-line bg-paper p-5 md:flex-row md:justify-between md:gap-16 md:p-8">
+    <section data-page-section className="flex flex-col gap-8 rounded-md border border-vellum-line bg-paper p-5 md:flex-row md:justify-between md:gap-16 md:p-8">
       <div className="flex max-w-[560px] flex-col gap-2">
         <h2 className="text-h4 font-semibold text-ink">Change password</h2>
         <p className="text-body text-smoke">
