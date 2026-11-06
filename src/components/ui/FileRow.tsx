@@ -5,6 +5,7 @@ export type FileRowProps = Omit<HTMLAttributes<HTMLDivElement>, "title"> & {
   title: ReactNode;
   detail: ReactNode;
   action?: ReactNode;
+  bar?: ReactNode;
   tone?: "default" | "warning" | "danger";
   ref?: Ref<HTMLDivElement>;
 };
@@ -20,23 +21,26 @@ function ScreenshotThumb() {
   );
 }
 
-export function FileRow({ title, detail, action, tone = "default", children, className, ...props }: FileRowProps) {
+export function FileRow({ title, detail, action, bar, tone = "default", children, className, ...props }: FileRowProps) {
   return (
     <div
       {...props}
       className={cx(
-        "flex flex-col gap-3 rounded-md border p-4 outline-none",
+        "flex flex-col gap-3 rounded-md border p-4 outline-none transition-[border-color] duration-(--duration-base) ease-[ease] motion-reduce:transition-none",
         tone === "danger" ? "border-danger" : tone === "warning" ? "border-warning/55" : "border-vellum-line",
         className,
       )}
     >
-      <div className="flex items-center gap-4">
-        <ScreenshotThumb />
-        <div className="flex min-w-0 grow flex-col gap-0.5 text-small">
-          <span className="font-medium text-ink">{title}</span>
-          {detail}
+      <div>
+        <div className="flex items-center gap-4">
+          <ScreenshotThumb />
+          <div className="flex min-w-0 grow flex-col gap-0.5 text-small">
+            <span className="font-medium text-ink">{title}</span>
+            {detail}
+          </div>
+          {action}
         </div>
-        {action}
+        {bar}
       </div>
       {children}
     </div>

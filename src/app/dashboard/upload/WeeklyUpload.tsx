@@ -9,6 +9,7 @@ import { DrillList, WeekTiles } from "@/components/WeekPreview";
 import { Button } from "@/components/ui/Button";
 import { DropZone } from "@/components/ui/DropZone";
 import { FileRow, ProblemNote, WaitNote } from "@/components/ui/FileRow";
+import { ReadDetail, ReadingBar, useReadingBar } from "@/components/ui/ReadingBar";
 import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
 import { CheckGlyph, ClockGlyph, InfoGlyph, ReadingGlyph } from "@/components/ui/StatusIcon";
 import { TextInput } from "@/components/ui/TextInput";
@@ -561,22 +562,19 @@ function ReplaceButton({ file, onFile, className }: { file: File; onFile: (file:
   );
 }
 
-function Detail({ file, status, read = false, children }: {
+function Detail({ file, status, read = false, text }: {
   file: File;
   status: Read["status"];
   read?: boolean;
-  children?: ReactNode;
+  text?: string | false;
 }) {
   return (
-    <span aria-live="polite" className={cx("flex min-w-0 items-center gap-1.5", status === "reading" ? "text-accent" : "text-smoke")}>
-      {read && <CheckGlyph />}
-      {status === "waiting" && <ClockGlyph />}
-      {status === "reading" && <ReadingGlyph />}
-      <span className="truncate">
-        {file.name}
-        {status === "waiting" ? " · Waiting to read" : status === "reading" ? " · Reading now" : children && <> · {children}</>}
-      </span>
-    </span>
+    <ReadDetail
+      name={file.name}
+      status={status === "waiting" ? "Waiting to read" : status === "reading" ? "Reading now" : text || undefined}
+      glyph={read ? <CheckGlyph /> : status === "waiting" ? <ClockGlyph /> : status === "reading" ? <ReadingGlyph /> : null}
+      className={status === "reading" ? "text-accent" : "text-smoke"}
+    />
   );
 }
 
@@ -609,21 +607,27 @@ function AnalyticsRow({ section, upload, rejection, onFile, onTryAgain }: {
   onFile: (file: File) => void;
   onTryAgain: (id: number) => void;
 }) {
+  const bar = useReadingBar(upload?.read.status ?? "added");
   if (!upload) {
     return <DropZone label={`${SECTION_NAME[section]} screenshot`} accept={ACCEPT} error={rejection} onFile={onFile} />;
   }
   const { read, file } = upload;
   const noun = section === "LR" ? "question types" : "passage types";
+  const filling = bar.phase === "filling";
   return (
     <FileRow
       data-file-row=""
       tone={rowTone(read, rejection)}
       title={SECTION_NAME[section]}
       detail={(
-        <Detail file={file} status={read.status} read={read.status === "read"}>
-          {read.status === "read" ? `${read.value.rows.length} ${noun}` : (read.status === "refused" || read.status === "failed") && "not read"}
-        </Detail>
+        <Detail
+          file={file}
+          status={filling ? "reading" : read.status}
+          read={!filling && read.status === "read"}
+          text={read.status === "read" ? `${read.value.rows.length} ${noun}` : (read.status === "refused" || read.status === "failed") && "not read"}
+        />
       )}
+      bar={<ReadingBar label={`Reading your ${SECTION_NAME[section]} screenshot`} {...bar} />}
       action={<ReplaceButton file={file} onFile={onFile} />}
     >
       <ReadNote read={read} onTryAgain={() => onTryAgain(upload.id)} />
@@ -716,7 +720,7 @@ function SectionRow({ upload, problem, rejection, onReplace, onTryAgain, onRemov
       data-file-row=""
       tone={problem ? "danger" : rowTone(read, rejection)}
       title={title}
-      detail={<Detail file={file} status={read.status} read={Boolean(reading) && !problem}>{detail}</Detail>}
+      detail={<Detail file={file} status={read.status} read={Boolean(reading) && !problem} text={detail} />}
       action={problem?.problem === "same-section-twice"
         ? <button type="button" aria-label={`Remove ${file.name}`} onClick={onRemove} className={LINK_BUTTON}>Remove</button>
         : <ReplaceButton file={file} onFile={onReplace} />}

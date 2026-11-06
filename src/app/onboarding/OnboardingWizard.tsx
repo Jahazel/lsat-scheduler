@@ -16,6 +16,7 @@ import { PageCue } from "@/components/SiteMotion";
 import { Button } from "@/components/ui/Button";
 import { DropZone } from "@/components/ui/DropZone";
 import { FileRow, WaitNote } from "@/components/ui/FileRow";
+import { ReadDetail, ReadingBar, useReadingBar } from "@/components/ui/ReadingBar";
 import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
 import { CheckGlyph, ClockGlyph, ReadingGlyph } from "@/components/ui/StatusIcon";
 import { SECTION_NAME, SECTIONS, type Statement } from "@/lib/analyticsReview";
@@ -523,13 +524,15 @@ function ScreenshotFileRow({
   onTryAgain: () => void;
 }) {
   const { read } = screenshot;
-  const { status } = read;
+  const bar = useReadingBar(read.status);
+  const status = bar.phase === "filling" ? "reading" : read.status;
   const row = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (document.activeElement === document.body) row.current?.focus();
   }, [status]);
-  const problem = read.status === "rejected" || (read.status !== "read" && FILE_STATUS[read.status].problem);
-  const statusText = read.status === "read" ? readSummary(section, read.value.rows.length)
+  const problem = status !== "reading" && (read.status === "rejected" || (read.status !== "read" && FILE_STATUS[read.status].problem));
+  const statusText = status === "reading" ? FILE_STATUS.reading.text
+    : read.status === "read" ? readSummary(section, read.value.rows.length)
     : read.status === "rejected" ? read.message
     : FILE_STATUS[read.status].text;
 
@@ -542,38 +545,24 @@ function ScreenshotFileRow({
         tone={status === "refused" ? "warning" : "default"}
         title={SECTION_NAME[section]}
         detail={
-          <span
-            aria-live="polite"
-            className={`flex min-w-0 items-center gap-1.5 ${problem ? "text-danger-ink" : status === "reading" ? "text-accent" : "text-smoke"}`}
-          >
-            {status === "read" && <CheckGlyph />}
-            {status === "waiting" && <ClockGlyph />}
-            {status === "reading" && <ReadingGlyph />}
-            <span className="truncate">
-              {screenshot.file.name} · {statusText}
-            </span>
-          </span>
+          <ReadDetail
+            name={screenshot.file.name}
+            status={statusText}
+            glyph={status === "read" ? <CheckGlyph /> : status === "waiting" ? <ClockGlyph /> : status === "reading" ? <ReadingGlyph /> : null}
+            className={problem ? "text-danger-ink" : status === "reading" ? "text-accent" : "text-smoke"}
+          />
         }
+        bar={<ReadingBar label={`Reading your ${SECTION_NAME[section]} screenshot`} {...bar} />}
         action={
           <button type="button" onClick={onChoose} className={`shrink-0 text-small ${LINK_BUTTON}`}>
             Replace
           </button>
         }
       >
-        {status === "reading" && (
-          <div role="progressbar" aria-label={`Reading your ${SECTION_NAME[section]} screenshot`} className="h-1 overflow-hidden rounded-sm bg-vellum">
-            <div className="h-1 w-3/5 rounded-sm bg-accent" />
-          </div>
-        )}
         {status === "connection-lost" && (
-          <>
-            <div aria-hidden className="h-1 overflow-hidden rounded-sm bg-vellum">
-              <div className="h-1 w-3/5 rounded-sm bg-fog" />
-            </div>
-            <button type="button" onClick={onTryAgain} className={SMALL_BUTTON}>
-              Try again
-            </button>
-          </>
+          <button type="button" onClick={onTryAgain} className={SMALL_BUTTON}>
+            Try again
+          </button>
         )}
         {(status === "cannot-read" || status === "timed-out" || status === "failed") && (
           <div className="flex flex-wrap gap-2">
