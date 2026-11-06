@@ -722,12 +722,8 @@ describe("SiteMotion", () => {
       <>
         <SignedInBar />
         <main tabIndex={-1}>
-          <div style={{ opacity: 1 }}>
+          <div aria-hidden aria-label="Step placeholder" style={{ opacity: 1 }}>
             <PageCue page="placeholder" />
-            <div data-page-swap aria-label="Step placeholder" style={{ opacity: 1 }} />
-            <aside data-page-fade aria-label="Panel placeholder" style={{ opacity: 1 }}>
-              <div data-page-swap aria-label="Card placeholder" style={{ opacity: 1 }} />
-            </aside>
           </div>
         </main>
       </>
@@ -804,24 +800,19 @@ describe("SiteMotion", () => {
       expect(document.querySelectorAll("[inert], [aria-busy]")).toHaveLength(0);
     });
 
-    it("on a slow load, fades Log in to the placeholder, then swaps only the step and card under a still top bar and panel", async () => {
+    it("on a slow load, fades Log in to the placeholder, then leaves the placeholder's handoff to the page under a still top bar", async () => {
       const rerender = await logIn();
       at("/onboarding", <Placeholder />, rerender);
       await finishCopy();
-      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar", "Step placeholder", "Panel placeholder"]);
+      expect(copy()).toBeNull();
+      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar"]);
       calls = [];
 
       at("/onboarding", <Onboarding />, rerender);
       await settle();
-      expect(copy()?.querySelectorAll("[data-page-swap]")).toHaveLength(2);
-      expect(fadeOuts().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Step placeholder", "Card placeholder"]);
-      expect(entrances()).toHaveLength(0);
-
-      await finishCopy();
-      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Step", "Card"]);
-      expect(entrances()[0].keyframes[0]).toEqual({ opacity: 0, transform: "translateY(8px)" });
-      expect(calls.some((a) => ["Top bar", "Panel"].includes(a.el.getAttribute("aria-label")!))).toBe(false);
-      expect(glides()).toHaveLength(0);
+      expect(copy()).toBeNull();
+      expect(calls).toHaveLength(0);
+      expect(document.querySelectorAll("[inert], [aria-busy]")).toHaveLength(0);
       expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Set your target" }));
     });
 

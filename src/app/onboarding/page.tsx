@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { PageArrival } from "@/components/PagePlaceholder";
 import { readScanningOff } from "@/lib/scanSpending";
 import { studentSideToday } from "@/lib/studentClock";
 import { upcomingTestMonths } from "@/lib/studentProfile";
@@ -21,13 +22,16 @@ export default async function OnboardingPage() {
 
   const today = await studentSideToday(session.user);
   return (
-    <OnboardingWizard
-      firstName={session.user.name?.trim().split(/\s+/)[0] || "there"}
-      initials={initialsFor(session.user.name, session.user.email)}
-      today={today}
-      goalTestDateOptions={upcomingTestMonths(today)}
-      scanningOff={(await readScanningOff(new Date())).analytics}
-      onSave={createStudentProfile}
-    />
+    <div>
+      <OnboardingWizard
+        firstName={session.user.name?.trim().split(/\s+/)[0] || "there"}
+        initials={initialsFor(session.user.name, session.user.email)}
+        today={today}
+        goalTestDateOptions={upcomingTestMonths(today)}
+        scanningOff={(await readScanningOff(new Date())).analytics}
+        onSave={createStudentProfile}
+      />
+      <PageArrival page="Onboarding" />
+    </div>
   );
 }
