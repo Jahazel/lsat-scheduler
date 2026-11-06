@@ -15,7 +15,7 @@ import { DAY_ORDER } from "../../src/lib/engine";
 import { postgresAdminTestRepositories } from "../../src/lib/adminTestRepositories";
 import { resetTestWorkspace } from "../../src/lib/adminTestWorkspace";
 import { confirmWeeklyUpload } from "../../src/app/dashboard/upload/actions";
-import DashboardPage from "../../src/app/dashboard/page";
+import DashboardPage from "../../src/app/dashboard/(this-week)/page";
 import WeeklyUploadPage from "../../src/app/dashboard/upload/page";
 import ProgressPage from "../../src/app/progress/page";
 import type { Student } from "../../src/lib/types";

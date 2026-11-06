@@ -96,7 +96,7 @@ describe("forged requests", () => {
       .filter((file) => /(^|[\\/])(page\.tsx|route\.ts)$/.test(file));
     expect(routeFiles.length).toBeGreaterThan(15);
     for (const file of routeFiles) {
-      const template = `/${relative(".", file).split(sep).slice(0, -1).join("/")}`.replace(/\/$/, "") || "/";
+      const template = `/${relative(".", file).split(sep).slice(0, -1).filter((segment) => !/^\(.+\)$/.test(segment)).join("/")}`.replace(/\/$/, "") || "/";
       if (template.includes("[...") || template === "/api/cron/daily-cleanup") continue;
       const pathname = template.replace("[id]", "4b3c2f80-9a8e-4c1d-b7f6-0e5d4c3b2a19");
       expect(requestPolicy(sameSite({ pathname, origin: null })).refused?.route, file).toBe(template);

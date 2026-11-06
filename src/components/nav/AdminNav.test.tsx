@@ -7,12 +7,12 @@ afterEach(cleanup);
 
 import { renderToStaticMarkup } from "react-dom/server";
 
-const mocks = vi.hoisted(() => ({ pathname: "/admin" }));
+const mocks = vi.hoisted(() => ({ pathname: "/admin", prefetch: vi.fn() }));
 vi.mock("@/app/admin/test/actions", () => ({ rebuildThisWeek: vi.fn(), resetTestData: vi.fn(), resetEverything: vi.fn(), setSimulatedDate: vi.fn(), generateTestSample: vi.fn() }));
-vi.mock("next/navigation", () => ({ usePathname: () => mocks.pathname, useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => mocks.pathname, useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), prefetch: mocks.prefetch }) }));
 
 import AdminNav from "./AdminNav";
-import StudentNav from "./StudentNav";
+import StudentNav, { StudentTabBar } from "./StudentNav";
 import { FailureToastProvider } from "@/components/FailureNotice";
 import type { FailureCode } from "@/lib/unexpectedFailure";
 
@@ -205,5 +205,41 @@ describe("account menu", () => {
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("menu")).toBeNull();
     expect(screen.getByRole("alert")).toBe(alert);
+  });
+});
+
+describe("This week tab", () => {
+  afterEach(() => { mocks.pathname = "/admin"; });
+
+  it.each([
+    [true, "/dashboard/upload"],
+    [false, "/dashboard"],
+  ])("with upload needed %s, goes to %s on the top bar and the phone tab bar, and stays current on This week and Weekly upload", (uploadNeeded, href) => {
+    for (const path of ["/dashboard", "/dashboard/upload"]) {
+      mocks.pathname = path;
+      render(<><StudentNav {...props} uploadNeeded={uploadNeeded} /><StudentTabBar uploadNeeded={uploadNeeded} /></>);
+      const tabs = screen.getAllByRole("link").filter((link) => link.textContent!.includes("This week"));
+      expect(tabs).toHaveLength(2);
+      for (const tab of tabs) {
+        expect(tab.getAttribute("href")).toBe(href);
+        expect(tab.getAttribute("aria-current")).toBe("page");
+      }
+      cleanup();
+    }
+  });
+});
+
+describe("account menu prefetch", () => {
+  beforeEach(() => { mocks.prefetch.mockClear(); });
+
+  it("prefetches Account when the menu opens, so its loading screen shows on a quick tap", async () => {
+    mocks.pathname = "/dashboard";
+    render(<StudentNav {...props} />);
+    expect(mocks.prefetch).not.toHaveBeenCalled();
+    const [menuButton] = screen.getAllByRole("button", { name: "Account menu for qa@example.test" });
+    await userEvent.click(menuButton);
+    expect(mocks.prefetch).toHaveBeenCalledExactlyOnceWith("/account");
+    await userEvent.click(menuButton);
+    expect(mocks.prefetch).toHaveBeenCalledOnce();
   });
 });

@@ -3,8 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StrictMode } from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 
-const mocks = vi.hoisted(() => ({ push: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
+const mocks = vi.hoisted(() => {
+  const push = vi.fn();
+  return { push, router: { push } };
+});
+vi.mock("next/navigation", () => ({ useRouter: () => mocks.router }));
 import ProgressMotion, { ProgressScreen } from "./ProgressMotion";
 
 // Like the browser: cancel rejects finished; an exit (fill forwards) waits for finishExits().
@@ -309,6 +312,62 @@ describe("ProgressMotion", () => {
     const rises = animate.mock.contexts.filter((el) => (el as HTMLElement).hasAttribute("data-page-section"));
     expect(rises).toHaveLength(2);
     expect(keyframes(animate.mock.contexts.indexOf(rises[0]))[0]).toMatchObject({ opacity: 0, transform: "translateY(8px)" });
+  });
+
+  it.each([
+    ["a click on the nav's link to the shown week", () => {
+      const nav = document.body.appendChild(document.createElement("a"));
+      nav.href = "/progress?week=2026-10-12";
+      fireEvent.click(nav);
+      nav.remove();
+    }],
+    ["Back to the shown week", () => {
+      history.replaceState(null, "", "/progress?week=2026-10-12");
+      dispatchEvent(new PopStateEvent("popstate"));
+    }],
+  ])("brings the page back at its scroll spot when the placeholder took over and %s returns to it", async (_, returnToShownWeek) => {
+    vi.useFakeTimers();
+    const { container } = show("/progress?week=2026-10-12", (
+      <ProgressScreen week="2026-10-12" requested="2026-10-12">
+        <h1 tabIndex={-1}>Week of 2026-10-12</h1>
+        <a href="/progress?week=2026-10-05">← Older week</a>
+      </ProgressScreen>
+    ))!;
+    window.scrollY = 640;
+    fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
+    finishExits();
+    await act(async () => {});
+    await wait(150);
+    expect(placeholderShown(container)).toBe(true);
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 0);
+    window.scrollY = 0;
+
+    act(returnToShownWeek);
+    expect(placeholderShown(container)).toBe(false);
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 640);
+  });
+
+  it("returns to the shown page without Next's scroll to the top when a link outside Progress goes back to it during a click", async () => {
+    show("/progress?week=2026-10-12", <Week week="2026-10-12" />);
+    fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
+    finishExits();
+    await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/progress?week=2026-10-05", { scroll: false }));
+    const nav = document.body.appendChild(document.createElement("a"));
+    nav.href = "/progress?week=2026-10-12";
+    const leftToNext = fireEvent.click(nav);
+    nav.remove();
+    expect(leftToNext).toBe(false);
+    expect(mocks.push).toHaveBeenLastCalledWith("/progress?week=2026-10-12", { scroll: false });
+  });
+
+  it("leaves a link outside Progress to Next when no Progress change is pending", () => {
+    show("/progress?week=2026-10-12", <Week week="2026-10-12" />);
+    const nav = document.body.appendChild(document.createElement("a"));
+    nav.href = "/progress?week=2026-10-12";
+    const leftToNext = fireEvent.click(nav);
+    nav.remove();
+    expect(leftToNext).toBe(true);
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it("counts the 150 ms from the request for the next week, which starts once the old week has dimmed", async () => {

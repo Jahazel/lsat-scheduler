@@ -12,7 +12,7 @@ import { postgresActivityCheckIns } from "../../src/lib/activityCheckInRepositor
 import { SCHEDULING_POLICY_VERSION } from "../../src/lib/currentWeeklySchedule";
 import ProgressPage from "../../src/app/progress/page";
 import { expectUnexpectedFailure } from "./plannedAnswer";
-import DashboardPage from "../../src/app/dashboard/page";
+import DashboardPage from "../../src/app/dashboard/(this-week)/page";
 
 const state = vi.hoisted((): { session: Session | null } => ({ session: null }));
 vi.mock("@/auth", () => ({ auth: async () => state.session }));
