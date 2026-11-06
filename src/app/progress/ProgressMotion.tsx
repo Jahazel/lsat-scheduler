@@ -1,8 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, type MouseEvent, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { PLACEHOLDER_WAIT_MS, PageArrival, PagePlaceholder, arriveSections } from "@/components/PagePlaceholder";
 import { fadeIn, fadeOut, isPlainClick, reducedMotion, slideFrom, stopAtCurrentFrame } from "@/lib/motion";
+import { ListShapes, WeekShapes } from "./ProgressPlaceholder";
 
 const SLIDE = 8;
 const DIMMED = 0.5;
@@ -24,7 +26,7 @@ export function ProgressScreen({ week = null, requested = null, children }: { we
   const pageShown = useContext(PageShown);
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => pageShown(week, requested, ref.current!));
-  return <div ref={ref} className="min-h-screen">{children}</div>;
+  return <div ref={ref} className="min-h-screen"><PageArrival page="Progress" />{children}</div>;
 }
 
 export default function ProgressMotion({ children }: { children: ReactNode }) {
@@ -33,10 +35,13 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
   const shown = useRef<WeekOrList | undefined>(undefined);
   const target = useRef<string | null>(null);
   const listScroll = useRef<number | null>(null);
+  const pageArea = useRef<HTMLDivElement>(null);
+  const placeholderTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [placeholder, setPlaceholder] = useState<"list" | "week" | null>(null);
   const committed = () => (shown.current === undefined ? null : hrefFor(shown.current));
 
   function leave(to: WeekOrList) {
-    const el = ref.current!;
+    const el = pageArea.current!;
     const from = shown.current ?? null;
     if (from === null) listScroll.current = scrollY;
     // Next keeps the old page on screen until a same-route navigation's page arrives, so it dims instead of fading out.
@@ -44,11 +49,29 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     else return fadeOut(el, { to: DIMMED, x: slideBetween(from, to) });
   }
 
-  function returnToCommitted() {
-    target.current = null;
-    const el = ref.current!;
-    fadeIn(el, stopAtCurrentFrame(el));
+  function showPlaceholderIfSlow(to: WeekOrList) {
+    clearTimeout(placeholderTimer.current);
+    placeholderTimer.current = setTimeout(() => {
+      pageArea.current!.hidden = true;
+      scrollTo(0, 0);
+      setPlaceholder(to === null ? "list" : "week");
+    }, PLACEHOLDER_WAIT_MS);
   }
+
+  const endPlaceholder = useCallback(() => {
+    clearTimeout(placeholderTimer.current);
+    const wasShown = pageArea.current!.hidden;
+    pageArea.current!.hidden = false;
+    setPlaceholder(null);
+    return wasShown;
+  }, []);
+
+  const returnToCommitted = useCallback(() => {
+    target.current = null;
+    endPlaceholder();
+    const el = pageArea.current!;
+    fadeIn(el, stopAtCurrentFrame(el));
+  }, [endPlaceholder]);
 
   const pageShown = useCallback((to: WeekOrList, requested: string | null, page: HTMLElement) => {
     const from = shown.current;
@@ -56,11 +79,18 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     if (target.current !== null && target.current !== hrefFor(requested)) return;
     target.current = null;
     if (from === undefined) return;
+    const tookOver = endPlaceholder();
 
-    const el = ref.current!;
+    const el = pageArea.current!;
+    const handOff = () => {
+      for (const animation of el.getAnimations()) animation.cancel();
+      el.removeAttribute("aria-busy");
+      arriveSections(page);
+    };
     // Back to an unknown-week bookmark dimmed a list that comes back unchanged.
     if (from === to) {
-      if (el.getAnimations().some((animation) => animation.effect?.getTiming().fill === "forwards")) fadeIn(el, stopAtCurrentFrame(el));
+      if (tookOver) handOff();
+      else if (el.getAnimations().some((animation) => animation.effect?.getTiming().fill === "forwards")) fadeIn(el, stopAtCurrentFrame(el));
       return;
     }
     for (const animation of el.getAnimations()) animation.cancel();
@@ -72,11 +102,13 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
       scrollTo(0, 0);
       page.querySelector("h1")?.focus({ preventScroll: true });
     }
-    fadeIn(el, slideFrom(slideBetween(from, to), DIMMED));
-  }, []);
+    if (tookOver) handOff();
+    else fadeIn(el, slideFrom(slideBetween(from, to), DIMMED));
+  }, [endPlaceholder]);
 
   useLayoutEffect(() => function showFirstPageWithoutMotionWhenRemounted() {
     shown.current = undefined;
+    clearTimeout(placeholderTimer.current);
   }, []);
 
   useEffect(() => {
@@ -97,6 +129,7 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
       if (hrefOf(location) === committed()) return returnToCommitted();
       const to = new URLSearchParams(location.search).get("week");
       target.current = hrefFor(to);
+      clearTimeout(placeholderTimer.current);
       const exit = leave(to);
       if (!exit) return;
       event.stopImmediatePropagation();
@@ -114,7 +147,7 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
       removeEventListener("popstate", holdPopStateUntilFadedOut, { capture: true });
       document.removeEventListener("click", onClickOutside, { capture: true });
     };
-  }, []);
+  }, [returnToCommitted]);
 
   function onClickCapture(event: MouseEvent) {
     if (!isPlainClick(event)) return;
@@ -132,14 +165,21 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     }
     const week = url.searchParams.get("week");
     const destination = (target.current = hrefFor(week));
+    const request = () => {
+      navigate();
+      showPlaceholderIfSlow(week);
+    };
     const exit = leave(week);
-    if (exit) exit.finished.then(() => target.current === destination && navigate(), () => {});
-    else navigate();
+    if (exit) exit.finished.then(() => target.current === destination && request(), () => {});
+    else request();
   }
 
   return (
     <PageShown.Provider value={pageShown}>
-      <div ref={ref} onClickCapture={onClickCapture}>{children}</div>
+      <div ref={ref} onClickCapture={onClickCapture}>
+        <div ref={pageArea} hidden={placeholder !== null}>{children}</div>
+        {placeholder && <PagePlaceholder wait={0}>{placeholder === "week" ? <WeekShapes /> : <ListShapes />}</PagePlaceholder>}
+      </div>
     </PageShown.Provider>
   );
 }

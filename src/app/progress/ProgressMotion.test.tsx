@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StrictMode } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const mocks = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
@@ -33,7 +33,10 @@ beforeEach(() => {
   window.matchMedia = ((query: string) => ({ matches: reduced && query.includes("reduce") })) as typeof window.matchMedia;
   window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 function List({ requested = null }: { requested?: string | null }) {
   return (
@@ -54,6 +57,21 @@ function Week({ week }: { week: string }) {
     </ProgressScreen>
   );
 }
+
+function WeekWithSections({ week }: { week: string }) {
+  return (
+    <ProgressScreen week={week} requested={week}>
+      <header data-page-section>
+        <h1 tabIndex={-1}>Week of {week}</h1>
+        <a href="/progress?week=2026-10-05">← Older week</a>
+      </header>
+      <section data-page-section>Monday</section>
+    </ProgressScreen>
+  );
+}
+
+const placeholderShown = (container: HTMLElement) => container.textContent!.includes("Past week");
+const wait = (ms: number) => act(() => vi.advanceTimersByTime(ms));
 
 function show(href: string, page: React.ReactNode, rerender?: (ui: React.ReactNode) => void) {
   history.replaceState(null, "", href);
@@ -84,7 +102,7 @@ describe("ProgressMotion", () => {
 
   it("keeps the old week on screen, dimmed and busy, until the new week arrives", async () => {
     const { container, rerender } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
-    const area = container.firstElementChild!;
+    const area = container.firstElementChild!.firstElementChild!;
     fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
     finishExits();
     await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/progress?week=2026-10-05", { scroll: false }));
@@ -161,7 +179,7 @@ describe("ProgressMotion", () => {
     finishExits();
     await Promise.resolve();
     expect(mocks.push).not.toHaveBeenCalled();
-    expect(container.firstElementChild!.hasAttribute("aria-busy")).toBe(false);
+    expect(container.firstElementChild!.firstElementChild!.hasAttribute("aria-busy")).toBe(false);
   });
 
   it("drops a held Back when Forward then leaves Progress", async () => {
@@ -261,5 +279,76 @@ describe("ProgressMotion", () => {
     expect(animate).toHaveBeenCalledTimes(2);
     expect(keyframes(0).at(-1)).toMatchObject({ opacity: 0.5, transform: "translateX(0px)" });
     expect(animate.mock.calls[1]).toEqual([[{ opacity: 0.5 }, { opacity: 1 }], { duration: 120, easing: "cubic-bezier(0.2, 0, 0, 1)" }]);
+  });
+
+  it("dims the old week, then shows the week placeholder after 150 ms, then hands off to the week's sections", async () => {
+    vi.useFakeTimers();
+    const { container, rerender } = show("/progress?week=2026-10-12", <WeekWithSections week="2026-10-12" />)!;
+    animate.mockClear();
+    fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
+    finishExits();
+    await act(async () => {});
+    expect(mocks.push).toHaveBeenCalledWith("/progress?week=2026-10-05", { scroll: false });
+    expect(keyframes(0).at(-1)).toMatchObject({ opacity: 0.5 });
+
+    await wait(149);
+    expect(placeholderShown(container)).toBe(false);
+    expect(screen.getByRole("heading", { name: "Week of 2026-10-12" })).toBeDefined();
+
+    await wait(1);
+    expect(placeholderShown(container)).toBe(true);
+    expect(screen.queryByRole("heading", { name: "Week of 2026-10-12" })).toBeNull();
+    expect(container.querySelector(".page-placeholder-sweep")!.closest("[aria-busy]")).toBeNull();
+
+    animate.mockClear();
+    show("/progress?week=2026-10-05", <WeekWithSections week="2026-10-05" />, rerender);
+    expect(placeholderShown(container)).toBe(false);
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Week of 2026-10-05" }));
+    expect(container.firstElementChild!.firstElementChild!.hasAttribute("aria-busy")).toBe(false);
+    const rises = animate.mock.contexts.filter((el) => (el as HTMLElement).hasAttribute("data-page-section"));
+    expect(rises).toHaveLength(2);
+    expect(keyframes(animate.mock.contexts.indexOf(rises[0]))[0]).toMatchObject({ opacity: 0, transform: "translateY(8px)" });
+  });
+
+  it("counts the 150 ms from the request for the next week, which starts once the old week has dimmed", async () => {
+    vi.useFakeTimers();
+    const { container } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
+    fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
+    await wait(300);
+    expect(placeholderShown(container)).toBe(false);
+    finishExits();
+    await act(async () => {});
+    expect(mocks.push).toHaveBeenCalledWith("/progress?week=2026-10-05", { scroll: false });
+    await wait(149);
+    expect(placeholderShown(container)).toBe(false);
+    await wait(1);
+    expect(placeholderShown(container)).toBe(true);
+  });
+
+  it("shows no placeholder when the next week arrives within 150 ms", async () => {
+    vi.useFakeTimers();
+    const { container, rerender } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
+    fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
+    finishExits();
+    await act(async () => {});
+    await wait(100);
+    show("/progress?week=2026-10-05", <Week week="2026-10-05" />, rerender);
+    await wait(500);
+    expect(placeholderShown(container)).toBe(false);
+    expect(screen.getByRole("heading", { name: "Week of 2026-10-05" })).toBeDefined();
+  });
+
+  it("shows no placeholder on Back, which brings back a page the browser kept", async () => {
+    vi.useFakeTimers();
+    const { container, rerender } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
+    fireEvent.click(screen.getByRole("link", { name: "← All weeks" }));
+    show("/progress", <List />, rerender);
+
+    history.replaceState(null, "", "/progress?week=2026-10-12");
+    dispatchEvent(new PopStateEvent("popstate"));
+    finishExits();
+    await wait(500);
+    expect(placeholderShown(container)).toBe(false);
+    expect(screen.getByRole("heading", { name: "Progress" })).toBeDefined();
   });
 });
