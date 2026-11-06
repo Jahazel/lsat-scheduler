@@ -42,7 +42,7 @@ export default function LivePreview({ state, firstName, initials, today }: LiveP
   const header = previewHeader(state.values, firstName, today);
   return (
     <aside data-page-fade aria-label="Preview of This week" className={PREVIEW_PANEL}>
-      <div data-page-swap className={PREVIEW_CARD}>
+      <div data-page-swap data-page-section className={PREVIEW_CARD}>
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-vellum-line px-5 xl:px-7">
           <div className="flex items-center gap-5">
             <span className="text-body font-semibold tracking-[-0.02em] text-ink">DrillMap</span>
@@ -88,7 +88,7 @@ export default function LivePreview({ state, firstName, initials, today }: LiveP
   );
 }
 
-function SkeletonDays() {
+export function SkeletonDays() {
   return (
     <div aria-hidden className="flex flex-col gap-3">
       {[[120, 260, 200], [96, 300], [136, 240, 180]].map((bars, index) => (

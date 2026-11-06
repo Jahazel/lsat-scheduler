@@ -55,8 +55,10 @@ export function PagePlaceholder({ wait = PLACEHOLDER_WAIT_MS, children }: { wait
   );
 }
 
+const heldBusyByOtherMotion = (section: HTMLElement) => section.closest("[aria-busy]") !== null;
+
 export function arriveSections(page: Element) {
-  const sections = [...page.querySelectorAll<HTMLElement>("[data-page-section]")];
+  const sections = [...page.querySelectorAll<HTMLElement>("[data-page-section]")].filter((section) => !heldBusyByOtherMotion(section));
   const still = reducedMotion();
   const rise = matchMedia("(max-width: 767px)").matches ? 4 : 8;
   return sections.map((section, index) => section.animate(
@@ -82,8 +84,6 @@ export function PageArrival({ page }: { page: string }) {
     const status = ref.current!;
     // Screen readers announce a status line only when its text changes after it is on the page.
     const announce = requestAnimationFrame(() => { status.textContent = `${page} loaded`; });
-    const ancestorRunsItsOwnMotion = status.closest("[aria-busy]") !== null;
-    if (ancestorRunsItsOwnMotion) return () => cancelAnimationFrame(announce);
     const arrivals = arriveSections(status.parentElement!);
     return () => {
       cancelAnimationFrame(announce);

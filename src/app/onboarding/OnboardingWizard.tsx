@@ -150,7 +150,7 @@ export default function OnboardingWizard({
     <div className={ONBOARDING_GRID}>
       <PageCue page="onboarding" />
       <div className={ONBOARDING_COLUMN}>
-        <div data-page-swap className="w-full lg:max-w-[440px]">
+        <div data-page-swap data-page-section className="w-full lg:max-w-[440px]">
           <p className="mb-2 font-mono text-label uppercase text-smoke">{stepLabel(state.step)}</p>
           <div ref={stepRegion} data-onboarding-step>
             {state.step === "goal" && <GoalStep state={state} dispatch={send} goalTestDateOptions={goalTestDateOptions} today={today} />}
