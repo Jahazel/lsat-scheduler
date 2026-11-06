@@ -250,15 +250,15 @@ body:has([data-sign-in-page]) > footer { display: none; }
 }
 
 @keyframes page-arrive { from { opacity: 0; transform: translateY(var(--arrive-rise)); } }
-:where(html[data-arrival] :is([data-page-fade], [data-page-swap], [data-arrival-fade]):not(:is([data-page-fade], [data-page-swap], [data-page-copy]) *)) {
+:where(html[data-arrival] :is([data-page-fade], [data-page-swap]):not(:is([data-page-fade], [data-page-swap], [data-page-copy]) *)) {
   --arrive-rise: 8px;
   animation: page-arrive var(--duration-base) var(--ease-standard) both;
 }
 @media (max-width: 390px) {
-  html[data-arrival] :is([data-page-fade], [data-page-swap], [data-arrival-fade]) { --arrive-rise: 4px; }
+  html[data-arrival] :is([data-page-fade], [data-page-swap]) { --arrive-rise: 4px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  html[data-arrival] :is([data-page-fade], [data-page-swap], [data-arrival-fade]) { --arrive-rise: 0px; animation-duration: var(--duration-fast); }
+  html[data-arrival] :is([data-page-fade], [data-page-swap]) { --arrive-rise: 0px; animation-duration: var(--duration-fast); }
 }
 
 @keyframes page-placeholder-in { from { opacity: 0; } }
