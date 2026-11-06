@@ -9,4 +9,6 @@ export const LANDING_BUTTON = "inline-flex h-9 shrink-0 items-center rounded-sm 
 
 export const MOTION = "transition-colors duration-(--duration-fast) ease-out active:duration-(--duration-base) focus-visible:duration-(--duration-base) motion-reduce:active:duration-(--duration-fast) motion-reduce:focus-visible:duration-(--duration-fast)";
 
+export const PLACEHOLDER_SHAPE = "rounded bg-vellum-line text-transparent box-decoration-clone";
+
 export const cx = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(" ");

@@ -17,6 +17,7 @@ import type { Student } from "@/lib/types";
 import ScheduleCheckInView from "@/components/ScheduleCheckInView";
 import { DRILL_LINK_PARAMETER } from "@/lib/drillSetupGuide";
 import { PageCue } from "@/components/SiteMotion";
+import { PageArrival } from "@/components/PagePlaceholder";
 import { CurrentWeekReport } from "@/components/AdminTestContext";
 
 const previewStartDate = new Intl.DateTimeFormat("en-US", {
@@ -81,6 +82,7 @@ export default async function DashboardPage({
   return (
     <div data-page-fade className="min-h-screen">
       <PageCue page="this-week" />
+      <PageArrival page="This week" />
       {isAdminUser(session.user) && (
         <CurrentWeekReport week={currentWeekInTimezone(now, SCHEDULE_TIMEZONE)} hasSchedule={!preview} hasPreview={preview} />
       )}

@@ -213,20 +213,22 @@ export default function ScheduleCheckInView({
 
   return (
     <>
-      {uploadReminder && (
-        <ReminderStrip
-          message="Next week starts Monday. Add your screenshots to build your weekly schedule."
-          href="/dashboard/upload"
-          action="Plan next week"
-        />
-      )}
-      {header ?? <PageHeader
-        eyebrow={`Week of ${formatScheduleWeekOf(schedule.weekOf)}`}
-        title="Your plan for this week"
-        lead={readOnly ? undefined : "Your plan is set. Check off as you go."}
-        notes={weekNotes(schedule)}
-        aside={<div aria-live="polite"><ProgressBar done={doneActivities} total={totalActivities} dueSoFar={dueSoFar} /></div>}
-      />}
+      <div data-page-section>
+        {uploadReminder && (
+          <ReminderStrip
+            message="Next week starts Monday. Add your screenshots to build your weekly schedule."
+            href="/dashboard/upload"
+            action="Plan next week"
+          />
+        )}
+        {header ?? <PageHeader
+          eyebrow={`Week of ${formatScheduleWeekOf(schedule.weekOf)}`}
+          title="Your plan for this week"
+          lead={readOnly ? undefined : "Your plan is set. Check off as you go."}
+          notes={weekNotes(schedule)}
+          aside={<div aria-live="polite"><ProgressBar done={doneActivities} total={totalActivities} dueSoFar={dueSoFar} /></div>}
+        />}
+      </div>
       <FailureNotice action={lastSave?.activityId} answer={lastSave?.answer ?? null} />
       <div className={cx("flex flex-col gap-4", padding)}>
         {link !== null && !linkedDrill(schedule, link) && (
@@ -242,7 +244,7 @@ export default function ScheduleCheckInView({
           const isToday = dates[dayIndex] === today;
           const date = shortDate.format(new Date(`${dates[dayIndex]}T00:00:00.000Z`));
           return (
-            <section key={day}>
+            <section key={day} data-page-section>
               <Card className={plan.activities.length === 0 ? "gap-2" : undefined}>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-2">
                   <h2 className="flex items-baseline gap-2 text-h6 font-medium text-ink">
