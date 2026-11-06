@@ -177,10 +177,10 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
 
   return (
     <PageShown.Provider value={pageShown}>
-      <div ref={ref} onClickCapture={onClickCapture} className="relative">
-        <div ref={pageArea} style={placeholder ? { visibility: "hidden" } : undefined}>{children}</div>
+      <div ref={ref} onClickCapture={onClickCapture} className="grid grid-cols-1">
+        <div ref={pageArea} className="[grid-area:1/1]" style={placeholder ? { visibility: "hidden" } : undefined}>{children}</div>
         {placeholder && (
-          <div className="absolute inset-x-0 top-0">
+          <div className="[grid-area:1/1]">
             <PagePlaceholder wait={0}>{placeholder === "week" ? <WeekShapes /> : <ListShapes />}</PagePlaceholder>
           </div>
         )}
