@@ -14,7 +14,7 @@ import type { Student } from "../../src/lib/types";
 import { createApprovedAnalyticsSnapshot } from "../../src/lib/analyticsSnapshotRepository";
 import AdminPage from "../../src/app/admin/page";
 import AdminStudentPage from "../../src/app/admin/students/[id]/page";
-import DashboardPage from "../../src/app/dashboard/page";
+import DashboardPage from "../../src/app/dashboard/(this-week)/page";
 import { GET as listStudentsRoute } from "../../src/app/api/students/route";
 import { GET as studentRoute } from "../../src/app/api/students/[id]/route";
 import {
