@@ -239,7 +239,7 @@ export function StudySettingsForm({
 
   return (
     <>
-      <header className="border-b border-vellum-line bg-paper px-5 pt-6 pb-6 md:px-8 md:pt-10 md:pb-8 lg:px-18 lg:pt-12 lg:pb-10">
+      <header data-page-section className="border-b border-vellum-line bg-paper px-5 pt-6 pb-6 md:px-8 md:pt-10 md:pb-8 lg:px-18 lg:pt-12 lg:pb-10">
         <div className="mx-auto flex max-w-content flex-col gap-3">
           <h1 ref={heading} tabIndex={-1} className="text-h3 font-semibold text-ink outline-none md:text-h2">
             Study settings
@@ -252,6 +252,7 @@ export function StudySettingsForm({
           {monthPassed && (
             <p
               id={PASSED_NOTICE_ID}
+              data-page-section
               className="flex items-start gap-2.5 border-y border-warning-line bg-warning-wash px-5 py-3 text-small text-ink md:rounded-xs md:border md:px-4 max-md:[&+section]:border-t-0"
             >
               <svg aria-hidden viewBox="0 0 24 24" className="size-[18px] shrink-0 text-warning-ink" fill="none" stroke="currentColor" strokeWidth="2">
@@ -354,7 +355,7 @@ export function StudySettingsForm({
 function Section({ title, lede, children }: { title: string; lede: string; children: ReactNode }) {
   const id = useId();
   return (
-    <section aria-labelledby={id} className="flex flex-col gap-5 border-t-8 border-vellum bg-paper px-5 pt-7 pb-8 md:gap-6 md:rounded-md md:border md:border-vellum-line md:p-6 lg:p-8">
+    <section aria-labelledby={id} data-page-section className="flex flex-col gap-5 border-t-8 border-vellum bg-paper px-5 pt-7 pb-8 md:gap-6 md:rounded-md md:border md:border-vellum-line md:p-6 lg:p-8">
       <div className="flex flex-col gap-1">
         <h2 id={id} className="text-h4 font-semibold text-ink">
           {title}
