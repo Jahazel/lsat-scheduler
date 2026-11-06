@@ -30,7 +30,7 @@ describe("Verify my email", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Verify my email" }));
     const working = await screen.findByRole("button", { name: "Verifying…" });
-    expect((working as HTMLButtonElement).disabled).toBe(true);
+    expect(working.getAttribute("aria-disabled")).toBe("true");
     await userEvent.click(working);
     expect(verifyEmail).toHaveBeenCalledTimes(1);
     expect(Object.fromEntries(verifyEmail.mock.calls[0][1] as FormData)).toEqual({ token: "link-token" });

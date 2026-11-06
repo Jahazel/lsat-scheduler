@@ -75,7 +75,7 @@ describe("Change password card", () => {
     render(<ChangePasswordCard />);
     fillAndChange("correct horse battery staple", "purple walrus dances");
     const working = await screen.findByRole("button", { name: "Changing password…" });
-    expect(working.hasAttribute("disabled")).toBe(true);
+    expect(working.getAttribute("aria-disabled")).toBe("true");
     expect([currentPassword().readOnly, newPassword().readOnly]).toEqual([true, true]);
   });
 });

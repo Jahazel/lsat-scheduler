@@ -34,7 +34,7 @@ describe("Set a new password", () => {
     await userEvent.type(screen.getByLabelText("New password"), "password123");
     await userEvent.click(screen.getByRole("button", { name: "Save new password" }));
     const working = await screen.findByRole("button", { name: "Saving…" });
-    expect((working as HTMLButtonElement).disabled).toBe(true);
+    expect(working.getAttribute("aria-disabled")).toBe("true");
     expect(Object.fromEntries(resetPassword.mock.calls[0][1] as FormData)).toEqual({ token: "link-token", password: "password123" });
 
     finish({ kind: "form", error: "This password is too common. Choose a password that's harder to guess." });

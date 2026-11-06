@@ -13,6 +13,7 @@ import { flushSync } from "react-dom";
 import { FailureNotice, LastFinishedReadNotice } from "@/components/FailureNotice";
 import { ScanningOffNote } from "@/components/ScanningOffNote";
 import { PageCue } from "@/components/SiteMotion";
+import { Button } from "@/components/ui/Button";
 import { DropZone } from "@/components/ui/DropZone";
 import { FileRow, WaitNote } from "@/components/ui/FileRow";
 import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
@@ -55,7 +56,7 @@ import { ONBOARDING_COLUMN, ONBOARDING_GRID } from "./shell";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 const SMALL_BUTTON = `h-10 self-start rounded-sm border border-vellum-line bg-paper px-[18px] text-small font-medium text-ink transition-colors duration-(--duration-fast) ease-out hover:bg-vellum ${FOCUS}`;
-const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline ${FOCUS}`;
+const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline aria-disabled:no-underline ${FOCUS}`;
 const CHANGE_LATER = "You can change these any time in Study settings.";
 
 interface OnboardingWizardProps {
@@ -403,9 +404,9 @@ function AnalyticsStep({
         {anyAdded && <p className="text-center text-small text-smoke">You can replace either screenshot before you confirm.</p>}
         {typed && reason && <p id="continue-note" className="text-center text-small text-smoke">{reason}</p>}
         <p className="text-center text-small text-smoke">
-          <button type="button" disabled={saving} onClick={onSkip} className={LINK_BUTTON}>
-            {saving ? "Saving…" : "Skip for now"}
-          </button>
+          <Button variant="bare" waiting={saving} waitLabel="Saving…" onClick={onSkip} className={LINK_BUTTON}>
+            Skip for now
+          </Button>
           {typed ? " · Your schedule starts after you add your analytics." : " · Your schedule starts after you add both."}
         </p>
         <p role="status" className="text-center text-small text-smoke">

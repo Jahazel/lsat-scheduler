@@ -84,8 +84,9 @@ describe("Account deletion card", () => {
     stallDeletion();
     render(<DeletionCard mode={{ kind: "google", signedInRecently: true }} />);
     typeAndDelete("DELETE");
-    await waitFor(() => expect(buttons()).toEqual(["Deleting…"]));
-    expect(screen.getByRole("button", { name: "Deleting…" }).hasAttribute("disabled")).toBe(true);
+    const working = await screen.findByRole("button", { name: "Deleting…" });
+    expect(screen.getAllByRole("button")).toEqual([working]);
+    expect(working.getAttribute("aria-disabled")).toBe("true");
     expect((screen.getByLabelText("Type DELETE to confirm") as HTMLInputElement).readOnly).toBe(true);
     expect(screen.getByText("Deleting your account. This takes a few seconds.")).toBeTruthy();
   });
@@ -146,7 +147,7 @@ describe("Account deletion card", () => {
       stallDeletion();
       render(<DeletionCard mode={{ kind: "password" }} />);
       fillAndDelete("correct horse battery staple", "DELETE");
-      await waitFor(() => expect(buttons()).toEqual(["Deleting…"]));
+      expect(screen.getAllByRole("button")).toEqual([await screen.findByRole("button", { name: "Deleting…" })]);
       expect(currentPassword().readOnly).toBe(true);
       expect((screen.getByLabelText("Type DELETE to confirm") as HTMLInputElement).readOnly).toBe(true);
     });

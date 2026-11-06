@@ -89,7 +89,7 @@ describe("Study settings form", () => {
     await userEvent.click(screen.getByRole("radio", { name: "Practice test on Sunday" }));
     await userEvent.click(saveButton()!);
 
-    expect(saveButton()?.textContent).toBe("Saving…");
+    expect(screen.getByRole("button", { name: "Saving…" })).toBe(saveButton());
     expect(saveButton()?.getAttribute("aria-disabled")).toBe("true");
     expect(document.activeElement).toBe(saveButton());
     expect(status()?.textContent).toBe("Saving…");
