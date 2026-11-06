@@ -8,6 +8,7 @@ import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { postgresActivityCheckIns } from "@/lib/activityCheckInRepository";
 import { localDateInTimezone } from "@/lib/currentWeeklySchedule";
 import ScheduleCheckInView from "@/components/ScheduleCheckInView";
+import { PageArrival } from "@/components/PagePlaceholder";
 
 export default async function AdminStudentPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -33,7 +34,8 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
 
   return (
     <div className="min-h-screen">
-      <div className="bg-paper px-5 pt-6 md:px-18">
+      <PageArrival page={record.email} />
+      <div data-page-section className="bg-paper px-5 pt-6 md:px-18">
         <div className="flex items-center justify-between gap-4">
           <Link href="/admin" className="text-small font-medium text-accent hover:text-ink">
             ← All students
@@ -54,7 +56,7 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
           today={localDateInTimezone(now, SCHEDULE_TIMEZONE)}
         />
       ) : (
-        <p className="px-5 py-6 text-small text-smoke md:px-18">{adminScheduleStateMessage(currentWeek)}</p>
+        <p data-page-section className="px-5 py-6 text-small text-smoke md:px-18">{adminScheduleStateMessage(currentWeek)}</p>
       )}
     </div>
   );
