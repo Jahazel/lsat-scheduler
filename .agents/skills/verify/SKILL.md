@@ -102,7 +102,7 @@ The command prints the email, the role, the Account ID, and whether it is onboar
 
 Each Account can save analytics 5 times per America/Chicago day on the real clock. An onboarding Confirm snapshot and each weekly upload or Admin sample approval count once. Simulated date and the Admin resets do not give saves back. Plan a run's approvals per Account, and seed a fresh Account when one runs out. The count is the `analyticsSnapshotSave` row in `action_counters`.
 
-Password signups have a limit too: 10 an hour from one IP address, counted in the `signupFromIpAddress` row in `action_counters`. A verification link resend counts as a signup. Every local signup comes from the same IP address, so the 11th signup or resend in an hour still shows `Check your email` but sends no email, and `app.log` gets no `Fake email to <email>` entry. Before each signup past the 10th, reset the count:
+Password signups have a limit too: 10 an hour from one IP address, counted in the `signupFromIpAddress` row in `action_counters`. A verification link resend counts as a signup. Every local signup comes from the same IP address, so the 11th signup or resend in an hour sends no email, and `app.log` gets no `Fake email to <email>` entry. The page still says a link was sent: Signup still shows `Check your email`. Before a run's 11th signup or resend in an hour, reset the count; each reset allows 10 more:
 
 ```bash
 ./.agents/skills/verify/scripts/local.mjs reset-signup-limit "$VERIFY_RUN_DIR"
