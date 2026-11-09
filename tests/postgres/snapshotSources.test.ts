@@ -37,7 +37,7 @@ const THREE_DAYS_MS = 3 * 24 * 60 * 60_000;
 const profile: Student = {
   currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01",
   preferredPracticeTestDay: "SATURDAY", accommodationMultiplier: 1,
-  dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 90, SUNDAY: 90 },
+  dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 150, SUNDAY: 90 },
 };
 const SOURCES = ["7sage_screenshot", "admin_sample", "manual_entry"] as const satisfies readonly SnapshotSource[];
 

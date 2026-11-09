@@ -147,7 +147,7 @@ it("onboarding shares the snapshot save counter and refuses before any write", a
   const input = {
     currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01", preferredPracticeTestDay: "SATURDAY" as const,
     accommodationMultiplier: 1 as const,
-    dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 90, SUNDAY: 90 },
+    dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 150, SUNDAY: 90 },
     officialAttempts: [],
     analyticsRows: [{ type: "Strengthen" as const, category: "regular" as const, accuracy: 0.6 }],
     analyticsApproval: {
@@ -171,7 +171,7 @@ it("counts only the onboarding save that wrote a snapshot when several run at th
   const input = {
     currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01", preferredPracticeTestDay: "SATURDAY" as const,
     accommodationMultiplier: 1 as const,
-    dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 90, SUNDAY: 90 },
+    dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 150, SUNDAY: 90 },
     officialAttempts: [],
     analyticsRows: [{ type: "Strengthen" as const, category: "regular" as const, accuracy: 0.6 }],
     analyticsApproval: {
