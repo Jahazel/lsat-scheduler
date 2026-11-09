@@ -7,7 +7,7 @@ export type ProtoData = {
   freeWeek: { endsShort: string; endsLong: string; firstChargeShort: string };
   // The plan the This week notes speak about, and the Mondays that start each week those notes appear in.
   plan: PlanName;
-  weeks: { lastFree: string; firstPaid: string; retrying: string; lapsed: string };
+  weeks: { firstFree: string; lastFree: string; firstPaid: string; retrying: string; lapsed: string };
   retryBy: string;
   // The Account Plan card's dates once the plan is paid: the next renewal, and the last day of a cancelled paid period.
   paid: { renewsOn: string; endsOn: string };
@@ -20,7 +20,7 @@ export const DATASETS = {
     prices: { weeklyCents: 1000, monthlyCents: 2999 },
     freeWeek: { endsShort: "Sun, Nov 22", endsLong: "Sunday, Nov 22", firstChargeShort: "Mon, Nov 23" },
     plan: "weekly",
-    weeks: { lastFree: "2026-11-16", firstPaid: "2026-11-23", retrying: "2026-12-07", lapsed: "2026-12-14" },
+    weeks: { firstFree: "2026-11-09", lastFree: "2026-11-16", firstPaid: "2026-11-23", retrying: "2026-12-07", lapsed: "2026-12-14" },
     retryBy: "Mon, Dec 14",
     paid: { renewsOn: "Mon, Nov 30", endsOn: "Sun, Nov 29" },
     restart: { today: "Wed, Dec 16", weeklyRenews: "Wed, Dec 23", monthlyRenews: "Sat, Jan 16" },
@@ -31,7 +31,7 @@ export const DATASETS = {
     freeWeek: { endsShort: "Sun, Jan 3", endsLong: "Sunday, Jan 3", firstChargeShort: "Mon, Jan 4" },
     plan: "monthly",
     // The renewal fails in the week across the new year, so the card deadline lands in the next year.
-    weeks: { lastFree: "2026-12-28", firstPaid: "2027-01-04", retrying: "2026-12-28", lapsed: "2027-01-04" },
+    weeks: { firstFree: "2026-12-21", lastFree: "2026-12-28", firstPaid: "2027-01-04", retrying: "2026-12-28", lapsed: "2027-01-04" },
     retryBy: "Mon, Jan 4",
     paid: { renewsOn: "Thu, Feb 4", endsOn: "Wed, Feb 3" },
     // Restarting on the 31st: Stripe moves the monthly renewal to the month's last day.
@@ -42,7 +42,7 @@ export const DATASETS = {
     prices: { weeklyCents: 1000, monthlyCents: 4500 },
     freeWeek: { endsShort: "Sun, Nov 22", endsLong: "Sunday, Nov 22", firstChargeShort: "Mon, Nov 23" },
     plan: "weekly",
-    weeks: { lastFree: "2026-11-16", firstPaid: "2026-11-23", retrying: "2026-12-07", lapsed: "2026-12-14" },
+    weeks: { firstFree: "2026-11-09", lastFree: "2026-11-16", firstPaid: "2026-11-23", retrying: "2026-12-07", lapsed: "2026-12-14" },
     retryBy: "Mon, Dec 14",
     paid: { renewsOn: "Mon, Nov 30", endsOn: "Sun, Nov 29" },
     restart: { today: "Wed, Dec 16", weeklyRenews: "Wed, Dec 23", monthlyRenews: "Sat, Jan 16" },
@@ -69,7 +69,7 @@ export const agreementLine = (every: string) => `By continuing, you agree your p
 export const STRIPE_NOTE = "You add your card on Stripe, then come back here.";
 
 export type WeekState =
-  | "free-friday" | "free-sunday" | "free-cancelled" | "free-saved"
+  | "free-start" | "free-friday" | "free-sunday" | "free-cancelled" | "free-saved"
   | "held" | "retrying" | "retrying-weekend" | "lapsed-failed" | "lapsed-ended";
 
 export const WEEK_STATES: { id: WeekState; label: string }[] = [
@@ -82,6 +82,7 @@ export const WEEK_STATES: { id: WeekState; label: string }[] = [
   { id: "retrying-weekend", label: "Retrying · weekend" },
   { id: "lapsed-failed", label: "Lapsed · card failed" },
   { id: "lapsed-ended", label: "Lapsed · plan ended" },
+  { id: "free-start", label: "Free week · first day (no note)" },
 ];
 
 export type PlanNote = {
@@ -98,6 +99,8 @@ const keepTogether = (text: string) => text.replaceAll(" ", "\u00a0");
 export function planNote(state: WeekState, data: ProtoData): PlanNote | null {
   const plan = plansFor(data.prices)[data.plan];
   switch (state) {
+    case "free-start":
+      return null;
     case "free-friday":
       return { tone: "info", lead: "Your free week ends Sunday.", rest: `Your ${plan.name} plan starts Monday at ${plan.price}.` };
     case "free-sunday":
@@ -182,6 +185,22 @@ export const STARTING_STATES = [
 export const RESTART_STATES = [
   { id: "lapsed", label: "Lapsed" },
   { id: "no-card", label: "Came back without a card" },
+  { id: "upload", label: "Plan started · weekly upload" },
+];
+
+export const PLAN_CHOICE_STATES = [
+  { id: "first", label: "First plan" },
+  { id: "had-free-week", label: "Email already had a free week" },
+  { id: "no-card", label: "Came back without a card" },
+  { id: "stripe-failed", label: "Could not open Stripe" },
+];
+
+// Stand-ins for the pages Stripe hosts, so the flow map's paths through Stripe can be clicked.
+export const STRIPE_STATES = [
+  { id: "checkout-new", label: "Checkout · new student" },
+  { id: "checkout-lapsed", label: "Checkout · lapsed student" },
+  { id: "checkout-had-free-week", label: "Checkout · no free week" },
+  { id: "portal", label: "Customer Portal" },
 ];
 
 export const PROGRESS_STATES = [

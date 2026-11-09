@@ -7,7 +7,8 @@ import RestartChoice from "./sections/restart/RestartChoice";
 import ProgressNote from "./sections/progress/ProgressNote";
 import DeletionWarning from "./sections/deletion/DeletionWarning";
 import LandingWording from "./sections/landing/LandingWording";
-import { DELETION_STATES, PLAN_CARD_STATES, PROGRESS_STATES, RESTART_STATES, STARTING_STATES, WEEK_STATES } from "./protoData";
+import StripeStandIn from "./sections/stripe/StripeStandIn";
+import { DELETION_STATES, PLAN_CHOICE_STATES, STRIPE_STATES, PLAN_CARD_STATES, PROGRESS_STATES, RESTART_STATES, STARTING_STATES, WEEK_STATES } from "./protoData";
 
 export type ProtoScreen = {
   id: string;
@@ -17,7 +18,7 @@ export type ProtoScreen = {
 };
 
 export const SCREENS: ProtoScreen[] = [
-  { id: "plan-choice", label: "1 · Plan choice", variants: [{ name: "Cards + Stripe", Component: PlanChoice }] },
+  { id: "plan-choice", label: "1 · Plan choice", variants: [{ name: "Cards + Stripe", Component: PlanChoice }], states: PLAN_CHOICE_STATES },
   {
     id: "this-week",
     label: "2 · This week notes",
@@ -35,6 +36,7 @@ export const SCREENS: ProtoScreen[] = [
   { id: "progress", label: "6 · Progress lapsed note", variants: [{ name: "Notice card", Component: ProgressNote }], states: PROGRESS_STATES },
   { id: "deletion", label: "7 · Deletion warning", variants: [{ name: "Warning box", Component: DeletionWarning }], states: DELETION_STATES },
   { id: "landing", label: "8 · Landing wording", variants: [{ name: "Wording", Component: LandingWording }] },
+  { id: "stripe", label: "Stripe stand-in (not designed)", variants: [{ name: "Stand-in", Component: StripeStandIn }], states: STRIPE_STATES },
 ];
 
 export const findScreen = (id: string | undefined) => SCREENS.find((screen) => screen.id === id) ?? SCREENS[0];

@@ -20,11 +20,11 @@ export default function ProgressNote() {
   const note = planNote(state, data)!;
   return (
     <AppChrome tab={1}>
-      <PageHeader gutter={GUTTER} title="Progress" lead={LEAD} />
+      <div data-page-section><PageHeader gutter={GUTTER} title="Progress" lead={LEAD} /></div>
       <div className={CONTENT}>
-        <PlanNotice note={note} />
+        <div data-page-section><PlanNotice note={note} /></div>
         {MONTHS.map(({ month, weeks }) => (
-          <section key={month} aria-label={month} className={CARD}>
+          <section key={month} data-page-section aria-label={month} className={CARD}>
             <div className="flex items-baseline justify-between gap-4 p-4 sm:px-6 sm:py-5">
               <h2 className="text-h5 font-medium tracking-heading text-ink">{month}</h2>
               <span className="text-small text-smoke">{weeks.length} weeks</span>

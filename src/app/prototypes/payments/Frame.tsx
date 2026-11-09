@@ -20,6 +20,7 @@ export default function Frame({ initial }: { initial: View }) {
   const [view, setView] = useState<View>({ ...initial, screen: findScreen(initial.screen).id });
   const [mount, setMount] = useState(0);
   const frame = useRef<HTMLIFrameElement>(null);
+  const arriving = useRef(false);
   const screen = findScreen(view.screen);
   const variant = Math.min(Math.max(view.variant, 1), screen.variants.length);
   const state = findState(screen, view.state);
@@ -36,7 +37,8 @@ export default function Frame({ initial }: { initial: View }) {
     if (state) url.searchParams.set("state", state);
     else url.searchParams.delete("state");
     history.replaceState(null, "", url);
-    const message: StageMessage = { type: "stage", screen: screen.id, variant, reducedMotion: view.reducedMotion, data: view.data, state, mount };
+    const message: StageMessage = { type: "stage", screen: screen.id, variant, reducedMotion: view.reducedMotion, data: view.data, state, mount, arrive: arriving.current };
+    arriving.current = false;
     frame.current?.contentWindow?.postMessage(message, location.origin);
   }, [view, screen.id, variant, state, mount]);
 
@@ -61,12 +63,13 @@ export default function Frame({ initial }: { initial: View }) {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       onKey(event.key);
     };
-    const onMessage = (event: MessageEvent<{ type: string; key?: string; screen?: string }>) => {
+    const onMessage = (event: MessageEvent<{ type: string; key?: string; screen?: string; state?: string }>) => {
       if (event.origin !== location.origin) return;
       if (event.data?.type === "key" && event.data.key) onKey(event.data.key);
       if (event.data?.type === "go" && event.data.screen) {
-        const screen = event.data.screen;
-        setView((v) => ({ ...v, screen, variant: 1, state: "" }));
+        const { screen, state = "" } = event.data;
+        arriving.current = true;
+        setView((v) => ({ ...v, screen, variant: 1, state }));
       }
     };
     window.addEventListener("keydown", onKeyDown);

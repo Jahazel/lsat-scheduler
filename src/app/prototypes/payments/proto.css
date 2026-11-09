@@ -3,5 +3,5 @@
 }
 
 .proto-value-in {
-  animation: proto-value-in var(--duration-fast) ease-out;
+  animation: proto-value-in var(--duration-fast) var(--ease-standard);
 }

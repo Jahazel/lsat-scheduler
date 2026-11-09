@@ -4,29 +4,54 @@ import { useState, type ReactNode } from "react";
 import { MOTION, cx } from "@/components/ui/classes";
 import { OnboardingChrome } from "../chrome";
 import { plansFor, type PlanName, type ProtoData } from "../protoData";
-import { useProtoData } from "../protoContext";
+import { useProtoData, useProtoState } from "../protoContext";
+import { PlanNotice } from "./notes/PlanNotice";
 import { PlanFoot, PreviewPanel, StepTitle } from "../protoParts";
 
 export default function PlanChoice() {
-  const { prices, freeWeek } = useProtoData();
+  const data = useProtoData();
+  const { prices, freeWeek } = data;
+  const state = useProtoState() || "first";
   const plans = plansFor(prices);
-  const [plan, setPlan] = useState<PlanName>("weekly");
+  const [plan, setPlan] = useState<PlanName>(state === "no-card" ? data.plan : "weekly");
   const picked = plans[plan];
+  // An email that had a free week in the last 12 months starts paying today, as a lapsed student does.
+  const paysToday = state === "had-free-week";
+  const renews = plan === "weekly" ? data.restart.weeklyRenews : data.restart.monthlyRenews;
   return (
-    <OnboardingChrome preview={<StripeNext plan={plan} name={picked.name} price={picked.price} per={picked.per} freeWeek={freeWeek} />}>
+    <OnboardingChrome
+      preview={paysToday
+        ? <StripePreview name={picked.name} headline={`${picked.price} today`} then={`Then ${picked.price} ${picked.per} starting ${renews}`} changes={plan} />
+        : <StripeNext plan={plan} name={picked.name} price={picked.price} per={picked.per} freeWeek={freeWeek} />}
+    >
       <div className="flex flex-col gap-8">
-        <StepTitle title="Pick your plan" lead={<>Your free week runs until <span className="whitespace-nowrap">{freeWeek.endsLong}</span>. You pay nothing before then.</>} />
+        {state === "no-card" && <PlanNotice note={{ tone: "info", lead: "You didn't add a card.", rest: "Pick a plan to continue." }} label="Checkout" glyph={false} />}
+        <StepTitle
+          title="Pick your plan"
+          lead={paysToday
+            ? "Your plan starts today. This email already had a free week."
+            : <>Your free week runs until <span className="whitespace-nowrap">{freeWeek.endsLong}</span>. You pay nothing before then.</>}
+        />
         <PlanCards plans={plans} plan={plan} onPick={setPlan} />
         <dl className="flex flex-col border-y border-vellum-line text-small">
-          <Row term="Today" value="$0" />
-          <Row term="Free week ends" value={freeWeek.endsShort} />
-          <Row
-            term="First charge"
-            value={<><span className="whitespace-nowrap">{freeWeek.firstChargeShort}</span> · <span className="whitespace-nowrap">{picked.price}</span></>}
-            changes={plan}
-          />
+          {paysToday ? (
+            <>
+              <Row term="Today" value={picked.price} changes={plan} />
+              <Row term="Renews" value={<span className="whitespace-nowrap">{renews}</span>} changes={plan} />
+            </>
+          ) : (
+            <>
+              <Row term="Today" value="$0" />
+              <Row term="Free week ends" value={freeWeek.endsShort} />
+              <Row
+                term="First charge"
+                value={<><span className="whitespace-nowrap">{freeWeek.firstChargeShort}</span> · <span className="whitespace-nowrap">{picked.price}</span></>}
+                changes={plan}
+              />
+            </>
+          )}
         </dl>
-        <PlanFoot every={picked.every} />
+        <PlanFoot every={picked.every} checkout={paysToday ? "checkout-had-free-week" : "checkout-new"} fail={state === "stripe-failed"} />
       </div>
     </OnboardingChrome>
   );
@@ -83,7 +108,7 @@ export function PlanCards({ plans, plan, onPick }: { plans: ReturnType<typeof pl
           <label
             key={name}
             className={cx(
-              "relative flex cursor-pointer flex-col gap-3 rounded-md border bg-paper p-4 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent",
+              "relative flex cursor-pointer select-none touch-manipulation flex-col gap-3 rounded-md border bg-paper p-4 [-webkit-tap-highlight-color:transparent] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent",
               isPicked ? "border-ink shadow-[inset_0_0_0_1px_var(--color-ink)]" : "border-vellum-line hover:border-fog",
               "transition-[border-color,box-shadow,scale] duration-(--duration-fast) ease-out active:scale-[0.98]",
             )}

@@ -19,7 +19,7 @@ export function OnboardingChrome({ children, preview }: { children: ReactNode; p
       </header>
       <div className={ONBOARDING_GRID}>
         <div className={ONBOARDING_COLUMN}>
-          <div data-page-swap className="w-full lg:max-w-[440px]">
+          <div data-page-swap data-page-section className="w-full lg:max-w-[440px]">
             <p className="mb-2 font-mono text-label uppercase text-smoke">Step 5 of 5 · Plan</p>
             {children}
           </div>

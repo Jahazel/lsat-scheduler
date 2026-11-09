@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { DropZone } from "@/components/ui/DropZone";
 import { AppChrome } from "../../chrome";
 import { useProtoData, useProtoState } from "../../protoContext";
 import { plansFor, type PlanName } from "../../protoData";
@@ -12,11 +13,13 @@ import { UploadColumn } from "./upload";
 /** Plan choice in place of the weekly upload for a lapsed student: no free week, the charge is today. */
 export default function RestartChoice() {
   const data = useProtoData();
-  const noCard = useProtoState() === "no-card";
+  const state = useProtoState();
+  const noCard = state === "no-card";
   const plans = plansFor(data.prices);
   const [plan, setPlan] = useState<PlanName>(noCard ? data.plan : "weekly");
   const picked = plans[plan];
   const renews = plan === "weekly" ? data.restart.weeklyRenews : data.restart.monthlyRenews;
+  if (state === "upload") return <UploadOpens />;
   return (
     <AppChrome>
       <UploadColumn
@@ -29,7 +32,19 @@ export default function RestartChoice() {
           <Row term="Today" value={picked.price} changes={plan} />
           <Row term="Renews" value={<span className="whitespace-nowrap">{renews}</span>} changes={plan} />
         </dl>
-        <PlanFoot every={picked.every} />
+        <PlanFoot every={picked.every} checkout="checkout-lapsed" />
+      </UploadColumn>
+    </AppChrome>
+  );
+}
+
+/** After the plan starts, the weekly upload opens as it does today; a sketch of its first part shows where the student lands. */
+function UploadOpens() {
+  return (
+    <AppChrome>
+      <UploadColumn>
+        <StepTitle title="Plan this week" lead="Add your analytics screenshots to build this week's schedule." />
+        <DropZone label="Add your analytics screenshots" multiple onFiles={() => {}} />
       </UploadColumn>
     </AppChrome>
   );

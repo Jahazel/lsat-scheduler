@@ -1,14 +1,16 @@
 "use client";
 
 import { ReadingBar } from "@/components/ui/ReadingBar";
+import { useEffect, useState } from "react";
 import { FOCUS, cx } from "@/components/ui/classes";
 import { SKELETON } from "@/app/onboarding/shell";
 import { AppChrome, OnboardingChrome } from "../../chrome";
-import { useProtoState } from "../../protoContext";
+import { goToScreen, useProtoState } from "../../protoContext";
 import { PreviewPanel } from "../../protoParts";
 import { UploadColumn } from "../restart/upload";
 
 const TITLE = "Starting your plan…";
+const CONFIRM_MS = 4000;
 
 export default function Starting() {
   const state = useProtoState() || "waiting";
@@ -16,20 +18,27 @@ export default function Starting() {
     return (
       <AppChrome>
         <UploadColumn>
-          <Waiting lead="Stripe is confirming your card. Your weekly upload opens next." slow={false} />
+          <Waiting lead="Stripe is confirming your card. Your weekly upload opens next." slow={false} next={["restart", "upload"]} />
         </UploadColumn>
       </AppChrome>
     );
   }
   return (
     <OnboardingChrome preview={<NextWeek />}>
-      <Waiting lead="Stripe is confirming your card. This week opens next." slow={state === "slow"} />
+      <Waiting lead="Stripe is confirming your card. This week opens next." slow={state === "slow"} next={["this-week", "free-start"]} />
     </OnboardingChrome>
   );
 }
 
 /** The app's Loop: the reading bar's sliding segment, with no percent, because Stripe gives no progress. */
-function Waiting({ lead, slow }: { lead: string; slow: boolean }) {
+function Waiting({ lead, slow: startsSlow, next }: { lead: string; slow: boolean; next: [string, string] }) {
+  const [slow, setSlow] = useState(startsSlow);
+  // Stripe confirms in a few seconds in the prototype; the slow state waits until the student taps "Try again".
+  useEffect(() => {
+    if (slow) return;
+    const timer = setTimeout(() => goToScreen(...next), CONFIRM_MS);
+    return () => clearTimeout(timer);
+  }, [slow, next]);
   return (
     <div aria-live="polite" className="flex flex-col gap-2">
       <h1 className="text-h3 font-semibold text-ink">{TITLE}</h1>
@@ -38,7 +47,7 @@ function Waiting({ lead, slow }: { lead: string; slow: boolean }) {
       {slow && (
         <p className="reading-note mt-2 text-small text-smoke">
           This is taking longer than usual.{" "}
-          <button type="button" className={cx("rounded-xs font-medium text-accent hover:underline", FOCUS)}>Try again</button>
+          <button type="button" className={cx("-my-3 py-3 touch-manipulation select-none rounded-xs font-medium text-accent hover:underline", FOCUS)} onClick={() => setSlow(false)}>Try again</button>
         </p>
       )}
     </div>

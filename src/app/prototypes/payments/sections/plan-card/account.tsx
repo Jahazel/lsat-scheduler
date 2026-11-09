@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { ChangePasswordCard } from "@/app/account/ChangePasswordCard";
 import { DeletionCard } from "@/app/account/DeletionCard";
 import { SessionsCard } from "@/app/account/SessionsCard";
 import { Button } from "@/components/ui/Button";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { AppChrome } from "../../chrome";
+import { useOpenStripe } from "../../protoParts";
 import { goToScreen, useProtoData, useProtoState } from "../../protoContext";
 import { planCardFacts, type PlanCardFacts, type PlanCardState } from "../../protoData";
 
@@ -21,7 +22,7 @@ export function AccountPage({ planCard, deletion = <DeletionCard mode={{ kind: "
   return (
     <AppChrome tab={null}>
       <div className="min-h-full bg-vellum">
-        <header className="border-b border-vellum-line bg-paper px-5 pt-6 pb-6 md:px-18 md:pt-12 md:pb-10">
+        <header data-page-section className="border-b border-vellum-line bg-paper px-5 pt-6 pb-6 md:px-18 md:pt-12 md:pb-10">
           <div className="mx-auto flex max-w-content flex-col gap-3">
             <h1 className="text-h3 font-semibold text-ink md:text-h2">Account</h1>
             <div className="flex flex-wrap items-center gap-2">
@@ -31,7 +32,7 @@ export function AccountPage({ planCard, deletion = <DeletionCard mode={{ kind: "
           </div>
         </header>
         <div className="mx-auto box-content flex max-w-content flex-col gap-6 px-5 py-10 md:px-18 md:pt-16 md:pb-24">
-          {planCard}
+          <div data-page-section>{planCard}</div>
           <SessionsCard />
           <ChangePasswordCard />
           {deletion}
@@ -60,17 +61,12 @@ const BUTTON = cx("flex h-11 shrink-0 items-center justify-center rounded-sm px-
 
 /** "Manage plan on Stripe" opens the Customer Portal; "Pick a plan" follows the flow map to plan choice. */
 export function PlanCardAction({ facts, className }: { facts: PlanCardFacts; className?: string }) {
-  const [opening, setOpening] = useState(false);
-  useEffect(() => {
-    if (!opening) return;
-    const timer = setTimeout(() => setOpening(false), 1600);
-    return () => clearTimeout(timer);
-  }, [opening]);
+  const stripe = useOpenStripe("portal");
   if (facts.action === "pick") {
-    return <Button variant="bare" className={cx(BUTTON, "bg-ink text-chalk hover:bg-graphite-raised", className)} onClick={() => goToScreen("plan-choice")}>Pick a plan</Button>;
+    return <Button variant="bare" className={cx(BUTTON, "bg-ink text-chalk hover:bg-graphite-raised", className)} onClick={() => goToScreen("restart", "lapsed")}>Pick a plan</Button>;
   }
   return (
-    <Button variant="bare" className={cx(BUTTON, "border border-vellum-line bg-paper text-ink hover:bg-vellum", className)} waiting={opening} waitLabel="Opening Stripe…" onClick={() => setOpening(true)}>
+    <Button variant="bare" className={cx(BUTTON, "border border-vellum-line bg-paper text-ink hover:bg-vellum", className)} waiting={stripe.opening} waitLabel="Opening Stripe…" onClick={stripe.open}>
       Manage plan on Stripe
     </Button>
   );

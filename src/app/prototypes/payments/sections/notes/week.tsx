@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -9,6 +9,7 @@ import { ReminderStrip } from "@/components/ui/ReminderStrip";
 import { StatusIcon } from "@/components/ui/StatusIcon";
 import { cx } from "@/components/ui/classes";
 import { AppChrome } from "../../chrome";
+import { useOpenStripe } from "../../protoParts";
 import { goToScreen, useProtoData, useProtoState } from "../../protoContext";
 import { planNote, weekDates, weekOf, type PlanNote, type ProtoData, type WeekState } from "../../protoData";
 
@@ -28,6 +29,7 @@ type Days = "active" | "read-only" | "none";
 
 // Where each state sits in the student's weeks: which Monday, which day is today, and what This week shows below the header.
 const WEEKS: Record<WeekState, { week: keyof ProtoData["weeks"]; today: number; days: Days; reminder: boolean }> = {
+  "free-start": { week: "firstFree", today: 0, days: "active", reminder: false },
   "free-friday": { week: "lastFree", today: 4, days: "active", reminder: true },
   "free-sunday": { week: "lastFree", today: 6, days: "active", reminder: true },
   "free-cancelled": { week: "lastFree", today: 4, days: "active", reminder: false },
@@ -46,7 +48,7 @@ export function useWeek() {
   const monday = data.weeks[place.week];
   const done = DAYS.slice(0, place.today).reduce((sum, day) => sum + day.rows.length, 0);
   const dueSoFar = place.days === "active" ? done + DAYS[place.today].rows.length : undefined;
-  return { state, note: planNote(state, data)!, ...place, monday, done, dueSoFar };
+  return { state, note: planNote(state, data), ...place, monday, done, dueSoFar };
 }
 
 /** The This week page around a plan note: the note goes above the days, and `empty` replaces the days when none show. */
@@ -58,6 +60,7 @@ export function WeekPage({ beforeDays, empty }: { beforeDays?: ReactNode; empty?
       {reminder && (
         <ReminderStrip message="Next week starts Monday. Add your screenshots to build your weekly schedule." href="#" action="Plan next week" />
       )}
+      <div data-page-section>
       <PageHeader
         eyebrow={`Week of ${weekOf(monday)}`}
         title="Your plan for this week"
@@ -65,10 +68,11 @@ export function WeekPage({ beforeDays, empty }: { beforeDays?: ReactNode; empty?
         notes={days === "none" ? [] : ["Necessary assumption comes first this week. You missed it most on your last practice test."]}
         aside={days === "none" ? undefined : <ProgressBar done={done} total={TOTAL} dueSoFar={dueSoFar} />}
       />
+      </div>
       <div className="flex flex-col gap-4 px-5 pt-8 pb-16 md:px-18 md:pt-16 md:pb-24">
-        {beforeDays}
-        {days === "none" ? empty : DAYS.map((day, index) => (
-          <Card key={index} className={day.rows.length === 0 ? "gap-2" : undefined}>
+        {beforeDays && <div data-page-section>{beforeDays}</div>}
+        {days === "none" ? <div data-page-section>{empty}</div> : DAYS.map((day, index) => (
+          <Card key={index} data-page-section className={day.rows.length === 0 ? "gap-2" : undefined}>
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-2">
               <h2 className="flex items-baseline gap-2 text-h6 font-medium text-ink">
                 {dates[index].day}{" "}
@@ -118,12 +122,7 @@ export function NoteGlyph({ tone, className }: { tone: PlanNote["tone"]; classNa
 
 /** "Update card" opens the Stripe Customer Portal; "Pick a plan" follows the flow map to plan choice. */
 export function NoteAction({ action }: { action: NonNullable<PlanNote["action"]> }) {
-  const [opening, setOpening] = useState(false);
-  useEffect(() => {
-    if (!opening) return;
-    const timer = setTimeout(() => setOpening(false), 1600);
-    return () => clearTimeout(timer);
-  }, [opening]);
-  if (action === "pick-plan") return <Button size="md" onClick={() => goToScreen("plan-choice")}>Pick a plan</Button>;
-  return <Button size="md" variant="outline" waiting={opening} waitLabel="Opening Stripe…" onClick={() => setOpening(true)}>Update card</Button>;
+  const stripe = useOpenStripe("portal");
+  if (action === "pick-plan") return <Button size="md" onClick={() => goToScreen("restart", "lapsed")}>Pick a plan</Button>;
+  return <Button size="md" variant="outline" waiting={stripe.opening} waitLabel="Opening Stripe…" onClick={stripe.open}>Update card</Button>;
 }

@@ -7,9 +7,9 @@ import { WeekPage, useWeek } from "./week";
 export default function NoticeCard() {
   const { note, state } = useWeek();
   const held = state === "held";
-  const notice = !held && <PlanNotice note={note} />;
+  const notice = !held && note && <PlanNotice note={note} />;
   const waiting = held
-    ? { title: note.lead, body: note.rest }
+    ? { title: note!.lead, body: note!.rest }
     : { title: "Your week is saved.", body: "It appears as soon as you pick a plan." };
   return (
     <WeekPage
