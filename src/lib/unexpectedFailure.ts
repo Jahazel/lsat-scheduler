@@ -1,10 +1,13 @@
 export const UNEXPECTED_FAILURE_MESSAGE = "Something went wrong. Try again.";
+export const NO_CONNECTION_MESSAGE = "No connection. Check your signal and try again.";
 
 /** Eight hex characters. The security log holds the same code beside the route and error type. */
 export type FailureCode = string & { readonly __brand: "FailureCode" };
 
+export const NO_CONNECTION = "no-connection";
+
 /** What a Server Action answers when it fails unexpectedly. Planned refusals never use this key. */
-export type UnexpectedFailure = { unexpectedFailure: FailureCode };
+export type UnexpectedFailure = { unexpectedFailure: FailureCode | typeof NO_CONNECTION };
 
 export type Answer<T> = T | UnexpectedFailure;
 
@@ -16,7 +19,8 @@ export function isFailureCode(value: unknown): value is FailureCode {
 }
 
 export function isUnexpectedFailure(value: unknown): value is UnexpectedFailure {
-  return typeof value === "object" && value !== null && "unexpectedFailure" in value && isFailureCode(value.unexpectedFailure);
+  return typeof value === "object" && value !== null && "unexpectedFailure" in value
+    && (isFailureCode(value.unexpectedFailure) || value.unexpectedFailure === NO_CONNECTION);
 }
 
 export const failureText = ({ unexpectedFailure }: UnexpectedFailure) =>

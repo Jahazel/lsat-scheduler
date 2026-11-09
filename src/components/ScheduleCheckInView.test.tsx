@@ -68,6 +68,22 @@ describe("ScheduleCheckInView", () => {
     expect(screen.getByText("18 remaining")).toBeTruthy();
   });
 
+  it("undoes a check-off that never reaches the server and shows the connection message, keeping the week on screen", async () => {
+    saveActivityCheckIn.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />, { wrapper: FailureToastProvider });
+    const row = within(dayCard("Monday")).getByRole("checkbox", { name: "1 Full LR Section" });
+
+    await userEvent.click(row);
+    expect((await screen.findByRole("alert")).textContent).toBe("No connection. Check your signal and try again.");
+    expect(row.getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByText("18 remaining")).toBeTruthy();
+    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(7);
+
+    await userEvent.click(row);
+    expect(await screen.findByText("1 of 18 done")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
   it("keeps the error code when another line saves, and closes it when the failed line saves", async () => {
     saveActivityCheckIn.mockResolvedValueOnce({ unexpectedFailure: "3f9a01c2" });
     render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />, { wrapper: FailureToastProvider });

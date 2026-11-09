@@ -254,6 +254,19 @@ describe("OnboardingWizard", () => {
     expect(onSave).toHaveBeenCalledTimes(2);
   });
 
+  it("shows the connection message in the failure toast when Skip for now never reaches the server, and stays on Analytics", async () => {
+    const onSave = vi.fn().mockRejectedValueOnce(new TypeError("Failed to fetch")).mockResolvedValueOnce(undefined);
+    const { user } = await fillGoalAndWeek(onSave);
+
+    await user.click(screen.getByRole("button", { name: "Skip for now" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("No connection. Check your signal and try again.");
+    expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();
+    expect(screen.queryByText(/We couldn't save your plan/)).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Skip for now" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
   it("shows a failed save in the failure toast, stays on Analytics, and closes the toast when Skip for now saves", async () => {
     const onSave = vi.fn().mockResolvedValueOnce(FAILED).mockResolvedValueOnce(undefined);
     const { user } = await fillGoalAndWeek(onSave);
