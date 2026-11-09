@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { SignOutForm } from "@/components/SignOutForm";
+import { SignOutButton, SignOutForm } from "@/components/SignOutForm";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { NavTab } from "@/components/ui/NavTab";
 import { NavIcon } from "./NavIcon";
@@ -90,9 +90,9 @@ function AvatarMenu({ initials, email, countdownLabel, logOut, compact }: Pick<S
           Account
         </Link>
         <SignOutForm action={logOut}>
-          <button role="menuitem" type="submit" className={item}>
+          <SignOutButton role="menuitem" variant="bare" size="md" className={item}>
             Log out
-          </button>
+          </SignOutButton>
         </SignOutForm>
       </div>
     </div>

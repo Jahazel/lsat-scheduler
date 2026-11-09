@@ -35,6 +35,18 @@ describe("Login", () => {
     expect(document.cookie).toContain("drillmap-arrival=google");
   });
 
+  it("shows the waiting ring on Continue with Google while the sign-in starts", async () => {
+    let finish = () => {};
+    actions.signInWithGoogle.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+    await renderLogin();
+    const google = screen.getByRole("button", { name: "Continue with Google" });
+    await userEvent.click(google);
+    await waitFor(() => expect(google.getAttribute("aria-disabled")).toBe("true"));
+    expect(google.querySelector(".button-ring")).not.toBeNull();
+    finish();
+    await waitFor(() => expect(google.hasAttribute("aria-disabled")).toBe(false));
+  });
+
   it("offers Continue with Google, then the email and password form, and a way to Signup", async () => {
     await renderLogin();
     expect(screen.getByRole("heading", { name: "Log in to DrillMap" })).toBeTruthy();

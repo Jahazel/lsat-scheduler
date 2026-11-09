@@ -29,16 +29,26 @@ export function buttonClass({ variant = "primary", size = "lg" }: { variant?: Bu
 
 type Look = { variant?: ButtonVariant; size?: ButtonSize };
 
-/** `variant="bare"` keeps a screen's own button look, given in `className`; `size` then picks only the ring's size. */
+/**
+ * `variant="bare"` keeps a screen's own button look, given in `className`; `size` then picks only the ring's size.
+ * `holdsWidth={false}` lets a waiting button shrink to its wait label, so text that follows a link-style button stays next to it.
+ */
 type ButtonProps = ComponentProps<"button"> & {
   variant?: ButtonVariant | "bare";
   size?: ButtonSize;
   waiting?: boolean;
   waitLabel?: string;
+  holdsWidth?: boolean;
 };
 
-export function Button({ variant, size, className, type = "button", waiting = false, waitLabel, children, onClick, ...props }: ButtonProps) {
+export function Button({ variant, size, className, type = "button", waiting = false, waitLabel, holdsWidth = true, children, onClick, ...props }: ButtonProps) {
   const look = variant === "bare" ? "" : buttonClass({ variant, size });
+  const waitContent = (
+    <span className="inline-flex items-center gap-2">
+      <Ring size={size} />
+      {waitLabel ?? children}
+    </span>
+  );
   return (
     <button
       type={type}
@@ -48,16 +58,15 @@ export function Button({ variant, size, className, type = "button", waiting = fa
         ? { "data-waiting": "", "aria-disabled": true, onClick: (event: MouseEvent<HTMLButtonElement>) => event.preventDefault() }
         : { onClick })}
     >
-      {waiting ? (
+      {waiting && holdsWidth ? (
         <span className="inline-grid place-items-center *:col-start-1 *:row-start-1">
           <span aria-hidden className="invisible">
             {children}
           </span>
-          <span className="inline-flex items-center gap-2">
-            <Ring size={size} />
-            {waitLabel ?? children}
-          </span>
+          {waitContent}
         </span>
+      ) : waiting ? (
+        waitContent
       ) : (
         children
       )}
