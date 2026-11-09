@@ -14,6 +14,7 @@ export default async function PaymentsPrototype({ searchParams }: PageProps<"/pr
         reducedMotion: one(params.rm) === "1",
         screen: one(params.screen) ?? "",
         variant: Number(one(params.v)) || 1,
+        state: one(params.state) ?? "",
         data: isDatasetName(one(params.data)) ? (one(params.data) as DatasetName) : "demo",
       }}
     />

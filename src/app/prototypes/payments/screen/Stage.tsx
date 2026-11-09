@@ -3,20 +3,20 @@ import "../proto.css";
 
 import { useEffect, useState } from "react";
 import { cx } from "@/components/ui/classes";
-import { findScreen } from "../screens";
+import { findScreen, findState } from "../screens";
 import { DATASETS, isDatasetName, type DatasetName } from "../protoData";
-import { ProtoDataContext } from "../protoContext";
+import { ProtoDataContext, ProtoStateContext } from "../protoContext";
 
-export type StageMessage = { type: "stage"; screen: string; variant: number; reducedMotion: boolean; data: DatasetName; mount: number };
+export type StageMessage = { type: "stage"; screen: string; variant: number; reducedMotion: boolean; data: DatasetName; state: string; mount: number };
 
-export default function Stage({ screen, variant, reducedMotion, data }: { screen: string; variant: number; reducedMotion: boolean; data: string }) {
-  const [view, setView] = useState({ screen, variant, reducedMotion, data: isDatasetName(data) ? data : ("demo" as DatasetName), mount: 0 });
+export default function Stage({ screen, variant, reducedMotion, data, state }: { screen: string; variant: number; reducedMotion: boolean; data: string; state: string }) {
+  const [view, setView] = useState({ screen, variant, reducedMotion, data: isDatasetName(data) ? data : ("demo" as DatasetName), state, mount: 0 });
 
   useEffect(() => {
     const onMessage = (event: MessageEvent<StageMessage>) => {
       if (event.origin !== location.origin || event.data?.type !== "stage") return;
-      const { screen, variant, reducedMotion, data, mount } = event.data;
-      setView({ screen, variant, reducedMotion, data, mount });
+      const { screen, variant, reducedMotion, data, state, mount } = event.data;
+      setView({ screen, variant, reducedMotion, data, state, mount });
     };
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
@@ -34,6 +34,7 @@ export default function Stage({ screen, variant, reducedMotion, data }: { screen
 
   const current = findScreen(view.screen);
   const { Component } = current.variants[view.variant - 1] ?? current.variants[0];
+  const shownState = findState(current, view.state);
   return (
     <div
       data-rm={view.reducedMotion || undefined}
@@ -43,7 +44,9 @@ export default function Stage({ screen, variant, reducedMotion, data }: { screen
       )}
     >
       <ProtoDataContext value={DATASETS[view.data]}>
-        <Component key={`${view.screen}:${view.variant}:${view.data}:${view.mount}`} />
+        <ProtoStateContext value={shownState}>
+          <Component key={`${view.screen}:${view.variant}:${view.data}:${shownState}:${view.mount}`} />
+        </ProtoStateContext>
       </ProtoDataContext>
     </div>
   );

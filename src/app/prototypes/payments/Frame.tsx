@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { SCREENS, findScreen } from "./screens";
+import { SCREENS, findScreen, findState } from "./screens";
 import { DATASETS, type DatasetName } from "./protoData";
 import type { StageMessage } from "./screen/Stage";
 import "./picker.css";
@@ -10,7 +10,7 @@ export type FrameSize = "desktop" | "tablet" | "mobile";
 const WIDTHS: Record<FrameSize, number> = { desktop: 1440, tablet: 768, mobile: 390 };
 const HEIGHTS: Record<FrameSize, number> = { desktop: 900, tablet: 1024, mobile: 844 };
 
-type View = { size: FrameSize; reducedMotion: boolean; screen: string; variant: number; data: DatasetName };
+type View = { size: FrameSize; reducedMotion: boolean; screen: string; variant: number; data: DatasetName; state: string };
 
 const DATA_LABELS: Record<DatasetName, string> = { demo: "Demo data", worst: "Worst case", "no-saving": "No saving" };
 
@@ -22,8 +22,9 @@ export default function Frame({ initial }: { initial: View }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const screen = findScreen(view.screen);
   const variant = Math.min(Math.max(view.variant, 1), screen.variants.length);
+  const state = findState(screen, view.state);
 
-  const [src] = useState(() => `/prototypes/payments/screen?screen=${view.screen}&v=${variant}&rm=${view.reducedMotion ? 1 : 0}&data=${view.data}`);
+  const [src] = useState(() => `/prototypes/payments/screen?screen=${view.screen}&v=${variant}&rm=${view.reducedMotion ? 1 : 0}&data=${view.data}&state=${state}`);
 
   useEffect(() => {
     const url = new URL(location.href);
@@ -32,10 +33,12 @@ export default function Frame({ initial }: { initial: View }) {
     url.searchParams.set("screen", screen.id);
     url.searchParams.set("v", String(variant));
     url.searchParams.set("data", view.data);
+    if (state) url.searchParams.set("state", state);
+    else url.searchParams.delete("state");
     history.replaceState(null, "", url);
-    const message: StageMessage = { type: "stage", screen: screen.id, variant, reducedMotion: view.reducedMotion, data: view.data, mount };
+    const message: StageMessage = { type: "stage", screen: screen.id, variant, reducedMotion: view.reducedMotion, data: view.data, state, mount };
     frame.current?.contentWindow?.postMessage(message, location.origin);
-  }, [view, screen.id, variant, mount]);
+  }, [view, screen.id, variant, state, mount]);
 
   const pick = useCallback((index: number) => {
     if (index < 0 || index >= screen.variants.length) return;
@@ -58,8 +61,13 @@ export default function Frame({ initial }: { initial: View }) {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       onKey(event.key);
     };
-    const onMessage = (event: MessageEvent<{ type: string; key: string }>) => {
-      if (event.origin === location.origin && event.data?.type === "key") onKey(event.data.key);
+    const onMessage = (event: MessageEvent<{ type: string; key?: string; screen?: string }>) => {
+      if (event.origin !== location.origin) return;
+      if (event.data?.type === "key" && event.data.key) onKey(event.data.key);
+      if (event.data?.type === "go" && event.data.screen) {
+        const screen = event.data.screen;
+        setView((v) => ({ ...v, screen, variant: 1, state: "" }));
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("message", onMessage);
@@ -92,7 +100,7 @@ export default function Frame({ initial }: { initial: View }) {
           Screen
           <select
             value={screen.id}
-            onChange={(event) => setView((v) => ({ ...v, screen: event.target.value, variant: 1 }))}
+            onChange={(event) => setView((v) => ({ ...v, screen: event.target.value, variant: 1, state: "" }))}
             className="h-8 rounded-md bg-graphite-raised px-2 text-chalk"
           >
             {SCREENS.map((option) => (
@@ -100,6 +108,20 @@ export default function Frame({ initial }: { initial: View }) {
             ))}
           </select>
         </label>
+        {screen.states && (
+          <label className="flex items-center gap-2 text-[13px] text-fog">
+            State
+            <select
+              value={state}
+              onChange={(event) => setView((v) => ({ ...v, state: event.target.value }))}
+              className="h-8 rounded-md bg-graphite-raised px-2 text-chalk"
+            >
+              {screen.states.map((option) => (
+                <option key={option.id} value={option.id}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-6">
         <iframe

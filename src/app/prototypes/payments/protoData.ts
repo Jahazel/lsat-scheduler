@@ -5,22 +5,35 @@ export type PlanName = "weekly" | "monthly";
 export type ProtoData = {
   prices: PlanPrices;
   freeWeek: { endsShort: string; endsLong: string; firstChargeShort: string };
+  // The plan the This week notes speak about, and the Mondays that start each week those notes appear in.
+  plan: PlanName;
+  weeks: { lastFree: string; firstPaid: string; retrying: string; lapsed: string };
+  retryBy: string;
 };
 
 export const DATASETS = {
   demo: {
     prices: { weeklyCents: 1000, monthlyCents: 2999 },
     freeWeek: { endsShort: "Sun, Nov 22", endsLong: "Sunday, Nov 22", firstChargeShort: "Mon, Nov 23" },
+    plan: "weekly",
+    weeks: { lastFree: "2026-11-16", firstPaid: "2026-11-23", retrying: "2026-12-07", lapsed: "2026-12-14" },
+    retryBy: "Mon, Dec 14",
   },
   // Onboarding finished Mon, Dec 21: the longest free week (13 days), across the new year, with a price rise to $14.99 and $49.99.
   worst: {
     prices: { weeklyCents: 1499, monthlyCents: 4999 },
     freeWeek: { endsShort: "Sun, Jan 3", endsLong: "Sunday, Jan 3", firstChargeShort: "Mon, Jan 4" },
+    plan: "monthly",
+    weeks: { lastFree: "2026-12-28", firstPaid: "2027-01-04", retrying: "2027-02-01", lapsed: "2027-02-08" },
+    retryBy: "Mon, Feb 8",
   },
   // Monthly costs more than 4⅓ weeks of Weekly, so there is no saving to show.
   "no-saving": {
     prices: { weeklyCents: 1000, monthlyCents: 4500 },
     freeWeek: { endsShort: "Sun, Nov 22", endsLong: "Sunday, Nov 22", firstChargeShort: "Mon, Nov 23" },
+    plan: "weekly",
+    weeks: { lastFree: "2026-11-16", firstPaid: "2026-11-23", retrying: "2026-12-07", lapsed: "2026-12-14" },
+    retryBy: "Mon, Dec 14",
   },
 } satisfies Record<string, ProtoData>;
 
@@ -42,3 +55,61 @@ export const TERMS = "Cancel anytime. You keep access until your paid week or mo
 export const agreementLine = (every: string) => `By continuing, you agree your plan renews ${every} until you cancel.`;
 
 export const STRIPE_NOTE = "You add your card on Stripe, then come back here.";
+
+export type WeekState =
+  | "free-friday" | "free-sunday" | "free-cancelled" | "free-saved"
+  | "held" | "retrying" | "lapsed-failed" | "lapsed-ended";
+
+export const WEEK_STATES: { id: WeekState; label: string }[] = [
+  { id: "free-friday", label: "Free week · Friday" },
+  { id: "free-sunday", label: "Free week · Sunday" },
+  { id: "free-cancelled", label: "Free week · cancelled" },
+  { id: "free-saved", label: "Free week · next week saved" },
+  { id: "held", label: "Held weekly schedule" },
+  { id: "retrying", label: "Retrying" },
+  { id: "lapsed-failed", label: "Lapsed · card failed" },
+  { id: "lapsed-ended", label: "Lapsed · plan ended" },
+];
+
+export type PlanNote = {
+  tone: "info" | "warning";
+  // The first sentence leads; variants that split a title from the body use it as the title.
+  lead: string;
+  rest?: string;
+  action?: "update-card" | "pick-plan";
+};
+
+export function planNote(state: WeekState, data: ProtoData): PlanNote | null {
+  const plan = plansFor(data.prices)[data.plan];
+  switch (state) {
+    case "free-friday":
+      return { tone: "info", lead: "Your free week ends Sunday.", rest: `Your ${plan.name} plan starts Monday at ${plan.price}.` };
+    case "free-sunday":
+      return { tone: "info", lead: "Your free week ends today.", rest: `Your ${plan.name} plan starts tomorrow at ${plan.price}.` };
+    case "free-cancelled":
+      return { tone: "info", lead: "Your free week ends Sunday.", rest: "You won't be charged." };
+    case "free-saved":
+      return { tone: "info", lead: "Your free week ends Sunday.", rest: `Your ${plan.name} plan starts Monday at ${plan.price}. Your plan for next week appears then.` };
+    case "held":
+      return { tone: "info", lead: "Your week is ready.", rest: "It appears when your first payment goes through." };
+    case "retrying":
+      return { tone: "warning", lead: "Your last payment didn't go through.", rest: `Update your card by ${data.retryBy} to keep your plan.`, action: "update-card" };
+    case "lapsed-failed":
+      return { tone: "warning", lead: "Your payment didn't go through.", rest: "Pick a plan to get new weekly schedules.", action: "pick-plan" };
+    case "lapsed-ended":
+      return { tone: "warning", lead: "Your plan has ended.", rest: "Pick a plan to get new weekly schedules.", action: "pick-plan" };
+  }
+}
+
+const weekDay = new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: "UTC" });
+const monthDay = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+const monthLongDay = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", timeZone: "UTC" });
+
+export const weekDates = (monday: string) =>
+  Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(`${monday}T00:00:00.000Z`);
+    date.setUTCDate(date.getUTCDate() + index);
+    return { day: weekDay.format(date), date: monthDay.format(date) };
+  });
+
+export const weekOf = (monday: string) => monthLongDay.format(new Date(`${monday}T00:00:00.000Z`));
