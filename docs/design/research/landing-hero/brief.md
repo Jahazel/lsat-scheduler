@@ -149,7 +149,7 @@ Owner references: Legend (numbered rows, square +/- button, dashed row rules, li
 | Label row | `[04] FAQ`, same as the other sections. Title "FAQ" (owner, 2026-11-03; the live page says "Questions"). |
 | Layout | Desktop: title on guide column 1 (sticky while the list scrolls), list on columns 2–4, so each row starts on a guide. Tablet and phone: title above the list. |
 | Row | Mono `Q01`–`Q05`, question 20/28 medium, square 32 px icon button on the right. Dashed rule between rows. |
-| Open state | First question open. Each row toggles on its own. The open row's button turns solid ink with a minus. |
+| Open state | Every question closed on load. One row open at a time: opening a row closes the open one. The open row's button turns solid ink with a minus. |
 | Open motion | Answer: grid rows 0fr → 1fr plus opacity, 200 ms strong ease-out (same as the live QuestionList). Plus icon: the vertical bar scales to 0. Reduced motion: opacity only, 120 ms. |
 | Hover | Pointer devices only: question text goes to smoke and the icon border darkens, 200 ms ease. |
 | Reveal | Once, at 20% in view: title, then rows with a 60 ms stagger, 600 ms strong ease-out, 16 px rise. Reduced motion: opacity only. |
