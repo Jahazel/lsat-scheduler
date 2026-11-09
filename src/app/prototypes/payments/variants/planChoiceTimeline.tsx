@@ -49,7 +49,7 @@ export default function PlanChoiceTimeline() {
   );
 }
 
-function StripeNext({ plan }: { plan: PlanName }) {
+export function StripeNext({ plan }: { plan: PlanName }) {
   return (
     <PreviewPanel label="What happens next">
       <p className="font-mono text-label uppercase text-smoke">Next · on Stripe</p>

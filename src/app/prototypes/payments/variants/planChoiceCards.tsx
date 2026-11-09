@@ -6,11 +6,12 @@ import { FOCUS_INSET, MOTION, cx } from "@/components/ui/classes";
 import { OnboardingChrome } from "../chrome";
 import { FREE_WEEK, PLANS, type PlanName } from "../protoData";
 import { PlanFoot, PreviewPanel, StepTitle } from "../protoParts";
+import { StripeNext } from "./planChoiceTimeline";
 
-export default function PlanChoiceCards() {
+export default function PlanChoiceCards({ preview = "calendar", savingAs = "pill" }: { preview?: "calendar" | "stripe"; savingAs?: "pill" | "text" }) {
   const [plan, setPlan] = useState<PlanName>("weekly");
   return (
-    <OnboardingChrome preview={<FreeWeekCalendar plan={plan} />}>
+    <OnboardingChrome preview={preview === "stripe" ? <StripeNext plan={plan} /> : <FreeWeekCalendar plan={plan} />}>
       <div className="flex flex-col gap-8">
         <StepTitle title="Pick your plan" lead={`Your free week runs until ${FREE_WEEK.endsLong}. You pay nothing before then.`} />
         <fieldset className="grid grid-cols-2 gap-3">
@@ -38,7 +39,11 @@ export default function PlanChoiceCards() {
                   <span className="text-h4 font-semibold text-ink tabular-nums">{option.price}</span>
                   <span className="text-small text-smoke">{option.per}</span>
                 </span>
-                {option.tag ? <PillTag>{option.tag}</PillTag> : <span className="h-[22px]" aria-hidden />}
+                {savingAs === "pill" ? (
+                  option.tag ? <PillTag>{option.tag}</PillTag> : <span className="h-[22px]" aria-hidden />
+                ) : (
+                  <span className="h-[18px] text-small text-accent">{option.tag}</span>
+                )}
               </label>
             );
           })}

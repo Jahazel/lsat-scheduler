@@ -13,6 +13,7 @@ export const SCREENS: ProtoScreen[] = [
       { name: "Cards + calendar", Component: PlanChoiceCards },
       { name: "Receipt", Component: PlanChoiceReceipt },
       { name: "Timeline", Component: PlanChoiceTimeline },
+      { name: "Cards + Stripe", Component: () => <PlanChoiceCards preview="stripe" savingAs="text" /> },
     ],
   },
 ];
