@@ -13,6 +13,8 @@ const serverActionShape = [
   },
 ];
 
+const CLASS_SELECTOR = String.raw`/^([^\[]|\[[^\]]*\])*[.][A-Za-z_-]|\[class[~|^$*]?=/`;
+
 const CLASS_NAME_TEST =
   "Test what the student sees or hears (role, name, text, aria state), not class names. Check styling in the verify browser run.";
 
@@ -68,8 +70,12 @@ const eslintConfig = defineConfig([
       "no-restricted-syntax": [
         "error",
         ...serverActionShape,
+        ...["value", "quasis.0.value.raw"].map((argument) => ({
+          selector: `CallExpression[callee.property.name=/^(querySelector|querySelectorAll|closest|matches)$/][arguments.0.${argument}=${CLASS_SELECTOR}]`,
+          message: CLASS_NAME_TEST,
+        })),
         {
-          selector: "CallExpression[callee.property.name=/^(querySelector|querySelectorAll|closest|matches)$/][arguments.0.value=/(^|[^'\"])[.][A-Za-z_-]/]",
+          selector: "CallExpression[callee.property.name=/^(getAttribute|hasAttribute|toHaveAttribute)$/][arguments.0.value='class']",
           message: CLASS_NAME_TEST,
         },
       ],
