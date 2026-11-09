@@ -136,6 +136,36 @@ _Avoid_: pending Account, unverified Account
 A sign-in within the last 10 minutes: a new Google sign-in for a Google Account, or the current password for a password Account. Account deletion and password change need one.
 _Avoid_: re-authentication, fresh login
 
+### Plans
+
+**Free week**:
+The time a new student uses DrillMap before their first charge: from the end of onboarding through the Sunday that closes their first full Monday–Sunday week, so 7 to 13 days. The student picks a plan and adds a card to start it, and pays nothing if they cancel before it ends. Each email address gets one.
+_Avoid_: trial, free trial, 7 days free
+
+**Plan**:
+What a student pays for to get weekly schedules: Weekly or Monthly. The student picks it at the end of onboarding, and it starts with the free week. Both plans give the same weekly schedules.
+_Avoid_: subscription, tier, membership
+
+**Paid period**:
+The week or month that one plan payment covers. A student who cancels keeps the app until their paid period ends, with no refund for unused time.
+_Avoid_: billing cycle, term
+
+**Plan choice**:
+The page where a student picks a plan and adds a card. A new student sees it as the last onboarding step. A lapsed student sees it in place of the weekly upload, and gets no second free week.
+_Avoid_: paywall, upgrade screen, checkout
+
+**First charge**:
+The first payment for a plan, made on the Monday after the free week ends.
+_Avoid_: trial conversion, first invoice
+
+**Held weekly schedule**:
+The weekly schedule for the week after the free week, saved from a "Plan next week" weekly upload before the first charge. This week does not show it until the first charge succeeds. It is the only weekly schedule a student can have saved but not see.
+_Avoid_: pending schedule, locked week
+
+**Lapsed**:
+A student with no paid plan and no free week left: they cancelled and their free week or paid period ended, their first charge failed, or a later charge still failed after 7 days. A lapsed student can sign in and read This week and Progress, but gets no new weekly schedule until they pay for a plan. It is not an Inactive Account.
+_Avoid_: inactive, expired, locked
+
 ### Failures
 
 **Unexpected failure**:
@@ -213,7 +243,7 @@ _Avoid_: starred cycle, rotation schedule
 ### Admin
 
 **Admin**:
-One of the two people who run DrillMap. An admin can view every student's saved weekly schedule without changing it, and has a student side of their own for testing how the app behaves as weeks pass.
+One of the two people who run DrillMap. An admin can view every student's saved weekly schedule without changing it, and has a student side of their own for testing how the app behaves as weeks pass. An admin never pays and never sees plan choice.
 _Avoid_: tester, superuser
 
 **Simulated date**:
