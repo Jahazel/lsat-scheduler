@@ -7,9 +7,7 @@ import {
   studentProfileSchema,
   upcomingTestMonths,
 } from "./studentProfile";
-import { mockStudent as mockData } from "./mockData";
-
-const mockStudent = { ...mockData, dailyCapacityMinutes: { ...mockData.dailyCapacityMinutes, SATURDAY: 150 } };
+import { mockStudent } from "./mockData";
 
 describe("studentProfileSchema", () => {
   it("accepts a daily capacity for each day and a preferred practice-test day", () => {

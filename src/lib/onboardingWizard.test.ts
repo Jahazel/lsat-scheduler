@@ -19,8 +19,7 @@ import { PASSAGE_TYPES } from "./analyticsReview";
 import { generateWeek } from "./engine";
 import { accuracyMessage, addTypeOptions, boxText, emptyListNote } from "./reviewDraft";
 import { mockRules } from "./mockData";
-import { everyDay } from "./studentProfile";
-import { practiceTestMinutes } from "./studentProfile";
+import { everyDay, practiceTestMinutes } from "./studentProfile";
 import { practiceTestFact, previewWeek } from "./studyWeek";
 import type { AnalyticsExtractedRow } from "./types";
 
