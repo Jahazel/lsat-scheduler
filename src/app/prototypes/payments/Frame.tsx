@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { SCREENS, findScreen } from "./screens";
+import { DATASETS, type DatasetName } from "./protoData";
 import type { StageMessage } from "./screen/Stage";
 import "./picker.css";
 
@@ -9,7 +10,9 @@ export type FrameSize = "desktop" | "tablet" | "mobile";
 const WIDTHS: Record<FrameSize, number> = { desktop: 1440, tablet: 768, mobile: 390 };
 const HEIGHTS: Record<FrameSize, number> = { desktop: 900, tablet: 1024, mobile: 844 };
 
-type View = { size: FrameSize; reducedMotion: boolean; screen: string; variant: number };
+type View = { size: FrameSize; reducedMotion: boolean; screen: string; variant: number; data: DatasetName };
+
+const DATA_LABELS: Record<DatasetName, string> = { demo: "Demo data", worst: "Worst case", "no-saving": "No saving" };
 
 const TOOL = "h-8 rounded-md px-3 text-[13px] text-fog hover:text-chalk data-on:bg-graphite-line data-on:text-chalk";
 
@@ -20,7 +23,7 @@ export default function Frame({ initial }: { initial: View }) {
   const screen = findScreen(view.screen);
   const variant = Math.min(Math.max(view.variant, 1), screen.variants.length);
 
-  const [src] = useState(() => `/prototypes/payments/screen?screen=${view.screen}&v=${variant}&rm=${view.reducedMotion ? 1 : 0}`);
+  const [src] = useState(() => `/prototypes/payments/screen?screen=${view.screen}&v=${variant}&rm=${view.reducedMotion ? 1 : 0}&data=${view.data}`);
 
   useEffect(() => {
     const url = new URL(location.href);
@@ -28,8 +31,9 @@ export default function Frame({ initial }: { initial: View }) {
     url.searchParams.set("rm", view.reducedMotion ? "1" : "0");
     url.searchParams.set("screen", screen.id);
     url.searchParams.set("v", String(variant));
+    url.searchParams.set("data", view.data);
     history.replaceState(null, "", url);
-    const message: StageMessage = { type: "stage", screen: screen.id, variant, reducedMotion: view.reducedMotion, mount };
+    const message: StageMessage = { type: "stage", screen: screen.id, variant, reducedMotion: view.reducedMotion, data: view.data, mount };
     frame.current?.contentWindow?.postMessage(message, location.origin);
   }, [view, screen.id, variant, mount]);
 
@@ -106,6 +110,20 @@ export default function Frame({ initial }: { initial: View }) {
           style={{ width: WIDTHS[view.size], height: view.size === "desktop" ? `max(${HEIGHTS.desktop}px, calc(100dvh - 104px))` : HEIGHTS[view.size] }}
           className="mx-auto block rounded-sm bg-paper shadow-2xl"
         />
+      </div>
+      <div role="radiogroup" aria-label="Data" className="fixed bottom-6 left-1/2 z-[61] flex -translate-x-1/2 gap-0.5 rounded-pill bg-vellum-line p-0.5 font-sans text-[13px] shadow-e1">
+        {(Object.keys(DATASETS) as DatasetName[]).map((name) => (
+          <button
+            key={name}
+            type="button"
+            role="radio"
+            aria-checked={view.data === name}
+            onClick={() => setView((v) => ({ ...v, data: name }))}
+            className={view.data === name ? "rounded-pill bg-paper px-3 py-1 text-ink shadow-control" : "rounded-pill px-3 py-1 text-smoke hover:text-ink"}
+          >
+            {DATA_LABELS[name]}
+          </button>
+        ))}
       </div>
       {screen.variants.length > 1 && (
         <Picker names={screen.variants.map((v) => v.name)} active={variant - 1} onPick={pick} onReplay={() => setMount((value) => value + 1)} />

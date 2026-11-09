@@ -1,21 +1,10 @@
 import type { ComponentType } from "react";
-import PlanChoiceCards from "./variants/planChoiceCards";
-import PlanChoiceReceipt from "./variants/planChoiceReceipt";
-import PlanChoiceTimeline from "./variants/planChoiceTimeline";
+import PlanChoice from "./sections/PlanChoice";
 
 export type ProtoScreen = { id: string; label: string; variants: { name: string; Component: ComponentType }[] };
 
 export const SCREENS: ProtoScreen[] = [
-  {
-    id: "plan-choice",
-    label: "1 · Plan choice",
-    variants: [
-      { name: "Cards + calendar", Component: PlanChoiceCards },
-      { name: "Receipt", Component: PlanChoiceReceipt },
-      { name: "Timeline", Component: PlanChoiceTimeline },
-      { name: "Cards + Stripe", Component: () => <PlanChoiceCards preview="stripe" savingAs="text" /> },
-    ],
-  },
+  { id: "plan-choice", label: "1 · Plan choice", variants: [{ name: "Cards + Stripe", Component: PlanChoice }] },
 ];
 
 export const findScreen = (id: string | undefined) => SCREENS.find((screen) => screen.id === id) ?? SCREENS[0];

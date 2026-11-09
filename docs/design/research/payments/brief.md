@@ -78,7 +78,7 @@ In build order. Sections 1–3 get three variants. Sections 4–8 follow the pic
 
 | Section | Picked variant | Axis | User's reason |
 | --- | --- | --- | --- |
-| 1. Plan choice (onboarding step 5) | | | |
+| 1. Plan choice (onboarding step 5) | Cards + Stripe: two plan cards and three fact rows (Today $0, free week end, first charge) on the left; a preview of the Stripe page that comes next on the right | Layout: comparison cards, with the hand-off to Stripe shown before it happens | Owner, 2026-11-09: liked the Cards layout and the Timeline version's Stripe preview, asked for both together, and dropped the dashed saving bubble. "about 31% less" stays as plain blue text under the Monthly price |
 | 2. This week notes (free week ending, held, retrying, lapsed) | | | |
 | 3. Account Plan card | | | |
 | 4. Starting your plan screen | | | |
@@ -86,6 +86,16 @@ In build order. Sections 1–3 get three variants. Sections 4–8 follow the pic
 | 6. Progress lapsed note | | | |
 | 7. Deletion warning | | | |
 | 8. Landing page wording | | | |
+
+## Stress test: plan choice
+Datasets in the prototype's data switch: Demo ($10 / $29.99, free week to Sun, Nov 22), Worst case (onboarding on Mon, Dec 21: a 13-day free week across the new year, with prices raised to $14.99 / $49.99), and No saving (Monthly $45, more than 4⅓ weeks of Weekly). Checked at 1440, 768, 390, 320, and 240 px (about 160% zoom on a phone). Fixed in the prototype:
+- The radio circles squeezed into ovals on narrow cards: they no longer shrink.
+- The saving line had a fixed height and overflowed when it wrapped: it now grows.
+- The cards ran out of room below about 280 px: they stack into one column there.
+- The free week date split across lines ("Jan / 3"), and the first charge split from its amount: each date and amount now stays on one line.
+- With no saving, the card read "about -4% less": the saving line now shows only when Monthly saves at least 1%. **`planPriceText` in `src/lib/planPrices.ts` needs the same guard** before plan choice reads it; the landing page shows the same text.
+
+Held up: year-boundary dates without a year, four-digit prices, the Stripe preview, the button and its "Opening Stripe…" label, tablet and desktop widths.
 
 ## Decisions (owner, 2026-11-09)
 - One plan choice block: onboarding step 5, and the weekly upload page for a lapsed student. No `/plan` route.

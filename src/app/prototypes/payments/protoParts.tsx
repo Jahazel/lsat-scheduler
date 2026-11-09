@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { cx } from "@/components/ui/classes";
-import { STRIPE_NOTE, TERMS, agreementLine, type PlanName } from "./protoData";
+import { STRIPE_NOTE, TERMS, agreementLine } from "./protoData";
 
 export function StepTitle({ title, lead }: { title: string; lead: ReactNode }) {
   return (
@@ -28,12 +28,12 @@ export function AddCardButton() {
   );
 }
 
-export function PlanFoot({ plan, className }: { plan: PlanName; className?: string }) {
+export function PlanFoot({ every, className }: { every: string; className?: string }) {
   return (
     <div className={cx("flex flex-col gap-4", className)}>
       <p className="text-small text-smoke">{TERMS}</p>
       <div className="flex flex-col gap-3">
-        <p className="text-small text-ink">{agreementLine(plan)}</p>
+        <p className="text-small text-ink">{agreementLine(every)}</p>
         <AddCardButton />
         <p className="text-center text-caption text-smoke">{STRIPE_NOTE}</p>
       </div>

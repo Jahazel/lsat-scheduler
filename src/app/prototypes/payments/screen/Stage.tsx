@@ -4,17 +4,19 @@ import "../proto.css";
 import { useEffect, useState } from "react";
 import { cx } from "@/components/ui/classes";
 import { findScreen } from "../screens";
+import { DATASETS, isDatasetName, type DatasetName } from "../protoData";
+import { ProtoDataContext } from "../protoContext";
 
-export type StageMessage = { type: "stage"; screen: string; variant: number; reducedMotion: boolean; mount: number };
+export type StageMessage = { type: "stage"; screen: string; variant: number; reducedMotion: boolean; data: DatasetName; mount: number };
 
-export default function Stage({ screen, variant, reducedMotion }: { screen: string; variant: number; reducedMotion: boolean }) {
-  const [view, setView] = useState({ screen, variant, reducedMotion, mount: 0 });
+export default function Stage({ screen, variant, reducedMotion, data }: { screen: string; variant: number; reducedMotion: boolean; data: string }) {
+  const [view, setView] = useState({ screen, variant, reducedMotion, data: isDatasetName(data) ? data : ("demo" as DatasetName), mount: 0 });
 
   useEffect(() => {
     const onMessage = (event: MessageEvent<StageMessage>) => {
       if (event.origin !== location.origin || event.data?.type !== "stage") return;
-      const { screen, variant, reducedMotion, mount } = event.data;
-      setView({ screen, variant, reducedMotion, mount });
+      const { screen, variant, reducedMotion, data, mount } = event.data;
+      setView({ screen, variant, reducedMotion, data, mount });
     };
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
@@ -40,7 +42,9 @@ export default function Stage({ screen, variant, reducedMotion }: { screen: stri
         "data-rm:**:transition-none! data-rm:**:animate-none!",
       )}
     >
-      <Component key={`${view.screen}:${view.variant}:${view.mount}`} />
+      <ProtoDataContext value={DATASETS[view.data]}>
+        <Component key={`${view.screen}:${view.variant}:${view.data}:${view.mount}`} />
+      </ProtoDataContext>
     </div>
   );
 }
