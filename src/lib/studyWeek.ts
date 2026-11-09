@@ -1,7 +1,6 @@
 import { DAY_ORDER } from "./engine";
 import { formatDuration, shortDuration } from "./formatDuration";
-import { mockRules } from "./mockData";
-import { DAY_LABEL } from "./studentProfile";
+import { DAY_LABEL, practiceTestMinutes } from "./studentProfile";
 import type { Accommodation } from "./studyProfileDraft";
 import type { DayOfWeek } from "./types";
 
@@ -30,21 +29,12 @@ export function testTimeName(accommodation: Accommodation): string {
   return accommodation === 1 ? "standard time" : TEST_TIME_LABEL[accommodation];
 }
 
-export function practiceTestMinutes(accommodation: Accommodation): number {
-  return Math.round(mockRules.ptDurationMinutes * mockRules.accommodationTimeMultiplier[accommodation]);
-}
-
 export function weeklyTotalMinutes(values: WeekValues): number {
   return DAY_ORDER.reduce((sum, day) => sum + values.dailyCapacityMinutes[day], 0);
 }
 
 export function practiceTestFact(accommodation: Accommodation): string {
   return `A full practice test takes ${shortDuration(practiceTestMinutes(accommodation))} with ${testTimeName(accommodation)}.`;
-}
-
-export function practiceTestDayIsShort(values: WeekValues, accommodation: Accommodation): boolean {
-  const day = values.preferredPracticeTestDay;
-  return day !== null && values.dailyCapacityMinutes[day] < practiceTestMinutes(accommodation);
 }
 
 export function previewWeek(values: WeekValues) {

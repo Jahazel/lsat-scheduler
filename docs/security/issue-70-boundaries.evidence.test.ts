@@ -124,7 +124,7 @@ describe("issue 70 request boundary evidence", () => {
   });
 
   it("strips profile ownership and operator fields but accepts a non-date goalTestDate", () => {
-    const result = studentProfileSchema.parse({ ...mockStudent, goalTestDate: "not-a-date", userId: "synthetic-other-user", role: "admin", $set: { role: "admin" } });
+    const result = studentProfileSchema.parse({ ...mockStudent, dailyCapacityMinutes: { ...mockStudent.dailyCapacityMinutes, SATURDAY: 150 }, goalTestDate: "not-a-date", userId: "synthetic-other-user", role: "admin", $set: { role: "admin" } });
     expect(result.goalTestDate).toBe("not-a-date");
     expect(result).not.toHaveProperty("userId");
     expect(result).not.toHaveProperty("role");

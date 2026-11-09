@@ -59,7 +59,7 @@ The one day in a weekly schedule the scheduling policy keeps free of schedule ac
 _Avoid_: off day
 
 **Preferred practice-test day**:
-The day of the week a student selects for their weekly practice test.
+The day of the week a student selects for their weekly practice test. Its daily capacity must hold a full practice test at the student's accommodation; onboarding and Study settings refuse a shorter day.
 _Avoid_: PT day, test day
 
 **Practice-test review day**:

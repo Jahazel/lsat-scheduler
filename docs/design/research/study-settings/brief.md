@@ -101,5 +101,7 @@ Decisions made while building the states:
 
 Open point from the data cases: in data case A, the 3 h 45 practice test does not fit Sunday's 30 min. Onboarding only shows the hint "Pick a day with that much time." and does not block this. The boards follow the app and do not block it either.
 
+Resolved by the tutor (2026-11-09, #504): the app now blocks a practice-test day shorter than the practice test. The hint is gone; the save refuses with a message under that day.
+
 ## Handoff
 Spec #464 holds this open point under Further Notes, as a question for the tutor. Screen tickets: #465 (shared controls), #466 (page and save bar), #467 (official LSAT attempts), #468 (test month passed), #469 (leave guard), #470 (live week preview). They run in that order.

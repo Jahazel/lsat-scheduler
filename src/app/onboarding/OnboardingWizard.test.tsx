@@ -92,6 +92,11 @@ async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract 
   await user.selectOptions(screen.getByLabelText("Friday minutes"), "0");
   await user.click(screen.getByLabelText("Practice test on Friday"));
   expect(screen.getByText("A full practice test takes 3 h 8 with 1.5× time.")).toBeDefined();
+  expect(screen.getByText("Friday needs at least 3 h 15 for a full practice test. Add time or pick another day.")).toBeDefined();
+  expect(continueButton().disabled).toBe(true);
+  await user.selectOptions(screen.getByLabelText("Friday hours"), "3");
+  await user.selectOptions(screen.getByLabelText("Friday minutes"), "15");
+  expect(screen.queryByText(/for a full practice test/)).toBeNull();
   expect(screen.queryByRole("status")).toBeNull();
   await user.click(continueButton());
 
@@ -119,7 +124,7 @@ describe("OnboardingWizard", () => {
       goalScore: 165,
       goalTestDate: "2026-11-01",
       accommodationMultiplier: 1.5,
-      dailyCapacityMinutes: { MONDAY: 150, TUESDAY: 150, WEDNESDAY: 150, THURSDAY: 150, FRIDAY: 60, SATURDAY: 150, SUNDAY: 150 },
+      dailyCapacityMinutes: { MONDAY: 150, TUESDAY: 150, WEDNESDAY: 150, THURSDAY: 150, FRIDAY: 195, SATURDAY: 150, SUNDAY: 150 },
       preferredPracticeTestDay: "FRIDAY",
       officialAttempts: [],
       analyticsRows: [],
@@ -204,6 +209,8 @@ describe("OnboardingWizard", () => {
       expect(screen.queryByLabelText("Attempt 3 score")).toBeNull();
       await user.click(continueButton());
       await user.click(screen.getByLabelText("Practice test on Saturday"));
+      await user.selectOptions(screen.getByLabelText("Saturday hours"), "2");
+      await user.selectOptions(screen.getByLabelText("Saturday minutes"), "30");
       await user.click(continueButton());
       await user.click(screen.getByRole("button", { name: "Skip for now" }));
 
@@ -926,6 +933,8 @@ describe("OnboardingWizard · scanning off", () => {
     await user.selectOptions(screen.getByLabelText("Goal test date"), "November 2026");
     await user.click(continueButton());
     await user.click(screen.getByLabelText("Practice test on Friday"));
+    await user.selectOptions(screen.getByLabelText("Friday hours"), "2");
+    await user.selectOptions(screen.getByLabelText("Friday minutes"), "30");
     await user.click(continueButton());
 
     expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();
