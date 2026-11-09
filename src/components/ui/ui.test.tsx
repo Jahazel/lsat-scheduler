@@ -103,6 +103,11 @@ describe("Button waiting", () => {
     expect(button.textContent).toBe("Save changesSaving…");
   });
 
+  it("shrinks to its wait text when it does not hold its width", () => {
+    render(<Button waiting waitLabel="Saving…" holdsWidth={false}>Skip for now</Button>);
+    expect(screen.getByRole("button", { name: "Saving…" }).textContent).toBe("Saving…");
+  });
+
   it("returns to its label and takes presses again when the wait ends", async () => {
     const onClick = vi.fn();
     const { rerender } = render(<Button waiting waitLabel="Saving…" onClick={onClick}>Save changes</Button>);

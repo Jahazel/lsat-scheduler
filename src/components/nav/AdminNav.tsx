@@ -8,8 +8,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import StudentNav, { StudentTabBar, type StudentNavProps } from "./StudentNav";
 import { NavIcon } from "./NavIcon";
-import { SignOutForm } from "@/components/SignOutForm";
-import { Button } from "@/components/ui/Button";
+import { SignOutButton, SignOutForm } from "@/components/SignOutForm";
 import { FOCUS, cx } from "@/components/ui/classes";
 import { BAR, HEADER, Logo, TABS, isTabActive } from "./shared";
 
@@ -115,7 +114,7 @@ export default function AdminNav(props: StudentNavProps & { testState?: TestCont
               {switcher}
             </div>
             <SignOutForm action={props.logOut}>
-              <Button type="submit" variant="text" size="md">Log out</Button>
+              <SignOutButton variant="text" size="md">Log out</SignOutButton>
             </SignOutForm>
           </div>
         )}

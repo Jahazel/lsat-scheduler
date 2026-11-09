@@ -46,7 +46,7 @@ import {
 } from "@/lib/onboardingWizard";
 import { SIGN_IN_EXPIRED, SignInAgainLink } from "@/components/SignInExpired";
 import { nextRead } from "@/lib/screenshotReadQueue";
-import { SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, SCREENSHOT_NOTICE, checkScreenshotType, extractScreenshot } from "@/lib/screenshotUpload";
+import { CONNECTION_LOST, SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, SCREENSHOT_NOTICE, checkScreenshotType, extractScreenshot } from "@/lib/screenshotUpload";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "@/lib/types";
 import { fadeIn, fadeOut, reducedMotion, slideFrom } from "@/lib/motion";
 import { isUnexpectedFailure } from "@/lib/unexpectedFailure";
@@ -405,7 +405,7 @@ function AnalyticsStep({
         {anyAdded && <p className="text-center text-small text-smoke">You can replace either screenshot before you confirm.</p>}
         {typed && reason && <p id="continue-note" className="text-center text-small text-smoke">{reason}</p>}
         <p className="text-center text-small text-smoke">
-          <Button variant="bare" waiting={saving} waitLabel="Saving…" onClick={onSkip} className={LINK_BUTTON}>
+          <Button variant="bare" waiting={saving} waitLabel="Saving…" holdsWidth={false} onClick={onSkip} className={LINK_BUTTON}>
             Skip for now
           </Button>
           {typed ? " · Your schedule starts after you add your analytics." : " · Your schedule starts after you add both."}
@@ -499,7 +499,7 @@ const FILE_STATUS: Record<Exclude<Screenshot["read"]["status"], "read" | "reject
   refused: { text: "not read", problem: false },
   failed: { text: "not read", problem: true },
   "timed-out": { text: "Reading took too long and stopped.", problem: true },
-  "connection-lost": { text: "Connection lost. Your file is still here.", problem: false },
+  "connection-lost": { text: CONNECTION_LOST, problem: false },
   "cannot-read": { text: "We couldn't read the rows in it.", problem: true },
   "signed-out": { text: SIGN_IN_EXPIRED, problem: true },
   "no-rows": { text: "No question types in this one.", problem: true },
@@ -542,7 +542,7 @@ function ScreenshotFileRow({
         ref={row}
         tabIndex={-1}
         className="gap-4"
-        tone={status === "refused" ? "warning" : "default"}
+        tone={status === "refused" ? "warning" : problem ? "danger" : "default"}
         title={SECTION_NAME[section]}
         detail={
           <ReadDetail

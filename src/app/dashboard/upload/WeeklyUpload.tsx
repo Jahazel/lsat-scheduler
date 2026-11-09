@@ -24,7 +24,7 @@ import {
   type AnalyticsReading, type FileRead, type QueuedFile, type ReadQueue,
 } from "@/lib/screenshotReadQueue";
 import {
-  CANNOT_READ, MAX_SCREENSHOT_MB, SCREENSHOT_MEDIA_TYPES, SCREENSHOT_NOTICE, TOOK_TOO_LONG, checkScreenshotType, extractPracticeTestScreenshot,
+  CANNOT_READ, CONNECTION_LOST, MAX_SCREENSHOT_MB, SCREENSHOT_MEDIA_TYPES, SCREENSHOT_NOTICE, TOOK_TOO_LONG, checkScreenshotType, extractPracticeTestScreenshot,
   extractScreenshot,
 } from "@/lib/screenshotUpload";
 import type { ScanningOff } from "@/lib/scanSpending";
@@ -64,8 +64,7 @@ function readProblem(read: Read): { message: string | null; tryAgain: boolean } 
     case "no-rows": return { message: NO_LR_ROWS, tryAgain: false };
     case "failed": return { message: null, tryAgain: true };
     case "timed-out": return { message: TOOK_TOO_LONG, tryAgain: true };
-    case "cannot-read":
-    case "connection-lost": return { message: CANNOT_READ, tryAgain: true };
+    case "cannot-read": return { message: CANNOT_READ, tryAgain: true };
     default: return null;
   }
 }
@@ -571,7 +570,7 @@ function Detail({ file, status, read = false, text }: {
   return (
     <ReadDetail
       name={file.name}
-      status={status === "waiting" ? "Waiting to read" : status === "reading" ? "Reading now" : text || undefined}
+      status={status === "waiting" ? "Waiting to read" : status === "reading" ? "Reading now" : status === "connection-lost" ? CONNECTION_LOST : text || undefined}
       glyph={read ? <CheckGlyph /> : status === "waiting" ? <ClockGlyph /> : status === "reading" ? <ReadingGlyph /> : null}
       className={status === "reading" ? "text-accent" : "text-smoke"}
     />
@@ -580,6 +579,10 @@ function Detail({ file, status, read = false, text }: {
 
 const rowTone = (read: Read, rejection: string | undefined) =>
   readProblem(read) || read.status === "signed-out" || rejection ? "danger" : read.status === "refused" ? "warning" : "default";
+
+const TryAgainButton = ({ onClick }: { onClick: () => void }) => (
+  <Button variant="outline" size="md" className="self-start" onClick={onClick}>Try again</Button>
+);
 
 function ReadNote({ read, onTryAgain }: { read: Read; onTryAgain: () => void }) {
   if (read.status === "refused") {
@@ -590,12 +593,13 @@ function ReadNote({ read, onTryAgain }: { read: Read; onTryAgain: () => void }) 
       </div>
     );
   }
+  if (read.status === "connection-lost") return <TryAgainButton onClick={onTryAgain} />;
   const problem = readProblem(read);
   if (!problem) return null;
   return (
     <>
       {problem.message && <ProblemNote>{problem.message}</ProblemNote>}
-      {problem.tryAgain && <Button variant="outline" size="md" className="self-start" onClick={onTryAgain}>Try again</Button>}
+      {problem.tryAgain && <TryAgainButton onClick={onTryAgain} />}
     </>
   );
 }
@@ -711,7 +715,7 @@ function SectionRow({ upload, problem, rejection, onReplace, onTryAgain, onRemov
       : problem?.problem === "different-prep-test" && reading ? `Section ${reading.section} · practice test ${problem.prepTest}`
         : reading ? sectionTitle(reading.section, reading.kind)
           : PENDING.includes(read.status) ? "Practice test section"
-            : read.status === "refused" ? "Not read yet" : "We couldn't read this screenshot";
+            : read.status === "refused" || read.status === "connection-lost" ? "Not read yet" : "We couldn't read this screenshot";
   const detail = problem?.problem === "cut-off" && problem.lastQuestion !== null ? `ends at Q${problem.lastQuestion}`
     : reading && (!problem || problem.problem === "score-mismatch") ? `score ${formatSectionScore(reading.score)}`
       : read.status === "refused" && "not read";
