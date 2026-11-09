@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useFormStatus } from "react-dom";
+import { Button } from "@/components/ui/Button";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { noteGoogleArrival } from "@/lib/googleArrival";
 
@@ -13,22 +14,24 @@ const LOOKS = {
 export function GoogleButton({ look = "dark", fadesNextPage = false }: { look?: keyof typeof LOOKS; fadesNextPage?: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <button
+    <Button
       type="submit"
-      disabled={pending}
+      variant="bare"
+      waiting={pending}
       onClick={fadesNextPage ? noteGoogleArrival : undefined}
       className={cx(
-        "flex h-12 w-full items-center justify-center gap-3 rounded-sm border text-body leading-[20px] font-medium",
-        "disabled:opacity-muted",
+        "flex h-12 w-full items-center justify-center rounded-sm border text-body leading-[20px] font-medium",
         LOOKS[look],
         MOTION,
         FOCUS,
       )}
     >
-      <span className="flex size-6 shrink-0 items-center justify-center rounded-pill bg-paper">
-        <Image src="/google-g.svg" alt="" width={14} height={14} />
+      <span className="inline-flex items-center gap-3">
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-pill bg-paper">
+          <Image src="/google-g.svg" alt="" width={14} height={14} />
+        </span>
+        Continue with Google
       </span>
-      Continue with Google
-    </button>
+    </Button>
   );
 }

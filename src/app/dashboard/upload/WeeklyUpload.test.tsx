@@ -368,6 +368,21 @@ describe("WeeklyUpload", () => {
     expect(button("Check the values").disabled).toBe(true);
   });
 
+  it("shows a lost connection in grey with Try again, as onboarding does, and no red border", async () => {
+    stubServer({ "pt158-s2.png": new Response(null, { status: 503 }) }, { LR: new Response(null, { status: 503 }) });
+    const { user } = setup();
+    await readAll(user);
+    for (const name of ["lr-analytics.png", "pt158-s2.png"]) {
+      const detail = await screen.findByText(rowDetail(`${name} · Connection lost. Your file is still here.`));
+      const row = detail.closest("[data-file-row]") as HTMLElement;
+      expect(detail.className).toContain("text-smoke");
+      expect(row.className).not.toContain("border-danger");
+      expect(within(row).queryByText("Couldn't read that screenshot. Try again or a clearer image.")).toBeNull();
+      expect(within(row).getByRole("button", { name: "Try again" })).toBeDefined();
+    }
+    expect(screen.getByText("Not read yet")).toBeDefined();
+  });
+
   it("shows an analytics read failure on its row and keeps the button off", async () => {
     stubServer({}, { LR: new Response(null, { status: 502 }) });
     const { user } = setup();

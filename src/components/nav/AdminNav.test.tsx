@@ -208,6 +208,34 @@ describe("account menu", () => {
   });
 });
 
+describe("Log out waiting", () => {
+  let finish = () => {};
+  const waitingLogOut = () => new Promise<{ unexpectedFailure: FailureCode }>((resolve) => { finish = () => resolve({ unexpectedFailure: "3f9a01c2" as FailureCode }); });
+  const expectWaiting = async (button: HTMLElement) => {
+    await vi.waitFor(() => expect(button.getAttribute("aria-disabled")).toBe("true"));
+    expect(button.querySelector(".button-ring")).not.toBeNull();
+    finish();
+    await vi.waitFor(() => expect(button.hasAttribute("aria-disabled")).toBe(false));
+  };
+
+  it("shows the waiting ring on the account menu's Log out while it signs out", async () => {
+    mocks.pathname = "/dashboard";
+    render(<FailureToastProvider><StudentNav {...props} logOut={waitingLogOut} /></FailureToastProvider>);
+    await userEvent.click(screen.getAllByRole("button", { name: "Account menu for qa@example.test" })[0]);
+    const logOut = screen.getByRole("menuitem", { name: "Log out" });
+    await userEvent.click(logOut);
+    await expectWaiting(logOut);
+  });
+
+  it("shows the waiting ring on the admin bar's Log out while it signs out", async () => {
+    mocks.pathname = "/admin";
+    render(<FailureToastProvider><AdminNav {...props} logOut={waitingLogOut} /></FailureToastProvider>);
+    const logOut = screen.getByRole("button", { name: "Log out" });
+    await userEvent.click(logOut);
+    await expectWaiting(logOut);
+  });
+});
+
 describe("This week tab", () => {
   afterEach(() => { mocks.pathname = "/admin"; });
 

@@ -1,7 +1,9 @@
 "use client";
 
 import { useActionState, type ComponentProps } from "react";
+import { useFormStatus } from "react-dom";
 import { FailureNotice } from "@/components/FailureNotice";
+import { Button } from "@/components/ui/Button";
 import type { SignedOut, SignOutAnswer } from "@/lib/requestPolicy";
 import type { FormState } from "@/lib/unexpectedFailure";
 
@@ -27,4 +29,9 @@ export function SignOutForm({ action, children, ...props }: Omit<ComponentProps<
       <FailureNotice answer={failure} />
     </form>
   );
+}
+
+export function SignOutButton(props: Omit<ComponentProps<typeof Button>, "type" | "waiting">) {
+  const { pending } = useFormStatus();
+  return <Button type="submit" waiting={pending} {...props} />;
 }
