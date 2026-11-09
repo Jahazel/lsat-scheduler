@@ -26,25 +26,25 @@ const shownAnswers = () => QUESTIONS.filter(({ answer }) => !isInaccessible(scre
 const expanded = () => screen.getAllByRole("button").map((b) => b.getAttribute("aria-expanded"));
 
 describe("QuestionList", () => {
-  it("lists every question as a heading button, with only the first answer open", () => {
+  it("lists every question as a heading button, with every answer closed", () => {
     render(<QuestionList questions={QUESTIONS} />);
     const headings = screen.getAllByRole("heading", { level: 3 });
     expect(headings).toHaveLength(QUESTIONS.length);
     QUESTIONS.forEach(({ question }, index) => {
       expect(screen.getByRole("heading", { level: 3, name: question })).toBe(headings[index]);
     });
-    expect(expanded()).toEqual(["true", "false", "false", "false", "false", "false", "false", "false"]);
-    expect(shownAnswers()).toEqual(["Answer 1."]);
+    expect(expanded()).toEqual(["false", "false", "false", "false", "false", "false", "false", "false"]);
+    expect(shownAnswers()).toEqual([]);
     expect(answerOf("Question 1?").textContent).toBe("Answer 1.");
   });
 
-  it("opens and closes each question on its own, so two can be open at once", () => {
+  it("keeps one answer open at a time, closing the open one when another opens", () => {
     render(<QuestionList questions={QUESTIONS} />);
-    fireEvent.click(button("Question 4?"));
-    expect(expanded()).toEqual(["true", "false", "false", "true", "false", "false", "false", "false"]);
-    expect(shownAnswers()).toEqual(["Answer 1.", "Answer 4."]);
-
     fireEvent.click(button("Question 1?"));
+    expect(expanded()).toEqual(["true", "false", "false", "false", "false", "false", "false", "false"]);
+    expect(shownAnswers()).toEqual(["Answer 1."]);
+
+    fireEvent.click(button("Question 4?"));
     expect(expanded()).toEqual(["false", "false", "false", "true", "false", "false", "false", "false"]);
     expect(shownAnswers()).toEqual(["Answer 4."]);
 
@@ -73,7 +73,7 @@ describe("QuestionList", () => {
     expect(isInaccessible(screen.getByText("Answer 2."))).toBe(false);
   });
 
-  it("puts every question and answer in the server HTML, with the first answer open", () => {
+  it("puts every question and answer in the server HTML, with every answer closed", () => {
     const container = document.createElement("div");
     container.innerHTML = renderToString(<QuestionList questions={QUESTIONS} />);
     document.body.append(container);
@@ -81,7 +81,7 @@ describe("QuestionList", () => {
       expect(screen.getByRole("button", { name: question })).toBeTruthy();
       expect(container.textContent).toContain(answer);
     }
-    expect(shownAnswers()).toEqual(["Answer 1."]);
+    expect(shownAnswers()).toEqual([]);
   });
 
   it("grows the answer, fades it and turns the plus to minus", () => {
