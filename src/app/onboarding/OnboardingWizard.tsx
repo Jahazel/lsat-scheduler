@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { flushSync } from "react-dom";
-import { FailureNotice, LastFinishedReadNotice } from "@/components/FailureNotice";
+import { FailureNotice, LastFinishedReadNotice, catchLostConnection } from "@/components/FailureNotice";
 import { ScanningOffNote } from "@/components/ScanningOffNote";
 import { PageCue } from "@/components/SiteMotion";
 import { Button } from "@/components/ui/Button";
@@ -123,7 +123,7 @@ export default function OnboardingWizard({
   async function save(input: Parameters<typeof onSave>[0]) {
     dispatch({ type: "saveStarted" });
     try {
-      const answer = await onSave(input);
+      const answer = await catchLostConnection(onSave)(input);
       setSaveAnswer(answer);
       if (isUnexpectedFailure(answer)) dispatch({ type: "saveEnded" });
       else if (answer) dispatch({ type: "saveRefused", message: answer.error });

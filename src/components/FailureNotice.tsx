@@ -19,9 +19,17 @@ import { createPortal } from "react-dom";
 import { afterExit } from "@/components/ui/afterExit";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import type { FileRead } from "@/lib/screenshotReadQueue";
-import { isUnexpectedFailure, UNEXPECTED_FAILURE_MESSAGE, type FailureCode, type FormState } from "@/lib/unexpectedFailure";
+import {
+  isUnexpectedFailure,
+  NO_CONNECTION,
+  NO_CONNECTION_MESSAGE,
+  UNEXPECTED_FAILURE_MESSAGE,
+  type FailureCode,
+  type FormState,
+  type UnexpectedFailure,
+} from "@/lib/unexpectedFailure";
 
-type Toast = { code: FailureCode; notice: string; action: string; replaced: boolean };
+type Toast = { code: UnexpectedFailure["unexpectedFailure"]; notice: string; action: string; replaced: boolean };
 type Toasts = { shown: Toast | null; leaving: Toast | null };
 
 const NO_TOASTS: Toasts = { shown: null, leaving: null };
@@ -31,7 +39,7 @@ const close = (toasts: Toasts): Toasts => (toasts.shown ? { shown: null, leaving
 
 function answered(toasts: Toasts, notice: string, action: string, answer: unknown): Toasts {
   if (!isUnexpectedFailure(answer)) return toasts.shown?.notice === notice && toasts.shown.action === action ? close(toasts) : toasts;
-  if (toasts.shown?.code === answer.unexpectedFailure) return toasts;
+  if (toasts.shown?.code === answer.unexpectedFailure) return { ...toasts, shown: { ...toasts.shown, notice, action } };
   return { shown: { code: answer.unexpectedFailure, notice, action, replaced: toasts.shown !== null }, leaving: null };
 }
 
@@ -54,7 +62,7 @@ export function FailureToastProvider({ children }: { children: ReactNode }) {
     report: (notice, action, answer) => setToasts((current) => answered(current, notice, action, answer)),
     leave: (notice) => setToasts((current) => (current.shown?.notice === notice ? close(current) : current)),
   }), []);
-  const leftAt = useCallback((code: FailureCode) => setToasts((current) =>
+  const leftAt = useCallback((code: Toast["code"]) => setToasts((current) =>
     current.leaving?.code === code ? { ...current, leaving: null } : current), []);
 
   return (
@@ -112,7 +120,7 @@ function ToastSlot({ children }: { children: ReactNode }) {
   return hydrated && host && createPortal(<SlotHostContext value={dialog}>{slot}</SlotHostContext>, host);
 }
 
-function ToastCard({ toast, onClose, onLeft }: { toast: Toast; onClose?: () => void; onLeft?: (code: FailureCode) => void }) {
+function ToastCard({ toast, onClose, onLeft }: { toast: Toast; onClose?: () => void; onLeft?: (code: Toast["code"]) => void }) {
   const leaving = onLeft !== undefined;
   const dialog = useContext(SlotHostContext);
   const [shownIn] = useState(dialog);
@@ -148,10 +156,16 @@ function ToastCard({ toast, onClose, onLeft }: { toast: Toast; onClose?: () => v
         <path d="M10 5.8v5M10 13.6v.4" />
       </svg>
       <div className="min-w-0 flex-1">
-        <p className="mt-px mb-1 text-small leading-[20px] font-medium text-ink">{UNEXPECTED_FAILURE_MESSAGE}</p>
-        <p className="text-caption leading-[16px] text-smoke">
-          Error code <span className="ml-1 font-mono text-[13px] text-danger-ink select-all">{toast.code}</span>
-        </p>
+        {toast.code === NO_CONNECTION ? (
+          <p className="mt-px text-small leading-[20px] font-medium text-ink">{NO_CONNECTION_MESSAGE}</p>
+        ) : (
+          <>
+            <p className="mt-px mb-1 text-small leading-[20px] font-medium text-ink">{UNEXPECTED_FAILURE_MESSAGE}</p>
+            <p className="text-caption leading-[16px] text-smoke">
+              Error code <span className="ml-1 font-mono text-[13px] text-danger-ink select-all">{toast.code}</span>
+            </p>
+          </>
+        )}
       </div>
       <button
         type="button"
@@ -207,10 +221,22 @@ export function LastFinishedReadNotice({ read }: { read: FileRead<unknown> | und
   return <FailureNotice answer={finished} />;
 }
 
+/** Fetch rejects with a TypeError only when the request never reached the server. */
+export function catchLostConnection<A extends unknown[], T>(action: (...args: A) => Promise<T>) {
+  return async (...args: A): Promise<T | UnexpectedFailure> => {
+    try {
+      return await action(...args);
+    } catch (error) {
+      if (error instanceof TypeError) return { unexpectedFailure: NO_CONNECTION };
+      throw error;
+    }
+  };
+}
+
 export function ActionForm({ action, children, ...props }: Omit<ComponentProps<"form">, "action"> & {
   action: () => Promise<FormState>;
 }) {
-  const [answer, formAction] = useActionState(action, null);
+  const [answer, formAction] = useActionState(catchLostConnection(action), null);
   return (
     <form action={formAction} {...props}>
       {children}

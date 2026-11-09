@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { FailureNotice } from "@/components/FailureNotice";
+import { FailureNotice, catchLostConnection } from "@/components/FailureNotice";
 import { SubmitButton } from "@/components/signIn/PasswordFormParts";
 import { SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";
 import { StepsPreview } from "@/components/signIn/StepsPreview";
@@ -12,7 +12,7 @@ import { verifyEmail, type VerifyEmailState } from "./actions";
 const initialState: Answer<VerifyEmailState> = { linkDoesNotWork: false };
 
 export function VerifyEmail({ token }: { token: string }) {
-  const [state, formAction] = useActionState(verifyEmail, initialState);
+  const [state, formAction] = useActionState(catchLostConnection(verifyEmail), initialState);
   const notice = <FailureNotice answer={state} />;
 
   if (!token || (!isUnexpectedFailure(state) && state.linkDoesNotWork)) {

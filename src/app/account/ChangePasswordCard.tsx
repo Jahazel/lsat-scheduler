@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { FailureNotice } from "@/components/FailureNotice";
+import { FailureNotice, catchLostConnection } from "@/components/FailureNotice";
 import { followSignOut } from "@/components/SignOutForm";
 import { Button } from "@/components/ui/Button";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
@@ -13,7 +13,7 @@ export function ChangePasswordCard() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [refusal, formAction, pending] = useActionState(async (previous: Answer<PasswordChangeRefusal>, formData: FormData) => {
-    const result = followSignOut(await changePassword(previous, formData));
+    const result = followSignOut(await catchLostConnection(changePassword)(previous, formData));
     if (!isUnexpectedFailure(result) && result?.field === "currentPassword") setCurrentPassword("");
     return result;
   }, null);

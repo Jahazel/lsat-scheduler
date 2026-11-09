@@ -1,7 +1,7 @@
 "use client";
 
 import { startTransition, useActionState, type FormEvent } from "react";
-import { FailureNotice } from "@/components/FailureNotice";
+import { FailureNotice, catchLostConnection } from "@/components/FailureNotice";
 import { SubmitButton } from "@/components/signIn/PasswordFormParts";
 import { SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";
 import { TodayPreview } from "@/components/signIn/TodayPreview";
@@ -13,7 +13,7 @@ import { resetPassword, type ResetPasswordState } from "./actions";
 const initialState: Answer<ResetPasswordState> = { kind: "form" };
 
 export function ResetPassword({ token }: { token: string | null }) {
-  const [state, formAction, pending] = useActionState(resetPassword, initialState);
+  const [state, formAction, pending] = useActionState(catchLostConnection(resetPassword), initialState);
   const notice = <FailureNotice answer={state} />;
 
   if (!token || (!isUnexpectedFailure(state) && state.kind === "linkDoesNotWork")) {

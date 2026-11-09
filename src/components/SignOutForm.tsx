@@ -2,7 +2,7 @@
 
 import { useActionState, type ComponentProps } from "react";
 import { useFormStatus } from "react-dom";
-import { FailureNotice } from "@/components/FailureNotice";
+import { FailureNotice, catchLostConnection } from "@/components/FailureNotice";
 import { Button } from "@/components/ui/Button";
 import type { SignedOut, SignOutAnswer } from "@/lib/requestPolicy";
 import type { FormState } from "@/lib/unexpectedFailure";
@@ -22,7 +22,7 @@ export function followSignOut<T>(answer: T | SignedOut): T | null {
 export function SignOutForm({ action, children, ...props }: Omit<ComponentProps<"form">, "action"> & {
   action: () => Promise<SignOutAnswer>;
 }) {
-  const [failure, formAction] = useActionState(async (): Promise<FormState> => followSignOut(await action()), null);
+  const [failure, formAction] = useActionState(async (): Promise<FormState> => followSignOut(await catchLostConnection(action)()), null);
   return (
     <form action={formAction} data-leaves-page {...props}>
       {children}
