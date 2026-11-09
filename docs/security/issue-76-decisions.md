@@ -221,18 +221,19 @@ Built on [issue 353](https://github.com/Jahazel/lsat-scheduler/issues/353):
 
 Updated on October 19, 2026 (#145) for the move to Neon ([issue 78](issue-78-database-research.md#decision)). The database line names Neon. The backup period is 14 days, as set in #144. Stage 6 built deletion replay ([issue 353](https://github.com/Jahazel/lsat-scheduler/issues/353)), so the page now states the sentence about deleting Accounts again after a restore (rule 36).
 
+Filled on November 8, 2026 ([issue 359](https://github.com/Jahazel/lsat-scheduler/issues/359)) with the facts of the build. The [filled facts](#filled-facts) table gives each fact and its source. The page is `src/app/legal/privacy/page.tsx`.
+
 > **Privacy Policy**
-> Last updated: [release date]
+> Last updated: November 8, 2026
 >
 > **What DrillMap stores**
-> - Your Account: your email address, your sign-in method (Google or password), and the date you last signed in. For a password, we store only a secure scramble (hash) of it, never the password itself.
-> - Your study information: your study settings, approved analytics snapshots, weekly schedules, and activity check-ins.
-> - If you join the email list on the home page, we store that email address.
+> - Your Account: your name, your email address, your sign-in method (Google or password), and the date you last signed in. For a password, we store only a secure scramble (hash) of it, never the password itself.
+> - Your study information: your study settings, approved analytics snapshots, practice test results, weekly schedules, and activity check-ins.
 >
 > We use this information only to make and show your weekly study schedule and your progress. We do not sell it. We do not show ads. We do not use tracking or advertising cookies. We use one cookie to keep you signed in.
 >
 > **Who can see your data**
-> You can see your own data. The two people who run DrillMap (admins) can see every student's saved weekly schedule, for support and to check that the app works.
+> You can see your own data. The two people who run DrillMap (admins) can see every student's name, email address, weekly study time, and saved weekly schedule with its activity check-ins, for support and to check that the app works.
 >
 > **Your 7Sage screenshots**
 > When you upload a screenshot, DrillMap sends it to Anthropic, an AI company, to read your analytics numbers. Anthropic keeps the image for up to 30 days and then deletes it. DrillMap does not store the screenshot. It stores only the numbers you review and approve. Crop out anything you do not want to share before you upload. AI does not make your schedule. Fixed rules make it from your approved numbers and settings.
@@ -240,7 +241,7 @@ Updated on October 19, 2026 (#145) for the move to Neon ([issue 78](issue-78-dat
 > **Companies that handle your data for us**
 > - Vercel runs the website.
 > - Neon stores the database.
-> - Google handles sign-in if you choose "Sign in with Google."
+> - Google handles sign-in if you choose "Continue with Google."
 > - Anthropic reads screenshots, as described above.
 > - Resend sends verification, password reset, and account notices.
 >
@@ -249,18 +250,36 @@ Updated on October 19, 2026 (#145) for the move to Neon ([issue 78](issue-78-dat
 >
 > **How long we keep data**
 > - Your Account and study information: until you delete your Account. If you do not sign in for 2 years, we email you, and we delete your Account 30 days later.
-> - Email list addresses: 12 months, or until you delete an Account with the same email.
 > - Security records: 90 days.
 >
 > **Deleting your Account**
-> You can delete your Account on the Account page. You must have signed in within the last 10 minutes. Deletion removes your Account, study settings, analytics snapshots, weekly schedules, activity check-ins, and email list address. You are signed out on all devices. We keep only a short record that holds your Account ID and a scrambled form of your email. We use it for 30 days to make sure a restore from backup cannot bring your data back.
+> You can delete your Account on the Account page. You must have signed in within the last 10 minutes. Deletion removes your Account, study settings, analytics snapshots, practice test results, weekly schedules, and activity check-ins. You are signed out on all devices. We keep only a short record that holds your Account ID and a scrambled form of your email. We use it for 30 days to make sure a restore from backup cannot bring your data back.
 >
 > **Backups**
-> [Before issue 78 is done:] DrillMap does not keep backups of the database at this time. If the database fails, data can be lost.
-> [After backups start:] We keep daily database backups for [14] days. We use them only to recover the service after a failure. After a restore, we delete again every Account that was deleted before.
+> We keep daily database backups for 14 days. We use them only to recover the service after a failure. After a restore, we delete again every Account that was deleted before.
 >
 > **Contact**
-> For questions about your data, or to ask us to delete your Account when you cannot sign in, email [DrillMap privacy address].
+> For questions about your data, or to ask us to delete your Account when you cannot sign in, email privacy@drillmap.xyz.
+
+### Filled facts
+
+Each row is a square-bracket fill or a change from the October 19 text. A later change to any of these facts updates the page and this table in the same change (rule 38), and moves the "Last updated" date.
+
+| Fact on the page | Source |
+| --- | --- |
+| Last updated: November 8, 2026 | The day this text was filled (#359). The page has no release yet; a text change before the release moves the date. |
+| Daily backups kept 14 days | Neon production setting, [issue 144 evidence](issue-144-evidence.md); confirmed on October 22, 2026 ([Stage 3 evidence](issue-148-stage3-evidence.md)). The "before backups start" sentence is removed. |
+| Security records deleted after 90 days | `prune_security_log()`, run by the daily job (`src/lib/dailyCleanup.ts`). |
+| Deletion list kept 30 days | `deleteOldDeletionListRows` in `src/lib/accountDeletion.ts`, run by the daily job. |
+| 2-year inactive rule, deletion 30 days after the warning | `warnNextInactiveAccount` and `markWarnedInactiveAccountsDeleting` in `src/lib/accountRepository.ts`, run by the daily job; migration `0018_inactive_accounts`. |
+| Accounts deleted again after a restore | The deletion replay script and runbook step ([issue 353](https://github.com/Jahazel/lsat-scheduler/issues/353)). |
+| Recent sign-in within 10 minutes | `RECENT_SIGN_IN_SECONDS` in `src/lib/accountSession.ts`. |
+| Privacy contact privacy@drillmap.xyz | The mailbox ticket, [issue 358](https://github.com/Jahazel/lsat-scheduler/issues/358): used only for DrillMap, 2-Step Verification on since November 8, 2026. |
+| No email list line in storage, retention, or deletion | Owner decision 2 in [#348](https://github.com/Jahazel/lsat-scheduler/issues/348): the `leads` table is dropped (migration `0015_drop_leads`). |
+| "Your name" in the Account line | The `accounts.name` column (`src/lib/postgresSchema.ts`). Rule 36: the page states what is stored. |
+| Practice test results in storage and deletion | The `practice_test_results` table, removed by the cascade from the Student record. Rule 38. |
+| Admins see name, email, weekly study time, and the saved weekly schedule with check-ins | The Admin student list and student page (`src/app/admin/`). The October text named only the weekly schedule. |
+| "Continue with Google" | The Google button label (`src/components/signIn/GoogleButton.tsx`). |
 
 ## Approved AI disclosure text
 
@@ -292,7 +311,7 @@ The [launch checklist](release-gate.md#e-browser-protections-and-private-respons
 
 - The email provider belongs to issue 74 and the infrastructure ticket ([#77](https://github.com/Jahazel/lsat-scheduler/issues/77)).
 - Backups and the database choice belong to the database research ticket ([#78](https://github.com/Jahazel/lsat-scheduler/issues/78)).
-- The privacy contact address is chosen by the owner before launch (rule 37).
+- The privacy contact address was chosen by the owner on November 8, 2026: privacy@drillmap.xyz ([issue 358](https://github.com/Jahazel/lsat-scheduler/issues/358), rule 37).
 - A lawyer has not reviewed the privacy text. Issue 69 does not include legal review.
 
 ## Decisions recorded
@@ -314,6 +333,6 @@ The owner made each decision in the issue 76 discussion.
 | Restores | A deletion list, kept 30 days, runs again after every restore. |
 | Screenshots | A notice on the upload screen. Anthropic's 30-day retention is accepted. |
 | Errors | A plain message and an error code. |
-| Privacy contact | An address used only for DrillMap, chosen before launch. |
+| Privacy contact | privacy@drillmap.xyz, used only for DrillMap, with 2-Step Verification on (#358). |
 | Privacy page upkeep | Updated in the same change as any data handling change. |
 | Privacy and AI disclosure text | As approved above. |
