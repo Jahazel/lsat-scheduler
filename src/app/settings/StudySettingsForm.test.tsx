@@ -86,7 +86,7 @@ describe("Study settings form", () => {
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Goal test month" }), "2027-04-01");
     await userEvent.click(screen.getByRole("radio", { name: "1.5× time" }));
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Tuesday hours" }), "4");
-    await userEvent.click(screen.getByRole("radio", { name: "Practice test on Sunday" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Practice test on Tuesday" }));
     await userEvent.click(saveButton()!);
 
     expect(screen.getByRole("button", { name: "Saving…" })).toBe(saveButton());
@@ -99,7 +99,7 @@ describe("Study settings form", () => {
       goalTestDate: "2027-04-01",
       accommodationMultiplier: 1.5,
       dailyCapacityMinutes: { ...saved.dailyCapacityMinutes, TUESDAY: 270 },
-      preferredPracticeTestDay: "SUNDAY",
+      preferredPracticeTestDay: "TUESDAY",
       officialAttempts: [],
     });
 
@@ -251,15 +251,30 @@ describe("Study settings form", () => {
     expect(document.activeElement).toBe(month);
   });
 
-  it("hints at a practice-test day shorter than the practice test and still saves it", async () => {
+  it("refuses a practice-test day shorter than the practice test, shows why under that day, and saves once it has the time", async () => {
     const { onSave } = renderForm();
     const week = within(screen.getByRole("region", { name: "Week" }));
     expect(week.getByText("A full practice test takes 2 h 30 with standard time.")).toBeTruthy();
 
     await userEvent.click(screen.getByRole("radio", { name: "Practice test on Sunday" }));
-    expect(week.getByText("A full practice test takes 2 h 30 with standard time. Pick a day with that much time.")).toBeTruthy();
     await userEvent.click(saveButton()!);
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ preferredPracticeTestDay: "SUNDAY" }));
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(week.getByText("Sunday needs at least 2 h 30 for a full practice test. Add time or pick another day.")).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole("combobox", { name: "Sunday hours" }));
+
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Sunday hours" }), "2");
+    await userEvent.click(saveButton()!);
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ preferredPracticeTestDay: "SUNDAY", dailyCapacityMinutes: { ...saved.dailyCapacityMinutes, SUNDAY: 150 } }));
+  });
+
+  it("refuses a longer Test time that no longer fits the practice-test day", async () => {
+    const { onSave } = renderForm();
+    await userEvent.click(screen.getByRole("radio", { name: "2× time" }));
+    await userEvent.click(saveButton()!);
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText("Saturday needs at least 3 h 45 for a full practice test. Add time or pick another day.")).toBeTruthy();
   });
 
   it("applies the All days value to every day", async () => {
@@ -296,9 +311,10 @@ describe("Study settings week preview", () => {
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Friday minutes" }), "0");
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Friday hours" }), "2");
     await userEvent.click(screen.getByRole("radio", { name: "Practice test on Sunday" }));
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Sunday hours" }), "2");
 
     expect(preview().getByText("150 → 168")).toBeTruthy();
-    expect(preview().getByText("by June 2027 · 13 h a week")).toBeTruthy();
+    expect(preview().getByText("by June 2027 · 14 h a week")).toBeTruthy();
     expect(previewDays()).toEqual([
       "Mon1 h 30",
       "Tue1 h 30",
@@ -306,7 +322,7 @@ describe("Study settings week preview", () => {
       "Thu1 h 30",
       "Fri2 h (changed)",
       "Sat3 h 30 (changed)",
-      "SunPT1 h 30 (changed)",
+      "SunPT2 h 30 (changed)",
     ]);
 
     await userEvent.click(saveButton()!);

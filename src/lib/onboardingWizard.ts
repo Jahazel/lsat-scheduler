@@ -27,6 +27,7 @@ import {
 import {
   everyDay,
   goalScoreError,
+  practiceTestDayError,
   type OfficialAttempt,
   type StudentProfileInput,
 } from "./studentProfile";
@@ -263,7 +264,8 @@ export function blockedReason(state: WizardState): string | null {
       return attemptsBlockedReason(state.attempts);
     }
     case "week":
-      return values.preferredPracticeTestDay ? null : "Pick a practice-test day to continue.";
+      if (!values.preferredPracticeTestDay) return "Pick a practice-test day to continue.";
+      return practiceTestDayError(values, values.accommodationMultiplier);
     case "analytics":
       if (state.analyticsInput === "typed") return state.typedDraft && typedEntryProblem(state.typedDraft.review);
       return bothRead(state) ? null : "Add both screenshots to check the values.";

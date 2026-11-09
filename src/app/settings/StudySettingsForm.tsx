@@ -6,7 +6,7 @@ import { FieldMessage, GoalTestDateSelect, ScoreInput, TestTimeChoice, WeekField
 import { Button } from "@/components/ui/Button";
 import { FOCUS, cx } from "@/components/ui/classes";
 import { DAY_ORDER } from "@/lib/engine";
-import { attemptMonths, dailyCapacityError, everyDay, type StudySettingsInput, type upcomingTestMonths } from "@/lib/studentProfile";
+import { attemptMonths, dailyCapacityError, everyDay, practiceTestDayError, type StudySettingsInput, type upcomingTestMonths } from "@/lib/studentProfile";
 import {
   addAttempt,
   attemptProblemMessage,
@@ -125,6 +125,8 @@ function messages(draft: Settings, currentScore: number) {
     const message = dailyCapacityError(draft.dailyCapacityMinutes[day]);
     if (message) days[day] = message;
   }
+  const testDayMessage = practiceTestDayError(draft, draft.accommodationMultiplier);
+  if (testDayMessage) days[draft.preferredPracticeTestDay] ??= testDayMessage;
   const attempts: Partial<Record<number, AttemptMessage>> = {};
   for (const row of draft.officialAttempts) {
     const message = attemptProblemMessage(row);
@@ -322,7 +324,6 @@ export function StudySettingsForm({
                   allDaysMinutes={state.allDaysMinutes}
                   accommodation={draft.accommodationMultiplier}
                   dayMessages={visible?.days}
-                  hintShortPracticeTestDay
                   onAllDaysChange={(minutes) => dispatch({ type: "setAllDays", minutes })}
                   onApplyAllDays={() => dispatch({ type: "applyAllDays" })}
                   onDayChange={(day, minutes) => edit({ dailyCapacityMinutes: { ...draft.dailyCapacityMinutes, [day]: minutes } })}

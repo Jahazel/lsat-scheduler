@@ -266,7 +266,7 @@ if (command === "seed") {
   const profile = studentProfileSchema.parse({
     platform: "7Sage", currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01", preferredPracticeTestDay: "SATURDAY",
     accommodationMultiplier: 1,
-    dailyCapacityMinutes: Object.fromEntries(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"].map((day) => [day, 90])),
+    dailyCapacityMinutes: Object.fromEntries(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"].map((day) => [day, day === "SATURDAY" ? 150 : 90])),
   });
   try {
     const account = await createAccount({ name: email.split("@")[0], email, googleId: `verify-google-${randomBytes(12).toString("hex")}` });

@@ -255,7 +255,7 @@ it("Google sign-in writes a session that survives, and a Disabled Account is sen
 const profile: Student = {
   currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01",
   preferredPracticeTestDay: "SATURDAY", accommodationMultiplier: 1,
-  dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 90, SUNDAY: 90 },
+  dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 150, SUNDAY: 90 },
 };
 const profileInput = { ...profile, officialAttempts: [], analyticsRows: [], analyticsApproval: null };
 function screenshotRequest(path: string, cookie: string) {

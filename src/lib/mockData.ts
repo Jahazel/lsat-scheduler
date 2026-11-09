@@ -103,7 +103,7 @@ export const mockStudent: Student = {
     WEDNESDAY: 90,
     THURSDAY: 90,
     FRIDAY: 90,
-    SATURDAY: 90,
+    SATURDAY: 150,
     SUNDAY: 90,
   },
   preferredPracticeTestDay: "SATURDAY",

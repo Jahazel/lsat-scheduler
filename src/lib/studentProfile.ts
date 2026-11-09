@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { DAY_ORDER } from "./engine";
+import { shortDuration } from "./formatDuration";
+import { mockRules } from "./mockData";
+import type { Accommodation } from "./studyProfileDraft";
 import type { DayOfWeek } from "./types";
 
 export const DAY_LABEL: Record<DayOfWeek, string> = {
@@ -45,6 +48,21 @@ export function goalScoreError(currentScore: number, goalScore: number): string 
   return goalScore > currentScore ? null : `Your goal must be higher than your current score, ${currentScore}.`;
 }
 
+export function practiceTestMinutes(accommodation: Accommodation): number {
+  return Math.round(mockRules.ptDurationMinutes * mockRules.accommodationTimeMultiplier[accommodation]);
+}
+
+export function practiceTestDayError(
+  week: { dailyCapacityMinutes: Record<DayOfWeek, number>; preferredPracticeTestDay: DayOfWeek | null },
+  accommodation: Accommodation
+): string | null {
+  const day = week.preferredPracticeTestDay;
+  const needed = practiceTestMinutes(accommodation);
+  if (day === null || week.dailyCapacityMinutes[day] >= needed) return null;
+  const shortestOffered = Math.ceil(needed / DAILY_CAPACITY_STEP_MINUTES) * DAILY_CAPACITY_STEP_MINUTES;
+  return `${DAY_LABEL[day]} needs at least ${shortDuration(shortestOffered)} for a full practice test. Add time or pick another day.`;
+}
+
 const LSAT_TEST_MONTHS = ["2026-10-01", "2026-11-01", "2027-01-01", "2027-02-01", "2027-04-01", "2027-06-01"];
 
 const testMonthLabel = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -83,6 +101,8 @@ export const studentProfileSchema = z.object({
 }).superRefine((profile, context) => {
   const message = goalScoreError(profile.currentScore, profile.goalScore);
   if (message) context.addIssue({ code: "custom", path: ["goalScore"], message });
+  const dayMessage = practiceTestDayError(profile, profile.accommodationMultiplier);
+  if (dayMessage) context.addIssue({ code: "custom", path: ["preferredPracticeTestDay"], message: dayMessage });
 });
 
 // The server-side parse: the goal test date must also be one the form offers

@@ -133,7 +133,7 @@ export default function StudySettingsLoading() {
                     <span className={cx(PLACEHOLDER_SHAPE, "text-small")}>Weekly total</span>
                     <span className={cx(PLACEHOLDER_SHAPE, "text-body font-semibold")}>10 h 30</span>
                   </p>
-                  <p className="text-small"><span className={PLACEHOLDER_SHAPE}>A full practice test takes 2 h 30 with standard time. Pick a day with that much time.</span></p>
+                  <p className="text-small"><span className={PLACEHOLDER_SHAPE}>A full practice test takes 2 h 30 with standard time.</span></p>
                 </div>
               </div>
               <div className="hidden min-w-[280px] flex-1 flex-col gap-5 self-stretch border-l border-vellum-line pl-10 lg:flex">
