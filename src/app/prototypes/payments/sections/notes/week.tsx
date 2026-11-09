@@ -34,6 +34,7 @@ const WEEKS: Record<WeekState, { week: keyof ProtoData["weeks"]; today: number; 
   "free-saved": { week: "lastFree", today: 5, days: "active", reminder: false },
   held: { week: "firstPaid", today: 0, days: "none", reminder: false },
   retrying: { week: "retrying", today: 1, days: "active", reminder: false },
+  "retrying-weekend": { week: "retrying", today: 5, days: "active", reminder: true },
   "lapsed-failed": { week: "firstPaid", today: 0, days: "none", reminder: false },
   "lapsed-ended": { week: "lapsed", today: 2, days: "read-only", reminder: false },
 };

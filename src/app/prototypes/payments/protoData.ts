@@ -24,8 +24,9 @@ export const DATASETS = {
     prices: { weeklyCents: 1499, monthlyCents: 4999 },
     freeWeek: { endsShort: "Sun, Jan 3", endsLong: "Sunday, Jan 3", firstChargeShort: "Mon, Jan 4" },
     plan: "monthly",
-    weeks: { lastFree: "2026-12-28", firstPaid: "2027-01-04", retrying: "2027-02-01", lapsed: "2027-02-08" },
-    retryBy: "Mon, Feb 8",
+    // The renewal fails in the week across the new year, so the card deadline lands in the next year.
+    weeks: { lastFree: "2026-12-28", firstPaid: "2027-01-04", retrying: "2026-12-28", lapsed: "2027-01-04" },
+    retryBy: "Mon, Jan 4",
   },
   // Monthly costs more than 4⅓ weeks of Weekly, so there is no saving to show.
   "no-saving": {
@@ -58,7 +59,7 @@ export const STRIPE_NOTE = "You add your card on Stripe, then come back here.";
 
 export type WeekState =
   | "free-friday" | "free-sunday" | "free-cancelled" | "free-saved"
-  | "held" | "retrying" | "lapsed-failed" | "lapsed-ended";
+  | "held" | "retrying" | "retrying-weekend" | "lapsed-failed" | "lapsed-ended";
 
 export const WEEK_STATES: { id: WeekState; label: string }[] = [
   { id: "free-friday", label: "Free week · Friday" },
@@ -67,6 +68,7 @@ export const WEEK_STATES: { id: WeekState; label: string }[] = [
   { id: "free-saved", label: "Free week · next week saved" },
   { id: "held", label: "Held weekly schedule" },
   { id: "retrying", label: "Retrying" },
+  { id: "retrying-weekend", label: "Retrying · weekend" },
   { id: "lapsed-failed", label: "Lapsed · card failed" },
   { id: "lapsed-ended", label: "Lapsed · plan ended" },
 ];
@@ -78,6 +80,9 @@ export type PlanNote = {
   rest?: string;
   action?: "update-card" | "pick-plan";
 };
+
+// A date that splits across lines ("Mon, / Jan 4") reads as two facts on a narrow phone.
+const keepTogether = (text: string) => text.replaceAll(" ", "\u00a0");
 
 export function planNote(state: WeekState, data: ProtoData): PlanNote | null {
   const plan = plansFor(data.prices)[data.plan];
@@ -93,7 +98,8 @@ export function planNote(state: WeekState, data: ProtoData): PlanNote | null {
     case "held":
       return { tone: "info", lead: "Your week is ready.", rest: "It appears when your first payment goes through." };
     case "retrying":
-      return { tone: "warning", lead: "Your last payment didn't go through.", rest: `Update your card by ${data.retryBy} to keep your plan.`, action: "update-card" };
+    case "retrying-weekend":
+      return { tone: "warning", lead: "Your last payment didn't go through.", rest: `Update your card by ${keepTogether(data.retryBy)} to keep your plan.`, action: "update-card" };
     case "lapsed-failed":
       return { tone: "warning", lead: "Your payment didn't go through.", rest: "Pick a plan to get new weekly schedules.", action: "pick-plan" };
     case "lapsed-ended":
