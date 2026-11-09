@@ -69,9 +69,9 @@ Admins never see plan choice, plan notes, or the Plan card.
 - Payment emails: Stripe sends them.
 
 ## Open questions
-1. What does onboarding's right-side live preview show on step 5? Answer in the plan choice section.
+1. ~~What does onboarding's right-side live preview show on step 5?~~ Answered in section 1: a preview of the Stripe page that comes next.
 2. The landing page has more "pick a plan when your free week ends" lines than the ticket lists (`src/app/page.tsx` lines 87, 155, and 191). They must change too. Settle the wording in the landing section.
-3. Does the weekly upload confirmation for "Plan next week" in the free week's last weekend need new wording? Settle it in the This week notes section.
+3. ~~Does the weekly upload confirmation for "Plan next week" in the free week's last weekend need new wording?~~ Answered in section 2: after that upload, This week keeps the free week and the note says "Your free week ends Sunday. Your Weekly plan starts Monday at $10. Your plan for next week appears then." The held weekly schedule is not previewed.
 
 ## Sections
 In build order. Sections 1–3 get three variants. Sections 4–8 follow the picked patterns with no variant round (owner, 2026-11-09).
@@ -79,7 +79,7 @@ In build order. Sections 1–3 get three variants. Sections 4–8 follow the pic
 | Section | Picked variant | Axis | User's reason |
 | --- | --- | --- | --- |
 | 1. Plan choice (onboarding step 5) | Cards + Stripe: two plan cards and three fact rows (Today $0, free week end, first charge) on the left; a preview of the Stripe page that comes next on the right | Layout: comparison cards, with the hand-off to Stripe shown before it happens | Owner, 2026-11-09: liked the Cards layout and the Timeline version's Stripe preview, asked for both together, and dropped the dashed saving bubble. "about 31% less" stays as plain blue text under the Monthly price |
-| 2. This week notes (free week ending, held, retrying, lapsed) | | | |
+| 2. This week notes (free week ending, held, retrying, lapsed) | Notice card: a card above Monday with the note's first sentence as its title, the rest below, and its button on the right (below on phones). Gray for the free week, yellow warning for retrying and lapsed. When no days show (held, lapsed after a failed first charge), a "waiting" card takes their place | Weight: a card in the week list, louder than a strip, with a button | Owner, 2026-11-09: picked Notice card over Top strip and Header panel; no reason given |
 | 3. Account Plan card | | | |
 | 4. Starting your plan screen | | | |
 | 5. Plan choice on the weekly upload page (lapsed) | | | |
@@ -97,6 +97,12 @@ Datasets in the prototype's data switch: Demo ($10 / $29.99, free week to Sun, N
 
 Held up: year-boundary dates without a year, four-digit prices, the Stripe preview, the button and its "Opening Stripe…" label, tablet and desktop widths.
 
+## Stress test: This week notes
+Worst case: Monthly $49.99, a free week across the new year, a card deadline in the next year ("Mon, Jan 4"), and a retrying weekend with the "Plan next week" reminder showing too. Checked all 9 states at 1440, 768, 390, 320, and 240 px. Fixed in the prototype:
+- The card deadline could split across lines ("Mon, / Jan 4"): its spaces no longer break. The build needs the same rule.
+
+Held up: long notes at 240 px, year-boundary dates, the warning card together with the upload reminder, the empty "waiting" cards, and the "Opening Stripe…" label.
+
 ## Decisions (owner, 2026-11-09)
 - One plan choice block: onboarding step 5, and the weekly upload page for a lapsed student. No `/plan` route.
 - Weekly is picked at the start.
@@ -106,3 +112,7 @@ Held up: year-boundary dates without a year, four-digit prices, the Stripe previ
 - Retrying gets a This week note with a link to the Stripe Customer Portal.
 - The Plan card is first on the Account page.
 - The deletion warning uses the spec wording in every state with a plan.
+- The This week plan note is a card above Monday (Notice card). Held and lapsed-after-a-failed-first-charge weeks show a "waiting" card in place of the days: "Your week is ready. It appears when your first payment goes through." and "Your week is saved. It appears as soon as you pick a plan."
+- A cancelled free week hides the "Plan next week" reminder.
+- A lapsed student never sees the "Plan next week" reminder; the lapsed card's "Pick a plan" is the only way forward.
+- On phones the note stays below the header and progress, like on desktop.
