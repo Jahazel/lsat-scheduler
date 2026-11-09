@@ -70,7 +70,7 @@ Admins never see plan choice, plan notes, or the Plan card.
 
 ## Open questions
 1. ~~What does onboarding's right-side live preview show on step 5?~~ Answered in section 1: a preview of the Stripe page that comes next.
-2. The landing page has more "pick a plan when your free week ends" lines than the ticket lists (`src/app/page.tsx` lines 87, 155, and 191). They must change too. Settle the wording in the landing section.
+2. The landing page has more "pick a plan when your free week ends" lines than the ticket lists (`src/app/page.tsx` lines 87, 155, and 191). They must change too. Section 8 proposes the wording; it waits for the owner.
 3. ~~Does the weekly upload confirmation for "Plan next week" in the free week's last weekend need new wording?~~ Answered in section 2: after that upload, This week keeps the free week and the note says "Your free week ends Sunday. Your Weekly plan starts Monday at $10. Your plan for next week appears then." The held weekly schedule is not previewed.
 
 ## Sections
@@ -81,11 +81,11 @@ In build order. Sections 1–3 get three variants. Sections 4–8 follow the pic
 | 1. Plan choice (onboarding step 5) | Cards + Stripe: two plan cards and three fact rows (Today $0, free week end, first charge) on the left; a preview of the Stripe page that comes next on the right | Layout: comparison cards, with the hand-off to Stripe shown before it happens | Owner, 2026-11-09: liked the Cards layout and the Timeline version's Stripe preview, asked for both together, and dropped the dashed saving bubble. "about 31% less" stays as plain blue text under the Monthly price |
 | 2. This week notes (free week ending, held, retrying, lapsed) | Notice card: a card above Monday with the note's first sentence as its title, the rest below, and its button on the right (below on phones). Gray for the free week, yellow warning for retrying and lapsed. When no days show (held, lapsed after a failed first charge), a "waiting" card takes their place | Weight: a card in the week list, louder than a strip, with a button | Owner, 2026-11-09: picked Notice card over Top strip and Header panel; no reason given |
 | 3. Account Plan card | Fact rows: title "Plan" with a status chip, then label-and-value rows (the plan and price, then the one date that matters next), a short sentence for what the rows do not say, and the button on the right (below on phones) | Structure: label-and-value rows like plan choice's fact rows | Owner, 2026-11-09: picked Fact rows over Row and Date tile; no reason given. Asked to drop the date from the sentence, since the date row already shows it |
-| 4. Starting your plan screen | | | |
-| 5. Plan choice on the weekly upload page (lapsed) | | | |
-| 6. Progress lapsed note | | | |
-| 7. Deletion warning | | | |
-| 8. Landing page wording | | | |
+| 4. Starting your plan screen | Loop: "Starting your plan…", one line on what opens next, and the app's reading bar (its sliding segment, no percent). After about 20 s: "This is taking longer than usual." and a "Try again" link. New students keep the onboarding layout with a "Next · This week" sketch on the right; lapsed students see it in the weekly upload column | No variant round (owner rule): the app's existing Loop wait motion | Built 2026-11-09; waiting for owner review |
+| 5. Plan choice on the weekly upload page (lapsed) | Cards + Stripe from section 1 in the weekly upload page's grid: "Pick a plan", the plan cards, fact rows "Today: $10" and "Renews: Wed, Dec 23", the terms and button, and the Stripe sketch ("$10 today. Then $10 a week starting …") on the right. Coming back without a card adds a gray note "You didn't add a card. Pick a plan to continue." above, and keeps the last picked plan | No variant round: section 1's pattern | Built 2026-11-09; waiting for owner review |
+| 6. Progress lapsed note | Notice card from section 2, above the past weeks, with the same wording as This week and a "Pick a plan" button. The past weeks stay readable | No variant round: section 2's pattern | Built 2026-11-09; waiting for owner review |
+| 7. Deletion warning | Warning box at the top of the deletion card's form column, in the shape of the card's admin notice and the yellow warning tone: "Your plan ends now." over "Unused time is not refunded." Shown only when the student has a plan (free week, paid, retrying) | No variant round: section 2's warning tone in the card's own notice shape | Built 2026-11-09; waiting for owner review |
+| 8. Landing page wording | Wording only, in the landing styles. Free week note: "Your first full week free. Cancel before it ends and pay nothing." Pricing lead: "Pick a plan at the end of setup. You pay nothing until your free week ends. Both plans get the same weekly schedule." FAQ card answer from the spec. FAQ "What happens after the free week?": "The plan you picked starts on its own: Weekly ($10) or Monthly ($29.99). Your weekly schedules keep coming. Cancel before the free week ends and you pay nothing." Closing signpost: "Weekly ($10) or Monthly ($29.99). Pick one at the end of setup." | No variant round: wording | Proposed 2026-11-09; waiting for owner review |
 
 ## Stress test: plan choice
 Datasets in the prototype's data switch: Demo ($10 / $29.99, free week to Sun, Nov 22), Worst case (onboarding on Mon, Dec 21: a 13-day free week across the new year, with prices raised to $14.99 / $49.99), and No saving (Monthly $45, more than 4⅓ weeks of Weekly). Checked at 1440, 768, 390, 320, and 240 px (about 160% zoom on a phone). Fixed in the prototype:
@@ -110,6 +110,13 @@ Worst case: Monthly $49.99, the widest dates ("Thu, Feb 4", "Wed, Feb 3"), and a
 - The label "Update your card by" left "by" alone on a second line at 320 and 768 px. It is now "Update card by" (owner, 2026-11-09). The This week note keeps its full sentence.
 
 Held up: the status chips (never wrap), the "Opening Stripe…" label, the paid state with no sentence, and the lapsed state's longer sentence. Outside the card, the existing landing header (315 px) and the Account email header (243 px) still need more than 240 px; both fit at 320 px.
+
+## Stress test: sections 4–8
+Worst case: prices $14.99 / $49.99, Monthly picked, and a lapsed student who restarts on Sun, Jan 31, so the monthly renewal moves to Sun, Feb 28. Checked every state at 1440, 768, 390, 320, and 240 px. Fixed in the prototype:
+- The lapsed plan choice's renewal date could split across lines: it now stays on one line.
+- The "You didn't add a card" note showed the free week's calendar icon: that note now has no icon.
+
+Held up: the reading bar and the slow note at 240 px, the lapsed plan cards stacking at 240 px, the Progress note and its button, the deletion warning in the narrow form column, and the landing lines at every width. Outside these sections, two existing layouts squeeze below 320 px: the Progress week rows ("Dec 7 – Dec 13" breaks across three lines at 240 px) and the Account email header. Both fit at 320 px.
 
 ## Decisions (owner, 2026-11-09)
 - One plan choice block: onboarding step 5, and the weekly upload page for a lapsed student. No `/plan` route.

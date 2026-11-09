@@ -1,30 +1,13 @@
 "use client";
 
 import { Card } from "@/components/ui/Card";
-import { cx } from "@/components/ui/classes";
-import { NoteAction, NoteGlyph, WeekPage, useWeek } from "./week";
+import { PlanNotice } from "./PlanNotice";
+import { WeekPage, useWeek } from "./week";
 
 export default function NoticeCard() {
   const { note, state } = useWeek();
   const held = state === "held";
-  const notice = !held && (
-    <section
-      aria-label="Your plan"
-      className={cx(
-        "flex flex-col gap-4 rounded-md border p-5 md:flex-row md:items-center md:gap-6",
-        note.tone === "warning" ? "border-warning-line bg-warning-wash" : "border-transparent bg-vellum",
-      )}
-    >
-      <div className="flex min-w-0 flex-1 items-start gap-3">
-        <NoteGlyph tone={note.tone} className="mt-[3px]" />
-        <div className="flex min-w-0 flex-col gap-1">
-          <h2 className="text-h6 font-medium text-ink">{note.lead}</h2>
-          <p className="text-small text-smoke">{note.rest}</p>
-        </div>
-      </div>
-      {note.action && <div className="pl-[30px] md:pl-0"><NoteAction action={note.action} /></div>}
-    </section>
-  );
+  const notice = !held && <PlanNotice note={note} />;
   const waiting = held
     ? { title: note.lead, body: note.rest }
     : { title: "Your week is saved.", body: "It appears as soon as you pick a plan." };

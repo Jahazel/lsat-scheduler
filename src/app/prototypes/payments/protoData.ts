@@ -11,6 +11,8 @@ export type ProtoData = {
   retryBy: string;
   // The Account Plan card's dates once the plan is paid: the next renewal, and the last day of a cancelled paid period.
   paid: { renewsOn: string; endsOn: string };
+  // A lapsed student picks a plan again: it starts today, and Stripe renews it on the same weekday or day of the month.
+  restart: { today: string; weeklyRenews: string; monthlyRenews: string };
 };
 
 export const DATASETS = {
@@ -21,6 +23,7 @@ export const DATASETS = {
     weeks: { lastFree: "2026-11-16", firstPaid: "2026-11-23", retrying: "2026-12-07", lapsed: "2026-12-14" },
     retryBy: "Mon, Dec 14",
     paid: { renewsOn: "Mon, Nov 30", endsOn: "Sun, Nov 29" },
+    restart: { today: "Wed, Dec 16", weeklyRenews: "Wed, Dec 23", monthlyRenews: "Sat, Jan 16" },
   },
   // Onboarding finished Mon, Dec 21: the longest free week (13 days), across the new year, with a price rise to $14.99 and $49.99.
   worst: {
@@ -31,6 +34,8 @@ export const DATASETS = {
     weeks: { lastFree: "2026-12-28", firstPaid: "2027-01-04", retrying: "2026-12-28", lapsed: "2027-01-04" },
     retryBy: "Mon, Jan 4",
     paid: { renewsOn: "Thu, Feb 4", endsOn: "Wed, Feb 3" },
+    // Restarting on the 31st: Stripe moves the monthly renewal to the month's last day.
+    restart: { today: "Sun, Jan 31", weeklyRenews: "Sun, Feb 7", monthlyRenews: "Sun, Feb 28" },
   },
   // Monthly costs more than 4⅓ weeks of Weekly, so there is no saving to show.
   "no-saving": {
@@ -40,6 +45,7 @@ export const DATASETS = {
     weeks: { lastFree: "2026-11-16", firstPaid: "2026-11-23", retrying: "2026-12-07", lapsed: "2026-12-14" },
     retryBy: "Mon, Dec 14",
     paid: { renewsOn: "Mon, Nov 30", endsOn: "Sun, Nov 29" },
+    restart: { today: "Wed, Dec 16", weeklyRenews: "Wed, Dec 23", monthlyRenews: "Sat, Jan 16" },
   },
 } satisfies Record<string, ProtoData>;
 
@@ -166,3 +172,24 @@ export function planCardFacts(state: PlanCardState, data: ProtoData): PlanCardFa
       return { status: "Lapsed", tone: "warning", plan: null, detail: "Pick a plan to get new weekly schedules.", next: null, action: "pick" };
   }
 }
+
+export const STARTING_STATES = [
+  { id: "waiting", label: "Waiting for Stripe" },
+  { id: "slow", label: "Slow (after about 20 s)" },
+  { id: "lapsed-waiting", label: "Lapsed · waiting" },
+];
+
+export const RESTART_STATES = [
+  { id: "lapsed", label: "Lapsed" },
+  { id: "no-card", label: "Came back without a card" },
+];
+
+export const PROGRESS_STATES = [
+  { id: "lapsed-failed", label: "Lapsed · card failed" },
+  { id: "lapsed-ended", label: "Lapsed · plan ended" },
+];
+
+export const DELETION_STATES = [
+  { id: "has-plan", label: "Has a plan (free week, paid, retrying)" },
+  { id: "no-plan", label: "No plan (lapsed)" },
+];

@@ -17,7 +17,7 @@ export function usePlanCard() {
 }
 
 /** The Account page with the real cards below the Plan card; their buttons call server actions the prototype has no session for. */
-export function AccountPage({ planCard }: { planCard: ReactNode }) {
+export function AccountPage({ planCard, deletion = <DeletionCard mode={{ kind: "password" }} /> }: { planCard: ReactNode; deletion?: ReactNode }) {
   return (
     <AppChrome tab={null}>
       <div className="min-h-full bg-vellum">
@@ -34,7 +34,7 @@ export function AccountPage({ planCard }: { planCard: ReactNode }) {
           {planCard}
           <SessionsCard />
           <ChangePasswordCard />
-          <DeletionCard mode={{ kind: "password" }} />
+          {deletion}
         </div>
       </div>
     </AppChrome>
