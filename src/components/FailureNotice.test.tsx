@@ -72,9 +72,10 @@ it("keeps the closed toast on screen until its exit ends", async () => {
     await toast();
 
     await press("Close");
-    expect(document.querySelector(".failure-toast[data-leaving]")).not.toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText("Something went wrong. Try again.").closest("[inert]")).not.toBeNull();
     await act(async () => endExit());
-    expect(document.querySelector(".failure-toast")).toBeNull();
+    expect(screen.queryByText("Something went wrong. Try again.")).toBeNull();
   } finally {
     delete (Element.prototype as Partial<Element>).getAnimations;
   }

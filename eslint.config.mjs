@@ -49,16 +49,6 @@ const eslintConfig = defineConfig([
   },
   {
     files: ["src/**/*.test.{ts,tsx}"],
-    ignores: [
-      "src/app/dashboard/upload/WeeklyUpload.test.tsx",
-      "src/app/login/page.test.tsx",
-      "src/app/onboarding/OnboardingWizard.test.tsx",
-      "src/components/FailureNotice.test.tsx",
-      "src/components/ScheduleCheckInView.test.tsx",
-      "src/components/TestControls.test.tsx",
-      "src/components/nav/AdminNav.test.tsx",
-      "src/components/ui/ui.test.tsx",
-    ],
     rules: {
       "no-restricted-properties": [
         "error",

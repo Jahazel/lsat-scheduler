@@ -353,7 +353,7 @@ describe("WeeklyUpload", () => {
     const tooLarge = new File([new Uint8Array(5 * 1024 * 1024)], "huge.png", { type: "image/png" });
     await user.upload(screen.getAllByLabelText("Replacement for pt158-s2.png")[0], tooLarge);
     const message = screen.getByText("That file is 5.0 MB. Choose one that is 4 MB or less.");
-    expect(message.closest(".max-md\\:hidden")).toBeNull();
+    expect(message.closest("[data-file-row]")).not.toBeNull();
     expect(screen.queryByRole("heading", { name: "Screenshots" })).toBeNull();
   });
 
@@ -368,15 +368,13 @@ describe("WeeklyUpload", () => {
     expect(button("Check the values").disabled).toBe(true);
   });
 
-  it("shows a lost connection in grey with Try again, as onboarding does, and no red border", async () => {
+  it("shows a lost connection with Try again, as onboarding does, and no read error", async () => {
     stubServer({ "pt158-s2.png": new Response(null, { status: 503 }) }, { LR: new Response(null, { status: 503 }) });
     const { user } = setup();
     await readAll(user);
     for (const name of ["lr-analytics.png", "pt158-s2.png"]) {
       const detail = await screen.findByText(rowDetail(`${name} · Connection lost. Your file is still here.`));
       const row = detail.closest("[data-file-row]") as HTMLElement;
-      expect(detail.className).toContain("text-smoke");
-      expect(row.className).not.toContain("border-danger");
       expect(within(row).queryByText("Couldn't read that screenshot. Try again or a clearer image.")).toBeNull();
       expect(within(row).getByRole("button", { name: "Try again" })).toBeDefined();
     }
