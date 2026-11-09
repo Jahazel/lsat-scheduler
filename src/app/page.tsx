@@ -127,10 +127,32 @@ function QuestionsSection() {
         <QuestionList
           className="lg:col-span-3"
           questions={[
+            {
+              question: "How is the study schedule made?",
+              answer: "Fixed rules built from the former 7Sage tutor's tutoring method use your individual analytics to make the most personalized study schedule on the market.",
+            },
+            {
+              question: "Does this replace a tutor or a course?",
+              answer: [
+                "No, it works alongside them. Most self-guided students know they should study but not what to focus on, so they default to taking practice test after practice test.",
+                "DrillMap gives you the kind of weekly structure a tutor would. It reads your results, finds your weakest question types, and builds a plan so every hour of practice counts. Your course or books still teach the concepts. DrillMap makes sure you're drilling the right ones.",
+              ],
+            },
+            {
+              question: "Will this raise my score?",
+              answer: "Students who followed this tutor's study plans improved by an average of 12 points, and some by as much as 23. Individual results vary, but a focused plan built around your weakest question types gives you the best chance of improving.",
+            },
+            {
+              question: "Is the plan only for students at a certain score level?",
+              answer: "No. DrillMap works whether you're scoring in the 140s or pushing for a 170+. Your plan is built from your own practice results and your goal score, so it adjusts to where you are right now. If you're early in your prep, it focuses on building the fundamentals behind your weakest question types. If you're close to your goal, it targets the few areas still costing you points.",
+            },
+            {
+              question: "Which test prep programs is DrillMap compatible with?",
+              answer: "7Sage today, with more sites coming soon! DrillMap is independent and simply reads the analytics 7Sage already shows you.",
+            },
+            { question: "Can I cancel?", answer: "Any time. You keep access until your paid week or month ends. No refunds for any unused time." },
             { question: "Do I need a card to start?", answer: `No. Your first full week is free. You pick ${plans} only when it ends.` },
             { question: "What happens after the free week?", answer: `Pick ${plans} to keep getting weekly schedules.` },
-            { question: "Can I cancel?", answer: "Any time. You keep access until your paid week or month ends. No refunds for unused time." },
-            { question: "Which practice sites work?", answer: "7Sage today, with more sites coming. You can also type your numbers by hand." },
             {
               question: "Is the plan made by AI?",
               answer: "No. Fixed rules built from the tutor's coaching method make the plan. AI only reads your screenshots, and you check what it read.",

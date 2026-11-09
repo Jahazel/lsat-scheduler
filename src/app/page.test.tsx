@@ -143,15 +143,19 @@ describe("Landing page", () => {
     expect(within(monthly).getByText("About $56.30 a month on Weekly. Good for a full prep cycle.")).toBeTruthy();
   });
 
-  it("answers the five questions, with only the card question open and the practice sites question fourth", () => {
+  it("answers the nine questions in order, with only the schedule question open", () => {
     render(<LandingPage />);
     const questions = screen.getByRole("region", { name: "FAQ" });
     const buttons = within(questions).getAllByRole("button");
     const rows = [
-      ["Do I need a card to start?", "true"],
-      ["What happens after the free week?", "false"],
+      ["How is the study schedule made?", "true"],
+      ["Does this replace a tutor or a course?", "false"],
+      ["Will this raise my score?", "false"],
+      ["Is the plan only for students at a certain score level?", "false"],
+      ["Which test prep programs is DrillMap compatible with?", "false"],
       ["Can I cancel?", "false"],
-      ["Which practice sites work?", "false"],
+      ["Do I need a card to start?", "false"],
+      ["What happens after the free week?", "false"],
       ["Is the plan made by AI?", "false"],
     ];
     expect(buttons).toHaveLength(rows.length);
@@ -159,15 +163,21 @@ describe("Landing page", () => {
       expect(within(questions).getByRole("button", { name })).toBe(buttons[index]);
       expect(buttons[index].getAttribute("aria-expanded")).toBe(expanded);
     });
-    expect(within(questions).getByText("No. Your first full week is free. You pick Weekly ($7.99) or Monthly ($25) only when it ends.")).toBeTruthy();
-    expect(isInaccessible(within(questions).getByText("7Sage today, with more sites coming. You can also type your numbers by hand."))).toBe(true);
+    expect(
+      within(questions).getByText(
+        "Fixed rules built from the former 7Sage tutor's tutoring method use your individual analytics to make the most personalized study schedule on the market.",
+      ),
+    ).toBeTruthy();
+    expect(isInaccessible(within(questions).getByText("Any time. You keep access until your paid week or month ends. No refunds for any unused time."))).toBe(true);
 
     for (const b of buttons.slice(1)) fireEvent.click(b);
     expect(within(questions).getAllByRole("button").every((b) => b.getAttribute("aria-expanded") === "true")).toBe(true);
     for (const answer of [
+      "No, it works alongside them. Most self-guided students know they should study but not what to focus on, so they default to taking practice test after practice test.",
+      "DrillMap gives you the kind of weekly structure a tutor would. It reads your results, finds your weakest question types, and builds a plan so every hour of practice counts. Your course or books still teach the concepts. DrillMap makes sure you're drilling the right ones.",
+      "7Sage today, with more sites coming soon! DrillMap is independent and simply reads the analytics 7Sage already shows you.",
+      "No. Your first full week is free. You pick Weekly ($7.99) or Monthly ($25) only when it ends.",
       "Pick Weekly ($7.99) or Monthly ($25) to keep getting weekly schedules.",
-      "Any time. You keep access until your paid week or month ends. No refunds for unused time.",
-      "7Sage today, with more sites coming. You can also type your numbers by hand.",
       "No. Fixed rules built from the tutor's coaching method make the plan. AI only reads your screenshots, and you check what it read.",
     ]) {
       expect(isInaccessible(within(questions).getByText(answer))).toBe(false);

@@ -5,7 +5,7 @@ import { FOCUS_INSET, cx } from "@/components/ui/classes";
 
 const RULE = "border-dashed border-ink/14";
 
-export type Question = { question: string; answer: string };
+export type Question = { question: string; answer: string | string[] };
 
 export function QuestionList({ questions, className }: { questions: Question[]; className?: string }) {
   const [shown, setShown] = useState({ open: questions.map((_, index) => index === 0), reduced: false });
@@ -75,9 +75,11 @@ export function QuestionList({ questions, className }: { questions: Question[]; 
               }}
             >
               <div className="overflow-hidden">
-                <p className="pb-5 pl-11 text-[16px]/[25px] text-smoke md:pr-12 md:pb-6 md:pl-14 md:text-[17px]/[27px] lg:max-w-[720px] lg:pr-[72px] lg:pb-7 lg:pl-[88px]">
-                  {answer}
-                </p>
+                <div className="flex flex-col gap-3 pb-5 pl-11 text-[16px]/[25px] text-smoke md:pr-12 md:pb-6 md:pl-14 md:text-[17px]/[27px] lg:max-w-[720px] lg:pr-[72px] lg:pb-7 lg:pl-[88px]">
+                  {[answer].flat().map((paragraph, at) => (
+                    <p key={at}>{paragraph}</p>
+                  ))}
+                </div>
               </div>
             </div>
           </li>
