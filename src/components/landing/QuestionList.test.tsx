@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
 import { cleanup, fireEvent, isInaccessible, render, screen } from "@testing-library/react";
-import { QuestionList, type Question } from "./QuestionList";
+import { QuestionList } from "./QuestionList";
 
 let reduced = false;
 
@@ -15,7 +15,7 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-const QUESTIONS: (Question & { answer: string })[] = Array.from({ length: 8 }, (_, index) => ({
+const QUESTIONS: { question: string; answer: string }[] = Array.from({ length: 8 }, (_, index) => ({
   question: `Question ${index + 1}?`,
   answer: `Answer ${index + 1}.`,
 }));

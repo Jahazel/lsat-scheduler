@@ -143,7 +143,7 @@ describe("Landing page", () => {
     expect(within(monthly).getByText("About $56.30 a month on Weekly. Good for a full prep cycle.")).toBeTruthy();
   });
 
-  it("answers the nine questions, with only the schedule question open and the free-week questions after cancelling", () => {
+  it("answers the nine questions in order, with only the schedule question open", () => {
     render(<LandingPage />);
     const questions = screen.getByRole("region", { name: "FAQ" });
     const buttons = within(questions).getAllByRole("button");

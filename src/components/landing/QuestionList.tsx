@@ -76,8 +76,8 @@ export function QuestionList({ questions, className }: { questions: Question[]; 
             >
               <div className="overflow-hidden">
                 <div className="flex flex-col gap-3 pb-5 pl-11 text-[16px]/[25px] text-smoke md:pr-12 md:pb-6 md:pl-14 md:text-[17px]/[27px] lg:max-w-[720px] lg:pr-[72px] lg:pb-7 lg:pl-[88px]">
-                  {[answer].flat().map((paragraph) => (
-                    <p key={paragraph}>{paragraph}</p>
+                  {[answer].flat().map((paragraph, at) => (
+                    <p key={at}>{paragraph}</p>
                   ))}
                 </div>
               </div>
