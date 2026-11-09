@@ -1,7 +1,10 @@
 import type { ComponentType } from "react";
 import PlanChoice from "./sections/PlanChoice";
 import NoticeCard from "./sections/notes/NoticeCard";
-import { WEEK_STATES } from "./protoData";
+import RowCard from "./sections/plan-card/RowCard";
+import FactRows from "./sections/plan-card/FactRows";
+import DateTile from "./sections/plan-card/DateTile";
+import { PLAN_CARD_STATES, WEEK_STATES } from "./protoData";
 
 export type ProtoScreen = {
   id: string;
@@ -17,6 +20,16 @@ export const SCREENS: ProtoScreen[] = [
     label: "2 · This week notes",
     variants: [{ name: "Notice card", Component: NoticeCard }],
     states: WEEK_STATES,
+  },
+  {
+    id: "plan-card",
+    label: "3 · Account Plan card",
+    variants: [
+      { name: "Row", Component: RowCard },
+      { name: "Fact rows", Component: FactRows },
+      { name: "Date tile", Component: DateTile },
+    ],
+    states: PLAN_CARD_STATES,
   },
 ];
 

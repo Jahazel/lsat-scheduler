@@ -9,6 +9,8 @@ export type ProtoData = {
   plan: PlanName;
   weeks: { lastFree: string; firstPaid: string; retrying: string; lapsed: string };
   retryBy: string;
+  // The Account Plan card's dates once the plan is paid: the next renewal, and the last day of a cancelled paid period.
+  paid: { renewsOn: string; endsOn: string };
 };
 
 export const DATASETS = {
@@ -18,6 +20,7 @@ export const DATASETS = {
     plan: "weekly",
     weeks: { lastFree: "2026-11-16", firstPaid: "2026-11-23", retrying: "2026-12-07", lapsed: "2026-12-14" },
     retryBy: "Mon, Dec 14",
+    paid: { renewsOn: "Mon, Nov 30", endsOn: "Sun, Nov 29" },
   },
   // Onboarding finished Mon, Dec 21: the longest free week (13 days), across the new year, with a price rise to $14.99 and $49.99.
   worst: {
@@ -27,6 +30,7 @@ export const DATASETS = {
     // The renewal fails in the week across the new year, so the card deadline lands in the next year.
     weeks: { lastFree: "2026-12-28", firstPaid: "2027-01-04", retrying: "2026-12-28", lapsed: "2027-01-04" },
     retryBy: "Mon, Jan 4",
+    paid: { renewsOn: "Thu, Feb 4", endsOn: "Wed, Feb 3" },
   },
   // Monthly costs more than 4⅓ weeks of Weekly, so there is no saving to show.
   "no-saving": {
@@ -35,6 +39,7 @@ export const DATASETS = {
     plan: "weekly",
     weeks: { lastFree: "2026-11-16", firstPaid: "2026-11-23", retrying: "2026-12-07", lapsed: "2026-12-14" },
     retryBy: "Mon, Dec 14",
+    paid: { renewsOn: "Mon, Nov 30", endsOn: "Sun, Nov 29" },
   },
 } satisfies Record<string, ProtoData>;
 
@@ -119,3 +124,45 @@ export const weekDates = (monday: string) =>
   });
 
 export const weekOf = (monday: string) => monthLongDay.format(new Date(`${monday}T00:00:00.000Z`));
+
+export type PlanCardState = "free-week" | "free-cancelled" | "paid" | "paid-cancelled" | "retrying" | "lapsed";
+
+export const PLAN_CARD_STATES: { id: PlanCardState; label: string }[] = [
+  { id: "free-week", label: "Free week" },
+  { id: "free-cancelled", label: "Free week · cancelled" },
+  { id: "paid", label: "Paid" },
+  { id: "paid-cancelled", label: "Paid · cancelled" },
+  { id: "retrying", label: "Retrying" },
+  { id: "lapsed", label: "Lapsed" },
+];
+
+export type PlanCardFacts = {
+  status: "Free week" | "Active" | "Cancelled" | "Retrying" | "Lapsed";
+  tone: "info" | "warning";
+  plan: { name: string; price: string; per: string } | null;
+  // The spec's sentence for this state.
+  detail: string;
+  // The one date that matters next, for variants that lead with a date.
+  next: { label: string; date: string; after?: string } | null;
+  action: "manage" | "pick";
+};
+
+export function planCardFacts(state: PlanCardState, data: ProtoData): PlanCardFacts {
+  const option = plansFor(data.prices)[data.plan];
+  const plan = { name: option.name, price: option.price, per: option.per };
+  const { endsShort, firstChargeShort } = data.freeWeek;
+  switch (state) {
+    case "free-week":
+      return { status: "Free week", tone: "info", plan, detail: `Free week ends ${keepTogether(endsShort)}. First charge ${plan.price} on ${keepTogether(firstChargeShort)}.`, next: { label: "First charge", date: firstChargeShort, after: `Free week ends ${endsShort}` }, action: "manage" };
+    case "free-cancelled":
+      return { status: "Cancelled", tone: "info", plan, detail: `Ends ${keepTogether(endsShort)}. It won't renew.`, next: { label: "Ends", date: endsShort, after: "It won't renew." }, action: "manage" };
+    case "paid":
+      return { status: "Active", tone: "info", plan, detail: `Renews ${keepTogether(data.paid.renewsOn)}.`, next: { label: "Renews", date: data.paid.renewsOn }, action: "manage" };
+    case "paid-cancelled":
+      return { status: "Cancelled", tone: "info", plan, detail: `Ends ${keepTogether(data.paid.endsOn)}. It won't renew.`, next: { label: "Ends", date: data.paid.endsOn, after: "It won't renew." }, action: "manage" };
+    case "retrying":
+      return { status: "Retrying", tone: "warning", plan, detail: `Payment failed. Update your card by ${keepTogether(data.retryBy)}.`, next: { label: "Update your card by", date: data.retryBy, after: "Payment failed." }, action: "manage" };
+    case "lapsed":
+      return { status: "Lapsed", tone: "warning", plan: null, detail: "Pick a plan to get new weekly schedules.", next: null, action: "pick" };
+  }
+}
