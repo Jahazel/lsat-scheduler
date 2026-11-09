@@ -11,7 +11,7 @@ import { PT158_FIXTURES } from "../../src/lib/practiceTestFixtures/pt158";
 import type { SnapshotSource } from "../../src/lib/analyticsSnapshots";
 import { confirmWeeklyUpload } from "../../src/app/dashboard/upload/actions";
 import { createStudentProfile } from "../../src/app/onboarding/actions";
-import DashboardPage from "../../src/app/dashboard/page";
+import DashboardPage from "../../src/app/dashboard/(this-week)/page";
 import type { AnalyticsExtractedRow, Student } from "../../src/lib/types";
 
 const state = vi.hoisted((): { session: Session | null } => ({ session: null }));

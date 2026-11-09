@@ -2,11 +2,13 @@ import Link from "next/link";
 import { FOCUS, cx } from "@/components/ui/classes";
 import type { NavIconName } from "./NavIcon";
 
-export const TABS: { href: string; label: string; short: string; icon: NavIconName; flagsUpload?: true }[] = [
-  { href: "/dashboard", label: "This week", short: "This week", icon: "week", flagsUpload: true },
+export const TABS: { href: string; label: string; short: string; icon: NavIconName; uploadHref?: string }[] = [
+  { href: "/dashboard", label: "This week", short: "This week", icon: "week", uploadHref: "/dashboard/upload" },
   { href: "/progress", label: "Progress", short: "Progress", icon: "progress" },
   { href: "/settings", label: "Study settings", short: "Settings", icon: "settings" },
 ];
+
+export const tabHref = (tab: (typeof TABS)[number], uploadNeeded: boolean) => (uploadNeeded && tab.uploadHref) || tab.href;
 
 export const isTabActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);
 

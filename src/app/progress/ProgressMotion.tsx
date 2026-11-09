@@ -37,6 +37,7 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
   const listScroll = useRef<number | null>(null);
   const pageArea = useRef<HTMLDivElement>(null);
   const placeholderTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const scrollUnderPlaceholder = useRef(0);
   const [placeholder, setPlaceholder] = useState<"list" | "week" | null>(null);
   const committed = () => (shown.current === undefined ? null : hrefFor(shown.current));
 
@@ -53,6 +54,7 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     clearTimeout(placeholderTimer.current);
     placeholderTimer.current = setTimeout(() => {
       pageArea.current!.style.visibility = "hidden";
+      scrollUnderPlaceholder.current = scrollY;
       scrollTo(0, 0);
       setPlaceholder(to === null ? "list" : "week");
     }, PLACEHOLDER_WAIT_MS);
@@ -68,7 +70,7 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
 
   const returnToCommitted = useCallback(() => {
     target.current = null;
-    endPlaceholder();
+    if (endPlaceholder()) scrollTo(0, scrollUnderPlaceholder.current);
     const el = pageArea.current!;
     fadeIn(el, stopAtCurrentFrame(el));
   }, [endPlaceholder]);
@@ -121,7 +123,14 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     }
     function onClickOutside(event: globalThis.MouseEvent) {
       const element = event.target as Element;
-      if (isPlainClick(event) && element.closest("a") && !ref.current!.contains(element)) abandonPending();
+      const link = element.closest("a");
+      if (!isPlainClick(event) || !link || ref.current!.contains(element)) return;
+      // Next scrolls a link's page to the top when it lands after another pending navigation.
+      if (target.current !== null && link.href === new URL(committed()!, location.origin).href) {
+        event.preventDefault();
+        router.push(committed()!, { scroll: false });
+      }
+      abandonPending();
     }
     function holdPopStateUntilFadedOut(event: PopStateEvent) {
       if (replaying) return;
@@ -147,7 +156,7 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
       removeEventListener("popstate", holdPopStateUntilFadedOut, { capture: true });
       document.removeEventListener("click", onClickOutside, { capture: true });
     };
-  }, [returnToCommitted]);
+  }, [returnToCommitted, router]);
 
   function onClickCapture(event: MouseEvent) {
     if (!isPlainClick(event)) return;
