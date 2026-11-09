@@ -140,8 +140,8 @@ export type PlanCardFacts = {
   status: "Free week" | "Active" | "Cancelled" | "Retrying" | "Lapsed";
   tone: "info" | "warning";
   plan: { name: string; price: string; per: string } | null;
-  // The spec's sentence for this state.
-  detail: string;
+  // What the rows do not already say; null when the rows say it all.
+  detail: string | null;
   // The one date that matters next, shown as its own row.
   next: { label: string; date: string } | null;
   action: "manage" | "pick";
@@ -153,15 +153,15 @@ export function planCardFacts(state: PlanCardState, data: ProtoData): PlanCardFa
   const { endsShort, firstChargeShort } = data.freeWeek;
   switch (state) {
     case "free-week":
-      return { status: "Free week", tone: "info", plan, detail: `Free week ends ${keepTogether(endsShort)}. First charge ${plan.price} on ${keepTogether(firstChargeShort)}.`, next: { label: "First charge", date: firstChargeShort }, action: "manage" };
+      return { status: "Free week", tone: "info", plan, detail: `Free week ends ${keepTogether(endsShort)}.`, next: { label: "First charge", date: firstChargeShort }, action: "manage" };
     case "free-cancelled":
-      return { status: "Cancelled", tone: "info", plan, detail: `Ends ${keepTogether(endsShort)}. It won't renew.`, next: { label: "Ends", date: endsShort }, action: "manage" };
+      return { status: "Cancelled", tone: "info", plan, detail: "It won't renew.", next: { label: "Ends", date: endsShort }, action: "manage" };
     case "paid":
-      return { status: "Active", tone: "info", plan, detail: `Renews ${keepTogether(data.paid.renewsOn)}.`, next: { label: "Renews", date: data.paid.renewsOn }, action: "manage" };
+      return { status: "Active", tone: "info", plan, detail: null, next: { label: "Renews", date: data.paid.renewsOn }, action: "manage" };
     case "paid-cancelled":
-      return { status: "Cancelled", tone: "info", plan, detail: `Ends ${keepTogether(data.paid.endsOn)}. It won't renew.`, next: { label: "Ends", date: data.paid.endsOn }, action: "manage" };
+      return { status: "Cancelled", tone: "info", plan, detail: "It won't renew.", next: { label: "Ends", date: data.paid.endsOn }, action: "manage" };
     case "retrying":
-      return { status: "Retrying", tone: "warning", plan, detail: `Payment failed. Update your card by ${keepTogether(data.retryBy)}.`, next: { label: "Update your card by", date: data.retryBy }, action: "manage" };
+      return { status: "Retrying", tone: "warning", plan, detail: "Payment failed.", next: { label: "Update card by", date: data.retryBy }, action: "manage" };
     case "lapsed":
       return { status: "Lapsed", tone: "warning", plan: null, detail: "Pick a plan to get new weekly schedules.", next: null, action: "pick" };
   }

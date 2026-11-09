@@ -46,11 +46,11 @@ Admins never see plan choice, plan notes, or the Plan card.
 | Retrying | A renewal failed less than 7 days ago | Note on This week: "Your last payment didn't go through. Update your card by Tue, Nov 17 to keep your plan." Link "Update card" |
 | Lapsed · card failed | First charge failed, or a renewal failed for 7 days | Banner on This week and Progress: "Your payment didn't go through. Pick a plan to get new weekly schedules." Button "Pick a plan". History stays readable below |
 | Lapsed · ended | Cancelled, and the free week or paid period ended | Banner: "Your plan has ended. Pick a plan to get new weekly schedules." Button "Pick a plan" |
-| Account Plan card · free week | Free week | "Weekly · $10 a week". "Free week ends Sun, Nov 22. First charge $10 on Mon, Nov 23." "Manage plan on Stripe" |
-| Account Plan card · paid | Paid | "Renews Mon, Nov 30." "Manage plan on Stripe" |
-| Account Plan card · cancelled | Free week or paid, cancelled | "Ends Sun, Nov 22. It won't renew." "Manage plan on Stripe" |
-| Account Plan card · retrying | Retrying | "Payment failed. Update your card by Tue, Nov 17." "Manage plan on Stripe" |
-| Account Plan card · lapsed | Lapsed | "No plan". "Pick a plan" |
+| Account Plan card · free week | Free week | Chip "Free week". Rows "Plan: Weekly · $10 a week" and "First charge: Mon, Nov 23". "Free week ends Sun, Nov 22." "Manage plan on Stripe" |
+| Account Plan card · paid | Paid | Chip "Active". Rows "Plan" and "Renews: Mon, Nov 30". No sentence. "Manage plan on Stripe" |
+| Account Plan card · cancelled | Free week or paid, cancelled | Chip "Cancelled". Rows "Plan" and "Ends: Sun, Nov 22". "It won't renew." "Manage plan on Stripe" |
+| Account Plan card · retrying | Retrying | Yellow chip "Retrying". Rows "Plan" and "Update card by: Tue, Nov 17" (date in warning color). "Payment failed." "Manage plan on Stripe" |
+| Account Plan card · lapsed | Lapsed | Yellow chip "Lapsed". Rows "Plan: No plan" and "Weekly schedules: Paused". "Pick a plan to get new weekly schedules." "Pick a plan" |
 | Deletion warning | Student with a plan (free week, paid, retrying) on Account | Inside the deletion card, above the confirm field: "Your plan ends now. Unused time is not refunded." |
 | Landing wording | Always | Note by every "Start free week" button: "Your first full week free. Cancel before it ends and pay nothing." FAQ "Do I need a card to start?": "Yes. You add a card when you pick a plan at the end of setup. You pay nothing until your free week ends, and you can cancel any time before then." |
 
@@ -80,7 +80,7 @@ In build order. Sections 1–3 get three variants. Sections 4–8 follow the pic
 | --- | --- | --- | --- |
 | 1. Plan choice (onboarding step 5) | Cards + Stripe: two plan cards and three fact rows (Today $0, free week end, first charge) on the left; a preview of the Stripe page that comes next on the right | Layout: comparison cards, with the hand-off to Stripe shown before it happens | Owner, 2026-11-09: liked the Cards layout and the Timeline version's Stripe preview, asked for both together, and dropped the dashed saving bubble. "about 31% less" stays as plain blue text under the Monthly price |
 | 2. This week notes (free week ending, held, retrying, lapsed) | Notice card: a card above Monday with the note's first sentence as its title, the rest below, and its button on the right (below on phones). Gray for the free week, yellow warning for retrying and lapsed. When no days show (held, lapsed after a failed first charge), a "waiting" card takes their place | Weight: a card in the week list, louder than a strip, with a button | Owner, 2026-11-09: picked Notice card over Top strip and Header panel; no reason given |
-| 3. Account Plan card | | | |
+| 3. Account Plan card | Fact rows: title "Plan" with a status chip, then label-and-value rows (the plan and price, then the one date that matters next), a short sentence for what the rows do not say, and the button on the right (below on phones) | Structure: label-and-value rows like plan choice's fact rows | Owner, 2026-11-09: picked Fact rows over Row and Date tile; no reason given. Asked to drop the date from the sentence, since the date row already shows it |
 | 4. Starting your plan screen | | | |
 | 5. Plan choice on the weekly upload page (lapsed) | | | |
 | 6. Progress lapsed note | | | |
@@ -103,6 +103,14 @@ Worst case: Monthly $49.99, a free week across the new year, a card deadline in 
 
 Held up: long notes at 240 px, year-boundary dates, the warning card together with the upload reminder, the empty "waiting" cards, and the "Opening Stripe…" label.
 
+## Stress test: Account Plan card
+Worst case: Monthly $49.99, the widest dates ("Thu, Feb 4", "Wed, Feb 3"), and a card deadline in the next year. Checked all 6 states at 1440, 768, 390, 320, and 240 px. Fixed in the prototype:
+- At 240 px the row "Monthly · $49.99 a month" could not wrap. It covered its label and pushed the page sideways. The row now wraps after "Monthly ·"; the price and its period stay on one line. Dates never wrap.
+- At 768 px the button kept its full width and pushed the card's rows past the card edge. The rows now keep their width and the button takes the rest (at least 232 px, still one line).
+- The label "Update your card by" left "by" alone on a second line at 320 and 768 px. It is now "Update card by" (owner, 2026-11-09). The This week note keeps its full sentence.
+
+Held up: the status chips (never wrap), the "Opening Stripe…" label, the paid state with no sentence, and the lapsed state's longer sentence. Outside the card, the existing landing header (315 px) and the Account email header (243 px) still need more than 240 px; both fit at 320 px.
+
 ## Decisions (owner, 2026-11-09)
 - One plan choice block: onboarding step 5, and the weekly upload page for a lapsed student. No `/plan` route.
 - Weekly is picked at the start.
@@ -116,3 +124,4 @@ Held up: long notes at 240 px, year-boundary dates, the warning card together wi
 - A cancelled free week hides the "Plan next week" reminder.
 - A lapsed student never sees the "Plan next week" reminder; the lapsed card's "Pick a plan" is the only way forward.
 - On phones the note stays below the header and progress, like on desktop.
+- The Account Plan card uses Fact rows. Its sentence never repeats a date the rows show; the paid state has no sentence.
