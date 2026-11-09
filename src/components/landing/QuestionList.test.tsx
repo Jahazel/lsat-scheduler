@@ -15,7 +15,7 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-const QUESTIONS: Question[] = Array.from({ length: 8 }, (_, index) => ({
+const QUESTIONS: (Question & { answer: string })[] = Array.from({ length: 8 }, (_, index) => ({
   question: `Question ${index + 1}?`,
   answer: `Answer ${index + 1}.`,
 }));
@@ -58,6 +58,11 @@ describe("QuestionList", () => {
       ["Q01", "Q02", "Q03", "Q04", "Q05", "Q06", "Q07", "Q08"],
     );
     expect(button("Question 1?")).toBe(screen.getAllByRole("button")[0]);
+  });
+
+  it("shows an answer given as several paragraphs as one paragraph each", () => {
+    render(<QuestionList questions={[{ question: "Two parts?", answer: ["First part.", "Second part."] }]} />);
+    expect([...answerOf("Two parts?").querySelectorAll("p")].map((p) => p.textContent)).toEqual(["First part.", "Second part."]);
   });
 
   it("keeps closed answers out of the accessibility tree", () => {
