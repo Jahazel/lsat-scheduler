@@ -1,7 +1,5 @@
 import type { ComponentType } from "react";
 import PlanChoice from "./sections/PlanChoice";
-import TopStrip from "./sections/notes/TopStrip";
-import HeaderPanel from "./sections/notes/HeaderPanel";
 import NoticeCard from "./sections/notes/NoticeCard";
 import { WEEK_STATES } from "./protoData";
 
@@ -17,11 +15,7 @@ export const SCREENS: ProtoScreen[] = [
   {
     id: "this-week",
     label: "2 · This week notes",
-    variants: [
-      { name: "Top strip", Component: TopStrip },
-      { name: "Header panel", Component: HeaderPanel },
-      { name: "Notice card", Component: NoticeCard },
-    ],
+    variants: [{ name: "Notice card", Component: NoticeCard }],
     states: WEEK_STATES,
   },
 ];

@@ -45,31 +45,24 @@ export function useWeek() {
   const monday = data.weeks[place.week];
   const done = DAYS.slice(0, place.today).reduce((sum, day) => sum + day.rows.length, 0);
   const dueSoFar = place.days === "active" ? done + DAYS[place.today].rows.length : undefined;
-  return { state, data, note: planNote(state, data)!, ...place, monday, done, total: TOTAL, dueSoFar };
+  return { state, note: planNote(state, data)!, ...place, monday, done, dueSoFar };
 }
 
-/** The This week page around a plan note. Each variant fills the slots it uses. */
-export function WeekPage({ above, lead, aside, beforeDays, empty }: {
-  above?: ReactNode;
-  lead?: string;
-  aside?: ReactNode;
-  beforeDays?: ReactNode;
-  empty?: ReactNode;
-}) {
+/** The This week page around a plan note: the note goes above the days, and `empty` replaces the days when none show. */
+export function WeekPage({ beforeDays, empty }: { beforeDays?: ReactNode; empty?: ReactNode }) {
   const { monday, today, days, reminder, done, dueSoFar } = useWeek();
   const dates = weekDates(monday);
   return (
     <AppChrome>
-      {above}
       {reminder && (
         <ReminderStrip message="Next week starts Monday. Add your screenshots to build your weekly schedule." href="#" action="Plan next week" />
       )}
       <PageHeader
         eyebrow={`Week of ${weekOf(monday)}`}
         title="Your plan for this week"
-        lead={lead ?? (days === "active" ? "Your plan is set. Check off as you go." : undefined)}
+        lead={days === "active" ? "Your plan is set. Check off as you go." : undefined}
         notes={days === "none" ? [] : ["Necessary assumption comes first this week. You missed it most on your last practice test."]}
-        aside={aside === undefined ? days === "none" ? undefined : <ProgressBar done={done} total={TOTAL} dueSoFar={dueSoFar} /> : aside}
+        aside={days === "none" ? undefined : <ProgressBar done={done} total={TOTAL} dueSoFar={dueSoFar} />}
       />
       <div className="flex flex-col gap-4 px-5 pt-8 pb-16 md:px-18 md:pt-16 md:pb-24">
         {beforeDays}
@@ -108,15 +101,7 @@ export function WeekPage({ above, lead, aside, beforeDays, empty }: {
   );
 }
 
-export function NoteGlyph({ tone, waiting = false, className }: { tone: PlanNote["tone"]; waiting?: boolean; className?: string }) {
-  if (waiting) {
-    return (
-      <svg aria-hidden viewBox="0 0 24 24" className={cx("size-[18px] shrink-0 text-smoke", className)} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-        <circle cx="12" cy="12" r="8.5" />
-        <path d="M12 7.5V12l3 2" />
-      </svg>
-    );
-  }
+export function NoteGlyph({ tone, className }: { tone: PlanNote["tone"]; className?: string }) {
   return tone === "warning" ? (
     <svg aria-hidden viewBox="0 0 24 24" className={cx("size-[18px] shrink-0 text-warning-ink", className)} fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="9" />
@@ -131,23 +116,13 @@ export function NoteGlyph({ tone, waiting = false, className }: { tone: PlanNote
 }
 
 /** "Update card" opens the Stripe Customer Portal; "Pick a plan" follows the flow map to plan choice. */
-export function NoteAction({ action, look }: { action: NonNullable<PlanNote["action"]>; look: "link" | "button" }) {
+export function NoteAction({ action }: { action: NonNullable<PlanNote["action"]> }) {
   const [opening, setOpening] = useState(false);
   useEffect(() => {
     if (!opening) return;
     const timer = setTimeout(() => setOpening(false), 1600);
     return () => clearTimeout(timer);
   }, [opening]);
-  if (action === "pick-plan") {
-    return <Button size="md" className={look === "link" ? "self-start md:self-auto" : undefined} onClick={() => goToScreen("plan-choice")}>Pick a plan</Button>;
-  }
-  if (look === "link") {
-    return (
-      <Button variant="bare" waiting={opening} waitLabel="Opening Stripe…" holdsWidth={false} onClick={() => setOpening(true)}
-        className="shrink-0 border-b border-ink font-medium text-ink">
-        Update card
-      </Button>
-    );
-  }
+  if (action === "pick-plan") return <Button size="md" onClick={() => goToScreen("plan-choice")}>Pick a plan</Button>;
   return <Button size="md" variant="outline" waiting={opening} waitLabel="Opening Stripe…" onClick={() => setOpening(true)}>Update card</Button>;
 }

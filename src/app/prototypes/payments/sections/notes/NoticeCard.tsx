@@ -22,7 +22,7 @@ export default function NoticeCard() {
           <p className="text-small text-smoke">{note.rest}</p>
         </div>
       </div>
-      {note.action && <div className="pl-[30px] md:pl-0"><NoteAction action={note.action} look="button" /></div>}
+      {note.action && <div className="pl-[30px] md:pl-0"><NoteAction action={note.action} /></div>}
     </section>
   );
   const waiting = held
