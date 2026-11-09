@@ -38,6 +38,11 @@ const commands = {
     does: "Run doctor, then print this run's stored records as JSON. Never reads password hashes.",
     example: "inspect \"$VERIFY_RUN_DIR\" > \"$VERIFY_RUN_DIR/records-after.json\"",
   },
+  "reset-signup-limit": {
+    args: "", valid: (extra) => extra.length === 0,
+    does: "Clear this run's per-IP signup count, so more password signups send their verification emails. Every local signup comes from one IP address. Prints JSON.",
+    example: "reset-signup-limit \"$VERIFY_RUN_DIR\"",
+  },
   logs: {
     args: " [--from <byte>]", valid: (extra) => extra.length === 0 || extra.length === 2 && extra[0] === "--from" && /^\d+$/.test(extra[1]),
     does: "Print server errors from app.log. Pass the last output's \"to\" as --from to see only newer errors.",
@@ -54,7 +59,7 @@ const help = (name) => `Usage: ${usage(name)}\n\n${commands[name].does}\n\nExamp
 const overview = () => `Usage: local.mjs <command> <run-dir> [arguments]\n       local.mjs <command> --help\n\n`
   + `<run-dir> is below .verification/evidence/. launch needs a new one, such as .verification/evidence/20261025T120000Z;\nthe other commands take the directory that launch made.\n`
   + `Run from the repository root. Every command needs DATABASE_URL set to a loopback Postgres owner connection.\n\nCommands:\n`
-  + Object.entries(commands).map(([name, { does }]) => `  ${name.padEnd(8)} ${does.split(". ")[0].replace(/\.$/, "")}.`).join("\n")
+  + Object.entries(commands).map(([name, { does }]) => `  ${name.padEnd(Math.max(...Object.keys(commands).map((key) => key.length)))} ${does.split(". ")[0].replace(/\.$/, "")}.`).join("\n")
   + `\n\nThe full recipe is .agents/skills/verify/SKILL.md.\n`;
 function refuse(message) {
   console.error(message);
@@ -290,6 +295,11 @@ if (command === "session") {
     });
     console.log(JSON.stringify({ name, value, url }, null, 2));
   } finally { await closePostgresDatabase(); }
+}
+if (command === "reset-signup-limit") {
+  await doctor();
+  const cleared = await postgres((db) => db.execute(sql`delete from action_counters where action = 'signupFromIpAddress'`));
+  console.log(JSON.stringify({ action: "signupFromIpAddress", clearedRows: cleared.rowCount }, null, 2));
 }
 if (command === "logs") {
   const log = readFileSync(resolve(run, "app.log"));
