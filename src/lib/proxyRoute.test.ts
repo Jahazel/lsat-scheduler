@@ -20,6 +20,12 @@ describe("proxy route", () => {
     expect(proxyRoute("/api/cron/other", null)).toEqual({ kind: "unauthorized" });
   });
 
+  it("lets Stripe's messages through to their route, which checks Stripe's signature itself", () => {
+    expect(proxyRoute("/api/stripe/webhook", null)).toEqual({ kind: "allow" });
+    expect(proxyRoute("/api/stripe/webhook/x", null)).toEqual({ kind: "unauthorized" });
+    expect(proxyRoute("/api/stripe", null)).toEqual({ kind: "unauthorized" });
+  });
+
   it("sends a signed-out visit to a protected page to the login page", () => {
     expect(proxyRoute("/dashboard", null)).toEqual({ kind: "redirect", to: "/login" });
     expect(proxyRoute("/onboarding", null)).toEqual({ kind: "redirect", to: "/login" });
