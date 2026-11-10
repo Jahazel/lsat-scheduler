@@ -5,6 +5,7 @@ import { FailureNotice } from "@/components/FailureNotice";
 import { FieldMessage, GoalTestDateSelect, ScoreInput, TestTimeChoice, WeekFields } from "@/components/StudyProfileFields";
 import { Button } from "@/components/ui/Button";
 import { FOCUS, cx } from "@/components/ui/classes";
+import { callAction } from "@/lib/callAction";
 import { DAY_ORDER } from "@/lib/engine";
 import { attemptMonths, dailyCapacityError, everyDay, practiceTestDayError, type StudySettingsInput, type upcomingTestMonths } from "@/lib/studentProfile";
 import {
@@ -19,7 +20,7 @@ import {
   type AttemptRow,
 } from "@/lib/studyProfileDraft";
 import type { DayOfWeek } from "@/lib/types";
-import { isUnexpectedFailure } from "@/lib/unexpectedFailure";
+import { isUnexpectedFailure, NO_CONNECTION } from "@/lib/unexpectedFailure";
 import type { StudySettingsAnswer } from "./actions";
 import { LeaveGuard } from "./LeaveGuard";
 import { OfficialAttemptList } from "./OfficialAttemptList";
@@ -226,7 +227,11 @@ export function StudySettingsForm({
   async function save(sent: Settings) {
     dispatch({ type: "saveStarted" });
     try {
-      const answer = await onSave(toInput(sent));
+      const answer = await callAction(onSave)(toInput(sent));
+      if (isUnexpectedFailure(answer) && answer.unexpectedFailure === NO_CONNECTION) {
+        dispatch({ type: "saveNotSent" });
+        return false;
+      }
       dispatch({ type: "saveEnded", sent, answer });
       if (answer && "refused" in answer) requestFocus();
       return answer === null;

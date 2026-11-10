@@ -1,34 +1,12 @@
 "use client";
 
-import { useActionState, type ComponentProps } from "react";
+import type { ComponentProps } from "react";
 import { useFormStatus } from "react-dom";
-import { FailureNotice, catchLostConnection } from "@/components/FailureNotice";
+import { ActionForm } from "@/components/FailureNotice";
 import { Button } from "@/components/ui/Button";
-import type { SignedOut, SignOutAnswer } from "@/lib/requestPolicy";
-import type { FormState } from "@/lib/unexpectedFailure";
 
-const isSignedOut = (answer: unknown): answer is SignedOut => typeof answer === "object" && answer !== null && "goTo" in answer;
-
-/**
- * A Server Action redirect is an in-page navigation, and the Back button would
- * show the signed-out student's pages again from the router's memory.
- */
-export function followSignOut<T>(answer: T | SignedOut): T | null {
-  if (!isSignedOut(answer)) return answer;
-  window.location.assign(answer.goTo);
-  return null;
-}
-
-export function SignOutForm({ action, children, ...props }: Omit<ComponentProps<"form">, "action"> & {
-  action: () => Promise<SignOutAnswer>;
-}) {
-  const [failure, formAction] = useActionState(async (): Promise<FormState> => followSignOut(await catchLostConnection(action)()), null);
-  return (
-    <form action={formAction} data-leaves-page {...props}>
-      {children}
-      <FailureNotice answer={failure} />
-    </form>
-  );
+export function SignOutForm(props: ComponentProps<typeof ActionForm>) {
+  return <ActionForm data-leaves-page {...props} />;
 }
 
 export function SignOutButton(props: Omit<ComponentProps<typeof Button>, "type" | "waiting">) {
