@@ -475,3 +475,16 @@ it("adds nothing to the used free week list for a plan that starts with no free 
 
   expect(await usedFreeWeeks()).toEqual([]);
 });
+
+it("adds no used free week row again for a plan whose free week is over", async () => {
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId));
+  await send(checkoutCompleted("sub_maya"));
+  await database.owner.execute(sql`truncate used_free_weeks`);
+
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId, { status: "active" }));
+  stripe.paidInvoices.set("sub_maya", [1000]);
+  await send(invoice("sub_maya", true));
+
+  expect((await records())[0]).toMatchObject({ stripe_status: "active", first_charge_succeeded: true });
+  expect(await usedFreeWeeks()).toEqual([]);
+});

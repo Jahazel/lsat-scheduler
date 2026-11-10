@@ -188,7 +188,7 @@ export async function receiveStripeMessage(body: Buffer, signature: string | nul
     const state = await billingState(subscription, current, secretKey);
     await tx.insert(billingRecords).values({ accountId, ...state })
       .onConflictDoUpdate({ target: billingRecords.accountId, set: state });
-    if (state.freeWeekEndsAt) await tx.insert(usedFreeWeeks).values({ emailHash: emailHash(account.email) }).onConflictDoNothing();
+    if (state.stripeStatus === "trialing") await tx.insert(usedFreeWeeks).values({ emailHash: emailHash(account.email) }).onConflictDoNothing();
     return { kind: "saved" };
   });
 }

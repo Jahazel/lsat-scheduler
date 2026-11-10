@@ -173,12 +173,15 @@ it("starts no second Checkout while Stripe holds a plan whose message has not ar
   expect(stripe.sessions).toHaveLength(1);
 });
 
-it("closes a Checkout session at the next Chicago midnight, at least 30 minutes on", async () => {
+it.each([
+  ["at least 31 minutes on", "2026-11-12T05:50:00Z", "2026-11-12T06:21:00Z"],
+  ["at most 23 hours on, on the day the clocks go back", "2027-11-07T05:30:00Z", "2027-11-08T04:30:00Z"],
+])("closes a Checkout session at the next Chicago midnight, %s", async (_name, now, expires) => {
   await onboardedStudent();
-  vi.setSystemTime(new Date("2026-11-12T05:50:00Z"));
+  vi.setSystemTime(new Date(now));
   await openStripeCheckout("weekly");
 
-  expect(stripe.sessions[0].form.get("expires_at")).toBe(String(new Date("2026-11-12T06:20:00Z").getTime() / 1000));
+  expect(stripe.sessions[0].form.get("expires_at")).toBe(String(new Date(expires).getTime() / 1000));
 });
 
 it("starts Checkout with no free week for an email in the used free week list", async () => {

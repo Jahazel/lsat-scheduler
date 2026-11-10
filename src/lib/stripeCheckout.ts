@@ -6,7 +6,7 @@ import { emailHash } from "./emailHash";
 import type { PlanName } from "./planChoice";
 import { localDateInTimezone } from "./currentWeeklySchedule";
 import { freeWeekEnd, midnightInScheduleTimezone, planStatus } from "./planStatus";
-import { getPostgresDatabase } from "./postgres";
+import { getPostgresDatabase, type PostgresTransaction } from "./postgres";
 import { accounts, billingRecords, usedFreeWeeks } from "./postgresSchema";
 import { isoDateInWeek } from "./scheduleReasonText";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
@@ -18,9 +18,10 @@ export type PlanChoiceStanding =
 
 const PLAN_CHOICE_PATH = "/onboarding";
 
-export async function planChoiceStanding(accountId: string, realNow: Date): Promise<PlanChoiceStanding> {
+type Database = ReturnType<typeof getPostgresDatabase> | PostgresTransaction;
+
+export async function planChoiceStanding(accountId: string, realNow: Date, db: Database = getPostgresDatabase()): Promise<PlanChoiceStanding> {
   if (!isAccountId(accountId)) return { kind: "no_account" };
-  const db = getPostgresDatabase();
   const [row] = await db
     .select({ role: accounts.role, email: accounts.email, record: billingRecords })
     .from(accounts)
@@ -30,7 +31,7 @@ export async function planChoiceStanding(accountId: string, realNow: Date): Prom
   const status = planStatus(row.role, row.record, realNow);
   if (status.kind === "admin") return { kind: "admin" };
   if (status.kind !== "no_plan" && status.kind !== "lapsed") return { kind: "has_plan" };
-  const freeWeekLeft = !row.record && !(await usedFreeWeek(row.email));
+  const freeWeekLeft = !row.record && !(await usedFreeWeek(db, row.email));
   return {
     kind: "choose",
     freeWeekEndsAt: freeWeekLeft ? freeWeekEnd(realNow) : null,
@@ -41,8 +42,8 @@ export async function planChoiceStanding(accountId: string, realNow: Date): Prom
 }
 
 // A row stays until the daily cleanup removes it 12 months on, so any row means the email has used its free week.
-async function usedFreeWeek(email: string) {
-  const [used] = await getPostgresDatabase().select({ usedOn: usedFreeWeeks.usedOn }).from(usedFreeWeeks)
+async function usedFreeWeek(db: Database, email: string) {
+  const [used] = await db.select({ usedOn: usedFreeWeeks.usedOn }).from(usedFreeWeeks)
     .where(eq(usedFreeWeeks.emailHash, emailHash(email)));
   return Boolean(used);
 }
@@ -73,7 +74,9 @@ const openSessions = stripeList(z.object({ id: z.string().regex(/^cs_\w+$/) }));
 // Stripe can still be sending the message for one of these, so the billing record does not show it yet.
 const STARTED_OR_STARTING = ["trialing", "active", "past_due", "incomplete"];
 
-const MIN_CHECKOUT_MINUTES = 30;
+// Stripe takes an expiry 30 minutes to 24 hours after it creates the session; these leave room for the request.
+const MIN_CHECKOUT_MINUTES = 31;
+const MAX_CHECKOUT_HOURS = 23;
 
 /** The Account's own Stripe customer, so every Checkout session and subscription of one Account shares it. */
 async function accountCustomer(accountId: string, standing: Extract<PlanChoiceStanding, { kind: "choose" }>, secretKey: string) {
@@ -86,11 +89,12 @@ async function accountCustomer(accountId: string, standing: Extract<PlanChoiceSt
   return z.object({ id: customerId }).parse(await stripeRequest("customers", { secretKey, form })).id;
 }
 
-/** The session closes at the next Chicago midnight, so a free week counted today is the one the student gets. */
+/** The session closes at the next Chicago midnight, so the free week counted today is the one the student gets. */
 function checkoutExpiry(realNow: Date) {
   const nextMidnight = midnightInScheduleTimezone(isoDateInWeek(localDateInTimezone(realNow, SCHEDULE_TIMEZONE), 1));
   const earliest = realNow.getTime() + MIN_CHECKOUT_MINUTES * 60_000;
-  return Math.ceil(Math.max(nextMidnight.getTime(), earliest) / 1000);
+  const latest = realNow.getTime() + MAX_CHECKOUT_HOURS * 3_600_000;
+  return Math.floor(Math.min(Math.max(nextMidnight.getTime(), earliest), latest) / 1000);
 }
 
 export type CheckoutStart = { kind: "checkout"; url: string } | { kind: "starting" } | { kind: "refused" };
@@ -102,7 +106,7 @@ export type CheckoutStart = { kind: "checkout"; url: string } | { kind: "startin
 export async function startCheckout(accountId: string, plan: PlanName, realNow: Date): Promise<CheckoutStart> {
   return getPostgresDatabase().transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`checkout-account:${accountId}`}, 0))`);
-    const standing = await planChoiceStanding(accountId, realNow);
+    const standing = await planChoiceStanding(accountId, realNow, tx);
     if (standing.kind !== "choose") return { kind: "refused" };
     const secretKey = stripeSecretKey();
     const customer = await accountCustomer(accountId, standing, secretKey);
