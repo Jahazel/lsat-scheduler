@@ -807,6 +807,101 @@ describe("Study settings leave guard", () => {
     });
   });
 
+  describe("Back", () => {
+    let routerSaw: string[];
+    const routerRenders = () => routerSaw.push(location.pathname);
+
+    function renderAfterThisWeek(onSave?: (input: StudySettingsInput) => Promise<StudySettingsAnswer>) {
+      window.history.pushState({}, "", "/dashboard");
+      routerSaw = [];
+      addEventListener("popstate", routerRenders);
+      return renderWithNav(onSave);
+    }
+
+    afterEach(() => removeEventListener("popstate", routerRenders));
+
+    const historySettles = () => act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+    async function pressBack() {
+      history.back();
+      await historySettles();
+    }
+
+    it("goes back with no dialog when nothing is unsaved", async () => {
+      renderAfterThisWeek();
+      await pressBack();
+
+      expect(openDialog()).toBeNull();
+      expect(location.pathname).toBe("/dashboard");
+      expect(routerSaw).toEqual(["/dashboard"]);
+    });
+
+    it("asks once with unsaved edits, puts focus on Stay, and keeps the address on Study settings", async () => {
+      renderAfterThisWeek();
+      await typeGoal("170");
+      await pressBack();
+
+      const dialog = openDialog()!;
+      expect(within(dialog).getByText("Your changes to Study settings will be lost.")).toBeTruthy();
+      expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: "Stay" }));
+      expect(location.pathname).toBe("/settings");
+      expect(routerSaw).toEqual([]);
+    });
+
+    it.each([
+      ["Stay", () => userEvent.click(within(openDialog()!).getByRole("button", { name: "Stay" }))],
+      ["Escape", () => userEvent.keyboard("{Escape}")],
+    ])("keeps the student, the edits, and the address on %s, and asks again on the next Back", async (_name, stay) => {
+      renderAfterThisWeek();
+      await typeGoal("170");
+      await pressBack();
+      await stay();
+      await historySettles();
+
+      expect(openDialog()).toBeNull();
+      expect(location.pathname).toBe("/settings");
+      expect(routerSaw).toEqual([]);
+      expect(goalScore().value).toBe("170");
+      expect(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)).toBe(true);
+
+      await pressBack();
+      expect(openDialog()).not.toBeNull();
+      expect(location.pathname).toBe("/settings");
+    });
+
+    it("goes back one page on Leave without the browser asking as it goes", async () => {
+      const arriveAt = renderAfterThisWeek();
+      await typeGoal("170");
+      await pressBack();
+      await userEvent.click(within(openDialog()!).getByRole("button", { name: "Leave" }));
+      await historySettles();
+
+      expect(openDialog()).toBeNull();
+      expect(location.pathname).toBe("/dashboard");
+      expect(routerSaw).toEqual(["/dashboard"]);
+      expect(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)).toBe(false);
+
+      act(() => arriveAt("/dashboard"));
+      expect(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)).toBe(false);
+    });
+
+    it("waits for a running save before going back on Leave", async () => {
+      const { onSave, finish } = slowSave();
+      renderAfterThisWeek(onSave);
+      await typeGoal("170");
+      await userEvent.click(saveButton()!);
+      await pressBack();
+      await userEvent.click(within(openDialog()!).getByRole("button", { name: "Leave" }));
+      await historySettles();
+
+      expect(location.pathname).toBe("/settings");
+      expect(routerSaw).toEqual([]);
+      await finish(() => null);
+      await historySettles();
+      expect(location.pathname).toBe("/dashboard");
+      expect(routerSaw).toEqual(["/dashboard"]);
+    });
+  });
+
   it("asks the browser to confirm closing or reloading only while edits are unsaved", async () => {
     renderWithNav();
     await typeGoal("170");

@@ -20,7 +20,7 @@ export default function PrivacyPage() {
     <div data-page-fade className="min-h-screen px-6 py-12">
       <div className="mx-auto max-w-2xl">
         <h1 tabIndex={-1} className="text-h3 font-semibold text-ink outline-none">Privacy Policy</h1>
-        <p className="mt-2 text-caption text-smoke">Last updated: November 8, 2026</p>
+        <p className="mt-2 text-caption text-smoke">Last updated: November 10, 2026</p>
         <div className="mt-8 space-y-8 text-small leading-body text-smoke">
           <Section title="What DrillMap stores">
             <List>
@@ -58,12 +58,27 @@ export default function PrivacyPage() {
             </p>
           </Section>
 
+          <Section title="Payments">
+            <p>
+              Stripe sells your plan and takes your payment. Stripe is the seller, so your card and the other payment
+              details you give Stripe go to Stripe, not to DrillMap. Stripe&rsquo;s own privacy policy covers them.
+              DrillMap stores only the Stripe IDs of your customer record and plan, your plan (Weekly or Monthly), its
+              Stripe status, its dates, and whether your first charge went through. We delete these with your Account.
+            </p>
+            <p>
+              Each email address gets one free week in 12 months. When your free week starts, we save a scrambled form (hash) of your
+              email address and the date in the used free week list. We keep each row for 12 months, even if you delete
+              your Account, and then delete it.
+            </p>
+          </Section>
+
           <Section title="Companies that handle your data for us">
             <List>
               <li>Vercel runs the website.</li>
               <li>Neon stores the database.</li>
               <li>Google handles sign-in if you choose &ldquo;Continue with Google.&rdquo;</li>
               <li>Anthropic reads screenshots, as described above.</li>
+              <li>Stripe sells plans and takes payments, as described above.</li>
               <li>Resend sends verification, password reset, and account notices.</li>
             </List>
           </Section>
@@ -83,6 +98,7 @@ export default function PrivacyPage() {
                 email you, and we delete your Account 30 days later.
               </li>
               <li>Security records: 90 days.</li>
+              <li>Used free week list: 12 months from the day your free week starts.</li>
             </List>
           </Section>
 
@@ -92,7 +108,8 @@ export default function PrivacyPage() {
               Deletion removes your Account, study settings, analytics snapshots, practice test results, weekly
               schedules, and activity check-ins. You are signed out on all devices. We keep only a short record that holds
               your Account ID and a scrambled form of your email. We use it for 30 days to make sure a restore from backup
-              cannot bring your data back.
+              cannot bring your data back. If you started a free week, its row in the used free week list stays until 12 months
+              have passed.
             </p>
           </Section>
 

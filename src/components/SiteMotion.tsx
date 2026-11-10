@@ -36,6 +36,12 @@ function storeScroll(path: string, top: number) {
   } catch {}
 }
 
+type Entry = { index: number | undefined; href: string };
+const currentEntry = (): Entry => ({
+  index: (window as Window & { navigation?: { currentEntry: { index: number } | null } }).navigation?.currentEntry?.index,
+  href: location.href,
+});
+
 const visibleLogo = () => [...document.querySelectorAll<HTMLElement>("[data-page-logo]")].find((logo) => logo.getBoundingClientRect().width > 0);
 
 function glideLogo(from: DOMRect | null) {
@@ -228,6 +234,7 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
     scrolls.current.set(path, top);
     storeScroll(path, top);
   };
+  const shownEntry = useRef<Entry | null>(null);
   const heldAt = useRef<number | null>(null);
   const linkLeave = useRef<((result: "left" | "stayed") => void) | null>(null);
   const endLinkLeave = (result: "left" | "stayed") => {
@@ -238,6 +245,7 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
   useLayoutEffect(() => {
     const from = shown.current;
     shown.current = pathname;
+    shownEntry.current = currentEntry();
     const arriving = target.current;
     if (from === pathname) return;
     endLinkLeave("left");
@@ -267,6 +275,7 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
 
   useEffect(() => {
     let replaying = false;
+    let historyLeave: "asking" | "going" | null = null;
 
     function comeBack() {
       target.current = null;
@@ -322,9 +331,37 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
       if (link && follow(new URL(link.href))) event.preventDefault();
     }
 
+    function stepsToShownEntry() {
+      const now = currentEntry();
+      const shownAt = shownEntry.current;
+      if (shownAt?.index !== undefined && now.index !== undefined) return shownAt.index - now.index;
+      return now.href === shownAt?.href ? 0 : 1;
+    }
+
+    function askBeforeHistoryLeave(event: PopStateEvent) {
+      event.stopImmediatePropagation();
+      const steps = stepsToShownEntry();
+      if (steps === 0) return;
+      history.go(steps);
+      if (historyLeave === "asking") return;
+      historyLeave = "asking";
+      const control = document.activeElement instanceof HTMLElement ? document.activeElement : document.body;
+      void leavePage(control, () => new Promise((resolve) => {
+        linkLeave.current = resolve;
+        historyLeave = "going";
+        history.go(-steps);
+      })).finally(() => {
+        if (historyLeave === "asking") historyLeave = null;
+      });
+    }
+
     function holdPopStateUntilFadedOut(event: PopStateEvent) {
       if (replaying) return;
-      endLinkLeave("stayed");
+      if (historyLeave === "going") historyLeave = null;
+      else {
+        endLinkLeave("stayed");
+        if (leaveIsGuarded()) return askBeforeHistoryLeave(event);
+      }
       if (target.current) comeBack();
       const to = location.pathname;
       const motion = shown.current && motionBetween(shown.current, to, signedIn);
