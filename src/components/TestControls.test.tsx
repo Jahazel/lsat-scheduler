@@ -179,6 +179,18 @@ describe("Test controls", () => {
     expect(mocks.push).not.toHaveBeenCalled();
     expect((screen.getByRole("button", { name: "Confirm rebuild" }) as HTMLButtonElement).disabled).toBe(false);
   });
+  it("shows the failure toast, not an inline error, when a control's reply cannot be read", async () => {
+    mocks.everything.mockRejectedValueOnce(new Error("Server Action failed"));
+    const user = userEvent.setup();
+    render(<TestControls state={state} onClose={() => {}} />, { wrapper: FailureToastProvider });
+    await user.click(screen.getByRole("button", { name: "Reset everything" }));
+    await user.click(screen.getByRole("button", { name: "Confirm reset" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("Something went wrong. Try again.");
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.queryByText("Server Action failed")).toBeNull();
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect((screen.getByRole("button", { name: "Confirm reset" }) as HTMLButtonElement).disabled).toBe(false);
+  });
   it("clears the completion message when another reset confirmation opens", async () => {
     const user = userEvent.setup();
     render(<TestControls state={state} onClose={() => {}} />);

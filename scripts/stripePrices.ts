@@ -5,7 +5,10 @@ const configSchema = z.object({
   STRIPE_SECRET_KEY: z.string().regex(/^(sk_test|rk_test|rk_live)_\w+$/),
   STRIPE_WEEKLY_PRICE_ID: z.string().regex(/^price_\w+$/),
   STRIPE_MONTHLY_PRICE_ID: z.string().regex(/^price_\w+$/),
-}).refine((config) => config.STRIPE_WEEKLY_PRICE_ID !== config.STRIPE_MONTHLY_PRICE_ID, { path: ["STRIPE_MONTHLY_PRICE_ID"] });
+}).superRefine((config, context) => {
+  if (config.STRIPE_WEEKLY_PRICE_ID !== config.STRIPE_MONTHLY_PRICE_ID) return;
+  for (const setting of ["STRIPE_WEEKLY_PRICE_ID", "STRIPE_MONTHLY_PRICE_ID"]) context.addIssue({ code: "custom", path: [setting], message: "Both plans use the same price ID." });
+});
 
 type SettingProblem = { setting: keyof z.infer<typeof configSchema>; problem: "missing" | "refused" };
 

@@ -14,7 +14,7 @@ import { FailureNotice } from "./FailureNotice";
 import { FOCUS, cx } from "./ui/classes";
 import { callAction } from "@/lib/callAction";
 import { isoDateInWeek } from "@/lib/scheduleReasonText";
-import { isUnexpectedFailure, type UnexpectedFailure } from "@/lib/unexpectedFailure";
+import { isUnexpectedFailure, NOT_LOGGED, type UnexpectedFailure } from "@/lib/unexpectedFailure";
 import type { SampleDirection } from "@/lib/sampleAnalytics";
 
 export interface TestControlState {
@@ -129,6 +129,8 @@ export default function TestControls({
       setConfirmation(null);
       setNotice(message);
       router.refresh();
+    } catch {
+      setAnswer({ unexpectedFailure: NOT_LOGGED });
     } finally {
       setBusy(false);
     }

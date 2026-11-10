@@ -97,7 +97,10 @@ it.each([
   [{ STRIPE_SECRET_KEY: "sk_live_full" }, [{ setting: "STRIPE_SECRET_KEY", problem: "refused" }]],
   [{ STRIPE_WEEKLY_PRICE_ID: "" }, [{ setting: "STRIPE_WEEKLY_PRICE_ID", problem: "missing" }]],
   [{ STRIPE_MONTHLY_PRICE_ID: "price_x/../../customers" }, [{ setting: "STRIPE_MONTHLY_PRICE_ID", problem: "refused" }]],
-  [{ STRIPE_MONTHLY_PRICE_ID: env.STRIPE_WEEKLY_PRICE_ID }, [{ setting: "STRIPE_MONTHLY_PRICE_ID", problem: "refused" }]],
+  [{ STRIPE_MONTHLY_PRICE_ID: env.STRIPE_WEEKLY_PRICE_ID }, [
+    { setting: "STRIPE_WEEKLY_PRICE_ID", problem: "refused" },
+    { setting: "STRIPE_MONTHLY_PRICE_ID", problem: "refused" },
+  ]],
   [{ STRIPE_SECRET_KEY: "sk_live_full", STRIPE_WEEKLY_PRICE_ID: undefined }, [
     { setting: "STRIPE_SECRET_KEY", problem: "refused" },
     { setting: "STRIPE_WEEKLY_PRICE_ID", problem: "missing" },
