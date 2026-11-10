@@ -3,7 +3,7 @@ import { z } from "zod";
 import { isAccountId } from "./accountRepository";
 import { configuredSiteUrl } from "./email";
 import { planStatus, type BillingRecord, type PlanStatus } from "./planStatus";
-import { getPostgresDatabase } from "./postgres";
+import { getPostgresDatabase, type PostgresTransaction } from "./postgres";
 import { accounts, billingRecords } from "./postgresSchema";
 import { stripeRequest, stripeSecretKey } from "./stripeApi";
 
@@ -71,4 +71,24 @@ export async function openCustomerPortalSession(accountId: string): Promise<stri
     return_url: new URL("/account", site).toString(),
   });
   return portalSessionSchema.parse(portal).url;
+}
+
+const openSubscriptionsSchema = z.object({
+  data: z.array(z.object({ id: z.string().regex(/^sub_\w+$/), status: z.string() })),
+});
+
+export async function endPlanNow(accountId: string, db: PostgresTransaction) {
+  const [row] = await db.select({ customer: billingRecords.stripeCustomerId })
+    .from(billingRecords)
+    .where(eq(billingRecords.accountId, accountId));
+  if (!row) return;
+  const secretKey = stripeSecretKey();
+  // Stripe lists every subscription except cancelled ones; an expired incomplete one cannot be cancelled.
+  const open = openSubscriptionsSchema.parse(
+    await stripeRequest(`subscriptions?customer=${encodeURIComponent(row.customer)}&limit=100`, secretKey),
+  );
+  for (const subscription of open.data) {
+    if (subscription.status === "incomplete_expired") continue;
+    await stripeRequest(`subscriptions/${subscription.id}`, secretKey, undefined, "DELETE");
+  }
 }

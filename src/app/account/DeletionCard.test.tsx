@@ -31,18 +31,18 @@ function typeAndDelete(text: string) {
 
 describe("Account deletion card", () => {
   it("lists what deletion removes in every state", () => {
-    render(<DeletionCard mode={{ kind: "admin" }} />);
+    render(<DeletionCard mode={{ kind: "admin" }} planEnds={false} />);
     expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual(REMOVED);
   });
 
   it("offers the confirmation form after a recent sign-in", () => {
-    render(<DeletionCard mode={{ kind: "google", signedInRecently: true }} />);
+    render(<DeletionCard mode={{ kind: "google", signedInRecently: true }} planEnds={false} />);
     expect(screen.getByLabelText("Type DELETE to confirm")).toBeTruthy();
     expect(buttons()).toEqual(["Delete account"]);
   });
 
   it("asks for a new Google sign-in when the sign-in is too old", () => {
-    render(<DeletionCard mode={{ kind: "google", signedInRecently: false }} />);
+    render(<DeletionCard mode={{ kind: "google", signedInRecently: false }} planEnds={false} />);
     expect(screen.getByText("Sign in again to delete")).toBeTruthy();
     expect(screen.getByText("Deleting your account needs a Google sign-in from the last 10 minutes.")).toBeTruthy();
     expect(buttons()).toEqual(["Continue with Google"]);
@@ -51,13 +51,34 @@ describe("Account deletion card", () => {
 
   it("returns from Google to Account with no arrival fade", () => {
     document.cookie = "drillmap-arrival=; max-age=0; path=/";
-    render(<DeletionCard mode={{ kind: "google", signedInRecently: false }} />);
+    render(<DeletionCard mode={{ kind: "google", signedInRecently: false }} planEnds={false} />);
     fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
     expect(document.cookie).not.toContain("drillmap-arrival");
   });
 
+  it("warns that a plan ends now with no refund above the fields when a plan exists", () => {
+    render(<DeletionCard mode={{ kind: "password" }} planEnds />);
+    const warning = screen.getByText("Your plan ends now.");
+    expect(screen.getByText("Unused time is not refunded.")).toBeTruthy();
+    expect(warning.compareDocumentPosition(screen.getByLabelText("Current password")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("keeps the warning while asking for a new Google sign-in", () => {
+    render(<DeletionCard mode={{ kind: "google", signedInRecently: false }} planEnds />);
+    expect(screen.getByText("Your plan ends now.")).toBeTruthy();
+  });
+
+  it.each([
+    { kind: "password" },
+    { kind: "google", signedInRecently: true },
+  ] as const)("shows no plan warning when no plan exists ($kind)", (mode) => {
+    render(<DeletionCard mode={mode} planEnds={false} />);
+    expect(screen.queryByText("Your plan ends now.")).toBeNull();
+    expect(screen.queryByText("Unused time is not refunded.")).toBeNull();
+  });
+
   it("shows the Admin notice instead of any form", () => {
-    render(<DeletionCard mode={{ kind: "admin" }} />);
+    render(<DeletionCard mode={{ kind: "admin" }} planEnds={false} />);
     expect(screen.getByText("Admin account")).toBeTruthy();
     expect(screen.getByText("This action is not available for admin accounts.")).toBeTruthy();
     expect(screen.queryByRole("button")).toBeNull();
@@ -65,7 +86,7 @@ describe("Account deletion card", () => {
 
   it("keeps the typed text and explains a wrong confirmation under the field", async () => {
     actions.deleteAccount.mockResolvedValue("wrong-text");
-    render(<DeletionCard mode={{ kind: "google", signedInRecently: true }} />);
+    render(<DeletionCard mode={{ kind: "google", signedInRecently: true }} planEnds={false} />);
     typeAndDelete("delete");
     const field = screen.getByLabelText("Type DELETE to confirm") as HTMLInputElement;
     await waitFor(() => expect(field.getAttribute("aria-invalid")).toBe("true"));
@@ -75,14 +96,14 @@ describe("Account deletion card", () => {
 
   it("switches to the sign-in step when the server finds the sign-in too old", async () => {
     actions.deleteAccount.mockResolvedValue("sign-in-too-old");
-    render(<DeletionCard mode={{ kind: "google", signedInRecently: true }} />);
+    render(<DeletionCard mode={{ kind: "google", signedInRecently: true }} planEnds={false} />);
     typeAndDelete("DELETE");
     await waitFor(() => expect(buttons()).toEqual(["Continue with Google"]));
   });
 
   it("shows the working state while deletion runs", async () => {
     stallDeletion();
-    render(<DeletionCard mode={{ kind: "google", signedInRecently: true }} />);
+    render(<DeletionCard mode={{ kind: "google", signedInRecently: true }} planEnds={false} />);
     typeAndDelete("DELETE");
     const working = await screen.findByRole("button", { name: "Deleting…" });
     expect(screen.getAllByRole("button")).toEqual([working]);
@@ -99,7 +120,7 @@ describe("Account deletion card", () => {
     }
 
     it("asks for the current password instead of a Google sign-in", () => {
-      render(<DeletionCard mode={{ kind: "password" }} />);
+      render(<DeletionCard mode={{ kind: "password" }} planEnds={false} />);
       expect(currentPassword().type).toBe("password");
       expect(screen.getByLabelText("Type DELETE to confirm")).toBeTruthy();
       expect(buttons()).toEqual(["Delete account"]);
@@ -108,7 +129,7 @@ describe("Account deletion card", () => {
 
     it("sends the password and the text, then clears a wrong password and keeps the text", async () => {
       actions.deleteAccount.mockResolvedValue("wrong-password");
-      render(<DeletionCard mode={{ kind: "password" }} />);
+      render(<DeletionCard mode={{ kind: "password" }} planEnds={false} />);
       fillAndDelete("not my password", "DELETE");
       await waitFor(() => expect(currentPassword().getAttribute("aria-invalid")).toBe("true"));
       expect(Object.fromEntries(actions.deleteAccount.mock.calls[0][1])).toEqual({ currentPassword: "not my password", confirmation: "DELETE" });
@@ -121,7 +142,7 @@ describe("Account deletion card", () => {
       const assign = vi.fn();
       vi.stubGlobal("location", { ...window.location, assign });
       actions.deleteAccount.mockResolvedValue({ goTo: "/login?notice=DeletionWillFinish&signedOut=1" });
-      render(<DeletionCard mode={{ kind: "password" }} />);
+      render(<DeletionCard mode={{ kind: "password" }} planEnds={false} />);
       fillAndDelete("correct horse battery staple", "DELETE");
       await waitFor(() => expect(assign).toHaveBeenCalledWith("/login?notice=DeletionWillFinish&signedOut=1"));
       await new Promise((resolve) => setTimeout(resolve));
@@ -134,7 +155,7 @@ describe("Account deletion card", () => {
 
     it("keeps the password after a wrong confirmation text", async () => {
       actions.deleteAccount.mockResolvedValue("wrong-text");
-      render(<DeletionCard mode={{ kind: "password" }} />);
+      render(<DeletionCard mode={{ kind: "password" }} planEnds={false} />);
       fillAndDelete("correct horse battery staple", "delete");
       await waitFor(() => expect(screen.getByText("Type DELETE in capital letters to confirm.")).toBeTruthy());
       expect(currentPassword().value).toBe("correct horse battery staple");
@@ -143,14 +164,14 @@ describe("Account deletion card", () => {
 
     it("says to wait after too many wrong passwords", async () => {
       actions.deleteAccount.mockResolvedValue("paused");
-      render(<DeletionCard mode={{ kind: "password" }} />);
+      render(<DeletionCard mode={{ kind: "password" }} planEnds={false} />);
       fillAndDelete("guess", "DELETE");
       expect(await screen.findByText("Too many tries. Login is paused for a while. Try again later, or reset your password.")).toBeTruthy();
     });
 
     it("locks both fields while deletion runs", async () => {
       stallDeletion();
-      render(<DeletionCard mode={{ kind: "password" }} />);
+      render(<DeletionCard mode={{ kind: "password" }} planEnds={false} />);
       fillAndDelete("correct horse battery staple", "DELETE");
       expect(screen.getAllByRole("button")).toEqual([await screen.findByRole("button", { name: "Deleting…" })]);
       expect(currentPassword().readOnly).toBe(true);

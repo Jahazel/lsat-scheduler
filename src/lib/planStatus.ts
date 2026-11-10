@@ -64,6 +64,9 @@ export function mayStartWeeklyUpload(status: PlanStatus) {
   return status.kind !== "no_plan" && status.kind !== "lapsed";
 }
 
+export const deletionEndsPlan = (status: PlanStatus) =>
+  status.kind === "free_week" || status.kind === "paid" || status.kind === "retrying";
+
 export function isHeldWeek(record: BillingRecord | null, weekStartDate: string) {
   if (!record?.freeWeekEndsAt || record.firstChargeSucceeded) return false;
   return weekStartDate === localDateInTimezone(record.freeWeekEndsAt, SCHEDULE_TIMEZONE);
