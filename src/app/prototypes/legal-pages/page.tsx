@@ -8,15 +8,16 @@ export default async function LegalPagesPrototype({ searchParams }: PageProps<"/
   const one = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
   const size = one(params.size);
   const page = one(params.page);
+  const data = one(params.data);
+  const auth = one(params.auth);
   return (
     <Frame
       initial={{
         size: size === "tablet" || size === "mobile" ? (size as FrameSize) : "desktop",
         reducedMotion: one(params.rm) === "1",
         page: isPageId(page) ? page : "terms",
-        variant: Number(one(params.v)) || 1,
-        data: isDatasetName(one(params.data)) ? (one(params.data) as "demo" | "worst") : "demo",
-        auth: isAuthState(one(params.auth)) ? (one(params.auth) as "out" | "in") : "out",
+        data: isDatasetName(data) ? data : "demo",
+        auth: isAuthState(auth) ? auth : "out",
         at: one(params.at) || null,
       }}
     />

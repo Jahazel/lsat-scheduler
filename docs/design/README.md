@@ -258,6 +258,7 @@ it. Each file name starts with `desktop-`, `tablet-`, or `phone-`.
 | `tablet-list-open`, `phone-list-open` | The "On this page" bar with its list open (desktop has no bar) | #761 |
 | `*-short-page` | AI disclosure with the "Related" list | #759, #762 |
 | `*-signed-in` | Terms under the student header (and the tab bar on phone) | #760 |
-| `*-worst-case` | Longer titles, the arbitration section, and marked gaps after the lawyer review (#731) | #759, #761 |
+| `*-worst-case-top` | Longer page title and tab names, a later date, and a renamed section in the list after the lawyer review (#731) | #759, #761 |
+| `*-worst-case` | The arbitration section and marked gaps after the lawyer review, with two-line titles in the list | #759, #761 |
 
 Dates and the arbitration section are sample data; the approved legal text in each page decides what the app shows.

@@ -7,5 +7,7 @@ export default async function LegalPagesScreen({ searchParams }: PageProps<"/pro
   const params = await searchParams;
   const one = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
   const page = one(params.page);
-  return <Stage page={isPageId(page) ? page : "terms"} variant={Number(one(params.v)) || 1} reducedMotion={one(params.rm) === "1"} data={isDatasetName(one(params.data)) ? (one(params.data) as "demo" | "worst") : "demo"} auth={isAuthState(one(params.auth)) ? (one(params.auth) as "out" | "in") : "out"} section={one(params.at)} />;
+  const data = one(params.data);
+  const auth = one(params.auth);
+  return <Stage page={isPageId(page) ? page : "terms"} reducedMotion={one(params.rm) === "1"} data={isDatasetName(data) ? data : "demo"} auth={isAuthState(auth) ? auth : "out"} section={one(params.at)} />;
 }

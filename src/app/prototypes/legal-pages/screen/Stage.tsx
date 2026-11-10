@@ -9,22 +9,23 @@ import { SiteChrome } from "../chrome";
 import { legalPages } from "../content";
 import type { AuthState, DatasetName, LegalPageId } from "../pages";
 import { ProtoViewContext } from "../protoContext";
-import { VARIANTS, clampVariant } from "../variants";
+import RelatedRail from "../sections/ai/RelatedRail";
 import { markSection } from "../sections/list/sectionNav";
 
-export type StageMessage = { type: "stage"; page: LegalPageId; variant: number; reducedMotion: boolean; data: DatasetName; auth: AuthState; mount: number; arrive: boolean; section?: string };
+export type StageMessage = { type: "stage"; page: LegalPageId; reducedMotion: boolean; data: DatasetName; auth: AuthState; mount: number; arrive: boolean; section?: string };
 
 type View = Omit<StageMessage, "type" | "arrive"> & { arrival: number };
 
-export default function Stage(initial: { page: LegalPageId; variant: number; reducedMotion: boolean; data: DatasetName; auth: AuthState; section?: string }) {
+export default function Stage(initial: { page: LegalPageId; reducedMotion: boolean; data: DatasetName; auth: AuthState; section?: string }) {
   const [view, setView] = useState<View>({ ...initial, mount: 0, arrival: initial.section ? 1 : 0 });
   const stage = useRef<HTMLDivElement>(null);
+  const still = useRef(view.reducedMotion);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent<StageMessage>) => {
       if (event.origin !== location.origin || event.data?.type !== "stage") return;
-      const { page, variant, reducedMotion, data, auth, mount, arrive, section } = event.data;
-      setView((current) => ({ page, variant, reducedMotion, data, auth, mount, section: arrive ? section : current.section, arrival: current.arrival + (arrive ? 1 : 0) }));
+      const { page, reducedMotion, data, auth, mount, arrive, section } = event.data;
+      setView((current) => ({ page, reducedMotion, data, auth, mount, section: arrive ? section : current.section, arrival: current.arrival + (arrive ? 1 : 0) }));
     };
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
@@ -41,6 +42,10 @@ export default function Stage(initial: { page: LegalPageId; variant: number; red
   }, []);
 
   useLayoutEffect(() => {
+    still.current = view.reducedMotion;
+  }, [view.reducedMotion]);
+
+  useLayoutEffect(() => {
     const el = stage.current;
     if (!view.arrival || !el) return;
     el.scrollTop = 0;
@@ -48,16 +53,15 @@ export default function Stage(initial: { page: LegalPageId; variant: number; red
     target?.scrollIntoView({ block: "start" });
     (target?.querySelector("h2") ?? el.querySelector<HTMLElement>("h1"))?.focus({ preventScroll: true });
     const mark = target && requestAnimationFrame(() => markSection(target.id));
-    const arrivals = view.reducedMotion ? fadeSections(el) : arriveSections(el);
+    const arrivals = still.current ? fadeSections(el) : arriveSections(el);
     return () => {
       if (mark) cancelAnimationFrame(mark);
       arrivals.forEach((arrival) => arrival.cancel());
     };
-  }, [view.arrival, view.section, view.reducedMotion]);
+  }, [view.arrival, view.section]);
 
   const pages = useMemo(() => legalPages(view.data), [view.data]);
   const page = pages.find((item) => item.id === view.page) ?? pages[0];
-  const { Component } = VARIANTS[clampVariant(view.variant) - 1];
   return (
     <div
       ref={stage}
@@ -67,7 +71,7 @@ export default function Stage(initial: { page: LegalPageId; variant: number; red
     >
       <ProtoViewContext value={{ page, pages }}>
         <SiteChrome signedIn={view.auth === "in"}>
-          <Component key={`${view.variant}:${view.data}:${view.mount}`} />
+          <RelatedRail key={`${view.data}:${view.mount}`} />
         </SiteChrome>
       </ProtoViewContext>
     </div>

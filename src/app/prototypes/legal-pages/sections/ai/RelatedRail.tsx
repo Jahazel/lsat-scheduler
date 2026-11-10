@@ -1,7 +1,7 @@
 "use client";
 
 import { FOCUS, cx } from "@/components/ui/classes";
-import { useBody } from "../../bodyContext";
+import CalmProse from "../body/CalmProse";
 import { goToPage, useProtoView } from "../../protoContext";
 import type { LegalPageId } from "../../pages";
 import { EditorialHeader } from "../header/Editorial";
@@ -21,7 +21,6 @@ export default function RelatedRail() {
 
 function ShortPage() {
   const { page, pages } = useProtoView();
-  const renderBody = useBody();
   const links = RELATED.flatMap(({ page: id, section }) => {
     const target = pages.find((item) => item.id === id);
     const title = target?.sections?.find((item) => item.id === section)?.title;
@@ -33,7 +32,7 @@ function ShortPage() {
       <EditorialHeader column={RAIL_RIGHT.header} />
       <div className="px-6 pt-12 pb-16">
         <div className={RAIL_RIGHT.grid}>
-          <div className={RAIL_RIGHT.text}>{renderBody(page)}</div>
+          <div className={RAIL_RIGHT.text}><CalmProse page={page} /></div>
           {links.length > 0 && (
             <nav aria-label="Related sections" className="mt-12 border-t border-vellum-line pt-8 lg:sticky lg:top-[calc(var(--site-header)+2rem)] lg:col-start-2 lg:row-start-1 lg:mt-0 lg:self-start lg:border-t-0 lg:pt-0">
               <p className="font-mono text-label uppercase text-smoke">Related</p>
@@ -46,7 +45,7 @@ function ShortPage() {
                         event.preventDefault();
                         goToPage(link.id, link.section);
                       }}
-                      className={cx("group block touch-manipulation rounded-r-xs py-1 pl-4 active:opacity-70", FOCUS)}
+                      className={cx("group block touch-manipulation rounded-r-xs select-none [-webkit-touch-callout:none] py-1 pl-4 active:opacity-70", FOCUS)}
                     >
                       <span className="block text-caption text-smoke">{link.pageLabel}</span>
                       <span className="mt-0.5 block text-small text-ink underline decoration-transparent underline-offset-3 transition-[text-decoration-color] duration-(--duration-fast) ease-[ease] motion-reduce:transition-none pointer-fine:group-hover:decoration-ink">

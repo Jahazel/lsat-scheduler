@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { FOCUS, FOCUS_INSET, cx } from "@/components/ui/classes";
-import { useBody } from "../../bodyContext";
+import CalmProse from "../body/CalmProse";
 import { useProtoView } from "../../protoContext";
 import { EditorialHeader } from "../header/Editorial";
 import { RAIL_RIGHT } from "./columns";
@@ -12,13 +12,14 @@ const LINK = "transition-colors duration-(--duration-fast) ease-[ease] pointer-h
 
 export default function JumpBar() {
   const { page } = useProtoView();
-  const renderBody = useBody();
   const sections = useMemo(() => page.sections ?? [], [page.sections]);
   const ids = useMemo(() => sections.map((section) => section.id), [sections]);
   const [wide, setWide] = useState(true);
   const active = useActiveSection(ids, wide ? 32 : 64);
   const [open, setOpen] = useState(false);
   const bar = useRef<HTMLDivElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const markedPage = useRef(page.id);
   const list = useRef<HTMLOListElement>(null);
   const marker = useRef<HTMLSpanElement>(null);
 
@@ -33,7 +34,11 @@ export default function JumpBar() {
   useEffect(() => {
     if (!open) return;
     const close = (event: Event) => {
-      if (event instanceof KeyboardEvent ? event.key === "Escape" : !bar.current?.contains(event.target as Node)) setOpen(false);
+      if (event instanceof KeyboardEvent) {
+        if (event.key !== "Escape") return;
+        setOpen(false);
+        toggle.current?.focus();
+      } else if (!bar.current?.contains(event.target as Node)) setOpen(false);
     };
     document.addEventListener("pointerdown", close);
     document.addEventListener("keydown", close);
@@ -46,8 +51,15 @@ export default function JumpBar() {
   useLayoutEffect(() => {
     const item = list.current?.querySelector<HTMLElement>('[aria-current="location"]');
     if (!item || !marker.current) return;
+    const newPage = markedPage.current !== page.id;
+    markedPage.current = page.id;
+    marker.current.style.transition = newPage ? "none" : "";
     marker.current.style.transform = `translateY(${item.offsetTop}px) scaleY(${item.offsetHeight})`;
-  }, [active, ids, wide]);
+    if (newPage) {
+      void marker.current.offsetHeight;
+      marker.current.style.transition = "";
+    }
+  }, [active, ids, wide, page.id]);
 
   const current = sections.find((section) => section.id === active);
   const pick = (id: string) => {
@@ -61,6 +73,7 @@ export default function JumpBar() {
       {sections.length > 0 && (
         <div ref={bar} className="sticky top-(--site-header) z-30 border-b border-vellum-line bg-paper px-6 lg:hidden">
           <button
+            ref={toggle}
             type="button"
             aria-expanded={open}
             aria-controls="jump-list"
@@ -96,7 +109,7 @@ export default function JumpBar() {
                       event.preventDefault();
                       pick(section.id);
                     }}
-                    className={cx("flex min-h-11 touch-manipulation items-center rounded-xs text-small text-smoke active:text-ink aria-[current]:font-medium", LINK, FOCUS)}
+                    className={cx("flex min-h-11 touch-manipulation select-none items-center rounded-xs [-webkit-touch-callout:none] text-small text-smoke active:text-ink aria-[current]:font-medium", LINK, FOCUS)}
                   >
                     {section.title}
                   </a>
@@ -111,32 +124,34 @@ export default function JumpBar() {
           {sections.length > 0 && (
             <nav aria-label="On this page" className="hidden lg:sticky lg:top-[calc(var(--site-header)+2rem)] lg:col-start-2 lg:row-start-1 lg:block lg:self-start">
               <p className="font-mono text-label uppercase text-smoke">On this page</p>
-              <ol ref={list} className="relative mt-4 border-l border-vellum-line">
+              <div className="relative mt-4">
                 <span
                   ref={marker}
                   aria-hidden
-                  className="absolute top-0 -left-px h-px w-0.5 origin-top bg-ink transition-transform duration-(--duration-base) ease-(--ease-out-strong) motion-reduce:transition-none"
+                  className="absolute top-0 left-0 z-10 h-px w-0.5 origin-top bg-ink transition-transform duration-(--duration-base) ease-(--ease-out-strong) motion-reduce:transition-none"
                 />
-                {sections.map((section) => (
-                  <li key={section.id}>
-                    <a
-                      href={`#${section.id}`}
-                      aria-current={section.id === active ? "location" : undefined}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        jumpTo(section.id);
-                      }}
-                      className={cx("block rounded-r-xs py-1.5 pl-4 text-small text-smoke", LINK, FOCUS)}
-                    >
-                      {section.title}
-                    </a>
-                  </li>
-                ))}
-              </ol>
+                <ol ref={list} className="border-l border-vellum-line">
+                  {sections.map((section) => (
+                    <li key={section.id}>
+                      <a
+                        href={`#${section.id}`}
+                        aria-current={section.id === active ? "location" : undefined}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          jumpTo(section.id);
+                        }}
+                        className={cx("block touch-manipulation select-none rounded-r-xs py-1.5 pl-4 text-small text-smoke [-webkit-touch-callout:none] active:text-ink", LINK, FOCUS)}
+                      >
+                        {section.title}
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              </div>
             </nav>
           )}
           <div className={RAIL_RIGHT.text}>
-            {renderBody(page)}
+            <CalmProse page={page} />
           </div>
         </div>
       </div>

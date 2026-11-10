@@ -36,6 +36,9 @@ as cancelling or deleting their Account, and can link to it.
 | Signed in / signed out | Either | Same page; only the site header and footer differ. The signed-in header is 56 px (mobile) and 72 px (tablet and up), the signed-out bar 64 px: sticky bars and section offsets follow the header's real height. Signed-in mobile keeps room for the floating tab bar. |
 | Reduced motion | Reader's device asks for less motion | Jumps to sections without a smooth scroll; no animated list marker |
 | Missing section link | `#unknown` in the address | The page at the top, no error |
+| Section list open (below 1024 px) | Reader taps the "On this page" bar | The full list in a panel under the bar, the current section marked; closes on a pick, a tap outside, or Escape (focus returns to the bar) |
+| Link copied / copy failed | Reader taps a heading's link icon | A check and "Copied", or "Couldn't copy", beside the heading for 1.6 s; a screen reader hears the result |
+| Tapped section near the page end | Reader taps a section the page cannot scroll to the top | That section stays marked until the reader scrolls on their own |
 
 ## Data cases
 
@@ -57,8 +60,9 @@ as cancelling or deleting their Account, and can link to it.
 - A print or PDF version.
 - Translations.
 - An "I agree" step inside the legal pages.
-- Sign-up form state when a student leaves sign-up for a legal page. Checked and tracked on its own ticket if the form
-  really empties.
+- Sign-up form state when a student leaves sign-up for a legal page: the form empties after a legal link and Back,
+  tracked in #756.
+- "Log in" wrapping to two lines in the signed-out top bar at 320 px: tracked in #757.
 
 ## Open questions
 

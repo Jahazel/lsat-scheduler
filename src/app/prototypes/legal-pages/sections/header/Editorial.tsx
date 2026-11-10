@@ -5,7 +5,7 @@ import { FOCUS_INSET, cx } from "@/components/ui/classes";
 import { useProtoView } from "../../protoContext";
 import { SwitcherLink } from "./SwitcherLink";
 
-export function EditorialHeader({ column = "mx-auto max-w-2xl" }: { column?: string }) {
+export function EditorialHeader({ column }: { column: string }) {
   const { page, pages } = useProtoView();
   const nav = useRef<HTMLElement>(null);
 
@@ -29,7 +29,7 @@ export function EditorialHeader({ column = "mx-auto max-w-2xl" }: { column?: str
                 page={item}
                 current={item.id === page.id}
                 className={cx(
-                  "flex h-11 shrink-0 touch-manipulation items-center whitespace-nowrap border-b-2 text-small active:text-ink",
+                  "flex h-11 shrink-0 touch-manipulation select-none items-center [-webkit-touch-callout:none] whitespace-nowrap border-b-2 text-small active:text-ink",
                   "transition-[color,border-color] duration-(--duration-fast) ease-[ease] motion-reduce:transition-none",
                   item.id === page.id ? "border-ink font-medium text-ink" : "border-transparent text-smoke pointer-hover:text-ink",
                   FOCUS_INSET,

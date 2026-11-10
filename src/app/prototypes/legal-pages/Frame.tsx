@@ -2,14 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PAGE_IDS, PAGE_LABELS, isPageId, type AuthState, type DatasetName, type LegalPageId } from "./pages";
-import { SECTION_LABEL, VARIANTS, clampVariant } from "./variants";
 import type { StageMessage } from "./screen/Stage";
 
 export type FrameSize = "desktop" | "tablet" | "mobile";
 const WIDTHS: Record<FrameSize, number> = { desktop: 1440, tablet: 768, mobile: 390 };
 const HEIGHTS: Record<FrameSize, number> = { desktop: 900, tablet: 1024, mobile: 844 };
 
-type View = { size: FrameSize; reducedMotion: boolean; page: LegalPageId; variant: number; data: DatasetName; auth: AuthState; at: string | null };
+type View = { size: FrameSize; reducedMotion: boolean; page: LegalPageId; data: DatasetName; auth: AuthState; at: string | null };
 
 const SHARED_LINK: Record<LegalPageId, string | null> = { terms: "cancelling-and-refunds", privacy: "deleting-your-account", "ai-disclosure": null };
 const ENTRIES = { top: "Footer or sign-up link (top)", shared: "Shared section link", unknown: "Unknown link (#unknown)" } as const;
@@ -23,31 +22,24 @@ export default function Frame({ initial }: { initial: View }) {
   const [mount, setMount] = useState(0);
   const frame = useRef<HTMLIFrameElement>(null);
   const arriving = useRef<{ section?: string } | null>(null);
-  const variant = clampVariant(view.variant);
 
-  const [src] = useState(() => `/prototypes/legal-pages/screen?page=${view.page}&v=${variant}&rm=${view.reducedMotion ? 1 : 0}&data=${view.data}&auth=${view.auth}${view.at ? `&at=${view.at}` : ""}`);
+  const [src] = useState(() => `/prototypes/legal-pages/screen?page=${view.page}&rm=${view.reducedMotion ? 1 : 0}&data=${view.data}&auth=${view.auth}${view.at ? `&at=${view.at}` : ""}`);
 
   useEffect(() => {
     const url = new URL(location.href);
     url.searchParams.set("size", view.size);
     url.searchParams.set("rm", view.reducedMotion ? "1" : "0");
     url.searchParams.set("page", view.page);
-    url.searchParams.set("v", String(variant));
     url.searchParams.set("data", view.data);
     url.searchParams.set("auth", view.auth);
     if (view.at) url.searchParams.set("at", view.at);
     else url.searchParams.delete("at");
-    url.searchParams.delete("ai");
+    url.searchParams.delete("v");
     history.replaceState(null, "", url);
-    const message: StageMessage = { type: "stage", page: view.page, variant, reducedMotion: view.reducedMotion, data: view.data, auth: view.auth, mount, arrive: !!arriving.current, section: arriving.current?.section };
+    const message: StageMessage = { type: "stage", page: view.page, reducedMotion: view.reducedMotion, data: view.data, auth: view.auth, mount, arrive: !!arriving.current, section: arriving.current?.section };
     arriving.current = null;
     frame.current?.contentWindow?.postMessage(message, location.origin);
-  }, [view, variant, mount]);
-
-  const pick = useCallback((index: number) => {
-    if (index < 0 || index >= VARIANTS.length) return;
-    setView((current) => ({ ...current, variant: index + 1 }));
-  }, []);
+  }, [view, mount]);
 
   const open = (entry: Entry) => {
     const at = entry === "shared" ? SHARED_LINK[view.page] : entry === "unknown" ? "unknown" : null;
@@ -56,13 +48,8 @@ export default function Frame({ initial }: { initial: View }) {
   };
 
   const onKey = useCallback((key: string) => {
-    const count = VARIANTS.length;
-    const number = parseInt(key, 10);
-    if (number >= 1 && number <= count) pick(number - 1);
-    else if (key === "ArrowRight") pick(variant % count);
-    else if (key === "ArrowLeft") pick((variant - 2 + count) % count);
-    else if (key === "r" || key === "R") setMount((value) => value + 1);
-  }, [pick, variant]);
+    if (key === "r" || key === "R") setMount((value) => value + 1);
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -108,7 +95,7 @@ export default function Frame({ initial }: { initial: View }) {
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-graphite-raised font-sans">
       <div className="flex shrink-0 flex-wrap items-center gap-4 border-b border-graphite-line bg-graphite px-4 py-2">
-        <span className="text-[13px] font-semibold text-chalk">Legal pages prototype · {SECTION_LABEL}</span>
+        <span className="text-[13px] font-semibold text-chalk">Legal pages prototype · approved design</span>
         <div className="flex gap-1">
           {(Object.keys(WIDTHS) as FrameSize[]).map((size) => (
             <button key={size} type="button" data-on={view.size === size || undefined} className={TOOL} onClick={() => setView((v) => ({ ...v, size }))}>

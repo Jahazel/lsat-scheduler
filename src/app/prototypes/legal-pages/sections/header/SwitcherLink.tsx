@@ -1,10 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
 import type { LegalPage } from "../../content";
 import { goToPage } from "../../protoContext";
 
-export function SwitcherLink({ page, current, className, children }: { page: LegalPage; current: boolean; className: string; children?: ReactNode }) {
+export function SwitcherLink({ page, current, className }: { page: LegalPage; current: boolean; className: string }) {
   return (
     <a
       href={`/legal/${page.id}`}
@@ -15,7 +14,7 @@ export function SwitcherLink({ page, current, className, children }: { page: Leg
       }}
       className={className}
     >
-      {children ?? page.switcherLabel}
+      {page.switcherLabel}
     </a>
   );
 }
