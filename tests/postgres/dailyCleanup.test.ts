@@ -23,7 +23,7 @@ afterAll(() => {
 
 beforeEach(async () => {
   process.env.CRON_SECRET = CRON_SECRET;
-  await database.owner.execute(sql`truncate accounts, pending_signups, security_log, deletion_list, used_free_weeks cascade`);
+  await database.owner.execute(sql`truncate accounts, pending_signups, security_log, deletion_list, used_free_weeks, stripe_messages cascade`);
   await database.owner.execute(sql`
     insert into pending_signups (email, name, password_hash, token_hash, token_expires_at, created_at) values
       ('old@example.test', 'Old', 'hash', 'token-old', now() + interval '1 day', now() - interval '8 days'),
@@ -52,6 +52,10 @@ beforeEach(async () => {
       (repeat('a', 64), current_date - interval '12 months' - interval '1 day'),
       (repeat('b', 64), current_date - interval '12 months')
   `);
+  await database.owner.execute(sql`
+    insert into stripe_messages (id, handled_at) values
+      ('evt_old', now() - interval '30 days' - interval '1 minute'), ('evt_recent', now() - interval '29 days')
+  `);
 });
 
 function cronRequest(authorization?: string) {
@@ -74,6 +78,9 @@ async function remainingRows() {
     usedFreeWeeks: (await database.owner.execute<{ email_hash: string }>(
       sql`select email_hash from used_free_weeks order by email_hash`,
     )).rows.map((row) => row.email_hash.slice(0, 1)),
+    stripeMessages: (await database.owner.execute<{ id: string }>(
+      sql`select id from stripe_messages order by id`,
+    )).rows.map((row) => row.id),
   };
 }
 
@@ -83,6 +90,7 @@ const everythingKept = {
   securityLog: ["00000089", "00000091"],
   deletionList: ["00000000-0000-4000-8000-000000000030", "00000000-0000-4000-8000-000000000031"],
   usedFreeWeeks: ["a", "b"],
+  stripeMessages: ["evt_old", "evt_recent"],
 };
 
 it("refuses a call without the cron secret and changes nothing", async () => {
@@ -100,13 +108,13 @@ it("refuses every call when the place has no cron secret set", async () => {
   expect(await remainingRows()).toEqual(everythingKept);
 });
 
-it("removes old pending signups, expired reset tokens, and old security log entries, deletion list rows, and used free weeks", async () => {
+it("removes old pending signups, expired reset tokens, and old security log entries, deletion list rows, used free weeks, and handled Stripe messages", async () => {
   const response = await GET(cronRequest(`Bearer ${CRON_SECRET}`));
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({
     accountDeletionsFinished: 0, accountDeletionsLeft: 0, inactiveAccountsMarked: 0, inactiveWarningsSent: 0, inactiveWarningsNotSent: 0,
     deletionListRemoved: 1,
-    securityLogRemoved: 1, usedFreeWeeksRemoved: 1, pendingSignupsRemoved: 1, resetTokensRemoved: 1,
+    securityLogRemoved: 1, usedFreeWeeksRemoved: 1, stripeMessagesRemoved: 1, pendingSignupsRemoved: 1, resetTokensRemoved: 1,
   });
   expect(await remainingRows()).toEqual({
     signups: ["fresh@example.test"],
@@ -114,6 +122,7 @@ it("removes old pending signups, expired reset tokens, and old security log entr
     securityLog: ["00000089"],
     deletionList: ["00000000-0000-4000-8000-000000000030"],
     usedFreeWeeks: ["b"],
+    stripeMessages: ["evt_recent"],
   });
 });
 
@@ -124,7 +133,7 @@ it("gives the same result when the route runs twice", async () => {
   expect(await second.json()).toEqual({
     accountDeletionsFinished: 0, accountDeletionsLeft: 0, inactiveAccountsMarked: 0, inactiveWarningsSent: 0, inactiveWarningsNotSent: 0,
     deletionListRemoved: 0,
-    securityLogRemoved: 0, usedFreeWeeksRemoved: 0, pendingSignupsRemoved: 0, resetTokensRemoved: 0,
+    securityLogRemoved: 0, usedFreeWeeksRemoved: 0, stripeMessagesRemoved: 0, pendingSignupsRemoved: 0, resetTokensRemoved: 0,
   });
   expect(await remainingRows()).toEqual({
     signups: ["fresh@example.test"],
@@ -132,6 +141,7 @@ it("gives the same result when the route runs twice", async () => {
     securityLog: ["00000089"],
     deletionList: ["00000000-0000-4000-8000-000000000030"],
     usedFreeWeeks: ["b"],
+    stripeMessages: ["evt_recent"],
   });
 });
 

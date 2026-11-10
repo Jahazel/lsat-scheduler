@@ -138,7 +138,7 @@ it("accepts every event the app can record, and refuses an event name it does no
     sign_in: "signedIn", sign_out_all_devices: "done", email_verification: "verified", password_reset_request: "passwordAccount",
     password_reset: "changed", password_change: "changed", account_deletion: "deleted", student_data_refused: "refused",
     admin_action_refused: "refused", limit_refused: "scanInDay", budget_cutoff: "limitReached",
-    forged_request_refused: "noOrigin", model_reply_refused: "badNumber",
+    forged_request_refused: "noOrigin", model_reply_refused: "badNumber", stripe_message_refused: "badSignature",
   };
   for (const [event, result] of Object.entries(sample)) {
     await recordSecurityEvent({ event, result, route: "/admin/students/[id]", who: { nobody: true } } as SecurityEntry);
