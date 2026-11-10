@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { ActionForm, FailureNotice } from "@/components/FailureNotice";
+import { ActionForm, FailureNotice, catchLostConnection } from "@/components/FailureNotice";
 import { followSignOut } from "@/components/SignOutForm";
 import { GoogleButton } from "@/components/signIn/GoogleButton";
 import { Button } from "@/components/ui/Button";
@@ -63,7 +63,7 @@ function AdminNotice() {
 function DeletionForm({ mode }: { mode: Exclude<DeletionMode, { kind: "admin" }> }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [refusal, formAction] = useActionState(async (previous: Answer<DeletionRefusal>, formData: FormData) => {
-    const result = followSignOut(await deleteAccount(previous, formData));
+    const result = followSignOut(await catchLostConnection(deleteAccount)(previous, formData));
     if (result === "wrong-password" || result === "paused") setCurrentPassword("");
     return result;
   }, null);

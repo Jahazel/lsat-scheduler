@@ -4,7 +4,7 @@ This guide describes the live DrillMap schedule generator, policy `adaptive-week
 
 ## How to run a useful test
 
-1. Set the student's current score, goal test month, accommodation, preferred practice-test day, and capacity for each weekday in Study settings. Capacity must be 30 to 480 minutes per day, in 15-minute steps.
+1. Set the student's current score, goal test month, accommodation, preferred practice-test day, and capacity for each weekday in Study settings. Capacity must be 30 to 480 minutes per day, in 15-minute steps. The preferred practice-test day must have at least the practice-test length: 2 h 30 with standard time, 3 h 15 with 1.5× time, 3 h 45 with 2× time.
 2. For a new week, confirm a weekly upload or, on an admin's own student side, confirm the sample data. A new schedule needs an upload that **counts for that Monday–Sunday week**: one confirmed Monday through Friday of that week, or Saturday or Sunday of the week before. Earlier snapshots may also contribute to the trend.
 3. Open This week and record the schedule's Monday date, creation day, all seven day types, activity labels, each day's planned total against its capacity, and the reason sentences. The app uses the `America/Chicago` calendar week.
 4. For tests of the practice test's effect, confirm a weekly upload with practice-test screenshots on Saturday or Sunday, then move to the next Monday and open the new schedule. Or, from Monday to Friday of a week with no weekly schedule, confirm "Plan this week" with last week's practice test; it builds the schedule from today to Sunday at once.

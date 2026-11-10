@@ -55,7 +55,7 @@ function withoutComments(source: string, fileName: string): string {
 }
 
 function withoutThemeBlocks(css: string): string {
-  return css.replace(/@theme\b[^{]*\{[^}]*\}/g, "");
+  return css.replace(/^@theme\b[^{]*\{[^}]*\}/gm, "");
 }
 
 function findTokenViolations(source: string, fileName = "inline.tsx"): string[] {
@@ -129,6 +129,12 @@ describe("design tokens", () => {
     expect(findTokenViolations(css, "globals.css")).toEqual([
       "raw hex color: #FFFFFF",
       "raw color function: rgb(",
+    ]);
+  });
+
+  it("does not skip a rule after a comment that names @theme", () => {
+    expect(findTokenViolations("/* Tokens live in @theme. */\n.x { color: #ff0000; }", "globals.css")).toEqual([
+      "raw hex color: #ff0000",
     ]);
   });
 

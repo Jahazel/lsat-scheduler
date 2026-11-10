@@ -59,7 +59,7 @@ The one day in a weekly schedule the scheduling policy keeps free of schedule ac
 _Avoid_: off day
 
 **Preferred practice-test day**:
-The day of the week a student selects for their weekly practice test.
+The day of the week a student selects for their weekly practice test. Its daily capacity must hold a full practice test at the student's accommodation; onboarding and Study settings refuse a shorter day.
 _Avoid_: PT day, test day
 
 **Practice-test review day**:
@@ -186,6 +186,7 @@ _Avoid_: error ID, reference number
 
 **Failure toast**:
 The floating notice that shows an unexpected failure and its error code over the current screen.
+When the request never reached the server, it shows "No connection. Check your signal and try again." with no error code, because no security log entry exists.
 _Avoid_: error banner, error message, failure notice
 
 ### Capacity

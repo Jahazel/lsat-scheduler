@@ -26,9 +26,7 @@ export default function Error({
     <div className="min-h-screen px-6 py-12">
       <div className="mx-auto flex max-w-2xl flex-col items-center gap-3 border-y border-vellum-line px-6 py-16 text-center">
         <AlertIcon className="size-6 text-fog" />
-        <p className="text-small text-smoke">
-          Couldn&rsquo;t load students. Check the connection and try again.
-        </p>
+        <p className="text-small text-smoke">Something went wrong. Try again.</p>
         <button
           type="button"
           onClick={() => reset()}

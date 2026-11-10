@@ -83,6 +83,37 @@ describe("studentProfileSchema", () => {
   });
 });
 
+describe("practice-test day length", () => {
+  const withSaturday = (minutes: number, accommodationMultiplier: 1 | 1.5 | 2) => ({
+    ...mockStudent,
+    accommodationMultiplier,
+    dailyCapacityMinutes: { ...mockStudent.dailyCapacityMinutes, SATURDAY: minutes },
+  });
+
+  it.each([
+    [135, 1, "Saturday needs at least 2 h 30 for a full practice test. Add time or pick another day."],
+    [180, 1.5, "Saturday needs at least 3 h 15 for a full practice test. Add time or pick another day."],
+    [210, 2, "Saturday needs at least 3 h 45 for a full practice test. Add time or pick another day."],
+  ] as const)("refuses a %i-minute practice-test day at %sx time", (minutes, accommodation, message) => {
+    const result = studentProfileSchema.safeParse(withSaturday(minutes, accommodation));
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues).toEqual([expect.objectContaining({ path: ["preferredPracticeTestDay"], message })]);
+  });
+
+  it.each([
+    [150, 1],
+    [195, 1.5],
+    [225, 2],
+  ] as const)("accepts a %i-minute practice-test day at %sx time", (minutes, accommodation) => {
+    expect(studentProfileSchema.safeParse(withSaturday(minutes, accommodation)).success).toBe(true);
+  });
+
+  it("checks only the practice-test day, not the shorter days around it", () => {
+    expect(studentProfileSchema.safeParse({ ...withSaturday(150, 1), dailyCapacityMinutes: { ...mockStudent.dailyCapacityMinutes, MONDAY: 30 } }).success).toBe(true);
+  });
+});
+
 describe("goalScoreError", () => {
   it.each([
     [160, 160, "Your goal must be higher than your current score, 160."],

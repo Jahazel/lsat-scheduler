@@ -19,8 +19,8 @@ import { PASSAGE_TYPES } from "./analyticsReview";
 import { generateWeek } from "./engine";
 import { accuracyMessage, addTypeOptions, boxText, emptyListNote } from "./reviewDraft";
 import { mockRules } from "./mockData";
-import { everyDay } from "./studentProfile";
-import { practiceTestDayIsShort, practiceTestFact, practiceTestMinutes, previewWeek } from "./studyWeek";
+import { everyDay, practiceTestMinutes } from "./studentProfile";
+import { practiceTestFact, previewWeek } from "./studyWeek";
 import type { AnalyticsExtractedRow } from "./types";
 
 function draftOf(state: WizardState) {
@@ -36,6 +36,11 @@ const lrRead = (state: WizardState) => {
 function run(...actions: WizardAction[]): WizardState {
   return actions.reduce(wizardReducer, initialWizardState());
 }
+
+const pickSaturday: WizardAction = {
+  type: "edit",
+  values: { preferredPracticeTestDay: "SATURDAY", dailyCapacityMinutes: { ...everyDay(90), SATURDAY: 150 } },
+};
 
 const READ_AT = new Date("2026-10-19T15:00:00.000Z");
 
@@ -94,7 +99,12 @@ describe("onboarding wizard", () => {
     expect(blockedReason(week)).toBe("Pick a practice-test day to continue.");
     expect(wizardReducer(week, { type: "continue" }).step).toBe("week");
 
-    const analytics = run(validGoal, { type: "continue" }, { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } }, { type: "continue" });
+    const analytics = run(
+      validGoal,
+      { type: "continue" },
+      pickSaturday,
+      { type: "continue" },
+    );
     expect(stepLabel(analytics.step)).toBe("Step 3 of 4 · Analytics");
   });
 
@@ -119,24 +129,31 @@ describe("onboarding wizard", () => {
     expect([practiceTestMinutes(1), practiceTestMinutes(1.5), practiceTestMinutes(2)]).toEqual([150, 188, 225]);
   });
 
-  it("calls a practice-test day short when it has less time than the practice test", () => {
-    const week = { dailyCapacityMinutes: { ...everyDay(150), SUNDAY: 30 }, preferredPracticeTestDay: "SATURDAY" as const };
-    expect(practiceTestDayIsShort(week, 1)).toBe(false);
-    expect(practiceTestDayIsShort(week, 1.5)).toBe(true);
-    expect(practiceTestDayIsShort({ ...week, preferredPracticeTestDay: "SUNDAY" }, 1)).toBe(true);
-    expect(practiceTestDayIsShort({ ...week, preferredPracticeTestDay: null }, 2)).toBe(false);
+  it("states the practice-test length as a fact", () => {
+    expect(practiceTestFact(1)).toBe("A full practice test takes 2 h 30 with standard time.");
+    expect(practiceTestFact(2)).toBe("A full practice test takes 3 h 45 with 2× time.");
   });
 
-  it("states the practice-test length as a fact and lets a short practice-test day continue", () => {
+  it("blocks Week while the practice-test day has less time than the practice test", () => {
+    const short = run(validGoal, { type: "continue" }, { type: "edit", values: { preferredPracticeTestDay: "FRIDAY" } });
+    expect(blockedReason(short)).toBe("Friday needs at least 2 h 30 for a full practice test. Add time or pick another day.");
+    expect(wizardReducer(short, { type: "continue" }).step).toBe("week");
+
+    const longer = wizardReducer(short, { type: "edit", values: { dailyCapacityMinutes: { ...short.values.dailyCapacityMinutes, FRIDAY: 150 } } });
+    expect(blockedReason(longer)).toBeNull();
+  });
+
+  it("blocks Week again when a longer Test time no longer fits the practice-test day", () => {
     const state = run(
       validGoal,
       { type: "continue" },
-      { type: "edit", values: { preferredPracticeTestDay: "FRIDAY", dailyCapacityMinutes: { ...initialWizardState().values.dailyCapacityMinutes, FRIDAY: 60 } } },
+      { type: "edit", values: { preferredPracticeTestDay: "FRIDAY", dailyCapacityMinutes: { ...everyDay(90), FRIDAY: 150 } } },
+      { type: "back" },
+      { type: "edit", values: { accommodationMultiplier: 2 } },
+      { type: "continue" },
     );
 
-    expect(practiceTestFact(1)).toBe("A full practice test takes 2 h 30 with standard time.");
-    expect(practiceTestFact(2)).toBe("A full practice test takes 3 h 45 with 2× time.");
-    expect(blockedReason(state)).toBeNull();
+    expect(blockedReason(state)).toBe("Friday needs at least 3 h 45 for a full practice test. Add time or pick another day.");
   });
 
   describe("official LSAT attempts", () => {
@@ -144,7 +161,7 @@ describe("onboarding wizard", () => {
     const rowIds = (state: WizardState) => state.attempts.rows.map(({ id }) => id);
 
     it("saves no attempts for None yet, the default", () => {
-      const state = run(validGoal, { type: "continue" }, { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } });
+      const state = run(validGoal, { type: "continue" }, pickSaturday);
 
       expect(state.attempts.taken).toBe(false);
       expect(profileWithAttempts(state)?.officialAttempts).toEqual([]);
@@ -204,7 +221,7 @@ describe("onboarding wizard", () => {
         { type: "addAttempt" },
         { type: "editAttempt", id: 1, values: { score: "149", month: "2026-01" } },
         { type: "continue" },
-        { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
+        pickSaturday,
       );
       expect(filled.step).toBe("week");
       expect(profileWithAttempts(filled)?.officialAttempts).toEqual([
@@ -219,7 +236,7 @@ describe("onboarding wizard", () => {
   });
 
   it("ignores edits and Back while the save runs, and allows a retry after it fails", () => {
-    const ready = run(validGoal, { type: "continue" }, { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } }, { type: "continue" });
+    const ready = run(validGoal, { type: "continue" }, pickSaturday, { type: "continue" });
     const saving = wizardReducer(ready, { type: "saveStarted" });
 
     expect(saving.save).toBe("saving");
@@ -231,7 +248,7 @@ describe("onboarding wizard", () => {
       goalScore: 165,
       goalTestDate: "2026-11-01",
       accommodationMultiplier: 1,
-      dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 90, SUNDAY: 90 },
+      dailyCapacityMinutes: { ...everyDay(90), SATURDAY: 150 },
       preferredPracticeTestDay: "SATURDAY",
     });
   });
@@ -280,7 +297,7 @@ describe("onboarding wizard", () => {
   });
 
   it("keeps a read that ends while Skip for now is saving", () => {
-    const ready = run(validGoal, { type: "continue" }, { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } }, { type: "continue" });
+    const ready = run(validGoal, { type: "continue" }, pickSaturday, { type: "continue" });
     const queued = wizardReducer(ready, { type: "readQueued", section: "LR", file: new File(["png"], "a.png", { type: "image/png" }) });
     const reading = wizardReducer(queued, { type: "readStarted", id: 0 });
     const saving = wizardReducer(reading, { type: "saveStarted" });
@@ -310,7 +327,7 @@ describe("onboarding wizard", () => {
       return run(
         validGoal,
         { type: "continue" },
-        { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
+        pickSaturday,
         { type: "continue" },
         { type: "readQueued", section: "LR", file: new File(["png"], "lr-analytics.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
         { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows }, at: READ_AT },
@@ -442,7 +459,7 @@ describe("onboarding wizard", () => {
         goalScore: 165,
         goalTestDate: "2026-11-01",
         accommodationMultiplier: 1,
-        dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 90, SUNDAY: 90 },
+        dailyCapacityMinutes: { ...everyDay(90), SATURDAY: 150 },
         officialAttempts: [],
         preferredPracticeTestDay: "SATURDAY",
         analyticsRows: [
@@ -477,7 +494,7 @@ describe("onboarding wizard", () => {
       const lrOnly = run(
         validGoal,
         { type: "continue" },
-        { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
+        pickSaturday,
         { type: "continue" },
         { type: "readQueued", section: "LR", file: new File(["png"], "lr.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
         { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows: readRows }, at: READ_AT },
@@ -491,7 +508,7 @@ describe("onboarding wizard", () => {
       const noPercentages = run(
         validGoal,
         { type: "continue" },
-        { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
+        pickSaturday,
         { type: "continue" },
         { type: "readQueued", section: "LR", file: new File(["png"], "lr.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
         { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows: readRows }, at: READ_AT },
@@ -510,7 +527,7 @@ describe("onboarding wizard", () => {
       const withoutArt = run(
         validGoal,
         { type: "continue" },
-        { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
+        pickSaturday,
         { type: "continue" },
         { type: "readQueued", section: "LR", file: new File(["png"], "lr.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
         { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows: readRows }, at: READ_AT },
@@ -600,7 +617,7 @@ describe("onboarding wizard", () => {
       return run(
         validGoal,
         { type: "continue" },
-        { type: "edit", values: { preferredPracticeTestDay: "SATURDAY" } },
+        pickSaturday,
         { type: "continue" },
         { type: "readQueued", section: "LR", file: new File(["png"], "7sage-analytics.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
         { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows }, at: READ_AT },

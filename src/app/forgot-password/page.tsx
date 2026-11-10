@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { FailureNotice } from "@/components/FailureNotice";
+import { FailureNotice, catchLostConnection } from "@/components/FailureNotice";
 import { CheckEmailTips } from "@/components/signIn/CheckEmailTips";
 import { SubmitButton } from "@/components/signIn/PasswordFormParts";
 import { SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";
@@ -13,7 +13,7 @@ import { requestPasswordReset, type ForgotPasswordState } from "./actions";
 const initialState: Answer<ForgotPasswordState> = { kind: "form" };
 
 export default function ForgotPasswordPage() {
-  const [state, formAction] = useActionState(requestPasswordReset, initialState);
+  const [state, formAction] = useActionState(catchLostConnection(requestPasswordReset), initialState);
   const notice = <FailureNotice answer={state} />;
 
   if (!isUnexpectedFailure(state) && state.kind === "sent") {

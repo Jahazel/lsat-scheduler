@@ -10,7 +10,6 @@ import type { FailureCode } from "@/lib/unexpectedFailure";
 import { FailureToastProvider } from "@/components/FailureNotice";
 import OnboardingWizard from "./OnboardingWizard";
 
-const fileRow = (detail: HTMLElement) => detail.closest("[tabindex='-1']") as HTMLElement;
 const rowDetail = (text: string | RegExp) => (_: string, el: Element | null) =>
   el?.getAttribute("aria-live") === "polite" && (typeof text === "string" ? el.textContent === text : text.test(el.textContent ?? ""));
 
@@ -92,6 +91,11 @@ async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract 
   await user.selectOptions(screen.getByLabelText("Friday minutes"), "0");
   await user.click(screen.getByLabelText("Practice test on Friday"));
   expect(screen.getByText("A full practice test takes 3 h 8 with 1.5× time.")).toBeDefined();
+  expect(screen.getByText("Friday needs at least 3 h 15 for a full practice test. Add time or pick another day.")).toBeDefined();
+  expect(continueButton().disabled).toBe(true);
+  await user.selectOptions(screen.getByLabelText("Friday hours"), "3");
+  await user.selectOptions(screen.getByLabelText("Friday minutes"), "15");
+  expect(screen.queryByText(/for a full practice test/)).toBeNull();
   expect(screen.queryByRole("status")).toBeNull();
   await user.click(continueButton());
 
@@ -119,7 +123,7 @@ describe("OnboardingWizard", () => {
       goalScore: 165,
       goalTestDate: "2026-11-01",
       accommodationMultiplier: 1.5,
-      dailyCapacityMinutes: { MONDAY: 150, TUESDAY: 150, WEDNESDAY: 150, THURSDAY: 150, FRIDAY: 60, SATURDAY: 150, SUNDAY: 150 },
+      dailyCapacityMinutes: { MONDAY: 150, TUESDAY: 150, WEDNESDAY: 150, THURSDAY: 150, FRIDAY: 195, SATURDAY: 150, SUNDAY: 150 },
       preferredPracticeTestDay: "FRIDAY",
       officialAttempts: [],
       analyticsRows: [],
@@ -204,6 +208,8 @@ describe("OnboardingWizard", () => {
       expect(screen.queryByLabelText("Attempt 3 score")).toBeNull();
       await user.click(continueButton());
       await user.click(screen.getByLabelText("Practice test on Saturday"));
+      await user.selectOptions(screen.getByLabelText("Saturday hours"), "2");
+      await user.selectOptions(screen.getByLabelText("Saturday minutes"), "30");
       await user.click(continueButton());
       await user.click(screen.getByRole("button", { name: "Skip for now" }));
 
@@ -245,6 +251,19 @@ describe("OnboardingWizard", () => {
     expect(await screen.findByText("We couldn't save your plan. Check your connection and press Skip for now again.")).toBeDefined();
     await user.click(screen.getByRole("button", { name: "Skip for now" }));
     expect(onSave).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows the connection message in the failure toast when Skip for now never reaches the server, and stays on Analytics", async () => {
+    const onSave = vi.fn().mockRejectedValueOnce(new TypeError("Failed to fetch")).mockResolvedValueOnce(undefined);
+    const { user } = await fillGoalAndWeek(onSave);
+
+    await user.click(screen.getByRole("button", { name: "Skip for now" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("No connection. Check your signal and try again.");
+    expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();
+    expect(screen.queryByText(/We couldn't save your plan/)).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Skip for now" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   });
 
   it("shows a failed save in the failure toast, stays on Analytics, and closes the toast when Skip for now saves", async () => {
@@ -367,9 +386,7 @@ describe("OnboardingWizard", () => {
       const { user } = await fillGoalAndWeek(undefined, extract);
 
       await upload(user);
-      const status = await screen.findByText(rowDetail("lr-analytics.png · Connection lost. Your file is still here."));
-      expect(status.className).not.toContain("danger");
-      expect(fileRow(status).className).not.toContain("border-danger");
+      expect(await screen.findByText(rowDetail("lr-analytics.png · Connection lost. Your file is still here."))).toBeDefined();
       expect(screen.queryByRole("alert")).toBeNull();
       await user.click(screen.getByRole("button", { name: "Try again" }));
 
@@ -415,8 +432,7 @@ describe("OnboardingWizard", () => {
 
       await upload(user);
 
-      const status = await screen.findByText(/We couldn't read the rows in it\./);
-      expect(fileRow(status).className).toContain("border-danger");
+      expect(await screen.findByText(/We couldn't read the rows in it\./)).toBeDefined();
       expect(screen.getByRole("button", { name: "Choose a sharper screenshot" })).toBeDefined();
       expect(checkTheValues().disabled).toBe(true);
     });
@@ -548,8 +564,7 @@ describe("OnboardingWizard", () => {
       const { user } = await fillGoalAndWeek(undefined, extract);
 
       await upload(user);
-      const status = await screen.findByText(rowDetail("lr-analytics.png · Reading took too long and stopped."));
-      expect(fileRow(status).className).toContain("border-danger");
+      expect(await screen.findByText(rowDetail("lr-analytics.png · Reading took too long and stopped."))).toBeDefined();
       await user.click(screen.getByRole("button", { name: "Try again" }));
 
       expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
@@ -926,6 +941,8 @@ describe("OnboardingWizard · scanning off", () => {
     await user.selectOptions(screen.getByLabelText("Goal test date"), "November 2026");
     await user.click(continueButton());
     await user.click(screen.getByLabelText("Practice test on Friday"));
+    await user.selectOptions(screen.getByLabelText("Friday hours"), "2");
+    await user.selectOptions(screen.getByLabelText("Friday minutes"), "30");
     await user.click(continueButton());
 
     expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();

@@ -13,7 +13,6 @@ import { DAY_LABEL, attemptMonths, type upcomingTestMonths } from "@/lib/student
 import {
   DAY_SHORT_LABEL,
   TEST_TIME_LABEL,
-  practiceTestDayIsShort,
   practiceTestFact,
   previewWeek,
   weeklyTotalMinutes,
@@ -245,7 +244,6 @@ export function WeekFields({
   allDaysMinutes,
   accommodation,
   dayMessages = {},
-  hintShortPracticeTestDay = false,
   onAllDaysChange,
   onApplyAllDays,
   onDayChange,
@@ -255,7 +253,6 @@ export function WeekFields({
   allDaysMinutes: number;
   accommodation: Accommodation;
   dayMessages?: Partial<Record<DayOfWeek, string>>;
-  hintShortPracticeTestDay?: boolean;
   onAllDaysChange: (minutes: number) => void;
   onApplyAllDays: () => void;
   onDayChange: (day: DayOfWeek, minutes: number) => void;
@@ -351,7 +348,6 @@ export function WeekFields({
         </p>
         <p className="text-small text-smoke">
           {practiceTestFact(accommodation)}
-          {hintShortPracticeTestDay && practiceTestDayIsShort(values, accommodation) && " Pick a day with that much time."}
         </p>
       </div>
     </div>

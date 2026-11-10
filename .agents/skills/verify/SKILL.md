@@ -1,6 +1,6 @@
 ---
 name: verify
-description: "Verify DrillMap's web app through a real browser. Use for the landing page, page motion, sign-up, Account sessions, onboarding, study settings, analytics approval, weekly schedules, activity check-ins, Progress, and Admin controls after behavior changes."
+description: "Verify DrillMap's web app through a real browser. Use for the landing page, page motion, sign-up, Account sessions, onboarding, study settings, analytics approval, weekly schedules, activity check-ins, Progress, Admin controls, and component looks (focus rings, error and state colours) after behavior changes."
 ---
 
 # Verify DrillMap

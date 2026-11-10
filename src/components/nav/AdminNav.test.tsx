@@ -107,16 +107,15 @@ describe("workspace switcher interactions", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it("marks the current workspace with a check icon distinct from hover", () => {
+  it("marks the current workspace with a check icon", () => {
     render(<AdminNav {...props} />);
     fireEvent.click(screen.getByRole("button", { name: "All students" }));
     const current = screen.getByRole("link", { name: /All students/ });
     const other = screen.getByRole("link", { name: /My student side/ });
     expect(current.getAttribute("aria-current")).toBe("true");
     expect(current.querySelector("svg")).not.toBeNull();
-    expect(current.querySelector("span > span")?.className).toContain("font-semibold");
-    expect(other.className).toContain("hover:bg-vellum");
-    expect(other.querySelector("span > span")?.className).not.toContain("font-semibold");
+    expect(other.hasAttribute("aria-current")).toBe(false);
+    expect(other.querySelector("svg")).toBeNull();
   });
 
   it("closes when Tab leaves the switcher", async () => {
@@ -158,17 +157,6 @@ describe("admin test dock", () => {
     expect(expand.getAttribute("aria-expanded")).toBe("false");
     await user.keyboard("{Enter}");
     expect(document.activeElement).toBe(within(dock).getByRole("button", { name: "Close test controls" }));
-  });
-
-  // The closed dock fills its strip, which clips anything drawn outside it.
-  it("draws the closed dock's focus ring inside the strip", async () => {
-    const user = userEvent.setup();
-    render(<AdminNav {...props} testState={testState} />);
-    const dock = screen.getByRole("complementary", { name: "Test controls" });
-    await user.click(within(dock).getByRole("button", { name: "Close test controls" }));
-    const classes = within(dock).getByRole("button", { name: /Expand test controls/ }).className.split(" ");
-    expect(classes).toContain("focus-visible:-outline-offset-2");
-    expect(classes).not.toContain("focus-visible:outline-offset-2");
   });
 
   it("names the closed dock with its visible simulated date", async () => {
@@ -213,9 +201,10 @@ describe("Log out waiting", () => {
   const waitingLogOut = () => new Promise<{ unexpectedFailure: FailureCode }>((resolve) => { finish = () => resolve({ unexpectedFailure: "3f9a01c2" as FailureCode }); });
   const expectWaiting = async (button: HTMLElement) => {
     await vi.waitFor(() => expect(button.getAttribute("aria-disabled")).toBe("true"));
-    expect(button.querySelector(".button-ring")).not.toBeNull();
+    expect(button.querySelector("svg")).not.toBeNull();
     finish();
     await vi.waitFor(() => expect(button.hasAttribute("aria-disabled")).toBe(false));
+    expect(button.querySelector("svg")).toBeNull();
   };
 
   it("shows the waiting ring on the account menu's Log out while it signs out", async () => {

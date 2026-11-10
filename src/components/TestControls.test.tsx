@@ -71,10 +71,10 @@ describe("Test controls", () => {
     );
     expect((screen.getByRole("button", { name: "Generate sample" }) as HTMLButtonElement).disabled).toBe(true);
   });
-  it("labels past and current dates visibly without relying on color", () => {
+  it("labels past and current dates in words", () => {
     render(<TestControls state={state} onClose={() => {}} />);
     const past = screen.getByRole("button", { name: /Oct 5, 2026/ });
-    expect(within(past).getByText("Past").className).not.toContain("sr-only");
+    expect(within(past).getByText("Past")).toBeDefined();
     expect((past as HTMLButtonElement).disabled).toBe(true);
     const current = screen.getByRole("button", { name: /Oct 7, 2026/ });
     expect(within(current).getByText("Today")).toBeDefined();
@@ -208,10 +208,5 @@ describe("Test controls", () => {
     expect(screen.getByRole("button", { name: "Mo 5 Past, Oct 5, 2026" })).toBeDefined();
     expect(screen.getByRole("button", { name: "We 7 Today, Oct 7, 2026" })).toBeDefined();
     expect(screen.getByRole("button", { name: "Su 11, move to Oct 11, 2026" })).toBeDefined();
-  });
-  it("fades past days but shows today at full strength", () => {
-    render(<TestControls state={state} onClose={() => {}} />);
-    expect(screen.getByRole("button", { name: /Past, Oct 5, 2026/ }).className).toContain("opacity-50");
-    expect(screen.getByRole("button", { name: /Today, Oct 7, 2026/ }).className).not.toContain("opacity-50");
   });
 });

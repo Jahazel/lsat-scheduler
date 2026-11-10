@@ -8,11 +8,11 @@ const RULE = "border-dashed border-ink/14";
 export type Question = { question: string; answer: string | string[] };
 
 export function QuestionList({ questions, className }: { questions: Question[]; className?: string }) {
-  const [shown, setShown] = useState({ open: questions.map((_, index) => index === 0), reduced: false });
+  const [shown, setShown] = useState<{ open: number | null; reduced: boolean }>({ open: null, reduced: false });
 
   function toggle(index: number) {
     setShown(({ open }) => ({
-      open: open.map((isOpen, at) => (at === index ? !isOpen : isOpen)),
+      open: open === index ? null : index,
       reduced: matchMedia("(prefers-reduced-motion: reduce)").matches,
     }));
   }
@@ -22,7 +22,7 @@ export function QuestionList({ questions, className }: { questions: Question[]; 
   return (
     <ul className={cx("border-t", RULE, className)}>
       {questions.map(({ question, answer }, index) => {
-        const open = shown.open[index];
+        const open = shown.open === index;
         return (
           <li key={question} className={cx("reveal-item border-b", RULE)} style={{ "--reveal-delay": `${80 + index * 60}ms` } as CSSProperties}>
             <h3>

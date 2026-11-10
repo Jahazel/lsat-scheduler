@@ -19,8 +19,6 @@ afterEach(cleanup);
 // user-event walks radio groups with CSS.escape, which jsdom lacks.
 globalThis.CSS ??= Object.assign(Object.create(null), { escape: (value: string) => value });
 
-const RING = "focus-visible:outline-accent";
-
 const isChecked = (element: HTMLElement) => element instanceof HTMLInputElement && element.checked;
 const valueOf = (element: HTMLElement) => (element instanceof HTMLInputElement ? element.value : null);
 const description = (element: HTMLElement) =>
@@ -31,39 +29,35 @@ const description = (element: HTMLElement) =>
     .trim();
 
 describe("Button", () => {
-  it("takes keyboard focus with the Accent ring and runs on Enter", async () => {
+  it("takes keyboard focus and runs on Enter", async () => {
     const onClick = vi.fn();
     render(<Button onClick={onClick}>Get started</Button>);
     await userEvent.tab();
     const button = screen.getByRole("button", { name: "Get started" });
     expect(button).toBe(document.activeElement);
-    expect(button.className).toContain(RING);
     await userEvent.keyboard("{Enter}");
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  it("drops to 40% and ignores presses when disabled", async () => {
+  it("ignores presses and skips Tab when disabled", async () => {
     const onClick = vi.fn();
     render(<Button disabled onClick={onClick}>Get started</Button>);
     const button = screen.getByRole("button", { name: "Get started" });
-    expect(button.className).toContain("disabled:opacity-muted");
     await userEvent.click(button);
     await userEvent.tab();
     expect(onClick).not.toHaveBeenCalled();
     expect(button).not.toBe(document.activeElement);
   });
 
-  it("styles each variant and size from the board", () => {
+  it("renders a link button as a link and names an icon button by its label", () => {
     render(
       <>
-        <Button variant="outline" size="md">Book a demo</Button>
         <ButtonLink href="/signup" variant="text">Get a demo</ButtonLink>
         <IconButton label="Scroll to top">↑</IconButton>
       </>,
     );
-    expect(screen.getByRole("button", { name: "Book a demo" }).className).toMatch(/border-vellum-line.*h-10/);
-    expect(screen.getByRole("link", { name: "Get a demo" }).className).toMatch(/hover:bg-vellum-line.*h-12/);
-    expect(screen.getByRole("button", { name: "Scroll to top" }).className).toContain("size-8");
+    expect(screen.getByRole("link", { name: "Get a demo" }).getAttribute("href")).toBe("/signup");
+    expect(screen.getByRole("button", { name: "Scroll to top" })).toBeTruthy();
   });
 });
 
@@ -126,7 +120,6 @@ describe("TextInput", () => {
     await userEvent.tab();
     const input = screen.getByRole("textbox", { name: "Thursday capacity" });
     expect(input).toBe(document.activeElement);
-    expect(input.className).toContain(RING);
     expect(description(input)).toBe("Applies from next week's plan");
     expect(input.hasAttribute("aria-invalid")).toBe(false);
   });
@@ -135,7 +128,6 @@ describe("TextInput", () => {
     render(<TextInput label="Thursday capacity" helper="Applies from next week's plan" error="A day has 24 hours. Enter 24 h or less." defaultValue="25 h" />);
     const input = screen.getByRole("textbox", { name: "Thursday capacity" });
     expect(input.getAttribute("aria-invalid")).toBe("true");
-    expect(input.className).toContain("border-danger-ink");
     expect(description(input)).toBe("A day has 24 hours. Enter 24 h or less.");
     expect(screen.queryByText("Applies from next week's plan")).toBeNull();
   });
@@ -156,8 +148,6 @@ describe("Checkbox", () => {
     const box = screen.getByRole("checkbox", { name: "Link assumption" });
     await userEvent.tab();
     expect(box).toBe(document.activeElement);
-    expect(box.className).toContain(RING);
-    expect(box.className).toContain("focus-visible:border-ink");
     await userEvent.keyboard(" ");
     expect(isChecked(box)).toBe(true);
     await userEvent.click(screen.getByText("Link assumption"));
@@ -184,13 +174,6 @@ describe("SegmentedSwitch", () => {
     await userEvent.tab();
     expect(document.activeElement).toBe(document.body);
   });
-
-  it("draws the focus ring on the chosen option", () => {
-    render(<SegmentedSwitch name="time" label="Test time" options={options} defaultValue="standard" />);
-    const option = screen.getByRole("radio", { name: "Standard" }).closest("label");
-    expect(option?.className).toContain("has-focus-visible:outline-accent");
-    expect(option?.className).toContain("has-checked:bg-paper");
-  });
 });
 
 describe("DropZone", () => {
@@ -204,8 +187,6 @@ describe("DropZone", () => {
     await userEvent.tab();
     const zone = screen.getByRole("button", { name: /Logical Reasoning screenshot/ });
     expect(zone).toBe(document.activeElement);
-    expect(zone.className).toContain(RING);
-    expect(zone.className).toMatch(/border-ink\/muted.*bg-vellum.*hover:border-ink/);
     await userEvent.keyboard("{Enter}");
     expect(pick).toHaveBeenCalledOnce();
     await userEvent.upload(input, file);
@@ -219,7 +200,6 @@ describe("DropZone", () => {
     fireEvent.dragOver(zone, { dataTransfer: { files: [file] } });
     expect(zone.getAttribute("data-state")).toBe("drag-over");
     expect(zone.textContent).toContain("Drop to add it");
-    expect(zone.className).toMatch(/border-accent bg-accent\/faint/);
     fireEvent.drop(zone, { dataTransfer: { files: [file] } });
     expect(zone.getAttribute("data-state")).toBe("idle");
     expect(onFile).toHaveBeenCalledWith(file);
@@ -245,7 +225,6 @@ describe("DropZone", () => {
     render(<DropZone label="Reading Comprehension screenshot" error="That file is 12.4 MB. Choose one that is 5 MB or less." onFile={vi.fn()} />);
     const zone = screen.getByRole("button", { name: /Reading Comprehension screenshot/ });
     expect(zone.getAttribute("data-state")).toBe("error");
-    expect(zone.className).toMatch(/border-danger-ink bg-vellum/);
     expect(description(zone)).toBe("That file is 12.4 MB. Choose one that is 5 MB or less.");
   });
 });
@@ -263,10 +242,10 @@ describe("ProgressBar", () => {
     expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe(String(done));
   });
 
-  it("keeps the pace status right and gives Today its own line near the end of the track", () => {
+  it("marks Today on the track when it has a due count", () => {
     render(<ProgressBar done={9} total={11} dueSoFar={11} />);
-    expect(screen.getByText("2 behind").parentElement?.className).toContain("items-end");
-    expect(screen.getByText("Today").className).toContain("relative self-start");
+    expect(screen.getByText("2 behind")).toBeTruthy();
+    expect(screen.getByText("Today")).toBeTruthy();
   });
 
   it("has no today tick or pace without a due count", () => {
@@ -287,7 +266,6 @@ describe("app shell pieces", () => {
     );
     const current = screen.getByRole("link", { name: "This week" });
     expect(current.getAttribute("aria-current")).toBe("page");
-    expect(current.className).toContain("font-medium");
     expect(screen.getByRole("link", { name: "Progress" }).hasAttribute("aria-current")).toBe(false);
   });
 

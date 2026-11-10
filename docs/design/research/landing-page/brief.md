@@ -84,7 +84,7 @@ Built 2026-11-02 in Paper, "DrillMap · Design" → Explorations, under the "Lan
 | D2 · Proof first | Same, but the proof numbers are a full-width ledger at 64 px, the loudest type on the page | Four columns, each with a small app crop | Same as D1 | One bordered panel: "No card needed" strip on top, Weekly and Monthly side by side | Needs care: ledger turns into one column |
 | D3 · Product first | Headline, button, then a This week / Progress tab switch over a tall screen; proof row under it | Four alternating rows of text and a large app screen | Absorbed by the hero tabs | Same as D1 | Needs 1:1 detail crops for the step screens |
 
-Shared by all three: top bar, Questions (title left, list right, first item open), closing band, dark footer.
+Shared by all three: top bar, Questions (title left, list right, all items closed), closing band, dark footer.
 
 Color (owner asked for color, 2026-11-02): all three heroes put the Log in page's spectrum glow (violet, pink, amber) behind the This week screen, so the landing page and Log in look like one product. Buttons stay Ink; Accent blue stays for links and progress. Each direction then uses the spectrum once more in its own way:
 - D1: a "sunrise" glow rises from the bottom of the closing band.

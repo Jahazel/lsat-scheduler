@@ -14,6 +14,7 @@ const dailyCapacities = (student) => Object.entries(student)
   .filter(([key]) => key.endsWith("_capacity_minutes"))
   .map(([, value]) => Number(value));
 const PASSWORD = "a long phrase for the smoke run";
+const SHORT_SATURDAY = "Saturday needs at least 2 h 30 for a full practice test. Add time or pick another day.";
 const WRONG_EMAIL_OR_PASSWORD = "That email and password don't match. Check both and try again, or reset your password.";
 
 async function logInOnForm(page, email, password) {
@@ -156,6 +157,12 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   log("Choose Saturday on Step 2 · Week");
   await page.getByText("Pick a practice-test day to continue.", { exact: true }).waitFor();
   await page.getByLabel("Practice test on Saturday", { exact: true }).check();
+  log("Require the 1 h 30 practice-test day to block Continue, then give Saturday 2 h 30");
+  await page.getByText(SHORT_SATURDAY, { exact: true }).waitFor();
+  assert.equal(await page.getByRole("button", { name: "Continue", exact: true }).isDisabled(), true);
+  await capture("onboarding-week-short-day");
+  await page.getByLabel("Saturday hours", { exact: true }).selectOption("2");
+  await page.getByText(SHORT_SATURDAY, { exact: true }).waitFor({ state: "detached" });
   await capture("onboarding-week");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await heading("Add your 7Sage analytics");
@@ -167,7 +174,7 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   assert.equal(onboarded.students[0].goal_score, 165);
   assert.equal(onboarded.students[0].preferred_practice_test_day, "SATURDAY");
   assert.equal(onboarded.students[0].goal_test_date, "2027-06-01");
-  assert.deepEqual(dailyCapacities(onboarded.students[0]), Array(7).fill(90));
+  assert.deepEqual(dailyCapacities(onboarded.students[0]), [90, 90, 90, 90, 90, 150, 90]);
   assert.equal(onboarded.weekly_schedules.length, 0);
   log("Open Study settings through navigation");
   await page.getByRole("link", { name: "Study settings", exact: true }).click();
@@ -176,7 +183,14 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   await page.getByRole("textbox", { name: "Goal score", exact: true }).fill("168");
   await page.getByRole("combobox", { name: "All days hours", exact: true }).selectOption("0");
   await page.getByRole("button", { name: "Apply", exact: true }).click();
-  log("Set goal score 168, apply 30 minutes to all days, and save");
+  log("Set goal score 168, apply 30 minutes to all days, and require Save to refuse the 30-minute practice-test day");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await page.getByText(SHORT_SATURDAY, { exact: true }).waitFor();
+  assert.equal(await page.getByRole("combobox", { name: "Saturday hours", exact: true }).evaluate((select) => select === document.activeElement), true);
+  assert.equal(records("records-settings-refused").students[0].goal_score, 165);
+  await capture("settings-short-day-refused");
+  log("Give Saturday 2 h 30 and save");
+  await page.getByRole("combobox", { name: "Saturday hours", exact: true }).selectOption("2");
   await capture("settings-before-save");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await page.getByRole("status").filter({ hasText: "Saved. Changes apply to your next weekly schedule." }).waitFor();
@@ -185,12 +199,12 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   await heading("Study settings");
   assert.equal(await page.getByRole("textbox", { name: "Goal score", exact: true }).inputValue(), "168");
   for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
-    assert.equal(await page.getByRole("combobox", { name: `${day} hours`, exact: true }).inputValue(), "0");
+    assert.equal(await page.getByRole("combobox", { name: `${day} hours`, exact: true }).inputValue(), day === "Saturday" ? "2" : "0");
     assert.equal(await page.getByRole("combobox", { name: `${day} minutes`, exact: true }).inputValue(), "30");
   }
   const updated = records("records-settings");
   assert.equal(updated.students[0].goal_score, 168);
-  assert.deepEqual(dailyCapacities(updated.students[0]), Array(7).fill(30));
+  assert.deepEqual(dailyCapacities(updated.students[0]), [30, 30, 30, 30, 30, 150, 30]);
   await capture("settings-reopened");
   log("Open Account through its menu");
   await page.getByRole("button", { name: `Account menu for ${email}`, exact: true }).click();

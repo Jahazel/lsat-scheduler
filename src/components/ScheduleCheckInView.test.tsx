@@ -68,6 +68,22 @@ describe("ScheduleCheckInView", () => {
     expect(screen.getByText("18 remaining")).toBeTruthy();
   });
 
+  it("undoes a check-off that never reaches the server and shows the connection message, keeping the week on screen", async () => {
+    saveActivityCheckIn.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />, { wrapper: FailureToastProvider });
+    const row = within(dayCard("Monday")).getByRole("checkbox", { name: "1 Full LR Section" });
+
+    await userEvent.click(row);
+    expect((await screen.findByRole("alert")).textContent).toBe("No connection. Check your signal and try again.");
+    expect(row.getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByText("18 remaining")).toBeTruthy();
+    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(7);
+
+    await userEvent.click(row);
+    expect(await screen.findByText("1 of 18 done")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
   it("keeps the error code when another line saves, and closes it when the failed line saves", async () => {
     saveActivityCheckIn.mockResolvedValueOnce({ unexpectedFailure: "3f9a01c2" });
     render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />, { wrapper: FailureToastProvider });
@@ -139,13 +155,12 @@ describe("ScheduleCheckInView", () => {
     expect(within(thursday).getByText(/^Drilling · .+ of 1 h 30 min$/)).toBeTruthy();
   });
 
-  it("crosses off a done line and ends a finished day with All done", () => {
+  it("checks a done line and ends a finished day with All done", () => {
     render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent}
       checkIns={[done("MONDAY:0"), done("MONDAY:1"), done("TUESDAY:0")]} />);
     expect(within(dayCard("Monday")).getByText("All done")).toBeTruthy();
     expect(within(dayCard("Tuesday")).queryByText("All done")).toBeNull();
-    const crossed = within(dayCard("Monday")).getByText("1 Full LR Section");
-    expect(crossed.className).toContain("line-through");
+    expect(within(dayCard("Monday")).getByRole("checkbox", { name: "1 Full LR Section" }).getAttribute("aria-checked")).toBe("true");
   });
 
   it("shows week notes in the header and never a capacity notice, even on a saved practice-test day", () => {
@@ -188,7 +203,6 @@ describe("ScheduleCheckInView", () => {
     expect(saveActivityCheckIn).not.toHaveBeenCalled();
     expect(doneRow!.textContent).toBe("1 Full LR Section, done");
     expect(openRow!.textContent).toContain(", not done");
-    expect(within(dayCard("Monday")).getByText("1 Full LR Section").className).toContain("line-through");
     expect(screen.getByText("1 of 18 done")).toBeTruthy();
   });
 

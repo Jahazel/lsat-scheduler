@@ -8,7 +8,7 @@ import type { FailureCode, FormState } from "@/lib/unexpectedFailure";
 const navigation = vi.hoisted(() => ({ pathname: "/account" }));
 vi.mock("next/navigation", () => ({ usePathname: () => navigation.pathname }));
 
-import { ActionForm, FailureToastProvider } from "./FailureNotice";
+import { ActionForm, catchLostConnection, FailureToastProvider } from "./FailureNotice";
 
 afterEach(() => {
   cleanup();
@@ -17,13 +17,21 @@ afterEach(() => {
 
 const failure = (code: string): FormState => ({ unexpectedFailure: code as FailureCode });
 
-function Screen({ logOut, save = [] }: { logOut: FormState[]; save?: FormState[] }) {
+function Screen({ logOut, save = [] }: { logOut: (FormState | Error)[]; save?: (FormState | Error)[] }) {
   return (
     <FailureToastProvider>
-      <ActionForm action={async () => logOut.shift() ?? null}>
+      <ActionForm action={async () => {
+        const answer = logOut.shift() ?? null;
+        if (answer instanceof Error) throw answer;
+        return answer;
+      }}>
         <button type="submit">Log out</button>
       </ActionForm>
-      <ActionForm action={async () => save.shift() ?? null}>
+      <ActionForm action={async () => {
+        const answer = save.shift() ?? null;
+        if (answer instanceof Error) throw answer;
+        return answer;
+      }}>
         <button type="submit">Save</button>
       </ActionForm>
     </FailureToastProvider>
@@ -64,9 +72,10 @@ it("keeps the closed toast on screen until its exit ends", async () => {
     await toast();
 
     await press("Close");
-    expect(document.querySelector(".failure-toast[data-leaving]")).not.toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText("Something went wrong. Try again.").closest("[inert]")).not.toBeNull();
     await act(async () => endExit());
-    expect(document.querySelector(".failure-toast")).toBeNull();
+    expect(screen.queryByText("Something went wrong. Try again.")).toBeNull();
   } finally {
     delete (Element.prototype as Partial<Element>).getAnimations;
   }
@@ -101,6 +110,55 @@ it("closes when the same action is tried again and works", async () => {
 
   await press("Log out");
   await vi.waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+});
+
+it("shows the connection message with no error code when the request never reaches the server, and closes once it works", async () => {
+  render(<Screen logOut={[new TypeError("Failed to fetch"), null]} />);
+  await press("Log out");
+  expect((await toast()).textContent).toBe("No connection. Check your signal and try again.");
+  expect(screen.getByRole("button", { name: "Log out" })).toBeTruthy();
+
+  await press("Log out");
+  await vi.waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+});
+
+it("shows a server failure's error code after a lost connection", async () => {
+  render(<Screen logOut={[new TypeError("Failed to fetch"), failure("3f9a01c2")]} />);
+  await press("Log out");
+  await toast();
+
+  await press("Log out");
+  await vi.waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Error code 3f9a01c2"));
+});
+
+it("shows the connection message again after the student closed it", async () => {
+  render(<Screen logOut={[new TypeError("Failed to fetch"), new TypeError("Failed to fetch")]} />);
+  await press("Log out");
+  await toast();
+  await userEvent.click(screen.getByRole("button", { name: "Close" }));
+  await vi.waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+
+  await press("Log out");
+  expect((await toast()).textContent).toBe("No connection. Check your signal and try again.");
+});
+
+it("closes the connection message when the last action that lost the connection works", async () => {
+  render(<Screen logOut={[new TypeError("Failed to fetch")]} save={[new TypeError("Failed to fetch"), null]} />);
+  await press("Log out");
+  const alert = await toast();
+  await press("Save");
+  expect(screen.getByRole("alert")).toBe(alert);
+
+  await press("Save");
+  await vi.waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+});
+
+it("lets a rejection that is not a lost connection reject", async () => {
+  const failing = catchLostConnection(async () => {
+    throw new Error("Server Action was not found");
+  });
+  await expect(failing()).rejects.toThrow("Server Action was not found");
+  await expect(catchLostConnection(() => Promise.reject(new TypeError("Failed to fetch")))()).resolves.toEqual({ unexpectedFailure: "no-connection" });
 });
 
 it("stays when a different action works", async () => {
