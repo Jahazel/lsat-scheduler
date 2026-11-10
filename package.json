@@ -18,6 +18,7 @@
     "reset:dev-data": "node --env-file=.env.local --import tsx scripts/reset-dev-data.mts",
     "make-admin": "node --import tsx scripts/make-admin.mts",
     "replay-deletions": "node --import tsx scripts/replay-deletions.mts",
+    "resync-billing": "node --import tsx scripts/resync-billing.mts",
     "check-backup-ages": "node --import tsx scripts/check-backup-ages.mts",
     "check-stripe-prices": "node --import tsx scripts/check-stripe-prices.mts"
   },

@@ -15,6 +15,11 @@ still needs the owner's approval before the site uses the restored branch.
   current branch's deletion list, by ID or by email hash, and every Account the current branch marks
   as deleting, with all its records. It copies the list
   rows to the restored branch. It prints only two counts. A second run deletes nothing.
+- **Billing resync**: `npm run resync-billing`. It asks Stripe for every subscription and saves each one's
+  current state on the restored branch, with the same code the Stripe message receiver uses. Billing state
+  follows Stripe, so a plan started, changed, or cancelled after the backup comes back as Stripe holds it.
+  It saves nothing for an Account the replay deleted, so a deleted Account's plan does not come back. It
+  prints only four counts. A second run saves the same records.
 - **Age check**: `npm run check-backup-ages`. It reads the real age of every Neon snapshot and every
   branch except the active one. It fails when any can hold data older than 30 days, and names each
   one by its Neon name.
@@ -27,7 +32,7 @@ branch until the replay has run. The deletion list keeps rows for 30 days, so a 
 
 ## Steps
 
-Do every step in order. Do not change the site's `DATABASE_URL` before step 6.
+Do every step in order. Do not change the site's `DATABASE_URL` before step 7.
 
 1. **Restore into a new branch.** In the Neon console, restore the backup or the past moment into a
    new branch. Do not use the restore that replaces the current branch: the site would use the
@@ -44,7 +49,7 @@ Do every step in order. Do not change the site's `DATABASE_URL` before step 6.
    It must not name the restored branch. If it does, the restored branch's backup is older than 30
    days, or Neon no longer lists the backup it came from (`"ageDays": "unknown"`). Stop: the deletion list
    cannot cover that backup. Delete the restored branch and restore a newer backup. If it names only
-   other copies, go on, and remove them in step 8.
+   other copies, go on, and remove them in step 9.
 3. **Bring the restored branch up to the current migrations.** The replay needs the
    `deletion_list` table from migration `0017_two_step_deletion`. Apply any missing migration as the
    [release migrations runbook](release-migrations.md) says, on the restored branch only.
@@ -70,15 +75,33 @@ Do every step in order. Do not change the site's `DATABASE_URL` before step 6.
    that host to the list in the local checkout for this run and removes it after. The script cannot
    reach a production host. A production restore waits for the owner's decision on how to run the
    replay there.
-5. **Check the result.** In Neon's SQL Editor on the restored branch, compare the table counts with
+5. **Run the billing resync.** Run it only after the replay. Copy the site's `STRIPE_SECRET_KEY` from
+   Vercel: the copy's test-mode key for a copy restore, the live key for the real site. Use the restored
+   branch's owner connection string again:
+
+   ```sh
+   read -rs DATABASE_URL        # the restored branch
+   read -rs STRIPE_SECRET_KEY   # the site's STRIPE_SECRET_KEY from Vercel
+   export DATABASE_URL STRIPE_SECRET_KEY
+   npm run resync-billing
+   ```
+
+   It prints `Stripe subscriptions: N. Billing records saved: S. Left out: L. Billing records Stripe does
+   not list: U.` Left out counts subscriptions of deleted Accounts, of Admins, and an Account's older
+   subscriptions. Record the four counts. Run it a second time. It must print the same counts. Then `unset
+   DATABASE_URL STRIPE_SECRET_KEY`. When `U` is not 0, the script exits with an error: the restored
+   branch holds a billing record that this Stripe account does not know, which usually means the key is
+   from the other mode. Check the key and run it again. If `U` stays above 0, stop and ask the owner. The
+   same host rule as the replay applies.
+6. **Check the result.** In Neon's SQL Editor on the restored branch, compare the table counts with
    the counts at the backup time minus the deleted Accounts' records. Check that each deleted test
    Account is gone. Record counts only.
-6. **Let the site use the restored branch.** With the owner's approval, change the site's
+7. **Let the site use the restored branch.** With the owner's approval, change the site's
    `DATABASE_URL` in Vercel to the restored branch and deploy. Recheck both Admins.
-7. **Protect the restored branch.** Set `BACKUP_BRANCH_ID` to the restored branch's ID in both
+8. **Protect the restored branch.** Set `BACKUP_BRANCH_ID` to the restored branch's ID in both
    backup checker environments. Run the backup checker and confirm a fresh backup of the restored
    branch.
-8. **Remove expired copies and unused restore branches.** With the owner's approval of each one,
+9. **Remove expired copies and unused restore branches.** With the owner's approval of each one,
    delete in the Neon console the former current branch once no site uses it, every `_old_` branch,
    every other restore branch nobody uses, and every snapshot the age check named. Follow
    [owner retention cleanup](../security/backup-checker.md#owner-retention-cleanup). Then run the age
@@ -87,5 +110,5 @@ Do every step in order. Do not change the site's `DATABASE_URL` before step 6.
 ## Evidence record
 
 Record the UTC date, the commit, the restored branch name, the backup time, both age check results,
-both replay counts, the table counts, and what was deleted in step 8. Record no email, Account ID,
+both replay counts, both billing resync counts, the table counts, and what was deleted in step 9. Record no email, Account ID,
 connection string, or key.
