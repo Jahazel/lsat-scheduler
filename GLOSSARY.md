@@ -235,7 +235,7 @@ One drill of 10 LR questions across two question types the tutor pairs, such as 
 _Avoid_: 5+5 unit, combo drill
 
 **Drill setup guide**:
-The step-by-step instructions for building one drill as a hand-picked drill on 7Sage, filled in with that drill's question types, difficulty, and count.
+The step-by-step instructions for building one drill as a customized drill on 7Sage, filled in with that drill's Tags, difficulty, and count. A paired LR drill or a two-passage RC drill becomes two 7Sage drills.
 _Avoid_: 7Sage drill guide, how to drill, tutorial
 
 **Drilling ratio**:

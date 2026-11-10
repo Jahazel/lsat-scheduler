@@ -24,75 +24,73 @@ describe("drill setup guide", () => {
     expect(drillSetupGuide(activity)).toBeNull();
   });
 
-  it("gives five titled steps that name the section, with the same opening steps for every drill", () => {
+  it("gives five titled steps that follow the tutor's 7Sage path and name the section", () => {
     const { steps, texts } = guide(lr(["Inference"], 5, "L2-4"));
     expect(steps.map((step) => step.title)).toEqual(
-      ["Open Drills on 7Sage", "Start a new drill", "Choose Customize", "Filter and add questions", "Check the count and save"]);
+      ["Open Drills on 7Sage", "Start a drill", "Customize the questions", "Set the filters", "Set the count and start"]);
     expect(texts.slice(0, 3)).toEqual([
-      "Open 7Sage. Go to Study, then Practice, then Drills.",
-      "Under Logical Reasoning, click New drill.",
-      "Skip the adaptive drill. Click Customize.",
+      "Open 7Sage. Go to Study, then Drills and sections.",
+      "Under Logical Reasoning, click Start drill.",
+      "Click Customize questions.",
     ]);
-    expect(guide(rc({ type: "Law", difficultyLevel: 3 })).texts[1]).toBe("Under Reading Comprehension, click New drill.");
+    expect(guide(rc({ type: "Law", difficultyLevel: 3 })).texts[1]).toBe("Under Reading Comprehension, click Start drill.");
   });
 
-  it("filters a one-type LR drill once, by its type and difficulty range, for its question count", () => {
+  it("builds a one-type LR drill as one 7Sage drill, picking every level in its difficulty range", () => {
     const content = guide(lr(["Inference"], 5, "L2-4"));
     expect(content.section).toBe("Logical Reasoning");
-    expect(content.passes).toEqual([{ tags: "Inference", difficulty: { low: 2, high: 4 }, add: 5, unit: "questions" }]);
+    expect(content.drills).toEqual([{ tags: "Inference", difficulty: { low: 2, high: 4 }, count: 5, unit: "questions" }]);
     expect(content.total).toBe("5 questions");
-    expect(content.texts[3]).toBe("Set Tags to Inference and Difficulty to 2 to 4. Click Add on 5 questions.");
-    expect(content.texts[4]).toBe("Check that it says 5 questions selected. Click Save & share, then start the drill.");
-    expect(values(content.steps[3]!.text)).toEqual(["Inference", "2 to 4", "Add", "5"]);
-    expect(content.guess).toEqual({ tags: false, difficulty: true });
+    expect(content.texts[3]).toBe("Set Tags to Inference and Question Difficulty to 2, 3 and 4.");
+    expect(content.texts[4]).toBe("Set Number of questions to 5. Pick any Timing, then click Start Drill.");
+    expect(values(content.steps[3]!.text)).toEqual(["Inference", "2, 3 and 4"]);
   });
 
-  it("filters a paired LR drill twice, in the order of its types, adding half the questions each time", () => {
-    const content = guide(lr(["Strengthen", "Weaken"], 10, "L3-5"));
-    expect(content.passes.map(({ tags, add }) => [tags, add])).toEqual([["Strengthen", 5], ["Weaken", 5]]);
+  it("builds a paired LR drill as two 7Sage drills, in the order of its types, half the questions each", () => {
+    const content = guide(lr(["Strengthen", "Weaken"], 10, "L3-4"));
+    expect(content.drills.map(({ tags, count }) => [tags, count])).toEqual([["Strengthen", 5], ["Weaken", 5]]);
     expect(content.total).toBe("10 questions");
-    expect(content.texts[3]).toBe("Set Tags to Strengthen and Difficulty to 3 to 5. Click Add on 5 questions. "
-      + "Then set Tags to Weaken and Difficulty to 3 to 5, and add 5 more.");
-    expect(content.texts[4]).toBe("Check that it says 10 questions selected. Click Save & share, then start the drill.");
+    expect(content.texts[3]).toBe("You build this as two drills on 7Sage. For the first, set Tags to Strengthen and Question Difficulty to 3 and 4.");
+    expect(content.texts[4]).toBe("Set Number of questions to 5. Pick any Timing, then click Start Drill. "
+      + "When it ends, repeat steps 2 to 5 with Tags set to Weaken and Question Difficulty set to 3 and 4, and Number of questions set to 5.");
   });
 
   it("gives the first type of a paired drill the extra question of an odd count", () => {
-    expect(guide(lr(["Strengthen", "Weaken"], 7, "L2-4")).passes.map((pass) => pass.add)).toEqual([4, 3]);
+    expect(guide(lr(["Strengthen", "Weaken"], 7, "L2-4")).drills.map((drill) => drill.count)).toEqual([4, 3]);
   });
 
-  it("reads a range with equal ends as one number", () => {
-    expect(guide(lr(["Inference"], 5, "L3-3")).texts[3]).toBe("Set Tags to Inference and Difficulty to 3. Click Add on 5 questions.");
+  it("reads a range with equal ends as one level", () => {
+    expect(guide(lr(["Inference"], 5, "L3-3")).texts[3]).toBe("Set Tags to Inference and Question Difficulty to 3.");
   });
 
-  it("filters a one-passage RC drill by passage type and level, adding one passage", () => {
+  it("builds a one-passage RC drill by passage type and level, with one passage", () => {
     const content = guide(rc({ type: "Science", difficultyLevel: 3 }));
     expect(content.section).toBe("Reading Comprehension");
-    expect(content.passes).toEqual([{ tags: "Science", difficulty: { low: 3, high: 3 }, add: 1, unit: "passage" }]);
+    expect(content.drills).toEqual([{ tags: "Science", difficulty: { low: 3, high: 3 }, count: 1, unit: "passages" }]);
     expect(content.total).toBe("1 passage");
-    expect(content.texts[3]).toBe("Set Tags to Science and Difficulty to 3. Click Add on 1 passage.");
-    expect(content.texts[4]).toBe("Check that it says 1 passage selected. Click Save & share, then start the drill.");
-    expect(content.guess).toEqual({ tags: true, difficulty: true });
+    expect(content.texts[3]).toBe("Set Tags to Science and Passage Difficulty to 3.");
+    expect(content.texts[4]).toBe("Set Number of passages to 1. Pick any Timing, then click Start Drill.");
   });
 
-  it("filters a two-passage RC drill once per passage, easier passage first like the drill label", () => {
+  it("builds a two-passage RC drill as two 7Sage drills, easier passage first like the drill label", () => {
     const content = guide(rc({ type: "Law", difficultyLevel: 4 }, { type: "Humanities", difficultyLevel: 2 }));
-    expect(content.passes.map(({ tags, difficulty }) => [tags, difficulty.low])).toEqual([["Humanities", 2], ["Law", 4]]);
+    expect(content.drills.map(({ tags, difficulty }) => [tags, difficulty.low])).toEqual([["Humanities", 2], ["Law", 4]]);
     expect(content.total).toBe("2 passages");
-    expect(content.texts[3]).toBe("Set Tags to Humanities and Difficulty to 2. Click Add on 1 passage. "
-      + "Then set Tags to Law and Difficulty to 4, and add 1 more.");
-    expect(content.texts[4]).toBe("Check that it says 2 passages selected. Click Save & share, then start the drill.");
+    expect(content.texts[3]).toBe("You build this as two drills on 7Sage. For the first, set Tags to Humanities and Passage Difficulty to 2.");
+    expect(content.texts[4]).toBe("Set Number of passages to 1. Pick any Timing, then click Start Drill. "
+      + "When it ends, repeat steps 2 to 5 with Tags set to Law and Passage Difficulty set to 4, and Number of passages set to 1.");
   });
 
   it("keeps two same-level passages in the drill's order", () => {
-    expect(guide(rc({ type: "Science", difficultyLevel: 3 }, { type: "Law", difficultyLevel: 3 })).passes.map((pass) => pass.tags))
+    expect(guide(rc({ type: "Science", difficultyLevel: 3 }, { type: "Law", difficultyLevel: 3 })).drills.map((drill) => drill.tags))
       .toEqual(["Science", "Law"]);
   });
 
   it("names the longest real types in full", () => {
     const content = guide(lr(["Parallel flawed method of reasoning", "Parallel method of reasoning"], 10, "L3-5"));
-    expect(content.texts[3]).toBe("Set Tags to Parallel flawed method of reasoning and Difficulty to 3 to 5. Click Add on 5 questions. "
-      + "Then set Tags to Parallel method of reasoning and Difficulty to 3 to 5, and add 5 more.");
-    expect(guide(lr(["PSA - find or complete the application"], 5, "L3-5")).passes[0].tags).toBe("PSA - find or complete the application");
+    expect(content.drills.map((drill) => drill.tags)).toEqual(["Parallel flawed method of reasoning", "Parallel method of reasoning"]);
+    expect(content.texts[3]).toContain("Tags to Parallel flawed method of reasoning and Question Difficulty to 3, 4 and 5.");
+    expect(guide(lr(["PSA - find or complete the application"], 5, "L3-5")).drills[0].tags).toBe("PSA - find or complete the application");
   });
 
   it("has no guide for a difficulty range it cannot read", () => {
