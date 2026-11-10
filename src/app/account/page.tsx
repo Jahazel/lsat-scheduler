@@ -9,6 +9,7 @@ import { DeletionCard } from "./DeletionCard";
 import { SessionsCard } from "./SessionsCard";
 import { PageArrival } from "@/components/PagePlaceholder";
 import { loadAccountPlan } from "@/lib/billingRepository";
+import { deletionEndsPlan } from "@/lib/planStatus";
 import { planCardFacts } from "@/lib/planCard";
 import { PlanCard } from "./PlanCard";
 
@@ -50,6 +51,7 @@ export default async function AccountPage() {
           mode={isAdminUser(session.user) ? { kind: "admin" }
             : isPasswordAccount ? { kind: "password" }
             : { kind: "google", signedInRecently: signedInRecently(session.signedInAt) }}
+          planEnds={deletionEndsPlan(status)}
         />
       </div>
     </div>

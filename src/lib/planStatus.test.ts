@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { freeWeekEnd, isHeldWeek, mayStartWeeklyUpload, planStatus, type BillingRecord, type PlanStatus } from "./planStatus";
+import { deletionEndsPlan, freeWeekEnd, isHeldWeek, mayStartWeeklyUpload, planStatus, type BillingRecord, type PlanStatus } from "./planStatus";
 
 const at = (iso: string) => new Date(iso);
 const FREE_WEEK_ENDS = at("2026-11-23T06:00:00.000Z");
@@ -113,6 +113,18 @@ describe("plan status", () => {
       { kind: "lapsed" },
     ];
     expect(statuses.map(mayStartWeeklyUpload)).toEqual([true, true, true, true, false, false]);
+  });
+
+  it("warns at deletion for the free week, paid, and retrying, and not for admin, no plan, or lapsed", () => {
+    const statuses: PlanStatus[] = [
+      { kind: "free_week", plan: "weekly", endsAt: FREE_WEEK_ENDS },
+      { kind: "paid", plan: "monthly" },
+      { kind: "retrying", plan: "weekly", lapsesAt: FREE_WEEK_ENDS },
+      { kind: "admin" },
+      { kind: "no_plan" },
+      { kind: "lapsed" },
+    ];
+    expect(statuses.map(deletionEndsPlan)).toEqual([true, true, true, false, false, false]);
   });
 });
 

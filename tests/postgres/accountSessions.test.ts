@@ -181,6 +181,7 @@ it("ordinary sign-out ends only this browser, and Sign out of all devices ends e
 
 it("Account deletion needs a sign-in from the last 10 minutes, then ends every session", async () => {
   const student = await account("student@example.test");
+  await ownerSql(sql`delete from billing_records`);
   const phone = await signedIn(student.id);
   const confirmed = new FormData();
   confirmed.set("confirmation", "DELETE");

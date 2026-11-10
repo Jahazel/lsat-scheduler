@@ -10,9 +10,14 @@ export function stripeSecretKey() {
   return secretKey;
 }
 
-export async function stripeRequest(path: string, secretKey: string, form?: Record<string, string>): Promise<unknown> {
+export async function stripeRequest(
+  path: string,
+  secretKey: string,
+  form?: Record<string, string>,
+  method: "GET" | "POST" | "DELETE" = form ? "POST" : "GET",
+): Promise<unknown> {
   const response = await fetch(`https://api.stripe.com/v1/${path}`, {
-    method: form ? "POST" : "GET",
+    method,
     headers: { authorization: `Bearer ${secretKey}`, "stripe-version": STRIPE_API_VERSION },
     body: form ? new URLSearchParams(form) : undefined,
     signal: AbortSignal.timeout(10_000),
