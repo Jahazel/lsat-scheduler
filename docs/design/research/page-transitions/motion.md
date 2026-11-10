@@ -2,11 +2,11 @@
 
 The owner approved this motion in the prototype on 2026-11-04 (`prototype/index.html`). It is the same motion set as Progress (`../progress/motion.md`), so the site moves one way everywhere.
 
-Durations are the design-system tokens: fast 120 ms, base 200 ms. Easings: standard `cubic-bezier(0.2, 0, 0, 1)` (`--ease-standard`), exit `cubic-bezier(0.4, 0, 1, 1)` (`--ease-exit`). Reduced motion follows the design system: drop movement, keep a 120 ms fade in with the standard easing (`--ease-standard`).
+Durations are the design-system tokens: fast 120 ms, base 200 ms. Easings: standard `cubic-bezier(0.2, 0, 0, 1)` (`--ease-standard`), exit `cubic-bezier(0.23, 1, 0.32, 1)` (`--ease-out-strong`). Reduced motion follows the design system: drop movement, keep a 120 ms fade in with the standard easing (`--ease-standard`).
 
 Purpose of every row: prevent a jarring change. Each page change happens a few times per visit, so a short fade is in budget. Properties are `opacity` and `transform` only.
 
-**Token conflict.** `--ease-exit` is an ease-in curve. The animate rules forbid ease-in on UI because it delays the start of the motion. Progress already ships with it, and the owner's goal is one motion everywhere, so these rows use it too. A follow-up changes the token itself in `src/app/globals.css`, which fixes Progress and these pages together.
+**Exit curve.** These pages first shipped with `--ease-exit`, an ease-in curve that delays the start of each fade-out. #590 removed that token. Every fade-out now uses the strong ease-out `--ease-out-strong`, so Progress and these pages changed together.
 
 ## Terms
 
