@@ -5,7 +5,9 @@ const configSchema = z.object({
   STRIPE_SECRET_KEY: z.string().regex(/^(sk_test|rk_test|rk_live)_\w+$/),
   STRIPE_WEEKLY_PRICE_ID: z.string().regex(/^price_\w+$/),
   STRIPE_MONTHLY_PRICE_ID: z.string().regex(/^price_\w+$/),
-}).refine((config) => config.STRIPE_WEEKLY_PRICE_ID !== config.STRIPE_MONTHLY_PRICE_ID);
+}).refine((config) => config.STRIPE_WEEKLY_PRICE_ID !== config.STRIPE_MONTHLY_PRICE_ID, { path: ["STRIPE_MONTHLY_PRICE_ID"] });
+
+type SettingProblem = { setting: keyof z.infer<typeof configSchema>; problem: "missing" | "refused" };
 
 const priceSchema = z.object({
   active: z.boolean(),
@@ -26,12 +28,19 @@ type Problem =
 type PriceReport =
   | { ok: true; status: "match"; mode: Mode }
   | { ok: false; status: "mismatch"; problems: Problem[] }
-  | { ok: false; status: "checker-failed" | "configuration-failed" };
+  | { ok: false; status: "configuration-failed"; settings: SettingProblem[] }
+  | { ok: false; status: "checker-failed" };
 
 const PLANS = [
   { plan: "weekly", idSetting: "STRIPE_WEEKLY_PRICE_ID", interval: "week", cents: (prices: PlanPrices) => prices.weeklyCents },
   { plan: "monthly", idSetting: "STRIPE_MONTHLY_PRICE_ID", interval: "month", cents: (prices: PlanPrices) => prices.monthlyCents },
 ] as const;
+
+function settingProblems(error: z.ZodError, env: Readonly<Record<string, string | undefined>>): SettingProblem[] {
+  return configSchema.keyof().options
+    .filter((setting) => error.issues.some((issue) => issue.path[0] === setting))
+    .map((setting) => ({ setting, problem: env[setting] ? "refused" : "missing" }));
+}
 
 const modeOf = (livemode: boolean): Mode => (livemode ? "live" : "test");
 
@@ -41,7 +50,7 @@ export async function runStripePriceCheck({ env, fetcher = fetch, prices = PLAN_
   prices?: PlanPrices;
 }): Promise<PriceReport> {
   const config = configSchema.safeParse(env);
-  if (!config.success) return { ok: false, status: "configuration-failed" };
+  if (!config.success) return { ok: false, status: "configuration-failed", settings: settingProblems(config.error, env) };
 
   const problems: Problem[] = [];
   let firstMode: Mode | undefined;

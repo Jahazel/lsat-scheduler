@@ -247,7 +247,7 @@ describe("OnboardingWizard", () => {
     expect(saving.parentElement?.textContent).toBe("Saving… · Your schedule starts after you add both.");
     expect((screen.getByRole("button", { name: "Back" }) as HTMLButtonElement).disabled).toBe(true);
 
-    failSave(new Error("offline"));
+    failSave(new Error("Server Action failed"));
     expect(await screen.findByText("We couldn't save your plan. Press Skip for now again.")).toBeDefined();
     await user.click(screen.getByRole("button", { name: "Skip for now" }));
     expect(onSave).toHaveBeenCalledTimes(2);
@@ -611,7 +611,7 @@ describe("OnboardingWizard", () => {
     });
 
     it("does not ask the student to press Confirm snapshot again after a failed Skip for now", async () => {
-      const steps = await fillGoalAndWeek(vi.fn().mockRejectedValueOnce(new Error("offline")), bySection(read));
+      const steps = await fillGoalAndWeek(vi.fn().mockRejectedValueOnce(new Error("Server Action failed")), bySection(read));
       await steps.user.click(screen.getByRole("button", { name: "Skip for now" }));
       expect(await screen.findByText("We couldn't save your plan. Press Skip for now again.")).toBeDefined();
 
@@ -776,7 +776,7 @@ describe("OnboardingWizard", () => {
       expect((screen.getByRole("button", { name: "Back" }) as HTMLButtonElement).disabled).toBe(true);
       expect(screen.getByText("Saving your plan. This takes a few seconds.")).toBeDefined();
 
-      failSave(new Error("offline"));
+      failSave(new Error("Server Action failed"));
       expect(await screen.findByText("We couldn't save your plan. Press Confirm snapshot again.")).toBeDefined();
       expect((screen.getByLabelText(statements[1]) as HTMLInputElement).checked).toBe(true);
       await user.click(confirmButton());

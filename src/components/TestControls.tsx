@@ -12,8 +12,9 @@ import {
 import { useAdminTest } from "./AdminTestContext";
 import { FailureNotice } from "./FailureNotice";
 import { FOCUS, cx } from "./ui/classes";
+import { callAction } from "@/lib/callAction";
 import { isoDateInWeek } from "@/lib/scheduleReasonText";
-import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
+import { isUnexpectedFailure, type UnexpectedFailure } from "@/lib/unexpectedFailure";
 import type { SampleDirection } from "@/lib/sampleAnalytics";
 
 export interface TestControlState {
@@ -41,7 +42,7 @@ const RESETS = [
     deletes: "this week's weekly schedule and activity check-ins",
     keeps:
       "your simulated date, analytics snapshots, study settings and earlier weeks",
-    action: rebuildThisWeek,
+    action: callAction(rebuildThisWeek),
   },
   {
     key: "data",
@@ -51,7 +52,7 @@ const RESETS = [
     deletes:
       "all weekly schedules, activity check-ins, analytics snapshots and practice-test results on your student side",
     keeps: "your study settings and admin account",
-    action: resetTestData,
+    action: callAction(resetTestData),
   },
   {
     key: "everything",
@@ -61,7 +62,7 @@ const RESETS = [
     deletes:
       "all weekly schedules, activity check-ins, analytics snapshots, practice-test results and study settings on your student side",
     keeps: "your admin account",
-    action: resetEverything,
+    action: callAction(resetEverything),
   },
 ] as const;
 
@@ -101,7 +102,6 @@ export default function TestControls({
   const [direction, setDirection] = useState<SampleDirection>("steady");
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [answer, setAnswer] = useState<unknown>(null);
   const cancelButton = useRef<HTMLButtonElement>(null);
@@ -118,9 +118,8 @@ export default function TestControls({
     }
   }, [confirmation]);
 
-  async function run<T>(call: () => Promise<Answer<T>>, done: (value: T) => void, message: string) {
+  async function run<T>(call: () => Promise<T | UnexpectedFailure>, done: (value: T) => void, message: string) {
     setBusy(true);
-    setError(null);
     setNotice(null);
     try {
       const answer = await call();
@@ -130,19 +129,13 @@ export default function TestControls({
       setConfirmation(null);
       setNotice(message);
       router.refresh();
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Could not update test data. Try again.",
-      );
     } finally {
       setBusy(false);
     }
   }
   function move(next: string) {
     return run(
-      () => setSimulatedDate(next),
+      () => callAction(setSimulatedDate)(next),
       () => setSample(null),
       `Moved to ${displaySimulatedDate(next)}.`,
     );
@@ -285,7 +278,7 @@ export default function TestControls({
                 className={cx(BUTTON, "mt-3 w-full")}
                 disabled={!uploadOpen}
                 onClick={() =>
-                  run(() => generateTestSample(direction), (sample) => {
+                  run(() => callAction(generateTestSample)(direction), (sample) => {
                     setSample(sample);
                     if (pathname !== UPLOAD_PATH) router.push(UPLOAD_PATH);
                     onClose();
@@ -371,7 +364,6 @@ export default function TestControls({
                     disabled={reset.requiresSchedule && !canRebuild}
                     onClick={() => {
                       setNotice(null);
-                      setError(null);
                       setConfirmation(reset.key);
                     }}
                   >
@@ -385,11 +377,6 @@ export default function TestControls({
       </fieldset>
       <div className="px-5 pb-5" aria-live="polite">
         {busy && <p className="text-small text-smoke">Updating…</p>}
-        {error && (
-          <p role="alert" className="text-small text-danger-ink">
-            {error}
-          </p>
-        )}
         {notice && <p className="text-small text-smoke">{notice}</p>}
       </div>
       <FailureNotice answer={answer} />

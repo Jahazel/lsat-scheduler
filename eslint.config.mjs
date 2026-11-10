@@ -121,7 +121,7 @@ const eslintConfig = defineConfig([
   },
   {
     files: ["src/**/*.{ts,tsx}"],
-    ignores: ["src/**/*.test.{ts,tsx}", "src/components/TestControls.tsx"],
+    ignores: ["src/**/*.test.{ts,tsx}"],
     plugins: { drillmap: { rules: { "call-actions-through-adapter": callActionsThroughAdapter } } },
     rules: {
       "drillmap/call-actions-through-adapter": "error",

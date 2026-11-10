@@ -91,19 +91,23 @@ it("fails on a one-time price and on prices from different modes", async () => {
   });
 });
 
-it("refuses missing or malformed settings before any request", async () => {
-  for (const settings of [
-    { ...env, STRIPE_SECRET_KEY: undefined },
-    { ...env, STRIPE_SECRET_KEY: "pk_test_publishable" },
-    { ...env, STRIPE_SECRET_KEY: "sk_live_full" },
-    { ...env, STRIPE_WEEKLY_PRICE_ID: "" },
-    { ...env, STRIPE_MONTHLY_PRICE_ID: "price_x/../../customers" },
-    { ...env, STRIPE_MONTHLY_PRICE_ID: env.STRIPE_WEEKLY_PRICE_ID },
-  ]) {
-    const network = stripe([weekly, monthly]);
-    expect(await check(network, settings)).toEqual({ ok: false, status: "configuration-failed" });
-    expect(network.requests).toEqual([]);
-  }
+it.each([
+  [{ STRIPE_SECRET_KEY: undefined }, [{ setting: "STRIPE_SECRET_KEY", problem: "missing" }]],
+  [{ STRIPE_SECRET_KEY: "pk_test_publishable" }, [{ setting: "STRIPE_SECRET_KEY", problem: "refused" }]],
+  [{ STRIPE_SECRET_KEY: "sk_live_full" }, [{ setting: "STRIPE_SECRET_KEY", problem: "refused" }]],
+  [{ STRIPE_WEEKLY_PRICE_ID: "" }, [{ setting: "STRIPE_WEEKLY_PRICE_ID", problem: "missing" }]],
+  [{ STRIPE_MONTHLY_PRICE_ID: "price_x/../../customers" }, [{ setting: "STRIPE_MONTHLY_PRICE_ID", problem: "refused" }]],
+  [{ STRIPE_MONTHLY_PRICE_ID: env.STRIPE_WEEKLY_PRICE_ID }, [{ setting: "STRIPE_MONTHLY_PRICE_ID", problem: "refused" }]],
+  [{ STRIPE_SECRET_KEY: "sk_live_full", STRIPE_WEEKLY_PRICE_ID: undefined }, [
+    { setting: "STRIPE_SECRET_KEY", problem: "refused" },
+    { setting: "STRIPE_WEEKLY_PRICE_ID", problem: "missing" },
+  ]],
+])("names each missing or refused setting, without its value, before any request: %o", async (changed, settings) => {
+  const network = stripe([weekly, monthly]);
+  const result = await check(network, { ...env, ...changed });
+  expect(result).toEqual({ ok: false, status: "configuration-failed", settings });
+  expect(network.requests).toEqual([]);
+  for (const value of Object.values(changed)) if (value) expect(JSON.stringify(result)).not.toContain(value);
 });
 
 it("fails without printing the key when Stripe refuses or returns an unknown price", async () => {
