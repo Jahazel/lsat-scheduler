@@ -76,6 +76,7 @@ const ownerSql = (query: ReturnType<typeof sql>) => database.owner.execute(query
 async function account(email: string, role: "student" | "admin" = "student") {
   const created = await database.createAccountAsOwner({ email, name: email, role, googleId: `google-${email}` });
   if (!created) throw new Error("Fixture Account already exists.");
+  if (role === "student") await database.writeBillingRecordAsOwner(created.id);
   return created;
 }
 

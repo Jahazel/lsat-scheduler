@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll } from "vitest";
 import { closePostgresDatabase, createPostgresConnection } from "../../src/lib/postgres";
-import { accounts } from "../../src/lib/postgresSchema";
+import { accounts, billingRecords } from "../../src/lib/postgresSchema";
 import { createPostgresTestDatabase } from "./testDatabase";
 
 export async function createAppTestDatabase() {
@@ -50,7 +50,16 @@ export async function createAppTestDatabase() {
         .returning({ id: accounts.id, role: accounts.role });
       return account ?? null;
     }
-    return { setting: setting.toString(), ownerSetting: database.setting, role, owner: owner.db, createAccountAsOwner, restoreGrants, cleanup };
+    async function writeBillingRecordAsOwner(accountId: string, values: Partial<typeof billingRecords.$inferInsert> = {}) {
+      await owner.db.insert(billingRecords).values({
+        accountId, stripeCustomerId: `cus_${accountId}`, stripeSubscriptionId: `sub_${accountId}`,
+        plan: "weekly", stripeStatus: "active", firstChargeSucceeded: true, ...values,
+      });
+    }
+    return {
+      setting: setting.toString(), ownerSetting: database.setting, role, owner: owner.db,
+      createAccountAsOwner, writeBillingRecordAsOwner, restoreGrants, cleanup,
+    };
   } catch (error) {
     await cleanup();
     throw error;
@@ -82,6 +91,7 @@ export function setUpAppTestDatabase() {
     get role() { return ready().role; },
     get owner() { return ready().owner; },
     get createAccountAsOwner() { return ready().createAccountAsOwner; },
+    get writeBillingRecordAsOwner() { return ready().writeBillingRecordAsOwner; },
     get restoreGrants() { return ready().restoreGrants; },
   };
 }

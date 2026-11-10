@@ -4,6 +4,8 @@ import { scanWithLimits } from "@/lib/scanGuard";
 import { extractPracticeTestSection } from "@/lib/screenshotExtractor";
 import { readScreenshotForm } from "@/lib/screenshotRequest";
 import { answerRequest } from "@/lib/securityLog";
+import { loadAccountPlan } from "@/lib/billingRepository";
+import { mayStartWeeklyUpload, PLAN_REFUSAL } from "@/lib/planStatus";
 
 export async function POST(request: NextRequest) {
   return answerRequest("/api/practice-test/extract", async () => {
@@ -11,6 +13,8 @@ export async function POST(request: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Not signed in" }, { status: 401 });
     }
+    const { status } = await loadAccountPlan(session.user.id);
+    if (!mayStartWeeklyUpload(status)) return NextResponse.json({ error: PLAN_REFUSAL }, { status: 402 });
 
     const read = await readScreenshotForm(request);
     if ("refusal" in read) return read.refusal;

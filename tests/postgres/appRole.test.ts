@@ -509,3 +509,44 @@ it("refuses to reuse an app role that owns a table", async () => {
     await ownerDb().execute(sql`revoke create on schema public from ${sql.identifier(role)}`);
   }
 });
+
+it("reads billing records but cannot write them, and deleting an Account removes its billing record", async () => {
+  const [account] = (await ownerDb().execute<{ id: string }>(sql`
+    insert into accounts (email, name, google_id) values ('billing@example.test', 'Billing', 'google-billing') returning id
+  `)).rows;
+  await ownerDb().execute(sql`
+    insert into billing_records (account_id, stripe_customer_id, stripe_subscription_id, plan, stripe_status)
+    values (${account.id}, 'cus_test', 'sub_test', 'weekly', 'trialing')
+  `);
+  expect((await appDb().execute(sql`select plan from billing_records`)).rows).toEqual([{ plan: "weekly" }]);
+  for (const query of [
+    sql`insert into billing_records (account_id, stripe_customer_id, stripe_subscription_id, plan, stripe_status)
+      values (${account.id}, 'cus_other', 'sub_other', 'weekly', 'active')`,
+    sql`update billing_records set first_charge_succeeded = true`,
+    sql`delete from billing_records`,
+    sql`truncate billing_records`,
+  ]) {
+    await expect(appDb().execute(query)).rejects.toMatchObject({ cause: { code: "42501" } });
+  }
+  await appDb().execute(sql`delete from accounts where id = ${account.id}`);
+  expect((await ownerDb().execute(sql`select 1 from billing_records`)).rows).toEqual([]);
+});
+
+it("cannot touch the used free week list, and prunes only rows older than 12 months", async () => {
+  await ownerDb().execute(sql`truncate used_free_weeks`);
+  for (const query of [
+    sql`select * from used_free_weeks`,
+    sql`insert into used_free_weeks (email_hash) values (repeat('c', 64))`,
+    sql`update used_free_weeks set used_on = current_date`,
+    sql`delete from used_free_weeks`,
+  ]) {
+    await expect(appDb().execute(query)).rejects.toMatchObject({ cause: { code: "42501" } });
+  }
+  await ownerDb().execute(sql`
+    insert into used_free_weeks (email_hash, used_on) values
+      (repeat('a', 64), current_date - interval '12 months' - interval '1 day'), (repeat('b', 64), current_date - interval '12 months')
+  `);
+  const pruned = await appDb().execute<{ removed: string }>(sql`select prune_used_free_weeks() as removed`);
+  expect(Number(pruned.rows[0]?.removed)).toBe(1);
+  expect((await ownerDb().execute(sql`select count(*)::integer as left from used_free_weeks`)).rows).toEqual([{ left: 1 }]);
+});

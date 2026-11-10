@@ -5,6 +5,9 @@ import { mockRules } from "@/lib/mockData";
 import { scanWithLimits } from "@/lib/scanGuard";
 import { readScreenshotForm } from "@/lib/screenshotRequest";
 import { answerRequest } from "@/lib/securityLog";
+import { loadAccountPlan } from "@/lib/billingRepository";
+import { findStudentByAccountId } from "@/lib/studentRepository";
+import { mayStartWeeklyUpload, PLAN_REFUSAL } from "@/lib/planStatus";
 
 export async function POST(request: NextRequest) {
   return answerRequest("/api/analytics/extract", async () => {
@@ -12,6 +15,9 @@ export async function POST(request: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Not signed in" }, { status: 401 });
     }
+    const { status } = await loadAccountPlan(session.user.id);
+    const stillOnboarding = status.kind === "no_plan" && !(await findStudentByAccountId(session.user.id));
+    if (!mayStartWeeklyUpload(status) && !stillOnboarding) return NextResponse.json({ error: PLAN_REFUSAL }, { status: 402 });
 
     const read = await readScreenshotForm(request);
     if ("refusal" in read) return read.refusal;
