@@ -5,11 +5,11 @@ import { isAccountId } from "./accountRepository";
 import { getPostgresDatabase } from "./postgres";
 import { billingRecords, stripeMessages } from "./postgresSchema";
 import type { Subject } from "./securityLog";
+import { stripeRequest, stripeSecretKey } from "./stripeApi";
 
 export const STRIPE_MESSAGE_ROUTE = "/api/stripe/webhook";
 
 const SIGNATURE_TOLERANCE_SECONDS = 5 * 60;
-const STRIPE_API_VERSION = "2025-03-31.basil";
 
 type BillingRow = typeof billingRecords.$inferSelect;
 
@@ -73,6 +73,8 @@ const subscriptionSchema = z.object({
   metadata: z.record(z.string(), z.string()),
   trial_end: seconds.nullable(),
   ended_at: seconds.nullable(),
+  cancel_at: seconds.nullable(),
+  cancel_at_period_end: z.boolean(),
   items: z.object({
     data: z.array(z.object({
       current_period_start: seconds,
@@ -89,31 +91,17 @@ type Subscription = z.infer<typeof subscriptionSchema>;
 
 const paidInvoicesSchema = z.object({ data: z.array(z.object({ amount_paid: z.number() })) });
 
-class StripeRequestFailed extends Error {
-  override name = "StripeRequestFailed";
-}
-
 function stripeSettings() {
   const signingSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!signingSecret || !secretKey) throw new Error("STRIPE_WEBHOOK_SECRET or STRIPE_SECRET_KEY is not set.");
-  return { signingSecret, secretKey };
-}
-
-async function stripeGet(path: string, secretKey: string) {
-  const response = await fetch(`https://api.stripe.com/v1/${path}`, {
-    headers: { authorization: `Bearer ${secretKey}`, "stripe-version": STRIPE_API_VERSION },
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!response.ok) throw new StripeRequestFailed(`Stripe answered ${response.status}`);
-  return response.json();
+  if (!signingSecret) throw new Error("STRIPE_WEBHOOK_SECRET is not set.");
+  return { signingSecret, secretKey: stripeSecretKey() };
 }
 
 const fetchSubscription = async (id: string, secretKey: string) =>
-  subscriptionSchema.parse(await stripeGet(`subscriptions/${id}?expand[]=latest_invoice`, secretKey));
+  subscriptionSchema.parse(await stripeRequest(`subscriptions/${id}?expand[]=latest_invoice`, secretKey));
 
 async function hasPaidCharge(id: string, secretKey: string) {
-  const invoices = paidInvoicesSchema.parse(await stripeGet(`invoices?subscription=${id}&status=paid&limit=100`, secretKey));
+  const invoices = paidInvoicesSchema.parse(await stripeRequest(`invoices?subscription=${id}&status=paid&limit=100`, secretKey));
   return invoices.data.some((invoice) => invoice.amount_paid > 0);
 }
 
@@ -152,6 +140,7 @@ async function billingState(subscription: Subscription, current: BillingRow | un
     paidPeriodEndsAt: paidPeriodEnd(subscription),
     firstChargeSucceeded,
     renewalFailedAt: renewalFailing ? earlier(keptFailedAt, failedAt) : null,
+    cancelAtPeriodEnd: subscription.cancel_at_period_end || subscription.cancel_at !== null,
   };
 }
 

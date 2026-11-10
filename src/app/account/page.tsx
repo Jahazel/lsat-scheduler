@@ -8,6 +8,9 @@ import { ChangePasswordCard } from "./ChangePasswordCard";
 import { DeletionCard } from "./DeletionCard";
 import { SessionsCard } from "./SessionsCard";
 import { PageArrival } from "@/components/PagePlaceholder";
+import { loadAccountPlan } from "@/lib/billingRepository";
+import { planCardFacts } from "@/lib/planCard";
+import { PlanCard } from "./PlanCard";
 
 export default async function AccountPage() {
   const session = await auth();
@@ -19,7 +22,11 @@ export default async function AccountPage() {
   if (!doc) {
     redirect("/onboarding");
   }
-  const isPasswordAccount = isAccountId(session.user.id) && !!(await findPasswordAccountById(session.user.id));
+  const [isPasswordAccount, { status, record }] = await Promise.all([
+    isAccountId(session.user.id) && findPasswordAccountById(session.user.id).then(Boolean),
+    loadAccountPlan(session.user.id),
+  ]);
+  const planCard = planCardFacts(status, record);
 
   return (
     <div className="min-h-screen bg-vellum">
@@ -36,6 +43,7 @@ export default async function AccountPage() {
         </div>
       </header>
       <div className="mx-auto box-content flex max-w-content flex-col gap-6 px-5 py-10 md:px-18 md:pt-16 md:pb-24">
+        {planCard && <PlanCard facts={planCard} />}
         <SessionsCard />
         {isPasswordAccount && <ChangePasswordCard />}
         <DeletionCard

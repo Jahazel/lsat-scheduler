@@ -8,7 +8,7 @@ type PlanName = BillingRow["plan"];
 type StripeStatus = BillingRow["stripeStatus"];
 
 export type BillingRecord = Pick<BillingRow,
-  "plan" | "stripeStatus" | "freeWeekEndsAt" | "paidPeriodEndsAt" | "firstChargeSucceeded" | "renewalFailedAt">;
+  "plan" | "stripeStatus" | "freeWeekEndsAt" | "paidPeriodEndsAt" | "firstChargeSucceeded" | "renewalFailedAt" | "cancelAtPeriodEnd">;
 
 export type PlanStatus =
   | { kind: "admin" }

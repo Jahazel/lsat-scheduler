@@ -6,7 +6,7 @@ const FREE_WEEK_ENDS = at("2026-11-23T06:00:00.000Z");
 
 const inFreeWeek: BillingRecord = {
   plan: "weekly", stripeStatus: "trialing", freeWeekEndsAt: FREE_WEEK_ENDS,
-  paidPeriodEndsAt: FREE_WEEK_ENDS, firstChargeSucceeded: false, renewalFailedAt: null,
+  paidPeriodEndsAt: FREE_WEEK_ENDS, firstChargeSucceeded: false, renewalFailedAt: null, cancelAtPeriodEnd: false,
 };
 const paid: BillingRecord = {
   ...inFreeWeek, stripeStatus: "active", firstChargeSucceeded: true, paidPeriodEndsAt: at("2026-11-30T06:00:00.000Z"),
