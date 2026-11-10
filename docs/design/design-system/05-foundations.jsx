@@ -850,14 +850,14 @@
               <path d="M0 139.5H372" fill="#000000" stroke="var(--color-graphite-line)" />
               <path d="M0 0.5H372" fill="#000000" stroke="var(--color-graphite-line)" />
               <path d="M2 138C70 138 2 2 370 2" fill="none" stroke="var(--color-chalk)" strokeWidth="2" strokeLinecap="round" />
-              <path d="M2 138C150 138 370 2 370 2" fill="none" stroke="var(--color-smoke)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="4 4" />
+              <path d="M2 138C87 2 120 2 370 2" fill="none" stroke="var(--color-smoke)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="4 4" />
             </svg>
             <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ boxSizing: 'border-box', color: 'var(--color-chalk)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-mono)', lineHeight: 'var(--leading-mono)' }}>
                 standard · cubic-bezier(0.2, 0, 0, 1)
               </div>
               <div style={{ boxSizing: 'border-box', color: 'var(--color-fog)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-mono)', lineHeight: 'var(--leading-mono)' }}>
-                exit · cubic-bezier(0.4, 0, 1, 1) ┄
+                exit · out-strong · cubic-bezier(0.23, 1, 0.32, 1) ┄
               </div>
             </div>
           </div>
