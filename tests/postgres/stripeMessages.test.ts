@@ -422,3 +422,27 @@ it("saves the newest state when a second message about the subscription arrives 
 
   expect(await records()).toEqual([expect.objectContaining({ stripe_status: "active", renewal_failed_at: null })]);
 });
+
+it("waits for a role change in progress and then ignores the message for the new admin", async () => {
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId));
+  let commitRoleChange = () => {};
+  let roleLocked = () => {};
+  const locked = new Promise<void>((resolve) => { roleLocked = resolve; });
+  const roleChange = database.owner.transaction(async (tx) => {
+    await tx.execute(sql`select id from accounts where id = ${accountId} for update`);
+    await tx.execute(sql`update accounts set role = 'admin' where id = ${accountId}`);
+    roleLocked();
+    await new Promise<void>((resolve) => { commitRoleChange = resolve; });
+  });
+  await locked;
+
+  const received = send(checkoutCompleted("sub_maya"));
+  await vi.waitFor(() => expect(stripe.requests).toHaveLength(1));
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  commitRoleChange();
+  await roleChange;
+
+  expect((await received).status).toBe(200);
+  expect(await records()).toEqual([]);
+  expect(await refusals()).toEqual([{ result: "adminAccount", route: "/api/stripe/webhook", account_id: accountId }]);
+});
