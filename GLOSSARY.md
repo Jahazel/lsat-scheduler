@@ -173,7 +173,7 @@ _Avoid_: inactive, expired, locked
 ### Failures
 
 **Unexpected failure**:
-A server step that broke in a way the app did not plan for. The student is told "Something went wrong. Try again." with an error code.
+A server step that broke in a way the app did not plan for. The student is told "Something went wrong. Try again." with an error code. The error code is left out only when no security log entry exists (see Failure toast).
 _Avoid_: error, crash
 
 **Planned refusal**:

@@ -397,6 +397,14 @@ describe("WeeklyUpload", () => {
     expect(button("Check the values").disabled).toBe(true);
   });
 
+  it("shows a reply it cannot read in the failure toast with no error code", async () => {
+    stubServer({ "pt158-s2.png": new Response("Bad gateway", { status: 503 }) });
+    const { user } = setup();
+    await readAll(user);
+
+    expect((await screen.findByRole("alert")).textContent).toBe("Something went wrong. Try again.");
+  });
+
   it("shows a failed read in the failure toast, keeps Try again on its row, and closes the toast when the retry reads", async () => {
     const server = stubServer({ "pt158-s2.png": Response.json({ code: "3f9a01c2" }, { status: 500 }) });
     const { user } = setup();
