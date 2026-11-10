@@ -68,7 +68,7 @@ describe("drill setup guide", () => {
     expect(content.section).toBe("Reading Comprehension");
     expect(content.drills).toEqual([{ tags: "Science", difficulty: { low: 3, high: 3 }, count: 1, unit: "passages" }]);
     expect(content.total).toBe("1 passage");
-    expect(content.texts[3]).toBe("Set Tags to Science and Passage Difficulty to 3.");
+    expect(content.texts[3]).toBe("Set Tags to Science (under RC passage subject) and Passage Difficulty to 3.");
     expect(content.texts[4]).toBe("Set Number of passages to 1. Pick any Timing, then click Start Drill.");
   });
 
@@ -76,9 +76,9 @@ describe("drill setup guide", () => {
     const content = guide(rc({ type: "Law", difficultyLevel: 4 }, { type: "Humanities", difficultyLevel: 2 }));
     expect(content.drills.map(({ tags, difficulty }) => [tags, difficulty.low])).toEqual([["Humanities", 2], ["Law", 4]]);
     expect(content.total).toBe("2 passages");
-    expect(content.texts[3]).toBe("You build this as two drills on 7Sage. For the first, set Tags to Humanities and Passage Difficulty to 2.");
+    expect(content.texts[3]).toBe("You build this as two drills on 7Sage. For the first, set Tags to Humanities (under RC passage subject) and Passage Difficulty to 2.");
     expect(content.texts[4]).toBe("Set Number of passages to 1. Pick any Timing, then click Start Drill. "
-      + "When it ends, repeat steps 2 to 5 with Tags set to Law and Passage Difficulty set to 4, and Number of passages set to 1.");
+      + "When it ends, repeat steps 2 to 5 with Tags set to Law (under RC passage subject) and Passage Difficulty set to 4, and Number of passages set to 1.");
   });
 
   it("keeps two same-level passages in the drill's order", () => {
@@ -88,8 +88,10 @@ describe("drill setup guide", () => {
 
   it("names the longest real types in full", () => {
     const content = guide(lr(["Parallel flawed method of reasoning", "Parallel method of reasoning"], 10, "L3-5"));
-    expect(content.drills.map((drill) => drill.tags)).toEqual(["Parallel flawed method of reasoning", "Parallel method of reasoning"]);
-    expect(content.texts[3]).toContain("Tags to Parallel flawed method of reasoning and Question Difficulty to 3, 4 and 5.");
+    expect(content.texts[3]).toBe("You build this as two drills on 7Sage. "
+      + "For the first, set Tags to Parallel flawed method of reasoning and Question Difficulty to 3, 4 and 5.");
+    expect(content.texts[4]).toBe("Set Number of questions to 5. Pick any Timing, then click Start Drill. When it ends, repeat steps 2 to 5 "
+      + "with Tags set to Parallel method of reasoning and Question Difficulty set to 3, 4 and 5, and Number of questions set to 5.");
     expect(guide(lr(["PSA - find or complete the application"], 5, "L3-5")).drills[0].tags).toBe("PSA - find or complete the application");
   });
 

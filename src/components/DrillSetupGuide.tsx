@@ -15,7 +15,7 @@ const PRESS = cx(
 const OUTLINE = cx("inline-flex h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xs border border-vellum-line bg-paper px-3.5 text-small font-medium text-ink pointer-hover:bg-vellum", PRESS);
 
 const OPENING_SCREENSHOTS = [
-  { src: "/drill-setup-guide/step-1-open-drills.png", width: 1360, height: 1398 },
+  { src: "/drill-setup-guide/step-1-open-drills.png", width: 1360, height: 930 },
   { src: "/drill-setup-guide/step-2-start-drill.png", width: 1320, height: 380 },
 ];
 const SCREENSHOTS: Record<GuideContent["section"], { src: string; width: number; height: number }[]> = {

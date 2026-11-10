@@ -324,7 +324,7 @@ describe("ScheduleCheckInView", () => {
       await user.click(within(guide()).getByRole("button", { name: "Next step" }));
       expect(within(guide()).getByText("Set Number of passages", { exact: false }).textContent)
         .toBe("Set Number of passages to 1. Pick any Timing, then click Start Drill. "
-          + "When it ends, repeat steps 2 to 5 with Tags set to Science and Passage Difficulty set to 4, and Number of passages set to 1.");
+          + "When it ends, repeat steps 2 to 5 with Tags set to Science (under RC passage subject) and Passage Difficulty set to 4, and Number of passages set to 1.");
       expect(within(guide()).getByRole("img", { name: "7Sage, step 5" }).getAttribute("src")).toBe("/drill-setup-guide/rc-step-5-count-and-start.png");
     });
 
