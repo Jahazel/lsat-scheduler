@@ -17,7 +17,7 @@ const REMOVED = ["Your profile", "Approved and legacy analytics snapshots", "Wee
 
 export type DeletionMode = { kind: "admin" } | { kind: "google"; signedInRecently: boolean } | { kind: "password" };
 
-export function DeletionCard({ mode }: { mode: DeletionMode }) {
+export function DeletionCard({ mode, planEnds }: { mode: DeletionMode; planEnds: boolean }) {
   return (
     <section
       id="delete-account"
@@ -37,10 +37,26 @@ export function DeletionCard({ mode }: { mode: DeletionMode }) {
           ))}
         </ul>
       </div>
-      <div className="flex shrink-0 flex-col justify-end md:w-[360px]">
+      <div className="flex shrink-0 flex-col justify-end gap-4 md:w-[360px]">
+        {planEnds && <PlanEndsWarning />}
         {mode.kind === "admin" ? <AdminNotice /> : <DeletionForm mode={mode} />}
       </div>
     </section>
+  );
+}
+
+function PlanEndsWarning() {
+  return (
+    <div className="flex items-start gap-3 rounded-xs border border-warning-line bg-warning-wash p-4">
+      <svg aria-hidden viewBox="0 0 24 24" className="mt-px size-[18px] shrink-0 text-warning-ink" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 8v5M12 16.5v.5" strokeLinecap="round" />
+      </svg>
+      <div className="flex min-w-0 flex-col gap-1">
+        <p className="text-body leading-[20px] font-medium text-ink">Your plan ends now.</p>
+        <p className="text-small leading-[20px] text-smoke">Unused time is not refunded.</p>
+      </div>
+    </div>
   );
 }
 
