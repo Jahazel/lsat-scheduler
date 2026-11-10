@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
-import type { FailureCode, FormState } from "@/lib/unexpectedFailure";
+import { NOT_LOGGED, type FailureCode, type FormState } from "@/lib/unexpectedFailure";
 
 const navigation = vi.hoisted(() => ({ pathname: "/account" }));
 vi.mock("next/navigation", () => ({ usePathname: () => navigation.pathname }));
@@ -49,6 +49,13 @@ it("shows the message and the error code when an action fails, and nothing befor
   const alert = await toast();
   expect(alert.textContent).toContain("Something went wrong. Try again.");
   expect(alert.textContent).toContain("Error code 3f9a01c2");
+});
+
+it("shows the message with no error code when no security log entry names the failure", async () => {
+  render(<Screen logOut={[failure(NOT_LOGGED)]} />);
+
+  await press("Log out");
+  expect((await toast()).textContent).toBe("Something went wrong. Try again.");
 });
 
 it("closes when the student presses Close", async () => {

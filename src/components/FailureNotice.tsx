@@ -25,6 +25,7 @@ import {
   isUnexpectedFailure,
   NO_CONNECTION,
   NO_CONNECTION_MESSAGE,
+  NOT_LOGGED,
   UNEXPECTED_FAILURE_MESSAGE,
   type FailureCode,
   type FormState,
@@ -160,6 +161,8 @@ function ToastCard({ toast, onClose, onLeft }: { toast: Toast; onClose?: () => v
       <div className="min-w-0 flex-1">
         {toast.code === NO_CONNECTION ? (
           <p className="mt-px text-small leading-[20px] font-medium text-ink">{NO_CONNECTION_MESSAGE}</p>
+        ) : toast.code === NOT_LOGGED ? (
+          <p className="mt-px text-small leading-[20px] font-medium text-ink">{UNEXPECTED_FAILURE_MESSAGE}</p>
         ) : (
           <>
             <p className="mt-px mb-1 text-small leading-[20px] font-medium text-ink">{UNEXPECTED_FAILURE_MESSAGE}</p>

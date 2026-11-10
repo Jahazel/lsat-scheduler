@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { extractPracticeTestScreenshot, extractScreenshot, shrunkSize } from "./screenshotUpload";
-import { isFailureCode } from "./unexpectedFailure";
+import { NOT_LOGGED } from "./unexpectedFailure";
 
 const file = new File(["png"], "7sage-analytics.png", { type: "image/png" });
 
@@ -71,12 +71,9 @@ describe("extractScreenshot", () => {
     ["a status the route never sends", () => replyWith(503, {})],
     ["rows it cannot read", () => vi.stubGlobal("fetch", vi.fn(async () => new Response("<html>", { status: 200 })))],
     ["a rejection it cannot read", () => vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 413 })))],
-  ])("reports %s as an unexpected failure with an error code", async (_, reply) => {
+  ])("reports %s as an unexpected failure with no error code", async (_, reply) => {
     reply();
-    const answer = await extractScreenshot(file, "LR");
-
-    expect(answer.kind).toBe("failed");
-    expect(answer.kind === "failed" && isFailureCode(answer.failure.unexpectedFailure)).toBe(true);
+    expect(await extractScreenshot(file, "LR")).toEqual({ kind: "failed", failure: { unexpectedFailure: NOT_LOGGED } });
   });
 
   it("keeps the error code from a server failure", async () => {

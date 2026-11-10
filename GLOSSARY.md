@@ -187,6 +187,7 @@ _Avoid_: error ID, reference number
 **Failure toast**:
 The floating notice that shows an unexpected failure and its error code over the current screen.
 When the request never reached the server, it shows "No connection. Check your signal and try again." with no error code, because no security log entry exists.
+When the server answered in a way the app cannot read, it shows "Something went wrong. Try again." with no error code, for the same reason.
 _Avoid_: error banner, error message, failure notice
 
 ### Capacity

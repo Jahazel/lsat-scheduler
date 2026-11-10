@@ -2,7 +2,7 @@ import { callAction } from "./callAction";
 import type { SectionReading } from "./practiceTestResult";
 import type { ScanRefusal } from "./scanPlaces";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "./types";
-import { isUnexpectedFailure, type FailureCode, type UnexpectedFailure } from "./unexpectedFailure";
+import { isUnexpectedFailure, NOT_LOGGED, type UnexpectedFailure } from "./unexpectedFailure";
 
 export const SCREENSHOT_MEDIA_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 export type ScreenshotMediaType = (typeof SCREENSHOT_MEDIA_TYPES)[number];
@@ -121,11 +121,8 @@ async function readReply(res: Response): Promise<{ kind: "ok"; body: unknown } |
   return { kind: "ok", body: await res.json() };
 }
 
-const clientMadeFailureCode = () =>
-  Array.from(crypto.getRandomValues(new Uint8Array(4)), (byte) => byte.toString(16).padStart(2, "0")).join("") as FailureCode;
-
 function unexpectedReply(): ScreenshotFailure {
-  return { kind: "failed", failure: { unexpectedFailure: clientMadeFailureCode() } };
+  return { kind: "failed", failure: { unexpectedFailure: NOT_LOGGED } };
 }
 
 export async function extractScreenshot(file: File, section: AnalyticsSection): Promise<ExtractReply> {
