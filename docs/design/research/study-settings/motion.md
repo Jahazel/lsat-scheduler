@@ -2,7 +2,7 @@
 
 The owner approved this motion in the prototype on 2026-11-01 (`prototype/index.html`).
 
-Durations are the design-system tokens: fast 120 ms, base 200 ms, slow 320 ms. Easings: standard `cubic-bezier(0.2, 0, 0, 1)` for entrances; strong ease-out `cubic-bezier(0.23, 1, 0.32, 1)` for exits. The project's exit curve `cubic-bezier(0.4, 0, 1, 1)` is an ease-in, which the `animate` rules forbid on UI, so this page does not use it. Reduced motion follows the design system: drop movement, keep 120 ms fades.
+Durations are the design-system tokens: fast 120 ms, base 200 ms, slow 320 ms. Easings: standard `cubic-bezier(0.2, 0, 0, 1)` for entrances; strong ease-out `cubic-bezier(0.23, 1, 0.32, 1)` for exits. Reduced motion follows the design system: drop movement, keep 120 ms fades.
 
 Only `opacity` and `transform` animate, through CSS transitions, not keyframes. A new trigger retargets a running transition instead of restarting it. Field errors, the passed-month notice, and the loading state do not animate: they appear at once, so motion never delays what the student must read. Status text uses `role="status"` or `role="alert"` from the first frame.
 

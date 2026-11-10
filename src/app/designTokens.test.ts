@@ -144,6 +144,12 @@ describe("design tokens", () => {
     expect(css).toContain("--duration-reveal: 600ms;");
   });
 
+  it("gives fade-outs a strong ease-out curve, with no separate exit curve", () => {
+    const css = readFileSync(path.join(SRC, "app/globals.css"), "utf8");
+    expect(css).toContain("--ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);");
+    expect(css).not.toContain("--ease-exit");
+  });
+
   it("keeps application code on Paper tokens", () => {
     const violations = sourceFiles(SRC)
       .filter((file) => file !== __filename)

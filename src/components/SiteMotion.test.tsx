@@ -43,7 +43,7 @@ beforeEach(() => {
   tokens.setProperty("--duration-fast", "120ms");
   tokens.setProperty("--duration-base", "200ms");
   tokens.setProperty("--ease-standard", "cubic-bezier(0.2, 0, 0, 1)");
-  tokens.setProperty("--ease-exit", "cubic-bezier(0.4, 0, 1, 1)");
+  tokens.setProperty("--ease-out-strong", "cubic-bezier(0.23, 1, 0.32, 1)");
   Element.prototype.animate = animate as unknown as Element["animate"];
   Element.prototype.getAnimations = function (this: Element) { return live.filter((a) => a.el === this) as unknown as Animation[]; };
   Element.prototype.getClientRects = function (this: Element) {
@@ -174,7 +174,7 @@ describe("SiteMotion", () => {
     expect(exits()).toHaveLength(2);
     for (const exit of exits()) {
       expect(exit.keyframes.at(-1)).toMatchObject({ opacity: 0 });
-      expect(exit.options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)" });
+      expect(exit.options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
     }
     finishExits();
     await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/signup", { scroll: false }));
@@ -445,7 +445,7 @@ describe("SiteMotion", () => {
       window.scrollY = 2400;
       await click("Terms of Service");
       expect(exits().map((a) => a.el)).toEqual([screen.getByRole("heading", { name: "Your practice results" }).parentElement]);
-      expect(exits()[0].options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)" });
+      expect(exits()[0].options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
       expect(topBar().hasAttribute("inert")).toBe(false);
       finishExits();
       await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/legal/terms", { scroll: false }));
@@ -581,7 +581,7 @@ describe("SiteMotion", () => {
       window.scrollY = 116;
       await click("Log in");
       expect(exits().map((a) => a.el)).toEqual([formOf("Sign up for DrillMap"), card()]);
-      for (const exit of exits()) expect(exit.options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)" });
+      for (const exit of exits()) expect(exit.options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
       for (const anchor of anchors()) {
         expect(anchor.hasAttribute("inert")).toBe(false);
         expect(anchor.hasAttribute("aria-busy")).toBe(false);
@@ -788,7 +788,7 @@ describe("SiteMotion", () => {
       at("/onboarding", <Onboarding />, rerender);
       expect(fadeOuts()).toHaveLength(1);
       expect(fadeOuts()[0].keyframes.at(-1)).toMatchObject({ opacity: 0 });
-      expect(fadeOuts()[0].options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)" });
+      expect(fadeOuts()[0].options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
       expect(entrances()).toHaveLength(0);
       expect(document.activeElement).not.toBe(screen.getByRole("heading", { name: "Set your target" }));
 

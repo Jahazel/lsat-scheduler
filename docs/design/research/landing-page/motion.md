@@ -19,4 +19,3 @@ Approved by the owner with the prototype, 2026-11-02 ([prototype](prototype/inde
 ## Token notes
 - `--ease-in-out-strong` (`cubic-bezier(0.77, 0, 0.175, 1)`) is new. The tab pill needs an ease-in-out curve because it moves across the screen.
 - The step-screen wipe is 600 ms, longer than `--duration-slow` (320 ms). It plays once per screen on a marketing page, as an explanation of each step. The build needs a new token, such as `--duration-reveal: 600ms`.
-- `--ease-exit` (`cubic-bezier(0.4, 0, 1, 1)`) is an ease-in curve. The motion rules ban ease-in curves for interface motion, so nothing here uses it.

@@ -1,8 +1,7 @@
 # Motion spec: Drill setup guide
 
 One set of motions to approve, not options. Durations use the project tokens only: `--duration-fast` (120 ms) and
-`--duration-base` (200 ms). The curve is `--ease-out-strong`, cubic-bezier(0.23, 1, 0.32, 1). The `--ease-exit` token
-is an ease-in curve, which the motion rules forbid for UI, so no row uses it.
+`--duration-base` (200 ms). The curve is `--ease-out-strong`, cubic-bezier(0.23, 1, 0.32, 1).
 
 | Element | Trigger | Motion | Duration token | Reduced motion |
 | --- | --- | --- | --- | --- |
