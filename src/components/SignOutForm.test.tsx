@@ -4,26 +4,32 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { FailureCode } from "@/lib/unexpectedFailure";
 import { FailureToastProvider } from "./FailureNotice";
-import { SignOutForm } from "./SignOutForm";
+import { SignOutButton, SignOutForm } from "./SignOutForm";
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
 
-it("loads the signed-out address as a new page", async () => {
+it("loads the signed-out address as a new page, and Log out keeps waiting until this page goes", async () => {
   const assign = vi.fn();
   vi.stubGlobal("location", { ...window.location, assign });
   render(
     <SignOutForm action={async () => ({ goTo: "/?signedOut=1" as const })}>
-      <button type="submit">Log out</button>
+      <SignOutButton>Log out</SignOutButton>
     </SignOutForm>,
     { wrapper: FailureToastProvider },
   );
+  const logOut = screen.getByRole("button", { name: "Log out" });
 
-  await userEvent.click(screen.getByRole("button", { name: "Log out" }));
+  await userEvent.click(logOut);
   await vi.waitFor(() => expect(assign).toHaveBeenCalledWith("/?signedOut=1"));
+  await new Promise((resolve) => setTimeout(resolve));
+  expect(logOut.getAttribute("aria-disabled")).toBe("true");
   expect(screen.queryByRole("alert")).toBeNull();
+
+  dispatchEvent(new Event("pagehide"));
+  await vi.waitFor(() => expect(logOut.hasAttribute("aria-disabled")).toBe(false));
 });
 
 it("shows the error code when a sign-out fails, and loads no page", async () => {

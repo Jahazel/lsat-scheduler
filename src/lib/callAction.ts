@@ -18,7 +18,9 @@ export function callAction<A extends unknown[], T>(action: (...args: A) => Promi
     }
     if (!isSignedOut(answer)) return answer as Followed<T>;
     // A Server Action redirect is an in-page navigation, and Back would show the signed-out pages again from the router's memory.
+    const pageHides = new Promise((resolve) => addEventListener("pagehide", resolve, { once: true }));
     window.location.assign(answer.goTo);
+    await pageHides;
     return null as Followed<T>;
   };
 }
