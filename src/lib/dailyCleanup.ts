@@ -36,6 +36,7 @@ export async function runDailyCleanup() {
   const deletionListRemoved = await deleteOldDeletionListRows();
   const securityLog = await db.execute<{ removed: string }>(sql`select prune_security_log() as removed`);
   const usedFreeWeeks = await db.execute<{ removed: string }>(sql`select prune_used_free_weeks() as removed`);
+  const stripeMessages = await db.execute<{ removed: string }>(sql`select prune_stripe_messages() as removed`);
   const pendingSignupsRemoved = await deleteOldPendingSignups();
   const resets = await db.execute(sql`delete from reset_tokens where expires_at < now()`);
   const warnings = await warnInactiveAccounts(now);
@@ -48,6 +49,7 @@ export async function runDailyCleanup() {
     deletionListRemoved,
     securityLogRemoved: Number(securityLog.rows[0]?.removed),
     usedFreeWeeksRemoved: Number(usedFreeWeeks.rows[0]?.removed),
+    stripeMessagesRemoved: Number(stripeMessages.rows[0]?.removed),
     pendingSignupsRemoved,
     resetTokensRemoved: resets.rowCount ?? 0,
   };

@@ -161,9 +161,15 @@ export const billingRecords = pgTable("billing_records", {
   paidPeriodEndsAt: timestamp("paid_period_ends_at", { withTimezone: true }),
   firstChargeSucceeded: boolean("first_charge_succeeded").notNull().default(false),
   renewalFailedAt: timestamp("renewal_failed_at", { withTimezone: true }),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
 });
 
 export const usedFreeWeeks = pgTable("used_free_weeks", {
   emailHash: text("email_hash").primaryKey(),
   usedOn: date("used_on", { mode: "string" }).notNull().defaultNow(),
+});
+
+export const stripeMessages = pgTable("stripe_messages", {
+  id: text("id").primaryKey(),
+  handledAt: timestamp("handled_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -34,6 +34,7 @@ export function proxyRoute(
   if (pathname.startsWith("/api/auth")) return { kind: "allow" };
   // Vercel Cron has no session. The route checks CRON_SECRET itself.
   if (pathname === "/api/cron/daily-cleanup") return { kind: "allow" };
+  if (pathname === "/api/stripe/webhook") return { kind: "allow" };
 
   if (!user) {
     if (pathname === "/login" && sentSessionCookie && !loginReason) return { kind: "redirect", to: SESSION_ENDED_PATH };

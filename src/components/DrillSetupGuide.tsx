@@ -14,22 +14,19 @@ const PRESS = cx(
 );
 const OUTLINE = cx("inline-flex h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xs border border-vellum-line bg-paper px-3.5 text-small font-medium text-ink pointer-hover:bg-vellum", PRESS);
 
-const OPENING_SCREENSHOTS = [
-  { src: "/drill-setup-guide/step-1-open-drills.png", width: 1360, height: 930 },
-  { src: "/drill-setup-guide/step-2-start-drill.png", width: 1320, height: 380 },
-];
+const START_DRILL_SCREENSHOT = { src: "/drill-setup-guide/step-1-start-drill.png", width: 2000, height: 1399 };
 const SCREENSHOTS: Record<GuideContent["section"], { src: string; width: number; height: number }[]> = {
   "Logical Reasoning": [
-    ...OPENING_SCREENSHOTS,
-    { src: "/drill-setup-guide/lr-step-3-customize.png", width: 1080, height: 370 },
-    { src: "/drill-setup-guide/lr-step-4-filters.png", width: 1080, height: 1170 },
-    { src: "/drill-setup-guide/lr-step-5-count-and-start.png", width: 1080, height: 650 },
+    START_DRILL_SCREENSHOT,
+    { src: "/drill-setup-guide/lr-step-2-customize.png", width: 2000, height: 857 },
+    { src: "/drill-setup-guide/lr-step-3-filters.png", width: 2000, height: 1383 },
+    { src: "/drill-setup-guide/lr-step-4-count-and-start.png", width: 2000, height: 1184 },
   ],
   "Reading Comprehension": [
-    ...OPENING_SCREENSHOTS,
-    { src: "/drill-setup-guide/rc-step-3-customize.png", width: 1080, height: 350 },
-    { src: "/drill-setup-guide/rc-step-4-filters.png", width: 1080, height: 830 },
-    { src: "/drill-setup-guide/rc-step-5-count-and-start.png", width: 1080, height: 650 },
+    START_DRILL_SCREENSHOT,
+    { src: "/drill-setup-guide/rc-step-2-customize.png", width: 2000, height: 1111 },
+    { src: "/drill-setup-guide/rc-step-3-filters.png", width: 2000, height: 1081 },
+    { src: "/drill-setup-guide/rc-step-4-count-and-start.png", width: 2000, height: 1107 },
   ],
 };
 
@@ -203,7 +200,7 @@ export function DrillSetupGuide({ open, onClose, returnFocusTo, day, label, guid
               <p className="text-caption tracking-[0.1em] text-smoke uppercase tabular-nums">Step {card + 1} of {guide.steps.length}</p>
               <h3 className="text-[20px] leading-7 font-medium tracking-[-0.01em] text-ink">{current.title}</h3>
               <p className="text-small leading-[22px] text-smoke"><Text text={current.text} /></p>
-              {card === 3 ? <FiltersTable guide={guide} /> : <div className="mt-2 flex"><OpenSevenSage /></div>}
+              {card === 2 ? <FiltersTable guide={guide} /> : <div className="mt-2 flex"><OpenSevenSage /></div>}
             </div>
             <div className="sticky bottom-0 -mx-4 mt-auto flex items-center gap-2 border-t border-vellum-line bg-paper px-4 py-3 md:-mx-6 md:-mb-6 md:border-t-0 md:px-6 md:pt-4 md:pb-6">
               <div className="mr-auto flex items-center gap-1.5">

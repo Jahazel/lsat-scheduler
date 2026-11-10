@@ -1,6 +1,5 @@
-import { eq, sql } from "drizzle-orm";
-import { closePostgresDatabase, getPostgresDatabase, requirePostgresScriptTarget } from "../src/lib/postgres";
-import { accounts } from "../src/lib/postgresSchema";
+import { endPlanAndMakeAdmin } from "../src/lib/adminPromotion";
+import { closePostgresDatabase, requirePostgresScriptTarget } from "../src/lib/postgres";
 
 class UserRefusalError extends Error {}
 
@@ -12,20 +11,14 @@ try {
 
   const host = requirePostgresScriptTarget();
   const displayEmail = email.trim().toLowerCase();
-  const status = await getPostgresDatabase().transaction(async (transaction) => {
-    const [account] = await transaction.select({ id: accounts.id, role: accounts.role, googleId: accounts.googleId })
-      .from(accounts).where(eq(accounts.email, sql`normalized_email(${email})`)).for("update");
-    if (!account) throw new UserRefusalError(`No account found for ${displayEmail} on ${host}`);
-    if (!account.googleId) {
-      throw new UserRefusalError(`${displayEmail} has not signed in with Google. Admins sign in only through Google.`);
-    }
-    if (account.role === "admin") return "already-admin";
-
-    const [updated] = await transaction.update(accounts).set({ role: "admin" })
-      .where(eq(accounts.id, account.id)).returning({ id: accounts.id });
-    if (!updated) throw new UserRefusalError(`No account updated for ${displayEmail} on ${host}`);
-    return "promoted";
-  });
+  const status = await endPlanAndMakeAdmin(email);
+  if (status === "no-account") throw new UserRefusalError(`No account found for ${displayEmail} on ${host}`);
+  if (status === "no-google") {
+    throw new UserRefusalError(`${displayEmail} has not signed in with Google. Admins sign in only through Google.`);
+  }
+  if (status === "plan-not-ended") {
+    throw new UserRefusalError(`Stripe did not cancel the plan of ${displayEmail}, so the Account is still a student. Try again.`);
+  }
 
   process.stdout.write(status === "already-admin"
     ? `${displayEmail} is already an admin on ${host}.\n`

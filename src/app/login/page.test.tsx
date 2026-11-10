@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToString } from "react-dom/server";
 import { FailureToastProvider } from "@/components/FailureNotice";
 import { PASSWORD_LOGIN_NOTICES } from "@/lib/loginNotice";
 
@@ -9,7 +10,9 @@ const actions = vi.hoisted(() => ({ signInWithGoogle: vi.fn(), logInWithPassword
 vi.mock("./actions", () => actions);
 import LoginPage from "./page";
 
-beforeEach(() => actions.logInWithPassword.mockReset());
+beforeEach(() => {
+  actions.logInWithPassword.mockReset();
+});
 afterEach(cleanup);
 
 const loginPage = (params: { error?: string; notice?: string; code?: string }) =>
@@ -121,6 +124,22 @@ describe("Login", () => {
     expect([field("Email"), field("Password")].map((input) => input.getAttribute("aria-invalid"))).toEqual([null, null]);
   });
 
+  it("keeps the typed email and password when the login never reaches the server", async () => {
+    actions.logInWithPassword.mockRejectedValue(new TypeError("Failed to fetch"));
+    await renderLogin();
+    await logInAs("maya.chen@fastmail.com", "a long phrase that works");
+
+    expect((await screen.findByRole("alert")).textContent).toContain("connection");
+    expect(field("Email").value).toBe("maya.chen@fastmail.com");
+    expect(field("Password").value).toBe("a long phrase that works");
+  });
+
+  it("renders every form so that a submit before the page loads cannot send the password as a plain GET", async () => {
+    const forms = renderToString(await loginPage({})).match(/<form[^>]*>/g) ?? [];
+    expect(forms).toHaveLength(2);
+    for (const form of forms) expect(form).toContain('action="javascript:');
+  });
+
   it("replaces a notice from the address with the form's refusal", async () => {
     actions.logInWithPassword.mockResolvedValue({ email: "maya.chen@fastmail.com", notice: PASSWORD_LOGIN_NOTICES.paused, passwordError: null });
     await renderLogin({ error: "AccountDisabled" });
@@ -155,5 +174,6 @@ describe("Login", () => {
     await waitFor(() => expect(field("Password").getAttribute("aria-invalid")).toBe("true"));
     expect(screen.getByText("That password is too long. Try a shorter one.").id).toBe(field("Password").getAttribute("aria-describedby"));
     expect(field("Email").value).toBe("maya.chen@fastmail.com");
+    expect(field("Password").value).toBe("");
   });
 });

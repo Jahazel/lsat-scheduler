@@ -67,16 +67,17 @@ describe("forged requests", () => {
     }
   });
 
-  it("exempts only the Auth.js routes and the daily cleanup cron route", () => {
+  it("exempts only the Auth.js routes, the daily cleanup cron route, and the Stripe message receiver", () => {
     expect(EXEMPT_ROUTES).toEqual([
       { path: "/api/auth/", prefix: true },
       { path: "/api/cron/daily-cleanup", prefix: false },
+      { path: "/api/stripe/webhook", prefix: false },
     ]);
     const forged = { origin: "https://evil.example", contentType: "application/x-www-form-urlencoded" };
-    for (const pathname of ["/api/auth/callback/credentials", "/api/auth/signout", "/api/cron/daily-cleanup"]) {
+    for (const pathname of ["/api/auth/callback/credentials", "/api/auth/signout", "/api/cron/daily-cleanup", "/api/stripe/webhook"]) {
       expect(requestPolicy(sameSite({ pathname, ...forged })).refused).toBeUndefined();
     }
-    for (const pathname of ["/api/auth", "/api/authx", "/api/cron/daily-cleanup/x", "/api/cron/other"]) {
+    for (const pathname of ["/api/auth", "/api/authx", "/api/cron/daily-cleanup/x", "/api/cron/other", "/api/stripe/webhook/x", "/api/stripe"]) {
       expect(requestPolicy(sameSite({ pathname, ...forged })).refused).toMatchObject({ status: 403 });
     }
   });
@@ -97,7 +98,7 @@ describe("forged requests", () => {
     expect(routeFiles.length).toBeGreaterThan(15);
     for (const file of routeFiles) {
       const template = `/${relative(".", file).split(sep).slice(0, -1).filter((segment) => !/^\(.+\)$/.test(segment)).join("/")}`.replace(/\/$/, "") || "/";
-      if (template.includes("[...") || template === "/api/cron/daily-cleanup" || template.startsWith("/prototypes/")) continue;
+      if (template.includes("[...") || template === "/api/cron/daily-cleanup" || template === "/api/stripe/webhook" || template.startsWith("/prototypes/")) continue;
       const pathname = template.replace("[id]", "4b3c2f80-9a8e-4c1d-b7f6-0e5d4c3b2a19");
       expect(requestPolicy(sameSite({ pathname, origin: null })).refused?.route, file).toBe(template);
     }
@@ -192,7 +193,7 @@ describe("private responses", () => {
     const id = "4b3c2f80-9a8e-4c1d-b7f6-0e5d4c3b2a19";
     for (const pathname of [
       "/dashboard", "/dashboard/upload", "/progress", "/settings", "/account", "/onboarding", "/admin", `/admin/students/${id}`,
-      "/api/students", `/api/students/${id}`, "/api/auth/session", "/api/cron/daily-cleanup",
+      "/api/students", `/api/students/${id}`, "/api/auth/session", "/api/cron/daily-cleanup", "/api/stripe/webhook",
     ]) {
       expect(cacheControl({ pathname }), pathname).toBe("private, no-store");
     }

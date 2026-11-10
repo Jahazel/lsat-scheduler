@@ -8,7 +8,7 @@ type PlanName = BillingRow["plan"];
 type StripeStatus = BillingRow["stripeStatus"];
 
 export type BillingRecord = Pick<BillingRow,
-  "plan" | "stripeStatus" | "freeWeekEndsAt" | "paidPeriodEndsAt" | "firstChargeSucceeded" | "renewalFailedAt">;
+  "plan" | "stripeStatus" | "freeWeekEndsAt" | "paidPeriodEndsAt" | "firstChargeSucceeded" | "renewalFailedAt" | "cancelAtPeriodEnd">;
 
 export type PlanStatus =
   | { kind: "admin" }
@@ -50,6 +50,9 @@ export function planStatus(role: string, record: BillingRecord | null, realNow: 
 export function mayStartWeeklyUpload(status: PlanStatus) {
   return status.kind !== "no_plan" && status.kind !== "lapsed";
 }
+
+export const deletionEndsPlan = (status: PlanStatus) =>
+  status.kind === "free_week" || status.kind === "paid" || status.kind === "retrying";
 
 export function isHeldWeek(record: BillingRecord | null, weekStartDate: string) {
   if (!record?.freeWeekEndsAt || record.firstChargeSucceeded) return false;
