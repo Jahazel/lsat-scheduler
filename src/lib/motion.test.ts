@@ -12,19 +12,19 @@ beforeEach(() => {
   tokens.setProperty("--duration-fast", "120ms");
   tokens.setProperty("--duration-base", ".2s");
   tokens.setProperty("--ease-standard", "cubic-bezier(0.2, 0, 0, 1)");
-  tokens.setProperty("--ease-exit", "cubic-bezier(0.4, 0, 1, 1)");
+  tokens.setProperty("--ease-out-strong", "cubic-bezier(0.23, 1, 0.32, 1)");
   Element.prototype.animate = animate as unknown as Element["animate"];
   Element.prototype.getAnimations = () => [];
   window.matchMedia = ((query: string) => ({ matches: reduced && query.includes("reduce") })) as typeof window.matchMedia;
 });
 
 describe("page motion", () => {
-  it("fades out with the fast duration and exit easing, sliding sideways", () => {
+  it("fades out with the fast duration and strong ease-out, sliding sideways", () => {
     const el = document.createElement("div");
     fadeOut(el, { x: 8 });
     expect(animate.mock.calls[0]).toEqual([
       [expect.anything(), { opacity: 0, transform: "translateX(-8px)" }],
-      { duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" },
+      { duration: 120, easing: "cubic-bezier(0.23, 1, 0.32, 1)", fill: "forwards" },
     ]);
   });
 

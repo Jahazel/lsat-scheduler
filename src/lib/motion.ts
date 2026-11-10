@@ -25,7 +25,7 @@ export function fadeOut(el: HTMLElement, { to = 0, x = 0, shorten = false }: { t
   const left = !shorten ? 1 : distance === 0 ? 0 : Math.min(1, distance / Math.max(0, 1 - to));
   return el.animate([from, { opacity: to, transform: `translateX(${-x}px)` }], {
     duration: durationMs("--duration-fast") * left,
-    easing: motionToken("--ease-exit"),
+    easing: motionToken("--ease-out-strong"),
     fill: "forwards",
   });
 }

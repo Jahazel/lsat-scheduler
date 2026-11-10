@@ -2,7 +2,7 @@
 
 The owner approved this motion in the prototype on 2026-10-30 (`prototype/index.html`).
 
-Durations are the design-system tokens: fast 120 ms, base 200 ms. The 320 ms overlay token is for modals and drawers, not toasts. Easings: standard `cubic-bezier(0.2, 0, 0, 1)` for the entrance; strong ease-out `cubic-bezier(0.23, 1, 0.32, 1)` for the exit. The project's exit curve `cubic-bezier(0.4, 0, 1, 1)` is an ease-in, which the `animate` rules forbid on UI, so the toast does not use it. Reduced motion follows the design system: drop movement, keep 120 ms fades.
+Durations are the design-system tokens: fast 120 ms, base 200 ms. The 320 ms overlay token is for modals and drawers, not toasts. Easings: standard `cubic-bezier(0.2, 0, 0, 1)` for the entrance; strong ease-out `cubic-bezier(0.23, 1, 0.32, 1)` for the exit. Reduced motion follows the design system: drop movement, keep 120 ms fades.
 
 Only `opacity` and `transform` animate, through CSS transitions, not keyframes. A rapid second failure retargets the running transition instead of restarting it. The alert node exists at once with `role="alert"`, so motion never delays the screen-reader announcement.
 

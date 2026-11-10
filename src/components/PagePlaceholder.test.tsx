@@ -19,7 +19,7 @@ beforeEach(() => {
   tokens.setProperty("--duration-fast", "120ms");
   tokens.setProperty("--duration-base", "200ms");
   tokens.setProperty("--ease-standard", "cubic-bezier(0.2, 0, 0, 1)");
-  tokens.setProperty("--ease-exit", "cubic-bezier(0.4, 0, 1, 1)");
+  tokens.setProperty("--ease-out-strong", "cubic-bezier(0.23, 1, 0.32, 1)");
   Element.prototype.animate = function (this: Element, keyframes: Keyframe[], options: KeyframeAnimationOptions) {
     let finish!: () => void;
     const finished = new Promise<void>((resolve) => { finish = resolve; });
