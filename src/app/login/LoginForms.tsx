@@ -23,7 +23,6 @@ export function LoginForms({ urlNotice, googleFailure }: { urlNotice: LoginNotic
   const refused = isUnexpectedFailure(answer) ? null : answer;
   const notice = answer ? refused?.notice ?? null : urlNotice;
 
-  // Submitting by hand keeps the typed email and password when the login never reaches the server: a form action would clear the form.
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);

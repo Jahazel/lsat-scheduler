@@ -33,7 +33,6 @@ export default function ForgotPasswordPage() {
     );
   }
 
-  // Submitting by hand keeps the typed email: a form action would clear the form when the send fails.
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
