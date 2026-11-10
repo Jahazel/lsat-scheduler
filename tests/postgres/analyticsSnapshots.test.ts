@@ -47,6 +47,7 @@ const profile: Student = {
 async function student(email: string, role: "student" | "admin" = "student") {
   const account = await database.createAccountAsOwner({ email, name: email, role });
   if (!account) throw new Error("Account fixture already exists");
+  if (role === "student") await database.writeBillingRecordAsOwner(account.id);
   const saved = await createStudent(account.id, profile);
   if (!saved) throw new Error("Student fixture already exists");
   state.session = { user: { ...account, email, name: email }, signedInAt: Math.floor(Date.now() / 1000), expires: "2099-01-01" };

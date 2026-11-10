@@ -11,6 +11,8 @@ import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { findStudentByAccountId } from "@/lib/studentRepository";
 import { findWeeklyScheduleForStudent } from "@/lib/weeklyScheduleRepository";
 import { answerAction } from "@/lib/securityLog";
+import { loadAccountPlan } from "@/lib/billingRepository";
+import { isHeldWeek } from "@/lib/planStatus";
 import type { ActivityCheckIn } from "@/lib/types";
 import type { Answer } from "@/lib/unexpectedFailure";
 
@@ -30,6 +32,9 @@ export async function saveActivityCheckIn(input: z.input<typeof CheckInInput>): 
     if (!student) throw new Error("Student record not found");
     const schedule = await findWeeklyScheduleForStudent(student.id, parsed.scheduleId);
     if (!schedule) throw new Error("Weekly schedule not found");
+    if (isHeldWeek((await loadAccountPlan(session.user.id)).record, schedule.weekStartDate)) {
+      throw new Error("A held weekly schedule's check-ins wait for the first charge");
+    }
     const now = await studentSideNow(session.user);
     if (schedule.weekStartDate !== currentWeekInTimezone(now, SCHEDULE_TIMEZONE)) {
       throw new Error("Only this week's check-ins can change");

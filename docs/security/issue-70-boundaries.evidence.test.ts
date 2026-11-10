@@ -23,6 +23,9 @@ vi.mock("@anthropic-ai/sdk", () => ({
     messages = { create: mocks.messages };
   },
 }));
+vi.mock("@/lib/billingRepository", () => ({
+  loadAccountPlan: async () => ({ status: { kind: "paid", plan: "weekly" }, record: null }),
+}));
 vi.mock("@/lib/scanPlaces", () => ({
   takeScanPlace: async (subject: string, kind: string, startedAt: Date) => ({ subject, kind, startedAt }),
   freeScanPlace: async () => {},

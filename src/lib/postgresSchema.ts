@@ -148,3 +148,22 @@ export const scanSpending = pgTable("scan_spending", {
   warningSentAt: timestamp("warning_sent_at", { withTimezone: true }),
   limitAlertSentAt: timestamp("limit_alert_sent_at", { withTimezone: true }),
 });
+
+export const billingRecords = pgTable("billing_records", {
+  accountId: uuid("account_id").primaryKey().references(() => accounts.id, { onDelete: "cascade" }),
+  stripeCustomerId: text("stripe_customer_id").notNull().unique(),
+  stripeSubscriptionId: text("stripe_subscription_id").notNull().unique(),
+  plan: text("plan", { enum: ["weekly", "monthly"] }).notNull(),
+  stripeStatus: text("stripe_status", {
+    enum: ["trialing", "active", "past_due", "unpaid", "canceled", "incomplete", "incomplete_expired", "paused"],
+  }).notNull(),
+  freeWeekEndsAt: timestamp("free_week_ends_at", { withTimezone: true }),
+  paidPeriodEndsAt: timestamp("paid_period_ends_at", { withTimezone: true }),
+  firstChargeSucceeded: boolean("first_charge_succeeded").notNull().default(false),
+  renewalFailedAt: timestamp("renewal_failed_at", { withTimezone: true }),
+});
+
+export const usedFreeWeeks = pgTable("used_free_weeks", {
+  emailHash: text("email_hash").primaryKey(),
+  usedOn: date("used_on", { mode: "string" }).notNull().defaultNow(),
+});
