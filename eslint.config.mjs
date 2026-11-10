@@ -13,6 +13,38 @@ const serverActionShape = [
   },
 ];
 
+const handedToAdapter = ({ parent }) =>
+  (parent.type === "CallExpression" && parent.callee.name === "callAction" && parent.arguments[0] !== undefined)
+  || (parent.type === "JSXExpressionContainer" && parent.parent.type === "JSXAttribute" && parent.parent.name.name === "action"
+    && ["ActionForm", "SignOutForm"].includes(parent.parent.parent.name.name));
+
+const callActionsThroughAdapter = {
+  meta: {
+    type: "problem",
+    schema: [],
+    messages: {
+      direct: "Call a Server Action through callAction(action) from @/lib/callAction, or hand it to ActionForm or SignOutForm as `action`, so a lost connection shows the Failure toast and a sign-out leaves the page.",
+    },
+  },
+  create(context) {
+    return {
+      Program(program) {
+        if (!program.body.some((statement) => statement.directive === "use client")) return;
+        for (const statement of program.body) {
+          if (statement.type !== "ImportDeclaration" || statement.importKind === "type" || !/(^|\/)actions$/.test(statement.source.value)) continue;
+          for (const variable of context.sourceCode.getDeclaredVariables(statement)) {
+            for (const reference of variable.references) {
+              if (reference.isValueReference && !handedToAdapter(reference.identifier)) {
+                context.report({ node: reference.identifier, messageId: "direct" });
+              }
+            }
+          }
+        }
+      },
+    };
+  },
+};
+
 const CLASS_SELECTOR = String.raw`/^([^\[]|\[[^\]]*\])*[.][A-Za-z_-]|\[class[~|^$*]?=/`;
 
 const CLASS_NAME_TEST =
@@ -45,6 +77,14 @@ const eslintConfig = defineConfig([
     files: ["src/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-syntax": ["error", ...serverActionShape],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/**/*.test.{ts,tsx}", "src/components/TestControls.tsx"],
+    plugins: { drillmap: { rules: { "call-actions-through-adapter": callActionsThroughAdapter } } },
+    rules: {
+      "drillmap/call-actions-through-adapter": "error",
     },
   },
   {

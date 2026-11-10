@@ -1,19 +1,20 @@
 "use client";
 
 import { startTransition, useActionState, type FormEvent } from "react";
-import { FailureNotice, catchLostConnection } from "@/components/FailureNotice";
+import { FailureNotice } from "@/components/FailureNotice";
 import { SubmitButton } from "@/components/signIn/PasswordFormParts";
 import { SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";
 import { TodayPreview } from "@/components/signIn/TodayPreview";
 import { ButtonLink } from "@/components/ui/Button";
 import { TextInput } from "@/components/ui/TextInput";
+import { callAction } from "@/lib/callAction";
 import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
 import { resetPassword, type ResetPasswordState } from "./actions";
 
 const initialState: Answer<ResetPasswordState> = { kind: "form" };
 
 export function ResetPassword({ token }: { token: string | null }) {
-  const [state, formAction, pending] = useActionState(catchLostConnection(resetPassword), initialState);
+  const [state, formAction, pending] = useActionState(callAction(resetPassword), initialState);
   const notice = <FailureNotice answer={state} />;
 
   if (!token || (!isUnexpectedFailure(state) && state.kind === "linkDoesNotWork")) {

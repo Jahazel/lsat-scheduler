@@ -9,6 +9,7 @@ import { listWeeklySchedulesForStudent } from "@/lib/weeklyScheduleRepository";
 import { openWeeklyUpload } from "@/lib/weeklyUpload";
 import { PageCue } from "@/components/SiteMotion";
 import { PageArrival } from "@/components/PagePlaceholder";
+import { confirmWeeklyUpload } from "./actions";
 import WeeklyUploadFlow from "./WeeklyUploadFlow";
 
 export default async function WeeklyUploadPage() {
@@ -38,7 +39,7 @@ export default async function WeeklyUploadPage() {
     <div data-page-fade>
       <PageCue page="this-week" />
       <PageArrival page="Weekly upload" />
-      <WeeklyUploadFlow basis={basis} initialScore={doc.currentScore} scanningOff={await readScanningOff(clock.real)} />
+      <WeeklyUploadFlow basis={basis} initialScore={doc.currentScore} scanningOff={await readScanningOff(clock.real)} confirm={confirmWeeklyUpload} />
     </div>
   );
 }

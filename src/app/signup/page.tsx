@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { startTransition, useActionState, useEffect, useState, type FormEvent } from "react";
-import { ActionForm, FailureNotice, catchLostConnection } from "@/components/FailureNotice";
+import { ActionForm, FailureNotice } from "@/components/FailureNotice";
+import { callAction } from "@/lib/callAction";
 import { fadeFormThrough } from "@/lib/pageMotion";
 import { GoogleButton } from "@/components/signIn/GoogleButton";
 import { OrWithEmail, SubmitButton } from "@/components/signIn/PasswordFormParts";
@@ -24,7 +25,7 @@ export default function SignupPage() {
 }
 
 function Signup({ onSignUpAgain }: { onSignUpAgain: () => void }) {
-  const [state, formAction, pending] = useActionState(catchLostConnection(signUpWithPassword), initialState);
+  const [state, formAction, pending] = useActionState(callAction(signUpWithPassword), initialState);
   const notice = <FailureNotice answer={state} />;
   const sentTo = !isUnexpectedFailure(state) && state.kind === "checkYourEmail" ? state.email : null;
   const [shownSentTo, setShownSentTo] = useState<string | null>(null);

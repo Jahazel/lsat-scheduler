@@ -8,7 +8,7 @@ import type { FailureCode, FormState } from "@/lib/unexpectedFailure";
 const navigation = vi.hoisted(() => ({ pathname: "/account" }));
 vi.mock("next/navigation", () => ({ usePathname: () => navigation.pathname }));
 
-import { ActionForm, catchLostConnection, FailureToastProvider } from "./FailureNotice";
+import { ActionForm, FailureToastProvider } from "./FailureNotice";
 
 afterEach(() => {
   cleanup();
@@ -151,14 +151,6 @@ it("closes the connection message when the last action that lost the connection 
 
   await press("Save");
   await vi.waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
-});
-
-it("lets a rejection that is not a lost connection reject", async () => {
-  const failing = catchLostConnection(async () => {
-    throw new Error("Server Action was not found");
-  });
-  await expect(failing()).rejects.toThrow("Server Action was not found");
-  await expect(catchLostConnection(() => Promise.reject(new TypeError("Failed to fetch")))()).resolves.toEqual({ unexpectedFailure: "no-connection" });
 });
 
 it("stays when a different action works", async () => {
