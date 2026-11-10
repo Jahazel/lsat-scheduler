@@ -230,6 +230,8 @@ Filled on November 8, 2026 ([issue 359](https://github.com/Jahazel/lsat-schedule
 
 Updated on November 10, 2026 ([issue 694](https://github.com/Jahazel/lsat-scheduler/issues/694)) for payments ([#680](https://github.com/Jahazel/lsat-scheduler/issues/680)): the Payments section, Stripe in the company list, the used free week list in the retention list, and its row surviving Account deletion.
 
+Updated on November 10, 2026 ([issue 691](https://github.com/Jahazel/lsat-scheduler/issues/691)): admins see each student's plan status, so "Who can see your data" names it.
+
 > **Privacy Policy**
 > Last updated: November 10, 2026
 >
@@ -240,7 +242,7 @@ Updated on November 10, 2026 ([issue 694](https://github.com/Jahazel/lsat-schedu
 > We use this information only to make and show your weekly study schedule and your progress. We do not sell it. We do not show ads. We do not use tracking or advertising cookies. We use one cookie to keep you signed in.
 >
 > **Who can see your data**
-> You can see your own data. The two people who run DrillMap (admins) can see every student's name, email address, weekly study time, and saved weekly schedule with its activity check-ins, for support and to check that the app works.
+> You can see your own data. The two people who run DrillMap (admins) can see every student's name, email address, weekly study time, plan status (free week, paid, retrying, or lapsed), and saved weekly schedule with its activity check-ins, for support and to check that the app works.
 >
 > **Your 7Sage screenshots**
 > When you upload a screenshot, DrillMap sends it to Anthropic, an AI company, to read your analytics numbers. Anthropic keeps the image for up to 30 days and then deletes it. DrillMap does not store the screenshot. It stores only the numbers you review and approve. Crop out anything you do not want to share before you upload. AI does not make your schedule. Fixed rules make it from your approved numbers and settings.
@@ -292,7 +294,7 @@ Each row is a square-bracket fill or a change from the October 19 text. A later 
 | No email list line in storage, retention, or deletion | Owner decision 2 in [#348](https://github.com/Jahazel/lsat-scheduler/issues/348): the `leads` table is dropped (migration `0015_drop_leads`). |
 | "Your name" in the Account line | The `accounts.name` column (`src/lib/postgresSchema.ts`). Rule 36: the page states what is stored. |
 | Practice test results in storage and deletion | The `practice_test_results` table, removed by the cascade from the Student record. Rule 38. |
-| Admins see name, email, weekly study time, and the saved weekly schedule with check-ins | The Admin student list and student page (`src/app/admin/`). The October text named only the weekly schedule. |
+| Admins see name, email, weekly study time, plan status, and the saved weekly schedule with check-ins | The Admin student list and student page (`src/app/admin/`). The October text named only the weekly schedule. Plan status added for [#691](https://github.com/Jahazel/lsat-scheduler/issues/691). |
 | "Continue with Google" | The Google button label (`src/components/signIn/GoogleButton.tsx`). |
 | Stripe is the seller and payment processor; no card details reach DrillMap | [ADR 0007](../adr/0007-stripe-is-the-seller-of-record.md) and launch checklist J2. |
 | Billing record holds Stripe IDs, plan, Stripe status, dates, and whether the first charge succeeded, deleted with the Account | Payments spec [#680](https://github.com/Jahazel/lsat-scheduler/issues/680), "Data", and launch checklist J2. The `billing_records` table, migration `0020_billing_records`, removed by the cascade from the Account. |
