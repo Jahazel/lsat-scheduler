@@ -18,6 +18,8 @@ import {
 import { createPortal } from "react-dom";
 import { afterExit } from "@/components/ui/afterExit";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
+import { callAction } from "@/lib/callAction";
+import type { SignOutAnswer } from "@/lib/requestPolicy";
 import type { FileRead } from "@/lib/screenshotReadQueue";
 import {
   isUnexpectedFailure,
@@ -221,22 +223,10 @@ export function LastFinishedReadNotice({ read }: { read: FileRead<unknown> | und
   return <FailureNotice answer={finished} />;
 }
 
-/** Fetch rejects with a TypeError only when the request never reached the server. */
-export function catchLostConnection<A extends unknown[], T>(action: (...args: A) => Promise<T>) {
-  return async (...args: A): Promise<T | UnexpectedFailure> => {
-    try {
-      return await action(...args);
-    } catch (error) {
-      if (error instanceof TypeError) return { unexpectedFailure: NO_CONNECTION };
-      throw error;
-    }
-  };
-}
-
 export function ActionForm({ action, children, ...props }: Omit<ComponentProps<"form">, "action"> & {
-  action: () => Promise<FormState>;
+  action: () => Promise<FormState | SignOutAnswer>;
 }) {
-  const [answer, formAction] = useActionState(catchLostConnection(action), null);
+  const [answer, formAction] = useActionState(callAction(action), null);
   return (
     <form action={formAction} {...props}>
       {children}

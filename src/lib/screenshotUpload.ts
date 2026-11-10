@@ -1,3 +1,4 @@
+import { callAction } from "./callAction";
 import type { SectionReading } from "./practiceTestResult";
 import type { ScanRefusal } from "./scanPlaces";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "./types";
@@ -89,7 +90,8 @@ async function postScreenshot(url: string, file: File, fields: Record<string, st
   formData.append("image", upload);
   for (const [name, value] of Object.entries(fields)) formData.append(name, value);
   try {
-    const res = await fetch(url, { method: "POST", body: formData });
+    const res = await callAction(fetch)(url, { method: "POST", body: formData });
+    if (isUnexpectedFailure(res)) return { kind: "connection-lost" };
     if (REFUSED_FILE_STATUSES.includes(res.status)) return { kind: "rejected", message: (await res.json()).error };
     if (res.status === 429) {
       const { error, reason } = await res.json();

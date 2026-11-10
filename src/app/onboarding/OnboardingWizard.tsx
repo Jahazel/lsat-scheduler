@@ -9,7 +9,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { FailureNotice, LastFinishedReadNotice, catchLostConnection } from "@/components/FailureNotice";
+import { FailureNotice, LastFinishedReadNotice } from "@/components/FailureNotice";
 import { ScanningOffNote } from "@/components/ScanningOffNote";
 import { PageCue } from "@/components/SiteMotion";
 import { Button } from "@/components/ui/Button";
@@ -19,6 +19,7 @@ import { ReadDetail, ReadingBar, useReadingBar } from "@/components/ui/ReadingBa
 import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
 import { CheckGlyph, ClockGlyph, ReadingGlyph } from "@/components/ui/StatusIcon";
 import { SECTION_NAME, SECTIONS, type Statement } from "@/lib/analyticsReview";
+import { callAction } from "@/lib/callAction";
 import { analyticsInputs, confirmLock, type ReviewDraft } from "@/lib/reviewDraft";
 import {
   ConfirmBar, ReviewStatements, STEP_PRIMARY as PRIMARY, STEP_SECONDARY as SECONDARY, SnapshotReviewFields,
@@ -111,7 +112,7 @@ export default function OnboardingWizard({
   async function save(input: Parameters<typeof onSave>[0]) {
     dispatch({ type: "saveStarted" });
     try {
-      const answer = await catchLostConnection(onSave)(input);
+      const answer = await callAction(onSave)(input);
       setSaveAnswer(answer);
       if (isUnexpectedFailure(answer)) dispatch({ type: "saveEnded" });
       else if (answer) dispatch({ type: "saveRefused", message: answer.error });

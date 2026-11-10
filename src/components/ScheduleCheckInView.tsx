@@ -9,7 +9,8 @@ import { doneActivityIds, formatScheduleWeekOf, remainingActivityCount, schedule
 import { dayName, isoDateInWeek } from "@/lib/scheduleReasonText";
 import type { ActivityCheckIn, DayOfWeek, DayPlan, Student, WeeklySchedule } from "@/lib/types";
 import { saveActivityCheckIn } from "@/app/dashboard/actions";
-import { FailureNotice, catchLostConnection } from "@/components/FailureNotice";
+import { FailureNotice } from "@/components/FailureNotice";
+import { callAction } from "@/lib/callAction";
 import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -200,7 +201,7 @@ export default function ScheduleCheckInView({
     setSavedCheckIns((previous) => [...others(previous), { scheduleId, activityId, status }]);
     pendingSaves.current.set(activityId, (pendingSaves.current.get(activityId) ?? 0) + 1);
     startTransition(async () => {
-      const answer = await catchLostConnection(saveActivityCheckIn)({ scheduleId, activityId, status });
+      const answer = await callAction(saveActivityCheckIn)({ scheduleId, activityId, status });
       const stillPending = pendingSaves.current.get(activityId)! - 1;
       pendingSaves.current.set(activityId, stillPending);
       setLastSave({ activityId, answer });
