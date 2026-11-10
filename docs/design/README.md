@@ -243,3 +243,22 @@ payments screen ticket deletes it. Each file name ends in `-desktop`, `-tablet`,
 | `landing-*` | Landing page wording (pricing, FAQ, closing section) | #693 |
 
 Prices and dates are sample data; the prices module and the plan status module decide what the app shows.
+
+## Legal pages (`legal-pages/`)
+
+Screenshots of the approved prototype for design #746 and spec #758, taken 2026-11-10. Brief: `research/legal-pages/brief.md`. Motion rows:
+`research/legal-pages/motion.md`. The clickable prototype is the dev-only route `/prototypes/legal-pages`, until #762 deletes
+it. Each file name starts with `desktop-`, `tablet-`, or `phone-`.
+
+| File | State | Screen ticket |
+| --- | --- | --- |
+| `*-top` | Terms at the top of the page: header, tabs, section list, Calm prose | #759, #761 |
+| `*-at-section` | Terms opened at `#cancelling-and-refunds`, the list marking it | #760, #761 |
+| `*-reading` | Privacy Policy mid-page, the list marking the section being read | #761 |
+| `tablet-list-open`, `phone-list-open` | The "On this page" bar with its list open (desktop has no bar) | #761 |
+| `*-short-page` | AI disclosure with the "Related" list | #759, #762 |
+| `*-signed-in` | Terms under the student header (and the tab bar on phone) | #760 |
+| `*-worst-case-top` | Longer page title and tab names, a later date, and a renamed section in the list after the lawyer review (#731) | #759, #761 |
+| `*-worst-case` | The arbitration section and marked gaps after the lawyer review, with two-line titles in the list | #759, #761 |
+
+Dates and the arbitration section are sample data; the approved legal text in each page decides what the app shows.
