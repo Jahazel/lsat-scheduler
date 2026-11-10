@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import PrivacyPage from "./page";
 
 afterEach(cleanup);
@@ -60,5 +60,35 @@ describe("Privacy page", () => {
     expect(text).not.toMatch(/email list/i);
     expect(text).not.toMatch(/\blead/i);
     expect(text).not.toMatch(/does not keep backups/);
+  });
+
+  it("shows the legal header with its date line and the page tabs, with this page marked", () => {
+    render(<PrivacyPage />);
+    expect(screen.getByText("Legal")).toBeDefined();
+    expect(screen.getByText("Last updated: November 10, 2026")).toBeDefined();
+    const tabs = within(screen.getByRole("navigation", { name: "Legal pages" })).getAllByRole("link");
+    expect(tabs.map((tab) => [tab.textContent, tab.getAttribute("href")])).toEqual([
+      ["Terms", "/legal/terms"],
+      ["Privacy", "/legal/privacy"],
+      ["AI disclosure", "/legal/ai-disclosure"],
+    ]);
+    expect(tabs.filter((tab) => tab.getAttribute("aria-current") === "page").map((tab) => tab.textContent)).toEqual(["Privacy"]);
+  });
+
+  it("gives every section its fixed link name", () => {
+    const { container } = render(<PrivacyPage />);
+    const sections = [...container.querySelectorAll("section")].map((section) => [section.id, section.querySelector("h2")?.textContent]);
+    expect(sections).toEqual([
+      ["what-drillmap-stores", "What DrillMap stores"],
+      ["who-can-see-your-data", "Who can see your data"],
+      ["your-7sage-screenshots", "Your 7Sage screenshots"],
+      ["payments", "Payments"],
+      ["companies-that-handle-your-data-for-us", "Companies that handle your data for us"],
+      ["security-records", "Security records"],
+      ["how-long-we-keep-data", "How long we keep data"],
+      ["deleting-your-account", "Deleting your Account"],
+      ["backups", "Backups"],
+      ["contact", "Contact"],
+    ]);
   });
 });
