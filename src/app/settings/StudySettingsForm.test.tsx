@@ -4,8 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const router = vi.hoisted(() => ({ push: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: router.push, replace: vi.fn() }), usePathname: () => "/settings" }));
+const router = vi.hoisted(() => ({ push: vi.fn(), pathname: "/settings" }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: router.push, replace: vi.fn() }), usePathname: () => router.pathname }));
 import { FailureToastProvider } from "@/components/FailureNotice";
 import { SignOutForm } from "@/components/SignOutForm";
 import SiteMotion from "@/components/SiteMotion";
@@ -524,7 +524,8 @@ describe("Study settings leave guard", () => {
   function renderWithNav(onSave: (input: StudySettingsInput) => Promise<StudySettingsAnswer> = async () => null) {
     window.history.pushState({}, "", "/settings");
     router.push.mockImplementation((href: string) => navigated.push(href));
-    render(
+    router.pathname = "/settings";
+    const page = () => (
       <>
         <header>
           <a href="/dashboard" onClick={goTo}>DrillMap</a>
@@ -536,9 +537,13 @@ describe("Study settings leave guard", () => {
         </header>
         <StudySettingsForm currentScore={150} saved={saved} today="2026-11-02" goalTestDateOptions={upcomingTestMonths("2026-11-02")} onSave={onSave} />
         <SiteMotion signedIn />
-      </>,
-      { wrapper: FailureToastProvider },
+      </>
     );
+    const view = render(page(), { wrapper: FailureToastProvider });
+    return (pathname: string) => {
+      router.pathname = pathname;
+      view.rerender(page());
+    };
   }
 
   const thisWeek = () => screen.getByRole("link", { name: "This week" });
@@ -656,6 +661,17 @@ describe("Study settings leave guard", () => {
     expect(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)).toBe(true);
   });
 
+  it("keeps the prompt off once the page change Leave started reaches the next page", async () => {
+    const arriveAt = renderWithNav();
+    await typeGoal("170");
+    await userEvent.click(thisWeek());
+    await userEvent.click(within(openDialog()!).getByRole("button", { name: "Leave" }));
+    act(() => arriveAt("/dashboard"));
+
+    await userEvent.click(screen.getByRole("link", { name: "Study settings" }));
+    expect(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)).toBe(false);
+  });
+
   function slowSave() {
     let finish: (outcome: () => StudySettingsAnswer) => void = () => {};
     const onSave = vi.fn(() => new Promise<StudySettingsAnswer>((resolve, reject) => {
@@ -760,8 +776,6 @@ describe("Study settings leave guard", () => {
       expect(logOut).toHaveBeenCalledTimes(1);
       expect(askedAtUnload).toEqual([false]);
     });
-
-
 
     it("asks again before the browser tab closes when the sign-out after Leave fails", async () => {
       logOut.mockResolvedValue({ unexpectedFailure: "5c1d7e20" as FailureCode });
