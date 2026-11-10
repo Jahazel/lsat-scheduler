@@ -68,7 +68,7 @@ export default function TermsPage() {
               You pick a plan and add a card at the end of onboarding. Your plan starts with a free week. The free week
               runs from the end of onboarding to the Sunday that closes your first full Monday–Sunday week, so it lasts 7
               to 13 days. Your first charge is on the Monday after your free week ends. You get one free week. You get no
-              free week if you had a plan before, or if your email address had a free week in the last 12 months. Then
+              free week if you had a plan before, or if your email address had a free week in the last 12 months. In that case,
               your plan starts and charges you on the day you pick it.
             </p>
             <p>
