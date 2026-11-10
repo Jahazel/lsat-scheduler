@@ -165,7 +165,7 @@ Changed by the owner on October 28, 2026 (owner decision 2 on [issue 348](https:
     - Each limit refusal from issue 75
     - The extraction budget cutoff and the emergency switch change
     - Refused forged requests (rules 3 and 4)
-    - Refused and ignored Stripe messages
+    - Refused Stripe messages
     - Unexpected errors (rule 29)
 28. An entry never holds a password, token, cookie, reset link, screenshot, model output, request body, or full email address.
 
@@ -183,7 +183,7 @@ Built on [issue 355](https://github.com/Jahazel/lsat-scheduler/issues/355):
 
 Built on [issue 685](https://github.com/Jahazel/lsat-scheduler/issues/685):
 
-- Each Stripe message that the Stripe message receiver refuses or ignores writes one `stripe_message_refused` entry. Its result is `badSignature` (no signature, a wrong or stale one, or a changed body; the receiver answers HTTP 400), `unknownAccount` (no Account ID on the subscription, or no such Account), `adminAccount`, or `otherAccount` (another Account's billing record holds the Stripe customer or subscription, or the customer differs from the Account's billing record). The entry names the Account only for `adminAccount` and `otherAccount`. It holds no signature, message body, or Stripe ID. Migration `0021_stripe_messages` adds the event to the check list.
+- Each Stripe message that the Stripe message receiver refuses writes one `stripe_message_refused` entry. A message about a subscription older than the Account's current one changes nothing and writes no entry. Its result is `badSignature` (no signature, a wrong or stale one, or a changed body; the receiver answers HTTP 400), `unknownAccount` (no Account ID on the subscription, or no such Account), `adminAccount`, or `otherAccount` (another Account's billing record holds the Stripe customer or subscription, or the customer differs from the Account's billing record). The entry names the Account only for `adminAccount` and `otherAccount`. It holds no signature, message body, or Stripe ID. Migration `0021_stripe_messages` adds the event to the check list.
 
 **Why:** Vercel Hobby keeps logs for 1 hour, which is too short to look into an attack. A database collection needs no new provider, as with the issue 75 counters. Ninety days is long enough to find slow attacks.
 
