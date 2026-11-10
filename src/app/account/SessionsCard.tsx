@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useFormStatus } from "react-dom";
-import { SignOutForm } from "@/components/SignOutForm";
+import { SignOutForm, useSigningOut } from "@/components/SignOutForm";
 import { Button } from "@/components/ui/Button";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { signOutAllDevices } from "./actions";
@@ -42,7 +41,7 @@ export function SessionsCard() {
 }
 
 function ConfirmButtons({ onCancel }: { onCancel: () => void }) {
-  const { pending } = useFormStatus();
+  const pending = useSigningOut();
   return (
     <div className="flex shrink-0 flex-col-reverse gap-3 sm:flex-row">
       <button type="button" onClick={onCancel} disabled={pending} className={cx(OUTLINE, "sm:w-28")}>

@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { forgetGoogleArrival, hasGoogleArrivalNote } from "@/lib/googleArrival";
+import { leaveIsGuarded, leavePage, leavingLink } from "@/lib/leavePage";
 import { durationMs, fadeOut, isPlainClick, motionToken, reducedMotion, stopAtCurrentFrame } from "@/lib/motion";
 import { arrive, fadeAway, heldBy, hold, letGo, motionInside, regions, riseIn, showAgain, type Motion } from "@/lib/pageMotion";
 
@@ -280,26 +281,37 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
       });
     }
 
-    function onClick(event: MouseEvent) {
-      if (!isPlainClick(event) || event.defaultPrevented) return;
-      const link = (event.target as Element).closest("a");
-      if (!link) return;
-      const url = new URL(link.href);
-      if (url.origin !== location.origin) return;
+    function follow(url: URL) {
+      if (url.origin !== location.origin) return false;
       const to = url.pathname;
       if (target.current) {
-        if (to === target.current.path) return event.preventDefault();
+        if (to === target.current.path) return true;
         if (to === shown.current && url.href === location.href) {
-          event.preventDefault();
-          return comeBack();
+          comeBack();
+          return true;
         }
         comeBack();
       }
       const motion = shown.current && motionBetween(shown.current, to, signedIn);
-      if (!shown.current || !motion) return;
-      event.preventDefault();
+      if (!shown.current || !motion) return false;
       saveScroll(shown.current, scrollY);
       leave({ path: to, hash: url.hash, fromHistory: false, motion }).then((ok) => ok && router.push(url.pathname + url.search + url.hash, { scroll: false }));
+      return true;
+    }
+
+    function onClick(event: MouseEvent) {
+      const guarded = leaveIsGuarded() && leavingLink(event);
+      if (guarded) {
+        event.preventDefault();
+        const url = new URL(guarded.href);
+        void leavePage(guarded, async () => {
+          if (!follow(url)) router.push(url.pathname + url.search + url.hash);
+          return "left";
+        });
+        return;
+      }
+      const link = isPlainClick(event) && (event.target as Element).closest("a");
+      if (link && follow(new URL(link.href))) event.preventDefault();
     }
 
     function holdPopStateUntilFadedOut(event: PopStateEvent) {

@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const router = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: router.push, replace: vi.fn() }), usePathname: () => "/settings" }));
 import { FailureToastProvider } from "@/components/FailureNotice";
 import { SignOutForm } from "@/components/SignOutForm";
+import SiteMotion from "@/components/SiteMotion";
 import type { SignOutAnswer } from "@/lib/requestPolicy";
 import { everyDay, upcomingTestMonths, type StudySettingsInput } from "@/lib/studentProfile";
 import type { FailureCode, FormState } from "@/lib/unexpectedFailure";
@@ -496,12 +501,29 @@ describe("Study settings leave guard", () => {
     HTMLDialogElement.prototype.getAnimations = () => [];
   });
 
+  function goTo(event: React.MouseEvent<HTMLAnchorElement>) {
+    if (!event.defaultPrevented) navigated.push(event.currentTarget.getAttribute("href")!);
+    event.preventDefault();
+  }
+
+  function AccountMenu() {
+    const [open, setOpen] = useState(true);
+    return (
+      <div>
+        <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>Account menu</button>
+        <div role="menu" hidden={!open}>
+          <a role="menuitem" href="/account" onClick={(event) => { setOpen(false); goTo(event); }}>Account</a>
+          <SignOutForm action={logOut}>
+            <button role="menuitem" type="submit">Log out</button>
+          </SignOutForm>
+        </div>
+      </div>
+    );
+  }
+
   function renderWithNav(onSave: (input: StudySettingsInput) => Promise<StudySettingsAnswer> = async () => null) {
     window.history.pushState({}, "", "/settings");
-    const goTo = (event: React.MouseEvent<HTMLAnchorElement>) => {
-      event.preventDefault();
-      navigated.push(event.currentTarget.getAttribute("href")!);
-    };
+    router.push.mockImplementation((href: string) => navigated.push(href));
     render(
       <>
         <header>
@@ -510,17 +532,10 @@ describe("Study settings leave guard", () => {
             <a href="/dashboard" onClick={goTo}>This week</a>
             <a href="/settings" aria-current="page" onClick={goTo}>Study settings</a>
           </nav>
-          <div>
-            <button type="button" aria-haspopup="menu" aria-expanded>Account menu</button>
-            <div role="menu">
-              <a role="menuitem" href="/account" onClick={goTo}>Account</a>
-              <SignOutForm action={logOut}>
-                <button role="menuitem" type="submit">Log out</button>
-              </SignOutForm>
-            </div>
-          </div>
+          <AccountMenu />
         </header>
         <StudySettingsForm currentScore={150} saved={saved} today="2026-11-02" goalTestDateOptions={upcomingTestMonths("2026-11-02")} onSave={onSave} />
+        <SiteMotion signedIn />
       </>,
       { wrapper: FailureToastProvider },
     );
@@ -607,6 +622,15 @@ describe("Study settings leave guard", () => {
     expect(openDialog()).not.toBeNull();
     await userEvent.click(within(openDialog()!).getByRole("button", { name: "Leave" }));
     expect(navigated).toEqual([href]);
+  });
+
+  it("lets the Account link close its menu behind the dialog", async () => {
+    renderWithNav();
+    await typeGoal("170");
+    await userEvent.click(screen.getByRole("menuitem", { name: "Account" }));
+
+    expect(openDialog()).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Account menu" }).getAttribute("aria-expanded")).toBe("false");
   });
 
   it("returns focus to the account menu button on Stay from the Account link", async () => {
@@ -720,6 +744,19 @@ describe("Study settings leave guard", () => {
       await vi.waitFor(() => expect(assign).toHaveBeenCalledWith("/?signedOut=1"));
       expect(logOut).toHaveBeenCalledTimes(1);
       expect(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)).toBe(false);
+    });
+
+    it("asks again before the browser tab closes when the sign-out after Leave fails", async () => {
+      logOut.mockResolvedValue({ unexpectedFailure: "5c1d7e20" as FailureCode });
+      renderSignedIn();
+      await typeGoal("170");
+      await userEvent.click(logOutItem());
+      await userEvent.click(within(openDialog()!).getByRole("button", { name: "Leave" }));
+
+      expect((await screen.findByRole("alert")).textContent).toContain("5c1d7e20");
+      expect(assign).not.toHaveBeenCalled();
+      expect(goalScore().value).toBe("170");
+      expect(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)).toBe(true);
     });
 
     it("waits for a running save before signing out on Leave", async () => {
