@@ -1,8 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { and, eq, ne, or, sql } from "drizzle-orm";
+import { and, eq, ne, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { isAccountId } from "./accountRepository";
-import { getPostgresDatabase } from "./postgres";
+import { getPostgresDatabase, type PostgresTransaction } from "./postgres";
 import { billingRecords, stripeMessages } from "./postgresSchema";
 import type { Subject } from "./securityLog";
 import { stripeRequest, stripeSecretKey } from "./stripeApi";
@@ -12,12 +12,15 @@ export const STRIPE_MESSAGE_ROUTE = "/api/stripe/webhook";
 const SIGNATURE_TOLERANCE_SECONDS = 5 * 60;
 
 type BillingRow = typeof billingRecords.$inferSelect;
+type Database = ReturnType<typeof getPostgresDatabase>;
 
 export type StripeMessageRefusal = "badSignature" | "unknownAccount" | "adminAccount" | "otherAccount";
 
-export type StripeMessageOutcome =
+type SaveOutcome =
   | { kind: "refused"; result: StripeMessageRefusal; who: Subject }
-  | { kind: "saved" | "repeat" | "olderSubscription" | "notHandled" };
+  | { kind: "saved" | "olderSubscription" };
+
+export type StripeMessageOutcome = SaveOutcome | { kind: "repeat" | "notHandled" };
 
 /** Checks Stripe's `Stripe-Signature` header: an HMAC-SHA256 of `<t>.<raw body>` made with the endpoint's signing secret. */
 export function hasStripeSignature(body: Buffer, header: string | null, secret: string, now: Date) {
@@ -159,33 +162,71 @@ export async function receiveStripeMessage(body: Buffer, signature: string | nul
   return getPostgresDatabase().transaction(async (tx) => {
     const [fresh] = await tx.insert(stripeMessages).values({ id: message.id }).onConflictDoNothing().returning({ id: stripeMessages.id });
     if (!fresh) return { kind: "repeat" };
-
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`stripe-subscription:${id}`}, 0))`);
-    const subscription = await fetchSubscription(id, secretKey);
-    const accountId = subscription.metadata.account_id;
-    if (!isAccountId(accountId)) return { kind: "refused", result: "unknownAccount", who: { nobody: true } };
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`billing-account:${accountId}`}, 0))`);
-    const [account] = (await tx.execute<{ role: string }>(sql`select role from accounts where id = ${accountId} for key share`)).rows;
-    if (!account) return { kind: "refused", result: "unknownAccount", who: { nobody: true } };
-    const who = { account: accountId };
-    if (account.role === "admin") return { kind: "refused", result: "adminAccount", who };
-
-    const [elsewhere] = await tx.select({ accountId: billingRecords.accountId }).from(billingRecords).where(and(
-      ne(billingRecords.accountId, accountId),
-      or(eq(billingRecords.stripeCustomerId, subscription.customer), eq(billingRecords.stripeSubscriptionId, subscription.id)),
-    ));
-    const [current] = await tx.select().from(billingRecords).where(eq(billingRecords.accountId, accountId));
-    const sameSubscription = current?.stripeSubscriptionId === subscription.id;
-    if (elsewhere || (current && current.stripeCustomerId !== subscription.customer)) {
-      return { kind: "refused", result: "otherAccount", who };
-    }
-    if (current && !sameSubscription && !isNewer(subscription, await fetchSubscription(current.stripeSubscriptionId, secretKey))) {
-      return { kind: "olderSubscription" };
-    }
-
-    const state = await billingState(subscription, current, secretKey);
-    await tx.insert(billingRecords).values({ accountId, ...state })
-      .onConflictDoUpdate({ target: billingRecords.accountId, set: state });
-    return { kind: "saved" };
+    return saveSubscription(tx, id, secretKey);
   });
+}
+
+async function saveSubscription(tx: PostgresTransaction, id: string, secretKey: string): Promise<SaveOutcome> {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`stripe-subscription:${id}`}, 0))`);
+  const subscription = await fetchSubscription(id, secretKey);
+  const accountId = subscription.metadata.account_id;
+  if (!isAccountId(accountId)) return { kind: "refused", result: "unknownAccount", who: { nobody: true } };
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`billing-account:${accountId}`}, 0))`);
+  const [account] = (await tx.execute<{ role: string }>(sql`select role from accounts where id = ${accountId} for key share`)).rows;
+  if (!account) return { kind: "refused", result: "unknownAccount", who: { nobody: true } };
+  const who = { account: accountId };
+  if (account.role === "admin") return { kind: "refused", result: "adminAccount", who };
+
+  const [elsewhere] = await tx.select({ accountId: billingRecords.accountId }).from(billingRecords).where(and(
+    ne(billingRecords.accountId, accountId),
+    or(eq(billingRecords.stripeCustomerId, subscription.customer), eq(billingRecords.stripeSubscriptionId, subscription.id)),
+  ));
+  const [current] = await tx.select().from(billingRecords).where(eq(billingRecords.accountId, accountId));
+  const sameSubscription = current?.stripeSubscriptionId === subscription.id;
+  if (elsewhere || (current && current.stripeCustomerId !== subscription.customer)) {
+    return { kind: "refused", result: "otherAccount", who };
+  }
+  if (current && !sameSubscription && !isNewer(subscription, await fetchSubscription(current.stripeSubscriptionId, secretKey))) {
+    return { kind: "olderSubscription" };
+  }
+
+  const state = await billingState(subscription, current, secretKey);
+  await tx.insert(billingRecords).values({ accountId, ...state })
+    .onConflictDoUpdate({ target: billingRecords.accountId, set: state });
+  return { kind: "saved" };
+}
+
+const subscriptionPageSchema = z.object({ data: z.array(z.object({ id: subscriptionId })), has_more: z.boolean() });
+
+async function listSubscriptionIds(secretKey: string) {
+  const ids: string[] = [];
+  for (let hasMore = true; hasMore;) {
+    const after = ids.length ? `&starting_after=${ids[ids.length - 1]}` : "";
+    const page = subscriptionPageSchema.parse(await stripeRequest(`subscriptions?status=all&limit=100${after}`, secretKey));
+    ids.push(...page.data.map((listed) => listed.id));
+    hasMore = page.has_more && page.data.length > 0;
+  }
+  return ids;
+}
+
+type BillingResyncCounts = {
+  listed: number;
+  saved: number;
+  /** Deleted, admin, or other Accounts' subscriptions, and older subscriptions of an Account with a newer one. */
+  leftOut: number;
+  /** Billing records whose subscription Stripe does not list, such as records from the other Stripe mode. */
+  notInStripe: number;
+};
+
+/** After a backup restore, saves every Stripe subscription again with the message receiver's own save, one transaction each. */
+export async function resyncBillingRecords(db: Database, secretKey: string): Promise<BillingResyncCounts> {
+  const ids = await listSubscriptionIds(secretKey);
+  let saved = 0;
+  for (const id of ids) {
+    const outcome = await db.transaction((tx) => saveSubscription(tx, id, secretKey));
+    if (outcome.kind === "saved") saved += 1;
+  }
+  const unlisted = await db.select({ id: billingRecords.accountId }).from(billingRecords)
+    .where(notInArray(billingRecords.stripeSubscriptionId, ids));
+  return { listed: ids.length, saved, leftOut: ids.length - saved, notInStripe: unlisted.length };
 }
