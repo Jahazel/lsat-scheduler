@@ -1,7 +1,6 @@
 import { flushSync } from "react-dom";
 import { durationMs, fadeIn, fadeOut, motionToken, reducedMotion, riseFrom, slideFrom } from "@/lib/motion";
 
-// The one place that knows which motion holds each part of the page. A held part is inert and busy for assistive tech.
 type Mover = "leave" | "arrival" | "swap" | "dim";
 const movers = new Map<HTMLElement, Mover>();
 
@@ -21,9 +20,9 @@ export const heldBy = (mover: Mover) => [...movers].filter(([, by]) => by === mo
 const held = (el: Element) => [...movers.keys()].some((part) => part.contains(el));
 export const motionInside = (root: HTMLElement) => [...movers.keys()].some((part) => part.contains(root) || root.contains(part));
 
-// The two rises switch to the phone distance at different widths; merging them needs a product answer.
-const regionRise = () => (matchMedia("(max-width: 390px)").matches ? 4 : 8);
-const sectionRise = () => (matchMedia("(max-width: 767px)").matches ? 4 : 8);
+const REGION_PHONE_MAX_PX = 390;
+const SECTION_PHONE_MAX_PX = 767;
+const riseUpTo = (phoneMaxPx: number) => (matchMedia(`(max-width: ${phoneMaxPx}px)`).matches ? 4 : 8);
 const STAGGER_MS = 40;
 
 export type Motion = "whole-page" | "under-top-bar" | "swap";
@@ -39,7 +38,7 @@ export function showAgain(el: HTMLElement, from: Keyframe) {
   return fadeIn(el, from);
 }
 
-export const riseIn = (el: HTMLElement) => showAgain(el, riseFrom(regionRise()));
+export const riseIn = (el: HTMLElement) => showAgain(el, riseFrom(riseUpTo(REGION_PHONE_MAX_PX)));
 
 export function fadeAway(old: HTMLElement[], mover: "leave" | "swap") {
   if (old.some((el) => el.contains(document.activeElement))) document.querySelector("main")?.focus({ preventScroll: true });
@@ -89,7 +88,7 @@ export function dim(el: HTMLElement, options: { to: number; x?: number }) {
 export function arriveSections(page: Element) {
   const sections = [...page.querySelectorAll<HTMLElement>("[data-page-section]")].filter((section) => !held(section));
   const still = reducedMotion();
-  const rise = sectionRise();
+  const rise = riseUpTo(SECTION_PHONE_MAX_PX);
   return sections.map((section, index) => section.animate(
     still ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: `translateY(${rise}px)` }, { opacity: 1, transform: "none" }],
     {
