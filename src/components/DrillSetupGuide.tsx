@@ -15,21 +15,21 @@ const PRESS = cx(
 const OUTLINE = cx("inline-flex h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xs border border-vellum-line bg-paper px-3.5 text-small font-medium text-ink pointer-hover:bg-vellum", PRESS);
 
 const OPENING_SCREENSHOTS = [
-  { src: "/drill-setup-guide/step-1-open-drills.png", width: 1360, height: 930 },
-  { src: "/drill-setup-guide/step-2-start-drill.png", width: 1320, height: 380 },
+  { src: "/drill-setup-guide/step-1-open-drills.png", width: 2000, height: 1399 },
+  { src: "/drill-setup-guide/step-2-start-drill.png", width: 1762, height: 1398 },
 ];
 const SCREENSHOTS: Record<GuideContent["section"], { src: string; width: number; height: number }[]> = {
   "Logical Reasoning": [
     ...OPENING_SCREENSHOTS,
-    { src: "/drill-setup-guide/lr-step-3-customize.png", width: 1080, height: 370 },
-    { src: "/drill-setup-guide/lr-step-4-filters.png", width: 1080, height: 1170 },
-    { src: "/drill-setup-guide/lr-step-5-count-and-start.png", width: 1080, height: 650 },
+    { src: "/drill-setup-guide/lr-step-3-customize.png", width: 2000, height: 857 },
+    { src: "/drill-setup-guide/lr-step-4-filters.png", width: 2000, height: 1383 },
+    { src: "/drill-setup-guide/lr-step-5-count-and-start.png", width: 2000, height: 1184 },
   ],
   "Reading Comprehension": [
     ...OPENING_SCREENSHOTS,
-    { src: "/drill-setup-guide/rc-step-3-customize.png", width: 1080, height: 350 },
-    { src: "/drill-setup-guide/rc-step-4-filters.png", width: 1080, height: 830 },
-    { src: "/drill-setup-guide/rc-step-5-count-and-start.png", width: 1080, height: 650 },
+    { src: "/drill-setup-guide/rc-step-3-customize.png", width: 2000, height: 1111 },
+    { src: "/drill-setup-guide/rc-step-4-filters.png", width: 2000, height: 1081 },
+    { src: "/drill-setup-guide/rc-step-5-count-and-start.png", width: 2000, height: 1107 },
   ],
 };
 
