@@ -38,11 +38,19 @@ describe("Forgot password", () => {
     await userEvent.click(screen.getByRole("button", { name: "Send reset link" }));
     expect((await screen.findByRole("alert")).textContent).toContain("Error code 3f9a01c2");
 
-    await userEvent.clear(screen.getByLabelText("Email"));
-    await userEvent.type(screen.getByLabelText("Email"), "maya.chen@fastmail.com");
     await userEvent.click(screen.getByRole("button", { name: "Send reset link" }));
     expect(await screen.findByRole("heading", { name: "Check your email" })).toBeTruthy();
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
+  it("keeps the typed email when the send never reaches the server", async () => {
+    requestPasswordReset.mockRejectedValue(new TypeError("Failed to fetch"));
+    render(<ForgotPasswordPage />, { wrapper: FailureToastProvider });
+    await userEvent.type(screen.getByLabelText("Email"), "maya.chen@fastmail.com");
+    await userEvent.click(screen.getByRole("button", { name: "Send reset link" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain("connection");
+    expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe("maya.chen@fastmail.com");
   });
 
   it("shows the email error under the field", async () => {

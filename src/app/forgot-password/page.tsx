@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { startTransition, useActionState, type FormEvent } from "react";
 import { FailureNotice } from "@/components/FailureNotice";
 import { CheckEmailTips } from "@/components/signIn/CheckEmailTips";
 import { SubmitButton } from "@/components/signIn/PasswordFormParts";
@@ -14,7 +14,7 @@ import { requestPasswordReset, type ForgotPasswordState } from "./actions";
 const initialState: Answer<ForgotPasswordState> = { kind: "form" };
 
 export default function ForgotPasswordPage() {
-  const [state, formAction] = useActionState(callAction(requestPasswordReset), initialState);
+  const [state, formAction, pending] = useActionState(callAction(requestPasswordReset), initialState);
   const notice = <FailureNotice answer={state} />;
 
   if (!isUnexpectedFailure(state) && state.kind === "sent") {
@@ -33,6 +33,13 @@ export default function ForgotPasswordPage() {
     );
   }
 
+  // Submitting by hand keeps the typed email: a form action would clear the form when the send fails.
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(() => formAction(formData));
+  }
+
   return (
     <>
       {notice}
@@ -41,9 +48,9 @@ export default function ForgotPasswordPage() {
         lead="Type the email you use for DrillMap. We'll send you a link to set a new password."
         preview={<TodayPreview />}
       >
-        <form action={formAction} className="flex flex-col gap-8">
+        <form onSubmit={submit} className="flex flex-col gap-8">
           <TextInput label="Email" name="email" type="email" autoComplete="email" required error={isUnexpectedFailure(state) ? undefined : state.error} />
-          <SubmitButton label="Send reset link" workingLabel="Sending…" />
+          <SubmitButton label="Send reset link" workingLabel="Sending…" pending={pending} />
         </form>
         <SwitchPageLink question="Remember it?" href="/login" label="Log in" />
       </SignInFrame>
