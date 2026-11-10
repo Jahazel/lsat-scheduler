@@ -238,7 +238,7 @@ describe("ScheduleCheckInView", () => {
       render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={props.checkIns ?? []} readOnly={props.readOnly} />);
     const setUp = (label: string) => screen.getByRole("button", { name: `Set up ${label}` });
     const guide = () => screen.getByRole("dialog");
-    const stepCount = () => within(guide()).getByText(/^Step \d of 5$/).textContent;
+    const stepCount = () => within(guide()).getByText(/^Step \d of 4$/).textContent;
 
     async function openGuide(label = paired) {
       const user = userEvent.setup();
@@ -275,8 +275,8 @@ describe("ScheduleCheckInView", () => {
       expect(guide().getAttribute("open")).not.toBeNull();
       expect(screen.getByRole("dialog", { name: `Drill setup guide · Tuesday · ${paired}` })).toBe(guide());
       expect(document.activeElement?.textContent).toBe(`Drill setup guide · Tuesday · ${paired}`);
-      expect(stepCount()).toBe("Step 1 of 5");
-      expect(within(guide()).getByRole("heading", { name: "Open Drills on 7Sage" })).toBeTruthy();
+      expect(stepCount()).toBe("Step 1 of 4");
+      expect(within(guide()).getByRole("heading", { name: "Start a drill on 7Sage" })).toBeTruthy();
       expect(within(guide()).getByRole("button", { name: "Back" })).toHaveProperty("disabled", true);
       const link = within(guide()).getByRole("link", { name: "Open 7Sage drills (opens in a new tab)" });
       expect(link.getAttribute("target")).toBe("_blank");
@@ -285,26 +285,27 @@ describe("ScheduleCheckInView", () => {
 
     it("moves between cards with Next step, Back, the dots, and the arrow keys", async () => {
       const user = await openGuide();
+      expect(within(guide()).getByText("Open 7Sage.", { exact: false }).textContent)
+        .toBe("Open 7Sage. Go to Study, then Drills and sections. Under Logical Reasoning, click Start drill.");
       await user.click(within(guide()).getByRole("button", { name: "Next step" }));
-      expect(stepCount()).toBe("Step 2 of 5");
-      expect(within(guide()).getByText("Under", { exact: false }).textContent).toBe("Under Logical Reasoning, click Start drill.");
+      expect(stepCount()).toBe("Step 2 of 4");
       await user.click(within(guide()).getByRole("button", { name: "Back" }));
-      expect(stepCount()).toBe("Step 1 of 5");
+      expect(stepCount()).toBe("Step 1 of 4");
       expect(document.activeElement).toBe(within(guide()).getByRole("button", { name: "Next step" }));
 
-      await user.click(within(guide()).getByRole("button", { name: "Step 5" }));
-      expect(stepCount()).toBe("Step 5 of 5");
-      expect(within(guide()).getByRole("button", { name: "Step 5" }).getAttribute("aria-current")).toBe("step");
+      await user.click(within(guide()).getByRole("button", { name: "Step 4" }));
+      expect(stepCount()).toBe("Step 4 of 4");
+      expect(within(guide()).getByRole("button", { name: "Step 4" }).getAttribute("aria-current")).toBe("step");
       expect(within(guide()).getByRole("button", { name: "Step 1" }).getAttribute("aria-current")).toBeNull();
       await user.keyboard("{ArrowLeft}");
-      expect(stepCount()).toBe("Step 4 of 5");
+      expect(stepCount()).toBe("Step 3 of 4");
       await user.keyboard("{ArrowRight}{ArrowRight}");
-      expect(stepCount()).toBe("Step 5 of 5");
+      expect(stepCount()).toBe("Step 4 of 4");
     });
 
-    it("shows the paired drill's filters on card 4: one 7Sage drill per type, half the questions each", async () => {
+    it("shows the paired drill's filters on card 3: one 7Sage drill per type, half the questions each", async () => {
       const user = await openGuide();
-      await user.click(within(guide()).getByRole("button", { name: "Step 4" }));
+      await user.click(within(guide()).getByRole("button", { name: "Step 3" }));
       expect(within(guide()).getByRole("heading", { name: "Set the filters" })).toBeTruthy();
       expect(within(guide()).getByText("Section:", { exact: false }).textContent).toBe("Section: Logical Reasoning");
       const table = within(guide()).getByRole("table");
@@ -316,7 +317,7 @@ describe("ScheduleCheckInView", () => {
 
     it("builds a two-passage RC drill as two 7Sage drills of one passage, easier passage first", async () => {
       const user = await openGuide("2 RC Passages Humanities L2, Science L4");
-      await user.click(within(guide()).getByRole("button", { name: "Step 4" }));
+      await user.click(within(guide()).getByRole("button", { name: "Step 3" }));
       const table = within(guide()).getByRole("table");
       expect(within(table).getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual(["Tags", "Difficulty", "Passages"]);
       expect(within(table).getAllByRole("row").slice(1).map((row) => within(row).getAllByRole("cell").map((cell) => cell.textContent)))
@@ -324,13 +325,13 @@ describe("ScheduleCheckInView", () => {
       await user.click(within(guide()).getByRole("button", { name: "Next step" }));
       expect(within(guide()).getByText("Set Number of passages", { exact: false }).textContent)
         .toBe("Set Number of passages to 1. Pick any Timing, then click Start Drill. "
-          + "When it ends, repeat steps 2 to 5 with Tags set to Science (under RC passage subject) and Passage Difficulty set to 4, and Number of passages set to 1.");
-      expect(within(guide()).getByRole("img", { name: "7Sage, step 5" }).getAttribute("src")).toBe("/drill-setup-guide/rc-step-5-count-and-start.png");
+          + "When it ends, repeat steps 1 to 4 with Tags set to Science (under RC passage subject) and Passage Difficulty set to 4, and Number of passages set to 1.");
+      expect(within(guide()).getByRole("img", { name: "7Sage, step 4" }).getAttribute("src")).toBe("/drill-setup-guide/rc-step-4-count-and-start.png");
     });
 
     it.each([
       ["Done on the last card", async (user: ReturnType<typeof userEvent.setup>) => {
-        await user.click(within(guide()).getByRole("button", { name: "Step 5" }));
+        await user.click(within(guide()).getByRole("button", { name: "Step 4" }));
         await user.click(within(guide()).getByRole("button", { name: "Done" }));
       }],
       ["Escape", (user: ReturnType<typeof userEvent.setup>) => user.keyboard("{Escape}")],
@@ -350,10 +351,10 @@ describe("ScheduleCheckInView", () => {
       await user.keyboard("{Escape}");
       await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
       await user.click(setUp(paired));
-      expect(stepCount()).toBe("Step 1 of 5");
+      expect(stepCount()).toBe("Step 1 of 4");
     });
 
-    it("shows each card's 7Sage screenshot and loads all five when the guide opens", async () => {
+    it("shows each card's 7Sage screenshot and loads all four when the guide opens", async () => {
       const loaded: string[] = [];
       const BrowserImage = window.Image;
       window.Image = class {
@@ -361,14 +362,14 @@ describe("ScheduleCheckInView", () => {
       } as unknown as typeof window.Image;
       try {
         const user = await openGuide();
-        expect(loaded).toHaveLength(5);
+        expect(loaded).toHaveLength(4);
         const shown = [within(guide()).getByRole("img", { name: "7Sage, step 1" }).getAttribute("src")];
-        for (const step of [2, 3, 4, 5]) {
+        for (const step of [2, 3, 4]) {
           await user.click(within(guide()).getByRole("button", { name: `Step ${step}` }));
           shown.push(within(guide()).getByRole("img", { name: `7Sage, step ${step}` }).getAttribute("src"));
         }
         expect(shown).toEqual(loaded);
-        expect(new Set(shown).size).toBe(5);
+        expect(new Set(shown).size).toBe(4);
       } finally {
         window.Image = BrowserImage;
       }
@@ -385,7 +386,7 @@ describe("ScheduleCheckInView", () => {
       expect(zoom().getAttribute("aria-label")).toBe("Fit the screenshot");
       expect(zoom().getAttribute("aria-pressed")).toBe("true");
       expect(within(guide()).queryByText("Tap to zoom")).toBeNull();
-      expect(stepCount()).toBe("Step 1 of 5");
+      expect(stepCount()).toBe("Step 1 of 4");
 
       await user.click(zoom());
       expect(zoom().getAttribute("aria-pressed")).toBe("false");
@@ -418,13 +419,13 @@ describe("ScheduleCheckInView", () => {
     it("moves with the arrow keys after a click on plain text leaves focus on the guide itself", async () => {
       await openGuide();
       fireEvent.keyDown(guide(), { key: "ArrowRight" });
-      expect(stepCount()).toBe("Step 2 of 5");
+      expect(stepCount()).toBe("Step 2 of 4");
     });
 
     it("changes the card at once on a held arrow key", async () => {
       await openGuide();
       fireEvent.keyDown(document.activeElement!, { key: "ArrowRight", repeat: true });
-      expect(stepCount()).toBe("Step 2 of 5");
+      expect(stepCount()).toBe("Step 2 of 4");
       expect(animate).not.toHaveBeenCalled();
     });
 
@@ -457,7 +458,7 @@ describe("ScheduleCheckInView", () => {
         const user = userEvent.setup();
         renderThisWeek(link("TUESDAY:0"));
         expect(screen.getByRole("dialog", { name: `Drill setup guide · Tuesday · ${paired}` }).getAttribute("open")).not.toBeNull();
-        expect(stepCount()).toBe("Step 1 of 5");
+        expect(stepCount()).toBe("Step 1 of 4");
         expect(screen.queryByText("That drill is not in this week.")).toBeNull();
 
         await user.click(screen.getByRole("button", { name: "Close the drill setup guide" }));
