@@ -64,7 +64,7 @@ export function drillSetupGuide(activity: Activity): DrillSetupGuide | null {
     ["Click ", { value: "Customize questions" }, "."],
     second ? filters("You build this as two drills on 7Sage. For the first, set") : filters("Set"),
     second
-      ? [...start, " When it ends, repeat steps 1 to 4 with Tags set to ", { value: second.tags }, `${tagsGroup} and ${difficultyFilter} set to `,
+      ? [...start, ` When it ends, repeat steps 1 to ${STEP_TITLES.length} with Tags set to `, { value: second.tags }, `${tagsGroup} and ${difficultyFilter} set to `,
         { value: difficultyText(second.difficulty) }, `, and ${countFilter} set to `, { value: `${second.count}` }, "."]
       : start,
   ];
