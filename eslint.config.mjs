@@ -22,16 +22,15 @@ const handedToComponent = ({ parent }) =>
   parent.type === "JSXExpressionContainer" && parent.parent.type === "JSXAttribute"
   && parent.parent.parent.name.type === "JSXIdentifier" && /^[A-Z]/.test(parent.parent.parent.name.name);
 
-function actionPropName(reference) {
-  let child = reference.identifier;
-  let node = child.parent;
-  let action = node.type === "TSTypeQuery";
-  while (node && node.type !== "TSPropertySignature") {
-    if (node.type === "TSFunctionType" && child === node.returnType) action = true;
-    child = node;
-    node = node.parent;
-  }
-  return action && node.key.type === "Identifier" ? node.key.name : null;
+function actionPropName({ identifier }) {
+  let signature = identifier.parent;
+  while (signature && signature.type !== "TSPropertySignature") signature = signature.parent;
+  if (signature?.key.type !== "Identifier") return null;
+  const type = signature.typeAnnotation.typeAnnotation;
+  const shapes = type.type === "TSUnionType" ? type.types : [type];
+  const isAction = (shape) => (shape.type === "TSTypeQuery" && shape === identifier.parent)
+    || (shape.type === "TSFunctionType" && identifier.range[0] >= shape.returnType.range[0] && identifier.range[1] <= shape.returnType.range[1]);
+  return shapes.some(isAction) ? signature.key.name : null;
 }
 
 const destructuredKey = ({ parent }) => {

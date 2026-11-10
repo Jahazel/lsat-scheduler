@@ -75,6 +75,18 @@ export function Unpacked(props: { onSend: (input: number) => Promise<StudySettin
   void onSend(2).then(onDone);
   return null;
 }
+
+type Save = typeof saveStudySettings;
+export const pick: () => StudySettingsAnswer = () => null;
+
+export function Picker({ onPick, answer, save }: {
+  onPick: (load: () => StudySettingsAnswer) => void;
+  answer: Awaited<ReturnType<typeof saveStudySettings>>;
+  save: Save;
+}) {
+  onPick(() => null);
+  return <p>{String(answer)}{String(save)}{String(pick)}</p>;
+}
 `;
 
 it("refuses a client screen that calls a Server Action prop without the adapter", async () => {
