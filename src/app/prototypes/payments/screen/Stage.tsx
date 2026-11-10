@@ -2,7 +2,7 @@
 import "../proto.css";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { arriveSections } from "@/components/PagePlaceholder";
+import { arriveSections } from "@/lib/pageMotion";
 import { durationMs, motionToken } from "@/lib/motion";
 import { cx } from "@/components/ui/classes";
 import { findScreen, findState } from "../screens";
