@@ -29,10 +29,15 @@ it("lets a rejection that is not a lost connection reject", async () => {
   await expect(failing()).rejects.toThrow("Server Action was not found");
 });
 
-it("loads the signed-out address as a new page and answers nothing", async () => {
+it("loads the signed-out address as a new page and answers nothing once this page goes", async () => {
   const assign = stubAssign();
-  expect(await callAction(async () => ({ goTo: "/login" as const }))()).toBeNull();
-  expect(assign).toHaveBeenCalledWith("/login");
+  let answered = false;
+  const answer = callAction(async () => ({ goTo: "/login" as const }))().finally(() => { answered = true; });
+  await vi.waitFor(() => expect(assign).toHaveBeenCalledWith("/login"));
+  await new Promise((resolve) => setTimeout(resolve));
+  expect(answered).toBe(false);
+  dispatchEvent(new Event("pagehide"));
+  expect(await answer).toBeNull();
 });
 
 it("loads no page for an answer that is not a sign-out", async () => {

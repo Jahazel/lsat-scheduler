@@ -26,14 +26,20 @@ function fillAndChange(current: string, next: string) {
 }
 
 describe("Change password card", () => {
-  it("loads the signed-out login address as a new page after the change", async () => {
+  it("loads the signed-out login address as a new page after the change, and keeps waiting until this page goes", async () => {
     const assign = vi.fn();
     vi.stubGlobal("location", { ...window.location, assign });
     actions.changePassword.mockResolvedValue({ goTo: "/login?notice=PasswordChanged&signedOut=1" });
     render(<ChangePasswordCard />);
     fillAndChange("correct horse battery staple", "purple walrus dances at noon");
     await waitFor(() => expect(assign).toHaveBeenCalledWith("/login?notice=PasswordChanged&signedOut=1"));
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(screen.getByRole("button", { name: "Changing password…" }).getAttribute("aria-disabled")).toBe("true");
+    expect(currentPassword().readOnly).toBe(true);
     expect(screen.queryByRole("alert")).toBeNull();
+
+    dispatchEvent(new Event("pagehide"));
+    await waitFor(() => expect(currentPassword().readOnly).toBe(false));
   });
 
   it("asks for the current and the new password and says it signs out every device", () => {

@@ -117,14 +117,19 @@ describe("Account deletion card", () => {
       expect((screen.getByLabelText("Type DELETE to confirm") as HTMLInputElement).value).toBe("DELETE");
     });
 
-    it("loads the signed-out address as a new page after deletion", async () => {
+    it("loads the signed-out address as a new page after deletion, and keeps waiting until this page goes", async () => {
       const assign = vi.fn();
       vi.stubGlobal("location", { ...window.location, assign });
       actions.deleteAccount.mockResolvedValue({ goTo: "/login?notice=DeletionWillFinish&signedOut=1" });
       render(<DeletionCard mode={{ kind: "password" }} />);
       fillAndDelete("correct horse battery staple", "DELETE");
       await waitFor(() => expect(assign).toHaveBeenCalledWith("/login?notice=DeletionWillFinish&signedOut=1"));
+      await new Promise((resolve) => setTimeout(resolve));
+      expect(screen.getByRole("button", { name: "Deleting…" }).getAttribute("aria-disabled")).toBe("true");
       expect(screen.queryByRole("alert")).toBeNull();
+
+      dispatchEvent(new Event("pagehide"));
+      await waitFor(() => expect(screen.queryByRole("button", { name: "Deleting…" })).toBeNull());
     });
 
     it("keeps the password after a wrong confirmation text", async () => {

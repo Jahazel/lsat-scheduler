@@ -10,7 +10,7 @@ Purpose of every row: prevent a jarring change. Each page change happens a few t
 
 ## Terms
 
-- **Fade through**: the old content fades out (fast, exit easing). Then the new content fades in (base, standard easing) and rises 8 px, or 4 px on a phone (390 px and narrower).
+- **Fade through**: the old content fades out (fast, exit easing). Then the new content fades in (base, standard easing) and rises 8 px, or 4 px on a phone (767 px and narrower; owner decision 2026-11-09).
 - **Anchors**: the parts that stay still during a change. They never fade.
 - **Shared axis**: the same as fade through, but the content moves sideways 8 px instead of rising, to show direction.
 
