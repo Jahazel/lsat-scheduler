@@ -40,7 +40,7 @@ export function planStatus(role: string, record: BillingRecord | null, realNow: 
   if (PLAN_ENDED.includes(stripeStatus)) {
     return record.paidPeriodEndsAt && realNow < record.paidPeriodEndsAt ? { kind: "paid", plan } : { kind: "lapsed" };
   }
-  if (record.renewalFailedAt) {
+  if (record.renewalFailedAt && stripeStatus === "past_due") {
     const lapsesAt = new Date(record.renewalFailedAt.getTime() + RETRYING_DAYS * DAY_MS);
     return realNow < lapsesAt ? { kind: "retrying", plan, lapsesAt } : { kind: "lapsed" };
   }

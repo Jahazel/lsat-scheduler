@@ -83,6 +83,11 @@ describe("plan status", () => {
     expect(planStatus("student", failed, at("2026-12-07T07:00:00.000Z"))).toEqual({ kind: "lapsed" });
   });
 
+  it("gives paid again once Stripe's retry of a failed renewal succeeds", () => {
+    const recovered = { ...paid, stripeStatus: "active" as const, renewalFailedAt: at("2026-11-30T07:00:00.000Z") };
+    expect(planStatus("student", recovered, at("2026-12-10T00:00:00.000Z"))).toEqual({ kind: "paid", plan: "weekly" });
+  });
+
   it("keeps a paid student who cancels until the paid period ends", () => {
     const cancelled = { ...paid, stripeStatus: "canceled" as const };
     expect(planStatus("student", cancelled, at("2026-11-29T12:00:00.000Z")).kind).toBe("paid");
