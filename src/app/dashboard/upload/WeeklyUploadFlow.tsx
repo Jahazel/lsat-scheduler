@@ -6,7 +6,7 @@ import { startReview } from "@/lib/analyticsReview";
 import { reviewPracticeTest } from "@/lib/practiceTestResult";
 import type { ScanningOff } from "@/lib/scanSpending";
 import type { WeeklyUploadBasis } from "@/lib/weeklyUploadPreview";
-import { confirmWeeklyUpload } from "./actions";
+import type { confirmWeeklyUpload } from "./actions";
 import WeeklyCheck, { type CheckSource } from "./WeeklyCheck";
 import WeeklyUpload, { type WeeklyUploadRead } from "./WeeklyUpload";
 
@@ -23,11 +23,11 @@ function sampleRead(sample: SampleDraft, basis: WeeklyUploadBasis, currentScore:
   };
 }
 
-export default function WeeklyUploadFlow({ basis, initialScore, scanningOff, confirm = confirmWeeklyUpload }: {
+export default function WeeklyUploadFlow({ basis, initialScore, scanningOff, confirm }: {
   basis: WeeklyUploadBasis;
   initialScore: number;
   scanningOff?: ScanningOff;
-  confirm?: typeof confirmWeeklyUpload;
+  confirm: typeof confirmWeeklyUpload;
 }) {
   const { sample, setSample } = useAdminTest();
   const [checking, setChecking] = useState<{ read: WeeklyUploadRead; source: CheckSource; key: string } | null>(null);

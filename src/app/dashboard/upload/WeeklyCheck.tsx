@@ -1,7 +1,7 @@
 "use client";
 
 import { useReducer, useState, useTransition } from "react";
-import { FailureNotice, catchLostConnection } from "@/components/FailureNotice";
+import { FailureNotice } from "@/components/FailureNotice";
 import { PauseGlyph } from "@/components/ScanningOffNote";
 import SignInExpired from "@/components/SignInExpired";
 import {
@@ -11,6 +11,7 @@ import {
 import { DrillList } from "@/components/WeekPreview";
 import { FOCUS } from "@/components/ui/classes";
 import { accuracyError, isTyped, reviewedRows, SECTIONS, snapshotApproval, type Statement } from "@/lib/analyticsReview";
+import { callAction } from "@/lib/callAction";
 import { mostMissedType } from "@/lib/engine";
 import { mockRules } from "@/lib/mockData";
 import type { HiddenResult, PracticeTestResult } from "@/lib/practiceTestResult";
@@ -176,7 +177,7 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
     };
     startSaving(async () => {
       onSent?.();
-      setReply(await catchLostConnection(onConfirm)({
+      setReply(await callAction(onConfirm)({
         weekOf: basis.weekOf,
         currentScore: score,
         analytics: { rows: reviewedRows(review), ...approval },

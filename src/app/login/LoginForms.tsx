@@ -2,18 +2,19 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { ActionForm, FailureNotice, FailureNoticeOnArrival, catchLostConnection } from "@/components/FailureNotice";
+import { ActionForm, FailureNotice, FailureNoticeOnArrival } from "@/components/FailureNotice";
 import { GoogleButton } from "@/components/signIn/GoogleButton";
 import { OrWithEmail, SubmitButton } from "@/components/signIn/PasswordFormParts";
 import { Notice } from "@/components/signIn/SignInFrame";
 import { TextInput } from "@/components/ui/TextInput";
 import { FOCUS, cx } from "@/components/ui/classes";
+import { callAction } from "@/lib/callAction";
 import type { LoginNotice } from "@/lib/loginNotice";
 import { isUnexpectedFailure, type FailureCode } from "@/lib/unexpectedFailure";
 import { logInWithPassword, signInWithGoogle } from "./actions";
 
 export function LoginForms({ urlNotice, googleFailure }: { urlNotice: LoginNotice | null; googleFailure: FailureCode | null }) {
-  const [answer, logInAction] = useActionState(catchLostConnection(logInWithPassword), null);
+  const [answer, logInAction] = useActionState(callAction(logInWithPassword), null);
   const refused = isUnexpectedFailure(answer) ? null : answer;
   const notice = answer ? refused?.notice ?? null : urlNotice;
   return (
