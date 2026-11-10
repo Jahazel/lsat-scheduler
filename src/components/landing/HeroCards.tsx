@@ -29,8 +29,8 @@ function Label({ dot, children }: { dot?: string; children: ReactNode }) {
 const CARDS: Card[] = [
   {
     side: "left",
-    place: "-rotate-3 md:top-7 md:left-7 md:-rotate-6 lg:top-[132px] lg:left-[calc(50%-656px)]",
-    face: cx(LIGHT, "w-[200px] md:w-[216px] lg:w-[236px]"),
+    place: "-rotate-3 md:top-7 md:left-7 md:-rotate-6 min-[1360px]:top-[132px] min-[1360px]:left-[calc(50%-656px)]",
+    face: cx(LIGHT, "w-[200px] md:w-[216px] min-[1360px]:w-[236px]"),
     motion: { delay: 120, phase: 0, rise: -60, turn: -2 },
     body: (
       <>
@@ -42,8 +42,8 @@ const CARDS: Card[] = [
   },
   {
     side: "left",
-    place: "rotate-2 md:top-[548px] md:left-3.5 md:rotate-4 lg:top-[348px] lg:left-[calc(50%-672px)]",
-    face: cx(LIGHT, "w-[210px] md:w-[214px] lg:w-[212px] lg:gap-1.5 lg:p-[18px]"),
+    place: "rotate-2 md:top-[548px] md:left-3.5 md:rotate-4 min-[1360px]:top-[348px] min-[1360px]:left-[calc(50%-672px)]",
+    face: cx(LIGHT, "w-[210px] md:w-[214px] min-[1360px]:w-[212px] min-[1360px]:gap-1.5 min-[1360px]:p-[18px]"),
     motion: { delay: 240, phoneDelay: 180, phase: -2.8, rise: -110, turn: 2 },
     body: (
       <>
@@ -55,7 +55,7 @@ const CARDS: Card[] = [
   },
   {
     side: "left",
-    place: "hidden lg:block lg:top-[546px] lg:left-[calc(50%-624px)] lg:-rotate-3",
+    place: "hidden min-[1360px]:block min-[1360px]:top-[546px] min-[1360px]:left-[calc(50%-624px)] min-[1360px]:-rotate-3",
     face: "w-max min-w-[228px] flex-row items-center gap-3 border-vellum-line bg-paper px-4 py-3.5 text-ink",
     motion: { delay: 360, phase: -3.6, rise: -150, turn: -3 },
     body: (
@@ -74,8 +74,8 @@ const CARDS: Card[] = [
   },
   {
     side: "right",
-    place: "hidden md:block md:top-5 md:right-7 md:rotate-5 lg:top-[120px] lg:right-auto lg:left-[calc(50%+420px)]",
-    face: cx(LIGHT, "md:w-[220px] lg:w-[252px]"),
+    place: "hidden md:block md:top-5 md:right-7 md:rotate-5 min-[1360px]:top-[120px] min-[1360px]:right-auto min-[1360px]:left-[calc(50%+420px)]",
+    face: cx(LIGHT, "md:w-[220px] min-[1360px]:w-[252px]"),
     motion: { delay: 180, phase: -1.4, rise: -80, turn: 2 },
     body: (
       <>
@@ -92,7 +92,7 @@ const CARDS: Card[] = [
   },
   {
     side: "right",
-    place: "hidden lg:block lg:top-[340px] lg:left-[calc(50%+484px)] lg:-rotate-5",
+    place: "hidden min-[1360px]:block min-[1360px]:top-[340px] min-[1360px]:left-[calc(50%+484px)] min-[1360px]:-rotate-5",
     face: "w-[188px] flex-col gap-1 border-ink bg-ink p-[18px] text-chalk",
     motion: { delay: 300, phase: -0.7, rise: -130, turn: -2 },
     body: (
@@ -104,8 +104,8 @@ const CARDS: Card[] = [
   },
   {
     side: "right",
-    place: "-rotate-2 md:top-[594px] md:right-4 md:rotate-3 lg:top-[536px] lg:right-auto lg:left-[calc(50%+400px)]",
-    face: cx(LIGHT, "w-[200px] md:w-[232px] lg:w-[236px]"),
+    place: "-rotate-2 md:top-[594px] md:right-4 md:rotate-3 min-[1360px]:top-[536px] min-[1360px]:right-auto min-[1360px]:left-[calc(50%+400px)]",
+    face: cx(LIGHT, "w-[200px] md:w-[232px] min-[1360px]:w-[236px]"),
     motion: { delay: 420, phoneDelay: 240, phase: -2.1, rise: -160, turn: 3 },
     body: (
       <>
