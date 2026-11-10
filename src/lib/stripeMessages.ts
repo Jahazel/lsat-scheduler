@@ -75,6 +75,7 @@ const subscriptionSchema = z.object({
   ended_at: seconds.nullable(),
   items: z.object({
     data: z.array(z.object({
+      current_period_start: seconds,
       current_period_end: seconds,
       price: z.object({ recurring: z.object({ interval: z.string(), interval_count: z.number() }).nullable() }),
     })).min(1),
@@ -127,6 +128,14 @@ const earlier = (a: Date | null, b: Date | null) => (a && b ? (a < b ? a : b) : 
 
 const isNewer = (a: Subscription, b: Subscription) => a.created > b.created || (a.created === b.created && a.id > b.id);
 
+const NEVER_PAID_FOR_THIS_PERIOD: readonly Subscription["status"][] = ["unpaid", "paused", "incomplete", "incomplete_expired"];
+
+function paidPeriodEnd(subscription: Subscription) {
+  const period = subscription.items.data[0];
+  if (NEVER_PAID_FOR_THIS_PERIOD.includes(subscription.status)) return period.current_period_start;
+  return subscription.ended_at ?? period.current_period_end;
+}
+
 async function billingState(subscription: Subscription, current: BillingRow | undefined, secretKey: string) {
   const sameSubscription = current?.stripeSubscriptionId === subscription.id;
   const firstChargeSucceeded = (sameSubscription && current.firstChargeSucceeded) || await hasPaidCharge(subscription.id, secretKey);
@@ -140,7 +149,7 @@ async function billingState(subscription: Subscription, current: BillingRow | un
     plan: planOf(subscription),
     stripeStatus: subscription.status,
     freeWeekEndsAt: subscription.trial_end,
-    paidPeriodEndsAt: subscription.ended_at ?? subscription.items.data[0].current_period_end,
+    paidPeriodEndsAt: paidPeriodEnd(subscription),
     firstChargeSucceeded,
     renewalFailedAt: renewalFailing ? earlier(keptFailedAt, failedAt) : null,
   };
@@ -148,7 +157,8 @@ async function billingState(subscription: Subscription, current: BillingRow | un
 
 /**
  * Handles one Stripe message. The message only names a subscription: its state is fetched from Stripe and saved,
- * so a repeated or reordered message leaves the same billing record.
+ * so a repeated or reordered message leaves the same billing record. Checkout must put the Account ID in the
+ * subscription's `metadata.account_id` and reuse the Account's Stripe customer.
  */
 export async function receiveStripeMessage(body: Buffer, signature: string | null, now: Date): Promise<StripeMessageOutcome> {
   const { signingSecret, secretKey } = stripeSettings();
@@ -161,12 +171,12 @@ export async function receiveStripeMessage(body: Buffer, signature: string | nul
     const [fresh] = await tx.insert(stripeMessages).values({ id: message.id }).onConflictDoNothing().returning({ id: stripeMessages.id });
     if (!fresh) return { kind: "repeat" };
 
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`stripe-subscription:${id}`}, 0))`);
     const subscription = await fetchSubscription(id, secretKey);
     const accountId = subscription.metadata.account_id;
     if (!isAccountId(accountId)) return { kind: "refused", result: "unknownAccount", who: { nobody: true } };
-    const [account] = (await tx.execute<{ role: string }>(
-      sql`select role from accounts where id = ${accountId} for no key update`,
-    )).rows;
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`billing-account:${accountId}`}, 0))`);
+    const [account] = (await tx.execute<{ role: string }>(sql`select role from accounts where id = ${accountId}`)).rows;
     if (!account) return { kind: "refused", result: "unknownAccount", who: { nobody: true } };
     const who = { account: accountId };
     if (account.role === "admin") return { kind: "refused", result: "adminAccount", who };
@@ -177,7 +187,7 @@ export async function receiveStripeMessage(body: Buffer, signature: string | nul
     ));
     const [current] = await tx.select().from(billingRecords).where(eq(billingRecords.accountId, accountId));
     const sameSubscription = current?.stripeSubscriptionId === subscription.id;
-    if (elsewhere || (sameSubscription && current.stripeCustomerId !== subscription.customer)) {
+    if (elsewhere || (current && current.stripeCustomerId !== subscription.customer)) {
       return { kind: "refused", result: "otherAccount", who };
     }
     if (current && !sameSubscription && !isNewer(subscription, await fetchSubscription(current.stripeSubscriptionId, secretKey))) {

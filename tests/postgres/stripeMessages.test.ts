@@ -14,7 +14,7 @@ const PERIOD_END = FREE_WEEK_END + 7 * 86_400;
 type FakeSubscription = {
   id: string; customer: string; status: string; created: number; metadata: Record<string, string>;
   trial_end: number | null; ended_at: number | null; schedule: string | null;
-  items: { data: { current_period_end: number; price: { recurring: { interval: string; interval_count: number } } }[] };
+  items: { data: { current_period_start?: number; current_period_end: number; price: { recurring: { interval: string; interval_count: number } } }[] };
   latest_invoice: { created: number; status_transitions: { finalized_at: number | null } } | null;
 };
 
@@ -23,6 +23,8 @@ const stripe = {
   paidInvoices: new Map<string, number[]>(),
   requests: [] as string[],
   down: false,
+  /** When set, the next subscription read answers with the state it saw, after this promise settles. */
+  hold: null as Promise<void> | null,
 };
 
 vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
@@ -34,7 +36,13 @@ vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
   const subscription = /^\/v1\/subscriptions\/(sub_\w+)$/.exec(url.pathname);
   if (subscription) {
     const found = stripe.subscriptions.get(subscription[1]);
-    return found ? Response.json(found) : Response.json({ error: { type: "invalid_request_error" } }, { status: 404 });
+    if (!found) return Response.json({ error: { type: "invalid_request_error" } }, { status: 404 });
+    const items = found.items.data.map((item) => ({ current_period_start: item.current_period_end - 7 * 86_400, ...item }));
+    const answer = Response.json({ ...found, items: { data: items } });
+    const hold = stripe.hold;
+    stripe.hold = null;
+    await hold;
+    return answer;
   }
   if (url.pathname === "/v1/invoices" && url.searchParams.get("status") === "paid") {
     const amounts = stripe.paidInvoices.get(url.searchParams.get("subscription") ?? "") ?? [];
@@ -54,6 +62,7 @@ beforeEach(async () => {
   stripe.paidInvoices.clear();
   stripe.requests = [];
   stripe.down = false;
+  stripe.hold = null;
   await database.owner.execute(sql`truncate accounts, security_log, stripe_messages cascade`);
   const account = await database.createAccountAsOwner({ email: "maya@example.test", name: "Maya" });
   if (!account) throw new Error("Account fixture already exists");
@@ -304,7 +313,9 @@ it("replaces a lapsed plan with a newer one, and ignores later messages about th
   stripe.paidInvoices.set("sub_old", [1000]);
   stripe.paidInvoices.set("sub_new", [1000]);
   stripe.subscriptions.set("sub_old", subscription("sub_old", accountId, { status: "past_due", created: 1_793_400_000 }));
-  stripe.subscriptions.set("sub_new", subscription("sub_new", accountId, { status: "active", trial_end: null, created: 1_795_000_000 }));
+  stripe.subscriptions.set("sub_new", subscription("sub_new", accountId, {
+    customer: "cus_old", status: "active", trial_end: null, created: 1_795_000_000,
+  }));
   await send(subscriptionChanged("sub_old", "updated"));
   await send(checkoutCompleted("sub_new"));
   expect(await records()).toEqual([expect.objectContaining({ stripe_subscription_id: "sub_new", stripe_status: "active" })]);
@@ -372,4 +383,42 @@ it("answers 500 when Stripe fails, saving nothing, so Stripe's retry is handled"
   stripe.down = false;
   expect((await send(body)).status).toBe(200);
   expect(await records()).toEqual([expect.objectContaining({ stripe_subscription_id: "sub_maya" })]);
+});
+
+it("ignores and logs a newer subscription on a Stripe customer other than the billing record's", async () => {
+  stripe.paidInvoices.set("sub_old", [1000]);
+  stripe.subscriptions.set("sub_old", subscription("sub_old", accountId, { status: "active" }));
+  stripe.subscriptions.set("sub_new", subscription("sub_new", accountId, { customer: "cus_stranger", created: 1_795_000_000 }));
+  await send(subscriptionChanged("sub_old", "updated"));
+
+  expect((await send(checkoutCompleted("sub_new"))).status).toBe(200);
+
+  expect(await records()).toEqual([expect.objectContaining({ stripe_customer_id: "cus_old", stripe_subscription_id: "sub_old" })]);
+  expect(await refusals()).toEqual([{ result: "otherAccount", route: "/api/stripe/webhook", account_id: accountId }]);
+});
+
+it("ends an unpaid plan's paid period where the unpaid period starts", async () => {
+  stripe.paidInvoices.set("sub_maya", [1000]);
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId, {
+    status: "unpaid", items: { data: [{ current_period_start: PERIOD_END, current_period_end: PERIOD_END + 30 * 86_400, price: monthly }] },
+  }));
+  await send(subscriptionChanged("sub_maya", "updated"));
+  expect(await records()).toEqual([expect.objectContaining({ stripe_status: "unpaid", paid_period_ends_at: new Date(PERIOD_END * 1000) })]);
+});
+
+it("saves the newest state when a second message about the subscription arrives while the first reads Stripe", async () => {
+  stripe.paidInvoices.set("sub_maya", [0, 1000]);
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId, { status: "past_due" }));
+  let release = () => {};
+  stripe.hold = new Promise((resolve) => { release = resolve; });
+
+  const failed = send(invoice("sub_maya", false));
+  await vi.waitFor(() => expect(stripe.requests).toHaveLength(1));
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId, { status: "active" }));
+  const paid = send(invoice("sub_maya", true));
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  release();
+  await Promise.all([failed, paid]);
+
+  expect(await records()).toEqual([expect.objectContaining({ stripe_status: "active", renewal_failed_at: null })]);
 });
