@@ -1117,7 +1117,7 @@ describe("OnboardingWizard · step slide", () => {
     tokens.setProperty("--duration-fast", "120ms");
     tokens.setProperty("--duration-base", "200ms");
     tokens.setProperty("--ease-standard", "cubic-bezier(0.2, 0, 0, 1)");
-    tokens.setProperty("--ease-exit", "cubic-bezier(0.4, 0, 1, 1)");
+    tokens.setProperty("--ease-out-strong", "cubic-bezier(0.23, 1, 0.32, 1)");
     Element.prototype.animate = animate as unknown as Element["animate"];
     Element.prototype.getAnimations = function (this: Element) { return live.filter((a) => a.el === this).map((a) => ({ cancel: () => { live = live.filter((b) => b !== a); } })) as unknown as Animation[]; };
     window.matchMedia = ((query: string) => ({ matches: reduced && query.includes("reduce") })) as typeof window.matchMedia;
@@ -1147,7 +1147,7 @@ describe("OnboardingWizard · step slide", () => {
     expect(all.map((a) => a.el)).toEqual([region]);
     expect(region.contains(screen.getByText("Step 3 of 4 · Analytics"))).toBe(false);
     expect(all[0].keyframes.at(-1)).toEqual({ opacity: 0, transform: "translateX(8px)" });
-    expect(all[0].options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" });
+    expect(all[0].options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.23, 1, 0.32, 1)", fill: "forwards" });
     expect(region.hasAttribute("inert")).toBe(true);
     expect(region.getAttribute("aria-busy")).toBe("true");
     expect(screen.getByRole("heading", { name: "Add your 7Sage analytics" })).toBeDefined();
