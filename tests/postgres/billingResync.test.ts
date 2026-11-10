@@ -156,6 +156,25 @@ it("keeps an Account's newest plan whatever order Stripe lists its subscriptions
   expect(await records()).toEqual([expect.objectContaining({ stripe_subscription_id: "sub_new", stripe_status: "active" })]);
 });
 
+it("takes a failing renewal's date from Stripe, not from the restored record", async () => {
+  const maya = await account("maya@example.test");
+  const renewalFailed = FREE_WEEK_END + 14 * 86_400;
+  await database.writeBillingRecordAsOwner(maya, {
+    stripeCustomerId: "cus_maya", stripeSubscriptionId: "sub_maya", stripeStatus: "past_due", renewalFailedAt: new Date(FREE_WEEK_END * 1000),
+  });
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", maya, {
+    status: "past_due", latest_invoice: { created: renewalFailed, status_transitions: { finalized_at: renewalFailed } },
+  }));
+  stripe.paidInvoices.set("sub_maya", [1000]);
+
+  await resyncBillingRecords(database.owner, KEY);
+
+  const [{ failed }] = (await database.owner.execute<{ failed: boolean }>(sql`
+    select renewal_failed_at = to_timestamp(${renewalFailed}) as failed from billing_records
+  `)).rows;
+  expect(failed).toBe(true);
+});
+
 it("counts a billing record whose subscription Stripe does not list, and leaves it as it was", async () => {
   const lost = await account("lost@example.test");
   await database.writeBillingRecordAsOwner(lost, { stripeCustomerId: "cus_lost", stripeSubscriptionId: "sub_lost" });

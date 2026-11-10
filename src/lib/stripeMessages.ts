@@ -16,6 +16,8 @@ type Database = ReturnType<typeof getPostgresDatabase>;
 
 export type StripeMessageRefusal = "badSignature" | "unknownAccount" | "adminAccount" | "otherAccount";
 
+type SaveSource = "message" | "restore";
+
 type SaveOutcome =
   | { kind: "refused"; result: StripeMessageRefusal; who: Subject }
   | { kind: "saved" | "olderSubscription" };
@@ -127,12 +129,13 @@ function paidPeriodEnd(subscription: Subscription) {
   return subscription.ended_at ?? period.current_period_end;
 }
 
-async function billingState(subscription: Subscription, current: BillingRow | undefined, secretKey: string) {
+/** A restored record's failure date can predate a recovery the restore lost, so only the message path keeps it. */
+async function billingState(subscription: Subscription, current: BillingRow | undefined, secretKey: string, from: SaveSource) {
   const sameSubscription = current?.stripeSubscriptionId === subscription.id;
   const firstChargeSucceeded = (sameSubscription && current.firstChargeSucceeded) || await hasPaidCharge(subscription.id, secretKey);
   const invoice = subscription.latest_invoice;
   const failedAt = invoice ? invoice.status_transitions.finalized_at ?? invoice.created : null;
-  const keptFailedAt = sameSubscription ? current.renewalFailedAt : null;
+  const keptFailedAt = sameSubscription && from === "message" ? current.renewalFailedAt : null;
   const renewalFailing = firstChargeSucceeded && subscription.status === "past_due";
   return {
     stripeCustomerId: subscription.customer,
@@ -162,11 +165,11 @@ export async function receiveStripeMessage(body: Buffer, signature: string | nul
   return getPostgresDatabase().transaction(async (tx) => {
     const [fresh] = await tx.insert(stripeMessages).values({ id: message.id }).onConflictDoNothing().returning({ id: stripeMessages.id });
     if (!fresh) return { kind: "repeat" };
-    return saveSubscription(tx, id, secretKey);
+    return saveSubscription(tx, id, secretKey, "message");
   });
 }
 
-async function saveSubscription(tx: PostgresTransaction, id: string, secretKey: string): Promise<SaveOutcome> {
+async function saveSubscription(tx: PostgresTransaction, id: string, secretKey: string, from: SaveSource): Promise<SaveOutcome> {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`stripe-subscription:${id}`}, 0))`);
   const subscription = await fetchSubscription(id, secretKey);
   const accountId = subscription.metadata.account_id;
@@ -190,7 +193,7 @@ async function saveSubscription(tx: PostgresTransaction, id: string, secretKey: 
     return { kind: "olderSubscription" };
   }
 
-  const state = await billingState(subscription, current, secretKey);
+  const state = await billingState(subscription, current, secretKey, from);
   await tx.insert(billingRecords).values({ accountId, ...state })
     .onConflictDoUpdate({ target: billingRecords.accountId, set: state });
   return { kind: "saved" };
@@ -223,7 +226,7 @@ export async function resyncBillingRecords(db: Database, secretKey: string): Pro
   const ids = await listSubscriptionIds(secretKey);
   let saved = 0;
   for (const id of ids) {
-    const outcome = await db.transaction((tx) => saveSubscription(tx, id, secretKey));
+    const outcome = await db.transaction((tx) => saveSubscription(tx, id, secretKey, "restore"));
     if (outcome.kind === "saved") saved += 1;
   }
   const unlisted = await db.select({ id: billingRecords.accountId }).from(billingRecords)
