@@ -24,10 +24,6 @@ The core student workflow is implemented:
 - A read-only admin view of each student's saved schedule and check-in state
 - Public landing, legal, login, and signup pages
 
-Billing is intentionally deferred. The tracked next feature is
-[Issue #13: Stripe subscriptions, a seven-day trial, and the 7Sage referral
-discount](https://github.com/Jahazel/lsat-scheduler/issues/13).
-
 ## Product and design sources
 
 - [PRODUCT.md](PRODUCT.md) defines the audience, product intent, and brand

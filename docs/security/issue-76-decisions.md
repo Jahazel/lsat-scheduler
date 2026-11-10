@@ -223,8 +223,10 @@ Updated on October 19, 2026 (#145) for the move to Neon ([issue 78](issue-78-dat
 
 Filled on November 8, 2026 ([issue 359](https://github.com/Jahazel/lsat-scheduler/issues/359)) with the facts of the build. The [filled facts](#filled-facts) table gives each fact and its source. The page is `src/app/legal/privacy/page.tsx`.
 
+Updated on November 10, 2026 ([issue 694](https://github.com/Jahazel/lsat-scheduler/issues/694)) for payments ([#680](https://github.com/Jahazel/lsat-scheduler/issues/680)): the Payments section, Stripe in the company list, the used free week list in the retention list, and its row surviving Account deletion.
+
 > **Privacy Policy**
-> Last updated: November 8, 2026
+> Last updated: November 10, 2026
 >
 > **What DrillMap stores**
 > - Your Account: your name, your email address, your sign-in method (Google or password), and the date you last signed in. For a password, we store only a secure scramble (hash) of it, never the password itself.
@@ -238,11 +240,17 @@ Filled on November 8, 2026 ([issue 359](https://github.com/Jahazel/lsat-schedule
 > **Your 7Sage screenshots**
 > When you upload a screenshot, DrillMap sends it to Anthropic, an AI company, to read your analytics numbers. Anthropic keeps the image for up to 30 days and then deletes it. DrillMap does not store the screenshot. It stores only the numbers you review and approve. Crop out anything you do not want to share before you upload. AI does not make your schedule. Fixed rules make it from your approved numbers and settings.
 >
+> **Payments**
+> Stripe sells your plan and takes your payment. Stripe is the seller, so your card and the other payment details you give Stripe go to Stripe, not to DrillMap. Stripe's own privacy policy covers them. DrillMap stores only the Stripe IDs of your customer record and plan, your plan (Weekly or Monthly), its Stripe status, its dates, and whether your first charge went through. We delete these with your Account.
+>
+> Each email address gets one free week in 12 months. When your free week starts, we save a scrambled form (hash) of your email address and the date in the used free week list. We keep each row for 12 months, even if you delete your Account, and then delete it.
+>
 > **Companies that handle your data for us**
 > - Vercel runs the website.
 > - Neon stores the database.
 > - Google handles sign-in if you choose "Continue with Google."
 > - Anthropic reads screenshots, as described above.
+> - Stripe sells plans and takes payments, as described above.
 > - Resend sends verification, password reset, and account notices.
 >
 > **Security records**
@@ -251,9 +259,10 @@ Filled on November 8, 2026 ([issue 359](https://github.com/Jahazel/lsat-schedule
 > **How long we keep data**
 > - Your Account and study information: until you delete your Account. If you do not sign in for 2 years, we email you, and we delete your Account 30 days later.
 > - Security records: 90 days.
+> - Used free week list: 12 months from the day your free week starts.
 >
 > **Deleting your Account**
-> You can delete your Account on the Account page. You must have signed in within the last 10 minutes. Deletion removes your Account, study settings, analytics snapshots, practice test results, weekly schedules, and activity check-ins. You are signed out on all devices. We keep only a short record that holds your Account ID and a scrambled form of your email. We use it for 30 days to make sure a restore from backup cannot bring your data back.
+> You can delete your Account on the Account page. You must have signed in within the last 10 minutes. Deletion removes your Account, study settings, analytics snapshots, practice test results, weekly schedules, and activity check-ins. You are signed out on all devices. We keep only a short record that holds your Account ID and a scrambled form of your email. We use it for 30 days to make sure a restore from backup cannot bring your data back. If you started a free week, its row in the used free week list stays until 12 months have passed.
 >
 > **Backups**
 > We keep daily database backups for 14 days. We use them only to recover the service after a failure. After a restore, we delete again every Account that was deleted before.
@@ -267,7 +276,7 @@ Each row is a square-bracket fill or a change from the October 19 text. A later 
 
 | Fact on the page | Source |
 | --- | --- |
-| Last updated: November 8, 2026 | The day this text was filled (#359). The page has no release yet; a text change before the release moves the date. |
+| Last updated: November 10, 2026 | The day the payments text was added (#694). The page has no release yet; a text change before the release moves the date. |
 | Daily backups kept 14 days | Neon production setting, [issue 144 evidence](issue-144-evidence.md); confirmed on October 22, 2026 ([Stage 3 evidence](issue-148-stage3-evidence.md)). The "before backups start" sentence is removed. |
 | Security records deleted after 90 days | `prune_security_log()`, run by the daily job (`src/lib/dailyCleanup.ts`). |
 | Deletion list kept 30 days | `deleteOldDeletionListRows` in `src/lib/accountDeletion.ts`, run by the daily job. |
@@ -280,6 +289,9 @@ Each row is a square-bracket fill or a change from the October 19 text. A later 
 | Practice test results in storage and deletion | The `practice_test_results` table, removed by the cascade from the Student record. Rule 38. |
 | Admins see name, email, weekly study time, and the saved weekly schedule with check-ins | The Admin student list and student page (`src/app/admin/`). The October text named only the weekly schedule. |
 | "Continue with Google" | The Google button label (`src/components/signIn/GoogleButton.tsx`). |
+| Stripe is the seller and payment processor; no card details reach DrillMap | [ADR 0007](../adr/0007-stripe-is-the-seller-of-record.md) and launch checklist J2. |
+| Billing record holds Stripe IDs, plan, Stripe status, dates, and whether the first charge succeeded, deleted with the Account | Payments spec [#680](https://github.com/Jahazel/lsat-scheduler/issues/680), "Data", and launch checklist J2. The `billing_records` table, migration `0020_billing_records`, removed by the cascade from the Account. |
+| One free week per email address in 12 months; used free week list holds an email hash and date, kept 12 months, survives Account deletion | Payments spec [#680](https://github.com/Jahazel/lsat-scheduler/issues/680), user stories 17 and 19 and "Data". The `used_free_weeks` table holds `email_hash` and `used_on` (migration `0020_billing_records`); `prune_used_free_weeks()`, run by the daily job (`src/lib/dailyCleanup.ts`), removes rows older than 12 months. [#686](https://github.com/Jahazel/lsat-scheduler/issues/686) writes the row. |
 
 ## Approved AI disclosure text
 
