@@ -37,9 +37,9 @@ it("passes when both Stripe prices match the prices module, and reads each price
   ]);
 });
 
-it("names live mode when the prices are live", async () => {
+it("names live mode when a restricted live key reads live prices", async () => {
   const network = stripe([{ ...weekly, livemode: true }, { ...monthly, livemode: true }]);
-  expect(await check(network)).toEqual({ ok: true, status: "match", mode: "live" });
+  expect(await check(network, { ...env, STRIPE_SECRET_KEY: "rk_live_read" })).toEqual({ ok: true, status: "match", mode: "live" });
 });
 
 it("fails when an amount differs from the prices module, and gives both amounts", async () => {
@@ -95,6 +95,7 @@ it("refuses missing or malformed settings before any request", async () => {
   for (const settings of [
     { ...env, STRIPE_SECRET_KEY: undefined },
     { ...env, STRIPE_SECRET_KEY: "pk_test_publishable" },
+    { ...env, STRIPE_SECRET_KEY: "sk_live_full" },
     { ...env, STRIPE_WEEKLY_PRICE_ID: "" },
     { ...env, STRIPE_MONTHLY_PRICE_ID: "price_x/../../customers" },
     { ...env, STRIPE_MONTHLY_PRICE_ID: env.STRIPE_WEEKLY_PRICE_ID },

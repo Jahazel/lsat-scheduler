@@ -41,6 +41,7 @@ describe("Privacy page", () => {
     const text = container.textContent ?? "";
     expect(text).toContain("Stripe sells your plan and takes your payment. Stripe is the seller");
     expect(text).toContain("Stripe sells plans and takes payments, as described above.");
+    expect(text).toContain("Each email address gets one free week in 12 months.");
     expect(text).toContain("we save a scrambled form (hash) of your email address and the date in the used free week list.");
     expect(text).toContain("We keep each row for 12 months, even if you delete your Account, and then delete it.");
     expect(text).toContain("Used free week list: 12 months from the day your free week starts.");

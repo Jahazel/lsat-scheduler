@@ -2,7 +2,7 @@ import { z } from "zod";
 import { PLAN_PRICES, type PlanPrices } from "../src/lib/planPrices";
 
 const configSchema = z.object({
-  STRIPE_SECRET_KEY: z.string().regex(/^(sk|rk)_(test|live)_\w+$/),
+  STRIPE_SECRET_KEY: z.string().regex(/^(sk_test|rk_test|rk_live)_\w+$/),
   STRIPE_WEEKLY_PRICE_ID: z.string().regex(/^price_\w+$/),
   STRIPE_MONTHLY_PRICE_ID: z.string().regex(/^price_\w+$/),
 }).refine((config) => config.STRIPE_WEEKLY_PRICE_ID !== config.STRIPE_MONTHLY_PRICE_ID);

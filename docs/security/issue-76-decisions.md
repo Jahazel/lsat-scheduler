@@ -241,9 +241,9 @@ Updated on November 10, 2026 ([issue 694](https://github.com/Jahazel/lsat-schedu
 > When you upload a screenshot, DrillMap sends it to Anthropic, an AI company, to read your analytics numbers. Anthropic keeps the image for up to 30 days and then deletes it. DrillMap does not store the screenshot. It stores only the numbers you review and approve. Crop out anything you do not want to share before you upload. AI does not make your schedule. Fixed rules make it from your approved numbers and settings.
 >
 > **Payments**
-> Stripe sells your plan and takes your payment. Stripe is the seller, so your card and the other payment details you give Stripe go to Stripe, not to DrillMap. Stripe's own privacy policy covers them. DrillMap stores only the Stripe IDs of your customer record and plan, your plan (Weekly or Monthly), its Stripe status, and its dates. We delete these with your Account.
+> Stripe sells your plan and takes your payment. Stripe is the seller, so your card and the other payment details you give Stripe go to Stripe, not to DrillMap. Stripe's own privacy policy covers them. DrillMap stores only the Stripe IDs of your customer record and plan, your plan (Weekly or Monthly), its Stripe status, its dates, and whether your first charge went through. We delete these with your Account.
 >
-> Each email address gets one free week. When your free week starts, we save a scrambled form (hash) of your email address and the date in the used free week list. We keep each row for 12 months, even if you delete your Account, and then delete it.
+> Each email address gets one free week in 12 months. When your free week starts, we save a scrambled form (hash) of your email address and the date in the used free week list. We keep each row for 12 months, even if you delete your Account, and then delete it.
 >
 > **Companies that handle your data for us**
 > - Vercel runs the website.
@@ -290,8 +290,8 @@ Each row is a square-bracket fill or a change from the October 19 text. A later 
 | Admins see name, email, weekly study time, and the saved weekly schedule with check-ins | The Admin student list and student page (`src/app/admin/`). The October text named only the weekly schedule. |
 | "Continue with Google" | The Google button label (`src/components/signIn/GoogleButton.tsx`). |
 | Stripe is the seller and payment processor; no card details reach DrillMap | [ADR 0007](../adr/0007-stripe-is-the-seller-of-record.md) and launch checklist J2. |
-| Billing record holds Stripe IDs, plan, Stripe status, and dates, deleted with the Account | Payments spec [#680](https://github.com/Jahazel/lsat-scheduler/issues/680), "Data", and launch checklist J2. Built by [#684](https://github.com/Jahazel/lsat-scheduler/issues/684). |
-| Used free week list: email hash and date, kept 12 months, survives Account deletion | Payments spec [#680](https://github.com/Jahazel/lsat-scheduler/issues/680), user stories 17 and 19 and "Data". The row is written by [#686](https://github.com/Jahazel/lsat-scheduler/issues/686); the 12-month cleanup is not built yet. |
+| Billing record holds Stripe IDs, plan, Stripe status, dates, and whether the first charge succeeded, deleted with the Account | Payments spec [#680](https://github.com/Jahazel/lsat-scheduler/issues/680), "Data", and launch checklist J2. Built by [#684](https://github.com/Jahazel/lsat-scheduler/issues/684). |
+| One free week per email address in 12 months; used free week list holds an email hash and date, kept 12 months, survives Account deletion | Payments spec [#680](https://github.com/Jahazel/lsat-scheduler/issues/680), user stories 17 and 19 and "Data". The row is written by [#686](https://github.com/Jahazel/lsat-scheduler/issues/686); the 12-month cleanup is not built yet. |
 
 ## Approved AI disclosure text
 

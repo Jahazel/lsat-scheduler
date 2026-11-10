@@ -63,10 +63,10 @@ export default function PrivacyPage() {
               Stripe sells your plan and takes your payment. Stripe is the seller, so your card and the other payment
               details you give Stripe go to Stripe, not to DrillMap. Stripe&rsquo;s own privacy policy covers them.
               DrillMap stores only the Stripe IDs of your customer record and plan, your plan (Weekly or Monthly), its
-              Stripe status, and its dates. We delete these with your Account.
+              Stripe status, its dates, and whether your first charge went through. We delete these with your Account.
             </p>
             <p>
-              Each email address gets one free week. When your free week starts, we save a scrambled form (hash) of your
+              Each email address gets one free week in 12 months. When your free week starts, we save a scrambled form (hash) of your
               email address and the date in the used free week list. We keep each row for 12 months, even if you delete
               your Account, and then delete it.
             </p>
