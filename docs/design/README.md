@@ -213,3 +213,30 @@ name ends in `-desktop`, `-tablet`, or `-phone`.
 
 Prices on the long-data boards are layout tests, not real prices. The three added questions are sample length only.
 Reduced motion has no board; `motion.md` holds its column.
+
+## Payments (`payments/`)
+
+Screenshots of the approved prototype for design #679 and spec #680, taken 2026-11-09. Brief: `research/payments/brief.md`. Motion rows:
+`research/payments/motion.md`. The clickable prototype is the dev-only route `/prototypes/payments`, until the last
+payments screen ticket deletes it. Each file name ends in `-desktop`, `-tablet`, or `-phone`.
+
+| File | State | Screen ticket |
+| --- | --- | --- |
+| `plan-choice-first-*` | Plan choice, onboarding step 5, first plan | #686 |
+| `plan-choice-had-free-week-*` | Plan choice, the email already had a free week | #686 |
+| `plan-choice-no-card-*` | Plan choice after closing Checkout | #686 |
+| `plan-choice-stripe-failed-*` | Plan choice before Stripe fails to open (the toast is in `motion.md`) | #686 |
+| `plan-choice-first-worst-*` | Data case: 13-day free week across the new year, $14.99 / $49.99 | #686 |
+| `starting-waiting-*`, `starting-slow-*` | "Starting your plan…" for a new student, and after about 20 s | #686 |
+| `restart-lapsed-*`, `restart-no-card-*` | Plan choice on the weekly upload page for a lapsed student | #687 |
+| `starting-lapsed-waiting-*` | "Starting your plan…" in the weekly upload column | #687 |
+| `this-week-free-friday-*`, `-free-sunday-*`, `-free-cancelled-*`, `-free-saved-*` | Free week ending notes | #688 |
+| `this-week-held-*` | Held weekly schedule waiting card | #688 |
+| `this-week-retrying-*`, `-retrying-weekend-*`, `this-week-retrying-worst-*` | Retrying note | #711 |
+| `this-week-lapsed-failed-*`, `-lapsed-ended-*` | Lapsed notes on This week | #711 |
+| `progress-lapsed-failed-*`, `progress-lapsed-ended-*` | Lapsed note on Progress | #711 |
+| `plan-card-*` (six states), `plan-card-retrying-worst-*` | Account Plan card | #689 |
+| `deletion-has-plan-*`, `deletion-no-plan-*` | Deletion warning, shown only with a plan | #690 |
+| `landing-*` | Landing page wording (pricing, FAQ, closing section) | #693 |
+
+Prices and dates are sample data; the prices module and the plan status module decide what the app shows.
