@@ -3,6 +3,9 @@
 Boards exported from the Paper file "DrillMap · Design" (file `01M3Q7R5SFFG7M27V23S82A5VD`) on 2026-10-20 for spec #191.
 Each board has a `.png` (Paper `export`, default settings) and a `.jsx` (Paper `get_jsx`, no node ids).
 
+`design-system/05-foundations.png` still shows the old ease-in exit curve. Its `.jsx` shows the current one,
+`--ease-out-strong` (#590).
+
 Build screens from these files, not from Paper. The `.jsx` files are reference markup with inline styles that name the
 design tokens (`var(--color-ink)`, `var(--text-small)`, …). Translate them into the app's components and Tailwind
 classes; do not paste them in as-is.
