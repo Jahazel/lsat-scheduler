@@ -1,4 +1,5 @@
 import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
+import { endPlanNow } from "./billingRepository";
 import { getPostgresDatabase } from "./postgres";
 import { accounts, deletionList } from "./postgresSchema";
 import { emailHash } from "./emailHash";
@@ -14,6 +15,11 @@ export async function finishDeletionOnSignIn(id: string, route: SecurityLogRoute
 export async function finishDeletion(id: string, route: SecurityLogRoute): Promise<DeletionOutcome> {
   try {
     await getPostgresDatabase().transaction(async (tx) => {
+      const [marked] = await tx.select({ id: accounts.id }).from(accounts)
+        .where(and(eq(accounts.id, id), isNotNull(accounts.deletingSince)))
+        .for("update");
+      if (!marked) return;
+      await endPlanNow(id, tx);
       const [deleted] = await tx.delete(accounts)
         .where(and(eq(accounts.id, id), isNotNull(accounts.deletingSince)))
         .returning({ email: accounts.email });

@@ -148,6 +148,7 @@ it("deletes the signed-in student's Account and cascades snapshots while refusin
   await approve(other.saved.id);
   const owner = await student("owner@example.test");
   await approve(owner.saved.id);
+  await database.owner.execute(sql`delete from billing_records`);
   const form = new FormData();
   form.set("confirmation", "DELETE");
   await deleteAccount(null, form);
