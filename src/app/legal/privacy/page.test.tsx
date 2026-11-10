@@ -36,11 +36,12 @@ describe("Privacy page", () => {
     expect(text).toContain("Google handles sign-in if you choose “Continue with Google.”");
   });
 
-  it("names Stripe as the seller and payment processor, and the used free week list with its 12-month limit", () => {
+  it("names Stripe as the seller and payment processor, what DrillMap sends Stripe, and the used free week list with its 12-month limit", () => {
     const { container } = render(<PrivacyPage />);
     const text = container.textContent ?? "";
     expect(text).toContain("Stripe sells your plan and takes your payment. Stripe is the seller");
     expect(text).toContain("Stripe sells plans and takes payments, as described above.");
+    expect(text).toContain("To start your plan, DrillMap sends Stripe your email address, your Account ID, the plan you picked, and the date your free week ends.");
     expect(text).toContain("Each email address gets one free week in 12 months.");
     expect(text).toContain("we save a scrambled form (hash) of your email address and the date in the used free week list.");
     expect(text).toContain("We keep each row for 12 months, even if you delete your Account, and then delete it.");

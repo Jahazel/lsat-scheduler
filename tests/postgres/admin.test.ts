@@ -47,6 +47,7 @@ async function student(name: string, role: "student" | "admin" = "student") {
   const email = `${name.toLowerCase()}@example.test`;
   const account = await database.createAccountAsOwner({ email, name, role });
   if (!account) throw new Error("Account fixture already exists");
+  if (role === "student") await database.writeBillingRecordAsOwner(account.id);
   const saved = await createStudent(account.id, profile);
   if (!saved) throw new Error("Student fixture already exists");
   return { account: { ...account, email, name }, saved };

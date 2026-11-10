@@ -61,8 +61,9 @@ export default function PrivacyPage() {
           <Section title="Payments">
             <p>
               Stripe sells your plan and takes your payment. Stripe is the seller, so your card and the other payment
-              details you give Stripe go to Stripe, not to DrillMap. Stripe&rsquo;s own privacy policy covers them.
-              DrillMap stores only the Stripe IDs of your customer record and plan, your plan (Weekly or Monthly), its
+              details you give Stripe go to Stripe, not to DrillMap. Stripe&rsquo;s own privacy policy covers them. To
+              start your plan, DrillMap sends Stripe your email address, your Account ID, the plan you picked, and the
+              date your free week ends. DrillMap stores only the Stripe IDs of your customer record and plan, your plan (Weekly or Monthly), its
               Stripe status, its dates, and whether your first charge went through. We delete these with your Account.
             </p>
             <p>

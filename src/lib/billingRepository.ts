@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { isAccountId } from "./accountRepository";
 import { planStatus, type BillingRecord, type PlanStatus } from "./planStatus";
 import { getPostgresDatabase } from "./postgres";
@@ -27,4 +28,10 @@ export async function loadAccountPlan(accountId: string): Promise<AccountPlan> {
     ? { plan, stripeStatus, firstChargeSucceeded, ...dates }
     : null;
   return { status: planStatus(role, record, new Date()), record };
+}
+
+export async function loadChosenPlan(accountId: string): Promise<AccountPlan> {
+  const plan = await loadAccountPlan(accountId);
+  if (plan.status.kind === "no_plan") redirect("/onboarding");
+  return plan;
 }

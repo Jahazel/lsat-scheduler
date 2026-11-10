@@ -3,13 +3,14 @@ import { and, eq, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { isAccountId } from "./accountRepository";
 import { getPostgresDatabase } from "./postgres";
-import { billingRecords, stripeMessages } from "./postgresSchema";
+import { emailHash } from "./emailHash";
+import { billingRecords, stripeMessages, usedFreeWeeks } from "./postgresSchema";
 import type { Subject } from "./securityLog";
+import { stripeRequest, stripeSecretKey } from "./stripeApi";
 
 export const STRIPE_MESSAGE_ROUTE = "/api/stripe/webhook";
 
 const SIGNATURE_TOLERANCE_SECONDS = 5 * 60;
-const STRIPE_API_VERSION = "2025-03-31.basil";
 
 type BillingRow = typeof billingRecords.$inferSelect;
 
@@ -89,25 +90,13 @@ type Subscription = z.infer<typeof subscriptionSchema>;
 
 const paidInvoicesSchema = z.object({ data: z.array(z.object({ amount_paid: z.number() })) });
 
-class StripeRequestFailed extends Error {
-  override name = "StripeRequestFailed";
-}
-
 function stripeSettings() {
   const signingSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!signingSecret || !secretKey) throw new Error("STRIPE_WEBHOOK_SECRET or STRIPE_SECRET_KEY is not set.");
-  return { signingSecret, secretKey };
+  if (!signingSecret) throw new Error("STRIPE_WEBHOOK_SECRET is not set.");
+  return { signingSecret, secretKey: stripeSecretKey() };
 }
 
-async function stripeGet(path: string, secretKey: string) {
-  const response = await fetch(`https://api.stripe.com/v1/${path}`, {
-    headers: { authorization: `Bearer ${secretKey}`, "stripe-version": STRIPE_API_VERSION },
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!response.ok) throw new StripeRequestFailed(`Stripe answered ${response.status}`);
-  return response.json();
-}
+const stripeGet = (path: string, secretKey: string) => stripeRequest(path, { secretKey });
 
 const fetchSubscription = async (id: string, secretKey: string) =>
   subscriptionSchema.parse(await stripeGet(`subscriptions/${id}?expand[]=latest_invoice`, secretKey));
@@ -176,7 +165,9 @@ export async function receiveStripeMessage(body: Buffer, signature: string | nul
     const accountId = subscription.metadata.account_id;
     if (!isAccountId(accountId)) return { kind: "refused", result: "unknownAccount", who: { nobody: true } };
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`billing-account:${accountId}`}, 0))`);
-    const [account] = (await tx.execute<{ role: string }>(sql`select role from accounts where id = ${accountId} for key share`)).rows;
+    const [account] = (await tx.execute<{ role: string; email: string }>(
+      sql`select role, email from accounts where id = ${accountId} for key share`,
+    )).rows;
     if (!account) return { kind: "refused", result: "unknownAccount", who: { nobody: true } };
     const who = { account: accountId };
     if (account.role === "admin") return { kind: "refused", result: "adminAccount", who };
@@ -197,6 +188,7 @@ export async function receiveStripeMessage(body: Buffer, signature: string | nul
     const state = await billingState(subscription, current, secretKey);
     await tx.insert(billingRecords).values({ accountId, ...state })
       .onConflictDoUpdate({ target: billingRecords.accountId, set: state });
+    if (state.freeWeekEndsAt) await tx.insert(usedFreeWeeks).values({ emailHash: emailHash(account.email) }).onConflictDoNothing();
     return { kind: "saved" };
   });
 }

@@ -495,6 +495,7 @@ it("onboarding stores each day's capacity and a Sunday practice-test day", async
 it("Study settings show onboarding's official attempts and save the edited list", async () => {
   const owner = await account("attempts@example.test");
   session(owner);
+  await database.writeBillingRecordAsOwner(owner.id);
   const officialAttempts = [{ score: 152, month: "2025-06" }, { score: 149, month: "2026-01" }];
   await expect(createStudentProfile({ ...profileInput, officialAttempts })).rejects.toThrow("redirect:/dashboard");
   const page = renderToStaticMarkup(await StudySettingsPage());
@@ -556,13 +557,15 @@ it("onboarding works for an Account that signed in before and has no Student (D4
   session({ id: existing.id, role: "student", email: existing.email, name: existing.name });
   expect(await findStudentByAccountId(existing.id)).toBeNull();
 
-  const page = renderToStaticMarkup(await OnboardingPage());
+  const page = renderToStaticMarkup(await OnboardingPage({ searchParams: Promise.resolve({}) }));
   expect(page).toContain("Google");
   await onboard();
 
   expect(await findStudentByAccountId(existing.id)).toMatchObject({ currentScore: 150, goalScore: 165 });
   expect(await accountRows()).toHaveLength(1);
-  await expect(OnboardingPage()).rejects.toThrow("redirect:/dashboard");
+  vi.stubEnv("AUTH_SECRET", "accounts-students-test-secret-0123456789");
+  expect(renderToStaticMarkup(await OnboardingPage({ searchParams: Promise.resolve({}) }))).toContain("Pick your plan");
+  vi.unstubAllEnvs();
 });
 
 it("Study settings keep the stored current score and check the goal against it, whatever the request sends", async () => {
@@ -579,12 +582,14 @@ it("Study settings keep the stored current score and check the goal against it, 
   expect(await studentRows()).toEqual(before);
 });
 
-it("Study settings page sends a signed-out visitor to Log in and an Account without a Student to onboarding", async () => {
+it("Study settings page sends a signed-out visitor to Log in, and an Account without a Student or a plan to onboarding", async () => {
   await expect(StudySettingsPage()).rejects.toThrow("redirect:/login");
   const owner = await account("page@example.test");
   session(owner);
   await expect(StudySettingsPage()).rejects.toThrow("redirect:/onboarding");
   await onboard();
+  await expect(StudySettingsPage()).rejects.toThrow("redirect:/onboarding");
+  await database.writeBillingRecordAsOwner(owner.id);
   const page = renderToStaticMarkup(await StudySettingsPage());
   expect(page).toContain("Updates with each weekly upload");
   expect(page).toContain(">150<");
