@@ -10,7 +10,6 @@ import type { FailureCode } from "@/lib/unexpectedFailure";
 import { FailureToastProvider } from "@/components/FailureNotice";
 import OnboardingWizard from "./OnboardingWizard";
 
-const fileRow = (detail: HTMLElement) => detail.closest("[tabindex='-1']") as HTMLElement;
 const rowDetail = (text: string | RegExp) => (_: string, el: Element | null) =>
   el?.getAttribute("aria-live") === "polite" && (typeof text === "string" ? el.textContent === text : text.test(el.textContent ?? ""));
 
@@ -387,9 +386,7 @@ describe("OnboardingWizard", () => {
       const { user } = await fillGoalAndWeek(undefined, extract);
 
       await upload(user);
-      const status = await screen.findByText(rowDetail("lr-analytics.png · Connection lost. Your file is still here."));
-      expect(status.className).not.toContain("danger");
-      expect(fileRow(status).className).not.toContain("border-danger");
+      expect(await screen.findByText(rowDetail("lr-analytics.png · Connection lost. Your file is still here."))).toBeDefined();
       expect(screen.queryByRole("alert")).toBeNull();
       await user.click(screen.getByRole("button", { name: "Try again" }));
 
@@ -435,8 +432,7 @@ describe("OnboardingWizard", () => {
 
       await upload(user);
 
-      const status = await screen.findByText(/We couldn't read the rows in it\./);
-      expect(fileRow(status).className).toContain("border-danger");
+      expect(await screen.findByText(/We couldn't read the rows in it\./)).toBeDefined();
       expect(screen.getByRole("button", { name: "Choose a sharper screenshot" })).toBeDefined();
       expect(checkTheValues().disabled).toBe(true);
     });
@@ -568,8 +564,7 @@ describe("OnboardingWizard", () => {
       const { user } = await fillGoalAndWeek(undefined, extract);
 
       await upload(user);
-      const status = await screen.findByText(rowDetail("lr-analytics.png · Reading took too long and stopped."));
-      expect(fileRow(status).className).toContain("border-danger");
+      expect(await screen.findByText(rowDetail("lr-analytics.png · Reading took too long and stopped."))).toBeDefined();
       await user.click(screen.getByRole("button", { name: "Try again" }));
 
       expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();

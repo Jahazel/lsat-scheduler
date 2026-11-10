@@ -42,9 +42,10 @@ describe("Login", () => {
     const google = screen.getByRole("button", { name: "Continue with Google" });
     await userEvent.click(google);
     await waitFor(() => expect(google.getAttribute("aria-disabled")).toBe("true"));
-    expect(google.querySelector(".button-ring")).not.toBeNull();
+    expect(google.querySelector("svg")).not.toBeNull();
     finish();
     await waitFor(() => expect(google.hasAttribute("aria-disabled")).toBe(false));
+    expect(google.querySelector("svg")).toBeNull();
   });
 
   it("offers Continue with Google, then the email and password form, and a way to Signup", async () => {
