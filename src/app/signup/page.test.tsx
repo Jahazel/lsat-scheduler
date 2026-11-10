@@ -13,7 +13,10 @@ beforeEach(() => {
   actions.signUpWithPassword.mockReset();
   sessionStorage.clear();
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 async function fillIn() {
   await userEvent.type(screen.getByLabelText("Name"), "Maya Chen");
@@ -74,6 +77,21 @@ describe("Signup", () => {
     expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe("maya.chen@fastmail.com");
     expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
     expect((screen.getByLabelText("Password") as HTMLInputElement).value).toBe("");
+  });
+
+  it("still signs up when the browser refuses storage", async () => {
+    const refuse = () => { throw new DOMException("blocked", "SecurityError"); };
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(refuse);
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(refuse);
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(refuse);
+    actions.signUpWithPassword.mockResolvedValue({ kind: "checkYourEmail", email: "maya.chen@fastmail.com" });
+    render(<SignupPage />);
+    await fillIn();
+    await userEvent.click(screen.getAllByRole("link", { name: "Terms of Service" })[0]);
+    await userEvent.click(screen.getByRole("checkbox"));
+    await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+    expect(await screen.findByRole("heading", { name: "Check your email" })).toBeTruthy();
   });
 
   it("shows Check your email, and Sign up again brings back an empty form", async () => {

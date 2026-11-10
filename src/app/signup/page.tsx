@@ -18,21 +18,37 @@ import { signUpWithGoogle, signUpWithPassword, type SignupState } from "./action
 
 const initialState: Answer<SignupState> = { kind: "form", errors: {} };
 const LEGAL_LINK = cx("rounded-xs font-medium text-accent underline underline-offset-[3px] hover:text-ink", FOCUS);
-const DRAFT_KEY = "signupDraft";
+const DRAFT_KEY = "drillmap:signupDraft";
 
 type Draft = { name: string; email: string; agreedToTerms: boolean };
 
 function saveDraft(form: HTMLFormElement) {
   const data = new FormData(form);
   const draft: Draft = { name: String(data.get("name")), email: String(data.get("email")), agreedToTerms: data.has("agreedToTerms") };
-  sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  try {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {}
+}
+
+function forgetDraft() {
+  try {
+    sessionStorage.removeItem(DRAFT_KEY);
+  } catch {}
+}
+
+function takeDraft(): Draft | null {
+  try {
+    const stored = sessionStorage.getItem(DRAFT_KEY);
+    forgetDraft();
+    return stored === null ? null : JSON.parse(stored);
+  } catch {
+    return null;
+  }
 }
 
 function restoreDraft(form: HTMLFormElement) {
-  const stored = sessionStorage.getItem(DRAFT_KEY);
-  sessionStorage.removeItem(DRAFT_KEY);
-  if (!stored) return;
-  const draft: Draft = JSON.parse(stored);
+  const draft = takeDraft();
+  if (!draft) return;
   const field = (name: keyof Draft) => form.elements.namedItem(name) as HTMLInputElement;
   field("name").value = draft.name;
   field("email").value = draft.email;
@@ -62,7 +78,7 @@ function Signup({ onSignUpAgain }: { onSignUpAgain: () => void }) {
   // Submitting by hand keeps the typed values: a form action would clear the form when it returns an error.
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    sessionStorage.removeItem(DRAFT_KEY);
+    forgetDraft();
     const formData = new FormData(event.currentTarget);
     startTransition(() => formAction(formData));
   }
