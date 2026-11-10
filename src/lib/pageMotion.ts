@@ -18,11 +18,27 @@ export function letGo(el: HTMLElement) {
 
 export const heldBy = (mover: Mover) => [...movers].filter(([, by]) => by === mover).map(([el]) => el);
 const held = (el: Element) => [...movers.keys()].some((part) => part.contains(el));
-export const motionInside = (root: HTMLElement) => [...movers.keys()].some((part) => part.contains(root) || root.contains(part));
 
-const REGION_PHONE_MAX_PX = 390;
-const SECTION_PHONE_MAX_PX = 767;
-const riseUpTo = (phoneMaxPx: number) => (matchMedia(`(max-width: ${phoneMaxPx}px)`).matches ? 4 : 8);
+export type Still = { el: HTMLElement; frame: Keyframe };
+
+export const motionOtherThanSwapsInside = (root: HTMLElement) =>
+  [...movers].some(([part, by]) => (part.contains(root) || root.contains(part)) && (by !== "swap" || !root.contains(part)));
+
+export function swapsInside(root: HTMLElement): Still[] {
+  return [...movers].filter(([part]) => root.contains(part)).map(([el]) => {
+    const { opacity, transform } = getComputedStyle(el);
+    return { el, frame: { opacity, transform } };
+  });
+}
+
+export function holdStill({ el, frame }: Still) {
+  for (const animation of el.getAnimations()) animation.cancel();
+  letGo(el);
+  Object.assign(el.style, frame);
+}
+
+const PHONE_MAX_PX = 767;
+const rise = () => (matchMedia(`(max-width: ${PHONE_MAX_PX}px)`).matches ? 4 : 8);
 const STAGGER_MS = 40;
 
 export type Motion = "whole-page" | "under-top-bar" | "swap";
@@ -38,7 +54,7 @@ export function showAgain(el: HTMLElement, from: Keyframe) {
   return fadeIn(el, from);
 }
 
-export const riseIn = (el: HTMLElement) => showAgain(el, riseFrom(riseUpTo(REGION_PHONE_MAX_PX)));
+export const riseIn = (el: HTMLElement) => showAgain(el, riseFrom(rise()));
 
 export function fadeAway(old: HTMLElement[], mover: "leave" | "swap") {
   if (old.some((el) => el.contains(document.activeElement))) document.querySelector("main")?.focus({ preventScroll: true });
@@ -88,9 +104,9 @@ export function dim(el: HTMLElement, options: { to: number; x?: number }) {
 export function arriveSections(page: Element) {
   const sections = [...page.querySelectorAll<HTMLElement>("[data-page-section]")].filter((section) => !held(section));
   const still = reducedMotion();
-  const rise = riseUpTo(SECTION_PHONE_MAX_PX);
+  const y = rise();
   return sections.map((section, index) => section.animate(
-    still ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: `translateY(${rise}px)` }, { opacity: 1, transform: "none" }],
+    still ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: `translateY(${y}px)` }, { opacity: 1, transform: "none" }],
     {
       duration: durationMs(still ? "--duration-fast" : "--duration-base"),
       easing: motionToken("--ease-standard"),

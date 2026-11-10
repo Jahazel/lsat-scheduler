@@ -732,7 +732,7 @@ describe("Study settings leave guard", () => {
 
     function renderSignedIn(onSave?: (input: StudySettingsInput) => Promise<StudySettingsAnswer>) {
       renderWithNav(onSave);
-      assign = vi.fn();
+      assign = vi.fn(() => setTimeout(() => dispatchEvent(new Event("pagehide"))));
       vi.stubGlobal("location", { ...window.location, assign });
     }
 
@@ -767,7 +767,10 @@ describe("Study settings leave guard", () => {
     it("signs out on Leave without the browser asking again as the signed-out page loads", async () => {
       renderSignedIn();
       const askedAtUnload: boolean[] = [];
-      assign.mockImplementation(() => askedAtUnload.push(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)));
+      assign.mockImplementation(() => {
+        askedAtUnload.push(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent));
+        setTimeout(() => dispatchEvent(new Event("pagehide")));
+      });
       await typeGoal("170");
       await userEvent.click(logOutItem());
       await userEvent.click(within(openDialog()!).getByRole("button", { name: "Leave" }));

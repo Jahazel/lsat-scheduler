@@ -254,7 +254,7 @@ body:has([data-sign-in-page]) > footer { display: none; }
   --arrive-rise: 8px;
   animation: page-arrive var(--duration-base) var(--ease-standard) both;
 }
-@media (max-width: 390px) {
+@media (max-width: 767px) {
   html[data-arrival] :is([data-page-fade], [data-page-swap]) { --arrive-rise: 4px; }
 }
 @media (prefers-reduced-motion: reduce) {

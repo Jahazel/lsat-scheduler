@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { forgetGoogleArrival, hasGoogleArrivalNote } from "@/lib/googleArrival";
 import { leaveIsGuarded, leavePage, leavingLink } from "@/lib/leavePage";
 import { durationMs, fadeOut, isPlainClick, motionToken, reducedMotion, stopAtCurrentFrame } from "@/lib/motion";
-import { arrive, fadeAway, heldBy, hold, letGo, motionInside, regions, riseIn, showAgain, type Motion } from "@/lib/pageMotion";
+import { arrive, fadeAway, heldBy, hold, holdStill, letGo, motionOtherThanSwapsInside, regions, riseIn, showAgain, swapsInside, type Motion, type Still } from "@/lib/pageMotion";
 
 const SIGN_IN = new Set(["/signup", "/login", "/forgot-password", "/reset-password", "/verify-email"]);
 const UNDER_TOP_BAR = new Set(["/", "/legal/terms", "/legal/privacy", "/legal/ai-disclosure"]);
@@ -65,7 +65,7 @@ const LEADS_TO: Record<CuePage, { pages: CuePage[]; paths: string[] }> = {
 };
 const GIVE_UP_MS = 5000;
 
-type Leaving = { page: CuePage; parts: { el: HTMLElement; rect: DOMRect; opacity: string }[]; logo: DOMRect | null };
+type Leaving = { page: CuePage; parts: { el: HTMLElement; rect: DOMRect; opacity: string }[]; swaps: Still[]; logo: DOMRect | null };
 type Copy = { from: CuePage; layer: HTMLElement; logo: DOMRect | null; giveUp: number };
 type Arrival = { motion: Motion; pages: CuePage[]; ready: Promise<void>; logo: DOMRect | null; giveUp: number; placeholderShown?: true };
 
@@ -109,8 +109,8 @@ function pageLeft(page: CuePage, root: HTMLElement) {
     document.documentElement.removeAttribute("data-arrival");
   });
   if (page === "placeholder" || !LEADS_TO[page].pages.length || !("animate" in Element.prototype)) return;
-  if (motionInside(root)) return;
-  leaving = { page, logo: visibleLogo()?.getBoundingClientRect() ?? null, parts: [{ el: root, rect: root.getBoundingClientRect(), opacity: getComputedStyle(root).opacity }] };
+  if (motionOtherThanSwapsInside(root)) return;
+  leaving = { page, swaps: swapsInside(root), logo: visibleLogo()?.getBoundingClientRect() ?? null, parts: [{ el: root, rect: root.getBoundingClientRect(), opacity: getComputedStyle(root).opacity }] };
   queueMicrotask(keepLeavingPage);
 }
 
@@ -128,6 +128,7 @@ function keepLeavingPage() {
   if (!left || left.parts.some(({ el }) => el.isConnected) || !document.querySelector("main")) return;
   if (left.page === "sign-in" && document.querySelector("[data-sign-in-page]")) return;
   dropCopy();
+  for (const swap of left.swaps) holdStill(swap);
   const layer = document.createElement("div");
   layer.setAttribute("data-page-copy", "");
   layer.setAttribute("aria-hidden", "true");
