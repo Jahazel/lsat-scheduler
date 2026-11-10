@@ -23,11 +23,21 @@ const handedToComponent = ({ parent }) =>
   && parent.parent.parent.name.type === "JSXIdentifier" && /^[A-Z]/.test(parent.parent.parent.name.name);
 
 function actionPropName(reference) {
-  if (reference.identifier.parent.type !== "TSTypeQuery") return null;
-  let node = reference.identifier.parent;
-  while (node && node.type !== "TSPropertySignature") node = node.parent;
-  return node?.key.type === "Identifier" ? node.key.name : null;
+  let child = reference.identifier;
+  let node = child.parent;
+  let action = node.type === "TSTypeQuery";
+  while (node && node.type !== "TSPropertySignature") {
+    if (node.type === "TSFunctionType" && child === node.returnType) action = true;
+    child = node;
+    node = node.parent;
+  }
+  return action && node.key.type === "Identifier" ? node.key.name : null;
 }
+
+const destructuredKey = ({ parent }) => {
+  const property = parent.type === "AssignmentPattern" ? parent.parent : parent;
+  return property.type === "Property" && property.parent.type === "ObjectPattern" && property.key.type === "Identifier" ? property.key.name : null;
+};
 
 const callActionsThroughAdapter = {
   meta: {
@@ -58,9 +68,9 @@ const callActionsThroughAdapter = {
         }
         for (const scope of context.sourceCode.scopeManager.scopes) {
           for (const variable of scope.variables) {
-            if (!actionProps.has(variable.name) || !variable.defs.some((def) => def.type === "Parameter")) continue;
+            if (!variable.defs.some((def) => actionProps.has(destructuredKey(def.name)))) continue;
             for (const reference of variable.references) {
-              if (reference.isValueReference && reference.identifier.parent.type !== "TSTypeQuery" && !handedOn(reference.identifier)) {
+              if (reference.isRead() && reference.identifier.parent.type !== "TSTypeQuery" && !handedOn(reference.identifier)) {
                 context.report({ node: reference.identifier, messageId: "directProp" });
               }
             }
