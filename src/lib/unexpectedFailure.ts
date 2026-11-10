@@ -22,6 +22,3 @@ export function isUnexpectedFailure(value: unknown): value is UnexpectedFailure 
   return typeof value === "object" && value !== null && "unexpectedFailure" in value
     && (isFailureCode(value.unexpectedFailure) || value.unexpectedFailure === NO_CONNECTION);
 }
-
-export const failureText = ({ unexpectedFailure }: UnexpectedFailure) =>
-  `${UNEXPECTED_FAILURE_MESSAGE} Error code: ${unexpectedFailure}`;

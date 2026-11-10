@@ -150,12 +150,16 @@ describe("Study settings form", () => {
     expect(saveButton()?.disabled).toBe(false);
   });
 
-  it("keeps every edit when the save cannot reach the server", async () => {
-    renderForm({ onSave: vi.fn(async () => Promise.reject(new TypeError("Failed to fetch"))) });
+  it.each([
+    ["cannot reach the server", new TypeError("Failed to fetch")],
+    ["throws anything else", new Error("Server Action failed")],
+  ])("keeps every edit and shows the connection toast when the save %s", async (_, error) => {
+    renderForm({ onSave: vi.fn(async () => Promise.reject(error)) });
     await typeGoal("178");
     await userEvent.click(saveButton()!);
 
-    expect(status()?.textContent).toBe("We couldn't save your changes. Check your connection and press Save changes again.");
+    expect((await screen.findByRole("alert")).textContent).toBe("No connection. Check your signal and try again.");
+    expect(status()?.textContent).toBe("Changes apply to your next weekly schedule.");
     expect(goalScore().value).toBe("178");
     expect(saveButton()?.disabled).toBe(false);
   });
@@ -714,7 +718,7 @@ describe("Study settings leave guard", () => {
     expect(screen.getByText(/3f9a2c1b/)).toBeTruthy();
   });
 
-  it("stays with the edits and the connection note when the save running at Leave cannot reach the server", async () => {
+  it("stays with the edits and the connection toast when the save running at Leave cannot reach the server", async () => {
     const { onSave, finish } = slowSave();
     await leaveDuringSave(onSave);
     await finish(() => {
@@ -723,7 +727,7 @@ describe("Study settings leave guard", () => {
 
     expect(navigated).toEqual([]);
     expect(goalScore().value).toBe("170");
-    expect(status()?.textContent).toBe("We couldn't save your changes. Check your connection and press Save changes again.");
+    expect(screen.getByRole("alert").textContent).toBe("No connection. Check your signal and try again.");
   });
 
   describe("Log out", () => {

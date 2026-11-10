@@ -41,3 +41,35 @@ export const useDelete = () => () => deleteAccount(null, new FormData());
 it("lets a server component import Server Actions to pass them on", async () => {
   expect(await adapterMessages(screen(""), "src/app/account/Card.tsx")).toEqual([]);
 });
+
+const propScreen = (directive: string) => `${directive}
+import type { confirmWeeklyUpload, saveStudySettings } from "./actions";
+
+interface FormProps {
+  onSave: typeof saveStudySettings;
+}
+
+export function Form({ onSave }: FormProps) {
+  const sent = (input: Parameters<typeof onSave>[0]) => onSave(input);
+  return <button onClick={() => void callAction(onSave)(null!)}>{String(sent)}</button>;
+}
+
+export function Check(props: { onConfirm: typeof confirmWeeklyUpload; onBack: () => void }) {
+  props.onBack();
+  void props.onConfirm(null!);
+  return <Form onSave={props.onConfirm} />;
+}
+
+export function Flow({ confirm }: { confirm?: typeof confirmWeeklyUpload }) {
+  void confirm?.(null!);
+  return <><Check onConfirm={confirm} onBack={() => {}} /><form action={confirm} /></>;
+}
+`;
+
+it("refuses a client screen that calls a Server Action prop without the adapter", async () => {
+  expect(await adapterMessages(propScreen(`"use client";`), "src/app/settings/Form.tsx")).toEqual([9, 15, 20, 21]);
+});
+
+it("lets a server component call a Server Action prop", async () => {
+  expect(await adapterMessages(propScreen(""), "src/app/settings/Form.tsx")).toEqual([]);
+});

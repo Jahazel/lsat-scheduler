@@ -35,8 +35,10 @@ const RC_ROWS = ["Law", "Comparative", "Science", "Humanities", "Art"].map((type
 
 const sample = (section: number) => structuredClone(PT158_FIXTURES[section - 1].reading);
 
-function stubServer(sections: Record<string, SectionReading | Response> = {}, analytics: Partial<Record<"LR" | "RC", Response>> = {}) {
-  const readings: Record<string, SectionReading | Response> = {
+type Reply = Response | TypeError;
+
+function stubServer(sections: Record<string, SectionReading | Reply> = {}, analytics: Partial<Record<"LR" | "RC", Reply>> = {}) {
+  const readings: Record<string, SectionReading | Reply> = {
     "pt158-s1.png": sample(1), "pt158-s2.png": sample(2), "pt158-s3.png": sample(3), "pt158-s4.png": sample(4), ...sections,
   };
   const fetchSpy = vi.fn(async (url: string, init: RequestInit) => {
@@ -44,9 +46,12 @@ function stubServer(sections: Record<string, SectionReading | Response> = {}, an
     const file = form.get("image") as File;
     if (url === "/api/analytics/extract") {
       const section = form.get("section") as "LR" | "RC";
-      return analytics[section] ?? Response.json(section === "LR" ? { rows: LR_ROWS } : { rows: RC_ROWS, showsPassageTypes: true });
+      const reply = analytics[section];
+      if (reply instanceof TypeError) throw reply;
+      return reply ?? Response.json(section === "LR" ? { rows: LR_ROWS } : { rows: RC_ROWS, showsPassageTypes: true });
     }
     const reading = readings[file.name] ?? { page: "other" };
+    if (reading instanceof TypeError) throw reading;
     return reading instanceof Response ? reading : Response.json({ reading });
   });
   vi.stubGlobal("fetch", fetchSpy);
@@ -369,7 +374,7 @@ describe("WeeklyUpload", () => {
   });
 
   it("shows a lost connection with Try again, as onboarding does, and no read error", async () => {
-    stubServer({ "pt158-s2.png": new Response(null, { status: 503 }) }, { LR: new Response(null, { status: 503 }) });
+    stubServer({ "pt158-s2.png": new TypeError("Failed to fetch") }, { LR: new TypeError("Failed to fetch") });
     const { user } = setup();
     await readAll(user);
     for (const name of ["lr-analytics.png", "pt158-s2.png"]) {

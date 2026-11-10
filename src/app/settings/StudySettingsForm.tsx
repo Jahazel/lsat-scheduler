@@ -20,8 +20,8 @@ import {
   type AttemptRow,
 } from "@/lib/studyProfileDraft";
 import type { DayOfWeek } from "@/lib/types";
-import { isUnexpectedFailure, NO_CONNECTION } from "@/lib/unexpectedFailure";
-import type { StudySettingsAnswer } from "./actions";
+import { isUnexpectedFailure, NO_CONNECTION, type UnexpectedFailure } from "@/lib/unexpectedFailure";
+import type { saveStudySettings, StudySettingsAnswer } from "./actions";
 import { LeaveGuard } from "./LeaveGuard";
 import { OfficialAttemptList } from "./OfficialAttemptList";
 import { SettingsWeekPreview } from "./SettingsWeekPreview";
@@ -30,7 +30,6 @@ const SAVED_HOLD_MS = 6000;
 const SAVE_NOTE = "Changes apply to your next weekly schedule.";
 const SAVED_NOTE = "Saved. Changes apply to your next weekly schedule.";
 const PASSED_NOTICE_ID = "test-month-passed-notice";
-const SEND_FAILED_NOTE = "We couldn't save your changes. Check your connection and press Save changes again.";
 
 type Settings = {
   goalScore: string;
@@ -51,7 +50,6 @@ interface State {
   nextAttemptId: number;
   phase: Phase;
   showMessages: boolean;
-  sendFailed: boolean;
   answer: StudySettingsAnswer | undefined;
 }
 
@@ -65,7 +63,6 @@ type Action =
   | { type: "saveRefused" }
   | { type: "saveStarted" }
   | { type: "saveEnded"; sent: Settings; answer: StudySettingsAnswer }
-  | { type: "saveNotSent" }
   | { type: "savedHoldEnded" };
 
 const comparable = (settings: Settings) => ({
@@ -75,7 +72,7 @@ const comparable = (settings: Settings) => ({
 const same = (a: Settings, b: Settings) => JSON.stringify(comparable(a)) === JSON.stringify(comparable(b));
 
 function edit(state: State, values: Partial<Settings>): State {
-  return { ...state, draft: { ...state.draft, ...values }, sendFailed: false, phase: state.phase === "saving" ? "saving" : "editing" };
+  return { ...state, draft: { ...state.draft, ...values }, phase: state.phase === "saving" ? "saving" : "editing" };
 }
 
 function reducer(state: State, action: Action): State {
@@ -98,7 +95,7 @@ function reducer(state: State, action: Action): State {
     case "saveRefused":
       return { ...state, showMessages: true };
     case "saveStarted":
-      return { ...state, phase: "saving", sendFailed: false };
+      return { ...state, phase: "saving" };
     case "saveEnded":
       if (isUnexpectedFailure(action.answer)) return { ...state, phase: "editing", answer: action.answer };
       if (action.answer?.refused === "goalScore") {
@@ -111,8 +108,6 @@ function reducer(state: State, action: Action): State {
         showMessages: false,
         answer: action.answer,
       };
-    case "saveNotSent":
-      return { ...state, phase: "editing", sendFailed: true };
     case "savedHoldEnded":
       return state.phase === "savedHold" ? { ...state, phase: "savedLeaving" } : state;
   }
@@ -156,7 +151,7 @@ export function StudySettingsForm({
   saved: StudySettingsInput;
   today: string;
   goalTestDateOptions: ReturnType<typeof upcomingTestMonths>;
-  onSave: (input: StudySettingsInput) => Promise<StudySettingsAnswer>;
+  onSave: typeof saveStudySettings;
 }) {
   const [state, dispatch] = useReducer(reducer, null, (): State => {
     const offered = goalTestDateOptions.some((option) => option.value === saved.goalTestDate);
@@ -179,7 +174,6 @@ export function StudySettingsForm({
       nextAttemptId: stored.officialAttempts.length,
       phase: "editing",
       showMessages: false,
-      sendFailed: false,
       answer: undefined,
     };
   });
@@ -226,19 +220,10 @@ export function StudySettingsForm({
 
   async function save(sent: Settings) {
     dispatch({ type: "saveStarted" });
-    try {
-      const answer = await callAction(onSave)(toInput(sent));
-      if (isUnexpectedFailure(answer) && answer.unexpectedFailure === NO_CONNECTION) {
-        dispatch({ type: "saveNotSent" });
-        return false;
-      }
-      dispatch({ type: "saveEnded", sent, answer });
-      if (answer && "refused" in answer) requestFocus();
-      return answer === null;
-    } catch {
-      dispatch({ type: "saveNotSent" });
-      return false;
-    }
+    const answer: StudySettingsAnswer = await callAction(onSave)(toInput(sent)).catch((): UnexpectedFailure => ({ unexpectedFailure: NO_CONNECTION }));
+    dispatch({ type: "saveEnded", sent, answer });
+    if (answer && "refused" in answer) requestFocus();
+    return answer === null;
   }
 
   const goalMessageId = visible?.goalScore ? "goal-score-message" : null;
@@ -349,7 +334,6 @@ export function StudySettingsForm({
         <SaveBar
           shown={dirty || phase === "saving" || phase === "savedHold"}
           phase={phase}
-          sendFailed={state.sendFailed}
           buttonRef={saveButton}
         />
         <FailureNotice answer={state.answer} />
@@ -374,24 +358,24 @@ function Section({ title, lede, children }: { title: string; lede: string; child
   );
 }
 
-function statusText(phase: Phase, sendFailed: boolean) {
+function statusText(phase: Phase) {
   if (phase === "saving") return "Saving…";
   if (phase === "savedHold" || phase === "savedLeaving") return SAVED_NOTE;
-  return sendFailed ? SEND_FAILED_NOTE : SAVE_NOTE;
+  return SAVE_NOTE;
 }
 
-function SaveBar({ shown, phase, sendFailed, buttonRef }: { shown: boolean; phase: Phase; sendFailed: boolean; buttonRef: Ref<HTMLButtonElement> }) {
+function SaveBar({ shown, phase, buttonRef }: { shown: boolean; phase: Phase; buttonRef: Ref<HTMLButtonElement> }) {
   const saved = phase === "savedHold" || phase === "savedLeaving";
   const saving = phase === "saving";
   return (
     <div data-shown={shown || undefined} inert={!shown} aria-hidden={!shown || undefined} className="save-bar pointer-events-none fixed z-40">
       <div className="pointer-events-auto mx-auto flex min-h-16 max-w-content items-center justify-between gap-3 rounded-md bg-ink py-3 pr-3 pl-4 shadow-e3 md:pl-6">
         <p role="status" className="sr-only">
-          {statusText(phase, sendFailed)}
+          {statusText(phase)}
         </p>
         <div aria-hidden className="grid min-w-0 flex-1 text-[13px] leading-4 text-chalk *:col-start-1 *:row-start-1 md:text-small md:leading-[18px]">
           <p data-shown={!saved || undefined} className="save-bar-fade">
-            {sendFailed ? SEND_FAILED_NOTE : SAVE_NOTE}
+            {SAVE_NOTE}
           </p>
           <p data-shown={saved || undefined} className="save-bar-fade flex items-center gap-2">
             <svg viewBox="0 0 24 24" className="size-4 shrink-0 text-success" fill="none" stroke="currentColor" strokeWidth="2.4">
