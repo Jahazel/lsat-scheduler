@@ -203,7 +203,10 @@ rows in all six domain tables. It can update every domain table except
 `email`, `name`, `google_id`, and `password_hash`, and updates only
 `simulated_date`, `session_version`, and `password_hash`. It reads, inserts,
 updates, and deletes pending signups and reset tokens. Only the owner may give the Admin role, disable an
-Account, or change its Google ID. The Weekly schedule trigger stays in place as a second
+Account, or change its Google ID. It reads billing records but cannot write them; the
+Stripe message receiver will be their only writer. It cannot read or change the used free
+week list; it can only run `prune_used_free_weeks()`, which the daily cleanup calls to drop
+rows older than 12 months. The Weekly schedule trigger stays in place as a second
 protection for the database owner. The app role cannot create roles,
 databases, schemas, tables, temporary tables, or other schema objects.
 It cannot alter, drop, truncate, or disable triggers on the domain tables.

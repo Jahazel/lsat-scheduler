@@ -19,6 +19,8 @@ import { DRILL_LINK_PARAMETER } from "@/lib/drillSetupGuide";
 import { PageCue } from "@/components/SiteMotion";
 import { PageArrival } from "@/components/PagePlaceholder";
 import { CurrentWeekReport } from "@/components/AdminTestContext";
+import { loadAccountPlan } from "@/lib/billingRepository";
+import { isHeldWeek } from "@/lib/planStatus";
 
 const previewStartDate = new Intl.DateTimeFormat("en-US", {
   weekday: "long", month: "short", day: "numeric", timeZone: "UTC",
@@ -74,6 +76,22 @@ export default async function DashboardPage({
   if (currentWeek.kind === "analytics_required") redirect("/dashboard/upload");
   const { schedule } = currentWeek;
   const preview = currentWeek.kind === "next_week_preview";
+  const { record } = await loadAccountPlan(session.user.id);
+  if (isHeldWeek(record, schedule.weekStartDate)) {
+    return (
+      <div data-page-fade className="min-h-screen">
+        <PageCue page="this-week" />
+        <PageArrival page="This week" />
+        <div data-page-section>
+          <PageHeader
+            eyebrow={preview ? "Next week" : "This week"}
+            title="Your week is ready."
+            lead="It appears when your first payment goes through."
+          />
+        </div>
+      </div>
+    );
+  }
   const [checkIns, snapshots] = await Promise.all([
     preview ? [] : postgresActivityCheckIns.listForSchedule(schedule.id),
     listApprovedAnalyticsSnapshots(doc.id),

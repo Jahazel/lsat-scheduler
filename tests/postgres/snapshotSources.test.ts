@@ -46,6 +46,7 @@ const dashboard = async () => renderToStaticMarkup(await DashboardPage({ searchP
 async function signIn(role: "student" | "admin") {
   const account = await database.createAccountAsOwner({ email: `${role}@example.test`, name: "Sam", role });
   if (!account) throw new Error("Account fixture already exists");
+  if (role === "student") await database.writeBillingRecordAsOwner(account.id);
   state.session = { user: { id: account.id, role, email: `${role}@example.test`, name: "Sam" }, expires: "2099-01-01" };
   return account;
 }

@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { SnapshotApprovalError, SnapshotSaveLimitReached } from "@/lib/analyticsSnapshots";
+import { loadAccountPlan } from "@/lib/billingRepository";
+import { mayStartWeeklyUpload, PLAN_REFUSAL } from "@/lib/planStatus";
 import { AdminAccessRequired, requireCurrentAdmin } from "@/lib/requireAdmin";
 import { answerAction, recordSecurityEvent } from "@/lib/securityLog";
 import { readScanningOff } from "@/lib/scanSpending";
@@ -33,6 +35,7 @@ export async function confirmWeeklyUpload(input: unknown): Promise<Answer<Weekly
 
     const student = await findStudentByAccountId(session.user.id);
     if (!student) redirect("/onboarding");
+    if (!mayStartWeeklyUpload((await loadAccountPlan(session.user.id)).status)) return { error: PLAN_REFUSAL };
 
     const clock = await studentSideClock(session.user);
     const [schedules, scanningOff] = await Promise.all([listWeeklySchedulesForStudent(student.id), readScanningOff(clock.real)]);

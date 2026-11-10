@@ -3,51 +3,39 @@
 import { useEffect, useId, useRef } from "react";
 import { afterExit } from "@/components/ui/afterExit";
 import { cx } from "@/components/ui/classes";
+import { addLeaveGuard } from "@/lib/leavePage";
 
 const DIALOG_FOCUS = "focus:outline-2 focus:outline-offset-2 focus:outline-ink";
-
-function leavingControl(event: MouseEvent): HTMLElement | null {
-  if (event.button !== 0 || !(event.target instanceof Element)) return null;
-  const button = event.target.closest("button");
-  if (button?.type === "submit" && button.form?.hasAttribute("data-leaves-page")) return button;
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return null;
-  const link = event.target.closest<HTMLAnchorElement>("a[href]");
-  if (!link || (link.target && link.target !== "_self") || link.hasAttribute("download")) return null;
-  const to = new URL(link.href);
-  const leaves = to.origin === location.origin && (to.pathname !== location.pathname || to.search !== location.search);
-  return leaves ? link : null;
-}
 
 export function LeaveGuard({ dirty, waitForSave }: { dirty: boolean; waitForSave: () => Promise<boolean> }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const stayButton = useRef<HTMLButtonElement>(null);
   const pressed = useRef<HTMLElement | null>(null);
-  const passing = useRef(false);
-  const leaveConfirmed = useRef(false);
+  const answer = useRef<(leave: boolean) => void>(() => {});
+  const leaving = useRef(false);
   const titleId = useId();
   const bodyId = useId();
 
   useEffect(() => {
     if (!dirty) return;
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!leaveConfirmed.current) event.preventDefault();
+      if (!leaving.current) event.preventDefault();
     };
-    const onClick = (event: MouseEvent) => {
-      if (passing.current) return;
-      leaveConfirmed.current = false;
-      const control = leavingControl(event);
-      if (!control) return;
-      event.preventDefault();
-      event.stopPropagation();
-      pressed.current = control;
-      dialog.current?.showModal();
-      stayButton.current?.focus();
-    };
+    const removeGuard = addLeaveGuard({
+      confirm: (control) => new Promise((resolve) => {
+        pressed.current = control;
+        answer.current = resolve;
+        dialog.current?.showModal();
+        stayButton.current?.focus();
+      }),
+      ended: (result) => {
+        leaving.current = result === "left";
+      },
+    });
     window.addEventListener("beforeunload", onBeforeUnload);
-    document.addEventListener("click", onClick, true);
     return () => {
       window.removeEventListener("beforeunload", onBeforeUnload);
-      document.removeEventListener("click", onClick, true);
+      removeGuard();
     };
   }, [dirty]);
 
@@ -56,19 +44,16 @@ export function LeaveGuard({ dirty, waitForSave }: { dirty: boolean; waitForSave
     const control = pressed.current;
     const menuButton = control?.closest('[role="menu"]')?.parentElement?.querySelector<HTMLElement>('[aria-haspopup="menu"]');
     (menuButton ?? control)?.focus();
+    answer.current(false);
   }
 
   async function leave() {
     const closing = dialog.current;
-    const control = pressed.current;
-    if (!closing || !control) return;
+    if (!closing) return;
     closing.close();
     const [saved] = await Promise.all([waitForSave(), afterExit(closing)]);
-    if (!saved) return;
-    leaveConfirmed.current = true;
-    passing.current = true;
-    control.click();
-    passing.current = false;
+    leaving.current = saved;
+    answer.current(saved);
   }
 
   return (

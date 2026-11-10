@@ -15,6 +15,8 @@ vi.mock("@/lib/screenshotExtractor", async (importOriginal) => {
 });
 
 import { POST } from "../../src/app/api/analytics/extract/route";
+import { POST as extractPracticeTest } from "../../src/app/api/practice-test/extract/route";
+import { createStudent } from "../../src/lib/studentRepository";
 
 const database = setUpAppTestDatabase();
 beforeEach(async () => {
@@ -22,7 +24,7 @@ beforeEach(async () => {
   vi.unstubAllEnvs();
   request.accountId = "student-a";
   request.extractor.mockClear();
-  await database.owner.execute(sql`truncate action_counters, running_scans, scan_spending`);
+  await database.owner.execute(sql`truncate accounts, action_counters, running_scans, scan_spending cascade`);
 });
 afterAll(() => {
   vi.useRealTimers();
@@ -164,4 +166,66 @@ it("counts each scan route call against the real clock and refuses the 11th with
   expect(refused.headers.get("Retry-After")).toBe(String(14 * 60 * 60));
   expect((await refused.json()).reason).toBe("daily-limit");
   expect(request.extractor).toHaveBeenCalledTimes(10);
+});
+
+async function scanBothRoutes() {
+  const image = () => new File([new Uint8Array(png(40, 30))], "shot.png", { type: "image/png" });
+  const analytics = await POST(await screenshotRequest("http://localhost/api/analytics/extract", { image: image(), section: "LR" }));
+  const practiceTest = await extractPracticeTest(await screenshotRequest("http://localhost/api/practice-test/extract", { image: image() }));
+  return [analytics, practiceTest];
+}
+
+async function signedInStudent(email: string, { onboarded = true } = {}) {
+  const account = await database.createAccountAsOwner({ email, name: "Sam" });
+  if (!account) throw new Error("Account fixture already exists");
+  if (onboarded) await createStudent(account.id, {
+    currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01", preferredPracticeTestDay: "SATURDAY", accommodationMultiplier: 1,
+    dailyCapacityMinutes: { MONDAY: 90, TUESDAY: 90, WEDNESDAY: 90, THURSDAY: 90, FRIDAY: 90, SATURDAY: 90, SUNDAY: 90 },
+  });
+  request.accountId = account.id;
+  return account.id;
+}
+
+it.each([
+  ["with no plan", null],
+  ["lapsed after a failed first charge", { stripeStatus: "past_due", freeWeekEndsAt: new Date("2026-10-19T05:00:00Z"), firstChargeSucceeded: false }],
+  ["lapsed after a renewal failed for 7 days", { stripeStatus: "past_due", renewalFailedAt: new Date("2026-10-17T15:00:00Z") }],
+] as const)("refuses a student %s on both scan routes before any scan, counting nothing", async (_name, billing) => {
+  vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-24T15:00:00Z"));
+  const accountId = await signedInStudent("refused@example.test");
+  if (billing) await database.writeBillingRecordAsOwner(accountId, billing);
+
+  for (const response of await scanBothRoutes()) {
+    expect(response.status).toBe(402);
+    expect(await response.json()).toEqual({ error: "Pick a plan to get new weekly schedules." });
+  }
+  expect(request.extractor).not.toHaveBeenCalled();
+  expect(await counts()).toEqual([]);
+  expect(await database.owner.select().from(runningScans)).toEqual([]);
+});
+
+it("lets a student in the free week or retrying scan on both routes", async () => {
+  vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-24T15:00:00Z"));
+  const free = await signedInStudent("free@example.test");
+  await database.writeBillingRecordAsOwner(free, { stripeStatus: "trialing", freeWeekEndsAt: new Date("2026-10-26T05:00:00Z"), firstChargeSucceeded: false });
+  for (const response of await scanBothRoutes()) expect(response.status).toBe(200);
+
+  const retrying = await signedInStudent("retrying@example.test");
+  await database.writeBillingRecordAsOwner(retrying, { stripeStatus: "past_due", renewalFailedAt: new Date("2026-10-20T15:00:00Z") });
+  for (const response of await scanBothRoutes()) expect(response.status).toBe(200);
+  expect(request.extractor).toHaveBeenCalledTimes(2);
+});
+
+it("lets onboarding's analytics scan run before plan choice, while the Account has no student yet", async () => {
+  vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
+  await signedInStudent("onboarding@example.test", { onboarded: false });
+
+  const [analytics, practiceTest] = await scanBothRoutes();
+  expect(analytics.status).toBe(200);
+  expect(practiceTest.status).toBe(402);
+  expect(request.extractor).toHaveBeenCalledOnce();
 });

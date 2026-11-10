@@ -9,9 +9,11 @@ const mocks = vi.hoisted(() => ({
   extractor: vi.fn(),
   takeScanPlace: vi.fn(),
   freeScanPlace: vi.fn(),
+  loadAccountPlan: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
+vi.mock("@/lib/billingRepository", () => ({ loadAccountPlan: mocks.loadAccountPlan }));
 vi.mock("@/lib/scanPlaces", () => ({ takeScanPlace: mocks.takeScanPlace, freeScanPlace: mocks.freeScanPlace }));
 vi.mock("@/lib/screenshotExtractor", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/screenshotExtractor")>();
@@ -61,6 +63,7 @@ describe("POST /api/analytics/extract", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.resetAllMocks();
+    mocks.loadAccountPlan.mockResolvedValue({ status: { kind: "paid", plan: "weekly" }, record: null });
     vi.stubEnv("SCREENSHOT_EXTRACTOR", undefined);
     mocks.auth.mockResolvedValue({ user: { id: "student-account", role: "student" } });
     mocks.createMessage.mockResolvedValue({ usage: replyUsage, content: [] });
@@ -281,6 +284,19 @@ describe("POST /api/analytics/extract", () => {
     expect(response.status).toBe(429);
     expect(response.headers.get("Retry-After")).toBeNull();
     expect(await response.json()).toEqual({ error: "Scanning is off right now. Enter your analytics by hand.", reason: "scanning-off" });
+    expect(mocks.extractor).not.toHaveBeenCalled();
+  });
+
+  it("refuses a lapsed student with the plan refusal before taking a scan place", async () => {
+    vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
+    mocks.loadAccountPlan.mockResolvedValue({ status: { kind: "lapsed" }, record: null });
+
+    const { POST } = await import("./route");
+    const response = await POST(await imageRequest());
+
+    expect(response.status).toBe(402);
+    expect(await response.json()).toEqual({ error: "Pick a plan to get new weekly schedules." });
+    expect(mocks.takeScanPlace).not.toHaveBeenCalled();
     expect(mocks.extractor).not.toHaveBeenCalled();
   });
 

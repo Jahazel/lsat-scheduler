@@ -23,7 +23,7 @@ afterAll(() => {
 
 beforeEach(async () => {
   process.env.CRON_SECRET = CRON_SECRET;
-  await database.owner.execute(sql`truncate accounts, pending_signups, security_log, deletion_list cascade`);
+  await database.owner.execute(sql`truncate accounts, pending_signups, security_log, deletion_list, used_free_weeks cascade`);
   await database.owner.execute(sql`
     insert into pending_signups (email, name, password_hash, token_hash, token_expires_at, created_at) values
       ('old@example.test', 'Old', 'hash', 'token-old', now() + interval '1 day', now() - interval '8 days'),
@@ -47,6 +47,11 @@ beforeEach(async () => {
       ('00000000-0000-4000-8000-000000000031', repeat('a', 64), current_date - 31),
       ('00000000-0000-4000-8000-000000000030', repeat('b', 64), current_date - 30)
   `);
+  await database.owner.execute(sql`
+    insert into used_free_weeks (email_hash, used_on) values
+      (repeat('a', 64), current_date - interval '12 months' - interval '1 day'),
+      (repeat('b', 64), current_date - interval '12 months')
+  `);
 });
 
 function cronRequest(authorization?: string) {
@@ -66,6 +71,9 @@ async function remainingRows() {
     deletionList: (await database.owner.execute<{ account_id: string }>(
       sql`select account_id from deletion_list order by account_id`,
     )).rows.map((row) => row.account_id),
+    usedFreeWeeks: (await database.owner.execute<{ email_hash: string }>(
+      sql`select email_hash from used_free_weeks order by email_hash`,
+    )).rows.map((row) => row.email_hash.slice(0, 1)),
   };
 }
 
@@ -74,6 +82,7 @@ const everythingKept = {
   resets: ["reset-expired", "reset-live"],
   securityLog: ["00000089", "00000091"],
   deletionList: ["00000000-0000-4000-8000-000000000030", "00000000-0000-4000-8000-000000000031"],
+  usedFreeWeeks: ["a", "b"],
 };
 
 it("refuses a call without the cron secret and changes nothing", async () => {
@@ -91,19 +100,20 @@ it("refuses every call when the place has no cron secret set", async () => {
   expect(await remainingRows()).toEqual(everythingKept);
 });
 
-it("removes old pending signups, expired reset tokens, and old security log entries and deletion list rows", async () => {
+it("removes old pending signups, expired reset tokens, and old security log entries, deletion list rows, and used free weeks", async () => {
   const response = await GET(cronRequest(`Bearer ${CRON_SECRET}`));
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({
     accountDeletionsFinished: 0, accountDeletionsLeft: 0, inactiveAccountsMarked: 0, inactiveWarningsSent: 0, inactiveWarningsNotSent: 0,
     deletionListRemoved: 1,
-    securityLogRemoved: 1, pendingSignupsRemoved: 1, resetTokensRemoved: 1,
+    securityLogRemoved: 1, usedFreeWeeksRemoved: 1, pendingSignupsRemoved: 1, resetTokensRemoved: 1,
   });
   expect(await remainingRows()).toEqual({
     signups: ["fresh@example.test"],
     resets: ["reset-live"],
     securityLog: ["00000089"],
     deletionList: ["00000000-0000-4000-8000-000000000030"],
+    usedFreeWeeks: ["b"],
   });
 });
 
@@ -114,13 +124,14 @@ it("gives the same result when the route runs twice", async () => {
   expect(await second.json()).toEqual({
     accountDeletionsFinished: 0, accountDeletionsLeft: 0, inactiveAccountsMarked: 0, inactiveWarningsSent: 0, inactiveWarningsNotSent: 0,
     deletionListRemoved: 0,
-    securityLogRemoved: 0, pendingSignupsRemoved: 0, resetTokensRemoved: 0,
+    securityLogRemoved: 0, usedFreeWeeksRemoved: 0, pendingSignupsRemoved: 0, resetTokensRemoved: 0,
   });
   expect(await remainingRows()).toEqual({
     signups: ["fresh@example.test"],
     resets: ["reset-live"],
     securityLog: ["00000089"],
     deletionList: ["00000000-0000-4000-8000-000000000030"],
+    usedFreeWeeks: ["b"],
   });
 });
 

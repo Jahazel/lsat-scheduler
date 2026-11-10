@@ -15,6 +15,8 @@ import { DAY_ORDER } from "../../src/lib/engine";
 import { postgresAdminTestRepositories } from "../../src/lib/adminTestRepositories";
 import { resetTestWorkspace } from "../../src/lib/adminTestWorkspace";
 import { confirmWeeklyUpload } from "../../src/app/dashboard/upload/actions";
+import { saveActivityCheckIn } from "../../src/app/dashboard/actions";
+import { expectUnexpectedFailure } from "./plannedAnswer";
 import DashboardPage from "../../src/app/dashboard/(this-week)/page";
 import WeeklyUploadPage from "../../src/app/dashboard/upload/page";
 import ProgressPage from "../../src/app/progress/page";
@@ -52,10 +54,13 @@ const progress = async () => renderToStaticMarkup(await ProgressPage({ searchPar
 const dashboard = async () => renderToStaticMarkup(await DashboardPage({ searchParams: Promise.resolve({}) }));
 const uploadPage = async () => renderToStaticMarkup(await WeeklyUploadPage());
 
-async function studentWithThisWeek(role: "student" | "admin" = "student") {
+type Billing = Parameters<typeof database.writeBillingRecordAsOwner>[1] | null;
+
+async function studentWithThisWeek(role: "student" | "admin" = "student", billing: Billing = {}) {
   vi.setSystemTime(MONDAY);
   const account = await database.createAccountAsOwner({ email: `${role}@example.test`, name: "Sam", role });
   if (!account) throw new Error("Account fixture already exists");
+  if (role === "student" && billing) await database.writeBillingRecordAsOwner(account.id, billing);
   const saved = await createStudent(account.id, profile);
   if (!saved) throw new Error("Student fixture already exists");
   await createApprovedAnalyticsSnapshot(saved.id, {
@@ -120,6 +125,82 @@ it("a Saturday confirmation saves the snapshot, the practice-test result, and th
   expect(thisWeek).toContain("Your plan for this week");
   expect(thisWeek).not.toContain("Plan next week");
   expect(await listWeeklySchedulesForStudent(studentId)).toHaveLength(1);
+});
+
+const FREE_WEEK_ENDS = new Date("2026-10-19T05:00:00Z");
+const inFreeWeek = { stripeStatus: "trialing", freeWeekEndsAt: FREE_WEEK_ENDS, paidPeriodEndsAt: FREE_WEEK_ENDS, firstChargeSucceeded: false } as const;
+const PLAN_REFUSAL = { error: "Pick a plan to get new weekly schedules." };
+
+it.each([
+  ["lapsed after a failed first charge", { ...inFreeWeek, stripeStatus: "past_due", freeWeekEndsAt: new Date("2026-10-12T05:00:00Z") }],
+  ["lapsed after cancelling", { stripeStatus: "canceled", paidPeriodEndsAt: new Date("2026-10-17T05:00:00Z") }],
+  ["with no plan", null],
+] as const)("refuses the confirmation from a student %s with the plan refusal, saving nothing", async (_name, billing) => {
+  const { studentId, accountId } = await studentWithThisWeek("student", billing);
+  vi.setSystemTime(SATURDAY);
+  const before = await saved(studentId, accountId);
+
+  await expect(confirmWeeklyUpload(upload(SATURDAY))).resolves.toEqual(PLAN_REFUSAL);
+
+  expect(await saved(studentId, accountId)).toEqual(before);
+});
+
+it.each([
+  ["in the free week", inFreeWeek],
+  ["retrying a failed renewal", { stripeStatus: "past_due", renewalFailedAt: new Date("2026-10-12T12:00:00Z") }],
+] as const)("allows the confirmation from a student %s", async (_name, billing) => {
+  const { studentId, accountId } = await studentWithThisWeek("student", billing);
+  vi.setSystemTime(SATURDAY);
+
+  await expect(confirmWeeklyUpload(upload(SATURDAY))).rejects.toThrow("redirect:/dashboard");
+
+  expect((await saved(studentId, accountId)).snapshots).toHaveLength(2);
+});
+
+it("judges the plan by the real time, not a simulated date saved on the Account", async () => {
+  const { studentId, accountId } = await studentWithThisWeek("student", inFreeWeek);
+  await database.owner.execute(sql`update accounts set simulated_date = '2027-06-01' where id = ${accountId}`);
+  vi.setSystemTime(SATURDAY);
+
+  await expect(confirmWeeklyUpload(upload(SATURDAY))).rejects.toThrow("redirect:/dashboard");
+  expect((await saved(studentId, accountId)).snapshots).toHaveLength(2);
+});
+
+it("hides a held weekly schedule and refuses its check-offs until the first charge succeeds", async () => {
+  const { studentId, accountId } = await studentWithThisWeek("student", inFreeWeek);
+  vi.setSystemTime(SATURDAY);
+  await expect(confirmWeeklyUpload(upload(SATURDAY))).rejects.toThrow("redirect:/dashboard");
+
+  vi.setSystemTime(NEXT_MONDAY);
+  const held = await dashboard();
+  expect(held).toContain("Your week is ready.");
+  expect(held).toContain("It appears when your first payment goes through.");
+  expect(held).not.toContain("Your plan for this week");
+  expect(held).not.toContain('role="checkbox"');
+  const heldWeek = (await listWeeklySchedulesForStudent(studentId)).find(({ weekStartDate }) => weekStartDate === "2026-10-19");
+  if (!heldWeek) throw new Error("Expected the held weekly schedule to be saved");
+  await expectUnexpectedFailure(database, saveActivityCheckIn({ scheduleId: heldWeek.id, activityId: "MONDAY:0", status: "completed" }), "Error");
+  expect((await postgresActivityCheckIns.listForSchedule(heldWeek.id)).filter(({ status }) => status === "completed")).toEqual([]);
+
+  await database.owner.execute(sql`update billing_records set first_charge_succeeded = true, stripe_status = 'active' where account_id = ${accountId}`);
+  const shown = await dashboard();
+  expect(shown).toContain("Your plan for this week");
+  expect(shown).toContain('role="checkbox"');
+  expect(await listWeeklySchedulesForStudent(studentId)).toContainEqual(heldWeek);
+});
+
+it("keeps a held weekly schedule out of Progress after a failed first charge lapses the student", async () => {
+  const { accountId } = await studentWithThisWeek("student", inFreeWeek);
+  vi.setSystemTime(SATURDAY);
+  await expect(confirmWeeklyUpload(upload(SATURDAY))).rejects.toThrow("redirect:/dashboard");
+  vi.setSystemTime(NEXT_MONDAY);
+  await dashboard();
+  await database.owner.execute(sql`update billing_records set stripe_status = 'past_due' where account_id = ${accountId}`);
+
+  vi.setSystemTime(new Date("2026-10-28T16:00:00Z"));
+  const markup = await progress();
+  expect(markup).toContain("/progress?week=2026-10-12");
+  expect(markup).not.toContain("/progress?week=2026-10-19");
 });
 
 it("next Monday's weekly schedule uses the Saturday upload: missed type first, its week note, the result's id, and the saved score", async () => {
@@ -247,6 +328,7 @@ it("a student who signs up on Saturday sees next week's saved plan as a read-onl
   vi.setSystemTime(SATURDAY);
   const account = await database.createAccountAsOwner({ email: "weekend@example.test", name: "Sam", role: "student" });
   if (!account) throw new Error("Account fixture already exists");
+  await database.writeBillingRecordAsOwner(account.id);
   const student = await createStudent(account.id, profile);
   if (!student) throw new Error("Student fixture already exists");
   state.session = { user: { id: account.id, role: "student", email: "weekend@example.test", name: "Sam" }, expires: "2099-01-01" };
