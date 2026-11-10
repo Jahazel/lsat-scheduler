@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { startTransition, useActionState, useEffect, useState, type FormEvent } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
 import { ActionForm, FailureNotice } from "@/components/FailureNotice";
 import { callAction } from "@/lib/callAction";
 import { fadeFormThrough } from "@/lib/pageMotion";
@@ -18,6 +18,26 @@ import { signUpWithGoogle, signUpWithPassword, type SignupState } from "./action
 
 const initialState: Answer<SignupState> = { kind: "form", errors: {} };
 const LEGAL_LINK = cx("rounded-xs font-medium text-accent underline underline-offset-[3px] hover:text-ink", FOCUS);
+const DRAFT_KEY = "signupDraft";
+
+type Draft = { name: string; email: string; agreedToTerms: boolean };
+
+function saveDraft(form: HTMLFormElement) {
+  const data = new FormData(form);
+  const draft: Draft = { name: String(data.get("name")), email: String(data.get("email")), agreedToTerms: data.has("agreedToTerms") };
+  sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+}
+
+function restoreDraft(form: HTMLFormElement) {
+  const stored = sessionStorage.getItem(DRAFT_KEY);
+  sessionStorage.removeItem(DRAFT_KEY);
+  if (!stored) return;
+  const draft: Draft = JSON.parse(stored);
+  const field = (name: keyof Draft) => form.elements.namedItem(name) as HTMLInputElement;
+  field("name").value = draft.name;
+  field("email").value = draft.email;
+  field("agreedToTerms").checked = draft.agreedToTerms;
+}
 
 export default function SignupPage() {
   const [attempt, setAttempt] = useState(0);
@@ -32,12 +52,17 @@ function Signup({ onSignUpAgain }: { onSignUpAgain: () => void }) {
   useEffect(() => {
     if (sentTo) fadeFormThrough(() => setShownSentTo(sentTo));
   }, [sentTo]);
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (formRef.current) restoreDraft(formRef.current);
+  }, []);
 
   if (shownSentTo) return <>{notice}<CheckYourEmail email={shownSentTo} onSignUpAgain={onSignUpAgain} /></>;
 
   // Submitting by hand keeps the typed values: a form action would clear the form when it returns an error.
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    sessionStorage.removeItem(DRAFT_KEY);
     const formData = new FormData(event.currentTarget);
     startTransition(() => formAction(formData));
   }
@@ -52,12 +77,12 @@ function Signup({ onSignUpAgain }: { onSignUpAgain: () => void }) {
             <GoogleButton look="light" fadesNextPage />
           </ActionForm>
           <p className="text-small leading-[20px] text-smoke">
-            By continuing with Google, you agree to the <Link href="/legal/terms" className={LEGAL_LINK}>Terms of Service</Link> and{" "}
-            <Link href="/legal/privacy" className={LEGAL_LINK}>Privacy Policy</Link>
+            By continuing with Google, you agree to the <DraftSavingLegalLink href="/legal/terms" formRef={formRef}>Terms of Service</DraftSavingLegalLink> and{" "}
+            <DraftSavingLegalLink href="/legal/privacy" formRef={formRef}>Privacy Policy</DraftSavingLegalLink>
           </p>
         </div>
         <OrWithEmail />
-        <form onSubmit={submit} className="flex flex-col gap-8">
+        <form ref={formRef} onSubmit={submit} className="flex flex-col gap-8">
           <div className="flex flex-col gap-4">
             <TextInput label="Name" name="name" autoComplete="name" required error={errors.name} />
             <TextInput label="Email" name="email" type="email" autoComplete="email" required error={errors.email} />
@@ -78,8 +103,8 @@ function Signup({ onSignUpAgain }: { onSignUpAgain: () => void }) {
               aria-describedby={errors.terms ? "agreed-to-terms-error" : undefined}
               label={
                 <span>
-                  I agree to the <Link href="/legal/terms" className={LEGAL_LINK}>Terms of Service</Link> and{" "}
-                  <Link href="/legal/privacy" className={LEGAL_LINK}>Privacy Policy</Link>
+                  I agree to the <DraftSavingLegalLink href="/legal/terms" formRef={formRef}>Terms of Service</DraftSavingLegalLink> and{" "}
+                  <DraftSavingLegalLink href="/legal/privacy" formRef={formRef}>Privacy Policy</DraftSavingLegalLink>
                 </span>
               }
             />
@@ -92,6 +117,14 @@ function Signup({ onSignUpAgain }: { onSignUpAgain: () => void }) {
         <SwitchPageLink question="Already have an account?" href="/login" label="Log in" />
       </SignInFrame>
     </>
+  );
+}
+
+function DraftSavingLegalLink({ href, formRef, children }: { href: string; formRef: RefObject<HTMLFormElement | null>; children: ReactNode }) {
+  return (
+    <Link href={href} className={LEGAL_LINK} onClick={() => formRef.current && saveDraft(formRef.current)}>
+      {children}
+    </Link>
   );
 }
 

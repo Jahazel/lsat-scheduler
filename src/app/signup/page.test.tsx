@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const actions = vi.hoisted(() => ({ signUpWithGoogle: vi.fn(), signUpWithPassword: vi.fn() }));
@@ -11,6 +11,7 @@ import SignupPage from "./page";
 beforeEach(() => {
   actions.signUpWithGoogle.mockReset();
   actions.signUpWithPassword.mockReset();
+  sessionStorage.clear();
 });
 afterEach(cleanup);
 
@@ -60,11 +61,27 @@ describe("Signup", () => {
     expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe("maya.chen@fastmail.com");
   });
 
+  it("keeps the name, email, and box, but not the password, after a legal link and Back", async () => {
+    render(<SignupPage />);
+    await fillIn();
+    await userEvent.click(screen.getByRole("checkbox"));
+    const box = screen.getByRole("checkbox");
+    await userEvent.click(within(box.closest("label")!).getByRole("link", { name: "Privacy Policy" }));
+    cleanup();
+
+    render(<SignupPage />);
+    await waitFor(() => expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe("Maya Chen"));
+    expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe("maya.chen@fastmail.com");
+    expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByLabelText("Password") as HTMLInputElement).value).toBe("");
+  });
+
   it("shows Check your email, and Sign up again brings back an empty form", async () => {
     actions.signUpWithPassword.mockResolvedValue({ kind: "checkYourEmail", email: "maya.chen@fastmail.com" });
     render(<SignupPage />);
     await fillIn();
     await userEvent.click(screen.getByRole("checkbox"));
+    await userEvent.click(screen.getAllByRole("link", { name: "Terms of Service" })[0]);
     await userEvent.click(screen.getByRole("button", { name: "Create account" }));
 
     expect(await screen.findByRole("heading", { name: "Check your email" })).toBeTruthy();
