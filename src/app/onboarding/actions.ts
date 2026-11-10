@@ -11,7 +11,7 @@ import { answerAction, recordSecurityEvent } from "@/lib/securityLog";
 import { loadAccountPlan } from "@/lib/billingRepository";
 import { isPlanName } from "@/lib/planChoice";
 import { mayStartWeeklyUpload } from "@/lib/planStatus";
-import { createCheckoutSession, planChoiceStanding } from "@/lib/stripeCheckout";
+import { startCheckout } from "@/lib/stripeCheckout";
 import { parseOfficialAttempts, parseStudentProfile, type OfficialAttempt, type StudentProfileInput } from "@/lib/studentProfile";
 import type { AnalyticsExtractedRow } from "@/lib/types";
 import type { Answer } from "@/lib/unexpectedFailure";
@@ -70,10 +70,10 @@ export async function openStripeCheckout(plan: unknown): Promise<Answer<{ checko
     if (!session?.user?.id) redirect("/login");
     if (!isPlanName(plan)) throw new Error("Unknown plan");
     if (!(await findStudentByAccountId(session.user.id))) redirect("/onboarding");
-    const realNow = new Date();
-    const standing = await planChoiceStanding(session.user.id, realNow);
-    if (standing.kind !== "choose") redirect("/dashboard");
-    return { checkoutUrl: await createCheckoutSession(session.user.id, standing, plan, realNow) };
+    const start = await startCheckout(session.user.id, plan, new Date());
+    if (start.kind === "refused") redirect("/dashboard");
+    if (start.kind === "starting") redirect("/onboarding?checkout=done");
+    return { checkoutUrl: start.url };
   });
 }
 

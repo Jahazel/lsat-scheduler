@@ -21,18 +21,50 @@ import DashboardPage from "../../src/app/dashboard/(this-week)/page";
 const KEY = "sk_test_plan_choice_key";
 const AUTH_SECRET = randomBytes(32).toString("hex");
 const SITE = "https://copy.drillmap.test";
-const CHECKOUT_URL = "https://checkout.stripe.com/c/pay/cs_test_plan_choice";
+const CHECKOUT_URL = "https://checkout.stripe.com/c/pay/";
 
-const stripe = { sessions: [] as { form: URLSearchParams; idempotencyKey: string | null }[], down: false };
+type FakeSession = { id: string; customer: string; status: "open" | "expired"; form: URLSearchParams };
+const stripe = {
+  customers: [] as { id: string; email: string; metadata: Record<string, string> }[],
+  sessions: [] as FakeSession[],
+  subscriptions: [] as { id: string; customer: string; status: string }[],
+  down: false,
+};
 
 vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
   const url = new URL(String(input));
   const headers = new Headers(init?.headers);
   if (url.origin !== "https://api.stripe.com" || headers.get("authorization") !== `Bearer ${KEY}`) throw new Error("Not Stripe");
   if (stripe.down) return Response.json({ error: { type: "api_error" } }, { status: 500 });
-  if (url.pathname === "/v1/checkout/sessions" && init?.method === "POST") {
-    stripe.sessions.push({ form: new URLSearchParams(String(init.body)), idempotencyKey: headers.get("idempotency-key") });
-    return Response.json({ id: "cs_test_plan_choice", url: CHECKOUT_URL });
+  // Stripe answers over the network, so two requests at once overlap.
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  const post = init?.method === "POST";
+  const form = new URLSearchParams(String(init?.body ?? ""));
+  const query = url.searchParams;
+  if (url.pathname === "/v1/customers" && !post) {
+    return Response.json({ data: stripe.customers.filter((customer) => customer.email === query.get("email")) });
+  }
+  if (url.pathname === "/v1/customers" && post) {
+    const customer = { id: `cus_test${stripe.customers.length + 1}`, email: form.get("email") ?? "", metadata: { account_id: form.get("metadata[account_id]") ?? "" } };
+    stripe.customers.push(customer);
+    return Response.json(customer);
+  }
+  if (url.pathname === "/v1/subscriptions" && !post) {
+    return Response.json({ data: stripe.subscriptions.filter((subscription) => subscription.customer === query.get("customer")) });
+  }
+  if (url.pathname === "/v1/checkout/sessions" && !post) {
+    return Response.json({ data: stripe.sessions.filter((session) => session.customer === query.get("customer") && session.status === query.get("status")) });
+  }
+  if (url.pathname === "/v1/checkout/sessions" && post) {
+    const session: FakeSession = { id: `cs_test${stripe.sessions.length + 1}`, customer: form.get("customer") ?? "", status: "open", form };
+    stripe.sessions.push(session);
+    return Response.json({ id: session.id, url: `${CHECKOUT_URL}${session.id}` });
+  }
+  const expire = /^\/v1\/checkout\/sessions\/(cs_\w+)\/expire$/.exec(url.pathname);
+  const expiring = expire && post && stripe.sessions.find((session) => session.id === expire[1] && session.status === "open");
+  if (expiring) {
+    expiring.status = "expired";
+    return Response.json({ id: expiring.id, status: "expired" });
   }
   return Response.json({ error: { type: "invalid_request_error" } }, { status: 404 });
 });
@@ -56,7 +88,9 @@ beforeEach(async () => {
   vi.stubEnv("STRIPE_MONTHLY_PRICE_ID", "price_monthly_test");
   vi.stubEnv("AUTH_SECRET", AUTH_SECRET);
   vi.stubEnv("SITE_URL", SITE);
+  stripe.customers = [];
   stripe.sessions = [];
+  stripe.subscriptions = [];
   stripe.down = false;
   state.session = null;
   await database.owner.execute(sql`truncate accounts, security_log, used_free_weeks cascade`);
@@ -89,14 +123,16 @@ const billingRows = async () => (await database.owner.execute(sql`select account
 const usedFreeWeekRows = async () => (await database.owner.execute(sql`select email_hash from used_free_weeks`)).rows;
 const scheduleRows = async () => (await database.owner.execute(sql`select id from weekly_schedules`)).rows;
 
-it("starts Checkout with a free week that ends at Monday 00:00 in Chicago, linked to the signed-in Account", async () => {
+it("starts Checkout with a free week that ends at Monday 00:00 in Chicago, on the Account's own Stripe customer", async () => {
   const { accountId } = await onboardedStudent();
 
-  await expect(openStripeCheckout("monthly")).resolves.toEqual({ checkoutUrl: CHECKOUT_URL });
+  await expect(openStripeCheckout("monthly")).resolves.toEqual({ checkoutUrl: `${CHECKOUT_URL}cs_test1` });
 
+  expect(stripe.customers).toEqual([{ id: "cus_test1", email: "maya@example.test", metadata: { account_id: accountId } }]);
   expect(stripe.sessions).toHaveLength(1);
   expect(Object.fromEntries(stripe.sessions[0].form)).toEqual({
     mode: "subscription",
+    customer: "cus_test1",
     "line_items[0][price]": "price_monthly_test",
     "line_items[0][quantity]": "1",
     payment_method_collection: "always",
@@ -104,20 +140,45 @@ it("starts Checkout with a free week that ends at Monday 00:00 in Chicago, linke
     "subscription_data[metadata][account_id]": accountId,
     "subscription_data[trial_end]": String(FREE_WEEK_ENDS.getTime() / 1000),
     "managed_payments[enabled]": "true",
-    customer_email: "maya@example.test",
+    expires_at: String(new Date("2026-11-12T06:00:00Z").getTime() / 1000),
     success_url: `${SITE}/onboarding?checkout=done`,
     cancel_url: `${SITE}/onboarding?checkout=closed&plan=monthly`,
   });
 });
 
-it("gives two quick clicks for the same plan one Stripe idempotency key, so Stripe makes one Checkout session", async () => {
+it("closes the Account's open Checkout session before it opens another, on the same Stripe customer", async () => {
   await onboardedStudent();
   await openStripeCheckout("weekly");
+  await openStripeCheckout("monthly");
+
+  expect(stripe.customers).toHaveLength(1);
+  expect(stripe.sessions.map(({ status, customer }) => ({ status, customer })))
+    .toEqual([{ status: "expired", customer: "cus_test1" }, { status: "open", customer: "cus_test1" }]);
+});
+
+it("lets two clicks at the same moment leave one open Checkout session", async () => {
+  await onboardedStudent();
+  await Promise.all([openStripeCheckout("weekly"), openStripeCheckout("weekly")]);
+
+  expect(stripe.customers).toHaveLength(1);
+  expect(stripe.sessions.filter(({ status }) => status === "open")).toHaveLength(1);
+});
+
+it("starts no second Checkout while Stripe holds a plan whose message has not arrived, and shows Starting your plan", async () => {
+  await onboardedStudent();
+  await openStripeCheckout("weekly");
+  stripe.subscriptions.push({ id: "sub_test1", customer: "cus_test1", status: "trialing" });
+
+  await expect(openStripeCheckout("monthly")).rejects.toThrow("redirect:/onboarding?checkout=done");
+  expect(stripe.sessions).toHaveLength(1);
+});
+
+it("closes a Checkout session at the next Chicago midnight, at least 30 minutes on", async () => {
+  await onboardedStudent();
+  vi.setSystemTime(new Date("2026-11-12T05:50:00Z"));
   await openStripeCheckout("weekly");
 
-  const [first, second] = stripe.sessions.map((session) => session.idempotencyKey);
-  expect(first).toBeTruthy();
-  expect(second).toBe(first);
+  expect(stripe.sessions[0].form.get("expires_at")).toBe(String(new Date("2026-11-12T06:20:00Z").getTime() / 1000));
 });
 
 it("starts Checkout with no free week for an email in the used free week list", async () => {
@@ -133,7 +194,7 @@ it("starts Checkout with no free week for an email in the used free week list", 
   expect(page).toContain("Wed, Nov 18");
 });
 
-it("gives a free week again once the used free week row is more than 12 months old", async () => {
+it("gives no free week while an old used free week row waits for the daily cleanup", async () => {
   await onboardedStudent();
   await database.owner.execute(sql`
     insert into used_free_weeks (email_hash, used_on) values (${emailHash("maya@example.test")}, current_date - interval '12 months' - interval '1 day')
@@ -141,7 +202,7 @@ it("gives a free week again once the used free week row is more than 12 months o
 
   await openStripeCheckout("weekly");
 
-  expect(stripe.sessions[0].form.get("subscription_data[trial_end]")).toBe(String(FREE_WEEK_ENDS.getTime() / 1000));
+  expect(stripe.sessions[0].form.has("subscription_data[trial_end]")).toBe(false);
 });
 
 it("starts Checkout with no free week for a lapsed student, on their Stripe customer", async () => {
@@ -154,7 +215,7 @@ it("starts Checkout with no free week for a lapsed student, on their Stripe cust
 
   expect(stripe.sessions[0].form.has("subscription_data[trial_end]")).toBe(false);
   expect(stripe.sessions[0].form.get("customer")).toBe("cus_maya");
-  expect(stripe.sessions[0].form.has("customer_email")).toBe(false);
+  expect(stripe.customers).toEqual([]);
 });
 
 it.each([

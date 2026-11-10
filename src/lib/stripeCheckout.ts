@@ -1,17 +1,20 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { isAccountId } from "./accountRepository";
 import { configuredSiteUrl } from "./email";
 import { emailHash } from "./emailHash";
 import type { PlanName } from "./planChoice";
-import { freeWeekEnd, planStatus } from "./planStatus";
+import { localDateInTimezone } from "./currentWeeklySchedule";
+import { freeWeekEnd, midnightInScheduleTimezone, planStatus } from "./planStatus";
 import { getPostgresDatabase } from "./postgres";
 import { accounts, billingRecords, usedFreeWeeks } from "./postgresSchema";
+import { isoDateInWeek } from "./scheduleReasonText";
+import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
 import { stripeRequest, stripeSecretKey } from "./stripeApi";
 
 export type PlanChoiceStanding =
   | { kind: "admin" | "has_plan" | "no_account" }
-  | { kind: "choose"; freeWeekEndsAt: Date | null; email: string; customerId: string | null };
+  | { kind: "choose"; freeWeekEndsAt: Date | null; email: string; customerId: string | null; subscriptionId: string | null };
 
 const PLAN_CHOICE_PATH = "/onboarding";
 
@@ -27,20 +30,20 @@ export async function planChoiceStanding(accountId: string, realNow: Date): Prom
   const status = planStatus(row.role, row.record, realNow);
   if (status.kind === "admin") return { kind: "admin" };
   if (status.kind !== "no_plan" && status.kind !== "lapsed") return { kind: "has_plan" };
-  const freeWeekLeft = !row.record && !(await usedFreeWeekWithinAYear(row.email));
+  const freeWeekLeft = !row.record && !(await usedFreeWeek(row.email));
   return {
     kind: "choose",
     freeWeekEndsAt: freeWeekLeft ? freeWeekEnd(realNow) : null,
     email: row.email,
     customerId: row.record?.stripeCustomerId ?? null,
+    subscriptionId: row.record?.stripeSubscriptionId ?? null,
   };
 }
 
-async function usedFreeWeekWithinAYear(email: string) {
-  const [used] = await getPostgresDatabase().select({ usedOn: usedFreeWeeks.usedOn }).from(usedFreeWeeks).where(and(
-    eq(usedFreeWeeks.emailHash, emailHash(email)),
-    gte(usedFreeWeeks.usedOn, sql`current_date - interval '12 months'`),
-  ));
+// A row stays until the daily cleanup removes it 12 months on, so any row means the email has used its free week.
+async function usedFreeWeek(email: string) {
+  const [used] = await getPostgresDatabase().select({ usedOn: usedFreeWeeks.usedOn }).from(usedFreeWeeks)
+    .where(eq(usedFreeWeeks.emailHash, emailHash(email)));
   return Boolean(used);
 }
 
@@ -60,41 +63,74 @@ function returnUrl(params: Record<string, string>) {
   return url.toString();
 }
 
-const checkoutSessionSchema = z.object({
-  url: z.string().refine((url) => url.startsWith("https://checkout.stripe.com/"), "Not a Stripe Checkout address"),
-});
+const checkoutUrl = z.string().refine((url) => url.startsWith("https://checkout.stripe.com/"), "Not a Stripe Checkout address");
+const customerId = z.string().regex(/^cus_\w+$/);
+const stripeList = <Item extends z.ZodTypeAny>(item: Item) => z.object({ data: z.array(item) });
+const customers = stripeList(z.object({ id: customerId, metadata: z.record(z.string(), z.string()) }));
+const subscriptions = stripeList(z.object({ id: z.string(), status: z.string() }));
+const openSessions = stripeList(z.object({ id: z.string().regex(/^cs_\w+$/) }));
 
-const IDEMPOTENCY_WINDOW_MS = 60_000;
+// Stripe can still be sending the message for one of these, so the billing record does not show it yet.
+const STARTED_OR_STARTING = ["trialing", "active", "past_due", "incomplete"];
 
-const sameKeyForRequestsInOneMinute = (accountId: string, plan: PlanName, trialEnd: number | null, realNow: Date) =>
-  `checkout-${accountId}-${plan}-${trialEnd ?? "now"}-${Math.floor(realNow.getTime() / IDEMPOTENCY_WINDOW_MS)}`;
+const MIN_CHECKOUT_MINUTES = 30;
 
-export async function createCheckoutSession(
-  accountId: string,
-  standing: Extract<PlanChoiceStanding, { kind: "choose" }>,
-  plan: PlanName,
-  realNow: Date,
-) {
-  const form = new URLSearchParams({
-    mode: "subscription",
-    "line_items[0][price]": priceId(plan),
-    "line_items[0][quantity]": "1",
-    payment_method_collection: "always",
-    client_reference_id: accountId,
-    "subscription_data[metadata][account_id]": accountId,
-    "managed_payments[enabled]": "true",
-    success_url: returnUrl({ checkout: "done" }),
-    cancel_url: returnUrl({ checkout: "closed", plan }),
+/** The Account's own Stripe customer, so every Checkout session and subscription of one Account shares it. */
+async function accountCustomer(accountId: string, standing: Extract<PlanChoiceStanding, { kind: "choose" }>, secretKey: string) {
+  if (standing.customerId) return standing.customerId;
+  const query = new URLSearchParams({ email: standing.email, limit: "100" });
+  const found = customers.parse(await stripeRequest(`customers?${query}`, { secretKey }))
+    .data.find((customer) => customer.metadata.account_id === accountId);
+  if (found) return found.id;
+  const form = new URLSearchParams({ email: standing.email, "metadata[account_id]": accountId });
+  return z.object({ id: customerId }).parse(await stripeRequest("customers", { secretKey, form })).id;
+}
+
+/** The session closes at the next Chicago midnight, so a free week counted today is the one the student gets. */
+function checkoutExpiry(realNow: Date) {
+  const nextMidnight = midnightInScheduleTimezone(isoDateInWeek(localDateInTimezone(realNow, SCHEDULE_TIMEZONE), 1));
+  const earliest = realNow.getTime() + MIN_CHECKOUT_MINUTES * 60_000;
+  return Math.ceil(Math.max(nextMidnight.getTime(), earliest) / 1000);
+}
+
+export type CheckoutStart = { kind: "checkout"; url: string } | { kind: "starting" } | { kind: "refused" };
+
+/**
+ * Starts Stripe Checkout for the Account, one at a time: it closes the Account's open Checkout sessions first, and
+ * starts none while Stripe holds a subscription that the billing record does not show yet.
+ */
+export async function startCheckout(accountId: string, plan: PlanName, realNow: Date): Promise<CheckoutStart> {
+  return getPostgresDatabase().transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`checkout-account:${accountId}`}, 0))`);
+    const standing = await planChoiceStanding(accountId, realNow);
+    if (standing.kind !== "choose") return { kind: "refused" };
+    const secretKey = stripeSecretKey();
+    const customer = await accountCustomer(accountId, standing, secretKey);
+
+    const held = subscriptions.parse(await stripeRequest(`subscriptions?customer=${customer}&status=all&limit=100`, { secretKey }));
+    if (held.data.some(({ id, status }) => id !== standing.subscriptionId && STARTED_OR_STARTING.includes(status))) {
+      return { kind: "starting" };
+    }
+    const open = openSessions.parse(await stripeRequest(`checkout/sessions?customer=${customer}&status=open&limit=100`, { secretKey }));
+    for (const session of open.data) {
+      await stripeRequest(`checkout/sessions/${session.id}/expire`, { secretKey, form: new URLSearchParams() });
+    }
+
+    const form = new URLSearchParams({
+      mode: "subscription",
+      customer,
+      "line_items[0][price]": priceId(plan),
+      "line_items[0][quantity]": "1",
+      payment_method_collection: "always",
+      client_reference_id: accountId,
+      "subscription_data[metadata][account_id]": accountId,
+      "managed_payments[enabled]": "true",
+      expires_at: String(checkoutExpiry(realNow)),
+      success_url: returnUrl({ checkout: "done" }),
+      cancel_url: returnUrl({ checkout: "closed", plan }),
+    });
+    if (standing.freeWeekEndsAt) form.set("subscription_data[trial_end]", String(Math.floor(standing.freeWeekEndsAt.getTime() / 1000)));
+    const session = z.object({ url: checkoutUrl }).parse(await stripeRequest("checkout/sessions", { secretKey, form }));
+    return { kind: "checkout", url: session.url };
   });
-  if (standing.customerId) form.set("customer", standing.customerId);
-  else form.set("customer_email", standing.email);
-  const trialEnd = standing.freeWeekEndsAt && Math.floor(standing.freeWeekEndsAt.getTime() / 1000);
-  if (trialEnd) form.set("subscription_data[trial_end]", String(trialEnd));
-
-  const session = checkoutSessionSchema.parse(await stripeRequest("checkout/sessions", {
-    secretKey: stripeSecretKey(),
-    form,
-    idempotencyKey: sameKeyForRequestsInOneMinute(accountId, plan, trialEnd, realNow),
-  }));
-  return session.url;
 }

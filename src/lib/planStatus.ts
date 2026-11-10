@@ -73,7 +73,7 @@ function offsetMs(at: number) {
   return sign * (Number(match[2]) * 60 + Number(match[3])) * 60_000;
 }
 
-function midnightInScheduleTimezone(isoDate: string) {
+export function midnightInScheduleTimezone(isoDate: string) {
   const wall = Date.parse(`${isoDate}T00:00:00.000Z`);
   const guess = wall - offsetMs(wall);
   return new Date(wall - offsetMs(guess));
