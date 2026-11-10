@@ -287,7 +287,7 @@ describe("ScheduleCheckInView", () => {
       const user = await openGuide();
       await user.click(within(guide()).getByRole("button", { name: "Next step" }));
       expect(stepCount()).toBe("Step 2 of 5");
-      expect(within(guide()).getByText("Under", { exact: false }).textContent).toBe("Under Logical Reasoning, click New drill.");
+      expect(within(guide()).getByText("Under", { exact: false }).textContent).toBe("Under Logical Reasoning, click Start drill.");
       await user.click(within(guide()).getByRole("button", { name: "Back" }));
       expect(stepCount()).toBe("Step 1 of 5");
       expect(document.activeElement).toBe(within(guide()).getByRole("button", { name: "Next step" }));
@@ -302,28 +302,30 @@ describe("ScheduleCheckInView", () => {
       expect(stepCount()).toBe("Step 5 of 5");
     });
 
-    it("shows the paired drill's filters on card 4: one pass per type, half the questions each", async () => {
+    it("shows the paired drill's filters on card 4: one 7Sage drill per type, half the questions each", async () => {
       const user = await openGuide();
       await user.click(within(guide()).getByRole("button", { name: "Step 4" }));
-      expect(within(guide()).getByRole("heading", { name: "Filter and add questions" })).toBeTruthy();
+      expect(within(guide()).getByRole("heading", { name: "Set the filters" })).toBeTruthy();
       expect(within(guide()).getByText("Section:", { exact: false }).textContent).toBe("Section: Logical Reasoning");
       const table = within(guide()).getByRole("table");
-      expect(within(table).getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual(["Tags", "Difficulty (guess)", "Add"]);
+      expect(within(table).getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual(["Tags", "Difficulty", "Questions"]);
       expect(within(table).getAllByRole("row").slice(1).map((row) => within(row).getAllByRole("cell").map((cell) => cell.textContent)))
-        .toEqual([["Weaken", "2 to 4", "5"], ["Strengthen", "2 to 4", "5"], ["Total: 10 questions"]]);
+        .toEqual([["Weaken", "2, 3 and 4", "5"], ["Strengthen", "2, 3 and 4", "5"], ["Total: 10 questions"]]);
       expect(within(guide()).getAllByRole("link", { name: /^Open 7Sage drills/ })).toHaveLength(1);
     });
 
-    it("marks RC Tags as a guess and adds one passage per pass, easier passage first", async () => {
+    it("builds a two-passage RC drill as two 7Sage drills of one passage, easier passage first", async () => {
       const user = await openGuide("2 RC Passages Humanities L2, Science L4");
       await user.click(within(guide()).getByRole("button", { name: "Step 4" }));
       const table = within(guide()).getByRole("table");
-      expect(within(table).getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual(["Tags (guess)", "Difficulty (guess)", "Add"]);
+      expect(within(table).getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual(["Tags", "Difficulty", "Passages"]);
       expect(within(table).getAllByRole("row").slice(1).map((row) => within(row).getAllByRole("cell").map((cell) => cell.textContent)))
         .toEqual([["Humanities", "2", "1"], ["Science", "4", "1"], ["Total: 2 passages"]]);
       await user.click(within(guide()).getByRole("button", { name: "Next step" }));
-      expect(within(guide()).getByText("Check that it says", { exact: false }).textContent)
-        .toBe("Check that it says 2 passages selected. Click Save & share, then start the drill.");
+      expect(within(guide()).getByText("Set Number of passages", { exact: false }).textContent)
+        .toBe("Set Number of passages to 1. Pick any Timing, then click Start Drill. "
+          + "When it ends, repeat steps 2 to 5 with Tags set to Science (under RC passage subject) and Passage Difficulty set to 4, and Number of passages set to 1.");
+      expect(within(guide()).getByRole("img", { name: "7Sage, step 5" }).getAttribute("src")).toBe("/drill-setup-guide/rc-step-5-count-and-start.png");
     });
 
     it.each([

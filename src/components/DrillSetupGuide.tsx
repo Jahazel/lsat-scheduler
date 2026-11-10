@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
-import { difficultyText, SEVEN_SAGE_URL, type DrillSetupGuide as GuideContent, type FilterPass, type StepText } from "@/lib/drillSetupGuide";
+import { difficultyText, SEVEN_SAGE_URL, type DrillSetupGuide as GuideContent, type SevenSageDrill, type StepText } from "@/lib/drillSetupGuide";
 import { durationMs, motionToken, reducedMotion } from "@/lib/motion";
 import { Dialog } from "@/components/ui/Dialog";
 import { FOCUS, FOCUS_INSET, cx } from "@/components/ui/classes";
@@ -14,14 +14,24 @@ const PRESS = cx(
 );
 const OUTLINE = cx("inline-flex h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xs border border-vellum-line bg-paper px-3.5 text-small font-medium text-ink pointer-hover:bg-vellum", PRESS);
 
-// The partner's slides, with personal details blurred. The repository is public: only these blurred copies may ship.
-const SCREENSHOTS = [
-  { src: "/drill-setup-guide/step-1-open-drills.png", width: 1312, height: 964 },
-  { src: "/drill-setup-guide/step-2-new-drill.png", width: 1312, height: 904 },
-  { src: "/drill-setup-guide/step-3-customize.png", width: 1312, height: 813 },
-  { src: "/drill-setup-guide/step-4-filter-and-add.png", width: 984, height: 1114 },
-  { src: "/drill-setup-guide/step-5-review-and-save.png", width: 1294, height: 1107 },
+const OPENING_SCREENSHOTS = [
+  { src: "/drill-setup-guide/step-1-open-drills.png", width: 1360, height: 930 },
+  { src: "/drill-setup-guide/step-2-start-drill.png", width: 1320, height: 380 },
 ];
+const SCREENSHOTS: Record<GuideContent["section"], { src: string; width: number; height: number }[]> = {
+  "Logical Reasoning": [
+    ...OPENING_SCREENSHOTS,
+    { src: "/drill-setup-guide/lr-step-3-customize.png", width: 1080, height: 370 },
+    { src: "/drill-setup-guide/lr-step-4-filters.png", width: 1080, height: 1170 },
+    { src: "/drill-setup-guide/lr-step-5-count-and-start.png", width: 1080, height: 650 },
+  ],
+  "Reading Comprehension": [
+    ...OPENING_SCREENSHOTS,
+    { src: "/drill-setup-guide/rc-step-3-customize.png", width: 1080, height: 350 },
+    { src: "/drill-setup-guide/rc-step-4-filters.png", width: 1080, height: 830 },
+    { src: "/drill-setup-guide/rc-step-5-count-and-start.png", width: 1080, height: 650 },
+  ],
+};
 
 type Move = { direction: 1 | -1; animate: boolean };
 
@@ -40,7 +50,7 @@ function OpenSevenSage() {
   );
 }
 
-function DifficultyDots({ difficulty: { low, high } }: Pick<FilterPass, "difficulty">) {
+function DifficultyDots({ difficulty: { low, high } }: Pick<SevenSageDrill, "difficulty">) {
   return (
     <span className="mr-1.5 inline-flex gap-0.5 align-middle" aria-hidden="true">
       {[1, 2, 3, 4, 5].map((level) => <i key={level} className={cx("size-[7px] rounded-[2px]", level >= low && level <= high ? "bg-ink" : "bg-vellum-line")} />)}
@@ -51,29 +61,28 @@ function DifficultyDots({ difficulty: { low, high } }: Pick<FilterPass, "difficu
 const STACKED_CELL = "@max-[300px]:flex @max-[300px]:gap-2 @max-[300px]:border-0 @max-[300px]:px-0 @max-[300px]:py-0.5 @max-[300px]:before:shrink-0 @max-[300px]:before:basis-[88px] @max-[300px]:before:text-caption @max-[300px]:before:text-smoke @max-[300px]:before:content-[attr(data-label)]";
 
 function FiltersTable({ guide }: { guide: GuideContent }) {
-  const tagsLabel = guide.guess.tags ? "Tags (guess)" : "Tags";
-  const difficultyLabel = guide.guess.difficulty ? "Difficulty (guess)" : "Difficulty";
+  const countLabel = guide.drills[0].unit === "questions" ? "Questions" : "Passages";
   return (
     <div className="@container mt-2 flex flex-col gap-3">
-      <p className="text-caption text-smoke">Your filters on 7Sage</p>
+      <p className="text-caption text-smoke">{guide.drills.length === 1 ? "Your filters on 7Sage" : "Your two drills on 7Sage, one per row"}</p>
       <p className="text-small text-ink">Section: <b className="font-medium">{guide.section}</b></p>
       <table className="w-full border-separate border-spacing-0 overflow-hidden rounded-md border border-vellum-line text-small leading-5 text-ink">
         <thead className="@max-[300px]:hidden">
           <tr className="bg-vellum text-left text-caption text-smoke">
-            <th className="whitespace-nowrap px-3 py-2 font-regular">{tagsLabel}</th>
-            <th className="whitespace-nowrap px-3 py-2 font-regular">{difficultyLabel}</th>
-            <th className="whitespace-nowrap px-3 py-2 font-regular">Add</th>
+            <th className="whitespace-nowrap px-3 py-2 font-regular">Tags</th>
+            <th className="whitespace-nowrap px-3 py-2 font-regular">Difficulty</th>
+            <th className="whitespace-nowrap px-3 py-2 font-regular">{countLabel}</th>
           </tr>
         </thead>
         <tbody>
-          {guide.passes.map((pass, index) => (
+          {guide.drills.map((drill, index) => (
             <tr key={index} className="@max-[300px]:block @max-[300px]:border-t @max-[300px]:border-vellum-line @max-[300px]:px-3 @max-[300px]:py-2.5 @max-[300px]:first:border-t-0">
-              <td data-label={tagsLabel} className={cx("border-t border-vellum-line px-3 py-2.5 align-top", STACKED_CELL)}><b className="font-medium">{pass.tags}</b></td>
-              <td data-label={difficultyLabel} className={cx("whitespace-nowrap border-t border-vellum-line px-3 py-2.5 align-top tabular-nums", STACKED_CELL)}>
-                <span><DifficultyDots difficulty={pass.difficulty} />{difficultyText(pass.difficulty)}</span>
+              <td data-label="Tags" className={cx("border-t border-vellum-line px-3 py-2.5 align-top", STACKED_CELL)}><b className="font-medium">{drill.tags}</b></td>
+              <td data-label="Difficulty" className={cx("whitespace-nowrap border-t border-vellum-line px-3 py-2.5 align-top tabular-nums", STACKED_CELL)}>
+                <span><DifficultyDots difficulty={drill.difficulty} />{difficultyText(drill.difficulty)}</span>
               </td>
-              <td data-label="Add" className={cx("whitespace-nowrap border-t border-vellum-line px-3 py-2.5 align-top tabular-nums", STACKED_CELL)}>
-                {pass.add}
+              <td data-label={countLabel} className={cx("whitespace-nowrap border-t border-vellum-line px-3 py-2.5 align-top tabular-nums", STACKED_CELL)}>
+                {drill.count}
               </td>
             </tr>
           ))}
@@ -120,7 +129,8 @@ export function DrillSetupGuide({ open, onClose, returnFocusTo, day, label, guid
   const [zoomed, setZoomed] = useState(false);
   const last = guide.steps.length - 1;
   const current = guide.steps[card]!;
-  const screenshotOf = SCREENSHOTS[card]!;
+  const screenshots = SCREENSHOTS[guide.section];
+  const screenshotOf = screenshots[card]!;
 
   useEffect(() => {
     if (open) title.current?.focus();
@@ -128,8 +138,8 @@ export function DrillSetupGuide({ open, onClose, returnFocusTo, day, label, guid
 
   // Load every screenshot now, so moving between cards never shows an empty picture.
   useEffect(() => {
-    for (const { src } of SCREENSHOTS) new window.Image().src = src;
-  }, []);
+    for (const { src } of screenshots) new window.Image().src = src;
+  }, [screenshots]);
 
   useLayoutEffect(() => {
     if (!move) return;
@@ -176,9 +186,9 @@ export function DrillSetupGuide({ open, onClose, returnFocusTo, day, label, guid
                 ? "block cursor-zoom-out"
                 : "absolute inset-x-4 top-4 bottom-0 flex cursor-zoom-in items-end justify-center md:inset-6 md:items-center")}>
               <Image src={screenshotOf.src} width={screenshotOf.width} height={screenshotOf.height} alt={`7Sage, step ${card + 1}`}
-                unoptimized loading="eager" draggable={false}
+                unoptimized loading="eager" draggable={false} style={zoomed ? { width: screenshotOf.width } : undefined}
                 className={zoomed
-                  ? "block h-auto w-[1040px] max-w-none md:w-[1312px]"
+                  ? "block h-auto max-w-none"
                   : "block h-auto max-h-full w-auto max-w-full rounded-t-xs ring-1 ring-ink/8 md:rounded-xs"} />
             </button>
             {!zoomed && (
