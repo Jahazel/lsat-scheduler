@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToString } from "react-dom/server";
 import { FailureToastProvider } from "@/components/FailureNotice";
 import { PASSWORD_LOGIN_NOTICES } from "@/lib/loginNotice";
 
@@ -131,6 +132,12 @@ describe("Login", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("connection");
     expect(field("Email").value).toBe("maya.chen@fastmail.com");
     expect(field("Password").value).toBe("a long phrase that works");
+  });
+
+  it("renders every form so that a submit before the page loads cannot send the password as a plain GET", async () => {
+    const forms = renderToString(await loginPage({})).match(/<form[^>]*>/g) ?? [];
+    expect(forms).toHaveLength(2);
+    for (const form of forms) expect(form).toContain('action="javascript:');
   });
 
   it("replaces a notice from the address with the form's refusal", async () => {

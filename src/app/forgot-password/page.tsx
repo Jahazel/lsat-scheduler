@@ -47,7 +47,7 @@ export default function ForgotPasswordPage() {
         lead="Type the email you use for DrillMap. We'll send you a link to set a new password."
         preview={<TodayPreview />}
       >
-        <form onSubmit={submit} className="flex flex-col gap-8">
+        <form action={formAction} onSubmit={submit} className="flex flex-col gap-8">
           <TextInput label="Email" name="email" type="email" autoComplete="email" required error={isUnexpectedFailure(state) ? undefined : state.error} />
           <SubmitButton label="Send reset link" workingLabel="Sending…" pending={pending} />
         </form>

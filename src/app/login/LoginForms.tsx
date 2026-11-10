@@ -36,7 +36,7 @@ export function LoginForms({ urlNotice, googleFailure }: { urlNotice: LoginNotic
         <GoogleButton look="light" fadesNextPage />
       </ActionForm>
       <OrWithEmail />
-      <form onSubmit={submit} className="flex flex-col gap-8">
+      <form action={logInAction} onSubmit={submit} className="flex flex-col gap-8">
         <div className="flex flex-col gap-4">
           {notice?.place === "aboveEmail" && <Notice notice={notice} />}
           <TextInput label="Email" name="email" type="email" autoComplete="email" required />

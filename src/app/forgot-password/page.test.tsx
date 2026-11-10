@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToString } from "react-dom/server";
 
 const requestPasswordReset = vi.hoisted(() => vi.fn());
 vi.mock("./actions", () => ({ requestPasswordReset }));
@@ -51,6 +52,10 @@ describe("Forgot password", () => {
 
     expect((await screen.findByRole("alert")).textContent).toContain("connection");
     expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe("maya.chen@fastmail.com");
+  });
+
+  it("renders a form that a submit before the page loads cannot send as a plain GET", () => {
+    expect(renderToString(<ForgotPasswordPage />)).toMatch(/<form[^>]* action="javascript:/);
   });
 
   it("shows the email error under the field", async () => {
