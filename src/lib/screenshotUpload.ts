@@ -89,9 +89,9 @@ async function postScreenshot(url: string, file: File, fields: Record<string, st
   const formData = new FormData();
   formData.append("image", upload);
   for (const [name, value] of Object.entries(fields)) formData.append(name, value);
-  const res = await callAction(fetch)(url, { method: "POST", body: formData });
-  if (isUnexpectedFailure(res)) return { kind: "connection-lost" };
   try {
+    const res = await callAction(fetch)(url, { method: "POST", body: formData });
+    if (isUnexpectedFailure(res)) return { kind: "connection-lost" };
     if (REFUSED_FILE_STATUSES.includes(res.status)) return { kind: "rejected", message: (await res.json()).error };
     if (res.status === 429) {
       const { error, reason } = await res.json();

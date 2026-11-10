@@ -15,15 +15,15 @@ const serverActionShape = [
 
 const handedToAdapter = ({ parent }) =>
   (parent.type === "CallExpression" && parent.callee.name === "callAction" && parent.arguments[0] !== undefined)
-  || (parent.type === "JSXExpressionContainer" && parent.parent.type === "JSXAttribute"
-    && /^[A-Z]/.test(parent.parent.parent.name.name ?? ""));
+  || (parent.type === "JSXExpressionContainer" && parent.parent.type === "JSXAttribute" && parent.parent.name.name === "action"
+    && ["ActionForm", "SignOutForm"].includes(parent.parent.parent.name.name));
 
 const callActionsThroughAdapter = {
   meta: {
     type: "problem",
     schema: [],
     messages: {
-      direct: "Call a Server Action through callAction(action) from @/lib/callAction, or hand it to a component as a prop, so a lost connection shows the Failure toast and a sign-out leaves the page.",
+      direct: "Call a Server Action through callAction(action) from @/lib/callAction, or hand it to ActionForm or SignOutForm as `action`, so a lost connection shows the Failure toast and a sign-out leaves the page.",
     },
   },
   create(context) {
@@ -80,8 +80,8 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["src/**/*.tsx"],
-    ignores: ["src/**/*.test.tsx", "src/components/TestControls.tsx"],
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/**/*.test.{ts,tsx}", "src/components/TestControls.tsx"],
     plugins: { drillmap: { rules: { "call-actions-through-adapter": callActionsThroughAdapter } } },
     rules: {
       "drillmap/call-actions-through-adapter": "error",

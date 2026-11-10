@@ -10,6 +10,7 @@ const adapterMessages = async (code: string, filePath: string) =>
 const screen = (directive: string) => `${directive}
 import { useActionState } from "react";
 import { ActionForm } from "@/components/FailureNotice";
+import { Button } from "@/components/ui/Button";
 import { callAction } from "@/lib/callAction";
 import { changePassword, signOutAllDevices, type PasswordChangeRefusal } from "./actions";
 
@@ -20,13 +21,21 @@ export function Card({ refusal }: { refusal: PasswordChangeRefusal }) {
   return <>
     <ActionForm action={signOutAllDevices} />
     <form action={signOutAllDevices} />
+    <Button formAction={signOutAllDevices} />
     {String(refusal)}{String(adapted)}{String(raw)}
   </>;
 }
 `;
 
 it("refuses a client screen that calls a Server Action without the adapter", async () => {
-  expect(await adapterMessages(screen(`"use client";`), "src/app/account/Card.tsx")).toEqual([9, 10, 13]);
+  expect(await adapterMessages(screen(`"use client";`), "src/app/account/Card.tsx")).toEqual([10, 11, 14, 15]);
+});
+
+it("refuses a client hook in a .ts file that calls a Server Action directly", async () => {
+  expect(await adapterMessages(`"use client";
+import { deleteAccount } from "./actions";
+export const useDelete = () => () => deleteAccount(null, new FormData());
+`, "src/app/account/useDelete.ts")).toEqual([3]);
 });
 
 it("lets a server component import Server Actions to pass them on", async () => {
