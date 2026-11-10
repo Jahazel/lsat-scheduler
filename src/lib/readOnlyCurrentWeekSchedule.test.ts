@@ -36,12 +36,15 @@ function repositories({
   schedule = null,
   snapshots = [],
   savedWeeks,
+  heldWeeks = [],
 }: {
   schedule?: PersistedWeeklySchedule | null;
   snapshots?: ApprovedAnalyticsSnapshot[];
   savedWeeks?: string[];
+  heldWeeks?: string[];
 } = {}) {
   return {
+    isHeldWeek: (week: string) => heldWeeks.includes(week),
     weeklySchedules: {
       findByStudentAndWeek: async (_studentId: string, week: string) =>
         savedWeeks ? (savedWeeks.includes(week) ? { ...savedSchedule, weekStartDate: week } : null) : schedule,
@@ -65,6 +68,21 @@ describe("loadReadOnlyCurrentWeek", () => {
     });
 
     expect(result).toEqual({ kind: "schedule", schedule: savedSchedule, checkIns: persistedCheckIns });
+  });
+
+  it("hides a held weekly schedule and its check-ins until the first charge succeeds", async () => {
+    const result = await loadReadOnlyCurrentWeek({
+      studentId: "student-1",
+      timezone: "America/Chicago",
+      now: () => monday,
+      ...repositories({ schedule: savedSchedule, heldWeeks: ["2026-09-14"] }),
+    });
+
+    expect(result).toEqual({ kind: "held_week" });
+    if (result.kind === "schedule") throw new Error("Expected a held weekly schedule");
+    expect(adminScheduleStateMessage(result)).toBe(
+      "This student's weekly schedule for this week is held. It appears when their first payment goes through."
+    );
   });
 
   it("reports that approved analytics are required when no current schedule or eligible snapshot exists", async () => {

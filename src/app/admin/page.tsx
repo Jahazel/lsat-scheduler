@@ -4,6 +4,8 @@ import { auth } from "@/auth";
 import { PageCue } from "@/components/SiteMotion";
 import { PageArrival } from "@/components/PagePlaceholder";
 import { listStudentIdsWithApprovedAnalytics } from "@/lib/analyticsSnapshotRepository";
+import { PlanStatusBadge } from "@/components/PlanStatusBadge";
+import { loadPlanStatuses } from "@/lib/billingRepository";
 import { formatDuration } from "@/lib/formatDuration";
 import { listStudentsWithOwners } from "@/lib/studentRepository";
 
@@ -18,6 +20,7 @@ export default async function AdminPage() {
     listStudentIdsWithApprovedAnalytics(),
   ]);
   const studentIdsWithAnalytics = new Set(snapshots);
+  const planStatuses = await loadPlanStatuses(students.map((student) => student.userId));
 
   return (
     <div data-page-fade className="min-h-screen px-6 py-12">
@@ -48,6 +51,7 @@ export default async function AdminPage() {
                             Needs analytics
                           </span>
                         )}
+                        <PlanStatusBadge status={planStatuses.get(student.userId) ?? { kind: "no_plan" }} />
                       </div>
                       <p className="mt-1 truncate text-small text-smoke">
                         {student.email} ·{" "}
