@@ -28,8 +28,8 @@ export function LeaveGuard({ dirty, waitForSave }: { dirty: boolean; waitForSave
         dialog.current?.showModal();
         stayButton.current?.focus();
       }),
-      ended: () => {
-        leaving.current = false;
+      ended: (result) => {
+        leaving.current = result === "left";
       },
     });
     window.addEventListener("beforeunload", onBeforeUnload);

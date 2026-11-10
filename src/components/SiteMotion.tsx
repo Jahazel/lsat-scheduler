@@ -228,12 +228,18 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
     storeScroll(path, top);
   };
   const heldAt = useRef<number | null>(null);
+  const linkLeave = useRef<((result: "left" | "stayed") => void) | null>(null);
+  const endLinkLeave = (result: "left" | "stayed") => {
+    linkLeave.current?.(result);
+    linkLeave.current = null;
+  };
 
   useLayoutEffect(() => {
     const from = shown.current;
     shown.current = pathname;
     const arriving = target.current;
     if (from === pathname) return;
+    endLinkLeave("left");
     if (from) dropCopyIfNoPageFollows(pathname);
     if (!arriving) {
       if (from && motionBetween(from, pathname, signedIn) === "swap") arrive("swap");
@@ -300,14 +306,15 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
     }
 
     function onClick(event: MouseEvent) {
+      endLinkLeave("stayed");
       const guarded = leaveIsGuarded() && leavingLink(event);
       if (guarded) {
         event.preventDefault();
         const url = new URL(guarded.href);
-        void leavePage(guarded, async () => {
+        void leavePage(guarded, () => new Promise((resolve) => {
+          linkLeave.current = resolve;
           if (!follow(url)) router.push(url.pathname + url.search + url.hash);
-          return "left";
-        });
+        }));
         return;
       }
       const link = isPlainClick(event) && (event.target as Element).closest("a");
@@ -316,6 +323,7 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
 
     function holdPopStateUntilFadedOut(event: PopStateEvent) {
       if (replaying) return;
+      endLinkLeave("stayed");
       if (target.current) comeBack();
       const to = location.pathname;
       const motion = shown.current && motionBetween(shown.current, to, signedIn);

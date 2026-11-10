@@ -29,7 +29,7 @@ export function leavingLink(event: MouseEvent): HTMLAnchorElement | null {
   return leaves ? link : null;
 }
 
-export async function leavePage(control: HTMLElement, go: () => Promise<Exclude<LeaveResult, "stayed">>): Promise<LeaveResult> {
+export async function leavePage(control: HTMLElement, go: () => Promise<LeaveResult>): Promise<LeaveResult> {
   const asked = [...guards];
   let result: LeaveResult = "stayed";
   try {

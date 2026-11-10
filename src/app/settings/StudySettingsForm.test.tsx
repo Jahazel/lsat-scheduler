@@ -643,6 +643,19 @@ describe("Study settings leave guard", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Account menu" }));
   });
 
+  it("asks again before the browser tab closes when a click on this page drops the page change Leave started", async () => {
+    renderWithNav();
+    await typeGoal("170");
+    await userEvent.click(thisWeek());
+    await userEvent.click(within(openDialog()!).getByRole("button", { name: "Leave" }));
+    expect(navigated).toEqual(["/dashboard"]);
+    expect(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)).toBe(false);
+
+    await userEvent.click(screen.getByRole("link", { name: "Study settings" }));
+    expect(goalScore().value).toBe("170");
+    expect(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)).toBe(true);
+  });
+
   function slowSave() {
     let finish: (outcome: () => StudySettingsAnswer) => void = () => {};
     const onSave = vi.fn(() => new Promise<StudySettingsAnswer>((resolve, reject) => {
@@ -748,15 +761,7 @@ describe("Study settings leave guard", () => {
       expect(askedAtUnload).toEqual([false]);
     });
 
-    it("asks again before the browser tab closes after a link leave, since a page change in the app unloads nothing", async () => {
-      renderSignedIn();
-      await typeGoal("170");
-      await userEvent.click(thisWeek());
-      await userEvent.click(within(openDialog()!).getByRole("button", { name: "Leave" }));
 
-      expect(navigated).toEqual(["/dashboard"]);
-      expect(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)).toBe(true);
-    });
 
     it("asks again before the browser tab closes when the sign-out after Leave fails", async () => {
       logOut.mockResolvedValue({ unexpectedFailure: "5c1d7e20" as FailureCode });
