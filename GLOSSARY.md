@@ -162,6 +162,10 @@ _Avoid_: trial conversion, first invoice
 The weekly schedule for the week after the free week, saved from a "Plan next week" weekly upload before the first charge. This week does not show it until the first charge succeeds. It is the only weekly schedule a student can have saved but not see.
 _Avoid_: pending schedule, locked week
 
+**Retrying**:
+A student whose plan renewal failed less than 7 days ago, after their first charge succeeded. They keep getting weekly schedules while Stripe tries their card again. If the renewal still fails after 7 days, they become lapsed.
+_Avoid_: past due, grace period, overdue
+
 **Lapsed**:
 A student with no paid plan and no free week left: they cancelled and their free week or paid period ended, their first charge failed, or a later charge still failed after 7 days. A lapsed student can sign in and read This week and Progress, but gets no new weekly schedule until they pay for a plan. It is not an Inactive Account.
 _Avoid_: inactive, expired, locked
