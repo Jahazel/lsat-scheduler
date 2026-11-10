@@ -59,6 +59,7 @@ const NO_REFERRER_PAGES = new Set(["/verify-email", "/reset-password"]);
 export const EXEMPT_ROUTES = [
   { path: "/api/auth/", prefix: true },
   { path: "/api/cron/daily-cleanup", prefix: false },
+  { path: "/api/stripe/webhook", prefix: false },
 ] as const;
 
 const READS_ONLY = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -69,7 +70,7 @@ const SERVER_ACTION_TYPES = new Set(["text/plain", "multipart/form-data"]);
 const ROUTES = new Set([
   "/", "/account", "/admin", "/dashboard", "/dashboard/upload", "/forgot-password", "/legal/ai-disclosure", "/legal/privacy",
   "/legal/terms", "/login", "/onboarding", "/progress", "/reset-password", "/settings", "/signup", "/verify-email",
-  "/api/analytics/extract", "/api/practice-test/extract", "/api/students",
+  "/api/analytics/extract", "/api/practice-test/extract", "/api/students", "/api/stripe/webhook",
 ]);
 const ROUTES_WITH_ID: [prefix: string, template: SecurityLogRoute][] = [
   ["/admin/students/", "/admin/students/[id]"],

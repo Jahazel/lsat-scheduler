@@ -167,3 +167,8 @@ export const usedFreeWeeks = pgTable("used_free_weeks", {
   emailHash: text("email_hash").primaryKey(),
   usedOn: date("used_on", { mode: "string" }).notNull().defaultNow(),
 });
+
+export const stripeMessages = pgTable("stripe_messages", {
+  id: text("id").primaryKey(),
+  handledAt: timestamp("handled_at", { withTimezone: true }).notNull().defaultNow(),
+});

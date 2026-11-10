@@ -20,7 +20,7 @@ export interface DrillSetupGuide {
   steps: { title: string; text: StepText }[];
 }
 
-const STEP_TITLES = ["Open Drills on 7Sage", "Start a drill", "Customize the questions", "Set the filters", "Set the count and start"];
+const STEP_TITLES = ["Start a drill on 7Sage", "Customize the questions", "Set the filters", "Set the count and start"];
 
 export function difficultyText({ low, high }: SevenSageDrill["difficulty"]) {
   const levels = Array.from({ length: high - low + 1 }, (_, index) => `${low + index}`);
@@ -60,12 +60,11 @@ export function drillSetupGuide(activity: Activity): DrillSetupGuide | null {
   const filters = (lead: string): StepText => [`${lead} Tags to `, { value: first.tags }, `${tagsGroup} and ${difficultyFilter} to `, { value: difficultyText(first.difficulty) }, "."];
   const start: StepText = [`Set ${countFilter} to `, { value: `${first.count}` }, ". Pick any Timing, then click ", { value: "Start Drill" }, "."];
   const texts: StepText[] = [
-    ["Open 7Sage. Go to Study, then ", { value: "Drills and sections" }, "."],
-    ["Under ", { value: section }, ", click ", { value: "Start drill" }, "."],
+    ["Open 7Sage. Go to Study, then ", { value: "Drills and sections" }, ". Under ", { value: section }, ", click ", { value: "Start drill" }, "."],
     ["Click ", { value: "Customize questions" }, "."],
     second ? filters("You build this as two drills on 7Sage. For the first, set") : filters("Set"),
     second
-      ? [...start, " When it ends, repeat steps 2 to 5 with Tags set to ", { value: second.tags }, `${tagsGroup} and ${difficultyFilter} set to `,
+      ? [...start, ` When it ends, repeat steps 1 to ${STEP_TITLES.length} with Tags set to `, { value: second.tags }, `${tagsGroup} and ${difficultyFilter} set to `,
         { value: difficultyText(second.difficulty) }, `, and ${countFilter} set to `, { value: `${second.count}` }, "."]
       : start,
   ];

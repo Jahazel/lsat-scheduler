@@ -14,6 +14,7 @@ import type { VerificationResult } from "./pendingSignupRepository";
 import { getPostgresDatabase } from "./postgres";
 import type { ForgedRequestRefusal } from "./requestPolicy";
 import type { ScanRefusal } from "./scanPlaces";
+import type { StripeMessageRefusal } from "./stripeMessages";
 import { UNEXPECTED_FAILURE_MESSAGE, type Answer, type FailureCode } from "./unexpectedFailure";
 
 export type SecurityLogRoute = `/${string}`;
@@ -32,6 +33,7 @@ type AppEvents = {
   budget_cutoff: "limitReached";
   forged_request_refused: ForgedRequestRefusal["result"];
   model_reply_refused: ReplyCheck;
+  stripe_message_refused: StripeMessageRefusal;
 };
 
 export type Subject = { account: string } | { nobody: true };

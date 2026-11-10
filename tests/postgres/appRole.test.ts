@@ -510,26 +510,39 @@ it("refuses to reuse an app role that owns a table", async () => {
   }
 });
 
-it("reads billing records but cannot write them, and deleting an Account removes its billing record", async () => {
+it("reads, inserts, and updates billing records but cannot delete them, and deleting an Account removes its billing record", async () => {
   const [account] = (await ownerDb().execute<{ id: string }>(sql`
     insert into accounts (email, name, google_id) values ('billing@example.test', 'Billing', 'google-billing') returning id
   `)).rows;
-  await ownerDb().execute(sql`
+  await appDb().execute(sql`
     insert into billing_records (account_id, stripe_customer_id, stripe_subscription_id, plan, stripe_status)
     values (${account.id}, 'cus_test', 'sub_test', 'weekly', 'trialing')
   `);
-  expect((await appDb().execute(sql`select plan from billing_records`)).rows).toEqual([{ plan: "weekly" }]);
-  for (const query of [
-    sql`insert into billing_records (account_id, stripe_customer_id, stripe_subscription_id, plan, stripe_status)
-      values (${account.id}, 'cus_other', 'sub_other', 'weekly', 'active')`,
-    sql`update billing_records set first_charge_succeeded = true`,
-    sql`delete from billing_records`,
-    sql`truncate billing_records`,
-  ]) {
+  await appDb().execute(sql`update billing_records set first_charge_succeeded = true`);
+  expect((await appDb().execute(sql`select plan, first_charge_succeeded from billing_records`)).rows)
+    .toEqual([{ plan: "weekly", first_charge_succeeded: true }]);
+  for (const query of [sql`delete from billing_records`, sql`truncate billing_records`]) {
     await expect(appDb().execute(query)).rejects.toMatchObject({ cause: { code: "42501" } });
   }
   await appDb().execute(sql`delete from accounts where id = ${account.id}`);
   expect((await ownerDb().execute(sql`select 1 from billing_records`)).rows).toEqual([]);
+});
+
+it("reads and inserts handled Stripe messages, and removes them only through the 30-day prune", async () => {
+  await ownerDb().execute(sql`truncate stripe_messages`);
+  await appDb().execute(sql`insert into stripe_messages (id) values ('evt_new')`);
+  expect((await appDb().execute(sql`select id from stripe_messages`)).rows).toEqual([{ id: "evt_new" }]);
+  for (const query of [
+    sql`update stripe_messages set handled_at = now() - interval '1 year'`,
+    sql`delete from stripe_messages`,
+    sql`truncate stripe_messages`,
+  ]) {
+    await expect(appDb().execute(query)).rejects.toMatchObject({ cause: { code: "42501" } });
+  }
+  await ownerDb().execute(sql`insert into stripe_messages (id, handled_at) values ('evt_old', now() - interval '31 days')`);
+  const pruned = await appDb().execute<{ removed: string }>(sql`select prune_stripe_messages() as removed`);
+  expect(Number(pruned.rows[0]?.removed)).toBe(1);
+  expect((await appDb().execute(sql`select id from stripe_messages`)).rows).toEqual([{ id: "evt_new" }]);
 });
 
 it("cannot touch the used free week list, and prunes only rows older than 12 months", async () => {
