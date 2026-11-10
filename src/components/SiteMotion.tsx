@@ -2,16 +2,15 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { flushSync } from "react-dom";
 import { forgetGoogleArrival, hasGoogleArrivalNote } from "@/lib/googleArrival";
-import { durationMs, fadeIn, fadeOut, isPlainClick, motionToken, reducedMotion, riseFrom, stopAtCurrentFrame } from "@/lib/motion";
+import { durationMs, fadeOut, isPlainClick, motionToken, reducedMotion, stopAtCurrentFrame } from "@/lib/motion";
+import { arrive, fadeAway, heldBy, hold, letGo, motionInside, regions, riseIn, showAgain, type Motion } from "@/lib/pageMotion";
 
 const SIGN_IN = new Set(["/signup", "/login", "/forgot-password", "/reset-password", "/verify-email"]);
 const UNDER_TOP_BAR = new Set(["/", "/legal/terms", "/legal/privacy", "/legal/ai-disclosure"]);
 const ONBOARDING = "/onboarding";
 const THIS_WEEK = ["/dashboard", "/dashboard/upload"];
 
-type Motion = "whole-page" | "under-top-bar" | "swap";
 function motionBetween(from: string, to: string, signedIn: boolean): Motion | null {
   if (signedIn || from === to) return null;
   if (SIGN_IN.has(from) && SIGN_IN.has(to)) return "swap";
@@ -36,19 +35,7 @@ function storeScroll(path: string, top: number) {
   } catch {}
 }
 
-function regions(motion: Motion) {
-  const found = [...document.querySelectorAll<HTMLElement>(motion === "swap" ? "[data-page-swap]" : "[data-page-fade], [data-page-swap]")]
-    .filter((el) => el.getClientRects().length && !el.closest("[data-page-copy]") && (motion !== "under-top-bar" || !el.closest("header")));
-  return found.filter((el) => !found.some((outer) => outer !== el && outer.contains(el)));
-}
 const visibleLogo = () => [...document.querySelectorAll<HTMLElement>("[data-page-logo]")].find((logo) => logo.getBoundingClientRect().width > 0);
-const rise = () => (matchMedia("(max-width: 390px)").matches ? 4 : 8);
-
-function setBusy(el: HTMLElement, busy: boolean) {
-  el.toggleAttribute("inert", busy);
-  if (busy) el.setAttribute("aria-busy", "true");
-  else el.removeAttribute("aria-busy");
-}
 
 function glideLogo(from: DOMRect | null) {
   const logo = visibleLogo();
@@ -61,33 +48,6 @@ function glideLogo(from: DOMRect | null) {
   logo.animate([{ transform: `translate(${x}px, ${y}px)` }, { transform: "none" }], {
     duration: durationMs("--duration-base"),
     easing: motionToken("--ease-standard"),
-  });
-}
-
-function fadeAway(old: HTMLElement[]) {
-  if (old.some((el) => el.contains(document.activeElement))) document.querySelector("main")?.focus({ preventScroll: true });
-  for (const el of old) setBusy(el, true);
-  const exits = reducedMotion() ? [] : old.map((el) => fadeOut(el, { shorten: true }));
-  return Promise.all(exits.map((exit) => exit.finished)).then(() => true, () => false);
-}
-
-function arrive(motion: Motion) {
-  document.querySelector<HTMLElement>("main h1")?.focus({ preventScroll: true });
-  for (const el of regions(motion)) fadeIn(el, riseFrom(rise()));
-}
-
-export function fadeFormThrough(update: () => void) {
-  const old = regions("swap");
-  const leavingPage = old.some((el) => el.hasAttribute("inert"));
-  if (!old.length || leavingPage || !("animate" in Element.prototype)) return update();
-  fadeAway(old).then((ok) => {
-    if (!ok) return;
-    for (const el of old) {
-      for (const animation of el.getAnimations()) animation.cancel();
-      setBusy(el, false);
-    }
-    flushSync(update);
-    arrive("swap");
   });
 }
 
@@ -112,29 +72,24 @@ let leaving: Leaving | null = null;
 let copy: Copy | null = null;
 let arrival: Arrival | null = null;
 let arrivalPage: HTMLElement | null = null;
-const waiting = new Set<HTMLElement>();
 
 function wait(el: HTMLElement) {
-  waiting.add(el);
-  setBusy(el, true);
+  hold(el, "arrival");
   for (const animation of el.getAnimations()) animation.cancel();
   el.animate([{ opacity: 0 }, { opacity: 0 }], { duration: 0, fill: "forwards" });
 }
 
 function stopWaiting() {
-  for (const el of waiting) {
-    setBusy(el, false);
+  for (const el of heldBy("arrival")) {
+    letGo(el);
     for (const animation of el.getAnimations()) animation.cancel();
   }
-  waiting.clear();
 }
 
 function reveal(motion: Motion, logo: DOMRect | null) {
   for (const el of regions(motion)) {
-    waiting.delete(el);
-    setBusy(el, false);
     for (const animation of el.getAnimations()) animation.cancel();
-    fadeIn(el, riseFrom(rise()));
+    riseIn(el);
   }
   stopWaiting();
   if (motion === "whole-page") glideLogo(logo);
@@ -153,7 +108,7 @@ function pageLeft(page: CuePage, root: HTMLElement) {
     document.documentElement.removeAttribute("data-arrival");
   });
   if (page === "placeholder" || !LEADS_TO[page].pages.length || !("animate" in Element.prototype)) return;
-  if (waiting.has(root) || root.closest("[inert]") || root.querySelector("[inert]")) return;
+  if (motionInside(root)) return;
   leaving = { page, logo: visibleLogo()?.getBoundingClientRect() ?? null, parts: [{ el: root, rect: root.getBoundingClientRect(), opacity: getComputedStyle(root).opacity }] };
   queueMicrotask(keepLeavingPage);
 }
@@ -287,7 +242,7 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
     heldAt.current = null;
     for (const el of leaving.current) {
       for (const animation of el.getAnimations()) animation.cancel();
-      setBusy(el, false);
+      letGo(el);
     }
     leaving.current = [];
     const redirected = arriving.path !== pathname;
@@ -309,8 +264,7 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
       target.current = null;
       heldAt.current = null;
       for (const el of leaving.current) {
-        setBusy(el, false);
-        fadeIn(el, stopAtCurrentFrame(el));
+        showAgain(el, stopAtCurrentFrame(el));
       }
       leaving.current = [];
     }
@@ -319,7 +273,7 @@ export default function SiteMotion({ signedIn }: { signedIn: boolean }) {
       target.current = next;
       const old = regions(next.motion);
       leaving.current = old;
-      return fadeAway(old).then((ok) => {
+      return fadeAway(old, "leave").then((ok) => {
         if (!ok || target.current !== next) return false;
         logoFrom.current = next.motion === "whole-page" ? visibleLogo()?.getBoundingClientRect() ?? null : null;
         return true;

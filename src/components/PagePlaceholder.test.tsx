@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToString } from "react-dom/server";
 import { act, cleanup, render, screen } from "@testing-library/react";
+import { hold } from "@/lib/pageMotion";
 import { PageArrival, PagePlaceholder } from "./PagePlaceholder";
 
 type Running = { el: Element; keyframes: Keyframe[]; options: KeyframeAnimationOptions; finish: () => void; cancelled: boolean };
@@ -119,19 +120,22 @@ describe("page placeholder", () => {
     }
   });
 
-  it("leaves the motion to the sign-in handoff when it holds the page busy", () => {
-    render(<div aria-busy="true"><Page /></div>);
+  it("leaves the motion to the sign-in handoff when it holds the page", () => {
+    const held = document.body.appendChild(document.createElement("div"));
+    hold(held, "arrival");
+    render(<Page />, { container: held });
     expect(sectionArrivals()).toEqual([]);
     act(() => vi.advanceTimersToNextFrame());
     expect(screen.getByRole("status").textContent).toBe("This week loaded");
   });
 
-  it("leaves the sections the sign-in handoff holds busy to it, when the status line sits outside them", () => {
+  it("leaves the sections the sign-in handoff holds to it, when the status line sits outside them", () => {
+    const heldBySwap = (el: HTMLElement | null) => { if (el) hold(el, "swap"); };
     render(
       <div>
+        <div ref={heldBySwap}><section data-page-section>Set your target</section></div>
+        <aside ref={heldBySwap}><div data-page-section>Preview</div></aside>
         <PageArrival page="Onboarding" />
-        <div aria-busy="true"><section data-page-section>Set your target</section></div>
-        <aside aria-busy="true"><div data-page-section>Preview</div></aside>
       </div>,
     );
     expect(sectionArrivals()).toEqual([]);

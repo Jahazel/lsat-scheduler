@@ -1,6 +1,6 @@
 # Page motion
 
-Plain same-origin link clicks between the landing page `/` and the sign-in pages (`/signup`, `/login`, `/forgot-password`, `/reset-password`, `/verify-email`) fade the old page out and the new page in. Source: `src/components/SiteMotion.tsx`, with the shared pieces in `src/lib/motion.ts`. Progress has its own week-change motion; see [Progress](progress.md). Signed-in pages other than onboarding and This week (arriving from onboarding or Log in), and modifier clicks change with no motion. The first page after a Google sign-in (onboarding, This week, or Admin) fades in with a CSS animation (`page-arrive` in `src/app/globals.css`), keyed on `html[data-arrival]`.
+Plain same-origin link clicks between the landing page `/` and the sign-in pages (`/signup`, `/login`, `/forgot-password`, `/reset-password`, `/verify-email`) fade the old page out and the new page in. Source: `src/components/SiteMotion.tsx`. `src/lib/pageMotion.ts` decides which motion holds each region and runs the swaps, the Progress dim, and the section rise; `src/lib/motion.ts` holds the keyframe helpers. Progress has its own week-change motion; see [Progress](progress.md). Signed-in pages other than onboarding and This week (arriving from onboarding or Log in), and modifier clicks change with no motion. The first page after a Google sign-in (onboarding, This week, or Admin) fades in with a CSS animation (`page-arrive` in `src/app/globals.css`), keyed on `html[data-arrival]`.
 
 ## Sub-features
 

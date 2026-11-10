@@ -1148,7 +1148,7 @@ describe("OnboardingWizard · step slide", () => {
     expect(region.contains(screen.getByText("Step 3 of 4 · Analytics"))).toBe(false);
     expect(all[0].keyframes.at(-1)).toEqual({ opacity: 0, transform: "translateX(8px)" });
     expect(all[0].options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" });
-    expect(region.inert).toBe(true);
+    expect(region.hasAttribute("inert")).toBe(true);
     expect(region.getAttribute("aria-busy")).toBe("true");
     expect(screen.getByRole("heading", { name: "Add your 7Sage analytics" })).toBeDefined();
 
@@ -1157,7 +1157,7 @@ describe("OnboardingWizard · step slide", () => {
     expect(all.map((a) => a.el)).toEqual([region, region]);
     expect(all[1].keyframes).toEqual([{ opacity: 0, transform: "translateX(-8px)" }, { opacity: 1, transform: "none" }]);
     expect(all[1].options).toMatchObject({ duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" });
-    expect(region.inert).toBe(false);
+    expect(region.hasAttribute("inert")).toBe(false);
     expect(region.hasAttribute("aria-busy")).toBe(false);
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Plan your week" }));
   });

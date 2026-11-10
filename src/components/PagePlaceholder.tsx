@@ -1,10 +1,10 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { durationMs, motionToken, reducedMotion } from "@/lib/motion";
+import { durationMs, motionToken } from "@/lib/motion";
+import { arriveSections } from "@/lib/pageMotion";
 
 export const PLACEHOLDER_WAIT_MS = 150;
-const STAGGER_MS = 40;
 
 function fadeOutRemovedPlaceholder(placeholder: HTMLElement, at: DOMRect, opacity: string) {
   const layer = document.createElement("div");
@@ -53,23 +53,6 @@ export function PagePlaceholder({ wait = PLACEHOLDER_WAIT_MS, children }: { wait
       <span className="page-placeholder-sweep" />
     </div>
   );
-}
-
-const heldBusyByOtherMotion = (section: HTMLElement) => section.closest("[aria-busy]") !== null;
-
-export function arriveSections(page: Element) {
-  const sections = [...page.querySelectorAll<HTMLElement>("[data-page-section]")].filter((section) => !heldBusyByOtherMotion(section));
-  const still = reducedMotion();
-  const rise = matchMedia("(max-width: 767px)").matches ? 4 : 8;
-  return sections.map((section, index) => section.animate(
-    still ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: `translateY(${rise}px)` }, { opacity: 1, transform: "none" }],
-    {
-      duration: durationMs(still ? "--duration-fast" : "--duration-base"),
-      easing: motionToken("--ease-standard"),
-      delay: still ? 0 : index * STAGGER_MS,
-      fill: "backwards",
-    },
-  ));
 }
 
 const noChange = () => () => {};

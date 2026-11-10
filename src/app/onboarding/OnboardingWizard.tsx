@@ -9,7 +9,6 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { flushSync } from "react-dom";
 import { FailureNotice, LastFinishedReadNotice, catchLostConnection } from "@/components/FailureNotice";
 import { ScanningOffNote } from "@/components/ScanningOffNote";
 import { PageCue } from "@/components/SiteMotion";
@@ -48,7 +47,7 @@ import { SIGN_IN_EXPIRED, SignInAgainLink } from "@/components/SignInExpired";
 import { nextRead } from "@/lib/screenshotReadQueue";
 import { CONNECTION_LOST, SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, SCREENSHOT_NOTICE, checkScreenshotType, extractScreenshot } from "@/lib/screenshotUpload";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "@/lib/types";
-import { fadeIn, fadeOut, reducedMotion, slideFrom } from "@/lib/motion";
+import { slideStep } from "@/lib/pageMotion";
 import { isUnexpectedFailure } from "@/lib/unexpectedFailure";
 import { MAX_OFFICIAL_ATTEMPTS, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { createStudentProfile } from "./actions";
@@ -92,20 +91,9 @@ export default function OnboardingWizard({
   const stepRegion = useRef<HTMLDivElement>(null);
 
   function send(action: WizardAction) {
-    const el = stepRegion.current!;
     const changesStep = (action.type === "continue" || action.type === "back") && wizardReducer(state, action).step !== state.step;
-    if (!changesStep || !("animate" in Element.prototype)) return dispatch(action);
-    const x = action.type === "continue" ? STEP_SLIDE : -STEP_SLIDE;
-    const show = () => {
-      for (const animation of el.getAnimations()) animation.cancel();
-      el.inert = false;
-      flushSync(() => dispatch(action));
-      fadeIn(el, slideFrom(x));
-    };
-    if (reducedMotion()) return show();
-    if (el.contains(document.activeElement)) document.querySelector<HTMLElement>("main")?.focus({ preventScroll: true });
-    el.inert = true;
-    fadeOut(el, { x, shorten: true }).finished.then(() => el.isConnected && show(), () => {});
+    if (!changesStep) return dispatch(action);
+    slideStep(stepRegion.current!, action.type === "continue" ? STEP_SLIDE : -STEP_SLIDE, () => dispatch(action));
   }
 
   useEffect(() => {
