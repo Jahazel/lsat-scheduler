@@ -76,16 +76,15 @@ export function Unpacked(props: { onSend: (input: number) => Promise<StudySettin
   return null;
 }
 
-type Save = typeof saveStudySettings;
+export type Save = typeof saveStudySettings;
 export const pick: () => StudySettingsAnswer = () => null;
 
-export function Picker({ onPick, answer, save }: {
+export function Picker({ onPick, answer }: {
   onPick: (load: () => StudySettingsAnswer) => void;
   answer: Awaited<ReturnType<typeof saveStudySettings>>;
-  save: Save;
 }) {
   onPick(() => null);
-  return <p>{String(answer)}{String(save)}{String(pick)}</p>;
+  return <p>{String(answer)}{String(pick)}</p>;
 }
 `;
 
