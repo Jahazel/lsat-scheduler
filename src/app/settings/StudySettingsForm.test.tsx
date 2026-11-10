@@ -737,13 +737,25 @@ describe("Study settings leave guard", () => {
 
     it("signs out on Leave without the browser asking again as the signed-out page loads", async () => {
       renderSignedIn();
+      const askedAtUnload: boolean[] = [];
+      assign.mockImplementation(() => askedAtUnload.push(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)));
       await typeGoal("170");
       await userEvent.click(logOutItem());
       await userEvent.click(within(openDialog()!).getByRole("button", { name: "Leave" }));
 
       await vi.waitFor(() => expect(assign).toHaveBeenCalledWith("/?signedOut=1"));
       expect(logOut).toHaveBeenCalledTimes(1);
-      expect(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)).toBe(false);
+      expect(askedAtUnload).toEqual([false]);
+    });
+
+    it("asks again before the browser tab closes after a link leave, since a page change in the app unloads nothing", async () => {
+      renderSignedIn();
+      await typeGoal("170");
+      await userEvent.click(thisWeek());
+      await userEvent.click(within(openDialog()!).getByRole("button", { name: "Leave" }));
+
+      expect(navigated).toEqual(["/dashboard"]);
+      expect(leaveRequested(new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent)).toBe(true);
     });
 
     it("asks again before the browser tab closes when the sign-out after Leave fails", async () => {
