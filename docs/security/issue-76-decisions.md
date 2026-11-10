@@ -290,8 +290,8 @@ Each row is a square-bracket fill or a change from the October 19 text. A later 
 | Admins see name, email, weekly study time, and the saved weekly schedule with check-ins | The Admin student list and student page (`src/app/admin/`). The October text named only the weekly schedule. |
 | "Continue with Google" | The Google button label (`src/components/signIn/GoogleButton.tsx`). |
 | Stripe is the seller and payment processor; no card details reach DrillMap | [ADR 0007](../adr/0007-stripe-is-the-seller-of-record.md) and launch checklist J2. |
-| Billing record holds Stripe IDs, plan, Stripe status, dates, and whether the first charge succeeded, deleted with the Account | Payments spec [#680](https://github.com/Jahazel/lsat-scheduler/issues/680), "Data", and launch checklist J2. Built by [#684](https://github.com/Jahazel/lsat-scheduler/issues/684). |
-| One free week per email address in 12 months; used free week list holds an email hash and date, kept 12 months, survives Account deletion | Payments spec [#680](https://github.com/Jahazel/lsat-scheduler/issues/680), user stories 17 and 19 and "Data". The row is written by [#686](https://github.com/Jahazel/lsat-scheduler/issues/686); the 12-month cleanup is not built yet. |
+| Billing record holds Stripe IDs, plan, Stripe status, dates, and whether the first charge succeeded, deleted with the Account | Payments spec [#680](https://github.com/Jahazel/lsat-scheduler/issues/680), "Data", and launch checklist J2. The `billing_records` table, migration `0020_billing_records`, removed by the cascade from the Account. |
+| One free week per email address in 12 months; used free week list holds an email hash and date, kept 12 months, survives Account deletion | Payments spec [#680](https://github.com/Jahazel/lsat-scheduler/issues/680), user stories 17 and 19 and "Data". The `used_free_weeks` table holds `email_hash` and `used_on` (migration `0020_billing_records`); `prune_used_free_weeks()`, run by the daily job (`src/lib/dailyCleanup.ts`), removes rows older than 12 months. [#686](https://github.com/Jahazel/lsat-scheduler/issues/686) writes the row. |
 
 ## Approved AI disclosure text
 
