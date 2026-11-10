@@ -47,6 +47,19 @@ export function planStatus(role: string, record: BillingRecord | null, realNow: 
   return { kind: "paid", plan };
 }
 
+const PLAN_STATUS_LABELS: Record<PlanStatus["kind"], string> = {
+  admin: "Admin",
+  no_plan: "No plan",
+  free_week: "Free week",
+  paid: "Paid",
+  retrying: "Retrying",
+  lapsed: "Lapsed",
+};
+
+export function planStatusLabel(status: PlanStatus) {
+  return PLAN_STATUS_LABELS[status.kind];
+}
+
 export function mayStartWeeklyUpload(status: PlanStatus) {
   return status.kind !== "no_plan" && status.kind !== "lapsed";
 }
