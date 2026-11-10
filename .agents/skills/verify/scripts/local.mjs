@@ -247,7 +247,7 @@ if (command === "inspect") {
   const records = await postgres(async (db) => {
     const result = {};
     result.accounts = (await db.execute(sql`select id, email, name, role, simulated_date, disabled_at, session_version from accounts`)).rows;
-    for (const name of ["students", "analytics_snapshots", "practice_test_results", "weekly_schedules", "activity_check_ins", "action_counters"]) {
+    for (const name of ["students", "billing_records", "analytics_snapshots", "practice_test_results", "weekly_schedules", "activity_check_ins", "action_counters"]) {
       result[name] = (await db.execute(sql`select * from ${sql.identifier(name)}`)).rows;
     }
     return result;
@@ -274,6 +274,12 @@ if (command === "seed") {
     if (role === "admin") await getPostgresDatabase().execute(sql`update accounts set role = 'admin' where id = ${account.id}`);
     const onboarded = onboarding !== "--not-onboarded";
     if (onboarded && !(await createStudent(account.id, profile))) throw new Error(`No student saved for ${email}.`);
+    if (onboarded && role === "student") {
+      await getPostgresDatabase().execute(sql`
+        insert into billing_records (account_id, stripe_customer_id, stripe_subscription_id, plan, stripe_status, first_charge_succeeded)
+        values (${account.id}, ${`cus_verify_${account.id}`}, ${`sub_verify_${account.id}`}, 'weekly', 'active', true)
+      `);
+    }
     console.log(JSON.stringify({ email, role, accountId: account.id, onboarded }, null, 2));
   } finally { await closePostgresDatabase(); }
 }

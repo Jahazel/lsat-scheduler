@@ -81,7 +81,7 @@ type ScreenshotFailure =
 export type ExtractReply = { kind: "rows"; rows: AnalyticsExtractedRow[]; showsPassageTypes?: boolean } | ScreenshotFailure;
 export type SectionReply = { kind: "reading"; reading: SectionReading } | ScreenshotFailure;
 
-const REFUSED_FILE_STATUSES = [413, 415, 422];
+const REFUSED_FILE_STATUSES = [402, 413, 415, 422];
 
 async function postScreenshot(url: string, file: File, fields: Record<string, string> = {}): Promise<{ kind: "ok"; body: unknown } | ScreenshotFailure> {
   const upload = await shrinkForUpload(file);

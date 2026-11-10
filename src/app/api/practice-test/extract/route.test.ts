@@ -8,9 +8,11 @@ const mocks = vi.hoisted(() => ({
   extractor: vi.fn(),
   takeScanPlace: vi.fn(),
   freeScanPlace: vi.fn(),
+  loadAccountPlan: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
+vi.mock("@/lib/billingRepository", () => ({ loadAccountPlan: mocks.loadAccountPlan }));
 vi.mock("@/lib/scanPlaces", () => ({ takeScanPlace: mocks.takeScanPlace, freeScanPlace: mocks.freeScanPlace }));
 vi.mock("@/lib/screenshotExtractor", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/screenshotExtractor")>();
@@ -31,6 +33,7 @@ describe("POST /api/practice-test/extract", () => {
     mocks.freeScanPlace.mockReset().mockResolvedValue(undefined);
     mocks.takeScanPlace.mockReset().mockImplementation(async (subject: string, kind: string, startedAt: Date) => ({ subject, kind, startedAt }));
     mocks.auth.mockResolvedValue({ user: { id: "student-account", role: "student" } });
+    mocks.loadAccountPlan.mockReset().mockResolvedValue({ status: { kind: "paid", plan: "weekly" }, record: null });
     vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
   });
 
@@ -63,6 +66,17 @@ describe("POST /api/practice-test/extract", () => {
     const response = await POST(await imageRequest());
 
     expect(response.status).toBe(401);
+    expect(mocks.extractor).not.toHaveBeenCalled();
+  });
+
+  it.each(["lapsed", "no_plan"])("refuses a %s student with the plan refusal before reading the screenshot", async (kind) => {
+    mocks.loadAccountPlan.mockResolvedValue({ status: { kind }, record: null });
+    const { POST } = await import("./route");
+    const response = await POST(await imageRequest());
+
+    expect(response.status).toBe(402);
+    expect(await response.json()).toEqual({ error: "Pick a plan to get new weekly schedules." });
+    expect(mocks.takeScanPlace).not.toHaveBeenCalled();
     expect(mocks.extractor).not.toHaveBeenCalled();
   });
 
