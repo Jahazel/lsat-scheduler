@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { PLAN_PRICES, planPriceText } from "@/lib/planPrices";
 
 const CONTACT_EMAIL = "privacy@drillmap.xyz";
-const LINK = "text-ink underline underline-offset-3";
+const LINK_CLASS = "text-ink underline underline-offset-3";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -20,7 +20,7 @@ function List({ children }: { children: ReactNode }) {
 
 function ContactLink() {
   return (
-    <a href={`mailto:${CONTACT_EMAIL}`} className={LINK}>
+    <a href={`mailto:${CONTACT_EMAIL}`} className={LINK_CLASS}>
       {CONTACT_EMAIL}
     </a>
   );
@@ -28,7 +28,7 @@ function ContactLink() {
 
 function PrivacyLink() {
   return (
-    <Link href="/legal/privacy" className={LINK}>
+    <Link href="/legal/privacy" className={LINK_CLASS}>
       Privacy Policy
     </Link>
   );
@@ -67,14 +67,14 @@ export default function TermsPage() {
             <p>
               You pick a plan and add a card at the end of onboarding. Your plan starts with a free week. The free week
               runs from the end of onboarding to the Sunday that closes your first full Monday–Sunday week, so it lasts 7
-              to 13 days. Your first charge is on the Monday after your free week ends. Each email address gets one free
-              week in any 12 months. If your email address had a free week in the last 12 months, your plan starts and
-              charges you on the day you pick it.
+              to 13 days. Your first charge is on the Monday after your free week ends. You get one free week. You get no
+              free week if you had a plan before, or if your email address had a free week in the last 12 months. Then
+              your plan starts and charges you on the day you pick it.
             </p>
             <p>
               Your plan renews on its own at the end of each week or month until you cancel. Each renewal charges your
-              card the plan&rsquo;s price at that time. If we change a price, we tell you by email before the change
-              applies to you.
+              card the plan&rsquo;s price at that time. If we change a price, we tell you before the change applies to
+              you.
             </p>
             <p>
               Stripe is the seller of record. Stripe takes your payment, collects sales tax, and sends your receipts. Your
@@ -83,7 +83,7 @@ export default function TermsPage() {
             <p>
               If a renewal payment fails, Stripe tries your card again. You keep access for up to 7 days while it tries. If
               your first charge fails, or a renewal still fails after 7 days, your plan ends. You can still sign in and read
-              your past weekly schedules and Progress, but you get no new weekly schedule until you pay for a plan again.
+              This week and Progress, but you get no new weekly schedule until you pay for a plan again.
             </p>
           </Section>
 
@@ -93,7 +93,7 @@ export default function TermsPage() {
                 You can cancel at any time on the Stripe Customer Portal. The Account page links to it. You do not need to
                 email or call us.
               </li>
-              <li>If you cancel during the free week, you pay nothing.</li>
+              <li>If you cancel during the free week, you pay nothing. You keep access until the free week ends.</li>
               <li>If you cancel after a payment, you keep access until the end of the week or month you paid for.</li>
               <li>We do not give refunds for unused time.</li>
               <li>You can switch between Weekly and Monthly on the Stripe Customer Portal. The switch starts at your next renewal.</li>
@@ -102,7 +102,7 @@ export default function TermsPage() {
 
           <Section title="No score guarantee">
             <p>
-              DrillMap makes a weekly study schedule from your study settings and the numbers you approve. DrillMap does not
+              DrillMap makes a weekly study schedule from your study settings and the numbers you confirm. DrillMap does not
               promise any LSAT score or result. Your result depends on your own study and on many things we do not
               control. DrillMap is a study tool. It is not tutoring, and it is not professional advice.
             </p>
@@ -113,7 +113,7 @@ export default function TermsPage() {
               DrillMap uses AI to read the numbers in the 7Sage screenshots you upload. AI can misread a number. You must
               check the numbers AI reads and correct any that are wrong before you confirm them. Your weekly schedule uses
               the numbers you confirm. See{" "}
-              <Link href="/legal/ai-disclosure" className={LINK}>
+              <Link href="/legal/ai-disclosure" className={LINK_CLASS}>
                 How DrillMap uses AI
               </Link>{" "}
               for more.

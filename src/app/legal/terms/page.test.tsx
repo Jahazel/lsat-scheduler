@@ -70,8 +70,10 @@ describe("Terms page", () => {
       "The free week runs from the end of onboarding to the Sunday that closes your first full Monday–Sunday week, so it lasts 7 to 13 days.",
     );
     expect(text).toContain("Your first charge is on the Monday after your free week ends.");
-    expect(text).toContain("Each email address gets one free week in any 12 months.");
-    expect(text).toContain("If you cancel during the free week, you pay nothing.");
+    expect(text).toContain(
+      "You get no free week if you had a plan before, or if your email address had a free week in the last 12 months.",
+    );
+    expect(text).toContain("If you cancel during the free week, you pay nothing. You keep access until the free week ends.");
     expect(text).toContain("You can cancel at any time on the Stripe Customer Portal.");
     expect(text).toContain("We do not give refunds for unused time.");
     expect(text).toContain("Stripe is the seller of record.");
@@ -84,7 +86,7 @@ describe("Terms page", () => {
     expect(text).toContain("DrillMap is not affiliated with, endorsed by, or sponsored by 7Sage or LSAC.");
   });
 
-  it("matches the Privacy Policy on Account deletion", () => {
+  it("states Account deletion and its effect on a plan", () => {
     const text = pageText();
     expect(text).toContain("You can delete your Account on the Account page.");
     expect(text).toContain("If you have a plan, it ends at once. We do not refund unused time.");
@@ -93,10 +95,9 @@ describe("Terms page", () => {
   it("links the AI page, the Privacy Policy, and the contact mailbox", () => {
     render(<TermsPage />);
     expect(screen.getByRole("link", { name: "How DrillMap uses AI" }).getAttribute("href")).toBe("/legal/ai-disclosure");
-    expect(screen.getAllByRole("link", { name: "Privacy Policy" })[0].getAttribute("href")).toBe("/legal/privacy");
-    expect(screen.getAllByRole("link", { name: "privacy@drillmap.xyz" })[0].getAttribute("href")).toBe(
-      "mailto:privacy@drillmap.xyz",
-    );
+    const hrefs = (name: string) => screen.getAllByRole("link", { name }).map((link) => link.getAttribute("href"));
+    expect(new Set(hrefs("Privacy Policy"))).toEqual(new Set(["/legal/privacy"]));
+    expect(new Set(hrefs("privacy@drillmap.xyz"))).toEqual(new Set(["mailto:privacy@drillmap.xyz"]));
   });
 
   it("marks the governing state as the only open gap", () => {
