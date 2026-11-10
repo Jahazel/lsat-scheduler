@@ -6,7 +6,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 
 const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), pathname: "/" }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push, replace: mocks.replace }), usePathname: () => mocks.pathname }));
-import { fadeFormThrough } from "@/lib/pageMotion";
+import { fadeFormThrough, slideStep } from "@/lib/pageMotion";
 import SiteMotion, { PageCue } from "./SiteMotion";
 
 type Live = { el: Element; keyframes: Keyframe[]; options: KeyframeAnimationOptions; finish: () => void };
@@ -31,12 +31,12 @@ const TOP_BAR_LOGO = new DOMRect(48, 20, 80, 24);
 const SIGN_IN_LOGO = new DOMRect(120, 32, 80, 24);
 const ROUTER_ENTRY = { __NA: true };
 let reduced = false;
-let phone = false;
+let width = 1280;
 
 beforeEach(() => {
   vi.clearAllMocks();
   reduced = false;
-  phone = false;
+  width = 1280;
   live = [];
   calls = [];
   const tokens = document.documentElement.style;
@@ -54,7 +54,10 @@ beforeEach(() => {
     if (!this.closest("[data-sign-in-page]")) return TOP_BAR_LOGO;
     return new DOMRect(SIGN_IN_LOGO.x, SIGN_IN_LOGO.y - window.scrollY, SIGN_IN_LOGO.width, SIGN_IN_LOGO.height);
   };
-  window.matchMedia = ((query: string) => ({ matches: (reduced && query.includes("reduce")) || (phone && query.includes("390px")) })) as typeof window.matchMedia;
+  window.matchMedia = ((query: string) => {
+    const maxWidth = /max-width: (\d+)px/.exec(query)?.[1];
+    return { matches: (reduced && query.includes("reduce")) || (maxWidth !== undefined && width <= Number(maxWidth)) };
+  }) as typeof window.matchMedia;
   window.scrollTo = vi.fn(({ top }: ScrollToOptions) => { window.scrollY = top ?? 0; }) as unknown as typeof window.scrollTo;
   window.scrollY = 0;
   Element.prototype.scrollIntoView = vi.fn();
@@ -190,8 +193,8 @@ describe("SiteMotion", () => {
     expect(glides()[0].keyframes.some((frame) => "opacity" in frame)).toBe(false);
   });
 
-  it("rises 4 px at phone width, and the sign-in logo takes the reverse path to the landing page", async () => {
-    phone = true;
+  it("rises 4 px on a 600 px phone, and the sign-in logo takes the reverse path to the landing page", async () => {
+    width = 600;
     const { rerender } = show("/login")!;
     await click("DrillMap");
     finishExits();
@@ -836,6 +839,28 @@ describe("SiteMotion", () => {
       at("/dashboard/upload", <ThisWeek />, rerender);
       expect(fadeOuts()).toHaveLength(1);
       await finishCopy();
+      expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar", "This week page"]);
+      expect(document.activeElement).toBe(screen.getByRole("heading", { name: "This week" }));
+    });
+
+    it("fades onboarding through to This week when Skip for now lands during a step slide, with the step still where the slide left it", async () => {
+      const { rerender } = at("/onboarding", <Onboarding />)!;
+      const step = region("Step");
+      const nextStep = vi.fn();
+      slideStep(step, 8, nextStep);
+      Object.assign(step.style, { opacity: "0.4", transform: "translateX(-5px)" });
+
+      at("/dashboard", <Pending />, rerender);
+      await settle();
+      expect(copy()?.contains(step)).toBe(true);
+      expect(step.getAnimations()).toHaveLength(0);
+      expect(step.style).toMatchObject({ opacity: "0.4", transform: "translateX(-5px)" });
+      expect(step.hasAttribute("inert") || step.hasAttribute("aria-busy")).toBe(false);
+
+      at("/dashboard/upload", <ThisWeek />, rerender);
+      expect(fadeOuts().filter((a) => a.el.parentElement === copy())).toHaveLength(1);
+      await finishCopy();
+      expect(nextStep).not.toHaveBeenCalled();
       expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar", "This week page"]);
       expect(document.activeElement).toBe(screen.getByRole("heading", { name: "This week" }));
     });
