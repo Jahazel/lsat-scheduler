@@ -13,6 +13,7 @@ describe("Privacy page", () => {
       "What DrillMap stores",
       "Who can see your data",
       "Your 7Sage screenshots",
+      "Payments",
       "Companies that handle your data for us",
       "Security records",
       "How long we keep data",
@@ -25,7 +26,7 @@ describe("Privacy page", () => {
   it("states the release-day facts", () => {
     const { container } = render(<PrivacyPage />);
     const text = container.textContent ?? "";
-    expect(text).toContain("Last updated: November 8, 2026");
+    expect(text).toContain("Last updated: November 10, 2026");
     expect(text).toContain("We keep daily database backups for 14 days.");
     expect(text).toContain("After a restore, we delete again every Account that was deleted before.");
     expect(text).toContain("We delete these records after 90 days.");
@@ -33,6 +34,17 @@ describe("Privacy page", () => {
     expect(text).toContain("If you do not sign in for 2 years, we email you, and we delete your Account 30 days later.");
     expect(text).toContain("You must have signed in within the last 10 minutes.");
     expect(text).toContain("Google handles sign-in if you choose “Continue with Google.”");
+  });
+
+  it("names Stripe as the seller and payment processor, and the used free week list with its 12-month limit", () => {
+    const { container } = render(<PrivacyPage />);
+    const text = container.textContent ?? "";
+    expect(text).toContain("Stripe sells your plan and takes your payment. Stripe is the seller");
+    expect(text).toContain("Stripe sells plans and takes payments, as described above.");
+    expect(text).toContain("Each email address gets one free week in 12 months.");
+    expect(text).toContain("we save a scrambled form (hash) of your email address and the date in the used free week list.");
+    expect(text).toContain("We keep each row for 12 months, even if you delete your Account, and then delete it.");
+    expect(text).toContain("Used free week list: 12 months from the day your free week starts.");
   });
 
   it("links the privacy contact mailbox", () => {
