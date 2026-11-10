@@ -5,9 +5,11 @@ export const NO_CONNECTION_MESSAGE = "No connection. Check your signal and try a
 export type FailureCode = string & { readonly __brand: "FailureCode" };
 
 export const NO_CONNECTION = "no-connection";
+/** The server answered in a way the app cannot read, so no security log entry names the failure. */
+export const NOT_LOGGED = "not-logged";
 
 /** What a Server Action answers when it fails unexpectedly. Planned refusals never use this key. */
-export type UnexpectedFailure = { unexpectedFailure: FailureCode | typeof NO_CONNECTION };
+export type UnexpectedFailure = { unexpectedFailure: FailureCode | typeof NO_CONNECTION | typeof NOT_LOGGED };
 
 export type Answer<T> = T | UnexpectedFailure;
 
@@ -20,8 +22,5 @@ export function isFailureCode(value: unknown): value is FailureCode {
 
 export function isUnexpectedFailure(value: unknown): value is UnexpectedFailure {
   return typeof value === "object" && value !== null && "unexpectedFailure" in value
-    && (isFailureCode(value.unexpectedFailure) || value.unexpectedFailure === NO_CONNECTION);
+    && (isFailureCode(value.unexpectedFailure) || value.unexpectedFailure === NO_CONNECTION || value.unexpectedFailure === NOT_LOGGED);
 }
-
-export const failureText = ({ unexpectedFailure }: UnexpectedFailure) =>
-  `${UNEXPECTED_FAILURE_MESSAGE} Error code: ${unexpectedFailure}`;

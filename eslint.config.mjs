@@ -18,27 +18,67 @@ const handedToAdapter = ({ parent }) =>
   || (parent.type === "JSXExpressionContainer" && parent.parent.type === "JSXAttribute" && parent.parent.name.name === "action"
     && ["ActionForm", "SignOutForm"].includes(parent.parent.parent.name.name));
 
+const handedToComponent = ({ parent }) =>
+  parent.type === "JSXExpressionContainer" && parent.parent.type === "JSXAttribute"
+  && parent.parent.parent.name.type === "JSXIdentifier" && /^[A-Z]/.test(parent.parent.parent.name.name);
+
+function actionPropName({ identifier }) {
+  let signature = identifier.parent;
+  while (signature && signature.type !== "TSPropertySignature") signature = signature.parent;
+  if (signature?.key.type !== "Identifier") return null;
+  const type = signature.typeAnnotation.typeAnnotation;
+  const shapes = type.type === "TSUnionType" ? type.types : [type];
+  const isAction = (shape) => (shape.type === "TSTypeQuery" && shape === identifier.parent)
+    || (shape.type === "TSFunctionType" && identifier.range[0] >= shape.returnType.range[0] && identifier.range[1] <= shape.returnType.range[1]);
+  return shapes.some(isAction) ? signature.key.name : null;
+}
+
+const destructuredKey = ({ parent }) => {
+  const property = parent.type === "AssignmentPattern" ? parent.parent : parent;
+  return property.type === "Property" && property.parent.type === "ObjectPattern" && property.key.type === "Identifier" ? property.key.name : null;
+};
+
 const callActionsThroughAdapter = {
   meta: {
     type: "problem",
     schema: [],
     messages: {
       direct: "Call a Server Action through callAction(action) from @/lib/callAction, or hand it to ActionForm or SignOutForm as `action`, so a lost connection shows the Failure toast and a sign-out leaves the page.",
+      directProp: "Call a Server Action prop through callAction(prop) from @/lib/callAction, or pass it on to a component, so a lost connection shows the Failure toast and a sign-out leaves the page.",
     },
   },
   create(context) {
+    const actionProps = new Set();
+    const handedOn = (node) => handedToAdapter(node) || handedToComponent(node);
     return {
       Program(program) {
         if (!program.body.some((statement) => statement.directive === "use client")) return;
         for (const statement of program.body) {
-          if (statement.type !== "ImportDeclaration" || statement.importKind === "type" || !/(^|\/)actions$/.test(statement.source.value)) continue;
+          if (statement.type !== "ImportDeclaration" || !/(^|\/)actions$/.test(statement.source.value)) continue;
           for (const variable of context.sourceCode.getDeclaredVariables(statement)) {
             for (const reference of variable.references) {
-              if (reference.isValueReference && !handedToAdapter(reference.identifier)) {
+              const prop = actionPropName(reference);
+              if (prop) actionProps.add(prop);
+              else if (reference.isValueReference && statement.importKind !== "type" && !handedToAdapter(reference.identifier)) {
                 context.report({ node: reference.identifier, messageId: "direct" });
               }
             }
           }
+        }
+        for (const scope of context.sourceCode.scopeManager.scopes) {
+          for (const variable of scope.variables) {
+            if (!variable.defs.some((def) => actionProps.has(destructuredKey(def.name)))) continue;
+            for (const reference of variable.references) {
+              if (reference.isRead() && reference.identifier.parent.type !== "TSTypeQuery" && !handedOn(reference.identifier)) {
+                context.report({ node: reference.identifier, messageId: "directProp" });
+              }
+            }
+          }
+        }
+      },
+      MemberExpression(node) {
+        if (!node.computed && node.property.type === "Identifier" && actionProps.has(node.property.name) && !handedOn(node)) {
+          context.report({ node: node.property, messageId: "directProp" });
         }
       },
     };

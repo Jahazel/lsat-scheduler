@@ -173,7 +173,7 @@ _Avoid_: inactive, expired, locked
 ### Failures
 
 **Unexpected failure**:
-A server step that broke in a way the app did not plan for. The student is told "Something went wrong. Try again." with an error code.
+A server step that broke in a way the app did not plan for. The student is told "Something went wrong. Try again." with an error code. The error code is left out only when no security log entry exists (see Failure toast).
 _Avoid_: error, crash
 
 **Planned refusal**:
@@ -187,6 +187,7 @@ _Avoid_: error ID, reference number
 **Failure toast**:
 The floating notice that shows an unexpected failure and its error code over the current screen.
 When the request never reached the server, it shows "No connection. Check your signal and try again." with no error code, because no security log entry exists.
+When the server answered in a way the app cannot read, it shows "Something went wrong. Try again." with no error code, for the same reason.
 _Avoid_: error banner, error message, failure notice
 
 ### Capacity

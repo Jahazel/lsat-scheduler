@@ -401,7 +401,7 @@ function AnalyticsStep({
         </p>
         <p role="status" className="text-center text-small text-smoke">
           {state.save === "failed"
-            ? "We couldn't save your plan. Check your connection and press Skip for now again."
+            ? "We couldn't save your plan. Press Skip for now again."
             : typeof state.save === "object" && state.save.refused}
         </p>
       </div>
@@ -740,7 +740,7 @@ function ReviewStep({
   const note = saving
     ? "Saving your plan. This takes a few seconds."
     : state.save === "failed"
-      ? "We couldn't save your plan. Check your connection and press Confirm snapshot again."
+      ? "We couldn't save your plan. Press Confirm snapshot again."
       : typeof state.save === "object" ? state.save.refused : reason ?? (typed && "Your first weekly schedule uses these values like a scan.");
 
   return (

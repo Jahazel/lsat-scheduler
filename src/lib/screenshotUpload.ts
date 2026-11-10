@@ -2,7 +2,7 @@ import { callAction } from "./callAction";
 import type { SectionReading } from "./practiceTestResult";
 import type { ScanRefusal } from "./scanPlaces";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "./types";
-import { isUnexpectedFailure, type UnexpectedFailure } from "./unexpectedFailure";
+import { isUnexpectedFailure, NOT_LOGGED, type UnexpectedFailure } from "./unexpectedFailure";
 
 export const SCREENSHOT_MEDIA_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 export type ScreenshotMediaType = (typeof SCREENSHOT_MEDIA_TYPES)[number];
@@ -89,26 +89,40 @@ async function postScreenshot(url: string, file: File, fields: Record<string, st
   const formData = new FormData();
   formData.append("image", upload);
   for (const [name, value] of Object.entries(fields)) formData.append(name, value);
+  let res: Response;
   try {
-    const res = await callAction(fetch)(url, { method: "POST", body: formData });
-    if (isUnexpectedFailure(res)) return { kind: "connection-lost" };
-    if (REFUSED_FILE_STATUSES.includes(res.status)) return { kind: "rejected", message: (await res.json()).error };
-    if (res.status === 429) {
-      const { error, reason } = await res.json();
-      return { kind: "refused", refused: reason, message: error };
-    }
-    if (res.status === 401) return { kind: "signed-out" };
-    if (res.status === 502) return { kind: "cannot-read" };
-    if (res.status === 504) return { kind: "timed-out" };
-    if (res.status === 500) {
-      const failure = { unexpectedFailure: (await res.json()).code };
-      return isUnexpectedFailure(failure) ? { kind: "failed", failure } : { kind: "connection-lost" };
-    }
-    if (!res.ok) return { kind: "connection-lost" };
-    return { kind: "ok", body: await res.json() };
+    const answer = await callAction(fetch)(url, { method: "POST", body: formData });
+    if (isUnexpectedFailure(answer)) return { kind: "connection-lost" };
+    res = answer;
   } catch {
     return { kind: "connection-lost" };
   }
+  try {
+    return await readReply(res);
+  } catch {
+    return unexpectedReply();
+  }
+}
+
+async function readReply(res: Response): Promise<{ kind: "ok"; body: unknown } | ScreenshotFailure> {
+  if (REFUSED_FILE_STATUSES.includes(res.status)) return { kind: "rejected", message: (await res.json()).error };
+  if (res.status === 429) {
+    const { error, reason } = await res.json();
+    return { kind: "refused", refused: reason, message: error };
+  }
+  if (res.status === 401) return { kind: "signed-out" };
+  if (res.status === 502) return { kind: "cannot-read" };
+  if (res.status === 504) return { kind: "timed-out" };
+  if (res.status === 500) {
+    const failure = { unexpectedFailure: (await res.json()).code };
+    return isUnexpectedFailure(failure) ? { kind: "failed", failure } : unexpectedReply();
+  }
+  if (!res.ok) return unexpectedReply();
+  return { kind: "ok", body: await res.json() };
+}
+
+function unexpectedReply(): ScreenshotFailure {
+  return { kind: "failed", failure: { unexpectedFailure: NOT_LOGGED } };
 }
 
 export async function extractScreenshot(file: File, section: AnalyticsSection): Promise<ExtractReply> {
