@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { startTransition, useActionState, useEffect, useState, type FormEvent } from "react";
 import { ActionForm, FailureNotice, catchLostConnection } from "@/components/FailureNotice";
-import { fadeFormThrough } from "@/components/SiteMotion";
+import { fadeFormThrough } from "@/lib/pageMotion";
 import { GoogleButton } from "@/components/signIn/GoogleButton";
 import { OrWithEmail, SubmitButton } from "@/components/signIn/PasswordFormParts";
 import { SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";

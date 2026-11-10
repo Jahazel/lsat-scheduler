@@ -18,9 +18,8 @@ export function stopAtCurrentFrame(el: HTMLElement): Keyframe {
 export const slideFrom = (x: number, opacity = 0): Keyframe => ({ opacity, transform: `translateX(${x}px)` });
 export const riseFrom = (y: number, opacity = 0): Keyframe => ({ opacity, transform: `translateY(${y}px)` });
 
-// Starts from the current frame, so a second change continues instead of jumping. The content stays busy until fadeIn.
+// Starts from the current frame, so a second change continues instead of jumping.
 export function fadeOut(el: HTMLElement, { to = 0, x = 0, shorten = false }: { to?: number; x?: number; shorten?: boolean } = {}) {
-  el.setAttribute("aria-busy", "true");
   const from = stopAtCurrentFrame(el);
   const distance = Math.abs(Number(from.opacity) - to);
   const left = !shorten ? 1 : distance === 0 ? 0 : Math.min(1, distance / Math.max(0, 1 - to));
@@ -33,7 +32,6 @@ export function fadeOut(el: HTMLElement, { to = 0, x = 0, shorten = false }: { t
 
 // Reduced motion keeps only the opacity of `from`.
 export function fadeIn(el: HTMLElement, from: Keyframe = { opacity: 0 }) {
-  el.removeAttribute("aria-busy");
   if (reducedMotion()) return el.animate([{ opacity: from.opacity }, { opacity: 1 }], { duration: durationMs("--duration-fast"), easing: motionToken("--ease-standard") });
   return el.animate([from, { opacity: 1, transform: "none" }], { duration: durationMs("--duration-base"), easing: motionToken("--ease-standard") });
 }

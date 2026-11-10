@@ -6,7 +6,8 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 
 const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), pathname: "/" }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push, replace: mocks.replace }), usePathname: () => mocks.pathname }));
-import SiteMotion, { PageCue, fadeFormThrough } from "./SiteMotion";
+import { fadeFormThrough } from "@/lib/pageMotion";
+import SiteMotion, { PageCue } from "./SiteMotion";
 
 type Live = { el: Element; keyframes: Keyframe[]; options: KeyframeAnimationOptions; finish: () => void };
 let live: Live[] = [];

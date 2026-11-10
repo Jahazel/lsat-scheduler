@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import { PLACEHOLDER_WAIT_MS, PageArrival, PagePlaceholder, arriveSections } from "@/components/PagePlaceholder";
-import { fadeIn, fadeOut, isPlainClick, reducedMotion, slideFrom, stopAtCurrentFrame } from "@/lib/motion";
+import { PLACEHOLDER_WAIT_MS, PageArrival, PagePlaceholder } from "@/components/PagePlaceholder";
+import { isPlainClick, reducedMotion, slideFrom, stopAtCurrentFrame } from "@/lib/motion";
+import { dim, handOff, showAgain } from "@/lib/pageMotion";
 import { ListShapes, WeekShapes } from "./ProgressPlaceholder";
 
 const SLIDE = 8;
@@ -46,8 +47,8 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     const from = shown.current ?? null;
     if (from === null) listScroll.current = scrollY;
     // Next keeps the old page on screen until a same-route navigation's page arrives, so it dims instead of fading out.
-    if (reducedMotion()) fadeOut(el, { to: DIMMED });
-    else return fadeOut(el, { to: DIMMED, x: slideBetween(from, to) });
+    if (reducedMotion()) dim(el, { to: DIMMED });
+    else return dim(el, { to: DIMMED, x: slideBetween(from, to) });
   }
 
   function showPlaceholderIfSlow(to: WeekOrList) {
@@ -72,7 +73,7 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     target.current = null;
     if (endPlaceholder()) scrollTo(0, scrollUnderPlaceholder.current);
     const el = pageArea.current!;
-    fadeIn(el, stopAtCurrentFrame(el));
+    showAgain(el, stopAtCurrentFrame(el));
   }, [endPlaceholder]);
 
   const pageShown = useCallback((to: WeekOrList, requested: string | null, page: HTMLElement) => {
@@ -84,15 +85,10 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
     const tookOver = endPlaceholder();
 
     const el = pageArea.current!;
-    const handOff = () => {
-      for (const animation of el.getAnimations()) animation.cancel();
-      el.removeAttribute("aria-busy");
-      arriveSections(page);
-    };
     // Back to an unknown-week bookmark dimmed a list that comes back unchanged.
     if (from === to) {
-      if (tookOver) handOff();
-      else if (el.getAnimations().some((animation) => animation.effect?.getTiming().fill === "forwards")) fadeIn(el, stopAtCurrentFrame(el));
+      if (tookOver) handOff(el, page);
+      else if (el.getAnimations().some((animation) => animation.effect?.getTiming().fill === "forwards")) showAgain(el, stopAtCurrentFrame(el));
       return;
     }
     for (const animation of el.getAnimations()) animation.cancel();
@@ -104,8 +100,8 @@ export default function ProgressMotion({ children }: { children: ReactNode }) {
       scrollTo(0, 0);
       page.querySelector("h1")?.focus({ preventScroll: true });
     }
-    if (tookOver) handOff();
-    else fadeIn(el, slideFrom(slideBetween(from, to), DIMMED));
+    if (tookOver) handOff(el, page);
+    else showAgain(el, slideFrom(slideBetween(from, to), DIMMED));
   }, [endPlaceholder]);
 
   useLayoutEffect(() => function showFirstPageWithoutMotionWhenRemounted() {

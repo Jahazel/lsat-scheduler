@@ -19,10 +19,9 @@ beforeEach(() => {
 });
 
 describe("page motion", () => {
-  it("fades out with the fast duration and exit easing, sliding sideways and marking the content busy", () => {
+  it("fades out with the fast duration and exit easing, sliding sideways", () => {
     const el = document.createElement("div");
     fadeOut(el, { x: 8 });
-    expect(el.getAttribute("aria-busy")).toBe("true");
     expect(animate.mock.calls[0]).toEqual([
       [expect.anything(), { opacity: 0, transform: "translateX(-8px)" }],
       { duration: 120, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" },
@@ -31,10 +30,8 @@ describe("page motion", () => {
 
   it("fades in with the base duration and standard easing from a rise or a slide", () => {
     const el = document.createElement("div");
-    el.setAttribute("aria-busy", "true");
     fadeIn(el, riseFrom(4));
     fadeIn(el, slideFrom(-8));
-    expect(el.hasAttribute("aria-busy")).toBe(false);
     const timing = { duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" };
     expect(animate.mock.calls[0]).toEqual([[{ opacity: 0, transform: "translateY(4px)" }, { opacity: 1, transform: "none" }], timing]);
     expect(animate.mock.calls[1]).toEqual([[{ opacity: 0, transform: "translateX(-8px)" }, { opacity: 1, transform: "none" }], timing]);
