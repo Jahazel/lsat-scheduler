@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToString } from "react-dom/server";
 
 const requestPasswordReset = vi.hoisted(() => vi.fn());
 vi.mock("./actions", () => ({ requestPasswordReset }));
@@ -38,11 +39,23 @@ describe("Forgot password", () => {
     await userEvent.click(screen.getByRole("button", { name: "Send reset link" }));
     expect((await screen.findByRole("alert")).textContent).toContain("Error code 3f9a01c2");
 
-    await userEvent.clear(screen.getByLabelText("Email"));
-    await userEvent.type(screen.getByLabelText("Email"), "maya.chen@fastmail.com");
     await userEvent.click(screen.getByRole("button", { name: "Send reset link" }));
     expect(await screen.findByRole("heading", { name: "Check your email" })).toBeTruthy();
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
+  it("keeps the typed email when the send never reaches the server", async () => {
+    requestPasswordReset.mockRejectedValue(new TypeError("Failed to fetch"));
+    render(<ForgotPasswordPage />, { wrapper: FailureToastProvider });
+    await userEvent.type(screen.getByLabelText("Email"), "maya.chen@fastmail.com");
+    await userEvent.click(screen.getByRole("button", { name: "Send reset link" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain("connection");
+    expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe("maya.chen@fastmail.com");
+  });
+
+  it("renders a form that a submit before the page loads cannot send as a plain GET", () => {
+    expect(renderToString(<ForgotPasswordPage />)).toMatch(/<form[^>]* action="javascript:/);
   });
 
   it("shows the email error under the field", async () => {
