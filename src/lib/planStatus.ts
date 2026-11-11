@@ -73,9 +73,7 @@ export function isHeldWeek(record: BillingRecord | null, weekStartDate: string) 
 }
 
 export function freeWeekEnd(onboardingFinishedAt: Date) {
-  const today = localDateInTimezone(onboardingFinishedAt, SCHEDULE_TIMEZONE);
-  const monday = currentWeekInTimezone(onboardingFinishedAt, SCHEDULE_TIMEZONE);
-  const firstFullWeek = today === monday ? monday : isoDateInWeek(monday, 7);
+  const firstFullWeek = isoDateInWeek(currentWeekInTimezone(onboardingFinishedAt, SCHEDULE_TIMEZONE), 7);
   return midnightInScheduleTimezone(isoDateInWeek(firstFullWeek, 7));
 }
 
@@ -89,7 +87,7 @@ function offsetMs(at: number) {
   return sign * (Number(match[2]) * 60 + Number(match[3])) * 60_000;
 }
 
-function midnightInScheduleTimezone(isoDate: string) {
+export function midnightInScheduleTimezone(isoDate: string) {
   const wall = Date.parse(`${isoDate}T00:00:00.000Z`);
   const guess = wall - offsetMs(wall);
   return new Date(wall - offsetMs(guess));

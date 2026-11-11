@@ -63,6 +63,12 @@ const TOAST_TEXT = "Something went wrong. Try again.Error code 3f9a01c2";
 const bySection = (lr: ExtractReply = rows, rc: ExtractReply = rcRows) =>
   vi.fn<Extract>(async (_file, section) => (section === "LR" ? lr : rc));
 
+it("counts four steps for an admin, who skips plan choice", () => {
+  render(<OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} withPlanStep={false} onSave={vi.fn()} />);
+
+  expect(screen.getByText("Step 1 of 4 · Goal")).toBeDefined();
+});
+
 async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract = bySection()) {
   const user = userEvent.setup();
   render(
@@ -70,7 +76,7 @@ async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract 
     { wrapper: FailureToastProvider },
   );
 
-  expect(screen.getByText("Step 1 of 4 · Goal")).toBeDefined();
+  expect(screen.getByText("Step 1 of 5 · Goal")).toBeDefined();
   expect(continueButton().disabled).toBe(true);
   await user.type(screen.getByLabelText("Current PT score"), "150");
   await user.type(screen.getByLabelText("Goal score"), "148");
@@ -82,7 +88,7 @@ async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract 
   await user.click(screen.getByLabelText("1.5× time"));
   await user.click(continueButton());
 
-  expect(screen.getByText("Step 2 of 4 · Week")).toBeDefined();
+  expect(screen.getByText("Step 2 of 5 · Week")).toBeDefined();
   expect(continueButton().disabled).toBe(true);
   expect(screen.getByText("Pick a practice-test day to continue.")).toBeDefined();
   await user.selectOptions(screen.getByLabelText("All days hours"), "2");
@@ -99,7 +105,7 @@ async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract 
   expect(screen.queryByRole("status")).toBeNull();
   await user.click(continueButton());
 
-  expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();
+  expect(screen.getByText("Step 3 of 5 · Analytics")).toBeDefined();
   return { user, onSave, extract };
 }
 
@@ -259,7 +265,7 @@ describe("OnboardingWizard", () => {
 
     await user.click(screen.getByRole("button", { name: "Skip for now" }));
     expect((await screen.findByRole("alert")).textContent).toBe("No connection. Check your signal and try again.");
-    expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();
+    expect(screen.getByText("Step 3 of 5 · Analytics")).toBeDefined();
     expect(screen.queryByText(/We couldn't save your plan/)).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Skip for now" }));
@@ -273,7 +279,7 @@ describe("OnboardingWizard", () => {
     await user.click(screen.getByRole("button", { name: "Skip for now" }));
     expect((await screen.findByRole("alert")).textContent).toBe(TOAST_TEXT);
     expect(screen.getAllByText("Something went wrong. Try again.")).toHaveLength(1);
-    expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();
+    expect(screen.getByText("Step 3 of 5 · Analytics")).toBeDefined();
     expect(screen.queryByText(/We couldn't save your plan/)).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Back" }));
@@ -294,7 +300,7 @@ describe("OnboardingWizard", () => {
     const note = await screen.findByText(refusal);
     expect(note.getAttribute("role")).toBe("status");
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();
+    expect(screen.getByText("Step 3 of 5 · Analytics")).toBeDefined();
 
     await user.click(screen.getByRole("button", { name: "Skip for now" }));
     expect(onSave).toHaveBeenCalledTimes(2);
@@ -372,7 +378,7 @@ describe("OnboardingWizard", () => {
       expect(screen.getByText("You can replace either screenshot before you confirm.")).toBeDefined();
       await user.click(checkTheValues());
 
-      expect(screen.getByText("Step 4 of 4 · Review")).toBeDefined();
+      expect(screen.getByText("Step 4 of 5 · Review")).toBeDefined();
       await user.click(screen.getByRole("button", { name: "Back" }));
       expect(screen.getByText("Logical Reasoning · found 2 rows")).toBeDefined();
       expect(extract).toHaveBeenCalledWith(screenshot, "LR");
@@ -406,7 +412,7 @@ describe("OnboardingWizard", () => {
       expect((await screen.findByRole("alert")).textContent).toBe(TOAST_TEXT);
       expect(screen.getAllByText("Something went wrong. Try again.")).toHaveLength(1);
       expect(screen.getByText(rowDetail("lr-analytics.png · not read"))).toBeDefined();
-      expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();
+      expect(screen.getByText("Step 3 of 5 · Analytics")).toBeDefined();
 
       await user.click(screen.getByRole("button", { name: "Try again" }));
       expect(await screen.findByText(rowDetail("lr-analytics.png · Reading now"))).toBeDefined();
@@ -451,7 +457,7 @@ describe("OnboardingWizard", () => {
       expect(screen.getByText("Logical Reasoning question types")).toBeDefined();
       expect(checkTheValues().disabled).toBe(true);
       await user.click(checkTheValues());
-      expect(screen.queryByText("Step 4 of 4 · Review")).toBeNull();
+      expect(screen.queryByText("Step 4 of 5 · Review")).toBeNull();
 
       await upload(user);
       expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
@@ -588,7 +594,7 @@ describe("OnboardingWizard", () => {
       await upload(steps.user);
       await upload(steps.user, rcScreenshot, "RC");
       await steps.user.click(await screen.findByRole("button", { name: "Check the values" }));
-      expect(screen.getByText("Step 4 of 4 · Review")).toBeDefined();
+      expect(screen.getByText("Step 4 of 5 · Review")).toBeDefined();
       return steps;
     }
 
@@ -606,7 +612,7 @@ describe("OnboardingWizard", () => {
       await upload(steps.user, rcScreenshot, "RC");
       await steps.user.click(await screen.findByRole("button", { name: "Check the values" }));
 
-      expect(screen.getByText("Step 4 of 4 · Review")).toBeDefined();
+      expect(screen.getByText("Step 4 of 5 · Review")).toBeDefined();
       expect(screen.queryByText(refusal)).toBeNull();
     });
 
@@ -619,7 +625,7 @@ describe("OnboardingWizard", () => {
       await upload(steps.user, rcScreenshot, "RC");
       await steps.user.click(await screen.findByRole("button", { name: "Check the values" }));
 
-      expect(screen.getByText("Step 4 of 4 · Review")).toBeDefined();
+      expect(screen.getByText("Step 4 of 5 · Review")).toBeDefined();
       expect(screen.queryByText(/We couldn't save your plan/)).toBeNull();
     });
 
@@ -791,7 +797,7 @@ describe("OnboardingWizard", () => {
       await user.click(confirmButton());
       expect((await screen.findByRole("alert")).textContent).toBe(TOAST_TEXT);
       expect(screen.getAllByText("Something went wrong. Try again.")).toHaveLength(1);
-      expect(screen.getByText("Step 4 of 4 · Review")).toBeDefined();
+      expect(screen.getByText("Step 4 of 5 · Review")).toBeDefined();
       expect((screen.getByLabelText(statements[1]) as HTMLInputElement).checked).toBe(true);
       expect(box("Strengthen").value).toBe("68");
 
@@ -945,7 +951,7 @@ describe("OnboardingWizard · scanning off", () => {
     await user.selectOptions(screen.getByLabelText("Friday minutes"), "30");
     await user.click(continueButton());
 
-    expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined();
+    expect(screen.getByText("Step 3 of 5 · Analytics")).toBeDefined();
     expect(screen.getByText("Scanning is off right now. Enter your analytics by hand.")).toBeDefined();
     expect(screen.getByText("Type them below. Your first weekly schedule works the same way as with screenshots.")).toBeDefined();
     expect((screen.getByLabelText("Type them") as HTMLInputElement).checked).toBe(true);
@@ -982,7 +988,7 @@ describe("OnboardingWizard · Type them", () => {
     await user.type(box("Law"), "58");
     await user.click(continueButton());
 
-    expect(screen.getByText("Step 4 of 4 · Review")).toBeDefined();
+    expect(screen.getByText("Step 4 of 5 · Review")).toBeDefined();
     expect(screen.getByRole("heading", { name: "Check your analytics" })).toBeDefined();
     expect(box("Diagram").value).toBe("64");
     const confirm = screen.getByRole("button", { name: "Confirm snapshot" });
@@ -1145,7 +1151,7 @@ describe("OnboardingWizard · step slide", () => {
     await user.click(screen.getByRole("button", { name: "Back" }));
 
     expect(all.map((a) => a.el)).toEqual([region]);
-    expect(region.contains(screen.getByText("Step 3 of 4 · Analytics"))).toBe(false);
+    expect(region.contains(screen.getByText("Step 3 of 5 · Analytics"))).toBe(false);
     expect(all[0].keyframes.at(-1)).toEqual({ opacity: 0, transform: "translateX(8px)" });
     expect(all[0].options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.23, 1, 0.32, 1)", fill: "forwards" });
     expect(region.hasAttribute("inert")).toBe(true);
@@ -1153,7 +1159,7 @@ describe("OnboardingWizard · step slide", () => {
     expect(screen.getByRole("heading", { name: "Add your 7Sage analytics" })).toBeDefined();
 
     finishExits();
-    await waitFor(() => expect(screen.getByText("Step 2 of 4 · Week")).toBeDefined());
+    await waitFor(() => expect(screen.getByText("Step 2 of 5 · Week")).toBeDefined());
     expect(all.map((a) => a.el)).toEqual([region, region]);
     expect(all[1].keyframes).toEqual([{ opacity: 0, transform: "translateX(-8px)" }, { opacity: 1, transform: "none" }]);
     expect(all[1].options).toMatchObject({ duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" });
@@ -1166,14 +1172,14 @@ describe("OnboardingWizard · step slide", () => {
     const { user } = await onAnalyticsWithMotion();
     await user.click(screen.getByRole("button", { name: "Back" }));
     finishExits();
-    await waitFor(() => expect(screen.getByText("Step 2 of 4 · Week")).toBeDefined());
+    await waitFor(() => expect(screen.getByText("Step 2 of 5 · Week")).toBeDefined());
     all = [];
 
     await user.click(continueButton());
     expect(all[0].keyframes.at(-1)).toEqual({ opacity: 0, transform: "translateX(-8px)" });
     finishExits();
 
-    await waitFor(() => expect(screen.getByText("Step 3 of 4 · Analytics")).toBeDefined());
+    await waitFor(() => expect(screen.getByText("Step 3 of 5 · Analytics")).toBeDefined());
     expect(all[1].keyframes[0]).toEqual({ opacity: 0, transform: "translateX(8px)" });
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Add your 7Sage analytics" }));
   });
@@ -1182,7 +1188,7 @@ describe("OnboardingWizard · step slide", () => {
     const { user } = await onAnalyticsWithMotion();
     await user.click(screen.getByRole("button", { name: "Back" }));
     finishExits();
-    await waitFor(() => expect(screen.getByText("Step 2 of 4 · Week")).toBeDefined());
+    await waitFor(() => expect(screen.getByText("Step 2 of 5 · Week")).toBeDefined());
     all = [];
 
     const region = stepRegion();
@@ -1199,7 +1205,7 @@ describe("OnboardingWizard · step slide", () => {
 
     await user.click(screen.getByRole("button", { name: "Back" }));
 
-    expect(screen.getByText("Step 2 of 4 · Week")).toBeDefined();
+    expect(screen.getByText("Step 2 of 5 · Week")).toBeDefined();
     expect(all).toHaveLength(1);
     expect(all[0].keyframes).toEqual([{ opacity: 0 }, { opacity: 1 }]);
     expect(all[0].options.duration).toBe(120);

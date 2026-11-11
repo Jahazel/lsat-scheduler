@@ -12,11 +12,12 @@ const nearestTenCents = (cents: number) => Math.round(cents / 10) * 10;
 
 export function planPriceText({ weeklyCents, monthlyCents }: PlanPrices) {
   const monthOnWeeklyCents = weeklyCents * WEEKS_PER_MONTH;
-  const percentLess = Math.round((1 - monthlyCents / monthOnWeeklyCents) * 100);
+  const exactPercentLess = (1 - monthlyCents / monthOnWeeklyCents) * 100;
+  const percentLess = Math.round(exactPercentLess);
   return {
     weekly: dollars(weeklyCents),
     monthly: dollars(monthlyCents),
-    monthlySaving: `about ${percentLess}% less`,
+    monthlySaving: exactPercentLess >= 1 ? `about ${percentLess}% less` : null,
     monthOnWeekly: `About ${dollars(nearestTenCents(monthOnWeeklyCents))} a month on Weekly`,
   };
 }

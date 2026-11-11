@@ -96,7 +96,7 @@ function PricingSection() {
             name="Monthly"
             price={price.monthly}
             per="a month"
-            badge={`Best value · ${price.monthlySaving}`}
+            badge={price.monthlySaving ? `Best value · ${price.monthlySaving}` : "Best value"}
             className="[--reveal-delay:240ms]"
           >
             {price.monthOnWeekly}. Good for a full prep cycle.

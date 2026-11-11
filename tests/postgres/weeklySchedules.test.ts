@@ -30,6 +30,7 @@ afterAll(() => vi.useRealTimers());
 async function student(email = "student@example.test", role: "student" | "admin" = "student") {
   const account = await database.createAccountAsOwner({ email, name: "Student", role });
   if (!account) throw new Error("Account fixture already exists");
+  if (role === "student") await database.writeBillingRecordAsOwner(account.id);
   const saved = await createStudent(account.id, {
     currentScore: 150, goalScore: 165, goalTestDate: "2027-06-01",
     preferredPracticeTestDay: "SATURDAY", accommodationMultiplier: 1,

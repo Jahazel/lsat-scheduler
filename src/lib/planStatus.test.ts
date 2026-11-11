@@ -14,23 +14,27 @@ const paid: BillingRecord = {
 
 describe("free week end", () => {
   it.each([
-    ["Monday", "2026-11-09T15:00:00.000Z", "2026-11-16T06:00:00.000Z", 7],
-    ["Tuesday", "2026-11-10T15:00:00.000Z", "2026-11-23T06:00:00.000Z", 13],
-    ["Wednesday", "2026-11-11T15:00:00.000Z", "2026-11-23T06:00:00.000Z", 12],
-    ["Thursday", "2026-11-12T15:00:00.000Z", "2026-11-23T06:00:00.000Z", 11],
-    ["Friday", "2026-11-13T15:00:00.000Z", "2026-11-23T06:00:00.000Z", 10],
-    ["Saturday", "2026-11-14T15:00:00.000Z", "2026-11-23T06:00:00.000Z", 9],
-    ["Sunday", "2026-11-15T15:00:00.000Z", "2026-11-23T06:00:00.000Z", 8],
-  ])("onboarding on a %s ends the free week at the end of the Sunday that closes the first full week", (_day, finished, ends, days) => {
+    ["Monday", "2026-11-09T15:00:00.000Z", "2026-11-23T06:00:00.000Z", 13],
+    ["Tuesday", "2026-11-10T15:00:00.000Z", "2026-11-23T06:00:00.000Z", 12],
+    ["Wednesday", "2026-11-11T15:00:00.000Z", "2026-11-23T06:00:00.000Z", 11],
+    ["Thursday", "2026-11-12T15:00:00.000Z", "2026-11-23T06:00:00.000Z", 10],
+    ["Friday", "2026-11-13T15:00:00.000Z", "2026-11-23T06:00:00.000Z", 9],
+    ["Saturday", "2026-11-14T15:00:00.000Z", "2026-11-23T06:00:00.000Z", 8],
+    ["Sunday", "2026-11-15T15:00:00.000Z", "2026-11-23T06:00:00.000Z", 7],
+  ])("onboarding on a %s ends the free week at the end of the Sunday that closes the first full week after onboarding", (_day, finished, ends, days) => {
     const end = freeWeekEnd(at(finished));
     expect(end.toISOString()).toBe(ends);
-    const firstDay = Date.parse(`${finished.slice(0, 10)}T00:00:00.000Z`);
-    const lastDay = Date.parse(`${end.toISOString().slice(0, 10)}T00:00:00.000Z`);
-    expect((lastDay - firstDay) / 86_400_000).toBe(days);
+    const onboardingDay = Date.parse(`${finished.slice(0, 10)}T00:00:00.000Z`);
+    const lastSunday = Date.parse(`${end.toISOString().slice(0, 10)}T00:00:00.000Z`) - 86_400_000;
+    expect((lastSunday - onboardingDay) / 86_400_000).toBe(days);
   });
 
   it("uses the schedule time zone: late Sunday night in Chicago is still Sunday", () => {
     expect(freeWeekEnd(at("2026-11-16T05:30:00.000Z")).toISOString()).toBe("2026-11-23T06:00:00.000Z");
+  });
+
+  it("uses the schedule time zone: just after midnight on Monday in Chicago is Monday", () => {
+    expect(freeWeekEnd(at("2026-11-16T06:00:00.000Z")).toISOString()).toBe("2026-11-30T06:00:00.000Z");
   });
 
   it("ends at Chicago midnight across a daylight saving change", () => {

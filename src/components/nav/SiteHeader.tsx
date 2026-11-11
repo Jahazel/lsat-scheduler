@@ -4,6 +4,7 @@ import { currentWeekInTimezone, isUploadWeekend } from "@/lib/currentWeeklySched
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { postgresAdminClock, studentSideNow } from "@/lib/studentClock";
 import { auth } from "@/auth";
+import { loadAccountPlan } from "@/lib/billingRepository";
 import { SignOutButton, SignOutForm } from "@/components/SignOutForm";
 import { initialsFor, loadStudentNavState } from "@/lib/studentNav";
 import AdminNav from "./AdminNav";
@@ -55,7 +56,7 @@ export default async function SiteHeader() {
   }
 
   const state = user.id ? await loadStudentNavState(user.id, await studentSideNow(user)) : null;
-  if (!state) {
+  if (!state || (await loadAccountPlan(user.id ?? "")).status.kind === "no_plan") {
     return (
       <header data-site-header="workspace" className={HEADER}>
         <div className={BAR}>
