@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { cx } from "@/components/ui/classes";
 import { OnThisPage } from "./OnThisPage";
-import { LegalTabs, type LegalPageId } from "./LegalTabs";
+import { LegalTabs } from "./LegalTabs";
+import type { LegalPageId } from "./pages";
+import { RelatedSections, type RelatedSources } from "./RelatedSections";
 import { CopySectionLink, SectionLinks } from "./SectionLinks";
 
 export type LegalSection = { id: string; title: string; body: ReactNode };
@@ -10,7 +12,7 @@ type LegalPageProps = {
   id: LegalPageId;
   title: string;
   dateLine: string;
-} & ({ sections: LegalSection[]; paragraphs?: never } | { paragraphs: ReactNode; sections?: never });
+} & ({ sections: LegalSection[]; paragraphs?: never; related?: never } | { paragraphs: ReactNode; related: RelatedSources; sections?: never });
 
 const COLUMN = "mx-auto max-w-2xl lg:max-w-[956px] lg:pr-[284px]";
 
@@ -22,7 +24,7 @@ const PROSE = cx(
   "[&_a]:transition-[text-decoration-color] [&_a]:duration-(--duration-fast) [&_a]:ease-[ease] motion-reduce:[&_a]:transition-none pointer-fine:[&_a:hover]:decoration-ink",
 );
 
-export function LegalPage({ id, title, dateLine, sections, paragraphs }: LegalPageProps) {
+export function LegalPage({ id, title, dateLine, sections, paragraphs, related }: LegalPageProps) {
   return (
     <div data-page-fade className="min-h-screen bg-paper">
       <header className="border-b border-vellum-line px-6 pt-14 md:pt-24">
@@ -61,7 +63,10 @@ export function LegalPage({ id, title, dateLine, sections, paragraphs }: LegalPa
         </OnThisPage>
       ) : (
         <div className="px-6 pt-12 pb-16">
-          <div className={cx(COLUMN, PROSE)}>{paragraphs}</div>
+          <div className="mx-auto max-w-2xl lg:grid lg:max-w-[956px] lg:grid-cols-[minmax(0,1fr)_220px] lg:gap-16">
+            <div className={cx("min-w-0 lg:col-start-1 lg:row-start-1", PROSE)}>{paragraphs}</div>
+            <RelatedSections sources={related} />
+          </div>
         </div>
       )}
     </div>

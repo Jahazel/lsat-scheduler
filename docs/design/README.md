@@ -247,8 +247,8 @@ Prices and dates are sample data; the prices module and the plan status module d
 ## Legal pages (`legal-pages/`)
 
 Screenshots of the approved prototype for design #746 and spec #758, taken 2026-11-10. Brief: `research/legal-pages/brief.md`. Motion rows:
-`research/legal-pages/motion.md`. The clickable prototype is the dev-only route `/prototypes/legal-pages`, until #762 deletes
-it. Each file name starts with `desktop-`, `tablet-`, or `phone-`.
+`research/legal-pages/motion.md`. The clickable prototype, the dev-only route `/prototypes/legal-pages`, was deleted by #762
+once every legal-pages ticket was built. Each file name starts with `desktop-`, `tablet-`, or `phone-`.
 
 | File | State | Screen ticket |
 | --- | --- | --- |

@@ -2,7 +2,7 @@
 
 import { createContext, use, useEffect, useRef, useState, type ReactNode } from "react";
 import { FOCUS, cx } from "@/components/ui/classes";
-import type { LegalPageId } from "./LegalTabs";
+import type { LegalPageId } from "./pages";
 
 type CopyResult = "copied" | "failed";
 

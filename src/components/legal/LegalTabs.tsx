@@ -3,14 +3,9 @@
 import Link from "next/link";
 import { useLayoutEffect, useRef } from "react";
 import { FOCUS_INSET, cx } from "@/components/ui/classes";
+import { LEGAL_PAGE_LABEL, type LegalPageId } from "./pages";
 
-export type LegalPageId = "terms" | "privacy" | "ai-disclosure";
-
-const TABS: { id: LegalPageId; label: string }[] = [
-  { id: "terms", label: "Terms" },
-  { id: "privacy", label: "Privacy" },
-  { id: "ai-disclosure", label: "AI disclosure" },
-];
+const TABS = Object.keys(LEGAL_PAGE_LABEL) as LegalPageId[];
 
 const TAB_END_ROOM_PX = 24;
 
@@ -33,17 +28,17 @@ export function LegalTabs({ current }: { current: LegalPageId }) {
     >
       {TABS.map((tab) => (
         <Link
-          key={tab.id}
-          href={`/legal/${tab.id}`}
-          aria-current={tab.id === current ? "page" : undefined}
+          key={tab}
+          href={`/legal/${tab}`}
+          aria-current={tab === current ? "page" : undefined}
           className={cx(
             "flex h-11 shrink-0 touch-manipulation items-center border-b-2 text-small whitespace-nowrap select-none [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] active:text-ink",
             "transition-[color,border-color] duration-(--duration-fast) ease-[ease] motion-reduce:transition-none",
-            tab.id === current ? "border-ink font-medium text-ink" : "border-transparent text-smoke pointer-hover:text-ink",
+            tab === current ? "border-ink font-medium text-ink" : "border-transparent text-smoke pointer-hover:text-ink",
             FOCUS_INSET,
           )}
         >
-          {tab.label}
+          {LEGAL_PAGE_LABEL[tab]}
         </Link>
       ))}
     </nav>

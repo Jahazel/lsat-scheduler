@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { LegalPage } from "@/components/legal/LegalPage";
+import { PRIVACY_SECTIONS } from "../privacy/sections";
+import { termsSections } from "../terms/sections";
 
 const PARAGRAPHS = (
   <>
@@ -17,5 +19,13 @@ const PARAGRAPHS = (
 );
 
 export default function AIDisclosurePage() {
-  return <LegalPage id="ai-disclosure" title="How DrillMap uses AI" dateLine="Last updated: November 10, 2026" paragraphs={PARAGRAPHS} />;
+  return (
+    <LegalPage
+      id="ai-disclosure"
+      title="How DrillMap uses AI"
+      dateLine="Last updated: November 10, 2026"
+      paragraphs={PARAGRAPHS}
+      related={{ terms: termsSections(), privacy: PRIVACY_SECTIONS }}
+    />
+  );
 }
