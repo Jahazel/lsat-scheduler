@@ -94,6 +94,7 @@ export default function PlanChoice({ place, offer, cameBackWithoutCard, initialP
             )}
           </dl>
           <div className="flex flex-col gap-4">
+            <p className="text-small text-smoke">Plus any sales tax. Stripe shows the total before you pay.</p>
             <p className="text-small text-smoke">{PLAN_TERMS}</p>
             <div className="flex flex-col gap-3">
               <p className="text-small text-ink">By continuing, you agree your plan renews {picked.every} until you cancel.</p>

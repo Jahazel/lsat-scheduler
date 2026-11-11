@@ -208,31 +208,51 @@ body:has([data-sign-in-page]) > footer { display: none; }
   background-image: linear-gradient(to bottom in oklab, var(--color-void-eclipse) 0%, var(--color-abyss-blue) 45%, var(--color-silver-mist) 100%);
 }
 
-.hero-dots {
-  background-image: radial-gradient(circle at 12px 12px, color-mix(in oklab, var(--color-ink) 10%, transparent) 1px, transparent 1.5px);
-  background-size: 24px 24px;
-}
-
-.section-guides {
-  --guide: repeating-linear-gradient(to bottom, color-mix(in oklab, var(--color-ink) 11%, transparent) 0 4px, transparent 4px 8px);
-  background-image: var(--guide), var(--guide);
-  background-position: 0 0, 100% 0;
-  background-size: 1px 100%;
-  background-repeat: no-repeat;
+.line-grid {
+  --grid-ink: color-mix(in oklab, var(--color-ink) 12%, transparent);
+  --grid-line: repeating-linear-gradient(to bottom, var(--grid-ink) 0 4px, transparent 4px 8px);
+  --grid-w: calc(100% - 40px);
+  --grid-pitch: calc((100cqw - 40px) / 16);
+  container-type: inline-size;
 }
 @media (min-width: 48rem) {
-  .section-guides {
-    background-image: var(--guide), var(--guide), var(--guide), var(--guide), var(--guide);
-    background-position: 0 0, 25% 0, 50% 0, 75% 0, 100% 0;
+  .line-grid {
+    --grid-w: min(1120px, calc(100% - 48px));
+    --grid-pitch: calc(min(1120px, 100cqw - 48px) / 48);
   }
 }
-.section-band::after {
-  content: "";
+.line-grid-lines {
   position: absolute;
   inset-block: 0;
   left: 50%;
-  width: 1px;
-  background-image: repeating-linear-gradient(to bottom, color-mix(in oklab, var(--color-ink) 40%, transparent) 0 6px, transparent 6px 12px);
+  width: var(--grid-w);
+  translate: -50% 0;
+  background-size: 1px 100%;
+  background-repeat: no-repeat;
+}
+.line-grid-edges {
+  background-image: var(--grid-line), var(--grid-line);
+  background-position: 0 0, 100% 0;
+}
+@media (min-width: 48rem) {
+  .line-grid-edges {
+    background-image: var(--grid-line), var(--grid-line), var(--grid-line), var(--grid-line);
+    background-position: 0 0, 25% 0, 75% 0, 100% 0;
+  }
+  .line-grid-middle {
+    mask-image: linear-gradient(to bottom, transparent, black 160px);
+    background-image: var(--grid-line);
+    background-position: 50% 0;
+  }
+}
+.line-grid-rule {
+  height: 1px;
+  background-image: repeating-linear-gradient(to right, var(--grid-ink) 0 4px, transparent 4px 8px);
+}
+.line-grid-dots {
+  background-image: radial-gradient(circle at center, color-mix(in oklab, var(--color-ink) 10%, transparent) 1px, transparent 1.5px);
+  background-size: var(--grid-pitch) var(--grid-pitch);
+  background-position: 50% 0;
 }
 
 @keyframes hero-card-drift-left { from { opacity: 0; transform: translate(-40px, 16px) scale(0.96); } }
