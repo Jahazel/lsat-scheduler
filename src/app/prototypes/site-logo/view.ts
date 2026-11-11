@@ -7,7 +7,7 @@ export const SCENES: Record<Scene, string> = { bars: "Top bars", login: "Log in"
 
 export type View = { size: FrameSize; scene: Scene; reducedMotion: boolean; worst: boolean };
 
-export const isScene = (value: unknown): value is Scene => typeof value === "string" && value in SCENES;
+export const isScene = (value: unknown): value is Scene => typeof value === "string" && Object.hasOwn(SCENES, value);
 
 type Param = string | string[] | undefined;
 const one = (value: Param) => (Array.isArray(value) ? value[0] : value);

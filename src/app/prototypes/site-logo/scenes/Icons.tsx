@@ -9,7 +9,9 @@ const png = (file: string) => `data:image/png;base64,${readFileSync(path.join(WE
 function favicon(dark: boolean) {
   const svg = readFileSync(path.join(WEB, "favicon.svg"), "utf8");
   const darkRule = /@media \(prefers-color-scheme:dark\)\{([^}]*\})\}/;
-  const shown = dark ? svg.replace(/<style>.*<\/style>/, `<style>${svg.match(darkRule)?.[1]}</style>`) : svg.replace(darkRule, "");
+  const darkFills = svg.match(darkRule)?.[1];
+  if (!darkFills) throw new Error("favicon.svg has no prefers-color-scheme:dark rule");
+  const shown = dark ? svg.replace(/<style>.*<\/style>/, `<style>${darkFills}</style>`) : svg.replace(darkRule, "");
   return `data:image/svg+xml;base64,${Buffer.from(shown).toString("base64")}`;
 }
 

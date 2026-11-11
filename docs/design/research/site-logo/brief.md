@@ -11,7 +11,7 @@ A visitor or student sees the DrillMap route logo wherever the site names itself
 - "Joined route + DrillMap": the route mark (hollow start ring, three passes, end square) beside the name in Geist SemiBold, drawn as shapes.
 - Void Eclipse `#0B0B0B` for the route and the name. Abyss Blue `#2B3B79` on the end square, on light grounds only. On dark grounds every part is Silver Mist `#E4E4E4`.
 - Below 32 px, use the small cut: a solid start dot and a thicker line.
-- Source kit: the owner's workspace, `outputs/lsat-scheduler/drillmap-logo/`. The kit's rules (clear space, minimum size, do-nots) apply.
+- Source kit: `docs/design/site-logo/kit/` (copied from the owner's workspace). The kit's rules (clear space, minimum size, do-nots) apply.
 
 ## Flow map
 
@@ -51,8 +51,7 @@ The logo shows no user data. The layout cases are:
 ## Out of scope
 
 - A drawing animation of the route (owner, 2026-11-11: the logo repeats on every page, so it gets no new motion).
-- Any logo on the Log in and Sign up glow panel or glow band, at any width (owner, 2026-11-11, after seeing mocks A, B, C).
-- Any logo on the Log in and Sign up glow band below 1200 px. (Owner, 2026-11-11: first "no second logo", then, after seeing it, "remove it from tablet and mobile". This replaces the earlier plan to keep the reversed top-bar logo on the band.)
+- Any logo on the Log in and Sign up glow panel or glow band, at any width. (Owner, 2026-11-11: "remove it from tablet and mobile" after seeing the reversed logo on the band, which replaces the earlier plan to keep it there; then no logo on the panel after seeing mocks A, B, C.)
 - A social-share picture for links pasted in chats. Follow-up idea, not this work.
 - Emails, which are plain text.
 - Loading screens and the onboarding preview, which use "DrillMap" as a word in sentences.

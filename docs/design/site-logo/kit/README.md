@@ -19,7 +19,8 @@ Colours: Void Eclipse #0B0B0B · Abyss Blue #2B3B79 (end square, light grounds o
 - src/app/favicon.ico ← web/favicon.ico (replaces the current one)
 - src/app/icon.svg ← web/favicon.svg
 - src/app/apple-icon.png ← web/apple-touch-icon.png
-The head snippet is not needed in Next.js; the file conventions add the tags.
+- public/ ← web/icon-192.png, icon-512.png, maskable-512.png, and web/site.webmanifest as the manifest (or an app/manifest.ts with the same values: display browser, theme_color #FFFFFF)
+The head snippet is not needed in Next.js; the file conventions add the tags. Leave out its dark theme-color meta.
 
 ## Notes
 - Geist is under the SIL Open Font License, which allows logo use.
