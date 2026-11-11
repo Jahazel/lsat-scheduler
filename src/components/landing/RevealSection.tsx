@@ -15,13 +15,24 @@ export function RevealSection({ threshold, children, ...props }: RevealSectionPr
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
-        observer.disconnect();
+        stop();
         section.dataset.reveal = "shown";
       },
       { threshold },
     );
+    const showOnJump = (event: MouseEvent) => {
+      const link = event.target instanceof Element ? event.target.closest("a") : null;
+      if (!section.id || link?.hash !== `#${section.id}` || link.pathname !== location.pathname) return;
+      stop();
+      delete section.dataset.reveal;
+    };
+    const stop = () => {
+      observer.disconnect();
+      document.removeEventListener("click", showOnJump);
+    };
     observer.observe(section);
-    return () => observer.disconnect();
+    document.addEventListener("click", showOnJump);
+    return stop;
   }, [threshold]);
 
   return (

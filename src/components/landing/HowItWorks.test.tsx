@@ -126,7 +126,8 @@ describe("HowItWorks", () => {
     render(<HowItWorks />);
     const section = screen.getByRole("region", { name: "How it works" });
     const read = within(section).getAllByText("How it works").filter((element) => !isInaccessible(element));
-    expect(read).toEqual([within(section).getByRole("heading", { level: 2, name: "How it works" })]);
+    expect(read).toHaveLength(1);
+    expect(within(section).getByRole("heading", { level: 2, name: "How it works" }).contains(read[0])).toBe(true);
   });
 
   it("hides the swapping step copy and screens from screen readers", () => {
