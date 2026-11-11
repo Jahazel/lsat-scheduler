@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { cx } from "@/components/ui/classes";
 import { LegalTabs, type LegalPageId } from "./LegalTabs";
+import { CopySectionLink, SectionLinks } from "./SectionLinks";
 
 export type LegalSection = { id: string; title: string; body: ReactNode };
 
@@ -36,16 +37,25 @@ export function LegalPage({ id, title, dateLine, sections, paragraphs }: LegalPa
       <div className="px-6 pt-12 pb-16">
         <div className={cx(COLUMN, PROSE)}>
           {sections ? (
-            <div className="space-y-12">
-              {sections.map((section) => (
-                <section key={section.id} id={section.id} className="space-y-4">
-                  <h2 tabIndex={-1} className="text-lead font-semibold tracking-heading text-ink outline-none">
-                    {section.title}
-                  </h2>
-                  {section.body}
-                </section>
-              ))}
-            </div>
+            <SectionLinks page={id}>
+              <div className="space-y-12">
+                {sections.map((section) => (
+                  <section
+                    key={section.id}
+                    id={section.id}
+                    className="scroll-mt-[calc(var(--site-header)+4rem)] space-y-4 lg:scroll-mt-[calc(var(--site-header)+2rem)]"
+                  >
+                    <div className="group flex items-start gap-2">
+                      <h2 tabIndex={-1} className="min-w-0 text-lead font-semibold tracking-heading text-ink outline-none">
+                        {section.title}
+                      </h2>
+                      <CopySectionLink id={section.id} title={section.title} />
+                    </div>
+                    {section.body}
+                  </section>
+                ))}
+              </div>
+            </SectionLinks>
           ) : (
             paragraphs
           )}

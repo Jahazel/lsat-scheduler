@@ -98,4 +98,10 @@ describe("Privacy page", () => {
       ["contact", "Contact"],
     ]);
   });
+
+  it("names each copy button after its section", () => {
+    render(<PrivacyPage />);
+    const headings = screen.getAllByRole("heading", { level: 2 }).map((heading) => `Copy link to ${heading.textContent}`);
+    expect(screen.getAllByRole("button", { name: /^Copy link to / }).map((button) => button.getAttribute("aria-label"))).toEqual(headings);
+  });
 });
