@@ -260,6 +260,18 @@ it.each(["past_due", "unpaid", "paused"])("cancels a lapsed student's old %s pla
   expect(stripe.sessions.map(({ status }) => status)).toEqual(["open"]);
 });
 
+it("keeps a lapsed student's old plan that a late retry paid, and shows Starting your plan until its message arrives", async () => {
+  const { accountId } = await onboardedStudent();
+  await database.writeBillingRecordAsOwner(accountId, {
+    stripeCustomerId: "cus_maya", stripeSubscriptionId: "sub_old", stripeStatus: "past_due", renewalFailedAt: new Date("2026-11-01T15:00:00Z"),
+  });
+  stripe.subscriptions.push({ id: "sub_old", customer: "cus_maya", status: "active" });
+
+  await expect(openStripeCheckout("weekly")).rejects.toThrow("redirect:/dashboard/upload?checkout=done");
+  expect(stripe.subscriptions).toEqual([{ id: "sub_old", customer: "cus_maya", status: "active" }]);
+  expect(stripe.sessions).toEqual([]);
+});
+
 it.each([
   ["in the free week", { stripeStatus: "trialing", freeWeekEndsAt: FREE_WEEK_ENDS, firstChargeSucceeded: false }],
   ["on a paid plan", {}],
