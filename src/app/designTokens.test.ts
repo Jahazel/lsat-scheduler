@@ -10,7 +10,7 @@ const TAILWIND_PALETTE =
 const COLOR_UTILITY =
   "bg|text|border(?:-[trblxyse])?|divide|ring|ring-offset|outline|fill|stroke|from|via|to|decoration|placeholder|caret|accent|shadow";
 
-const BROWSER_READ_COLOR_FILES = new Set(["app/manifest.ts"]);
+const BROWSER_READ_COLOR_FILES = new Set(["app/manifest.ts", "app/manifest.test.ts"]);
 
 const RULES: { name: string; pattern: RegExp }[] = [
   { name: "old ink or teal accent token", pattern: /\b(?:ink|accent)-\d{2,3}\b/g },
