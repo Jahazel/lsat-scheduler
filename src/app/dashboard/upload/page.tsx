@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { loadChosenPlan } from "@/lib/billingRepository";
 import { listApprovedAnalyticsSnapshots } from "@/lib/analyticsSnapshotRepository";
+import { planChoicePlace } from "@/lib/planStatus";
 import { readScanningOff } from "@/lib/scanSpending";
 import { studentSideClock } from "@/lib/studentClock";
 import { findStudentByAccountId } from "@/lib/studentRepository";
@@ -10,16 +11,26 @@ import { listWeeklySchedulesForStudent } from "@/lib/weeklyScheduleRepository";
 import { openWeeklyUpload } from "@/lib/weeklyUpload";
 import { PageCue } from "@/components/SiteMotion";
 import { PageArrival } from "@/components/PagePlaceholder";
+import { PlanChoiceScreen, type PlanChoiceSearchParams } from "@/app/onboarding/PlanChoiceScreen";
 import { confirmWeeklyUpload } from "./actions";
 import WeeklyUploadFlow from "./WeeklyUploadFlow";
 
-export default async function WeeklyUploadPage() {
+export default async function WeeklyUploadPage({ searchParams }: { searchParams: Promise<PlanChoiceSearchParams> }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
   const doc = await findStudentByAccountId(session.user.id);
   if (!doc) redirect("/onboarding");
-  await loadChosenPlan(session.user.id);
+  const { status } = await loadChosenPlan(session.user.id);
+  if (planChoicePlace(status) === "weekly_upload") {
+    return (
+      <div data-page-fade>
+        <PageCue page="this-week" />
+        <PageArrival page="Weekly upload" />
+        <PlanChoiceScreen place="weekly_upload" freeWeekEndsAt={null} realNow={new Date()} searchParams={await searchParams} />
+      </div>
+    );
+  }
 
   const student: Student = {
     currentScore: doc.currentScore,

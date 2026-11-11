@@ -21,7 +21,7 @@ const wait = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
 
 it("waits for Stripe to confirm the plan, then opens This week", async () => {
   const hasPlanStarted = vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true);
-  render(<StartingPlan hasPlanStarted={hasPlanStarted} />);
+  render(<StartingPlan place="onboarding" hasPlanStarted={hasPlanStarted} />);
 
   expect(screen.getByRole("heading", { name: "Starting your plan…" })).toBeDefined();
   expect(screen.getByText("Stripe is confirming your card. This week opens next.")).toBeDefined();
@@ -34,7 +34,7 @@ it("waits for Stripe to confirm the plan, then opens This week", async () => {
 
 it("says it is taking longer than usual after about 20 seconds, and Try again waits again", async () => {
   const hasPlanStarted = vi.fn().mockResolvedValue(false);
-  render(<StartingPlan hasPlanStarted={hasPlanStarted} />);
+  render(<StartingPlan place="onboarding" hasPlanStarted={hasPlanStarted} />);
 
   await wait(SLOW_AFTER_MS - ASK_EVERY_MS);
   expect(screen.queryByText(/This is taking longer than usual\./)).toBeNull();
@@ -53,10 +53,22 @@ it("says it is taking longer than usual after about 20 seconds, and Try again wa
 
 it("keeps waiting when one check cannot reach the server", async () => {
   const hasPlanStarted = vi.fn().mockRejectedValueOnce(new TypeError("Failed to fetch")).mockResolvedValue(true);
-  render(<StartingPlan hasPlanStarted={hasPlanStarted} />);
+  render(<StartingPlan place="onboarding" hasPlanStarted={hasPlanStarted} />);
 
   await wait(ASK_EVERY_MS);
   expect(router.push).not.toHaveBeenCalled();
   await wait(ASK_EVERY_MS);
   expect(router.push).toHaveBeenCalledWith("/dashboard");
+});
+
+it("sends a lapsed student on to the weekly upload page once Stripe confirms the plan", async () => {
+  const hasPlanStarted = vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true);
+  render(<StartingPlan place="weekly_upload" hasPlanStarted={hasPlanStarted} />);
+
+  expect(screen.getByRole("heading", { name: "Starting your plan…" })).toBeDefined();
+  expect(screen.getByText("Stripe is confirming your card. Your weekly upload opens next.")).toBeDefined();
+  expect(screen.queryByText("Step 5 of 5 · Plan")).toBeNull();
+  expect(screen.queryByRole("complementary")).toBeNull();
+  await wait(ASK_EVERY_MS * 2);
+  expect(router.push).toHaveBeenCalledWith("/dashboard/upload");
 });

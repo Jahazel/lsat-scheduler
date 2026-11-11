@@ -2,29 +2,30 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { FailureNotice } from "@/components/FailureNotice";
-import { PageCue } from "@/components/SiteMotion";
 import { Button } from "@/components/ui/Button";
 import { MOTION, cx } from "@/components/ui/classes";
 import { callAction } from "@/lib/callAction";
-import { PLAN_NAMES, type PlanChoiceOffer, type PlanName } from "@/lib/planChoice";
+import { PLAN_NAMES, type PlanChoiceOffer, type PlanChoicePlace, type PlanName } from "@/lib/planChoice";
 import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
-import { ONBOARDING_COLUMN, ONBOARDING_GRID } from "./shell";
+import { PlanShell } from "./PlanShell";
 
 export const PLAN_TERMS = "Cancel anytime. You keep access until your paid week or month ends. No refunds for unused time.";
 
 type PlanChoiceProps = {
+  place: PlanChoicePlace;
   offer: PlanChoiceOffer;
   cameBackWithoutCard: boolean;
   initialPlan: PlanName;
   openCheckout: (plan: PlanName) => Promise<Answer<{ checkoutUrl: string }>>;
 };
 
-export default function PlanChoice({ offer, cameBackWithoutCard, initialPlan, openCheckout }: PlanChoiceProps) {
+export default function PlanChoice({ place, offer, cameBackWithoutCard, initialPlan, openCheckout }: PlanChoiceProps) {
   const [plan, setPlan] = useState(initialPlan);
   const [opening, setOpening] = useState(false);
   const [answer, setAnswer] = useState<Awaited<ReturnType<typeof openCheckout>>>();
   const picked = offer.plans[plan];
   const { freeWeek } = offer;
+  const lapsed = place === "weekly_upload";
 
   useEffect(() => {
     // Back from Stripe can restore this page from the browser's cache with the button still waiting.
@@ -42,68 +43,70 @@ export default function PlanChoice({ offer, cameBackWithoutCard, initialPlan, op
   }
 
   return (
-    <div className={cx(ONBOARDING_GRID, "bg-paper")}>
-      <PageCue page="onboarding" />
-      <div className={ONBOARDING_COLUMN}>
-        <div data-page-swap data-page-section className="w-full lg:max-w-[440px]">
-          <p className="mb-2 font-mono text-label uppercase text-smoke">Step 5 of 5 · Plan</p>
-          <div className="flex flex-col gap-8">
-            {cameBackWithoutCard && (
-              <section aria-label="Checkout" className="flex flex-col gap-1 rounded-md bg-vellum p-5">
-                <h2 className="text-h6 font-medium text-ink">You didn&rsquo;t add a card.</h2>
-                <p className="text-small text-smoke">Pick a plan to continue.</p>
-              </section>
-            )}
-            <div className="flex flex-col gap-2">
-              <h1 className="text-h3 font-semibold text-ink">Pick your plan</h1>
-              <p className="text-body text-smoke">
-                {freeWeek ? (
-                  <>Your free week runs until <span className="whitespace-nowrap">{freeWeek.endsLong}</span>. You pay nothing before then.</>
-                ) : (
-                  "Your plan starts today. This email already had a free week."
-                )}
-              </p>
-            </div>
-            <PlanCards offer={offer} plan={plan} onPick={setPlan} />
-            <dl className="flex flex-col border-y border-vellum-line text-small">
-              {freeWeek ? (
-                <>
-                  <FactRow term="Today" value="$0" />
-                  <FactRow term="Free week ends" value={<NoWrap>{freeWeek.endsShort}</NoWrap>} />
-                  <FactRow
-                    term="First charge"
-                    value={<><NoWrap>{freeWeek.firstChargeShort}</NoWrap> · <NoWrap>{picked.price}</NoWrap></>}
-                    changesWith={plan}
-                  />
-                </>
+    <>
+      <PlanShell
+        place={place}
+        aside={(
+          <StripePreview
+            name={picked.name}
+            headline={freeWeek ? `Free until ${freeWeek.endsShort}` : `${picked.price} today`}
+            then={`Then ${picked.price} ${picked.per} starting ${freeWeek ? freeWeek.firstChargeShort : offer.renews[plan]}`}
+            changesWith={plan}
+          />
+        )}
+      >
+        <div className="flex flex-col gap-8">
+          {cameBackWithoutCard && (
+            <section aria-label="Checkout" className="flex flex-col gap-1 rounded-md bg-vellum p-5">
+              <h2 className="text-h6 font-medium text-ink">You didn&rsquo;t add a card.</h2>
+              <p className="text-small text-smoke">Pick a plan to continue.</p>
+            </section>
+          )}
+          <div className="flex flex-col gap-2">
+            <h1 className="text-h3 font-semibold text-ink">{lapsed ? "Pick a plan" : "Pick your plan"}</h1>
+            <p className="text-body text-smoke">
+              {lapsed ? (
+                "Your weekly schedules are paused. A new plan starts today, and your weekly upload opens right after."
+              ) : freeWeek ? (
+                <>Your free week runs until <span className="whitespace-nowrap">{freeWeek.endsLong}</span>. You pay nothing before then.</>
               ) : (
-                <>
-                  <FactRow term="Today" value={<NoWrap>{picked.price}</NoWrap>} changesWith={plan} />
-                  <FactRow term="Renews" value={<NoWrap>{offer.renews[plan]}</NoWrap>} changesWith={plan} />
-                </>
+                "Your plan starts today. This email already had a free week."
               )}
-            </dl>
-            <div className="flex flex-col gap-4">
-              <p className="text-small text-smoke">{PLAN_TERMS}</p>
-              <div className="flex flex-col gap-3">
-                <p className="text-small text-ink">By continuing, you agree your plan renews {picked.every} until you cancel.</p>
-                <Button className="w-full" waiting={opening} waitLabel="Opening Stripe…" onClick={addCard}>
-                  Add card on Stripe
-                </Button>
-                <p className="text-center text-caption text-smoke">You add your card on Stripe, then come back here.</p>
-              </div>
+            </p>
+          </div>
+          <PlanCards offer={offer} plan={plan} onPick={setPlan} />
+          <dl className="flex flex-col border-y border-vellum-line text-small">
+            {freeWeek ? (
+              <>
+                <FactRow term="Today" value="$0" />
+                <FactRow term="Free week ends" value={<NoWrap>{freeWeek.endsShort}</NoWrap>} />
+                <FactRow
+                  term="First charge"
+                  value={<><NoWrap>{freeWeek.firstChargeShort}</NoWrap> · <NoWrap>{picked.price}</NoWrap></>}
+                  changesWith={plan}
+                />
+              </>
+            ) : (
+              <>
+                <FactRow term="Today" value={<NoWrap>{picked.price}</NoWrap>} changesWith={plan} />
+                <FactRow term="Renews" value={<NoWrap>{offer.renews[plan]}</NoWrap>} changesWith={plan} />
+              </>
+            )}
+          </dl>
+          <div className="flex flex-col gap-4">
+            <p className="text-small text-smoke">{PLAN_TERMS}</p>
+            <div className="flex flex-col gap-3">
+              <p className="text-small text-ink">By continuing, you agree your plan renews {picked.every} until you cancel.</p>
+              <Button className="w-full" waiting={opening} waitLabel="Opening Stripe…" onClick={addCard}>
+                Add card on Stripe
+              </Button>
+              <p className="text-center text-caption text-smoke">You add your card on Stripe, then come back here.</p>
             </div>
           </div>
         </div>
-      </div>
-      <StripePreview
-        name={picked.name}
-        headline={freeWeek ? `Free until ${freeWeek.endsShort}` : `${picked.price} today`}
-        then={`Then ${picked.price} ${picked.per} starting ${freeWeek ? freeWeek.firstChargeShort : offer.renews[plan]}`}
-        changesWith={plan}
-      />
+      </PlanShell>
       <FailureNotice answer={answer} action="open-stripe" />
-    </div>
+    </>
   );
 }
 

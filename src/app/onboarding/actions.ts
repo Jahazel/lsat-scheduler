@@ -9,7 +9,7 @@ import { createStudent, findStudentByAccountId } from "@/lib/studentRepository";
 import { SnapshotApprovalError, SnapshotSaveLimitReached, snapshotWeekOptions, prepareApprovedSnapshot, summarizeApprovedRows, type SnapshotApprovalMetadata } from "@/lib/analyticsSnapshots";
 import { answerAction, recordSecurityEvent } from "@/lib/securityLog";
 import { loadAccountPlan } from "@/lib/billingRepository";
-import { isPlanName } from "@/lib/planChoice";
+import { isPlanName, PLAN_CHOICE_PATHS } from "@/lib/planChoice";
 import { mayStartWeeklyUpload } from "@/lib/planStatus";
 import { startCheckout } from "@/lib/stripeCheckout";
 import { parseOfficialAttempts, parseStudentProfile, type OfficialAttempt, type StudentProfileInput } from "@/lib/studentProfile";
@@ -72,7 +72,7 @@ export async function openStripeCheckout(plan: unknown): Promise<Answer<{ checko
     if (!(await findStudentByAccountId(session.user.id))) redirect("/onboarding");
     const start = await startCheckout(session.user.id, plan, new Date());
     if (start.kind === "refused") redirect("/dashboard");
-    if (start.kind === "starting") redirect("/onboarding?checkout=done");
+    if (start.kind === "starting") redirect(`${PLAN_CHOICE_PATHS[start.place]}?checkout=done`);
     return { checkoutUrl: start.url };
   });
 }

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FailureToastProvider } from "@/components/FailureNotice";
-import { planChoiceOffer, type PlanName } from "@/lib/planChoice";
+import { planChoiceOffer, type PlanChoicePlace, type PlanName } from "@/lib/planChoice";
 import type { Answer, FailureCode } from "@/lib/unexpectedFailure";
 import PlanChoice from "./PlanChoice";
 
@@ -26,6 +26,7 @@ afterEach(() => {
 });
 
 function renderPlanChoice({
+  place = "onboarding" as PlanChoicePlace,
   freeWeekEndsAt = FREE_WEEK_ENDS as Date | null,
   prices = PRICES,
   cameBackWithoutCard = false,
@@ -34,6 +35,7 @@ function renderPlanChoice({
 } = {}) {
   render(
     <PlanChoice
+      place={place}
       offer={planChoiceOffer(prices, freeWeekEndsAt, WEDNESDAY)}
       cameBackWithoutCard={cameBackWithoutCard}
       initialPlan={initialPlan}
@@ -86,6 +88,33 @@ it("says the plan starts today, with today's charge and the renewal date, for an
   await user.click(card("Monthly"));
   expect(facts()).toEqual({ "Today": "$29.99", "Renews": "Fri, Dec 11" });
   expect(screen.getByText("Then $29.99 a month starting Fri, Dec 11")).toBeDefined();
+});
+
+it("shows a lapsed student plan choice in place of the weekly upload: no onboarding step, no free week, and the charge today", async () => {
+  const { user } = renderPlanChoice({ place: "weekly_upload", freeWeekEndsAt: null });
+
+  expect(screen.queryByText("Step 5 of 5 · Plan")).toBeNull();
+  expect(screen.getByRole("heading", { level: 1, name: "Pick a plan" })).toBeDefined();
+  expect(screen.getByText("Your weekly schedules are paused. A new plan starts today, and your weekly upload opens right after.")).toBeDefined();
+  expect(screen.queryByText(/free week/)).toBeNull();
+  expect((card("Weekly") as HTMLInputElement).checked).toBe(true);
+  expect(facts()).toEqual({ "Today": "$10", "Renews": "Wed, Nov 18" });
+  const preview = within(screen.getByRole("complementary", { name: "What happens next" }));
+  expect(preview.getByText("$10 today")).toBeDefined();
+  expect(preview.getByText("Then $10 a week starting Wed, Nov 18")).toBeDefined();
+  await user.click(card("Monthly"));
+  expect(facts()).toEqual({ "Today": "$29.99", "Renews": "Fri, Dec 11" });
+  expect(screen.getByText("By continuing, you agree your plan renews each month until you cancel.")).toBeDefined();
+});
+
+it("tells a lapsed student back from Stripe without a card to pick a plan, keeping the plan they picked", () => {
+  renderPlanChoice({ place: "weekly_upload", freeWeekEndsAt: null, cameBackWithoutCard: true, initialPlan: "monthly" });
+
+  const note = within(screen.getByRole("region", { name: "Checkout" }));
+  expect(note.getByText("You didn’t add a card.")).toBeDefined();
+  expect(note.getByText("Pick a plan to continue.")).toBeDefined();
+  expect(screen.getByRole("heading", { level: 1, name: "Pick a plan" })).toBeDefined();
+  expect((card("Monthly") as HTMLInputElement).checked).toBe(true);
 });
 
 it("shows no saving line when Monthly saves less than 1%", () => {
