@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import TermsPage from "./page";
 
 const prices = vi.hoisted(() => {
@@ -104,5 +104,40 @@ describe("Terms page", () => {
     const text = pageText();
     expect(text.match(/\[[^\]]*\]/g)).toEqual(["[state to be set before launch]"]);
     expect(text).not.toMatch(/placeholder/i);
+  });
+
+  it("shows the legal header with its date line and the page tabs, with this page marked", () => {
+    render(<TermsPage />);
+    expect(screen.getByText("Legal")).toBeDefined();
+    expect(screen.getByText("Effective date: November 9, 2026")).toBeDefined();
+    const tabs = within(screen.getByRole("navigation", { name: "Legal pages" })).getAllByRole("link");
+    expect(tabs.map((tab) => [tab.textContent, tab.getAttribute("href")])).toEqual([
+      ["Terms", "/legal/terms"],
+      ["Privacy", "/legal/privacy"],
+      ["AI disclosure", "/legal/ai-disclosure"],
+    ]);
+    expect(tabs.filter((tab) => tab.getAttribute("aria-current") === "page").map((tab) => tab.textContent)).toEqual(["Terms"]);
+  });
+
+  it("gives every section its fixed link name", () => {
+    const { container } = render(<TermsPage />);
+    const sections = [...container.querySelectorAll("section")].map((section) => [section.id, section.querySelector("h2")?.textContent]);
+    expect(sections).toEqual([
+      ["about-these-terms", "About these Terms"],
+      ["your-account", "Your Account"],
+      ["plans-the-free-week-and-renewal", "Plans, the free week, and renewal"],
+      ["cancelling-and-refunds", "Cancelling and refunds"],
+      ["no-score-guarantee", "No score guarantee"],
+      ["ai-reads-your-screenshots", "AI reads your screenshots"],
+      ["7sage-and-lsac", "7Sage and LSAC"],
+      ["using-drillmap-fairly", "Using DrillMap fairly"],
+      ["your-data-and-deleting-your-account", "Your data and deleting your Account"],
+      ["when-we-can-end-your-access", "When we can end your access"],
+      ["disclaimers-and-limits-on-liability", "Disclaimers and limits on liability"],
+      ["changes-to-drillmap-and-to-these-terms", "Changes to DrillMap and to these Terms"],
+      ["governing-law", "Governing law"],
+      ["notice-for-california-residents", "Notice for California residents"],
+      ["contact", "Contact"],
+    ]);
   });
 });

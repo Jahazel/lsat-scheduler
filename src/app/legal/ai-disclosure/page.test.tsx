@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import AIDisclosurePage from "./page";
 
 afterEach(cleanup);
@@ -15,5 +15,18 @@ describe("AI disclosure page", () => {
       "Anthropic keeps each screenshot for up to 30 days and then deletes it. DrillMap does not store screenshots. See the Privacy Policy for more.",
     ]);
     expect(screen.queryByText(/Placeholder/)).toBeNull();
+  });
+
+  it("shows the legal header with its date line and the page tabs, with this page marked", () => {
+    render(<AIDisclosurePage />);
+    expect(screen.getByText("Legal")).toBeDefined();
+    expect(screen.getByText("Last updated: November 10, 2026")).toBeDefined();
+    const tabs = within(screen.getByRole("navigation", { name: "Legal pages" })).getAllByRole("link");
+    expect(tabs.map((tab) => [tab.textContent, tab.getAttribute("href")])).toEqual([
+      ["Terms", "/legal/terms"],
+      ["Privacy", "/legal/privacy"],
+      ["AI disclosure", "/legal/ai-disclosure"],
+    ]);
+    expect(tabs.filter((tab) => tab.getAttribute("aria-current") === "page").map((tab) => tab.textContent)).toEqual(["AI disclosure"]);
   });
 });
