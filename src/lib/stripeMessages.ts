@@ -2,8 +2,9 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { and, eq, ne, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { isAccountId } from "./accountRepository";
+import { emailHash } from "./emailHash";
 import { getPostgresDatabase, type PostgresTransaction } from "./postgres";
-import { billingRecords, stripeMessages } from "./postgresSchema";
+import { billingRecords, stripeMessages, usedFreeWeeks } from "./postgresSchema";
 import type { Subject } from "./securityLog";
 import { stripeRequest, stripeSecretKey } from "./stripeApi";
 
@@ -175,7 +176,9 @@ async function saveSubscription(tx: PostgresTransaction, id: string, secretKey: 
   const accountId = subscription.metadata.account_id;
   if (!isAccountId(accountId)) return { kind: "refused", result: "unknownAccount", who: { nobody: true } };
   await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`billing-account:${accountId}`}, 0))`);
-  const [account] = (await tx.execute<{ role: string }>(sql`select role from accounts where id = ${accountId} for key share`)).rows;
+  const [account] = (await tx.execute<{ role: string; email: string }>(
+    sql`select role, email from accounts where id = ${accountId} for key share`,
+  )).rows;
   if (!account) return { kind: "refused", result: "unknownAccount", who: { nobody: true } };
   const who = { account: accountId };
   if (account.role === "admin") return { kind: "refused", result: "adminAccount", who };
@@ -196,6 +199,7 @@ async function saveSubscription(tx: PostgresTransaction, id: string, secretKey: 
   const state = await billingState(subscription, current, secretKey, from);
   await tx.insert(billingRecords).values({ accountId, ...state })
     .onConflictDoUpdate({ target: billingRecords.accountId, set: state });
+  if (from === "message" && state.stripeStatus === "trialing") await tx.insert(usedFreeWeeks).values({ emailHash: emailHash(account.email) }).onConflictDoNothing();
   return { kind: "saved" };
 }
 

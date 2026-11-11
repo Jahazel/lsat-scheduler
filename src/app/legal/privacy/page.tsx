@@ -57,9 +57,11 @@ const SECTIONS: LegalSection[] = [
       <>
         <p>
           Stripe sells your plan and takes your payment. Stripe is the seller, so your card and the other payment
-          details you give Stripe go to Stripe, not to DrillMap. Stripe&rsquo;s own privacy policy covers them.
-          DrillMap stores only the Stripe IDs of your customer record and plan, your plan (Weekly or Monthly), its
-          Stripe status, its dates, and whether your first charge went through. We delete these with your Account.
+          details you give Stripe go to Stripe, not to DrillMap. Stripe&rsquo;s own privacy policy covers them. To
+          start your plan, DrillMap sends Stripe your email address, your Account ID, the plan you picked, and the
+          date your free week ends. DrillMap stores only the Stripe IDs of your customer record and plan, your plan
+          (Weekly or Monthly), its Stripe status, its dates, and whether your first charge went through. We delete
+          these with your Account.
         </p>
         <p>
           Each email address gets one free week in 12 months. When your free week starts, we save a scrambled form (hash) of your

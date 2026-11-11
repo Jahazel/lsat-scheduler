@@ -207,9 +207,10 @@ updates, and deletes pending signups and reset tokens. Only the owner may give t
 Account, or change its Google ID. It reads, inserts, and updates billing records, but
 cannot delete them; a code test keeps the Stripe message receiver their only writer. It
 reads and inserts handled Stripe message IDs and runs `prune_stripe_messages()`, which the
-daily cleanup calls to drop IDs older than 30 days. It cannot read or change the used free
-week list; it can only run `prune_used_free_weeks()`, which the daily cleanup calls to drop
-rows older than 12 months. The Weekly schedule trigger stays in place as a second
+daily cleanup calls to drop IDs older than 30 days. It reads and inserts used free week
+rows, so plan choice can check for an earlier free week and the Stripe message receiver can
+add one, and runs `prune_used_free_weeks()`, which the daily cleanup calls to drop rows
+older than 12 months. The Weekly schedule trigger stays in place as a second
 protection for the database owner. The app role cannot create roles,
 databases, schemas, tables, temporary tables, or other schema objects.
 It cannot alter, drop, truncate, or disable triggers on the domain tables.

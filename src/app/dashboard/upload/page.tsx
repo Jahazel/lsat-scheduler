@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { loadChosenPlan } from "@/lib/billingRepository";
 import { listApprovedAnalyticsSnapshots } from "@/lib/analyticsSnapshotRepository";
 import { readScanningOff } from "@/lib/scanSpending";
 import { studentSideClock } from "@/lib/studentClock";
@@ -18,6 +19,7 @@ export default async function WeeklyUploadPage() {
 
   const doc = await findStudentByAccountId(session.user.id);
   if (!doc) redirect("/onboarding");
+  await loadChosenPlan(session.user.id);
 
   const student: Student = {
     currentScore: doc.currentScore,

@@ -135,9 +135,9 @@ export function initialWizardState(): WizardState {
   };
 }
 
-export function stepLabel(step: WizardStep): string {
+export function stepLabel(step: WizardStep, withPlanStep: boolean): string {
   const index = STEPS.indexOf(step);
-  return `Step ${index + 1} of ${STEP_NAMES.length} · ${STEP_NAMES[index]}`;
+  return `Step ${index + 1} of ${STEP_NAMES.length + (withPlanStep ? 1 : 0)} · ${STEP_NAMES[index]}`;
 }
 
 const SCORE_BOX_NAME: Record<ScoreBox, string> = { currentScore: "your current score", goalScore: "your goal score" };

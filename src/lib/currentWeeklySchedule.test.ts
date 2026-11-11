@@ -8,6 +8,7 @@ import {
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "./mockData";
 import { DAY_ORDER, generateWeek } from "./engine";
 import type { ApprovedPracticeTestResult } from "./practiceTestResult";
+import type { PlanStatus } from "./planStatus";
 import type { AnalyticsSnapshot, ApprovedAnalyticsSnapshot, DayOfWeek, PersistedWeeklySchedule } from "./types";
 
 const monday = new Date("2026-09-14T14:00:00.000Z");
@@ -20,6 +21,7 @@ function inMemoryRepositories(snapshots: ApprovedAnalyticsSnapshot[], practiceTe
   const schedules: PersistedWeeklySchedule[] = [];
   let checkIns: { scheduleId: string; activityId: string; status: "not_started" | "completed" }[] = [];
   return {
+    plan: { kind: "paid", plan: "weekly" } as PlanStatus,
     schedules,
     checkIns: () => checkIns,
     setCheckIns(next: typeof checkIns) {
@@ -507,6 +509,56 @@ describe("loadOrGenerateCurrentWeek", () => {
       .toBeGreaterThanOrEqual(mockStudent.dailyCapacityMinutes.MONDAY - 10);
   });
 
+
+  describe("plan check", () => {
+    const load = (repositories: ReturnType<typeof inMemoryRepositories>, plan: PlanStatus, now = monday) =>
+      loadOrGenerateCurrentWeek({
+        studentId: "student-1",
+        student: mockStudent,
+        studentName: mockStudentName,
+        rules: mockRules,
+        timezone: "America/Chicago",
+        now: () => now,
+        ...repositories,
+        plan,
+      });
+
+    it.each([
+      ["with no plan yet", { kind: "no_plan" }],
+      ["who is lapsed", { kind: "lapsed" }],
+    ] as const)("builds no weekly schedule from the onboarding snapshot for a student %s", async (_name, plan) => {
+      const repositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-14T13:00:00.000Z")]);
+
+      await expect(load(repositories, plan)).resolves.toEqual({ kind: "plan_required" });
+      expect(repositories.schedules).toEqual([]);
+    });
+
+    it.each([
+      ["in the free week", { kind: "free_week", plan: "weekly", endsAt: new Date("2026-09-28T05:00:00.000Z") }],
+      ["on an admin's student side", { kind: "admin" }],
+    ] as const)("builds the first weekly schedule for a student %s", async (_name, plan) => {
+      const repositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-14T13:00:00.000Z")]);
+
+      await expect(load(repositories, plan)).resolves.toMatchObject({ kind: "schedule" });
+      expect(repositories.schedules).toHaveLength(1);
+    });
+
+    it("still shows a lapsed student this week's saved weekly schedule", async () => {
+      const repositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-14T13:00:00.000Z")]);
+      const saved = await load(repositories, { kind: "paid", plan: "weekly" });
+
+      await expect(load(repositories, { kind: "lapsed" })).resolves.toEqual(saved);
+    });
+
+    it("still shows a lapsed student next week's saved weekly schedule on the upload weekend", async () => {
+      const saturday = new Date("2026-09-19T17:00:00.000Z");
+      const repositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-19T16:00:00.000Z")]);
+      const saved = await load(repositories, { kind: "paid", plan: "weekly" }, saturday);
+      expect(saved.kind).toBe("next_week_preview");
+
+      await expect(load(repositories, { kind: "lapsed" }, saturday)).resolves.toEqual(saved);
+    });
+  });
 
   describe("upload window", () => {
     const saturdayNoon = "2026-09-19T17:00:00.000Z";

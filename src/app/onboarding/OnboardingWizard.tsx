@@ -66,6 +66,7 @@ interface OnboardingWizardProps {
   today: string;
   goalTestDateOptions: ReturnType<typeof upcomingTestMonths>;
   scanningOff?: boolean;
+  withPlanStep?: boolean;
   onSave: typeof createStudentProfile;
   extract?: typeof extractScreenshot;
 }
@@ -80,6 +81,7 @@ export default function OnboardingWizard({
   today,
   goalTestDateOptions,
   scanningOff = false,
+  withPlanStep = true,
   onSave,
   extract = extractScreenshot,
 }: OnboardingWizardProps) {
@@ -142,7 +144,7 @@ export default function OnboardingWizard({
       <PageCue page="onboarding" />
       <div className={ONBOARDING_COLUMN}>
         <div data-page-swap data-page-section className="w-full lg:max-w-[440px]">
-          <p className="mb-2 font-mono text-label uppercase text-smoke">{stepLabel(state.step)}</p>
+          <p className="mb-2 font-mono text-label uppercase text-smoke">{stepLabel(state.step, withPlanStep)}</p>
           <div ref={stepRegion} data-onboarding-step>
             {state.step === "goal" && <GoalStep state={state} dispatch={send} goalTestDateOptions={goalTestDateOptions} today={today} />}
             {state.step === "week" && <WeekStep state={state} dispatch={send} />}

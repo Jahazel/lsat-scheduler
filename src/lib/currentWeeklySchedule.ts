@@ -1,5 +1,6 @@
 import { DAY_ORDER, generateWeek, type WeekShapeOptions } from "./engine";
 import type { ApprovedPracticeTestResult } from "./practiceTestResult";
+import { mayStartWeeklyUpload, type PlanStatus } from "./planStatus";
 import { isoDateInWeek, unscheduledDaySentence } from "./scheduleReasonText";
 import type {
   AnalyticsSnapshot,
@@ -37,6 +38,7 @@ export interface CurrentWeekRepositories {
 
 export type LoadOrGenerateCurrentWeekResult =
   | { kind: "analytics_required" }
+  | { kind: "plan_required" }
   | { kind: "schedule"; schedule: PersistedWeeklySchedule }
   | { kind: "next_week_preview"; schedule: PersistedWeeklySchedule };
 
@@ -51,6 +53,7 @@ interface LoadOrGenerateCurrentWeekInput extends CurrentWeekRepositories {
   rules: RulesConfig;
   timezone: string;
   now: () => Date;
+  plan: PlanStatus;
 }
 
 function localDateParts(date: Date, timezone: string) {
@@ -208,6 +211,12 @@ export async function loadOrGenerateCurrentWeek(
     return { kind: "schedule", schedule: existing };
   }
 
+  const nextWeekStartDate = isoDateInWeek(weekStartDate, 7);
+  if (!mayStartWeeklyUpload(input.plan)) {
+    const saved = isUploadWeekend(now, input.timezone) && await input.weeklySchedules.findByStudentAndWeek(input.studentId, nextWeekStartDate);
+    return saved ? { kind: "next_week_preview", schedule: saved } : { kind: "plan_required" };
+  }
+
   const eligibleSnapshots = await input.snapshots.listEligibleForStudent(input.studentId);
   const current = await buildAndSaveWeek(input, eligibleSnapshots, weekStartDate, currentDayInTimezone(now, input.timezone));
   if (current) {
@@ -216,7 +225,6 @@ export async function loadOrGenerateCurrentWeek(
   }
   if (!isUploadWeekend(now, input.timezone)) return { kind: "analytics_required" };
 
-  const nextWeekStartDate = isoDateInWeek(weekStartDate, 7);
   const preview = await input.weeklySchedules.findByStudentAndWeek(input.studentId, nextWeekStartDate)
     ?? await buildAndSaveWeek(input, eligibleSnapshots, nextWeekStartDate, "MONDAY");
   return preview ? { kind: "next_week_preview", schedule: preview } : { kind: "analytics_required" };
