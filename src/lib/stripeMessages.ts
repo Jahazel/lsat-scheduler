@@ -15,7 +15,7 @@ const SIGNATURE_TOLERANCE_SECONDS = 5 * 60;
 type BillingRow = typeof billingRecords.$inferSelect;
 type Database = ReturnType<typeof getPostgresDatabase>;
 
-export type StripeMessageRefusal = "badSignature" | "unknownAccount" | "adminAccount" | "otherAccount";
+export type StripeMessageRefusal = "badSignature" | "unknownAccount" | "deletedAccountPlanEnded" | "adminAccount" | "otherAccount";
 
 type SaveSource = "message" | "restore";
 
@@ -111,11 +111,15 @@ async function hasPaidCharge(id: string, secretKey: string) {
   return invoices.data.some((invoice) => invoice.amount_paid > 0);
 }
 
+class UnknownPrice extends Error {
+  override name = "UnknownPrice";
+}
+
 function planOf(subscription: Subscription): BillingRow["plan"] {
   const recurring = subscription.items.data[0].price.recurring;
   if (recurring?.interval_count === 1 && recurring.interval === "week") return "weekly";
   if (recurring?.interval_count === 1 && recurring.interval === "month") return "monthly";
-  throw new Error("The subscription's price is not Weekly or Monthly.");
+  throw new UnknownPrice("The subscription's price is not Weekly or Monthly.");
 }
 
 const earlier = (a: Date | null, b: Date | null) => (a && b ? (a < b ? a : b) : a ?? b);
@@ -179,7 +183,9 @@ async function saveSubscription(tx: PostgresTransaction, id: string, secretKey: 
   const [account] = (await tx.execute<{ role: string; email: string }>(
     sql`select role, email from accounts where id = ${accountId} for key share`,
   )).rows;
-  if (!account) return { kind: "refused", result: "unknownAccount", who: { nobody: true } };
+  if (!account) {
+    return from === "message" ? endPlanOfDeletedAccount(tx, subscription, accountId, secretKey) : { kind: "refused", result: "unknownAccount", who: { nobody: true } };
+  }
   const who = { account: accountId };
   if (account.role === "admin") return { kind: "refused", result: "adminAccount", who };
 
@@ -203,6 +209,17 @@ async function saveSubscription(tx: PostgresTransaction, id: string, secretKey: 
   return { kind: "saved" };
 }
 
+const ENDED: readonly Subscription["status"][] = ["canceled", "incomplete_expired"];
+
+async function endPlanOfDeletedAccount(
+  tx: PostgresTransaction, subscription: Subscription, accountId: string, secretKey: string,
+): Promise<SaveOutcome> {
+  const [{ listed }] = (await tx.execute<{ listed: boolean }>(sql`select is_on_deletion_list(${accountId}) as listed`)).rows;
+  if (!listed || ENDED.includes(subscription.status)) return { kind: "refused", result: "unknownAccount", who: { nobody: true } };
+  await stripeRequest(`subscriptions/${subscription.id}`, secretKey, undefined, "DELETE");
+  return { kind: "refused", result: "deletedAccountPlanEnded", who: { nobody: true } };
+}
+
 const subscriptionPageSchema = z.object({ data: z.array(z.object({ id: subscriptionId })), has_more: z.boolean() });
 
 async function listSubscriptionIds(secretKey: string) {
@@ -221,6 +238,7 @@ type BillingResyncCounts = {
   saved: number;
   /** Deleted, admin, or other Accounts' subscriptions, and older subscriptions of an Account with a newer one. */
   leftOut: number;
+  unknownPrice: string[];
   /** Billing records whose subscription Stripe does not list, such as records from the other Stripe mode. */
   notInStripe: number;
 };
@@ -229,11 +247,24 @@ type BillingResyncCounts = {
 export async function resyncBillingRecords(db: Database, secretKey: string): Promise<BillingResyncCounts> {
   const ids = await listSubscriptionIds(secretKey);
   let saved = 0;
+  const unknownPrice: string[] = [];
   for (const id of ids) {
-    const outcome = await db.transaction((tx) => saveSubscription(tx, id, secretKey, "restore"));
-    if (outcome.kind === "saved") saved += 1;
+    try {
+      const outcome = await db.transaction((tx) => saveSubscription(tx, id, secretKey, "restore"));
+      if (outcome.kind === "saved") saved += 1;
+    } catch (error) {
+      if (!(error instanceof UnknownPrice)) throw error;
+      unknownPrice.push(id);
+    }
   }
   const unlisted = await db.select({ id: billingRecords.accountId }).from(billingRecords)
     .where(notInArray(billingRecords.stripeSubscriptionId, ids));
-  return { listed: ids.length, saved, leftOut: ids.length - saved, notInStripe: unlisted.length };
+  return { listed: ids.length, saved, leftOut: ids.length - saved - unknownPrice.length, unknownPrice, notInStripe: unlisted.length };
+}
+
+export function billingResyncReport(counts: BillingResyncCounts) {
+  const skipped = counts.unknownPrice.length ? ` (${counts.unknownPrice.join(", ")})` : "";
+  return `Stripe subscriptions: ${counts.listed}. Billing records saved: ${counts.saved}. Left out: ${counts.leftOut}. `
+    + `Skipped for a price that is not Weekly or Monthly: ${counts.unknownPrice.length}${skipped}. `
+    + `Billing records Stripe does not list: ${counts.notInStripe}.\n`;
 }
