@@ -34,7 +34,8 @@ const stripe = {
 vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
   const url = new URL(String(input));
   const headers = new Headers(init?.headers);
-  if (url.origin !== "https://api.stripe.com" || headers.get("authorization") !== `Bearer ${KEY}`) throw new Error("Not Stripe");
+  if (url.origin !== "https://api.stripe.com") throw new Error("Not Stripe");
+  if (headers.get("authorization") !== `Bearer ${KEY}`) return Response.json({ error: { type: "invalid_request_error" } }, { status: 401 });
   if (stripe.down) return Response.json({ error: { type: "api_error" } }, { status: 500 });
   // Stripe answers over the network, so two requests at once overlap.
   await new Promise((resolve) => setTimeout(resolve, 5));
@@ -303,6 +304,19 @@ it("answers an unknown plan or a Stripe failure with the failure notice, saving 
   await expectUnexpectedFailure(database, openStripeCheckout("yearly"), "Error");
   stripe.down = true;
   await expectUnexpectedFailure(database, openStripeCheckout("weekly"), "StripeRequestFailed");
+  expect(await billingRows()).toEqual([]);
+});
+
+it.each([
+  ["missing", ""],
+  ["refused by Stripe", "sk_test_revoked_key"],
+])("answers Checkout with the failure notice and logs StripeKeyProblem when the Stripe key is %s", async (_problem, key) => {
+  await onboardedStudent();
+  vi.stubEnv("STRIPE_SECRET_KEY", key);
+
+  await expectUnexpectedFailure(database, openStripeCheckout("weekly"), "StripeKeyProblem");
+  expect(stripe.customers).toEqual([]);
+  expect(stripe.sessions).toEqual([]);
   expect(await billingRows()).toEqual([]);
 });
 

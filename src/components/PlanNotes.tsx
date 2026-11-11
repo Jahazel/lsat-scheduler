@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { openCustomerPortal } from "@/app/account/actions";
+import { openCustomerPortalFromThisWeek } from "@/app/account/actions";
 import { ActionForm } from "@/components/FailureNotice";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -40,7 +40,7 @@ export function PlanNotice({ note }: { note: PlanNote }) {
           {action === "pick_plan" ? (
             <ButtonLink href="/dashboard/upload" size="md">Pick a plan</ButtonLink>
           ) : (
-            <ActionForm action={openCustomerPortal}>
+            <ActionForm action={openCustomerPortalFromThisWeek}>
               <UpdateCardButton />
             </ActionForm>
           )}
