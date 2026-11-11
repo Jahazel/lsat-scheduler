@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
+import { LegalPage } from "@/components/legal/LegalPage";
+import type { RelatedSources } from "@/components/legal/RelatedSections";
 import AIDisclosurePage from "./page";
 
 afterEach(cleanup);
@@ -34,5 +36,31 @@ describe("AI disclosure page", () => {
     render(<AIDisclosurePage />);
     expect(screen.queryByRole("navigation", { name: "On this page" })).toBeNull();
     expect(screen.queryByRole("button", { name: /On this page/ })).toBeNull();
+  });
+
+  it("links to the AI sections of the Terms and the Privacy Policy, each under its page label", () => {
+    render(<AIDisclosurePage />);
+    const links = within(screen.getByRole("navigation", { name: "Related" })).getAllByRole("link");
+    expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
+      ["TermsAI reads your screenshots", "/legal/terms#ai-reads-your-screenshots"],
+      ["PrivacyYour 7Sage screenshots", "/legal/privacy#your-7sage-screenshots"],
+    ]);
+  });
+
+  const renderShortPage = (related: RelatedSources) =>
+    render(<LegalPage id="ai-disclosure" title="How DrillMap uses AI" dateLine="" paragraphs={<p>Text</p>} related={related} />);
+
+  it("finds each related section by its fixed id, so a renamed section keeps its link and a missing one drops out", () => {
+    renderShortPage({ terms: [{ id: "ai-reads-your-screenshots", title: "How AI reads your 7Sage screenshots" }], privacy: [] });
+    const links = within(screen.getByRole("navigation", { name: "Related" })).getAllByRole("link");
+    expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
+      ["TermsHow AI reads your 7Sage screenshots", "/legal/terms#ai-reads-your-screenshots"],
+    ]);
+  });
+
+  it("hides the related list when neither section exists", () => {
+    renderShortPage({ terms: [{ id: "contact", title: "Contact" }], privacy: [] });
+    expect(screen.queryByRole("navigation", { name: "Related" })).toBeNull();
+    expect(screen.queryByText("Related")).toBeNull();
   });
 });
