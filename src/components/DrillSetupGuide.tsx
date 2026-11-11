@@ -14,34 +14,40 @@ const PRESS = cx(
 );
 const OUTLINE = cx("inline-flex h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xs border border-vellum-line bg-paper px-3.5 text-small font-medium text-ink pointer-hover:bg-vellum", PRESS);
 
-type Arrow = { x: number; y: number; from: "left" | "right" };
+type Arrow = { x: number; y: number; from: "left" | "right" | "below" };
 type Screenshot = { src: string; width: number; height: number; arrows: Arrow[] };
 
 const SCREENSHOTS: Record<GuideContent["section"], Screenshot[]> = {
   "Logical Reasoning": [
-    { src: "/drill-setup-guide/lr-step-1-start-drill.png", width: 630, height: 280, arrows: [{ x: 187, y: 212, from: "right" }] },
+    { src: "/drill-setup-guide/lr-step-1-start-drill.png", width: 630, height: 320, arrows: [{ x: 94, y: 236, from: "below" }] },
     { src: "/drill-setup-guide/lr-step-2-customize.png", width: 630, height: 350, arrows: [{ x: 124, y: 198, from: "left" }] },
-    { src: "/drill-setup-guide/lr-step-3-filters.png", width: 650, height: 850, arrows: [{ x: 128, y: 336, from: "left" }, { x: 128, y: 404, from: "left" }] },
+    { src: "/drill-setup-guide/lr-step-3-filters.png", width: 590, height: 410, arrows: [{ x: 123, y: 102, from: "left" }, { x: 123, y: 170, from: "left" }] },
     { src: "/drill-setup-guide/lr-step-4-count-and-start.png", width: 580, height: 330, arrows: [{ x: 455, y: 64, from: "right" }, { x: 455, y: 149, from: "right" }] },
   ],
   "Reading Comprehension": [
-    { src: "/drill-setup-guide/rc-step-1-start-drill.png", width: 630, height: 280, arrows: [{ x: 188, y: 212, from: "right" }] },
+    { src: "/drill-setup-guide/rc-step-1-start-drill.png", width: 630, height: 320, arrows: [{ x: 95, y: 236, from: "below" }] },
     { src: "/drill-setup-guide/rc-step-2-customize.png", width: 630, height: 350, arrows: [{ x: 122, y: 197, from: "left" }] },
-    { src: "/drill-setup-guide/rc-step-3-filters.png", width: 650, height: 830, arrows: [{ x: 126, y: 334, from: "left" }, { x: 126, y: 402, from: "left" }] },
+    { src: "/drill-setup-guide/rc-step-3-filters.png", width: 590, height: 410, arrows: [{ x: 125, y: 104, from: "left" }, { x: 125, y: 172, from: "left" }] },
     { src: "/drill-setup-guide/rc-step-4-count-and-start.png", width: 580, height: 320, arrows: [{ x: 453, y: 62, from: "right" }, { x: 453, y: 147, from: "right" }] },
   ],
 };
 
+const ARROW = { tail: 80, gap: 4, head: 28, headSpread: 18, stroke: 7, halo: 14 };
+const POINTING: Record<Arrow["from"], [number, number]> = { left: [1, 0], right: [-1, 0], below: [0, -1] };
+
+function arrowPath({ x, y, from }: Arrow) {
+  const [dx, dy] = POINTING[from];
+  const at = (back: number, side = 0) => `${x - dx * back - dy * side} ${y - dy * back + dx * side}`;
+  return `M${at(ARROW.tail)}L${at(ARROW.gap)}M${at(ARROW.head, ARROW.headSpread)}L${at(0)}L${at(ARROW.head, -ARROW.headSpread)}`;
+}
+
 function Arrows({ screenshot: { width, height, arrows } }: { screenshot: Screenshot }) {
-  const paths = arrows.map(({ x, y, from }) => {
-    const toward = from === "left" ? 1 : -1;
-    return `M${x - toward * 100} ${y}H${x - toward * 4}M${x - toward * 28} ${y - 18}L${x} ${y}L${x - toward * 28} ${y + 18}`;
-  });
+  const paths = arrows.map(arrowPath);
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="pointer-events-none absolute inset-0 size-full" fill="none"
       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {paths.map((d) => <path key={`halo ${d}`} d={d} stroke="var(--color-paper)" strokeWidth="14" />)}
-      {paths.map((d) => <path key={d} d={d} stroke="var(--color-danger)" strokeWidth="7" />)}
+      {paths.map((d, index) => <path key={`halo ${index}`} d={d} stroke="var(--color-paper)" strokeWidth={ARROW.halo} />)}
+      {paths.map((d, index) => <path key={index} d={d} stroke="var(--color-danger)" strokeWidth={ARROW.stroke} />)}
     </svg>
   );
 }
