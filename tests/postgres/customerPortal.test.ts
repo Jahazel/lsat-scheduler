@@ -34,14 +34,17 @@ async function account(email: string, role: "student" | "admin" = "student") {
   return created.id;
 }
 
-it("opens the student's own Customer Portal session, which returns to Account", async () => {
+it.each([
+  ["account", "https://drillmap.example/account"],
+  ["this_week", "https://drillmap.example/dashboard"],
+] as const)("opens the student's own Customer Portal session, which returns to the page that opened it (%s)", async (from, returnUrl) => {
   const maya = await account("maya@example.test");
   await database.writeBillingRecordAsOwner(maya, { stripeCustomerId: "cus_maya" });
   await database.writeBillingRecordAsOwner(await account("ana@example.test"), { stripeCustomerId: "cus_ana" });
 
-  expect(await openCustomerPortalSession(maya)).toBe(PORTAL_URL);
+  expect(await openCustomerPortalSession(maya, from)).toBe(PORTAL_URL);
   expect(portalRequests.map((form) => Object.fromEntries(form))).toEqual([
-    { customer: "cus_maya", return_url: "https://drillmap.example/account" },
+    { customer: "cus_maya", return_url: returnUrl },
   ]);
 });
 
@@ -51,7 +54,7 @@ it("opens none for an admin, a student with no plan, or an Account that does not
   const noPlan = await account("new@example.test");
 
   for (const id of [admin, noPlan, "00000000-0000-4000-8000-000000000000", "not-an-id"]) {
-    expect(await openCustomerPortalSession(id)).toBeNull();
+    expect(await openCustomerPortalSession(id, "account")).toBeNull();
   }
   expect(portalRequests).toEqual([]);
 });

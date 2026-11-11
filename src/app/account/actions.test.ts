@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   signIn: vi.fn(),
-  openCustomerPortalSession: vi.fn<(accountId: string) => Promise<string | null>>(),
+  openCustomerPortalSession: vi.fn<(accountId: string, from: string) => Promise<string | null>>(),
 }));
 vi.mock("@/auth", () => ({ auth: mocks.auth, signIn: mocks.signIn, signOut: vi.fn() }));
 vi.mock("@/lib/billingRepository", () => ({ openCustomerPortalSession: mocks.openCustomerPortalSession }));
-import { openCustomerPortal, signInAgainToDelete } from "./actions";
+import { openCustomerPortal, openCustomerPortalFromThisWeek, signInAgainToDelete } from "./actions";
 
 const FAILED = { unexpectedFailure: expect.stringMatching(/^[0-9a-f]{8}$/) };
 const STUDENT = "6f1c2b9e-3a4d-4e5f-8a7b-9c0d1e2f3a4b";
@@ -22,11 +22,14 @@ it("Sign in again shows the Google account chooser and returns to the deletion f
 });
 
 describe("Manage plan on Stripe", () => {
-  it("sends a student to their Customer Portal session", async () => {
+  it.each([
+    ["Account", openCustomerPortal, "account"],
+    ["This week", openCustomerPortalFromThisWeek, "this_week"],
+  ] as const)("sends a student from %s to their Customer Portal session, which returns there", async (_page, open, from) => {
     mocks.auth.mockResolvedValue({ user: { id: STUDENT, role: "student" } });
     mocks.openCustomerPortalSession.mockResolvedValue("https://billing.stripe.com/p/session/test_1");
-    await expect(openCustomerPortal()).rejects.toMatchObject({ digest: expect.stringContaining("https://billing.stripe.com/p/session/test_1") });
-    expect(mocks.openCustomerPortalSession).toHaveBeenCalledWith(STUDENT);
+    await expect(open()).rejects.toMatchObject({ digest: expect.stringContaining("https://billing.stripe.com/p/session/test_1") });
+    expect(mocks.openCustomerPortalSession).toHaveBeenCalledWith(STUDENT, from);
   });
 
   it.each([

@@ -56,10 +56,14 @@ export async function loadPlanStatuses(accountIds: string[]): Promise<Map<string
   return new Map(rows.map((row) => [row.accountId, accountPlan(row, realNow).status]));
 }
 
+const PORTAL_RETURN_PATHS = { account: "/account", this_week: "/dashboard" } as const;
+
+export type PortalReturn = keyof typeof PORTAL_RETURN_PATHS;
+
 const portalSessionSchema = z.object({ url: z.string().startsWith("https://billing.stripe.com/") });
 
-/** Opens a Stripe Customer Portal session for a student's own plan. An admin or an Account with no plan gets none. */
-export async function openCustomerPortalSession(accountId: string): Promise<string | null> {
+/** Opens a Stripe Customer Portal session for a student's own plan, returning to the page that opened it. An admin or an Account with no plan gets none. */
+export async function openCustomerPortalSession(accountId: string, from: PortalReturn): Promise<string | null> {
   if (!isAccountId(accountId)) return null;
   const [row] = await getPostgresDatabase()
     .select({ customer: billingRecords.stripeCustomerId })
@@ -71,7 +75,7 @@ export async function openCustomerPortalSession(accountId: string): Promise<stri
   if (!site) throw new Error("SITE_URL is not set, so this place cannot send students back from Stripe.");
   const portal = await stripeRequest("billing_portal/sessions", stripeSecretKey(), {
     customer: row.customer,
-    return_url: new URL("/account", site).toString(),
+    return_url: new URL(PORTAL_RETURN_PATHS[from], site).toString(),
   });
   return portalSessionSchema.parse(portal).url;
 }
