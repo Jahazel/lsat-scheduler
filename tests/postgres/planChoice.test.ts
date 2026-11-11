@@ -84,8 +84,8 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(WEDNESDAY);
   vi.stubEnv("STRIPE_SECRET_KEY", KEY);
-  vi.stubEnv("STRIPE_WEEKLY_PRICE_ID", "price_weekly_test");
-  vi.stubEnv("STRIPE_MONTHLY_PRICE_ID", "price_monthly_test");
+  vi.stubEnv("STRIPE_PRICE_WEEKLY", "price_weekly_test");
+  vi.stubEnv("STRIPE_PRICE_MONTHLY", "price_monthly_test");
   vi.stubEnv("AUTH_SECRET", AUTH_SECRET);
   vi.stubEnv("SITE_URL", SITE);
   stripe.customers = [];

@@ -176,6 +176,11 @@ credential is a secret that gives access, such as a password or an API key.
    Replace `your-local-email@example.test` with the email of the Google
    Account you used locally. Sign out and back in to see the Admin controls.
 
+   An Account with a plan needs `STRIPE_SECRET_KEY` set in the same terminal,
+   because `make-admin` cancels the plan in Stripe first. When the key is
+   missing or Stripe refuses it, `make-admin` names `STRIPE_SECRET_KEY`,
+   never its value, and keeps the Account a student.
+
 ## Commands
 
 ```bash
