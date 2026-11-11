@@ -42,7 +42,7 @@ export function LegalPage({ id, title, dateLine, sections, paragraphs }: LegalPa
                   <h2 tabIndex={-1} className="text-lead font-semibold tracking-heading text-ink outline-none">
                     {section.title}
                   </h2>
-                  <div>{section.body}</div>
+                  {section.body}
                 </section>
               ))}
             </div>
