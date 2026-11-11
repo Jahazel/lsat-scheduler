@@ -4,7 +4,7 @@ import { HeroCards } from "@/components/landing/HeroCards";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { QuestionList } from "@/components/landing/QuestionList";
 import { RevealSection } from "@/components/landing/RevealSection";
-import { GapBand, SectionGrid, SectionLabel } from "@/components/landing/SectionGrid";
+import { GridGap, LineGrid, SectionLabel } from "@/components/landing/LineGrid";
 import { FREE_WEEK_NOTE, LinkArrow, StartFreeWeekLink } from "@/components/landing/StartFreeWeekLink";
 import { FOCUS, cx } from "@/components/ui/classes";
 import { PLAN_PRICES, planPriceText } from "@/lib/planPrices";
@@ -14,65 +14,68 @@ const HERO_SCREEN_IMAGE = "block h-auto w-[840px] max-w-none md:w-[672px] lg:w-[
 
 export default function LandingPage() {
   return (
-    <div data-page-fade className="flex flex-col items-center overflow-x-clip bg-vellum px-5 md:px-0">
-      <section aria-labelledby="landing-title" className="relative isolate flex w-full flex-col items-center overflow-y-clip pt-[86px] pb-12 md:pt-[184px] lg:pt-[166px]">
-        <div aria-hidden="true" className="hero-dots pointer-events-none absolute inset-y-0 left-1/2 -z-20 w-screen -translate-x-1/2" />
-        <div className="relative z-2 flex w-full flex-col items-center gap-4 text-center md:w-[680px] md:gap-5 lg:w-[800px] lg:gap-6">
-          <h1 id="landing-title" tabIndex={-1} className="outline-none text-[42px]/[44px] font-semibold tracking-[-0.04em] text-balance text-void-eclipse md:text-[58px]/[60px] lg:text-[76px]/[78px]">
-            Your practice results, turned into next week&apos;s plan
-          </h1>
-          <p className="text-body text-smoke md:w-[520px] md:text-[18px]/[28px] lg:w-[600px] lg:text-lead">
-            Upload your analytics every weekend. DrillMap builds Monday to Sunday around the question types you miss most.
-          </p>
-        </div>
-        <div className="relative z-2 flex w-full flex-col items-center gap-3 pt-6 md:gap-[14px] md:pt-7 lg:pt-9">
-          <StartFreeWeekLink className="h-[52px] w-full px-7 md:w-auto" />
-          <p className="text-small text-smoke">{FREE_WEEK_NOTE}</p>
-        </div>
+    <div data-page-fade className="flex flex-col items-center overflow-x-clip bg-vellum">
+      <LineGrid hero={<Hero />}>
+        <GridGap />
+        <HowItWorks />
+        <GridGap />
+        <PricingSection />
+        <GridGap />
+        <QuestionsSection />
+        <GridGap />
+        <ClosingSection />
+      </LineGrid>
+    </div>
+  );
+}
 
-        <HeroCards />
+function Hero() {
+  return (
+    <section aria-labelledby="landing-title" className="relative isolate flex w-full flex-col items-center overflow-y-clip px-5 pt-[86px] pb-12 md:px-0 md:pt-[184px] lg:pt-[166px]">
+      <div className="relative z-2 flex w-full flex-col items-center gap-4 text-center md:w-[680px] md:gap-5 lg:w-[800px] lg:gap-6">
+        <h1 id="landing-title" tabIndex={-1} className="outline-none text-[42px]/[44px] font-semibold tracking-[-0.04em] text-balance text-void-eclipse md:text-[58px]/[60px] lg:text-[76px]/[78px]">
+          Your practice results, turned into next week&apos;s plan
+        </h1>
+        <p className="text-body text-smoke md:w-[520px] md:text-[18px]/[28px] lg:w-[600px] lg:text-lead">
+          Upload your analytics every weekend. DrillMap builds Monday to Sunday around the question types you miss most.
+        </p>
+      </div>
+      <div className="relative z-2 flex w-full flex-col items-center gap-3 pt-6 md:gap-[14px] md:pt-7 lg:pt-9">
+        <StartFreeWeekLink className="h-[52px] w-full px-7 md:w-auto" />
+        <p className="text-small text-smoke">{FREE_WEEK_NOTE}</p>
+      </div>
 
-        <div className="relative mt-10 flex w-full justify-center md:mt-[244px] lg:mt-[200px] min-[1360px]:mt-[128px]">
-          <div
-            aria-hidden="true"
-            className="hero-backdrop pointer-events-none absolute -inset-x-3 -top-8 -bottom-6 -z-10 rounded-[24px] md:inset-x-[calc(50%-392px)] md:-top-14 md:rounded-[32px] lg:inset-x-[calc(50%-min(616px,50%-8px))] lg:-top-16"
-          />
-          <div className="relative z-2 w-full rounded-[22px] border border-paper/30 bg-paper/20 p-2 shadow-hero-screen md:w-[688px] lg:w-[min(1136px,calc(100%-32px))]">
-            <div className="h-[460px] overflow-clip rounded-[14px] border border-void-eclipse/15 bg-paper md:h-[432px] lg:h-[720px]">
-              <Image
-                src="/landing/hero-app-nav.png"
-                alt=""
-                width={2880}
-                height={144}
-                sizes={HERO_SCREEN_SIZES}
-                loading="eager"
-                className={HERO_SCREEN_IMAGE}
-              />
-              <Image
-                src="/landing/hero-this-week.png"
-                alt="This week screen: your plan for this week, with Monday to Sunday drills"
-                width={2880}
-                height={3094}
-                sizes={HERO_SCREEN_SIZES}
-                loading="eager"
-                className={HERO_SCREEN_IMAGE}
-              />
-            </div>
+      <HeroCards />
+
+      <div className="relative mt-10 flex w-full justify-center md:mt-[244px] lg:mt-[200px] min-[1360px]:mt-[128px]">
+        <div
+          aria-hidden="true"
+          className="hero-backdrop pointer-events-none absolute -inset-x-3 -top-8 -bottom-6 -z-10 rounded-[24px] md:inset-x-[calc(50%-392px)] md:-top-14 md:rounded-[32px] lg:inset-x-[calc(50%-min(616px,50%-8px))] lg:-top-16"
+        />
+        <div className="relative z-2 w-full rounded-[22px] border border-paper/30 bg-paper/20 p-2 shadow-hero-screen md:w-[688px] lg:w-[min(1136px,calc(100%-32px))]">
+          <div className="h-[460px] overflow-clip rounded-[14px] border border-void-eclipse/15 bg-paper md:h-[432px] lg:h-[720px]">
+            <Image
+              src="/landing/hero-app-nav.png"
+              alt=""
+              width={2880}
+              height={144}
+              sizes={HERO_SCREEN_SIZES}
+              loading="eager"
+              className={HERO_SCREEN_IMAGE}
+            />
+            <Image
+              src="/landing/hero-this-week.png"
+              alt="This week screen: your plan for this week, with Monday to Sunday drills"
+              width={2880}
+              height={3094}
+              sizes={HERO_SCREEN_SIZES}
+              loading="eager"
+              className={HERO_SCREEN_IMAGE}
+            />
           </div>
         </div>
-      </section>
-
-      <SectionGrid>
-        <GapBand />
-        <HowItWorks />
-        <GapBand />
-        <PricingSection />
-        <GapBand />
-        <QuestionsSection />
-        <GapBand />
-        <ClosingSection />
-      </SectionGrid>
-    </div>
+      </div>
+    </section>
   );
 }
 
