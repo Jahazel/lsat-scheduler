@@ -104,11 +104,13 @@ rotation.
 
 ### Rotate the Stripe secret key
 
-1. Copy only: before you rotate, enter the old test key in the shell, so it stays out of shell history. The
-   check below needs it.
+1. Copy only: before you rotate, open Developers → API keys in the sandbox, reveal the current secret key, and
+   enter it in the shell, so it stays out of shell history. Stripe must answer `200`, which proves the shell
+   holds the working old key. Keep this terminal open until step 11; the check there needs the key.
 
    ```sh
    read -rs OLD_STRIPE_KEY && export OLD_STRIPE_KEY
+   node -e 'fetch("https://api.stripe.com/v1/balance", { headers: { authorization: `Bearer ${process.env.OLD_STRIPE_KEY}` } }).then((response) => console.log(response.status))'
    ```
 
 2. In the Stripe Dashboard, switch to the site's mode: the sandbox for the copy, live mode for the real site.
@@ -133,10 +135,12 @@ rotation.
 
 **Check that Stripe refuses the old key:**
 
-- Copy: run this with the old test key from step 1. Stripe must answer `401`.
+- Copy: run this in the terminal from step 1. Stripe must answer `401`. If the shell no longer holds the
+  old key, the command stops with an error and tests nothing. Then rotate the key again from step 1.
 
   ```sh
-  node -e 'fetch("https://api.stripe.com/v1/balance", { headers: { authorization: `Bearer ${process.env.OLD_STRIPE_KEY}` } }).then((response) => console.log(response.status))'
+  : "${OLD_STRIPE_KEY:?enter the old key from step 1}" &&
+    node -e 'fetch("https://api.stripe.com/v1/balance", { headers: { authorization: `Bearer ${process.env.OLD_STRIPE_KEY}` } }).then((response) => console.log(response.status))'
   unset OLD_STRIPE_KEY
   ```
 
