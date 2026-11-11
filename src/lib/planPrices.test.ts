@@ -4,10 +4,10 @@ import { PLAN_PRICES, planPriceText } from "./planPrices";
 describe("planPriceText", () => {
   it("shows today's prices and the Monthly saving worked out from them", () => {
     expect(planPriceText(PLAN_PRICES)).toEqual({
-      weekly: "$7.99",
-      monthly: "$25",
-      monthlySaving: "about 28% less",
-      monthOnWeekly: "About $34.60 a month on Weekly",
+      weekly: "$10",
+      monthly: "$29.99",
+      monthlySaving: "about 31% less",
+      monthOnWeekly: "About $43.30 a month on Weekly",
     });
   });
 
