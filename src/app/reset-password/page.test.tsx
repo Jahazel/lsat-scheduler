@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToString } from "react-dom/server";
 import { requestPolicy } from "@/lib/requestPolicy";
 
 const { resetPassword, findResetLinkEmail } = vi.hoisted(() => ({ resetPassword: vi.fn(), findResetLinkEmail: vi.fn() }));
@@ -73,6 +74,14 @@ describe("Set a new password", () => {
     expect(screen.getByRole("link", { name: "Get a new link" }).getAttribute("href")).toBe("/forgot-password");
     expect(screen.getByRole("link", { name: "Log in" }).getAttribute("href")).toBe("/login");
     expect(resetPassword).not.toHaveBeenCalled();
+  });
+
+  it("renders a form that a submit before the page loads cannot send as a plain GET with the token and new password", async () => {
+    findResetLinkEmail.mockResolvedValue("maya.chen@fastmail.com");
+    const page = await ResetPasswordPage({ params: Promise.resolve({}), searchParams: Promise.resolve({ token: "link-token" }) });
+    const forms = renderToString(page).match(/<form[^>]*>/g) ?? [];
+    expect(forms).toHaveLength(1);
+    expect(forms[0]).toContain('action="javascript:');
   });
 
   it("sends no Referer header from the page", async () => {
