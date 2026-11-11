@@ -232,6 +232,8 @@ Updated on November 10, 2026 ([issue 694](https://github.com/Jahazel/lsat-schedu
 
 Updated on November 10, 2026 ([issue 691](https://github.com/Jahazel/lsat-scheduler/issues/691)): admins see each student's plan status, so "Who can see your data" names it.
 
+Updated on November 10, 2026 ([issue 686](https://github.com/Jahazel/lsat-scheduler/issues/686)) for plan choice: the Payments section names what DrillMap sends Stripe.
+
 > **Privacy Policy**
 > Last updated: November 10, 2026
 >
@@ -248,7 +250,7 @@ Updated on November 10, 2026 ([issue 691](https://github.com/Jahazel/lsat-schedu
 > When you upload a screenshot, DrillMap sends it to Anthropic, an AI company, to read your analytics numbers. Anthropic keeps the image for up to 30 days and then deletes it. DrillMap does not store the screenshot. It stores only the numbers you review and approve. Crop out anything you do not want to share before you upload. AI does not make your schedule. Fixed rules make it from your approved numbers and settings.
 >
 > **Payments**
-> Stripe sells your plan and takes your payment. Stripe is the seller, so your card and the other payment details you give Stripe go to Stripe, not to DrillMap. Stripe's own privacy policy covers them. DrillMap stores only the Stripe IDs of your customer record and plan, your plan (Weekly or Monthly), its Stripe status, its dates, and whether your first charge went through. We delete these with your Account.
+> Stripe sells your plan and takes your payment. Stripe is the seller, so your card and the other payment details you give Stripe go to Stripe, not to DrillMap. Stripe's own privacy policy covers them. To start your plan, DrillMap sends Stripe your email address, your Account ID, the plan you picked, and the date your free week ends. DrillMap stores only the Stripe IDs of your customer record and plan, your plan (Weekly or Monthly), its Stripe status, its dates, and whether your first charge went through. We delete these with your Account.
 >
 > Each email address gets one free week in 12 months. When your free week starts, we save a scrambled form (hash) of your email address and the date in the used free week list. We keep each row for 12 months, even if you delete your Account, and then delete it.
 >
@@ -297,6 +299,7 @@ Each row is a square-bracket fill or a change from the October 19 text. A later 
 | Admins see name, email, weekly study time, plan status, and the saved weekly schedule with check-ins | The Admin student list and student page (`src/app/admin/`). The October text named only the weekly schedule. Plan status added for [#691](https://github.com/Jahazel/lsat-scheduler/issues/691). |
 | "Continue with Google" | The Google button label (`src/components/signIn/GoogleButton.tsx`). |
 | Stripe is the seller and payment processor; no card details reach DrillMap | [ADR 0007](../adr/0007-stripe-is-the-seller-of-record.md) and launch checklist J2. |
+| DrillMap sends Stripe the email address, the Account ID, the picked plan, and the free week end date | The Stripe customer and Checkout session that plan choice starts (`startCheckout` in `src/lib/stripeCheckout.ts`): the customer's `email` and `metadata[account_id]` (or the Stripe customer ID already on the billing record), `client_reference_id` and `subscription_data[metadata][account_id]` (the Account ID), the plan's Stripe price ID, and `subscription_data[trial_end]`. [#686](https://github.com/Jahazel/lsat-scheduler/issues/686). |
 | Billing record holds Stripe IDs, plan, Stripe status, dates, and whether the first charge succeeded, deleted with the Account | Payments spec [#680](https://github.com/Jahazel/lsat-scheduler/issues/680), "Data", and launch checklist J2. The `billing_records` table, migration `0020_billing_records`, removed by the cascade from the Account. |
 | One free week per email address in 12 months; used free week list holds an email hash and date, kept 12 months, survives Account deletion | Payments spec [#680](https://github.com/Jahazel/lsat-scheduler/issues/680), user stories 17 and 19 and "Data". The `used_free_weeks` table holds `email_hash` and `used_on` (migration `0020_billing_records`); `prune_used_free_weeks()`, run by the daily job (`src/lib/dailyCleanup.ts`), removes rows older than 12 months. [#686](https://github.com/Jahazel/lsat-scheduler/issues/686) writes the row. |
 
