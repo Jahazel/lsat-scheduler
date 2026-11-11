@@ -1,5 +1,5 @@
 import { HowItWorksPin, StepScreen, type Shot, type Step } from "./HowItWorksPin";
-import { SectionLabel } from "./SectionGrid";
+import { SectionLabel } from "./LineGrid";
 
 const STEPS: (Step & { phoneScreen: Shot })[] = [
   {

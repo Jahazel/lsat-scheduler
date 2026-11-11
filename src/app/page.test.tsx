@@ -98,7 +98,8 @@ describe("Landing page", () => {
     for (const name of ["Pricing", "FAQ"]) {
       const section = screen.getByRole("region", { name });
       const read = within(section).getAllByText(name).filter((element) => !isInaccessible(element));
-      expect(read).toEqual([within(section).getByRole("heading", { level: 2, name })]);
+      expect(read).toHaveLength(1);
+      expect(within(section).getByRole("heading", { level: 2, name }).contains(read[0])).toBe(true);
     }
   });
 
