@@ -50,7 +50,7 @@ export function HowItWorks() {
           {STEPS.map((step, index) => (
             <RevealStep key={step.key} shownOnJump={index === 0} className="flex flex-col gap-6">
               <div className="flex flex-col gap-3">
-                <h3 className="how-in text-[24px]/[30px] font-semibold tracking-[-0.02em] text-ink md:text-[28px]/[34px]">
+                <h3 className="how-in text-[24px]/[30px] font-semibold tracking-heading text-ink md:text-h3">
                   <span className="text-fog tabular-nums">{index + 1} </span>
                   {step.lead}
                   <span className="how-key">{step.key}</span>

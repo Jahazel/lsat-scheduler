@@ -163,7 +163,7 @@ export function HowItWorksPin({ steps, intro }: { steps: Step[]; intro: string }
           <div aria-hidden="true" className="grid grid-cols-[minmax(0,1fr)]">
             {steps.map(({ lead, key, body }, index) => (
               <div key={key} data-state={stateOf(index)} className="how-step flex flex-col gap-3 [grid-area:1/1]">
-                <p className="text-[28px]/[34px] font-semibold tracking-[-0.02em] text-ink lg:text-[24px]/[30px] min-[1280px]:text-[28px]/[34px]">
+                <p className="text-h3 font-semibold tracking-heading text-ink lg:text-[24px]/[30px] min-[1280px]:text-h3">
                   {lead}<span className="how-key">{key}</span>
                 </p>
                 <p className="text-[16px]/[25px] text-smoke">{body}</p>

@@ -229,7 +229,7 @@ describe("HowItWorks", () => {
     ["a short desktop window", 1024, 600],
     ["a tall tablet window", 768, 1024],
     ["a tablet window exactly 800 px tall", 768, 800],
-  ])("pins the steps in %s, so the stacked list never waits to show", (_, width, height) => {
+  ])("keeps the stacked list shown in %s, where the pin takes over", (_, width, height) => {
     viewport = { width, height };
     listTop = 3000;
     render(<HowItWorks />);
