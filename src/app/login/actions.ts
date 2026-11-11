@@ -19,7 +19,7 @@ export async function signInWithGoogle(): Promise<FormState> {
 export async function logInWithPassword(_state: Answer<LoginState> | null, formData: FormData): Promise<Answer<LoginState>> {
   return answerAction("/login", async () => {
     try {
-      await signIn("credentials", { email: formData.get("email"), password: formData.get("password"), redirectTo: "/login" });
+      await signIn("credentials", { email: formData.get("email"), password: formData.get("password"), redirectTo: "/dashboard" });
     } catch (error) {
       if (!(error instanceof LoginRefused)) throw error;
       if (isSignInRefusal(error.code)) redirect(loginRefusalPath(error.code));
