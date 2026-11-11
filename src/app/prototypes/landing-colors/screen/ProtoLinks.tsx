@@ -33,21 +33,6 @@ function glideLogo(from: DOMRect | null) {
   });
 }
 
-// The tablet and phone glow is a ::before on the sign-in page, outside the faded regions, so it fades here with them.
-// Production should put the glow inside a [data-page-fade] element instead.
-function fadeGlow(direction: "in" | "out") {
-  const page = document.querySelector<HTMLElement>("[data-auth] [data-sign-in-page]");
-  if (!page || getComputedStyle(page, "::before").content === "none") return Promise.resolve();
-  const still = reducedMotion();
-  if (still && direction === "out") return Promise.resolve();
-  return page.animate([{ opacity: direction === "in" ? 0 : 1 }, { opacity: direction === "in" ? 1 : 0 }], {
-    pseudoElement: "::before",
-    duration: durationMs(direction === "out" || still ? "--duration-fast" : "--duration-base"),
-    easing: motionToken(direction === "out" ? "--ease-out-strong" : "--ease-standard"),
-    fill: direction === "out" ? "forwards" : "none",
-  }).finished.then(() => undefined, () => undefined);
-}
-
 export function ProtoLinks({ page, query }: { page: ScreenPage; query: string }) {
   const router = useRouter();
 
@@ -65,7 +50,6 @@ export function ProtoLinks({ page, query }: { page: ScreenPage; query: string })
     else scrollTo({ top: 0, behavior: "instant" });
     glideLogo(arriving.logo);
     arrive(arriving.motion);
-    if (arriving.motion === "whole-page") void fadeGlow("in");
   }, [page]);
 
   useEffect(() => {
@@ -100,7 +84,7 @@ export function ProtoLinks({ page, query }: { page: ScreenPage; query: string })
       }
       const left = regions(motion);
       const logo = motion === "whole-page" ? visibleLogo()?.getBoundingClientRect() ?? null : null;
-      Promise.all([fadeAway(left, "leave"), motion === "whole-page" ? fadeGlow("out") : null]).then(([ok]) => {
+      fadeAway(left, "leave").then((ok) => {
         if (!ok) return;
         pending = { motion, hash: new URL(link.href).hash, logo, left };
         router.push(mapped.href, { scroll: false });

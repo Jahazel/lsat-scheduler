@@ -38,6 +38,9 @@
   --color-warning-wash: #FFF6DB;
   --color-warning-line: #EADBA8;
   --color-accent: #123A94;
+  --color-void-eclipse: #0B0B0B;
+  --color-abyss-blue: #2B3B79;
+  --color-silver-mist: #E4E4E4;
   --text-caption: 12px;
   --text-mono: 13px;
   --text-small: 14px;
@@ -179,11 +182,24 @@ body:has([data-sign-in-page]) > footer { display: none; }
 
 @utility bg-sign-in-glow {
   background-image: radial-gradient(
-    circle farthest-corner at 50% 70% in oklab,
-    color-mix(in oklab, var(--color-spectrum-amber) 85%, transparent) 0%,
-    color-mix(in oklab, var(--color-spectrum-pink) 70%, transparent) 30%,
-    color-mix(in oklab, var(--color-spectrum-violet) 45%, transparent) 55%,
-    transparent 75%
+    ellipse 120% 95% at 50% 0% in oklab,
+    var(--color-void-eclipse) 0%,
+    var(--color-abyss-blue) 24%,
+    color-mix(in oklab, var(--color-abyss-blue) 85%, var(--color-silver-mist)) 46%,
+    color-mix(in oklab, var(--color-abyss-blue) 35%, var(--color-silver-mist)) 70%,
+    color-mix(in oklab, var(--color-silver-mist) 60%, transparent) 88%,
+    transparent 100%
+  );
+}
+
+@utility bg-sign-in-top-glow {
+  background-image: radial-gradient(
+    ellipse 110% 100% at 50% 0% in oklab,
+    var(--color-void-eclipse) 0%,
+    var(--color-abyss-blue) 30%,
+    color-mix(in oklab, var(--color-abyss-blue) 60%, var(--color-silver-mist)) 56%,
+    color-mix(in oklab, var(--color-silver-mist) 55%, transparent) 78%,
+    transparent 100%
   );
 }
 
