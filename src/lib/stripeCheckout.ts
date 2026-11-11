@@ -89,7 +89,7 @@ async function accountCustomer(accountId: string, standing: Extract<PlanChoiceSt
   return z.object({ id: customerId }).parse(await stripeRequest("customers", secretKey, form)).id;
 }
 
-/** The session closes at the next Chicago midnight, so the free week counted today is the one the student gets. */
+/** The session closes at the next Chicago midnight, or 31 minutes on if Stripe's minimum reaches past it, so a late-Sunday Checkout can keep a 7-day free week into Monday. */
 function checkoutExpiry(realNow: Date) {
   const nextMidnight = midnightInScheduleTimezone(isoDateInWeek(localDateInTimezone(realNow, SCHEDULE_TIMEZONE), 1));
   const earliest = realNow.getTime() + MIN_CHECKOUT_MINUTES * 60_000;
