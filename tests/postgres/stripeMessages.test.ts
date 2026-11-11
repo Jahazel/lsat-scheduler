@@ -14,7 +14,7 @@ const PERIOD_END = FREE_WEEK_END + 7 * 86_400;
 
 type FakeSubscription = {
   id: string; customer: string; status: string; created: number; metadata: Record<string, string>;
-  trial_end: number | null; ended_at: number | null; schedule: string | null; cancel_at: number | null; cancel_at_period_end: boolean;
+  trial_start: number | null; trial_end: number | null; ended_at: number | null; schedule: string | null; cancel_at: number | null; cancel_at_period_end: boolean;
   cancellation_details: { reason: string | null } | null;
   items: { data: { current_period_start?: number; current_period_end: number; price: { recurring: { interval: string; interval_count: number } } }[] };
   latest_invoice: { created: number; status_transitions: { finalized_at: number | null } } | null;
@@ -87,7 +87,7 @@ afterAll(() => {
 function subscription(id: string, owner: string, changes: Partial<FakeSubscription> = {}): FakeSubscription {
   return {
     id, customer: `cus_${id.slice(4)}`, status: "trialing", created: 1_793_400_000, metadata: { account_id: owner },
-    trial_end: FREE_WEEK_END, ended_at: null, schedule: null, cancel_at: null, cancel_at_period_end: false, cancellation_details: { reason: null },
+    trial_start: FREE_WEEK_END - 7 * 86_400, trial_end: FREE_WEEK_END, ended_at: null, schedule: null, cancel_at: null, cancel_at_period_end: false, cancellation_details: { reason: null },
     items: { data: [{ current_period_end: FREE_WEEK_END, price: { recurring: { interval: "week", interval_count: 1 } } }] },
     latest_invoice: { created: 1_793_400_000, status_transitions: { finalized_at: 1_793_400_000 } },
     ...changes,

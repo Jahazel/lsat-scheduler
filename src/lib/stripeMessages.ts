@@ -77,6 +77,7 @@ const subscriptionSchema = z.object({
   status: z.enum(["trialing", "active", "past_due", "unpaid", "canceled", "incomplete", "incomplete_expired", "paused"]),
   created: z.number().int(),
   metadata: z.record(z.string(), z.string()),
+  trial_start: seconds.nullable(),
   trial_end: seconds.nullable(),
   ended_at: seconds.nullable(),
   cancel_at: seconds.nullable(),
@@ -200,6 +201,9 @@ async function saveSubscription(tx: PostgresTransaction, id: string, secretKey: 
   if (elsewhere || (current && current.stripeCustomerId !== subscription.customer)) {
     return { kind: "refused", result: "otherAccount", who };
   }
+  if (from === "restore" && subscription.trial_start) {
+    await addUsedFreeWeek(tx, account.email, subscription.trial_start.toISOString().slice(0, 10));
+  }
   if (current && !sameSubscription && !isNewer(subscription, await fetchSubscription(current.stripeSubscriptionId, secretKey))) {
     return { kind: "olderSubscription" };
   }
@@ -207,8 +211,12 @@ async function saveSubscription(tx: PostgresTransaction, id: string, secretKey: 
   const state = await billingState(subscription, current, secretKey, from);
   await tx.insert(billingRecords).values({ accountId, ...state })
     .onConflictDoUpdate({ target: billingRecords.accountId, set: state });
-  if (from === "message" && state.stripeStatus === "trialing") await tx.insert(usedFreeWeeks).values({ emailHash: emailHash(account.email) }).onConflictDoNothing();
+  if (from === "message" && state.stripeStatus === "trialing") await addUsedFreeWeek(tx, account.email);
   return { kind: "saved" };
+}
+
+async function addUsedFreeWeek(tx: PostgresTransaction, email: string, usedOn?: string) {
+  await tx.insert(usedFreeWeeks).values({ emailHash: emailHash(email), usedOn }).onConflictDoNothing();
 }
 
 const ENDED: readonly Subscription["status"][] = ["canceled", "incomplete_expired"];
