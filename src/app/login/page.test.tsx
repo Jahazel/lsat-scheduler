@@ -111,7 +111,7 @@ describe("Login", () => {
     ["paused", PASSWORD_LOGIN_NOTICES.paused, "alert"],
     ["verify your email", PASSWORD_LOGIN_NOTICES.verifyYourEmail, "status"],
   ])("shows %s above the fields, keeps the email, clears the password, and marks no field", async (_case, notice, role) => {
-    actions.logInWithPassword.mockResolvedValue({ email: "maya.chen@fastmail.com", notice, passwordError: null });
+    actions.logInWithPassword.mockResolvedValue({ notice, passwordError: null });
     await renderLogin({ notice: "EmailVerified" });
     await logInAs("maya.chen@fastmail.com", "a long phrase that works");
 
@@ -141,7 +141,7 @@ describe("Login", () => {
   });
 
   it("replaces a notice from the address with the form's refusal", async () => {
-    actions.logInWithPassword.mockResolvedValue({ email: "maya.chen@fastmail.com", notice: PASSWORD_LOGIN_NOTICES.paused, passwordError: null });
+    actions.logInWithPassword.mockResolvedValue({ notice: PASSWORD_LOGIN_NOTICES.paused, passwordError: null });
     await renderLogin({ error: "AccountDisabled" });
     await logInAs("maya.chen@fastmail.com", "a long phrase that works");
 
@@ -166,7 +166,7 @@ describe("Login", () => {
 
   it("shows a too-long password beside the Password field", async () => {
     actions.logInWithPassword.mockResolvedValue({
-      email: "maya.chen@fastmail.com", notice: null, passwordError: "That password is too long. Try a shorter one.",
+      notice: null, passwordError: "That password is too long. Try a shorter one.",
     });
     await renderLogin();
     await logInAs("maya.chen@fastmail.com", "x".repeat(73));
