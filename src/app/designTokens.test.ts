@@ -153,6 +153,8 @@ describe("design tokens", () => {
   it("keeps application code on Paper tokens", () => {
     const violations = sourceFiles(SRC)
       .filter((file) => file !== __filename)
+      // The landing-colors prototype uses the new colors before #809 adds them as tokens; #813 deletes it.
+      .filter((file) => !file.includes(path.join("prototypes", "landing-colors") + path.sep))
       .flatMap((file) =>
         findTokenViolations(readFileSync(file, "utf8"), file).map(
           (violation) => `${path.relative(SRC, file)}: ${violation}`,
