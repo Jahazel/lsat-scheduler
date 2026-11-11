@@ -38,7 +38,6 @@ jobs:
       cap: 2
       trigger-label: ${{ inputs.trigger-label || 'ready-for-agent' }}
       dry-run: ${{ inputs.dry-run == true }}
-      # Where a merge conflict goes to a worker. Any other conflict blocks the PR.
       agent-conflicts: migrations/
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
