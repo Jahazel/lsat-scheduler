@@ -2,8 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { PageArrival } from "@/components/PagePlaceholder";
 import { isAdminUser } from "@/lib/accessControl";
-import { isPlanName, planChoiceOffer } from "@/lib/planChoice";
-import { PLAN_PRICES } from "@/lib/planPrices";
+import { PLAN_CHOICE_PATHS } from "@/lib/planChoice";
 import { readScanningOff } from "@/lib/scanSpending";
 import { planChoiceStanding } from "@/lib/stripeCheckout";
 import { studentSideToday } from "@/lib/studentClock";
@@ -11,15 +10,10 @@ import { upcomingTestMonths } from "@/lib/studentProfile";
 import { initialsFor } from "@/lib/studentNav";
 import { findStudentByAccountId } from "@/lib/studentRepository";
 import OnboardingWizard from "./OnboardingWizard";
-import PlanChoice from "./PlanChoice";
-import StartingPlan from "./StartingPlan";
-import { createStudentProfile, hasPlanStarted, openStripeCheckout } from "./actions";
+import { PlanChoiceScreen, type PlanChoiceSearchParams } from "./PlanChoiceScreen";
+import { createStudentProfile } from "./actions";
 
-type OnboardingSearchParams = { checkout?: string | string[]; plan?: string | string[] };
-
-const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
-
-export default async function OnboardingPage({ searchParams }: { searchParams: Promise<OnboardingSearchParams> }) {
+export default async function OnboardingPage({ searchParams }: { searchParams: Promise<PlanChoiceSearchParams> }) {
   const session = await auth();
   if (!session?.user) {
     redirect("/login");
@@ -30,24 +24,10 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
     const realNow = new Date();
     const standing = await planChoiceStanding(session.user.id, realNow);
     if (standing.kind !== "choose") redirect("/dashboard");
-    const { checkout, plan } = await searchParams;
-    if (first(checkout) === "done") {
-      return (
-        <div>
-          <StartingPlan hasPlanStarted={hasPlanStarted} />
-          <PageArrival page="Onboarding" />
-        </div>
-      );
-    }
-    const returnedPlan = first(plan);
+    if (standing.place !== "onboarding") redirect(PLAN_CHOICE_PATHS[standing.place]);
     return (
       <div>
-        <PlanChoice
-          offer={planChoiceOffer(PLAN_PRICES, standing.freeWeekEndsAt, realNow)}
-          cameBackWithoutCard={first(checkout) === "closed"}
-          initialPlan={isPlanName(returnedPlan) ? returnedPlan : "weekly"}
-          openCheckout={openStripeCheckout}
-        />
+        <PlanChoiceScreen place="onboarding" freeWeekEndsAt={standing.freeWeekEndsAt} realNow={realNow} searchParams={await searchParams} />
         <PageArrival page="Onboarding" />
       </div>
     );
