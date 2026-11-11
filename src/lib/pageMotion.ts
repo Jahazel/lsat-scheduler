@@ -54,7 +54,7 @@ export function showAgain(el: HTMLElement, from: Keyframe) {
   return fadeIn(el, from);
 }
 
-export const riseIn = (el: HTMLElement) => showAgain(el, riseFrom(rise()));
+export const riseIn = (el: HTMLElement) => showAgain(el, el.dataset.pageFade === "in-place" ? { opacity: 0 } : riseFrom(rise()));
 
 export function fadeAway(old: HTMLElement[], mover: "leave" | "swap") {
   if (old.some((el) => el.contains(document.activeElement))) document.querySelector("main")?.focus({ preventScroll: true });

@@ -11,6 +11,10 @@ const LEGAL = [
   { href: "/legal/ai-disclosure", label: "AI disclosure" },
 ];
 
+const GLOW_HEIGHT = "h-46 md:h-60 [@media(max-height:500px)]:h-38 min-[1200px]:hidden";
+const BELOW_GLOW = "pt-28 md:pt-42 [@media(max-height:500px)]:pt-20 min-[1200px]:pt-12";
+const LIGHT_LOGO = "[&>a]:text-chalk max-[1200px]:[&>a]:focus-visible:outline-chalk min-[1200px]:[&>a]:text-ink";
+
 export function SignInFrame({ title, lead, preview, children }: {
   title: string;
   lead: string;
@@ -18,13 +22,14 @@ export function SignInFrame({ title, lead, preview, children }: {
   children: ReactNode;
 }) {
   return (
-    <div data-sign-in-page className="flex min-h-screen bg-paper">
+    <div data-sign-in-page className="relative isolate flex min-h-screen bg-paper">
       <PageCue page="sign-in" />
-      <div className="flex w-full flex-col px-5 py-8 md:px-30 lg:w-170 lg:shrink-0">
-        <div className="flex h-10 items-center">
+      <div data-page-fade="in-place" aria-hidden className={cx("absolute inset-x-0 top-0 -z-10 bg-sign-in-top-glow", GLOW_HEIGHT)} />
+      <div className="flex w-full flex-col px-[max(--spacing(5),calc(50%-200px))] py-8 min-[1200px]:w-170 min-[1200px]:shrink-0 min-[1200px]:px-30">
+        <div className={cx("flex h-10 items-center justify-center min-[1200px]:justify-start", LIGHT_LOGO)}>
           <Logo href="/" />
         </div>
-        <div data-page-swap className="flex grow flex-col justify-center py-12">
+        <div data-page-swap className={cx("flex grow flex-col justify-center pb-12", BELOW_GLOW)}>
           <div className="flex w-full max-w-100 flex-col gap-8">
             <div className="flex flex-col gap-2">
               <h1 tabIndex={-1} className="text-h3 font-semibold text-ink outline-none">{title}</h1>
@@ -41,10 +46,10 @@ export function SignInFrame({ title, lead, preview, children }: {
           ))}
         </nav>
       </div>
-      <div data-page-fade aria-hidden className="hidden grow py-4 pr-4 lg:flex">
+      <div data-page-fade aria-hidden className="hidden grow py-4 pr-4 min-[1200px]:flex">
         <div className="relative flex grow items-center justify-center overflow-clip rounded-lg bg-vellum">
-          <div className="absolute -right-[10%] -bottom-[55%] -left-[10%] h-[110%] rounded-[50%] bg-sign-in-glow" />
-          <div data-page-swap className="relative flex w-110 shrink-0 flex-col gap-5 rounded-md border border-vellum-line bg-paper p-6 shadow-e2">
+          <div className="absolute inset-0 bg-sign-in-glow" />
+          <div data-page-swap className="relative flex w-110 shrink-0 flex-col gap-5 rounded-md border border-silver-mist bg-paper p-6 shadow-e2">
             {preview}
           </div>
         </div>
