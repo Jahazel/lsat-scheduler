@@ -32,7 +32,6 @@ export default auth(async (req) => {
   }
 
   // Design prototypes run only on the dev server, open without a session, inside their own toolbar page's frame.
-  // The last screen ticket of design #773 (#813) deletes this branch with src/app/prototypes.
   if (process.env.NODE_ENV === "development" && req.nextUrl.pathname.startsWith("/prototypes/")) {
     const framed = csp.value.replace("frame-ancestors 'none'", "frame-ancestors 'self'");
     const requestHeaders = new Headers(req.headers);
