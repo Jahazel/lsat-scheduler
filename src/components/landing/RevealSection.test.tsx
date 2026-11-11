@@ -65,6 +65,27 @@ describe("RevealSection", () => {
     expect(observers.every((observer) => observer.targets.size === 0)).toBe(true);
   });
 
+  it("shows its content at once when a link to it is clicked, so a jump never lands on a blank section", () => {
+    render(
+      <>
+        <a href="#pricing">Pricing</a>
+        <a href="#elsewhere">Elsewhere</a>
+        <RevealSection threshold={0.25} id="pricing" aria-label="Pricing">
+          <p>Plans</p>
+        </RevealSection>
+      </>,
+    );
+    const section = screen.getByRole("region", { name: "Pricing" });
+    expect(section.dataset.reveal).toBe("waiting");
+
+    act(() => screen.getByRole("link", { name: "Elsewhere" }).click());
+    expect(section.dataset.reveal).toBe("waiting");
+
+    act(() => screen.getByRole("link", { name: "Pricing" }).click());
+    expect(section.dataset.reveal).toBeUndefined();
+    expect(observers.every((observer) => observer.targets.size === 0)).toBe(true);
+  });
+
   it("leaves a section already on screen at load as it is", () => {
     sectionTop = 300;
     render(<Section />);

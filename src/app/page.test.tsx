@@ -98,7 +98,8 @@ describe("Landing page", () => {
     for (const name of ["Pricing", "FAQ"]) {
       const section = screen.getByRole("region", { name });
       const read = within(section).getAllByText(name).filter((element) => !isInaccessible(element));
-      expect(read).toEqual([within(section).getByRole("heading", { level: 2, name })]);
+      expect(read).toHaveLength(1);
+      expect(within(section).getByRole("heading", { level: 2, name }).contains(read[0])).toBe(true);
     }
   });
 
@@ -149,6 +150,14 @@ describe("Landing page", () => {
     expect(within(monthly).getByText("$39.99")).toBeTruthy();
     expect(within(monthly).getByText("Best value · about 29% less")).toBeTruthy();
     expect(within(monthly).getByText("About $56.30 a month on Weekly. Good for a full prep cycle.")).toBeTruthy();
+  });
+
+  it("shows no Best value badge on Monthly when Monthly saves nothing", () => {
+    prices.PLAN_PRICES = { weeklyCents: 1000, monthlyCents: 4333 };
+    render(<LandingPage />);
+    const monthly = screen.getByRole("article", { name: "Monthly" });
+    expect(within(monthly).getByText("$43.33")).toBeTruthy();
+    expect(within(monthly).queryByText(/Best value/)).toBeNull();
   });
 
   it("answers the nine questions in order, all closed, opening one at a time", () => {

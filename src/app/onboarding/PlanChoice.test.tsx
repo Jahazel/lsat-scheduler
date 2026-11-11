@@ -117,6 +117,19 @@ it("tells a lapsed student back from Stripe without a card to pick a plan, keepi
   expect((card("Monthly") as HTMLInputElement).checked).toBe(true);
 });
 
+it.each([
+  { where: "onboarding with a free week", place: "onboarding" as PlanChoicePlace, freeWeekEndsAt: FREE_WEEK_ENDS },
+  { where: "onboarding without a free week", place: "onboarding" as PlanChoicePlace, freeWeekEndsAt: null },
+  { where: "the lapsed plan choice", place: "weekly_upload" as PlanChoicePlace, freeWeekEndsAt: null },
+])("says prices are plus sales tax in $where, for Weekly and Monthly", async ({ place, freeWeekEndsAt }) => {
+  const { user } = renderPlanChoice({ place, freeWeekEndsAt });
+  const plusTax = "Plus any sales tax. Stripe shows the total before you pay.";
+
+  expect(screen.getByText(plusTax)).toBeDefined();
+  await user.click(card("Monthly"));
+  expect(screen.getByText(plusTax)).toBeDefined();
+});
+
 it("shows no saving line when Monthly saves less than 1%", () => {
   renderPlanChoice({ prices: { weeklyCents: 1000, monthlyCents: 4500 } });
 

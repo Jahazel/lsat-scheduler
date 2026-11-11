@@ -8,7 +8,11 @@
   }
 }
 
-@custom-variant pin (@media (scripting: enabled) and (min-width: 48rem));
+@custom-variant pin {
+  @media (scripting: enabled) and (min-width: 1024px), (scripting: enabled) and (min-width: 768px) and (min-height: 800px) {
+    @slot;
+  }
+}
 
 @theme {
   --color-*: initial;
@@ -26,9 +30,6 @@
   --color-chalk: #FAFAFA;
   --color-fog: #8A8A8A;
   --color-smoke: #5C5C5C;
-  --color-spectrum-violet: #7C5CFF;
-  --color-spectrum-pink: #FF4FA3;
-  --color-spectrum-amber: #FFB23F;
   --color-success: #3FB950;
   --color-danger: #F0524F;
   --color-success-ink: #1F7A34;
@@ -129,6 +130,8 @@
   --shadow-e2: 0 24px 60px rgb(10 10 10 / 0.08);
   --shadow-e3: 0 16px 48px rgb(10 10 10 / 0.12);
   --shadow-control: 0 1px 2px rgb(0 0 0 / 0.08);
+  --shadow-hero-screen: 0 30px 80px rgb(11 11 11 / 0.35);
+  --shadow-step-screen: 0 18px 48px rgb(11 11 11 / 0.16);
 }
 
 @theme static {
@@ -179,6 +182,8 @@ body {
 
 body:has([data-sign-in-page]) > header,
 body:has([data-sign-in-page]) > footer { display: none; }
+body:has([data-landing-page]) > footer { background-color: var(--color-void-eclipse); }
+body:has([data-landing-page]) > footer > * { border-color: color-mix(in oklab, var(--color-chalk) 12%, transparent); }
 
 @utility bg-sign-in-glow {
   background-image: radial-gradient(
@@ -203,56 +208,61 @@ body:has([data-sign-in-page]) > footer { display: none; }
   );
 }
 
-.hero-glow {
-  --glow-size: 66% 52%;
-  height: 560px;
-  background-image: radial-gradient(
-    ellipse var(--glow-size) at 50% 50% in oklab,
-    color-mix(in oklab, var(--color-spectrum-amber) 90%, transparent) 0%,
-    color-mix(in oklab, var(--color-spectrum-amber) 80%, transparent) 42%,
-    color-mix(in oklab, var(--color-spectrum-pink) 70%, transparent) 62%,
-    color-mix(in oklab, var(--color-spectrum-violet) 45%, transparent) 80%,
-    transparent 100%
-  );
-}
-@media (min-width: 48rem) {
-  .hero-glow { --glow-size: 62% 50%; height: 616px; }
-}
-@media (min-width: 64rem) {
-  .hero-glow { --glow-size: 56% 50%; height: 880px; }
+.hero-backdrop {
+  background-image: linear-gradient(to bottom in oklab, var(--color-void-eclipse) 0%, var(--color-abyss-blue) 45%, var(--color-silver-mist) 100%);
 }
 
-.hero-dots {
-  background-image: radial-gradient(circle at 12px 12px, color-mix(in oklab, var(--color-ink) 10%, transparent) 1px, transparent 1.5px);
-  background-size: 24px 24px;
-}
-
-.section-guides {
-  --guide: repeating-linear-gradient(to bottom, color-mix(in oklab, var(--color-ink) 11%, transparent) 0 4px, transparent 4px 8px);
-  background-image: var(--guide), var(--guide);
-  background-position: 0 0, 100% 0;
-  background-size: 1px 100%;
-  background-repeat: no-repeat;
+.line-grid {
+  --grid-ink: color-mix(in oklab, var(--color-ink) 12%, transparent);
+  --grid-line: repeating-linear-gradient(to bottom, var(--grid-ink) 0 4px, transparent 4px 8px);
+  --grid-w: calc(100% - 40px);
+  --grid-pitch: calc((100cqw - 40px) / 16);
+  container-type: inline-size;
 }
 @media (min-width: 48rem) {
-  .section-guides {
-    background-image: var(--guide), var(--guide), var(--guide), var(--guide), var(--guide);
-    background-position: 0 0, 25% 0, 50% 0, 75% 0, 100% 0;
+  .line-grid {
+    --grid-w: min(1120px, calc(100% - 48px));
+    --grid-pitch: calc(min(1120px, 100cqw - 48px) / 48);
   }
 }
-.section-band::after {
-  content: "";
+.line-grid-lines {
   position: absolute;
   inset-block: 0;
   left: 50%;
-  width: 1px;
-  background-image: repeating-linear-gradient(to bottom, color-mix(in oklab, var(--color-ink) 40%, transparent) 0 6px, transparent 6px 12px);
+  width: var(--grid-w);
+  translate: -50% 0;
+  background-size: 1px 100%;
+  background-repeat: no-repeat;
+}
+.line-grid-edges {
+  background-image: var(--grid-line), var(--grid-line);
+  background-position: 0 0, 100% 0;
+}
+@media (min-width: 48rem) {
+  .line-grid-edges {
+    background-image: var(--grid-line), var(--grid-line), var(--grid-line), var(--grid-line);
+    background-position: 0 0, 25% 0, 75% 0, 100% 0;
+  }
+  .line-grid-middle {
+    mask-image: linear-gradient(to bottom, transparent, black 160px);
+    background-image: var(--grid-line);
+    background-position: 50% 0;
+  }
+}
+.line-grid-rule {
+  height: 1px;
+  background-image: repeating-linear-gradient(to right, var(--grid-ink) 0 4px, transparent 4px 8px);
+}
+.line-grid-dots {
+  background-image: radial-gradient(circle at center, color-mix(in oklab, var(--color-ink) 10%, transparent) 1px, transparent 1.5px);
+  background-size: var(--grid-pitch) var(--grid-pitch);
+  background-position: 50% 0;
 }
 
 @keyframes hero-card-drift-left { from { opacity: 0; transform: translate(-40px, 16px) scale(0.96); } }
 @keyframes hero-card-drift-right { from { opacity: 0; transform: translate(40px, 16px) scale(0.96); } }
 @keyframes hero-card-float { 50% { transform: translateY(-4px); } }
-@keyframes hero-card-depth { to { translate: 0 var(--rise); rotate: var(--turn); } }
+@keyframes hero-card-scroll { to { translate: 0 var(--scroll-rise); } }
 
 @media (prefers-reduced-motion: no-preference) {
   .hero-card-drift { animation: hero-card-drift-right var(--duration-reveal) var(--ease-out-strong) var(--phone-delay) both; }
@@ -266,7 +276,7 @@ body:has([data-sign-in-page]) > footer { display: none; }
 }
 @supports (animation-timeline: scroll()) {
   @media (prefers-reduced-motion: no-preference) and (min-width: 48rem) {
-    .hero-card-depth { animation: hero-card-depth linear both; animation-timeline: scroll(root); animation-range: 0 800px; }
+    .hero-card-scroll { animation: hero-card-scroll linear both; animation-timeline: scroll(root); animation-range: 0 800px; }
   }
 }
 
@@ -334,42 +344,21 @@ body:has([data-sign-in-page]) > footer { display: none; }
 @keyframes value-in { from { opacity: 0; } }
 .value-in { animation: value-in var(--duration-fast) var(--ease-standard); }
 
-.step-mat { --mat-size: 80% 70%; --mat-spectrum-at: 50% 90%; --mat-edge: 0%; }
-@media (min-width: 64rem) {
-  .step-mat { --mat-size: 80% 90%; --mat-spectrum-at: 50% 85%; --mat-edge: 2%; }
-}
-.step-mat-violet {
-  background-image: radial-gradient(
-    ellipse var(--mat-size) at 30% 100% in oklab,
-    color-mix(in oklab, var(--color-spectrum-violet) 70%, transparent) 0%,
-    color-mix(in oklab, var(--color-spectrum-violet) 28%, transparent) 60%,
-    color-mix(in oklab, var(--color-spectrum-violet) calc(12% + var(--mat-edge)), transparent) 100%
-  );
-}
-.step-mat-pink {
-  background-image: radial-gradient(
-    ellipse var(--mat-size) at 70% 100% in oklab,
-    color-mix(in oklab, var(--color-spectrum-pink) 62%, transparent) 0%,
-    color-mix(in oklab, var(--color-spectrum-pink) 24%, transparent) 60%,
-    color-mix(in oklab, var(--color-spectrum-pink) calc(10% + var(--mat-edge)), transparent) 100%
-  );
-}
-.step-mat-amber {
-  background-image: radial-gradient(
-    ellipse var(--mat-size) at 30% 100% in oklab,
-    color-mix(in oklab, var(--color-spectrum-amber) 80%, transparent) 0%,
-    color-mix(in oklab, var(--color-spectrum-amber) 34%, transparent) 60%,
-    color-mix(in oklab, var(--color-spectrum-amber) calc(14% + var(--mat-edge)), transparent) 100%
-  );
-}
-.step-mat-spectrum {
-  background-image: radial-gradient(
-    circle farthest-corner at var(--mat-spectrum-at) in oklab,
-    color-mix(in oklab, var(--color-spectrum-amber) 85%, transparent) 0%,
-    color-mix(in oklab, var(--color-spectrum-pink) 70%, transparent) 30%,
-    color-mix(in oklab, var(--color-spectrum-violet) 45%, transparent) 60%,
-    color-mix(in oklab, var(--color-spectrum-violet) calc(14% + var(--mat-edge)), transparent) 100%
-  );
+.how-shade-1 { background-image: linear-gradient(to bottom in oklab, var(--color-abyss-blue), color-mix(in oklab, var(--color-abyss-blue) 75%, var(--color-silver-mist))); }
+.how-shade-2 { background-image: linear-gradient(to bottom in oklab, color-mix(in oklab, var(--color-abyss-blue) 75%, var(--color-silver-mist)), color-mix(in oklab, var(--color-abyss-blue) 50%, var(--color-silver-mist))); }
+.how-shade-3 { background-image: linear-gradient(to bottom in oklab, color-mix(in oklab, var(--color-abyss-blue) 50%, var(--color-silver-mist)), color-mix(in oklab, var(--color-abyss-blue) 25%, var(--color-silver-mist))); }
+.how-shade-4 { background-image: linear-gradient(to bottom in oklab, color-mix(in oklab, var(--color-abyss-blue) 25%, var(--color-silver-mist)), var(--color-silver-mist)); }
+
+.how-key { position: relative; white-space: nowrap; }
+.how-key::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 1px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-abyss-blue);
+  transform-origin: left;
 }
 
 .how-step {
@@ -386,22 +375,8 @@ body:has([data-sign-in-page]) > footer { display: none; }
   transition-duration: var(--duration-base), var(--duration-slow), 0s;
   transition-delay: 80ms, 80ms, 0s;
 }
-.how-key::after {
-  content: "";
-  position: absolute;
-  inset-inline: 0;
-  bottom: 1px;
-  height: 3px;
-  border-radius: 2px;
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0s linear var(--duration-slow);
-}
+.how-step .how-key::after { transform: scaleX(0); transition: transform 0s linear var(--duration-slow); }
 .how-step[data-state="on"] .how-key::after { transform: scaleX(1); transition: transform var(--duration-reveal) var(--ease-out-strong) 240ms; }
-.how-key[data-tone="violet"]::after { background: color-mix(in oklab, var(--color-spectrum-violet) 75%, transparent); }
-.how-key[data-tone="pink"]::after { background: color-mix(in oklab, var(--color-spectrum-pink) 75%, transparent); }
-.how-key[data-tone="amber"]::after { background: color-mix(in oklab, var(--color-spectrum-amber) 75%, transparent); }
-.how-key[data-tone="spectrum"]::after { background: linear-gradient(90deg in oklab, var(--color-spectrum-violet), var(--color-spectrum-pink), var(--color-spectrum-amber)); }
 .how-mat { opacity: 0; transition: opacity var(--duration-reveal) var(--ease-out-strong); }
 .how-mat[data-state="on"] { opacity: 1; }
 .how-shot {
@@ -411,9 +386,22 @@ body:has([data-sign-in-page]) > footer { display: none; }
 }
 .how-shot[data-state="before"] { transform: translateY(-28px) scale(0.98); }
 .how-shot[data-state="on"] { opacity: 1; transform: none; }
+
+[data-reveal="waiting"] .how-in { opacity: 0; transform: translateY(var(--rise, 16px)); }
+[data-reveal="waiting"] .how-in.how-pic { transform: translateY(var(--rise, 16px)) scale(0.98); }
+[data-reveal="waiting"] .how-key::after { transform: scaleX(0); }
+[data-reveal="shown"] .how-in {
+  transition: opacity var(--duration-reveal) var(--ease-out-strong), transform var(--duration-reveal) var(--ease-out-strong);
+  transition-delay: var(--d, 0ms);
+}
+[data-reveal="shown"] .how-key::after { transition: transform var(--duration-reveal) var(--ease-out-strong) calc(var(--d, 0ms) + 360ms); }
+
 @media (prefers-reduced-motion: reduce) {
   .how-step, .how-step[data-state], .how-shot, .how-shot[data-state], .how-mat { transform: none; transition-duration: var(--duration-fast); transition-delay: 0s; }
-  .how-key::after, .how-step[data-state="on"] .how-key::after { transform: none; transition: none; }
+  .how-step .how-key::after, .how-step[data-state="on"] .how-key::after { transform: none; transition: none; }
+  [data-reveal="waiting"] :is(.how-in, .how-in.how-pic) { transform: none; }
+  [data-reveal="shown"] .how-in { transition: opacity var(--duration-fast) ease; }
+  [data-reveal] .how-key::after { transform: none; transition: none; }
 }
 
 [data-reveal="waiting"] .reveal-item { opacity: 0; transform: translateY(16px); }
@@ -422,30 +410,40 @@ body:has([data-sign-in-page]) > footer { display: none; }
   transition-delay: var(--reveal-delay, 0ms);
 }
 
-.spectrum-key { position: relative; white-space: nowrap; }
-.spectrum-key::after {
+[data-reveal="waiting"] .reveal-item.reveal-rise-sm { transform: translateY(8px); }
+[data-reveal="waiting"] .reveal-item.reveal-fade { transform: none; }
+
+.pricing-key { position: relative; white-space: nowrap; }
+.pricing-key::after {
   content: "";
   position: absolute;
   inset-inline: 0;
   bottom: 2px;
-  height: 4px;
-  border-radius: 2px;
-  background-image: linear-gradient(90deg in oklab, var(--color-spectrum-violet), var(--color-spectrum-pink), var(--color-spectrum-amber));
+  height: 3px;
+  border-radius: 999px;
+  background: var(--color-abyss-blue);
   transform-origin: left;
   pointer-events: none;
 }
-[data-reveal="waiting"] .spectrum-key::after { transform: scaleX(0); }
-[data-reveal="shown"] .spectrum-key::after { transition: transform var(--duration-reveal) var(--ease-out-strong) 360ms; }
+[data-reveal="waiting"] .pricing-key::after { transform: scaleX(0); }
+[data-reveal="shown"] .pricing-key::after { transition: transform var(--duration-reveal) var(--ease-out-strong) 360ms; }
+
+[data-reveal="waiting"] .plan-mat { opacity: 0; }
+[data-reveal="shown"] .plan-mat { transition: opacity var(--duration-reveal) var(--ease-out-strong) max(0ms, calc(var(--reveal-delay, 0ms) - 80ms)); }
 
 @media (prefers-reduced-motion: reduce) {
   [data-reveal="waiting"] .reveal-item { transform: none; }
   [data-reveal="shown"] .reveal-item { transition: opacity var(--duration-fast) ease; }
-  [data-reveal] .spectrum-key::after { transform: none; transition: none; }
+  [data-reveal="waiting"] .reveal-item.reveal-rise-sm { transform: none; }
+  [data-reveal] .pricing-key::after { transform: none; transition: none; }
+  [data-reveal="shown"] .plan-mat { transition: opacity var(--duration-fast) ease; }
 }
 
+.plan-frame { background-color: color-mix(in oklab, var(--color-silver-mist) 45%, var(--color-paper)); }
 .plan-card {
   position: relative;
-  transition: transform var(--duration-base) ease, border-color var(--duration-base) ease;
+  border-color: color-mix(in oklab, var(--color-silver-mist), var(--color-ink) 6%);
+  transition: border-color var(--duration-base) ease;
 }
 .plan-card::after {
   content: "";
@@ -457,14 +455,9 @@ body:has([data-sign-in-page]) > footer { display: none; }
   transition: opacity var(--duration-base) ease;
   pointer-events: none;
 }
-.plan-card-best { border-color: transparent; box-shadow: var(--shadow-e2); }
 @media (hover: hover) and (pointer: fine) {
-  .plan-card:hover { transform: translateY(-2px); border-color: color-mix(in oklab, var(--color-vellum-line), var(--color-ink) 8%); }
-  .plan-card-best:hover { border-color: transparent; }
+  .plan-card:hover { border-color: color-mix(in oklab, var(--color-silver-mist), var(--color-ink) 14%); }
   .plan-card:hover::after { opacity: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .plan-card:hover { transform: none; }
 }
 
 .faq-question { transition: color var(--duration-base) ease; }
@@ -474,23 +467,52 @@ body:has([data-sign-in-page]) > footer { display: none; }
   color: var(--color-ink);
   transition: background-color var(--duration-base) ease, border-color var(--duration-base) ease, color var(--duration-base) ease;
 }
-.faq-row[aria-expanded="true"] .faq-icon { border-color: var(--color-ink); background-color: var(--color-ink); color: var(--color-chalk); }
+.faq-row[aria-expanded="true"] .faq-icon { border-color: var(--color-abyss-blue); background-color: var(--color-abyss-blue); color: var(--color-chalk); }
 @media (hover: hover) and (pointer: fine) {
   .faq-row:hover .faq-question { color: var(--color-smoke); }
-  .faq-row:hover .faq-icon { border-color: color-mix(in oklab, var(--color-vellum-line), var(--color-ink) 8%); }
-  .faq-row[aria-expanded="true"]:hover .faq-icon { border-color: var(--color-graphite-line); background-color: var(--color-graphite-line); }
+  .faq-row:not([aria-expanded="true"]):hover .faq-icon { border-color: color-mix(in oklab, var(--color-vellum-line), var(--color-ink) 8%); }
 }
 
 .link-arrow { flex-shrink: 0; transition: translate var(--duration-fast) ease; }
-.signpost-link { transition: color var(--duration-fast) ease; }
-.login-ghost { border-color: var(--color-vellum-line); transition: border-color var(--duration-fast) ease; }
 @media (hover: hover) and (pointer: fine) {
   a:hover > .link-arrow { translate: 2px 0; }
-  .signpost-link:hover { color: var(--color-smoke); }
-  .login-ghost:hover { border-color: color-mix(in oklab, var(--color-vellum-line), var(--color-ink) 12%); }
 }
 @media (prefers-reduced-motion: reduce) {
   a:hover > .link-arrow { translate: none; }
+}
+
+.start-band {
+  --grid-ink: color-mix(in oklab, var(--color-chalk) 12%, transparent);
+  --grid-line: repeating-linear-gradient(to bottom, var(--grid-ink) 0 4px, transparent 4px 8px);
+  --band-blue: 150px;
+  background: linear-gradient(to bottom in oklab, transparent 0, var(--color-silver-mist) 40px, var(--color-abyss-blue) var(--band-blue), var(--color-void-eclipse) 100%);
+}
+@media (min-width: 48rem) { .start-band { --band-blue: 200px; } }
+@media (min-width: 64rem) { .start-band { --band-blue: 230px; } }
+.start-band-light { mask-image: linear-gradient(to bottom, transparent 0, transparent var(--band-blue), black calc(var(--band-blue) + 160px)); }
+.start-band .line-grid-dots {
+  background-image: radial-gradient(circle at center, var(--grid-ink) 1px, transparent 1.5px);
+  background-position: 50% var(--dot-y, 0px);
+}
+.start-band-middle { display: none; }
+@media (min-width: 48rem) {
+  .start-band-middle { display: block; background-image: var(--grid-line); background-position: 50% 0; }
+}
+.start-band-quiet { color: color-mix(in oklab, var(--color-silver-mist) 82%, var(--color-abyss-blue)); }
+.signpost-icon { color: color-mix(in oklab, var(--color-silver-mist) 70%, var(--color-abyss-blue)); }
+
+.start-cta { transition: background-color var(--duration-fast) ease, scale var(--duration-fast) var(--ease-out-strong); }
+.start-ghost { transition: border-color var(--duration-fast) ease, scale var(--duration-fast) var(--ease-out-strong); }
+.start-cta:active, .start-ghost:active { scale: 0.97; }
+.signpost-link { transition: color var(--duration-fast) ease; }
+@media (hover: hover) and (pointer: fine) {
+  .start-cta:hover { background-color: var(--color-silver-mist); }
+  .start-ghost:hover { border-color: color-mix(in oklab, var(--color-chalk) 45%, transparent); }
+  .signpost-link:hover { color: color-mix(in oklab, var(--color-silver-mist) 70%, var(--color-abyss-blue)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .start-cta, .start-ghost { transition-property: background-color, border-color; }
+  .start-cta:active, .start-ghost:active { scale: 1; }
 }
 
 /* The floating tab bar's top edge sits 78px above the window bottom (StudentTabBar), so 86px leaves 8px. */

@@ -11,21 +11,20 @@ export function LinkArrow() {
   );
 }
 
-export function StartFreeWeekLink({ className, arrow }: { className?: string; arrow?: boolean }) {
+export function StartFreeWeekLink({ className }: { className?: string }) {
   return (
     <Link
       href="/signup"
       className={cx(
-        "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-sm bg-ink text-body leading-[20px] font-medium text-chalk",
+        "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-sm bg-void-eclipse text-body leading-[20px] font-medium text-paper",
         "[transition:background-color_var(--duration-fast)_ease,scale_var(--duration-fast)_var(--ease-out-strong)] active:scale-[0.97]",
-        "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-graphite-raised",
+        "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-abyss-blue",
         "motion-reduce:transition-none motion-reduce:active:scale-100",
         FOCUS,
         className,
       )}
     >
       Start free week
-      {arrow && <LinkArrow />}
     </Link>
   );
 }

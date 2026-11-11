@@ -266,7 +266,7 @@ Dates and the arbitration section are sample data; the approved legal text in ea
 ## Landing colors and scroll motion (`landing-colors-scroll/`)
 
 Screenshots of the approved prototype for design #773 and spec #805, taken 2026-11-11. Brief: `research/landing-colors-scroll/brief.md`. Motion rows:
-`research/landing-colors-scroll/motion.md`. The clickable prototype is the dev-only route `/prototypes/landing-colors`; #813 deletes it.
+`research/landing-colors-scroll/motion.md`. The clickable prototype, the dev-only route `/prototypes/landing-colors`, was deleted by #813.
 Each file name ends in the window width: `-1440` (desktop), `-1100` (between 1024 and 1199 px), `-768` (tablet), or `-390` (phone).
 These files replace `landing-page/` for colors and scroll motion; that folder still holds the page's copy and layout.
 

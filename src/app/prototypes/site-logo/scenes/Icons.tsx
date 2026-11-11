@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import Image from "next/image";
 import type { ReactNode } from "react";
 import { cx } from "@/components/ui/classes";
 
@@ -23,8 +24,7 @@ function Tab({ dark }: { dark: boolean }) {
   return (
     <div className={cx("flex items-end gap-1 px-3 pt-2", dark ? "bg-graphite" : "bg-silver-mist")}>
       <div className={cx("flex h-9 w-60 items-center gap-2 rounded-t-md px-3 text-small", dark ? "bg-graphite-raised text-chalk" : "bg-paper text-ink")}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={favicon(dark)} alt="" className="size-4 shrink-0" />
+        <Image src={favicon(dark)} alt="" width={16} height={16} unoptimized className="size-4 shrink-0" />
         <span className="truncate">This week · DrillMap</span>
       </div>
       <div className={cx("flex h-9 w-60 items-center gap-2 px-3 text-small", dark ? "text-fog" : "text-smoke")}>
@@ -39,8 +39,7 @@ function HomeIcon({ src, label, round = false }: { src?: string; label: string; 
   return (
     <div className="flex w-16 flex-col items-center gap-1.5">
       {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" className={cx("size-15", round ? "rounded-full" : "rounded-[22%]")} />
+        <Image src={src} alt="" width={60} height={60} unoptimized className={cx("size-15", round ? "rounded-full" : "rounded-[22%]")} />
       ) : (
         <span className={cx("size-15 bg-chalk/25", round ? "rounded-full" : "rounded-[22%]")} />
       )}

@@ -4,9 +4,10 @@ import { HeroCards } from "@/components/landing/HeroCards";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { QuestionList } from "@/components/landing/QuestionList";
 import { RevealSection } from "@/components/landing/RevealSection";
-import { GapBand, SectionGrid, SectionLabel } from "@/components/landing/SectionGrid";
+import { GridGap, LineGrid, SectionLabel } from "@/components/landing/LineGrid";
 import { FREE_WEEK_NOTE, LinkArrow, StartFreeWeekLink } from "@/components/landing/StartFreeWeekLink";
-import { FOCUS, cx } from "@/components/ui/classes";
+import { NightBand } from "@/components/landing/NightBand";
+import { FOCUS_ON_DARK, cx } from "@/components/ui/classes";
 import { PLAN_PRICES, planPriceText } from "@/lib/planPrices";
 
 const HERO_SCREEN_SIZES = "(min-width: 1024px) 1120px, (min-width: 768px) 672px, 840px";
@@ -14,27 +15,46 @@ const HERO_SCREEN_IMAGE = "block h-auto w-[840px] max-w-none md:w-[672px] lg:w-[
 
 export default function LandingPage() {
   return (
-    <div data-page-fade className="flex flex-col items-center overflow-x-clip bg-vellum px-5 md:px-0">
-      <section aria-labelledby="landing-title" className="relative isolate flex w-full flex-col items-center overflow-y-clip pt-[86px] pb-12 md:pt-[184px] lg:pt-[166px]">
-        <div aria-hidden="true" className="hero-dots pointer-events-none absolute inset-y-0 left-1/2 -z-20 w-screen -translate-x-1/2" />
-        <div className="relative z-2 flex w-full flex-col items-center gap-4 text-center md:w-[680px] md:gap-5 lg:w-[800px] lg:gap-6">
-          <h1 id="landing-title" tabIndex={-1} className="outline-none text-[42px]/[44px] font-semibold tracking-[-0.04em] text-balance text-ink md:text-[58px]/[60px] lg:text-[76px]/[78px]">
-            Your practice results, turned into next week&apos;s plan
-          </h1>
-          <p className="text-body text-smoke md:w-[520px] md:text-[18px]/[28px] lg:w-[600px] lg:text-lead">
-            Upload your analytics every weekend. DrillMap builds Monday to Sunday around the question types you miss most.
-          </p>
-        </div>
-        <div className="relative z-2 flex w-full flex-col items-center gap-3 pt-6 md:gap-[14px] md:pt-7 lg:pt-9">
-          <StartFreeWeekLink className="h-[52px] w-full px-7 md:w-auto" />
-          <p className="text-small text-smoke">{FREE_WEEK_NOTE}</p>
-        </div>
+    <div data-page-fade data-landing-page className="flex flex-col items-center overflow-x-clip bg-vellum">
+      <LineGrid hero={<Hero />}>
+        <GridGap />
+        <HowItWorks />
+        <GridGap />
+        <PricingSection />
+        <GridGap />
+        <QuestionsSection />
+        <GridGap />
+        <ClosingSection />
+      </LineGrid>
+    </div>
+  );
+}
 
-        <HeroCards />
+function Hero() {
+  return (
+    <section aria-labelledby="landing-title" className="relative isolate flex w-full flex-col items-center overflow-y-clip px-5 pt-[86px] pb-12 md:px-0 md:pt-[184px] lg:pt-[166px]">
+      <div className="relative z-2 flex w-full flex-col items-center gap-4 text-center md:w-[680px] md:gap-5 lg:w-[800px] lg:gap-6">
+        <h1 id="landing-title" tabIndex={-1} className="outline-none text-[42px]/[44px] font-semibold tracking-[-0.04em] text-balance text-void-eclipse md:text-[58px]/[60px] lg:text-[76px]/[78px]">
+          Your practice results, turned into next week&apos;s plan
+        </h1>
+        <p className="text-body text-smoke md:w-[520px] md:text-[18px]/[28px] lg:w-[600px] lg:text-lead">
+          Upload your analytics every weekend. DrillMap builds Monday to Sunday around the question types you miss most.
+        </p>
+      </div>
+      <div className="relative z-2 flex w-full flex-col items-center gap-3 pt-6 md:gap-[14px] md:pt-7 lg:pt-9">
+        <StartFreeWeekLink className="h-[52px] w-full px-7 md:w-auto" />
+        <p className="text-small text-smoke">{FREE_WEEK_NOTE}</p>
+      </div>
 
-        <div className="relative mt-7 flex w-full justify-center md:mt-[110px] lg:mt-[118px]">
-          <div aria-hidden="true" className="hero-glow pointer-events-none absolute top-1/2 left-1/2 -z-10 w-screen -translate-1/2" />
-          <div className="relative z-2 h-[460px] w-full overflow-clip rounded-md bg-paper shadow-e2 md:h-[432px] md:w-[672px] lg:h-[720px] lg:w-[min(1120px,calc(100%-48px))]">
+      <HeroCards />
+
+      <div className="relative mt-10 flex w-full justify-center md:mt-[244px] lg:mt-[200px] min-[1360px]:mt-[128px]">
+        <div
+          aria-hidden="true"
+          className="hero-backdrop pointer-events-none absolute -inset-x-3 -top-8 -bottom-6 -z-10 rounded-[24px] md:inset-x-[calc(50%-392px)] md:-top-14 md:rounded-[32px] lg:inset-x-[calc(50%-min(616px,50%-8px))] lg:-top-16"
+        />
+        <div className="relative z-2 w-full rounded-[22px] border border-paper/30 bg-paper/20 p-2 shadow-hero-screen md:w-[688px] lg:w-[min(1136px,calc(100%-32px))]">
+          <div className="h-[460px] overflow-clip rounded-[14px] border border-void-eclipse/15 bg-paper md:h-[432px] lg:h-[720px]">
             <Image
               src="/landing/hero-app-nav.png"
               alt=""
@@ -55,19 +75,8 @@ export default function LandingPage() {
             />
           </div>
         </div>
-      </section>
-
-      <SectionGrid>
-        <GapBand />
-        <HowItWorks />
-        <GapBand />
-        <PricingSection />
-        <GapBand />
-        <QuestionsSection />
-        <GapBand />
-        <ClosingSection />
-      </SectionGrid>
-    </div>
+      </div>
+    </section>
   );
 }
 
@@ -81,13 +90,13 @@ function PricingSection() {
       <div className="w-full md:w-[min(720px,calc(100%-48px))] lg:w-[min(1120px,calc(100%-48px))]">
         <div className="grid gap-5 pt-8 pb-7 md:pt-14 md:pb-10 lg:grid-cols-2 lg:items-end lg:gap-0 lg:px-6 lg:pt-[72px] lg:pb-14">
           <p className="reveal-item max-w-[480px] text-[32px]/[38px] font-semibold tracking-[-0.03em] text-balance text-ink md:text-[40px]/[46px] lg:text-[48px]/[54px]">
-            Your <span className="spectrum-key">first full week</span> is free
+            Your <span className="pricing-key">first full week</span> is free
           </p>
-          <p className="reveal-item max-w-[400px] text-[17px]/[27px] text-smoke [--reveal-delay:80ms] lg:pl-6">
+          <p className="reveal-item reveal-rise-sm max-w-[400px] text-[17px]/[27px] text-smoke [--reveal-delay:80ms] lg:pl-6">
             Pick a plan at the end of setup. You pay nothing until your free week ends. Both plans get the same weekly schedule.
           </p>
         </div>
-        <div className={`grid gap-3 md:grid-cols-2 md:gap-0 md:border-y ${PLAN_RULE}`}>
+        <div className="grid gap-3 md:grid-cols-2 md:gap-0">
           <PlanCard id="plan-weekly" name="Weekly" price={price.weekly} per="a week" className="[--reveal-delay:160ms]">
             Pay week by week. Good for a short final push.
           </PlanCard>
@@ -96,13 +105,13 @@ function PricingSection() {
             name="Monthly"
             price={price.monthly}
             per="a month"
-            badge={price.monthlySaving ? `Best value · ${price.monthlySaving}` : "Best value"}
-            className="[--reveal-delay:240ms]"
+            badge={price.monthlySaving ? `Best value · ${price.monthlySaving}` : undefined}
+            className="[--reveal-delay:220ms]"
           >
             {price.monthOnWeekly}. Good for a full prep cycle.
           </PlanCard>
         </div>
-        <p className="reveal-item pt-5 text-small text-smoke [--reveal-delay:320ms] lg:px-6">
+        <p className="reveal-item reveal-fade pt-5 text-small text-smoke [--reveal-delay:280ms] lg:px-6">
           Cancel anytime. You keep access until your paid week or month ends. No refunds for unused time.
         </p>
       </div>
@@ -166,22 +175,29 @@ function QuestionsSection() {
 
 function ClosingSection() {
   return (
-    <RevealSection threshold={0.25} aria-labelledby="closing-title" className="flex w-full flex-col items-center">
+    <RevealSection threshold={0.25} aria-labelledby="closing-title" className="relative flex w-full flex-col items-center">
+      <NightBand />
       <SectionLabel id="closing-title" number="05">Start</SectionLabel>
-      <div className="grid w-full gap-y-10 pt-14 pb-16 md:w-[min(720px,calc(100%-48px))] md:grid-cols-2 md:gap-y-14 md:pt-24 md:pb-28 lg:w-[min(1120px,calc(100%-48px))] lg:grid-cols-4 lg:items-start lg:pt-32 lg:pb-36">
+      <div className="grid w-full gap-y-10 pt-28 pb-16 md:w-[min(720px,calc(100%-48px))] md:grid-cols-2 md:gap-y-14 md:pt-40 md:pb-28 lg:w-[min(1120px,calc(100%-48px))] lg:grid-cols-4 lg:items-start lg:pt-48 lg:pb-36">
         <div className="reveal-item flex flex-col items-start gap-5 md:col-span-2 lg:px-6">
-          <p className="max-w-[480px] text-[34px]/[40px] font-semibold tracking-[-0.03em] text-balance text-ink md:text-[44px]/[50px]">
+          <p className="max-w-[480px] text-[34px]/[40px] font-semibold tracking-[-0.03em] text-balance text-chalk md:text-[44px]/[50px]">
             Get next week&apos;s plan from your own analytics
           </p>
-          <p className="text-[17px]/[27px] text-smoke">{FREE_WEEK_NOTE}</p>
+          <p className="start-band-quiet text-[17px]/[27px]">{FREE_WEEK_NOTE}</p>
           <div className="flex w-full flex-col gap-2.5 pt-3 md:w-auto md:flex-row">
-            <StartFreeWeekLink arrow className="h-12 w-full gap-1.5 px-[22px] md:w-auto" />
+            <Link
+              href="/signup"
+              className={cx(
+                "start-cta inline-flex h-12 w-full shrink-0 items-center justify-center gap-1.5 rounded-sm bg-paper px-[22px] text-body leading-[20px] font-medium whitespace-nowrap text-ink md:w-auto",
+                FOCUS_ON_DARK,
+              )}
+            >
+              Start free week
+              <LinkArrow />
+            </Link>
             <Link
               href="/login"
-              className={cx(
-                "login-ghost inline-flex h-12 items-center justify-center rounded-sm border bg-paper px-[22px] text-body font-medium text-ink",
-                FOCUS,
-              )}
+              className={cx("start-ghost inline-flex h-12 items-center justify-center rounded-sm border border-chalk/25 px-[22px] text-body font-medium text-chalk", FOCUS_ON_DARK)}
             >
               Log in
             </Link>
@@ -190,7 +206,7 @@ function ClosingSection() {
         <Signpost icon={<PriceTagIcon />} title="See what you'll pay" href="#pricing" link="Pricing" className="[--reveal-delay:80ms]">
           {bothPlans()}. Pick one at the end of setup.
         </Signpost>
-        <Signpost icon={<RepeatIcon />} title="See how it works" href="#how-it-works" link="How it works" className="[--reveal-delay:160ms]">
+        <Signpost icon={<RepeatIcon />} title="See how it works" href="#how-it-works" link="How it works" className="[--reveal-delay:140ms]">
           Four steps. The last one repeats every weekend.
         </Signpost>
       </div>
@@ -207,11 +223,11 @@ function Signpost({ icon, title, href, link, className, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className={cx("reveal-item flex flex-col items-start gap-2 md:pr-6 lg:pl-6", className)}>
-      <span className="mb-4 grid size-10 place-items-center rounded-[10px] border border-vellum-line bg-paper">{icon}</span>
-      <h3 className="text-[16px]/[22px] font-semibold text-ink">{title}</h3>
-      <p className="text-[15px]/[23px] text-smoke">{children}</p>
-      <Link href={href} className={cx("signpost-link mt-2 inline-flex items-center gap-1 rounded-xs text-[15px] font-medium text-ink", FOCUS)}>
+    <div className={cx("reveal-item reveal-rise-sm flex flex-col items-start gap-2 md:pr-6 lg:pl-6", className)}>
+      <span className="signpost-icon mb-4 grid size-10 place-items-center rounded-[10px] border border-chalk/15 bg-chalk/5">{icon}</span>
+      <h3 className="text-[16px]/[22px] font-semibold text-chalk">{title}</h3>
+      <p className="start-band-quiet text-[15px]/[23px]">{children}</p>
+      <Link href={href} className={cx("signpost-link mt-2 inline-flex items-center gap-1 rounded-xs text-[15px] font-medium text-chalk", FOCUS_ON_DARK)}>
         {link}
         <LinkArrow />
       </Link>
@@ -221,7 +237,7 @@ function Signpost({ icon, title, href, link, className, children }: {
 
 function PriceTagIcon() {
   return (
-    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" className="text-spectrum-violet">
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20">
       <path
         d="M3 10.6V4a1 1 0 0 1 1-1h6.6a1 1 0 0 1 .7.3l5.4 5.4a1 1 0 0 1 0 1.4l-6.6 6.6a1 1 0 0 1-1.4 0L3.3 11.3a1 1 0 0 1-.3-.7Z"
         fill="none"
@@ -235,7 +251,7 @@ function PriceTagIcon() {
 
 function RepeatIcon() {
   return (
-    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" className="text-spectrum-pink">
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20">
       <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M15.5 8A6 6 0 0 0 4.6 6.2M4.5 12a6 6 0 0 0 10.9 1.8" />
         <path d="M4.2 3v3.6h3.6M15.8 17v-3.6h-3.6" />
@@ -254,27 +270,27 @@ function PlanCard({ id, name, price, per, badge, className, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <article aria-labelledby={id} className={cx("reveal-item relative isolate flex md:p-4 lg:p-6", badge && "p-3", className)}>
-      {badge && (
-        <div aria-hidden="true" className="absolute inset-0 -z-10 rounded-[18px] step-mat-spectrum [--mat-edge:2%] [--mat-spectrum-at:50%_85%] md:rounded-none" />
-      )}
-      <div className={cx("plan-card flex flex-1 flex-col gap-3 rounded-[14px] border bg-paper p-6 lg:p-8", badge ? "plan-card-best" : "border-vellum-line")}>
-        <div className="flex min-h-[26px] flex-wrap items-center justify-between gap-3 md:flex-nowrap">
-          <h3 id={id} className="font-mono text-caption tracking-[0.06em] text-smoke uppercase">{name}</h3>
-          {badge && (
-            <span className="flex h-[26px] items-center rounded-pill bg-ink px-2 text-caption font-medium text-chalk lg:px-2.5 lg:text-[13px]/[18px]">
-              {badge}
-            </span>
-          )}
-        </div>
-        <p className="flex flex-wrap items-baseline gap-x-2 pt-2">
-          <span className="text-[48px]/[52px] font-semibold tracking-[-0.04em] text-ink tabular-nums lg:text-[56px]/[60px]">{price}</span>
-          <span className="text-[17px] text-smoke">{per}</span>
-        </p>
-        <p className="mb-7 min-h-12 max-w-[340px] text-[15px]/[24px] text-smoke">{children}</p>
-        <div className={`mt-auto flex flex-col gap-[14px] border-t pt-6 ${PLAN_RULE}`}>
-          <p className="text-small text-ink">{FREE_WEEK_NOTE}</p>
-          <StartFreeWeekLink className="h-12 w-full" />
+    <article aria-labelledby={id} className={cx("relative isolate flex p-3 md:p-4", className)}>
+      {badge && <div aria-hidden="true" className="plan-mat hero-backdrop absolute inset-0 -z-10 rounded-[20px]" />}
+      <div className="plan-frame reveal-item flex flex-1 rounded-[16px] border border-paper/60 p-1.5 shadow-e3">
+        <div className="plan-card flex flex-1 flex-col gap-3 rounded-[10px] border bg-paper p-6 max-[359px]:p-5 lg:p-8">
+          <div className="flex min-h-[26px] flex-wrap items-center justify-between gap-3 md:flex-nowrap">
+            <h3 id={id} className="font-mono text-caption tracking-[0.06em] text-smoke uppercase">{name}</h3>
+            {badge && (
+              <span className="flex h-[26px] items-center rounded-pill bg-void-eclipse px-2 text-caption font-medium text-chalk lg:px-2.5 lg:text-[13px]/[18px]">
+                {badge}
+              </span>
+            )}
+          </div>
+          <p className="flex flex-wrap items-baseline gap-x-2 pt-2">
+            <span className="text-[48px]/[52px] font-semibold tracking-[-0.04em] text-ink tabular-nums max-[359px]:text-[38px]/[42px] lg:text-[56px]/[60px]">{price}</span>
+            <span className="text-[17px] text-smoke">{per}</span>
+          </p>
+          <p className="mb-7 min-h-12 max-w-[340px] text-[15px]/[24px] text-smoke">{children}</p>
+          <div className={`mt-auto flex flex-col gap-[14px] border-t pt-6 ${PLAN_RULE}`}>
+            <p className="text-small text-ink">{FREE_WEEK_NOTE}</p>
+            <StartFreeWeekLink className="h-12 w-full" />
+          </div>
         </div>
       </div>
     </article>

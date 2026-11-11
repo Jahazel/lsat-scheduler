@@ -74,6 +74,12 @@ describe("HeroCards", () => {
     expect(within(group).queryByText(/7Sage/)).toBeNull();
   });
 
+  it("on scroll moves each card up by 35% of its rise", () => {
+    render(<Hero />);
+    const cards = [...screen.getByRole("group", { name: "Sample plan cards" }).querySelectorAll<HTMLElement>("[data-card]")];
+    expect(cards.map((card) => card.style.getPropertyValue("--scroll-rise"))).toEqual(["-21px", "-38.5px", "-52.5px", "-28px", "-45.5px", "-56px"]);
+  });
+
   it("lets a keyboard reach the phone swipe row, and only below 768 px", () => {
     phone = true;
     render(<Hero />);
