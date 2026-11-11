@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { findStudentByAccountId } from "@/lib/studentRepository";
 import {
-  currentWeekInTimezone, loadOrGenerateCurrentWeek, localDateInTimezone, showsUploadReminder,
+  currentWeekInTimezone, loadOrGenerateCurrentWeek, localDateInTimezone, nextWeekHasUpload, showsUploadReminder,
 } from "@/lib/currentWeeklySchedule";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { formatScheduleWeekOf, weekNotes } from "@/lib/scheduleCheckInSummary";
@@ -23,7 +23,6 @@ import { loadChosenPlan } from "@/lib/billingRepository";
 import { isHeldWeek } from "@/lib/planStatus";
 import { freeWeekEndingNote, hidesUploadReminder } from "@/lib/planNotes";
 import { HeldWeek, PlanNotice } from "@/components/PlanNotes";
-import { isoDateInWeek } from "@/lib/scheduleReasonText";
 
 const previewStartDate = new Intl.DateTimeFormat("en-US", {
   weekday: "long", month: "short", day: "numeric", timeZone: "UTC",
@@ -99,14 +98,11 @@ export default async function DashboardPage({
     );
   }
   const realNow = new Date();
-  const [checkIns, snapshots, nextWeekSchedule] = await Promise.all([
+  const [checkIns, snapshots] = await Promise.all([
     preview ? [] : postgresActivityCheckIns.listForSchedule(schedule.id),
     listApprovedAnalyticsSnapshots(doc.id),
-    plan.kind === "free_week" && !preview
-      ? postgresCurrentWeekRepositories.weeklySchedules.findByStudentAndWeek(doc.id, isoDateInWeek(schedule.weekStartDate, 7))
-      : null,
   ]);
-  const note = preview ? null : freeWeekEndingNote(plan, record, realNow, nextWeekSchedule !== null);
+  const note = preview ? null : freeWeekEndingNote(plan, record, realNow, nextWeekHasUpload(snapshots, realNow, SCHEDULE_TIMEZONE));
 
   return (
     <div data-page-fade className="min-h-screen">

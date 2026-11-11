@@ -175,12 +175,16 @@ it("hides a held weekly schedule and refuses its check-offs until the first char
   const { studentId, accountId } = await studentWithThisWeek("student", inFreeWeek);
   vi.setSystemTime(SATURDAY);
   await expect(confirmWeeklyUpload(upload(SATURDAY))).rejects.toThrow("redirect:/dashboard");
+  const lastFreeWeekend = await dashboard();
+  expect(lastFreeWeekend).toContain("Your free week ends Sunday.");
+  expect(lastFreeWeekend).toContain("Your plan for next week appears then.");
+  expect(lastFreeWeekend).not.toContain("Your week is ready.");
 
   vi.setSystemTime(NEXT_MONDAY);
   const held = await dashboard();
   expect(held).toContain("Your week is ready.");
   expect(held).toContain("It appears when your first payment goes through.");
-  expect(held).not.toContain("Your plan for this week");
+  expect(held).not.toContain("Check off as you go.");
   expect(held).not.toContain('role="checkbox"');
   const heldWeek = (await listWeeklySchedulesForStudent(studentId)).find(({ weekStartDate }) => weekStartDate === "2026-10-19");
   if (!heldWeek) throw new Error("Expected the held weekly schedule to be saved");
@@ -189,7 +193,8 @@ it("hides a held weekly schedule and refuses its check-offs until the first char
 
   await database.owner.execute(sql`update billing_records set first_charge_succeeded = true, stripe_status = 'active' where account_id = ${accountId}`);
   const shown = await dashboard();
-  expect(shown).toContain("Your plan for this week");
+  expect(shown).toContain("Check off as you go.");
+  expect(shown).not.toContain("Your week is ready.");
   expect(shown).toContain('role="checkbox"');
   expect(await listWeeklySchedulesForStudent(studentId)).toContainEqual(heldWeek);
 });
@@ -250,7 +255,8 @@ it("shows a lapsed student's held weekly schedule on This week as soon as Stripe
     where account_id = ${accountId}`);
   await expect(uploadPage({ checkout: "done" })).rejects.toThrow(/^redirect:\/dashboard$/);
   const shown = await dashboard();
-  expect(shown).toContain("Your plan for this week");
+  expect(shown).toContain("Check off as you go.");
+  expect(shown).not.toContain("Your week is ready.");
   expect(shown).toContain('role="checkbox"');
   expect(await listWeeklySchedulesForStudent(studentId)).toEqual(schedules);
 });
