@@ -303,6 +303,9 @@ body:has([data-sign-in-page]) > footer { display: none; }
   .reading-note { animation: none; }
 }
 
+@keyframes value-in { from { opacity: 0; } }
+.value-in { animation: value-in var(--duration-fast) var(--ease-standard); }
+
 .step-mat { --mat-size: 80% 70%; --mat-spectrum-at: 50% 90%; --mat-edge: 0%; }
 @media (min-width: 64rem) {
   .step-mat { --mat-size: 80% 90%; --mat-spectrum-at: 50% 85%; --mat-edge: 2%; }

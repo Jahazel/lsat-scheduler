@@ -47,6 +47,7 @@ async function student(name: string, role: "student" | "admin" = "student") {
   const email = `${name.toLowerCase()}@example.test`;
   const account = await database.createAccountAsOwner({ email, name, role });
   if (!account) throw new Error("Account fixture already exists");
+  if (role === "student") await database.writeBillingRecordAsOwner(account.id);
   const saved = await createStudent(account.id, profile);
   if (!saved) throw new Error("Student fixture already exists");
   return { account: { ...account, email, name }, saved };
@@ -137,9 +138,14 @@ function planStatusOf(markup: string, name: string) {
   return row?.match(/data-plan-status="[^"]+"[^>]*>([^<]+)</)?.[1];
 }
 
+async function replaceBillingRecord(accountId: string, billing: Parameters<typeof database.writeBillingRecordAsOwner>[1] | null) {
+  await database.owner.execute(sql`delete from billing_records where account_id = ${accountId}`);
+  if (billing) await database.writeBillingRecordAsOwner(accountId, billing);
+}
+
 it.each(planStatusCases)("both Admin student pages show the plan status %s", async (label, billing) => {
   const { account, saved } = await student("Sam");
-  if (billing) await database.writeBillingRecordAsOwner(account.id, billing);
+  await replaceBillingRecord(account.id, billing);
   const admin = await student("Admin", "admin");
   signIn(admin.account);
   const list = renderToStaticMarkup(await AdminPage());
@@ -152,7 +158,7 @@ it("the Admin student page hides a held weekly schedule until the first charge s
   await approve(sam.saved.id);
   signIn(sam.account);
   await dashboard();
-  await database.writeBillingRecordAsOwner(sam.account.id, {
+  await replaceBillingRecord(sam.account.id, {
     stripeStatus: "trialing", firstChargeSucceeded: false, freeWeekEndsAt: new Date("2026-10-12T05:00:00Z"),
   });
   const admin = await student("Admin", "admin");

@@ -8,6 +8,7 @@ import { setUpAppTestDatabase } from "./appTestDatabase";
 const SECRET = "whsec_test_receiver_secret";
 const OTHER_SITE_SECRET = "whsec_test_other_site_secret";
 const KEY = "sk_test_receiver_key";
+const AUTH_SECRET = "stripe-messages-test-secret-0123456789";
 const FREE_WEEK_END = 1_794_000_000;
 const PERIOD_END = FREE_WEEK_END + 7 * 86_400;
 
@@ -65,13 +66,14 @@ let messageNumber = 0;
 beforeEach(async () => {
   vi.stubEnv("STRIPE_WEBHOOK_SECRET", SECRET);
   vi.stubEnv("STRIPE_SECRET_KEY", KEY);
+  vi.stubEnv("AUTH_SECRET", AUTH_SECRET);
   stripe.subscriptions.clear();
   stripe.paidInvoices.clear();
   stripe.requests = [];
   stripe.cancelled = [];
   stripe.down = false;
   stripe.hold = null;
-  await database.owner.execute(sql`truncate accounts, security_log, stripe_messages, deletion_list cascade`);
+  await database.owner.execute(sql`truncate accounts, security_log, stripe_messages, used_free_weeks, deletion_list cascade`);
   const account = await database.createAccountAsOwner({ email: "maya@example.test", name: "Maya" });
   if (!account) throw new Error("Account fixture already exists");
   accountId = account.id;
@@ -502,4 +504,44 @@ it("waits for a role change in progress and then ignores the message for the new
   expect((await received).status).toBe(200);
   expect(await records()).toEqual([]);
   expect(await refusals()).toEqual([{ result: "adminAccount", route: "/api/stripe/webhook", account_id: accountId }]);
+});
+
+const usedFreeWeeks = async () =>
+  (await database.owner.execute(sql`select email_hash, used_on = current_date as used_today from used_free_weeks`)).rows;
+
+it("adds the email to the used free week list once when Stripe confirms a plan with a free week", async () => {
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId));
+
+  await send(checkoutCompleted("sub_maya"));
+  await send(subscriptionChanged("sub_maya", "created"));
+
+  const mayaHash = createHmac("sha256", AUTH_SECRET).update("maya@example.test").digest("hex");
+  expect(await usedFreeWeeks()).toEqual([{ email_hash: mayaHash, used_today: true }]);
+});
+
+it("adds nothing to the used free week list for a plan that starts with no free week, or a refused message", async () => {
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId, { status: "active", trial_end: null }));
+  stripe.paidInvoices.set("sub_maya", [1000]);
+  await send(checkoutCompleted("sub_maya"));
+  expect(await records()).toHaveLength(1);
+
+  const admin = await database.createAccountAsOwner({ email: "admin@example.test", name: "Admin", role: "admin" });
+  if (!admin) throw new Error("Admin fixture already exists");
+  stripe.subscriptions.set("sub_admin", subscription("sub_admin", admin.id));
+  await send(checkoutCompleted("sub_admin"));
+
+  expect(await usedFreeWeeks()).toEqual([]);
+});
+
+it("adds no used free week row again for a plan whose free week is over", async () => {
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId));
+  await send(checkoutCompleted("sub_maya"));
+  await database.owner.execute(sql`truncate used_free_weeks`);
+
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId, { status: "active" }));
+  stripe.paidInvoices.set("sub_maya", [1000]);
+  await send(invoice("sub_maya", true));
+
+  expect((await records())[0]).toMatchObject({ stripe_status: "active", first_charge_succeeded: true });
+  expect(await usedFreeWeeks()).toEqual([]);
 });

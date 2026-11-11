@@ -33,7 +33,6 @@ export function ResetPassword({ token }: { token: string | null }) {
     );
   }
 
-  // Submitting by hand keeps the typed password: a form action would clear the form when it returns an error.
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -48,7 +47,7 @@ export function ResetPassword({ token }: { token: string | null }) {
         lead="Choose a new password. Saving it signs you out on all your devices."
         preview={<TodayPreview />}
       >
-        <form onSubmit={submit} className="flex flex-col gap-8">
+        <form action={formAction} onSubmit={submit} className="flex flex-col gap-8">
           <input type="hidden" name="token" value={token} />
           <TextInput
             label="New password"

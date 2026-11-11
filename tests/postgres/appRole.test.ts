@@ -548,11 +548,11 @@ it("reads and inserts handled Stripe messages, and removes them only through the
   expect((await appDb().execute(sql`select id from stripe_messages`)).rows).toEqual([{ id: "evt_new" }]);
 });
 
-it("cannot touch the used free week list, and prunes only rows older than 12 months", async () => {
+it("reads and adds to the used free week list, and removes rows only through the 12-month prune", async () => {
   await ownerDb().execute(sql`truncate used_free_weeks`);
+  await appDb().execute(sql`insert into used_free_weeks (email_hash) values (repeat('c', 64))`);
+  expect((await appDb().execute(sql`select email_hash from used_free_weeks`)).rows).toEqual([{ email_hash: "c".repeat(64) }]);
   for (const query of [
-    sql`select * from used_free_weeks`,
-    sql`insert into used_free_weeks (email_hash) values (repeat('c', 64))`,
     sql`update used_free_weeks set used_on = current_date`,
     sql`delete from used_free_weeks`,
   ]) {
@@ -564,5 +564,5 @@ it("cannot touch the used free week list, and prunes only rows older than 12 mon
   `);
   const pruned = await appDb().execute<{ removed: string }>(sql`select prune_used_free_weeks() as removed`);
   expect(Number(pruned.rows[0]?.removed)).toBe(1);
-  expect((await ownerDb().execute(sql`select count(*)::integer as left from used_free_weeks`)).rows).toEqual([{ left: 1 }]);
+  expect((await ownerDb().execute(sql`select count(*)::integer as left from used_free_weeks`)).rows).toEqual([{ left: 2 }]);
 });

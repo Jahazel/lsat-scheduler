@@ -348,6 +348,7 @@ it("carries performance trend and Sunday practice-test review across three simul
     const time = await now();
     return loadOrGenerateCurrentWeek({
       ...repos,
+      plan: { kind: "admin" },
       studentId: "admin-student",
       student: {
         ...mockStudent,

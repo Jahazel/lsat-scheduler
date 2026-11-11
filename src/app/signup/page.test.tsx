@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToString } from "react-dom/server";
 
 const actions = vi.hoisted(() => ({ signUpWithGoogle: vi.fn(), signUpWithPassword: vi.fn() }));
 vi.mock("./actions", () => actions);
@@ -35,6 +36,12 @@ describe("Signup", () => {
       .toEqual(["/legal/terms", "/legal/terms"]);
     expect(screen.getByText("At least 8 characters. A long phrase works well.")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Log in" }).getAttribute("href")).toBe("/login");
+  });
+
+  it("renders every form so that a submit before the page loads cannot send the email and password as a plain GET", () => {
+    const forms = renderToString(<SignupPage />).match(/<form[^>]*>/g) ?? [];
+    expect(forms).toHaveLength(2);
+    for (const form of forms) expect(form).toContain('action="javascript:');
   });
 
   it("starts Google signup without the box", async () => {

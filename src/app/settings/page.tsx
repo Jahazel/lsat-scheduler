@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { PageArrival } from "@/components/PagePlaceholder";
 import { auth } from "@/auth";
+import { loadChosenPlan } from "@/lib/billingRepository";
 import { studentSideToday } from "@/lib/studentClock";
 import { upcomingTestMonths } from "@/lib/studentProfile";
 import { findOfficialAttempts, findStudentByAccountId } from "@/lib/studentRepository";
@@ -13,6 +14,7 @@ export default async function StudySettingsPage() {
 
   const student = await findStudentByAccountId(session.user.id);
   if (!student) redirect("/onboarding");
+  await loadChosenPlan(session.user.id);
   const today = await studentSideToday(session.user);
 
   return (
