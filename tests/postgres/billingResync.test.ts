@@ -21,6 +21,7 @@ const stripe = {
   subscriptions: new Map<string, FakeSubscription>(),
   paidInvoices: new Map<string, number[]>(),
   down: false,
+  cancels: [] as string[],
 };
 
 vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
@@ -29,6 +30,7 @@ vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
     throw new Error("Not Stripe");
   }
   if (stripe.down) return Response.json({ error: { type: "api_error" } }, { status: 500 });
+  if (init?.method === "DELETE") stripe.cancels.push(url.pathname);
   if (url.pathname === "/v1/subscriptions") {
     if (url.searchParams.get("status") !== "all") return Response.json({ data: [], has_more: false });
     const all = [...stripe.subscriptions.values()].sort((a, b) => b.created - a.created || b.id.localeCompare(a.id));
@@ -55,7 +57,8 @@ beforeEach(async () => {
   stripe.subscriptions.clear();
   stripe.paidInvoices.clear();
   stripe.down = false;
-  await database.owner.execute(sql`truncate accounts, stripe_messages cascade`);
+  stripe.cancels = [];
+  await database.owner.execute(sql`truncate accounts, stripe_messages, deletion_list cascade`);
 });
 afterAll(() => {
   vi.unstubAllEnvs();
@@ -106,12 +109,15 @@ it("saves every Account's plan as Stripe holds it now, leaves out deleted and ad
   stripe.subscriptions.set("sub_started", paidMonthly("sub_started", started));
   stripe.paidInvoices.set("sub_started", [2999]);
   stripe.subscriptions.set("sub_unchanged", subscription("sub_unchanged", unchanged));
-  stripe.subscriptions.set("sub_deleted", paidMonthly("sub_deleted", randomUUID()));
+  const deleted = randomUUID();
+  await database.owner.execute(sql`insert into deletion_list (account_id, email_hash) values (${deleted}, repeat('a', 64))`);
+  stripe.subscriptions.set("sub_deleted", paidMonthly("sub_deleted", deleted));
   stripe.subscriptions.set("sub_admin", paidMonthly("sub_admin", admin));
 
   const first = await resyncBillingRecords(database.owner, KEY);
 
   expect(first).toEqual({ listed: 5, saved: 3, leftOut: 2, unknownPrice: [], notInStripe: 0 });
+  expect(stripe.cancels).toEqual([]);
   const saved = await records();
   expect(saved).toEqual([
     {

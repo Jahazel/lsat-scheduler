@@ -180,7 +180,9 @@ async function saveSubscription(tx: PostgresTransaction, id: string, secretKey: 
   if (!isAccountId(accountId)) return { kind: "refused", result: "unknownAccount", who: { nobody: true } };
   await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`billing-account:${accountId}`}, 0))`);
   const [account] = (await tx.execute<{ role: string }>(sql`select role from accounts where id = ${accountId} for key share`)).rows;
-  if (!account) return endPlanOfDeletedAccount(tx, subscription, accountId, secretKey);
+  if (!account) {
+    return from === "message" ? endPlanOfDeletedAccount(tx, subscription, accountId, secretKey) : { kind: "refused", result: "unknownAccount", who: { nobody: true } };
+  }
   const who = { account: accountId };
   if (account.role === "admin") return { kind: "refused", result: "adminAccount", who };
 
