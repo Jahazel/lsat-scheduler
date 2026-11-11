@@ -1,6 +1,6 @@
 export type PlanPrices = { weeklyCents: number; monthlyCents: number };
 
-export const PLAN_PRICES: PlanPrices = { weeklyCents: 799, monthlyCents: 2500 };
+export const PLAN_PRICES: PlanPrices = { weeklyCents: 1000, monthlyCents: 2999 };
 
 const WEEKS_PER_MONTH = 52 / 12;
 

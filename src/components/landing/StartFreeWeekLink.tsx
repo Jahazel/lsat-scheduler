@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { FOCUS, cx } from "@/components/ui/classes";
 
-export const FREE_WEEK_NOTE = "Your first full week free. No card needed.";
+export const FREE_WEEK_NOTE = "Your first full week free. Cancel before it ends and pay nothing.";
 
 export function LinkArrow() {
   return (
