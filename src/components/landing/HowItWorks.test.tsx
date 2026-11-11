@@ -2,7 +2,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToString } from "react-dom/server";
 import { act, cleanup, fireEvent, isInaccessible, render, screen, within } from "@testing-library/react";
+import { readFileSync } from "node:fs";
 import { HowItWorks } from "./HowItWorks";
+import { PIN_MEDIA } from "./HowItWorksPin";
 
 const TITLES = [
   "Tell us about your prep",
@@ -16,6 +18,15 @@ const PIN_HEIGHT = 600;
 const PINNED_TOP = 150;
 
 let reduced = false;
+let viewport = { width: 1440, height: 900 };
+let listTop = 0;
+let observers: { callback: IntersectionObserverCallback; targets: Set<Element> }[] = [];
+
+function matchesViewport(query: string) {
+  return query.split(",").some((part) =>
+    [...part.matchAll(/\(min-(width|height): (\d+)px\)/g)].every(([, side, px]) => viewport[side as "width" | "height"] >= Number(px)),
+  );
+}
 
 function box(top: number, height: number) {
   return { top, height, bottom: top + height, left: 0, right: 0, width: 0, x: 0, y: top } as DOMRect;
@@ -29,8 +40,22 @@ function layout() {
 
 beforeEach(() => {
   reduced = false;
+  viewport = { width: 1440, height: 900 };
+  listTop = 0;
+  observers = [];
   window.scrollY = 0;
-  window.matchMedia = ((query: string) => ({ matches: reduced && query.includes("reduce") })) as typeof window.matchMedia;
+  window.innerHeight = 900;
+  window.matchMedia = ((query: string) => ({
+    matches: query.includes("reduce") ? reduced : matchesViewport(query),
+  })) as typeof window.matchMedia;
+  window.IntersectionObserver = class {
+    targets = new Set<Element>();
+    constructor(public callback: IntersectionObserverCallback) {
+      observers.push(this);
+    }
+    observe(target: Element) { this.targets.add(target); }
+    disconnect() { this.targets.clear(); }
+  } as unknown as typeof IntersectionObserver;
   window.ResizeObserver = class {
     constructor(private callback: ResizeObserverCallback) {}
     observe() { this.callback([], this as unknown as ResizeObserver); }
@@ -41,7 +66,7 @@ beforeEach(() => {
     const { trackTop, pinTop } = layout();
     if (this.getAttribute("data-testid") === "how-track") return box(trackTop, TRACK_HEIGHT);
     if (this.getAttribute("data-testid") === "how-pin") return box(pinTop, PIN_HEIGHT);
-    return box(0, 0);
+    return box(listTop, 600);
   });
   const realStyle = window.getComputedStyle;
   vi.spyOn(window, "getComputedStyle").mockImplementation((element) => {
@@ -60,6 +85,18 @@ function scrollPageTo(y: number) {
     window.dispatchEvent(new Event("scroll"));
   });
 }
+
+function scrollIntoView(element: Element) {
+  act(() => {
+    for (const observer of [...observers]) {
+      if (observer.targets.has(element)) observer.callback([{ target: element, isIntersecting: true } as IntersectionObserverEntry], observer as unknown as IntersectionObserver);
+    }
+  });
+}
+
+const listSteps = () => within(screen.getByRole("list")).getAllByRole("listitem");
+const intro = () => screen.getAllByText("Four steps. The last one repeats every weekend.")[0].parentElement!;
+const hidden = (element: HTMLElement) => element.dataset.reveal === "waiting";
 
 const progressButtons = () => screen.getAllByRole("button", { name: /^Go to step/ });
 const currentStep = () => progressButtons().findIndex((b) => b.getAttribute("aria-current") === "step") + 1;
@@ -83,7 +120,7 @@ describe("HowItWorks", () => {
       ["step-3-week", "step-3-week-phone"],
       ["step-4-repeat", "step-4-repeat-phone"],
     ]);
-    expect(within(section).getByText("Four steps. The last one repeats every weekend.")).toBeTruthy();
+    expect(within(section).getAllByText("Four steps. The last one repeats every weekend.")).toHaveLength(2);
   });
 
   it("shows the 2x desktop step screens at their export size", () => {
@@ -185,5 +222,57 @@ describe("HowItWorks", () => {
     const items = container.querySelectorAll("ol > li");
     expect([...items].map((item) => item.querySelector("h3")?.textContent)).toEqual(TITLES.map((title, index) => `${index + 1} ${title}`));
     for (const item of items) expect(item.querySelectorAll("img")).toHaveLength(2);
+  });
+
+  it.each([
+    ["a desktop window", 1440, 900],
+    ["a short desktop window", 1024, 600],
+    ["a tall tablet window", 768, 1024],
+    ["a tablet window exactly 800 px tall", 768, 800],
+  ])("pins the steps in %s, so the stacked list never waits to show", (_, width, height) => {
+    viewport = { width, height };
+    listTop = 3000;
+    render(<HowItWorks />);
+    expect([intro(), ...listSteps()].some(hidden)).toBe(false);
+  });
+
+  it.each([
+    ["a phone", 390, 844],
+    ["a short tablet window", 768, 799],
+    ["a window narrower than a tablet", 767, 1200],
+  ])("stacks the steps on %s, each revealed as it scrolls into view", (_, width, height) => {
+    viewport = { width, height };
+    listTop = 3000;
+    render(<HowItWorks />);
+    const steps = listSteps();
+    expect([intro(), ...steps].every(hidden)).toBe(true);
+    scrollIntoView(steps[1]);
+    expect(steps.map(hidden)).toEqual([true, false, true, true]);
+  });
+
+  it("shows the stacked list's first step at once when a How it works link is followed", () => {
+    viewport = { width: 390, height: 844 };
+    listTop = 3000;
+    render(
+      <>
+        <a href="#how-it-works">How it works</a>
+        <HowItWorks />
+      </>,
+    );
+    fireEvent.click(screen.getByRole("link", { name: "How it works" }));
+    expect([intro(), ...listSteps()].map(hidden)).toEqual([false, false, true, true, true]);
+  });
+
+  it("keeps each step's underlined words to 18 characters, so the underline never wraps", () => {
+    render(<HowItWorks />);
+    const keys = listSteps().map((step) => within(step).getByRole("heading", { level: 3 }).lastElementChild?.textContent ?? "");
+    expect(keys).toEqual(["your prep", "practice analytics", "your week", "every weekend"]);
+    expect(keys.every((key) => key.length <= 18)).toBe(true);
+  });
+
+  it("pins at the same window sizes in the stylesheet as in the script", () => {
+    const css = readFileSync("src/app/globals.css", "utf8");
+    const variant = css.match(/@custom-variant pin \{\s*@media ([^{]+)\{/)?.[1].trim();
+    expect(variant?.replaceAll("(scripting: enabled) and ", "")).toBe(PIN_MEDIA);
   });
 });
