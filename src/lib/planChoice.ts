@@ -8,6 +8,10 @@ export type PlanName = (typeof PLAN_NAMES)[number];
 
 export const isPlanName = (value: unknown): value is PlanName => PLAN_NAMES.includes(value as PlanName);
 
+export type PlanChoicePlace = "onboarding" | "weekly_upload";
+
+export const PLAN_CHOICE_PATHS: Record<PlanChoicePlace, string> = { onboarding: "/onboarding", weekly_upload: "/dashboard/upload" };
+
 export type PlanOption = { name: string; price: string; per: string; every: string; saving: string | null };
 
 export type PlanChoiceOffer = {
