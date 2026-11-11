@@ -16,6 +16,12 @@ try {
   if (status === "no-google") {
     throw new UserRefusalError(`${displayEmail} has not signed in with Google. Admins sign in only through Google.`);
   }
+  if (status === "stripe-key-missing" || status === "stripe-key-refused") {
+    const problem = status === "stripe-key-missing" ? "STRIPE_SECRET_KEY is not set" : "Stripe refused STRIPE_SECRET_KEY";
+    throw new UserRefusalError(
+      `${problem}, so the plan of ${displayEmail} was not cancelled and the Account is still a student. An Account with a plan needs a valid STRIPE_SECRET_KEY. Set it and try again.`,
+    );
+  }
   if (status === "plan-not-ended") {
     throw new UserRefusalError(`Stripe did not cancel the plan of ${displayEmail}, so the Account is still a student. Try again.`);
   }
