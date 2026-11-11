@@ -289,7 +289,7 @@ describe("POST /api/analytics/extract", () => {
 
   it("refuses a lapsed student with the plan refusal before taking a scan place", async () => {
     vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
-    mocks.loadAccountPlan.mockResolvedValue({ status: { kind: "lapsed" }, record: null });
+    mocks.loadAccountPlan.mockResolvedValue({ status: { kind: "lapsed", reason: "cancelled" }, record: null });
 
     const { POST } = await import("./route");
     const response = await POST(await imageRequest());

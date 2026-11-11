@@ -1,9 +1,10 @@
 import { localDateInTimezone } from "./currentWeeklySchedule";
+import { oneLineDate } from "./planCard";
 import { PLAN_PRICES, planPriceText, type PlanPrices } from "./planPrices";
-import type { BillingRecord, PlanStatus } from "./planStatus";
+import { PLAN_REFUSAL, type BillingRecord, type PlanStatus } from "./planStatus";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
 
-export type PlanNote = { lead: string; rest: string };
+export type PlanNote = { lead: string; rest: string; action?: "update_card" | "pick_plan" };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const FRIDAY_TO_FREE_WEEK_END_DAYS = 3;
@@ -32,5 +33,18 @@ export function freeWeekEndingNote(
   return { lead, rest: nextWeekSaved ? `${starts} Your plan for next week appears then.` : starts };
 }
 
+export function planProblemNote(status: PlanStatus): PlanNote | null {
+  if (status.kind === "retrying") {
+    return {
+      lead: "Your last payment didn't go through.",
+      rest: `Update your card by ${oneLineDate(status.lapsesAt)} to keep your plan.`,
+      action: "update_card",
+    };
+  }
+  if (status.kind !== "lapsed") return null;
+  const lead = status.reason === "cancelled" ? "Your plan has ended." : "Your payment didn't go through.";
+  return { lead, rest: PLAN_REFUSAL, action: "pick_plan" };
+}
+
 export const hidesUploadReminder = (status: PlanStatus, record: BillingRecord | null, realNow: Date) =>
-  record?.cancelAtPeriodEnd === true && daysLeftInEndingFreeWeek(status, realNow) !== null;
+  status.kind === "lapsed" || (record?.cancelAtPeriodEnd === true && daysLeftInEndingFreeWeek(status, realNow) !== null);

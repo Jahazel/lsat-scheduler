@@ -12,6 +12,8 @@ import { ProgressScreen } from "./ProgressMotion";
 import ProgressOverview from "./ProgressOverview";
 import { loadChosenPlan } from "@/lib/billingRepository";
 import { isHeldWeek } from "@/lib/planStatus";
+import { planProblemNote } from "@/lib/planNotes";
+import { PlanNotice } from "@/components/PlanNotes";
 
 export default async function ProgressPage({
   searchParams,
@@ -27,7 +29,7 @@ export default async function ProgressPage({
   if (!student) redirect("/onboarding");
 
   const currentWeekStartDate = currentWeekInTimezone(await studentSideNow(session.user), SCHEDULE_TIMEZONE);
-  const [schedules, { record }] = await Promise.all([listWeeklySchedulesForStudent(student.id), loadChosenPlan(session.user.id)]);
+  const [schedules, { status, record }] = await Promise.all([listWeeklySchedulesForStudent(student.id), loadChosenPlan(session.user.id)]);
   const history = schedules.filter((schedule) => !isHeldWeek(record, schedule.weekStartDate));
   const route = resolveProgressRoute({
     schedules: history,
@@ -35,6 +37,8 @@ export default async function ProgressPage({
     currentWeekStartDate,
     requestedWeek,
   });
+
+  const lapsedNote = status.kind === "lapsed" && planProblemNote(status);
 
   switch (route.kind) {
     case "this_week": redirect("/dashboard");
@@ -45,7 +49,7 @@ export default async function ProgressPage({
     );
     case "list": return (
       <ProgressScreen requested={requestedWeek}>
-        <ProgressOverview months={route.months} />
+        <ProgressOverview months={route.months} notice={lapsedNote && <PlanNotice note={lapsedNote} />} />
       </ProgressScreen>
     );
   }

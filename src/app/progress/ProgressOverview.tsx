@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { cx, FOCUS, FOCUS_INSET } from "@/components/ui/classes";
 import type { PastWeekMonth } from "@/lib/progressHistory";
@@ -21,11 +22,12 @@ function Chevron() {
   );
 }
 
-export default function ProgressOverview({ months }: { months: PastWeekMonth[] }) {
+export default function ProgressOverview({ months, notice }: { months: PastWeekMonth[]; notice?: ReactNode }) {
   return (
     <>
       <div data-page-section><PageHeader gutter={GUTTER} title="Progress" lead={LEAD} /></div>
       <div className={CONTENT}>
+        {notice && <div data-page-section>{notice}</div>}
         {months.length === 0 ? (
           <div data-page-section className={cx(CARD, "flex flex-col gap-1 px-4 py-6 sm:px-6 sm:py-12")}>
             <p className="text-body font-medium text-ink">No past weeks yet.</p>

@@ -220,8 +220,8 @@ Reduced motion has no board; `motion.md` holds its column.
 ## Payments (`payments/`)
 
 Screenshots of the approved prototype for design #679 and spec #680, taken 2026-11-09. Brief: `research/payments/brief.md`. Motion rows:
-`research/payments/motion.md`. The clickable prototype is the dev-only route `/prototypes/payments`, until the last
-payments screen ticket deletes it. Each file name ends in `-desktop`, `-tablet`, or `-phone`.
+`research/payments/motion.md`. The clickable prototype, the dev-only route `/prototypes/payments`, was deleted by #711
+once every payments screen ticket was built. Each file name ends in `-desktop`, `-tablet`, or `-phone`.
 
 | File | State | Screen ticket |
 | --- | --- | --- |

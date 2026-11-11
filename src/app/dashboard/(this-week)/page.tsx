@@ -21,7 +21,7 @@ import { PageArrival } from "@/components/PagePlaceholder";
 import { CurrentWeekReport } from "@/components/AdminTestContext";
 import { loadChosenPlan } from "@/lib/billingRepository";
 import { isHeldWeek } from "@/lib/planStatus";
-import { freeWeekEndingNote, hidesUploadReminder } from "@/lib/planNotes";
+import { freeWeekEndingNote, hidesUploadReminder, planProblemNote } from "@/lib/planNotes";
 import { HeldWeek, PlanNotice } from "@/components/PlanNotes";
 
 const previewStartDate = new Intl.DateTimeFormat("en-US", {
@@ -81,8 +81,9 @@ export default async function DashboardPage({
   const { schedule } = currentWeek;
   const preview = currentWeek.kind === "next_week_preview";
   const realNow = new Date();
+  const problem = planProblemNote(plan);
   if (isHeldWeek(record, schedule.weekStartDate)) {
-    const lastFreeWeekendNote = preview && freeWeekEndingNote(plan, record, realNow, true);
+    const lastFreeWeekendNote = preview && !problem && freeWeekEndingNote(plan, record, realNow, true);
     return (
       <div data-page-fade className="min-h-screen">
         <PageCue page="this-week" />
@@ -93,8 +94,11 @@ export default async function DashboardPage({
             title={preview ? "Your plan for next week" : "Your plan for this week"}
           />
         </div>
-        <div className="px-5 pt-8 pb-16 md:px-18 md:pt-16 md:pb-24">
-          <div data-page-section>{lastFreeWeekendNote ? <PlanNotice note={lastFreeWeekendNote} /> : <HeldWeek />}</div>
+        <div className="flex flex-col gap-4 px-5 pt-8 pb-16 md:px-18 md:pt-16 md:pb-24">
+          {problem && <div data-page-section><PlanNotice note={problem} /></div>}
+          <div data-page-section>
+            {lastFreeWeekendNote ? <PlanNotice note={lastFreeWeekendNote} /> : <HeldWeek lapsed={plan.kind === "lapsed"} />}
+          </div>
         </div>
       </div>
     );
@@ -103,7 +107,7 @@ export default async function DashboardPage({
     preview ? [] : postgresActivityCheckIns.listForSchedule(schedule.id),
     listApprovedAnalyticsSnapshots(doc.id),
   ]);
-  const note = preview ? null : freeWeekEndingNote(plan, record, realNow, nextWeekHasUpload(snapshots, realNow, SCHEDULE_TIMEZONE));
+  const note = problem ?? (preview ? null : freeWeekEndingNote(plan, record, realNow, nextWeekHasUpload(snapshots, realNow, SCHEDULE_TIMEZONE)));
 
   return (
     <div data-page-fade className="min-h-screen">

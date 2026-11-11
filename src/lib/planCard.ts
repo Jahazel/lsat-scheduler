@@ -13,7 +13,7 @@ export type PlanCardFacts = {
 
 const shortDate = new Intl.DateTimeFormat("en-US", { timeZone: SCHEDULE_TIMEZONE, weekday: "short", month: "short", day: "numeric" });
 
-const oneLineDate = (at: Date) => shortDate.format(at).replaceAll(" ", "\u00a0");
+export const oneLineDate = (at: Date) => shortDate.format(at).replaceAll(" ", "\u00a0");
 
 const lastDayOfPeriodEndingAt = (at: Date) => oneLineDate(new Date(at.getTime() - 1));
 
