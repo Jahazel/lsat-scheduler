@@ -58,7 +58,7 @@ export default async function SiteHeader() {
   const state = user.id ? await loadStudentNavState(user.id, await studentSideNow(user)) : null;
   if (!state || (await loadAccountPlan(user.id ?? "")).status.kind === "no_plan") {
     return (
-      <header className={HEADER}>
+      <header data-site-header="workspace" className={HEADER}>
         <div className={BAR}>
           <Logo href="/" />
           <div data-page-fade>
@@ -71,7 +71,7 @@ export default async function SiteHeader() {
 
   return (
     <>
-      <header className={HEADER}>
+      <header data-site-header="workspace" className={HEADER}>
         <StudentNav
           initials={initialsFor(user.name, user.email)}
           email={user.email ?? ""}
