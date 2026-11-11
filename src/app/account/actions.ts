@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { auth, signIn, signOut } from "@/auth";
 import { endAllSessions, isAccountId } from "@/lib/accountRepository";
 import { ADMIN_RESTRICTED_ACTION_MESSAGE, isAdminUser } from "@/lib/accessControl";
-import { openCustomerPortalSession } from "@/lib/billingRepository";
+import { openCustomerPortalSession, type PortalReturn } from "@/lib/billingRepository";
 import { passwordRequest } from "@/lib/clientIpAddress";
 import { loginRefusalPath, PASSWORD_CHANGED_PATH } from "@/lib/loginNotice";
 import { CURRENT_PASSWORD_MESSAGES } from "@/lib/currentPasswordMessages";
@@ -82,16 +82,22 @@ export async function signOutAllDevices(): Promise<SignOutAnswer> {
 }
 
 export async function openCustomerPortal(): Promise<FormState> {
-  return answerAction("/account", async () => {
-    const session = await auth();
-    if (!session?.user) {
-      throw new Error("Not authenticated");
-    }
-    if (isAdminUser(session.user)) {
-      throw new Error(ADMIN_RESTRICTED_ACTION_MESSAGE);
-    }
-    const url = await openCustomerPortalSession(session.user.id);
-    if (!url) throw new Error("This Account has no plan to manage.");
-    redirect(url);
-  });
+  return answerAction("/account", () => sendToCustomerPortal("account"));
+}
+
+export async function openCustomerPortalFromThisWeek(): Promise<FormState> {
+  return answerAction("/dashboard", () => sendToCustomerPortal("this_week"));
+}
+
+async function sendToCustomerPortal(from: PortalReturn): Promise<never> {
+  const session = await auth();
+  if (!session?.user) {
+    throw new Error("Not authenticated");
+  }
+  if (isAdminUser(session.user)) {
+    throw new Error(ADMIN_RESTRICTED_ACTION_MESSAGE);
+  }
+  const url = await openCustomerPortalSession(session.user.id, from);
+  if (!url) throw new Error("This Account has no plan to manage.");
+  redirect(url);
 }

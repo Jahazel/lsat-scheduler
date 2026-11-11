@@ -7,7 +7,7 @@ import { freeWeekEndingNote, planProblemNote } from "@/lib/planNotes";
 import { planStatus, type BillingRecord } from "@/lib/planStatus";
 
 vi.mock("@/app/dashboard/actions", () => ({ saveActivityCheckIn: vi.fn() }));
-const accountActions = vi.hoisted(() => ({ openCustomerPortal: vi.fn(() => new Promise<null>(() => {})) }));
+const accountActions = vi.hoisted(() => ({ openCustomerPortalFromThisWeek: vi.fn(() => new Promise<null>(() => {})) }));
 vi.mock("@/app/account/actions", () => accountActions);
 
 import { HeldWeek, PlanNotice } from "./PlanNotes";
@@ -66,7 +66,7 @@ describe("retrying and lapsed notes", () => {
 
     fireEvent.click(within(notice).getByRole("button", { name: "Update card" }));
     expect((await within(notice).findByRole("button", { name: "Opening Stripe…" })).getAttribute("aria-disabled")).toBe("true");
-    expect(accountActions.openCustomerPortal).toHaveBeenCalledOnce();
+    expect(accountActions.openCustomerPortalFromThisWeek).toHaveBeenCalledOnce();
   });
 
   it.each([
