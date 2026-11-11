@@ -109,7 +109,7 @@ export default function AdminNav(props: StudentNavProps & { testState?: TestCont
         ) : (
           <div className={BAR}>
             <div className="flex items-center gap-1 sm:gap-3">
-              <Logo href="/admin" />
+              <Logo href="/admin" form="mark-below-md" />
               <span className="text-fog" aria-hidden data-workspace-separator="true">/</span>
               {switcher}
             </div>

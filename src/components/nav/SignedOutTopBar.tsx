@@ -8,14 +8,14 @@ export default function SignedOutTopBar() {
   return (
     <header data-site-header="bar" className="sticky top-0 z-40 px-5 md:px-12">
       <div data-page-fade aria-hidden className="absolute inset-0 -z-10 border-b border-vellum-line bg-vellum" />
-      <div className="mx-auto flex min-h-16 max-w-content flex-wrap items-center gap-x-2.5 gap-y-2 py-2 min-[360px]:gap-x-10">
+      <div className="mx-auto flex min-h-16 max-w-content flex-wrap items-center gap-x-2.5 gap-y-2 py-2 min-[360px]:gap-x-[1.5rem] min-[390px]:gap-x-10">
         <Logo href="/" />
         <nav data-page-fade aria-label="Primary" className="flex flex-1 items-center justify-end md:justify-between">
           <div className="hidden gap-7 md:flex">
             <Link href="/#how-it-works" className={SECTION_LINK}>How it works</Link>
             <Link href="/#pricing" className={SECTION_LINK}>Pricing</Link>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-x-2.5 gap-y-2 min-[360px]:gap-x-5">
+          <div className="flex flex-wrap items-center justify-end gap-x-2.5 gap-y-2 min-[360px]:gap-x-3 min-[390px]:gap-x-5">
             <Link href="/login" className={cx("rounded-xs text-small font-medium whitespace-nowrap text-ink", LANDING_LINK, FOCUS)}>Log in</Link>
             <Link href="/signup" className={cx(LANDING_BUTTON, FOCUS)}>Start free week</Link>
           </div>

@@ -60,7 +60,7 @@ export default async function SiteHeader() {
     return (
       <header data-site-header="workspace" className={HEADER}>
         <div className={BAR}>
-          <Logo href="/" />
+          <Logo href="/" form="mark-below-md" />
           <div data-page-fade>
             <LogOutButton />
           </div>

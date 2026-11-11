@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FOCUS, cx } from "@/components/ui/classes";
+import { LOGO_ON_LIGHT, RouteLogo } from "@/components/ui/RouteLogo";
 import type { NavIconName } from "./NavIcon";
 
 export const TABS: { href: string; label: string; short: string; icon: NavIconName; uploadHref?: string }[] = [
@@ -17,18 +18,12 @@ export const MOBILE_BAR = "flex h-14 items-center justify-between gap-3 px-5";
 export const DESKTOP_BAR = "flex h-18 items-center justify-between gap-6 px-18";
 export const BAR = `${MOBILE_BAR} md:h-18 md:px-18`;
 
-export function Logo({ href, compact = false }: { href: string; compact?: boolean }) {
+export function Logo({ href, form = "full" }: { href: string; form?: "full" | "mark" | "mark-below-md" }) {
   return (
-    <Link
-      href={href}
-      data-page-logo
-      className={cx(
-        "shrink-0 rounded-xs font-semibold text-ink",
-        compact ? "text-h5" : "text-lead leading-h6 tracking-heading",
-        FOCUS,
-      )}
-    >
-      DrillMap
+    <Link href={href} data-page-logo className={cx("flex shrink-0 items-center rounded-xs", LOGO_ON_LIGHT, FOCUS)}>
+      <span className="sr-only">DrillMap</span>
+      {form !== "full" && <RouteLogo form="mark" className={form === "mark-below-md" ? "md:hidden" : undefined} />}
+      {form !== "mark" && <RouteLogo form="full" className={form === "mark-below-md" ? "hidden md:block" : undefined} />}
     </Link>
   );
 }

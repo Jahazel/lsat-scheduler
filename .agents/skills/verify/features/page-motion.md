@@ -19,7 +19,7 @@ Plain same-origin link clicks between the landing page `/` and the sign-in pages
 ## How to get to it (user POV)
 
 - On `/` signed out, click `Start free week` (top bar, hero, or closing band) or `Log in` (top bar, closing band, or footer).
-- On `/signup` or `/login`, click the other page's link, `Forgot password?`, or the `DrillMap` logo back to `/`.
+- On `/signup` or `/login`, click the other page's link, `Forgot password?`, or, from 1200 px up, the `DrillMap` logo back to `/`. Below 1200 px these pages have no logo link, so no logo glides into or out of them.
 - Press Back or Forward between these pages.
 
 ## Driving it with browser tools
@@ -30,7 +30,7 @@ Use Playwright, because the checks read element state during the fade. Read stat
 - On `/login`, click `role=link[name="Sign up"] >> nth=0`. Right after the click, every `[data-page-swap]` has `aria-busy="true"` and no `[data-page-fade]` region does. Wait for `Sign up for DrillMap`.
 - Press Back twice and wait for `/`. Expect `scrollY` equal to the spot you left (600). A scroll made with `window.scrollTo` in `page.evaluate` is not a reliable start for this check; scroll with the mouse wheel.
 - Call `page.emulateMedia({ reducedMotion: "reduce" })`, click the top bar `Log in`, and expect no animation on any `[data-page-logo]`.
-- Repeat at 768, 600, and 390 px when the change touches layout. At 767 px and narrower the rise is 4 px, for page regions and page sections alike.
+- Repeat at 768, 600, and 390 px when the change touches layout. At 767 px and narrower the rise is 4 px, for page regions and page sections alike. At these widths `/login` and `/signup` have no `DrillMap` link (`getByRole("link", { name: "DrillMap" })` counts 0), and no `[data-page-logo]` animates.
 
 - For onboarding, sign up through the UI (the `smoke.mjs` signup and verification-link steps) so the Account has a password, then log in on `/login`. Before pressing `Log in`, patch `Element.prototype.animate` in `page.evaluate` to log each call; read the log after the `Set your target` heading shows. Expect a `[data-page-copy]` layer right after the press, one 120 ms fade-out on it, then 200 ms entrances on the onboarding regions and one logo glide, and `document.activeElement` on the `H1`. A dev server answers fast, so the placeholder is usually skipped; throttle with `page.route("**/onboarding*", ...)` delaying the RSC response to see it.
 - For a returning student, sign in an onboarded password Account on `/login` with the same `animate` log. Expect the Log in copy to hold through `/dashboard` and the This week loading screen, then one 120 ms fade-out on it, 200 ms entrances on the student top bar and This week, one logo glide, and `document.activeElement` on the `H1`.
