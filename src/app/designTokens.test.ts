@@ -10,6 +10,8 @@ const TAILWIND_PALETTE =
 const COLOR_UTILITY =
   "bg|text|border(?:-[trblxyse])?|divide|ring|ring-offset|outline|fill|stroke|from|via|to|decoration|placeholder|caret|accent|shadow";
 
+const BROWSER_READ_COLOR_FILES = new Set(["app/manifest.ts", "app/manifest.test.ts"]);
+
 const RULES: { name: string; pattern: RegExp }[] = [
   { name: "old ink or teal accent token", pattern: /\b(?:ink|accent)-\d{2,3}\b/g },
   { name: "old ambient shadow token", pattern: /proof-ambient/g },
@@ -152,7 +154,7 @@ describe("design tokens", () => {
 
   it("keeps application code on Paper tokens", () => {
     const violations = sourceFiles(SRC)
-      .filter((file) => file !== __filename)
+      .filter((file) => file !== __filename && !BROWSER_READ_COLOR_FILES.has(path.relative(SRC, file)))
       .flatMap((file) =>
         findTokenViolations(readFileSync(file, "utf8"), file).map(
           (violation) => `${path.relative(SRC, file)}: ${violation}`,

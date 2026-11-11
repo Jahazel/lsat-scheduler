@@ -23,10 +23,18 @@ describe("proxy matcher", () => {
     expect(runsProxy("/landing/nested/hero.png")).toBe(true);
   });
 
+  it("still checks sign-in for a page whose path starts with an icon's name", () => {
+    expect(runsProxy("/icon.svg/admin")).toBe(true);
+    expect(runsProxy("/manifest.webmanifest.json")).toBe(true);
+  });
+
   it("checks sign-in for app pages and skips the other static files", () => {
     expect(runsProxy("/dashboard")).toBe(true);
     expect(runsProxy("/")).toBe(true);
     expect(runsProxy("/favicon.ico")).toBe(false);
+    for (const icon of ["/icon.svg", "/apple-icon.png", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/maskable-512.png"]) {
+      expect(runsProxy(icon), icon).toBe(false);
+    }
     expect(runsProxy("/google-g.svg")).toBe(false);
     expect(runsProxy("/_next/static/chunks/main.js")).toBe(false);
   });
