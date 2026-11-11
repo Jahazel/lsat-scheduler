@@ -162,6 +162,13 @@
       "when": 1793404800000,
       "tag": "0022_billing_cancel_at_period_end",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793491200000,
+      "tag": "0023_deletion_list_check",
+      "breakpoints": true
     }
   ]
 }

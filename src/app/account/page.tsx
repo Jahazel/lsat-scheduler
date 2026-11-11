@@ -27,7 +27,7 @@ export default async function AccountPage() {
     isAccountId(session.user.id) && findPasswordAccountById(session.user.id).then(Boolean),
     loadAccountPlan(session.user.id),
   ]);
-  const planCard = planCardFacts(status, record);
+  const planCard = planCardFacts(status, record, new Date());
 
   return (
     <div className="min-h-screen bg-vellum">

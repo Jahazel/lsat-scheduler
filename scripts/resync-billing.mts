@@ -1,6 +1,6 @@
 import { createPostgresConnection, requirePostgresScriptTarget } from "../src/lib/postgres";
 import { stripeSecretKey } from "../src/lib/stripeApi";
-import { resyncBillingRecords } from "../src/lib/stripeMessages";
+import { billingResyncReport, resyncBillingRecords } from "../src/lib/stripeMessages";
 
 const connections: ReturnType<typeof createPostgresConnection>[] = [];
 try {
@@ -9,9 +9,8 @@ try {
   const restored = createPostgresConnection();
   connections.push(restored);
   const counts = await resyncBillingRecords(restored.db, secretKey);
-  process.stdout.write(`Stripe subscriptions: ${counts.listed}. Billing records saved: ${counts.saved}. `
-    + `Left out: ${counts.leftOut}. Billing records Stripe does not list: ${counts.notInStripe}.\n`);
-  if (counts.notInStripe > 0) process.exitCode = 1;
+  process.stdout.write(billingResyncReport(counts));
+  if (counts.notInStripe > 0 || counts.unknownPrice.length > 0) process.exitCode = 1;
 } catch (error) {
   const message = error instanceof Error && (error.message.startsWith("Refusing database host ")
     || error.message === "STRIPE_SECRET_KEY is not set."
