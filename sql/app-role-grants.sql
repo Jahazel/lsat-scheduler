@@ -38,6 +38,7 @@ BEGIN
   EXECUTE format('GRANT INSERT (account_id, email_hash) ON TABLE public.deletion_list TO %I', app_role);
   EXECUTE format('GRANT SELECT, INSERT, UPDATE ON TABLE public.billing_records TO %I', app_role);
   EXECUTE format('GRANT SELECT, INSERT ON TABLE public.stripe_messages TO %I', app_role);
+  EXECUTE format('GRANT SELECT, INSERT ON TABLE public.used_free_weeks TO %I', app_role);
   EXECUTE format('GRANT EXECUTE ON FUNCTION public.prune_security_log(), public.prune_deletion_list(), public.prune_used_free_weeks(), public.prune_stripe_messages() TO %I', app_role);
 END;
 $$;

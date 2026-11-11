@@ -1,4 +1,5 @@
 import { and, eq, inArray, ne } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { isAccountId } from "./accountRepository";
 import { configuredSiteUrl } from "./email";
@@ -91,4 +92,10 @@ export async function endPlanNow(accountId: string, db: PostgresTransaction) {
     if (subscription.status === "incomplete_expired") continue;
     await stripeRequest(`subscriptions/${subscription.id}`, secretKey, undefined, "DELETE");
   }
+}
+
+export async function loadChosenPlan(accountId: string): Promise<AccountPlan> {
+  const plan = await loadAccountPlan(accountId);
+  if (plan.status.kind === "no_plan") redirect("/onboarding");
+  return plan;
 }

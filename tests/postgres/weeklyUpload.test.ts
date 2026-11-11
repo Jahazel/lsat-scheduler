@@ -60,7 +60,7 @@ async function studentWithThisWeek(role: "student" | "admin" = "student", billin
   vi.setSystemTime(MONDAY);
   const account = await database.createAccountAsOwner({ email: `${role}@example.test`, name: "Sam", role });
   if (!account) throw new Error("Account fixture already exists");
-  if (role === "student" && billing) await database.writeBillingRecordAsOwner(account.id, billing);
+  if (role === "student") await database.writeBillingRecordAsOwner(account.id);
   const saved = await createStudent(account.id, profile);
   if (!saved) throw new Error("Student fixture already exists");
   await createApprovedAnalyticsSnapshot(saved.id, {
@@ -71,6 +71,10 @@ async function studentWithThisWeek(role: "student" | "admin" = "student", billin
   });
   state.session = { user: { id: account.id, role, email: `${role}@example.test`, name: "Sam" }, expires: "2099-01-01" };
   await dashboard();
+  if (role === "student") {
+    await database.owner.execute(sql`delete from billing_records where account_id = ${account.id}`);
+    if (billing) await database.writeBillingRecordAsOwner(account.id, billing);
+  }
   return { accountId: account.id, studentId: saved.id };
 }
 

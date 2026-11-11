@@ -19,4 +19,10 @@ describe("planPriceText", () => {
       monthOnWeekly: "About $56.30 a month on Weekly",
     });
   });
+
+  it("drops the saving line when Monthly saves less than 1%", () => {
+    expect(planPriceText({ weeklyCents: 1000, monthlyCents: 4500 }).monthlySaving).toBeNull();
+    expect(planPriceText({ weeklyCents: 1000, monthlyCents: 4300 }).monthlySaving).toBeNull();
+    expect(planPriceText({ weeklyCents: 1000, monthlyCents: 4280 }).monthlySaving).toBe("about 1% less");
+  });
 });

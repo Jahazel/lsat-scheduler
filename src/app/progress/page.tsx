@@ -10,7 +10,7 @@ import { resolveProgressRoute } from "@/lib/progressHistory";
 import PastWeekView from "./PastWeekView";
 import { ProgressScreen } from "./ProgressMotion";
 import ProgressOverview from "./ProgressOverview";
-import { loadAccountPlan } from "@/lib/billingRepository";
+import { loadChosenPlan } from "@/lib/billingRepository";
 import { isHeldWeek } from "@/lib/planStatus";
 
 export default async function ProgressPage({
@@ -27,7 +27,7 @@ export default async function ProgressPage({
   if (!student) redirect("/onboarding");
 
   const currentWeekStartDate = currentWeekInTimezone(await studentSideNow(session.user), SCHEDULE_TIMEZONE);
-  const [schedules, { record }] = await Promise.all([listWeeklySchedulesForStudent(student.id), loadAccountPlan(session.user.id)]);
+  const [schedules, { record }] = await Promise.all([listWeeklySchedulesForStudent(student.id), loadChosenPlan(session.user.id)]);
   const history = schedules.filter((schedule) => !isHeldWeek(record, schedule.weekStartDate));
   const route = resolveProgressRoute({
     schedules: history,

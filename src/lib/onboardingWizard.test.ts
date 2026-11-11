@@ -53,7 +53,7 @@ describe("onboarding wizard", () => {
   it("starts on Step 1 with no scores, no test date, and no practice-test day", () => {
     const state = initialWizardState();
 
-    expect(stepLabel(state.step)).toBe("Step 1 of 4 · Goal");
+    expect(stepLabel(state.step, true)).toBe("Step 1 of 5 · Goal");
     expect(state.values.currentScore).toBe("");
     expect(state.values.goalTestDate).toBe("");
     expect(state.values.preferredPracticeTestDay).toBeNull();
@@ -95,7 +95,7 @@ describe("onboarding wizard", () => {
 
   it("blocks Week until a practice-test day is chosen, then moves on", () => {
     const week = run(validGoal, { type: "continue" });
-    expect(stepLabel(week.step)).toBe("Step 2 of 4 · Week");
+    expect(stepLabel(week.step, false)).toBe("Step 2 of 4 · Week");
     expect(blockedReason(week)).toBe("Pick a practice-test day to continue.");
     expect(wizardReducer(week, { type: "continue" }).step).toBe("week");
 
@@ -105,7 +105,7 @@ describe("onboarding wizard", () => {
       pickSaturday,
       { type: "continue" },
     );
-    expect(stepLabel(analytics.step)).toBe("Step 3 of 4 · Analytics");
+    expect(stepLabel(analytics.step, true)).toBe("Step 3 of 5 · Analytics");
   });
 
   it("keeps every value on Back", () => {

@@ -19,7 +19,7 @@ import { DRILL_LINK_PARAMETER } from "@/lib/drillSetupGuide";
 import { PageCue } from "@/components/SiteMotion";
 import { PageArrival } from "@/components/PagePlaceholder";
 import { CurrentWeekReport } from "@/components/AdminTestContext";
-import { loadAccountPlan } from "@/lib/billingRepository";
+import { loadChosenPlan } from "@/lib/billingRepository";
 import { isHeldWeek } from "@/lib/planStatus";
 
 const previewStartDate = new Intl.DateTimeFormat("en-US", {
@@ -56,6 +56,7 @@ export default async function DashboardPage({
     goalTestDate: doc.goalTestDate,
   };
 
+  const { status: plan, record } = await loadChosenPlan(session.user.id);
   const clock = await studentSideClock(session.user);
   const now = clock.now;
   const currentWeek = await loadOrGenerateCurrentWeek({
@@ -72,11 +73,11 @@ export default async function DashboardPage({
     rules: mockRules,
     timezone: SCHEDULE_TIMEZONE,
     now: () => now,
+    plan,
   });
-  if (currentWeek.kind === "analytics_required") redirect("/dashboard/upload");
+  if (currentWeek.kind === "analytics_required" || currentWeek.kind === "plan_required") redirect("/dashboard/upload");
   const { schedule } = currentWeek;
   const preview = currentWeek.kind === "next_week_preview";
-  const { record } = await loadAccountPlan(session.user.id);
   if (isHeldWeek(record, schedule.weekStartDate)) {
     return (
       <div data-page-fade className="min-h-screen">
