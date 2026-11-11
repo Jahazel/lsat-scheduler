@@ -154,7 +154,7 @@ describe("signup", () => {
     expect(new TextEncoder().encode(password).length).toBe(72);
     expect(await signUp({ password })).toEqual(checkYourEmail("maya.chen@fastmail.com"));
     await pressVerify(linkTokenIn(fakeEmails()[0].text));
-    expect((await logIn("maya.chen@fastmail.com", password)).redirectedTo).toBe("http://localhost:3000/login");
+    expect((await logIn("maya.chen@fastmail.com", password)).redirectedTo).toBe("http://localhost:3000/dashboard");
   });
 
   it("for a new email, saves a pending signup, makes no Account, and sends the verification link", async () => {
@@ -367,7 +367,7 @@ describe("password login", () => {
   it("signs the new student in and sends them to the student landing page", async () => {
     const id = await verifiedStudent();
     const { redirectedTo, cookie } = await logIn("Maya.Chen@Fastmail.com", PASSWORD);
-    expect(redirectedTo).toBe("http://localhost:3000/login");
+    expect(redirectedTo).toBe("http://localhost:3000/dashboard");
     expect(await sessionUser(cookie)).toEqual({ id, role: "student" });
     expect(await landingAfterLogin(cookie)).toBe("http://localhost:3000/dashboard");
   });
@@ -387,7 +387,7 @@ describe("password login", () => {
     const compare = vi.spyOn(bcrypt, "compare");
     expect(await logIn(EMAIL, `${password}x`)).toEqual({ redirectedTo: null, state: refused("tooLong"), cookie: "" });
     expect(compare).not.toHaveBeenCalled();
-    expect((await logIn(EMAIL, password)).redirectedTo).toBe("http://localhost:3000/login");
+    expect((await logIn(EMAIL, password)).redirectedTo).toBe("http://localhost:3000/dashboard");
   });
 
   it("runs one bcrypt comparison against a fixed dummy hash for an unknown email", async () => {
@@ -412,7 +412,7 @@ describe("password login", () => {
     expect((await logIn("other@example.test", WRONG)).state?.notice?.text).toBe(MESSAGES.wrongEmailOrPassword);
 
     advance(15 * 60 * 1000);
-    expect((await logIn(EMAIL, PASSWORD)).redirectedTo).toBe("http://localhost:3000/login");
+    expect((await logIn(EMAIL, PASSWORD)).redirectedTo).toBe("http://localhost:3000/dashboard");
   });
 
   it("counts failed logins for an unknown email too", async () => {
@@ -423,15 +423,15 @@ describe("password login", () => {
   it("pauses an IP address after 50 failed logins in 1 hour, for every email, until the hour ends", async () => {
     await verifiedStudent();
     await countFailuresWithoutBcrypt(49);
-    expect((await logIn(EMAIL, PASSWORD)).redirectedTo).toBe("http://localhost:3000/login");
+    expect((await logIn(EMAIL, PASSWORD)).redirectedTo).toBe("http://localhost:3000/dashboard");
     await failLogins(1, () => "guess@example.test");
     expect((await logIn(EMAIL, PASSWORD)).state?.notice?.text).toBe(MESSAGES.paused);
 
     request.ip = "198.51.100.9";
-    expect((await logIn(EMAIL, PASSWORD)).redirectedTo).toBe("http://localhost:3000/login");
+    expect((await logIn(EMAIL, PASSWORD)).redirectedTo).toBe("http://localhost:3000/dashboard");
     request.ip = "203.0.113.1";
     advance(HOUR_MS);
-    expect((await logIn(EMAIL, PASSWORD)).redirectedTo).toBe("http://localhost:3000/login");
+    expect((await logIn(EMAIL, PASSWORD)).redirectedTo).toBe("http://localhost:3000/dashboard");
   });
 
   it("for a pending signup with the right password, says to verify and sends a new link that replaces the old one", async () => {
@@ -443,7 +443,7 @@ describe("password login", () => {
     ]);
     expect(await pressVerify(oldToken)).toEqual({ linkDoesNotWork: true });
     await pressVerify(linkTokenIn(fakeEmails()[1].text));
-    expect((await logIn(EMAIL, PASSWORD)).redirectedTo).toBe("http://localhost:3000/login");
+    expect((await logIn(EMAIL, PASSWORD)).redirectedTo).toBe("http://localhost:3000/dashboard");
   });
 
   it("lets only the allowed tries reach bcrypt when guesses arrive at the same moment", async () => {
@@ -460,7 +460,7 @@ describe("password login", () => {
   it("a right password gives its try back, so it never adds to a pause", async () => {
     await verifiedStudent();
     await failLogins(9, () => EMAIL);
-    for (let index = 0; index < 3; index++) expect((await logIn(EMAIL, PASSWORD)).redirectedTo).toBe("http://localhost:3000/login");
+    for (let index = 0; index < 3; index++) expect((await logIn(EMAIL, PASSWORD)).redirectedTo).toBe("http://localhost:3000/dashboard");
     expect((await logIn(EMAIL, WRONG)).state?.notice?.text).toBe(MESSAGES.wrongEmailOrPassword);
     expect((await logIn(EMAIL, PASSWORD)).state?.notice?.text).toBe(MESSAGES.paused);
   });
@@ -476,7 +476,7 @@ describe("password login", () => {
     expect((await logIn(EMAIL, PASSWORD)).state?.notice?.text).toBe(MESSAGES.verifyYourEmail);
     expect(fakeEmails()).toHaveLength(2);
     await pressVerify(linkTokenIn(fakeEmails()[1].text));
-    expect((await logIn(EMAIL, "a newer phrase that also works")).redirectedTo).toBe("http://localhost:3000/login");
+    expect((await logIn(EMAIL, "a newer phrase that also works")).redirectedTo).toBe("http://localhost:3000/dashboard");
   });
 
   it("a new link does not keep a pending signup past 7 days", async () => {
