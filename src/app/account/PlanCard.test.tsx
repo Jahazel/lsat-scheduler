@@ -28,7 +28,7 @@ const paid: BillingRecord = {
 const retrying: BillingRecord = { ...paid, stripeStatus: "past_due", renewalFailedAt: at("2026-12-07T15:00:00.000Z") };
 
 function renderCard(record: BillingRecord, now: Date) {
-  const facts = planCardFacts(planStatus("student", record, now), record, PRICES);
+  const facts = planCardFacts(planStatus("student", record, now), record, now, PRICES);
   if (!facts) throw new Error("A student with a plan has a Plan card");
   render(<PlanCard facts={facts} />, { wrapper: FailureToastProvider });
   return screen.getByRole("region", { name: "Plan" });
@@ -62,6 +62,10 @@ describe("Account Plan card", () => {
       chip: "Cancelled", rows: [["Plan", "Weekly · $10 a week"], ["Ends", "Sun, Nov 29"]], sentence: "It won't renew.",
     },
     {
+      name: "free week just ended while Stripe still says trialing", record: inFreeWeek, now: at("2026-11-23T06:05:00.000Z"),
+      chip: "Active", rows: [["Plan", "Weekly · $10 a week"]], sentence: null,
+    },
+    {
       name: "retrying", record: retrying, now: at("2026-12-09T15:00:00.000Z"), chip: "Retrying",
       rows: [["Plan", "Weekly · $10 a week"], ["Update card by", "Mon, Dec 14"]], sentence: "Payment failed.",
     },
@@ -85,8 +89,9 @@ describe("Account Plan card", () => {
   });
 
   it("is not shown to an admin or to a student who has not picked a plan", () => {
-    expect(planCardFacts(planStatus("admin", paid, at("2026-11-25T15:00:00.000Z")), paid, PRICES)).toBeNull();
-    expect(planCardFacts(planStatus("student", null, at("2026-11-25T15:00:00.000Z")), null, PRICES)).toBeNull();
+    const now = at("2026-11-25T15:00:00.000Z");
+    expect(planCardFacts(planStatus("admin", paid, now), paid, now, PRICES)).toBeNull();
+    expect(planCardFacts(planStatus("student", null, now), null, now, PRICES)).toBeNull();
   });
 
   it("keeps each date on one line", () => {

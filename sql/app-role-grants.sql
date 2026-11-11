@@ -25,9 +25,9 @@ BEGIN
     public.analytics_snapshots, public.practice_test_results, public.weekly_schedules, public.activity_check_ins, public.action_counters, public.running_scans,
     public.scan_settings, public.scan_spending, public.pending_signups, public.reset_tokens, public.security_log, public.deletion_list,
     public.billing_records, public.used_free_weeks, public.stripe_messages FROM PUBLIC;
-  REVOKE ALL ON FUNCTION public.prune_security_log(), public.prune_deletion_list(), public.prune_used_free_weeks(), public.prune_stripe_messages(), public.keep_deleting_mark() FROM PUBLIC;
+  REVOKE ALL ON FUNCTION public.prune_security_log(), public.prune_deletion_list(), public.prune_used_free_weeks(), public.prune_stripe_messages(), public.is_on_deletion_list(uuid), public.keep_deleting_mark() FROM PUBLIC;
   EXECUTE format('REVOKE ALL PRIVILEGES ON TABLE public.accounts, public.students, public.analytics_snapshots, public.practice_test_results, public.weekly_schedules, public.activity_check_ins, public.action_counters, public.running_scans, public.scan_settings, public.scan_spending, public.pending_signups, public.reset_tokens, public.security_log, public.deletion_list, public.billing_records, public.used_free_weeks, public.stripe_messages FROM %I', app_role);
-  EXECUTE format('REVOKE ALL ON FUNCTION public.prune_security_log(), public.prune_deletion_list(), public.prune_used_free_weeks(), public.prune_stripe_messages() FROM %I', app_role);
+  EXECUTE format('REVOKE ALL ON FUNCTION public.prune_security_log(), public.prune_deletion_list(), public.prune_used_free_weeks(), public.prune_stripe_messages(), public.is_on_deletion_list(uuid) FROM %I', app_role);
   EXECUTE format('REVOKE ALL ON FUNCTION public.log_admin_role_change(), public.log_emergency_switch() FROM %I', app_role);
   EXECUTE format('GRANT SELECT, DELETE, INSERT (email, name, google_id, password_hash), UPDATE (simulated_date, session_version, password_hash, deleting_since, last_signed_in_at, inactive_warning_sent_at) ON TABLE public.accounts TO %I', app_role);
   EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.students, public.analytics_snapshots, public.practice_test_results, public.activity_check_ins, public.action_counters TO %I', app_role);
@@ -39,6 +39,6 @@ BEGIN
   EXECUTE format('GRANT SELECT, INSERT, UPDATE ON TABLE public.billing_records TO %I', app_role);
   EXECUTE format('GRANT SELECT, INSERT ON TABLE public.stripe_messages TO %I', app_role);
   EXECUTE format('GRANT SELECT, INSERT ON TABLE public.used_free_weeks TO %I', app_role);
-  EXECUTE format('GRANT EXECUTE ON FUNCTION public.prune_security_log(), public.prune_deletion_list(), public.prune_used_free_weeks(), public.prune_stripe_messages() TO %I', app_role);
+  EXECUTE format('GRANT EXECUTE ON FUNCTION public.prune_security_log(), public.prune_deletion_list(), public.prune_used_free_weeks(), public.prune_stripe_messages(), public.is_on_deletion_list(uuid) TO %I', app_role);
 END;
 $$;

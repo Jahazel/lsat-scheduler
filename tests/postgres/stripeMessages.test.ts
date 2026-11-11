@@ -23,6 +23,7 @@ const stripe = {
   subscriptions: new Map<string, FakeSubscription>(),
   paidInvoices: new Map<string, number[]>(),
   requests: [] as string[],
+  cancelled: [] as string[],
   down: false,
   /** When set, the next subscription read answers with the state it saw, after this promise settles. */
   hold: null as Promise<void> | null,
@@ -38,6 +39,12 @@ vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
   if (subscription) {
     const found = stripe.subscriptions.get(subscription[1]);
     if (!found) return Response.json({ error: { type: "invalid_request_error" } }, { status: 404 });
+    if (init?.method === "DELETE") {
+      if (["canceled", "incomplete_expired"].includes(found.status)) return Response.json({ error: { type: "invalid_request_error" } }, { status: 400 });
+      stripe.cancelled.push(found.id);
+      found.status = "canceled";
+      return Response.json(found);
+    }
     const items = found.items.data.map((item) => ({ current_period_start: item.current_period_end - 7 * 86_400, ...item }));
     const answer = Response.json({ ...found, items: { data: items } });
     const hold = stripe.hold;
@@ -63,9 +70,10 @@ beforeEach(async () => {
   stripe.subscriptions.clear();
   stripe.paidInvoices.clear();
   stripe.requests = [];
+  stripe.cancelled = [];
   stripe.down = false;
   stripe.hold = null;
-  await database.owner.execute(sql`truncate accounts, security_log, stripe_messages, used_free_weeks cascade`);
+  await database.owner.execute(sql`truncate accounts, security_log, stripe_messages, used_free_weeks, deletion_list cascade`);
   const account = await database.createAccountAsOwner({ email: "maya@example.test", name: "Maya" });
   if (!account) throw new Error("Account fixture already exists");
   accountId = account.id;
@@ -199,6 +207,7 @@ it("does nothing for a repeated message, even when Stripe's state changed since"
   const first = await records();
   stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId, { status: "canceled" }));
   stripe.requests = [];
+  stripe.cancelled = [];
 
   expect((await send(body)).status).toBe(200);
 
@@ -353,12 +362,46 @@ it.each([
   expect(await refusals()).toEqual([{ result: "unknownAccount", route: "/api/stripe/webhook", account_id: null }]);
 });
 
-it("ignores a message for a deleted Account and logs it", async () => {
+it("ignores a message for a deleted Account that is not on the deletion list and logs it", async () => {
   stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId));
   await database.owner.execute(sql`delete from accounts where id = ${accountId}`);
   expect((await send(checkoutCompleted("sub_maya"))).status).toBe(200);
   expect(await records()).toEqual([]);
+  expect(stripe.cancelled).toEqual([]);
   expect(await refusals()).toEqual([expect.objectContaining({ result: "unknownAccount" })]);
+});
+
+it("ends a plan that Checkout started after its Account was deleted, logs it without the Account, and ends it only once", async () => {
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId));
+  await database.owner.execute(sql`delete from accounts where id = ${accountId}`);
+  await database.owner.execute(sql`insert into deletion_list (account_id, email_hash) values (${accountId}, repeat('a', 64))`);
+
+  expect((await send(checkoutCompleted("sub_maya"))).status).toBe(200);
+  expect((await send(subscriptionChanged("sub_maya", "deleted"))).status).toBe(200);
+
+  expect(stripe.cancelled).toEqual(["sub_maya"]);
+  expect(await records()).toEqual([]);
+  expect((await database.owner.execute(sql`
+    select result, account_id, email_hash from security_log where event = 'stripe_message_refused' order by logged_at
+  `)).rows).toEqual([
+    { result: "deletedAccountPlanEnded", account_id: null, email_hash: null },
+    { result: "unknownAccount", account_id: null, email_hash: null },
+  ]);
+});
+
+it("answers 500 for a subscription whose price is not Weekly or Monthly, saving nothing, so Stripe sends it again", async () => {
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId, {
+    items: { data: [{ current_period_end: PERIOD_END, price: { recurring: { interval: "year", interval_count: 1 } } }] },
+  }));
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+  expect((await send(checkoutCompleted("sub_maya"))).status).toBe(500);
+
+  expect(await records()).toEqual([]);
+  expect(await handledMessages()).toEqual([]);
+  expect((await database.owner.execute(sql`select error_type from security_log where event = 'unexpected_failure'`)).rows)
+    .toEqual([{ error_type: "UnknownPrice" }]);
+  error.mockRestore();
 });
 
 it("ignores a message for an admin Account and logs it with that Account", async () => {
