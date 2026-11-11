@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import TermsPage from "./page";
 
@@ -14,8 +14,22 @@ vi.mock("@/lib/planPrices", async (importOriginal) => ({
   },
 }));
 
+function stubMotion({ reduced = false } = {}) {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: (reduced && query.includes("reduce")) || query.includes("min-width: 1024px"),
+    addEventListener() {},
+    removeEventListener() {},
+  }));
+}
+
+beforeEach(() => {
+  stubMotion();
+  Element.prototype.scrollIntoView = vi.fn();
+});
+
 afterEach(() => {
   cleanup();
+  Reflect.deleteProperty(document.documentElement, "scrollHeight");
   prices.PLAN_PRICES = prices.approved;
   history.replaceState(null, "", "/legal/terms");
   vi.unstubAllGlobals();
@@ -204,5 +218,117 @@ describe("Terms page", () => {
     history.replaceState(null, "", "/legal/terms#unknown");
     render(<TermsPage />);
     expect(document.activeElement).toBe(document.body);
+  });
+});
+
+const onThisPage = () => within(screen.getByRole("navigation", { name: "On this page" }));
+const markedSections = () => onThisPage().getAllByRole("link").filter((link) => link.getAttribute("aria-current") === "location").map((link) => link.textContent);
+const barTitle = () => screen.getByRole("button", { name: /^On this page/ }).textContent?.replace("On this page", "");
+
+function placeHeadings(tops: Record<string, number>, pageHeight = 20_000) {
+  Object.defineProperty(document.documentElement, "scrollHeight", { configurable: true, value: pageHeight });
+  for (const section of document.querySelectorAll("section")) {
+    section.style.scrollMarginTop = "96px";
+    section.getBoundingClientRect = () => ({ top: tops[section.id] ?? 5_000 }) as DOMRect;
+  }
+  act(() => {
+    fireEvent.scroll(window);
+  });
+}
+
+describe("Terms page: On this page", () => {
+  it("lists every section, each linking to its fixed id", () => {
+    render(<TermsPage />);
+    const links = onThisPage().getAllByRole("link");
+    expect(links.map((link) => [link.getAttribute("href"), link.textContent])).toEqual(
+      screen.getAllByRole("heading", { level: 2 }).map((heading) => [`#${heading.closest("section")!.id}`, heading.textContent]),
+    );
+  });
+
+  it("marks the first section at the top of the page", () => {
+    render(<TermsPage />);
+    placeHeadings({ "about-these-terms": 400 });
+    expect(markedSections()).toEqual(["About these Terms"]);
+    expect(barTitle()).toBe("About these Terms");
+  });
+
+  it("marks the last section whose heading has passed the reading line", () => {
+    render(<TermsPage />);
+    placeHeadings({ "about-these-terms": -900, "your-account": -300, "plans-the-free-week-and-renewal": 97, "cancelling-and-refunds": 400 });
+    expect(markedSections()).toEqual(["Plans, the free week, and renewal"]);
+    expect(barTitle()).toBe("Plans, the free week, and renewal");
+
+    placeHeadings({ "about-these-terms": -900, "your-account": -300, "plans-the-free-week-and-renewal": 98 });
+    expect(markedSections()).toEqual(["Your Account"]);
+  });
+
+  it("moves the reading line to the bottom of the screen at the very end of the page", () => {
+    render(<TermsPage />);
+    placeHeadings({ "governing-law": -200, "notice-for-california-residents": 300, contact: innerHeight - 10 }, innerHeight);
+    expect(markedSections()).toEqual(["Contact"]);
+  });
+
+  it("marks the section the page opened at, until the reader scrolls on their own", () => {
+    history.replaceState(null, "", "/legal/terms#contact");
+    render(<TermsPage />);
+    expect(markedSections()).toEqual(["Contact"]);
+    expect(barTitle()).toBe("Contact");
+
+    placeHeadings({ "governing-law": -200, "notice-for-california-residents": 50, contact: 400 });
+    expect(markedSections()).toEqual(["Contact"]);
+
+    fireEvent.wheel(window);
+    act(() => {
+      fireEvent.scroll(window);
+    });
+    expect(markedSections()).toEqual(["Notice for California residents"]);
+  });
+
+  it("scrolls smoothly to a tapped section, shows its link without a new history entry, focuses its heading, and keeps it marked", () => {
+    render(<TermsPage />);
+    const entries = history.length;
+
+    fireEvent.click(onThisPage().getByRole("link", { name: "When we can end your access" }));
+
+    const heading = screen.getByRole("heading", { level: 2, name: "When we can end your access" });
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+    expect(location.hash).toBe("#when-we-can-end-your-access");
+    expect(history.length).toBe(entries);
+    expect(document.activeElement).toBe(heading);
+    expect(markedSections()).toEqual(["When we can end your access"]);
+
+    placeHeadings({ "about-these-terms": -900 });
+    expect(markedSections()).toEqual(["When we can end your access"]);
+  });
+
+  it("jumps without a smooth scroll under reduced motion", () => {
+    stubMotion({ reduced: true });
+    render(<TermsPage />);
+    fireEvent.click(onThisPage().getByRole("link", { name: "Contact" }));
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: "instant", block: "start" });
+  });
+
+  it("opens the full list from the bar and closes it on a pick, a tap outside, or Escape", () => {
+    render(<TermsPage />);
+    const bar = screen.getByRole("button", { name: /^On this page/ });
+    const panel = () => within(document.getElementById(bar.getAttribute("aria-controls")!)!);
+    expect(bar.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(bar);
+    expect(bar.getAttribute("aria-expanded")).toBe("true");
+    expect(panel().getAllByRole("link")).toHaveLength(15);
+    fireEvent.click(panel().getByRole("link", { name: "Your Account" }));
+    expect(bar.getAttribute("aria-expanded")).toBe("false");
+    expect(barTitle()).toBe("Your Account");
+    expect(location.hash).toBe("#your-account");
+
+    fireEvent.click(bar);
+    fireEvent.pointerDown(screen.getByRole("heading", { level: 1 }));
+    expect(bar.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(bar);
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    expect(bar.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(bar);
   });
 });

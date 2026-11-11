@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cx } from "@/components/ui/classes";
+import { OnThisPage } from "./OnThisPage";
 import { LegalTabs, type LegalPageId } from "./LegalTabs";
 import { CopySectionLink, SectionLinks } from "./SectionLinks";
 
@@ -34,9 +35,9 @@ export function LegalPage({ id, title, dateLine, sections, paragraphs }: LegalPa
           <LegalTabs current={id} />
         </div>
       </header>
-      <div className="px-6 pt-12 pb-16">
-        <div className={cx(COLUMN, PROSE)}>
-          {sections ? (
+      {sections ? (
+        <OnThisPage sections={sections.map(({ id, title }) => ({ id, title }))}>
+          <div className={PROSE}>
             <SectionLinks page={id}>
               <div className="space-y-12">
                 {sections.map((section) => (
@@ -56,11 +57,13 @@ export function LegalPage({ id, title, dateLine, sections, paragraphs }: LegalPa
                 ))}
               </div>
             </SectionLinks>
-          ) : (
-            paragraphs
-          )}
+          </div>
+        </OnThisPage>
+      ) : (
+        <div className="px-6 pt-12 pb-16">
+          <div className={cx(COLUMN, PROSE)}>{paragraphs}</div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

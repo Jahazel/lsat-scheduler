@@ -29,4 +29,10 @@ describe("AI disclosure page", () => {
     ]);
     expect(tabs.filter((tab) => tab.getAttribute("aria-current") === "page").map((tab) => tab.textContent)).toEqual(["AI disclosure"]);
   });
+
+  it("shows no section list", () => {
+    render(<AIDisclosurePage />);
+    expect(screen.queryByRole("navigation", { name: "On this page" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /On this page/ })).toBeNull();
+  });
 });
