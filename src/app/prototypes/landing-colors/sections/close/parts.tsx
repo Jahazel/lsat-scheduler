@@ -1,0 +1,251 @@
+import Link from "next/link";
+import { QuestionList, type Question } from "@/components/landing/QuestionList";
+import { RevealSection } from "@/components/landing/RevealSection";
+import { FREE_WEEK_NOTE, LinkArrow, StartFreeWeekLink } from "@/components/landing/StartFreeWeekLink";
+import { FOCUS_ON_DARK, LANDING_LINK, cx } from "@/components/ui/classes";
+import { PLAN_PRICES, planPriceText, type PlanPrices } from "@/lib/planPrices";
+import { GridLabel } from "../grid/Grid";
+import { NightBand } from "./NightBand";
+
+export type SectionLabels = { pricing: string; questions: string; closing: string };
+
+const PLAN_RULE = "border-dashed border-ink/14";
+const GRADIENT = "bg-[linear-gradient(to_bottom_in_oklab,#0B0B0B_0%,#2B3B79_45%,#E4E4E4_100%)]";
+
+export function PricingSection({ label, prices = PLAN_PRICES }: { label: string; prices?: PlanPrices }) {
+  const price = planPriceText(prices);
+  return (
+    <RevealSection threshold={0.25} id="pricing" aria-labelledby="pricing-title"className="flex w-full scroll-mt-16 flex-col items-center">
+      <GridLabel id="pricing-title" number="03">{label}</GridLabel>
+      <div className="w-full md:w-[min(720px,calc(100%-48px))] lg:w-[min(1120px,calc(100%-48px))]">
+        <div className="grid gap-5 pt-8 pb-7 md:pt-14 md:pb-10 lg:grid-cols-2 lg:items-end lg:gap-0 lg:px-6 lg:pt-[72px] lg:pb-14">
+          <p className="reveal-item max-w-[480px] text-[32px]/[38px] font-semibold tracking-[-0.03em] text-balance text-ink md:text-[40px]/[46px] lg:text-[48px]/[54px]">
+            Your <span className="close-key">first full week</span> is free
+          </p>
+          <p className="reveal-item close-rise-sm max-w-[400px] text-[17px]/[27px] text-smoke [--reveal-delay:80ms] lg:pl-6">
+            Pick a plan when your free week ends. Both plans get the same weekly schedule.
+          </p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 md:gap-0">
+          <PlanCard id="plan-weekly" name="Weekly" price={price.weekly} per="a week" className="[--reveal-delay:160ms]">
+            Pay week by week. Good for a short final push.
+          </PlanCard>
+          <PlanCard id="plan-monthly" name="Monthly" price={price.monthly} per="a month" badge={price.monthlySaving ? `Best value · ${price.monthlySaving}` : undefined} className="[--reveal-delay:220ms]">
+            {price.monthOnWeekly}. Good for a full prep cycle.
+          </PlanCard>
+        </div>
+        <p className="reveal-item close-fade pt-5 text-small text-smoke [--reveal-delay:280ms] lg:px-6">
+          Cancel anytime. You keep access until your paid week or month ends. No refunds for unused time.
+        </p>
+      </div>
+    </RevealSection>
+  );
+}
+
+function PlanCard({ id, name, price, per, badge, className, children }: {
+  id: string;
+  name: string;
+  price: string;
+  per: string;
+  badge?: string;
+  className: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <article aria-labelledby={id} className={cx("relative isolate flex p-3 md:p-4", className)}>
+      {badge && <div aria-hidden="true" className={cx("close-mat absolute inset-0 -z-10 rounded-[20px]", GRADIENT)} />}
+      <div className="reveal-item flex flex-1 rounded-[16px] border border-paper/60 bg-[#F2F2F2] p-1.5 shadow-[0_18px_48px_rgb(11_11_11/0.12)]">
+    <div className="plan-card flex flex-1 flex-col gap-3 rounded-[10px] border border-[#D9D9D9] bg-paper p-6 max-[359px]:p-5 lg:p-8">
+      <div className="flex min-h-[26px] flex-wrap items-center justify-between gap-3 md:flex-nowrap">
+        <h3 id={id} className="font-mono text-caption tracking-[0.06em] text-smoke uppercase">{name}</h3>
+        {badge && (
+          <span className="close-badge flex h-[26px] items-center rounded-pill px-2 text-caption font-medium text-chalk lg:px-2.5 lg:text-[13px]/[18px]">
+            {badge}
+          </span>
+        )}
+      </div>
+      <p className="flex flex-wrap items-baseline gap-x-2 pt-2">
+        <span className="text-[48px]/[52px] font-semibold tracking-[-0.04em] text-ink tabular-nums max-[359px]:text-[38px]/[42px] lg:text-[56px]/[60px]">{price}</span>
+        <span className="text-[17px] text-smoke">{per}</span>
+      </p>
+      <p className="mb-7 min-h-12 max-w-[340px] text-[15px]/[24px] text-smoke">{children}</p>
+      <div className={`mt-auto flex flex-col gap-[14px] border-t pt-6 ${PLAN_RULE}`}>
+        <p className="text-small text-ink">{FREE_WEEK_NOTE}</p>
+        <StartFreeWeekLink className="h-12 w-full" />
+      </div>
+    </div>
+      </div>
+    </article>
+  );
+}
+
+function bothPlans(prices: PlanPrices) {
+  const price = planPriceText(prices);
+  return `Weekly (${price.weekly}) or Monthly (${price.monthly})`;
+}
+
+export function QuestionsSection({ label, prices = PLAN_PRICES, more = [] }: { label: string; prices?: PlanPrices; more?: Question[] }) {
+  const plans = bothPlans(prices);
+  return (
+    <RevealSection threshold={0.2} aria-labelledby="questions-title" className="flex w-full flex-col items-center">
+      <GridLabel id="questions-title" number="04">{label}</GridLabel>
+      <div className="grid w-full gap-5 pt-8 md:w-[min(720px,calc(100%-48px))] md:gap-8 md:pt-14 lg:w-[min(1120px,calc(100%-48px))] lg:grid-cols-4 lg:items-start lg:gap-0 lg:pt-[72px]">
+        <p aria-hidden="true" className="reveal-item text-[32px]/[38px] font-semibold tracking-[-0.03em] text-ink md:text-[40px]/[46px] lg:sticky lg:top-28 lg:px-6 lg:text-[48px]/[54px]">
+          FAQ
+        </p>
+        <QuestionList
+          className="lg:col-span-3"
+          questions={[
+            {
+              question: "How is the study schedule made?",
+              answer: "Fixed rules built from the former 7Sage tutor's tutoring method use your individual analytics to make the most personalized study schedule on the market.",
+            },
+            {
+              question: "Does this replace a tutor or a course?",
+              answer: [
+                "No, it works alongside them. Most self-guided students know they should study but not what to focus on, so they default to taking practice test after practice test.",
+                "DrillMap gives you the kind of weekly structure a tutor would. It reads your results, finds your weakest question types, and builds a plan so every hour of practice counts. Your course or books still teach the concepts. DrillMap makes sure you're drilling the right ones.",
+              ],
+            },
+            {
+              question: "Will this raise my score?",
+              answer: "Students who followed this tutor's study plans improved by an average of 12 points, and some by as much as 23. Individual results vary, but a focused plan built around your weakest question types gives you the best chance of improving.",
+            },
+            {
+              question: "Is the plan only for students at a certain score level?",
+              answer: "No. DrillMap works whether you're scoring in the 140s or pushing for a 170+. Your plan is built from your own practice results and your goal score, so it adjusts to where you are right now. If you're early in your prep, it focuses on building the fundamentals behind your weakest question types. If you're close to your goal, it targets the few areas still costing you points.",
+            },
+            {
+              question: "Which test prep programs is DrillMap compatible with?",
+              answer: "7Sage today, with more sites coming soon! DrillMap is independent and simply reads the analytics 7Sage already shows you.",
+            },
+            { question: "Can I cancel?", answer: "Any time. You keep access until your paid week or month ends. No refunds for any unused time." },
+            { question: "Do I need a card to start?", answer: `No. Your first full week is free. You pick ${plans} only when it ends.` },
+            { question: "What happens after the free week?", answer: `Pick ${plans} to keep getting weekly schedules.` },
+            {
+              question: "Is the plan made by AI?",
+              answer: "No. Fixed rules built from the tutor's coaching method make the plan. AI only reads your screenshots, and you check what it read.",
+            },
+            ...more,
+          ]}
+        />
+      </div>
+    </RevealSection>
+  );
+}
+
+export function ClosingSection({ label, prices = PLAN_PRICES }: { label: string; prices?: PlanPrices }) {
+  return (
+    <RevealSection threshold={0.25} aria-labelledby="closing-title" className="relative flex w-full flex-col items-center">
+      <NightBand />
+      <GridLabel id="closing-title" number="05">{label}</GridLabel>
+      <div className="grid w-full gap-y-10 pt-28 pb-16 md:w-[min(720px,calc(100%-48px))] md:grid-cols-2 md:gap-y-14 md:pt-40 md:pb-28 lg:w-[min(1120px,calc(100%-48px))] lg:grid-cols-4 lg:items-start lg:pt-48 lg:pb-36">
+        <div className="reveal-item flex flex-col items-start gap-5 md:col-span-2 lg:px-6">
+          <p className="max-w-[480px] text-[34px]/[40px] font-semibold tracking-[-0.03em] text-balance text-chalk md:text-[44px]/[50px]">
+            Get next week&apos;s plan from your own analytics
+          </p>
+          <p className="text-[17px]/[27px] text-[#B8BCCB]">{FREE_WEEK_NOTE}</p>
+          <div className="flex w-full flex-col gap-2.5 pt-3 md:w-auto md:flex-row">
+            <Link
+              href="/signup"
+              className={cx(
+                "close-cta-light inline-flex h-12 w-full shrink-0 items-center justify-center gap-1.5 rounded-sm bg-paper px-[22px] text-body leading-[20px] font-medium whitespace-nowrap text-ink active:scale-[0.97] md:w-auto",
+                FOCUS_ON_DARK,
+              )}
+            >
+              Start free week
+              <LinkArrow />
+            </Link>
+            <Link
+              href="/login"
+              className={cx("close-ghost-dark inline-flex h-12 items-center justify-center rounded-sm border border-chalk/25 px-[22px] text-body font-medium text-chalk", FOCUS_ON_DARK)}
+            >
+              Log in
+            </Link>
+          </div>
+        </div>
+        <Signpost icon={<PriceTagIcon />} title="See what you'll pay" href="#pricing" link="Pricing" className="[--reveal-delay:80ms]">
+          {bothPlans(prices)}. Pick one when your free week ends.
+        </Signpost>
+        <Signpost icon={<RepeatIcon />} title="See how it works" href="#how-it-works" link="How it works" className="[--reveal-delay:140ms]">
+          Four steps. The last one repeats every weekend.
+        </Signpost>
+      </div>
+    </RevealSection>
+  );
+}
+
+function Signpost({ icon, title, href, link, className, children }: {
+  icon: React.ReactNode;
+  title: string;
+  href: string;
+  link: string;
+  className: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cx("reveal-item close-rise-sm flex flex-col items-start gap-2 md:pr-6 lg:pl-6", className)}>
+      <span className="close-icon mb-4 grid size-10 place-items-center rounded-[10px] border border-chalk/15 bg-chalk/5">{icon}</span>
+      <h3 className="text-[16px]/[22px] font-semibold text-chalk">{title}</h3>
+      <p className="text-[15px]/[23px] text-[#B8BCCB]">{children}</p>
+      <Link href={href} className={cx("close-link-dark mt-2 inline-flex items-center gap-1 rounded-xs text-[15px] font-medium text-chalk", FOCUS_ON_DARK)}>
+        {link}
+        <LinkArrow />
+      </Link>
+    </div>
+  );
+}
+
+function PriceTagIcon() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20">
+      <path
+        d="M3 10.6V4a1 1 0 0 1 1-1h6.6a1 1 0 0 1 .7.3l5.4 5.4a1 1 0 0 1 0 1.4l-6.6 6.6a1 1 0 0 1-1.4 0L3.3 11.3a1 1 0 0 1-.3-.7Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <circle cx="7" cy="7" r="1.3" fill="currentColor" />
+    </svg>
+  );
+}
+
+function RepeatIcon() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20">
+      <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M15.5 8A6 6 0 0 0 4.6 6.2M4.5 12a6 6 0 0 0 10.9 1.8" />
+        <path d="M4.2 3v3.6h3.6M15.8 17v-3.6h-3.6" />
+      </g>
+    </svg>
+  );
+}
+
+const LEGAL = [
+  { href: "/legal/terms", label: "Terms of Service" },
+  { href: "/legal/privacy", label: "Privacy Policy" },
+  { href: "/legal/ai-disclosure", label: "AI Disclosure" },
+];
+
+export function ProtoFooter() {
+  return (
+    <footer data-proto-footer className="flex flex-col gap-12 bg-[#0B0B0B] px-5 pt-16 pb-12 md:px-18">
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-lead leading-h6 font-semibold tracking-heading text-chalk">DrillMap</p>
+        <Link href="/login" className={cx("rounded-xs text-small font-medium text-chalk", LANDING_LINK, FOCUS_ON_DARK)}>
+          Log in
+        </Link>
+      </div>
+      <div className="flex flex-col gap-4 border-t border-chalk/12 pt-6 text-small text-[#9A9DA8] md:flex-row md:items-center md:justify-between">
+        <nav aria-label="Legal" className="flex flex-wrap gap-x-6 gap-y-2">
+          {LEGAL.map((link) => (
+            <Link key={link.href} href={link.href} className={cx("rounded-xs pointer-hover:text-chalk", LANDING_LINK, FOCUS_ON_DARK)}>
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+        <p>Plans follow fixed rules. AI only reads your screenshots.</p>
+      </div>
+    </footer>
+  );
+}

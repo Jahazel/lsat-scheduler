@@ -262,3 +262,21 @@ once every legal-pages ticket was built. Each file name starts with `desktop-`, 
 | `*-worst-case` | The arbitration section and marked gaps after the lawyer review, with two-line titles in the list | #759, #761 |
 
 Dates and the arbitration section are sample data; the approved legal text in each page decides what the app shows.
+
+## Landing colors and scroll motion (`landing-colors-scroll/`)
+
+Screenshots of the approved prototype for design #773 and spec #805, taken 2026-11-11. Brief: `research/landing-colors-scroll/brief.md`. Motion rows:
+`research/landing-colors-scroll/motion.md`. The clickable prototype is the dev-only route `/prototypes/landing-colors`; #813 deletes it.
+Each file name ends in the window width: `-1440` (desktop), `-1100` (between 1024 and 1199 px), `-768` (tablet), or `-390` (phone).
+These files replace `landing-page/` for colors and scroll motion; that folder still holds the page's copy and layout.
+
+| File | State | Screen ticket |
+| --- | --- | --- |
+| `1-first-load-*` | Hero on first load: gradient backdrop, hero cards, the line grid | #810, #811 |
+| `2-how-it-works-*` | How it works: the pin on desktop, the stacked list on tablet and phone | #812 |
+| `3-pricing-*` | Pricing with Monthly on the gradient | #811, #813 |
+| `4-faq-*` | FAQ with one answer open | #813 |
+| `5-ending-*` | Start band and the dark footer | #813 |
+| `6-login-*`, `7-signup-*` | Log in and Sign up with the Glow; at 1100 px the panel is hidden (#798) | #809 |
+
+Prices are sample data; the plan prices decide what the app shows.
