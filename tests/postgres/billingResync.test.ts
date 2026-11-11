@@ -1,18 +1,19 @@
 import { execFile } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeEach, expect, it, vi } from "vitest";
 import { billingResyncReport, resyncBillingRecords } from "../../src/lib/stripeMessages";
 import { setUpAppTestDatabase } from "./appTestDatabase";
 
 const KEY = "sk_test_resync_key";
+const AUTH_SECRET = "billing-resync-test-secret-0123456789";
 const FREE_WEEK_END = 1_794_000_000;
 const PERIOD_END = FREE_WEEK_END + 7 * 86_400;
 const PAGE_SIZE = 2;
 
 type FakeSubscription = {
   id: string; customer: string; status: string; created: number; metadata: Record<string, string>;
-  trial_end: number | null; ended_at: number | null; cancel_at: number | null; cancel_at_period_end: boolean;
+  trial_start: number | null; trial_end: number | null; ended_at: number | null; cancel_at: number | null; cancel_at_period_end: boolean;
   cancellation_details: { reason: string | null };
   items: { data: { current_period_start: number; current_period_end: number; price: { recurring: { interval: string; interval_count: number } } }[] };
   latest_invoice: { created: number; status_transitions: { finalized_at: number | null } } | null;
@@ -55,11 +56,12 @@ const database = setUpAppTestDatabase();
 
 beforeEach(async () => {
   vi.stubEnv("STRIPE_SECRET_KEY", KEY);
+  vi.stubEnv("AUTH_SECRET", AUTH_SECRET);
   stripe.subscriptions.clear();
   stripe.paidInvoices.clear();
   stripe.down = false;
   stripe.cancels = [];
-  await database.owner.execute(sql`truncate accounts, stripe_messages, deletion_list cascade`);
+  await database.owner.execute(sql`truncate accounts, stripe_messages, deletion_list, used_free_weeks cascade`);
 });
 afterAll(() => {
   vi.unstubAllEnvs();
@@ -75,7 +77,7 @@ async function account(email: string, role: "student" | "admin" = "student") {
 function subscription(id: string, owner: string, changes: Partial<FakeSubscription> = {}): FakeSubscription {
   return {
     id, customer: `cus_${id.slice(4)}`, status: "trialing", created: 1_793_400_000, metadata: { account_id: owner },
-    trial_end: FREE_WEEK_END, ended_at: null, cancel_at: null, cancel_at_period_end: false, cancellation_details: { reason: null },
+    trial_start: FREE_WEEK_END - 7 * 86_400, trial_end: FREE_WEEK_END, ended_at: null, cancel_at: null, cancel_at_period_end: false, cancellation_details: { reason: null },
     items: { data: [{
       current_period_start: FREE_WEEK_END - 7 * 86_400, current_period_end: FREE_WEEK_END,
       price: { recurring: { interval: "week", interval_count: 1 } },
@@ -86,7 +88,7 @@ function subscription(id: string, owner: string, changes: Partial<FakeSubscripti
 }
 
 const paidMonthly = (id: string, owner: string, changes: Partial<FakeSubscription> = {}) => subscription(id, owner, {
-  status: "active", trial_end: null,
+  status: "active", trial_start: null, trial_end: null,
   items: { data: [{ current_period_start: FREE_WEEK_END, current_period_end: PERIOD_END, price: { recurring: { interval: "month", interval_count: 1 } } }] },
   ...changes,
 });
@@ -217,6 +219,49 @@ it("saves nothing when Stripe fails, so the run can start again", async () => {
   expect(await records()).toEqual([]);
 });
 
+const usedFreeWeeks = async () =>
+  (await database.owner.execute(sql`select email_hash, used_on from used_free_weeks order by email_hash`)).rows;
+const hashOf = (email: string) => createHmac("sha256", AUTH_SECRET).update(email).digest("hex");
+const FREE_WEEK_START_DAY = new Date((FREE_WEEK_END - 7 * 86_400) * 1000).toISOString().slice(0, 10);
+
+it("adds the used free week row, dated by the free week's start, for each Account whose plan is in or had a free week", async () => {
+  const trialing = await account("trialing@example.test");
+  const paidAfter = await account("paid-after@example.test");
+  const switched = await account("switched@example.test");
+  const neverFree = await account("never-free@example.test");
+  stripe.subscriptions.set("sub_trialing", subscription("sub_trialing", trialing));
+  stripe.subscriptions.set("sub_paid_after", subscription("sub_paid_after", paidAfter, { status: "active" }));
+  stripe.paidInvoices.set("sub_paid_after", [1000]);
+  stripe.subscriptions.set("sub_switched_old", subscription("sub_switched_old", switched, {
+    customer: "cus_switched", status: "canceled", created: 1_793_000_000, ended_at: 1_793_300_000,
+  }));
+  stripe.subscriptions.set("sub_switched_new", paidMonthly("sub_switched_new", switched, { customer: "cus_switched", created: 1_793_500_000 }));
+  stripe.paidInvoices.set("sub_switched_new", [2999]);
+  stripe.subscriptions.set("sub_never_free", paidMonthly("sub_never_free", neverFree));
+  stripe.paidInvoices.set("sub_never_free", [2999]);
+
+  await resyncBillingRecords(database.owner, KEY);
+
+  const expected = ["trialing@example.test", "paid-after@example.test", "switched@example.test"]
+    .map((email) => ({ email_hash: hashOf(email), used_on: FREE_WEEK_START_DAY }))
+    .sort((a, b) => a.email_hash.localeCompare(b.email_hash));
+  expect(await usedFreeWeeks()).toEqual(expected);
+  await resyncBillingRecords(database.owner, KEY);
+  expect(await usedFreeWeeks()).toEqual(expected);
+});
+
+it("adds no used free week row for an admin's or a deleted Account's plan", async () => {
+  const admin = await account("admin@example.test", "admin");
+  stripe.subscriptions.set("sub_admin", subscription("sub_admin", admin));
+  const deleted = randomUUID();
+  await database.owner.execute(sql`insert into deletion_list (account_id, email_hash) values (${deleted}, repeat('a', 64))`);
+  stripe.subscriptions.set("sub_deleted", subscription("sub_deleted", deleted));
+
+  await resyncBillingRecords(database.owner, KEY);
+
+  expect(await usedFreeWeeks()).toEqual([]);
+});
+
 function runScript(env: Record<string, string>) {
   return new Promise<{ code: number; output: string }>((resolve) => {
     execFile(process.execPath, ["--import", "tsx", "scripts/resync-billing.mts"], {
@@ -227,6 +272,10 @@ function runScript(env: Record<string, string>) {
 
 it("refuses to run without a Stripe key", async () => {
   expect(await runScript({ DATABASE_URL: database.ownerSetting })).toEqual({ code: 1, output: "STRIPE_SECRET_KEY is not set.\n" });
+});
+
+it("refuses to run without AUTH_SECRET, which keys the used free week list", async () => {
+  expect(await runScript({ DATABASE_URL: database.ownerSetting, STRIPE_SECRET_KEY: KEY })).toEqual({ code: 1, output: "AUTH_SECRET is not set.\n" });
 });
 
 it("refuses a database host that is not local or an approved copy", async () => {

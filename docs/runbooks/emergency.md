@@ -80,8 +80,9 @@ that branch:
    name the restored branch. If it names only other copies, go on and remove them afterwards.
 2. Run `npm run replay-deletions` on the restored branch, with the current branch's deletion list. Run it
    twice. The second run must print `Restored Accounts deleted: 0.`
-3. Then run `npm run resync-billing` on the restored branch with the site's `STRIPE_SECRET_KEY`. Run it
-   twice. Both runs must print the same counts and end with `Billing records Stripe does not list: 0.`
+3. Then run `npm run resync-billing` on the restored branch with the site's `STRIPE_SECRET_KEY` and
+   `AUTH_SECRET`. Run it twice. Both runs must print the same counts and end with `Billing records Stripe
+   does not list: 0.`
 
 Only then change the site's `DATABASE_URL`. The replay refuses production hosts. On the real site, do not
 let the site use a restored branch until the owner decides how to run the replay there. Afterwards, remove the former branch, every `_old_` branch,
