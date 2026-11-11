@@ -106,6 +106,11 @@ describe("plan status", () => {
       .toEqual({ kind: "lapsed", reason: "payment_failed" });
   });
 
+  it("keeps renewing a plan whose cancel the student undid, whatever reason Stripe still holds", () => {
+    const undone = { ...inFreeWeek, cancellationReason: "cancellation_requested" as const };
+    expect(planStatus("student", undone, at("2026-11-23T06:05:00.000Z"))).toEqual({ kind: "paid", plan: "weekly" });
+  });
+
   it("gives a cancel when the plan is cancelled at once in the Stripe Dashboard", () => {
     const ended = { ...paid, stripeStatus: "canceled" as const, paidPeriodEndsAt: at("2026-11-25T12:00:00.000Z"), cancellationReason: "cancellation_requested" as const };
     expect(planStatus("student", ended, at("2026-11-25T12:00:00.000Z"))).toEqual({ kind: "lapsed", reason: "cancelled" });

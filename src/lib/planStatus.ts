@@ -28,8 +28,9 @@ const PLAN_ENDED: readonly StripeStatus[] = ["canceled", "unpaid", "incomplete_e
 const FIRST_CHARGE_FAILED: readonly StripeStatus[] = ["past_due", ...PLAN_ENDED];
 
 export function planEndReason(record: BillingRecord): EndReason | null {
-  if (record.cancelAtPeriodEnd || record.cancellationReason === "cancellation_requested") return "cancelled";
-  return record.cancellationReason || PLAN_ENDED.includes(record.stripeStatus) ? "payment_failed" : null;
+  if (record.cancelAtPeriodEnd) return "cancelled";
+  if (!PLAN_ENDED.includes(record.stripeStatus)) return null;
+  return record.cancellationReason === "cancellation_requested" ? "cancelled" : "payment_failed";
 }
 
 export const PLAN_REFUSAL = "Pick a plan to get new weekly schedules.";
