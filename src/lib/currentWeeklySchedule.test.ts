@@ -525,7 +525,7 @@ describe("loadOrGenerateCurrentWeek", () => {
 
     it.each([
       ["with no plan yet", { kind: "no_plan" }],
-      ["who is lapsed", { kind: "lapsed" }],
+      ["who is lapsed", { kind: "lapsed", reason: "cancelled" }],
     ] as const)("builds no weekly schedule from the onboarding snapshot for a student %s", async (_name, plan) => {
       const repositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-14T13:00:00.000Z")]);
 
@@ -547,7 +547,7 @@ describe("loadOrGenerateCurrentWeek", () => {
       const repositories = inMemoryRepositories([approvedSnapshot("snapshot-1", "2026-09-14T13:00:00.000Z")]);
       const saved = await load(repositories, { kind: "paid", plan: "weekly" });
 
-      await expect(load(repositories, { kind: "lapsed" })).resolves.toEqual(saved);
+      await expect(load(repositories, { kind: "lapsed", reason: "cancelled" })).resolves.toEqual(saved);
     });
 
     it("still shows a lapsed student next week's saved weekly schedule on the upload weekend", async () => {
@@ -556,7 +556,7 @@ describe("loadOrGenerateCurrentWeek", () => {
       const saved = await load(repositories, { kind: "paid", plan: "weekly" }, saturday);
       expect(saved.kind).toBe("next_week_preview");
 
-      await expect(load(repositories, { kind: "lapsed" }, saturday)).resolves.toEqual(saved);
+      await expect(load(repositories, { kind: "lapsed", reason: "cancelled" }, saturday)).resolves.toEqual(saved);
     });
   });
 

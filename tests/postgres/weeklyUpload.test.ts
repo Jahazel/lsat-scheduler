@@ -260,7 +260,10 @@ it("shows a lapsed student's held weekly schedule on This week as soon as Stripe
   await database.owner.execute(sql`update billing_records set stripe_status = 'past_due' where account_id = ${accountId}`);
   const schedules = await listWeeklySchedulesForStudent(studentId);
 
-  expect(await dashboard()).toContain("Your week is ready.");
+  const lapsed = await dashboard();
+  expect(lapsed).toContain("Your payment didn&#x27;t go through.");
+  expect(lapsed).toContain("Your week is saved.");
+  expect(lapsed).not.toContain('role="checkbox"');
   expect(await uploadPage()).toContain("Pick a plan");
 
   await database.owner.execute(sql`
@@ -271,9 +274,44 @@ it("shows a lapsed student's held weekly schedule on This week as soon as Stripe
   await expect(uploadPage({ checkout: "done" })).rejects.toThrow(/^redirect:\/dashboard$/);
   const shown = await dashboard();
   expect(shown).toContain("Check off as you go.");
-  expect(shown).not.toContain("Your week is ready.");
+  expect(shown).not.toContain("Your week is saved.");
+  expect(shown).not.toContain("Pick a plan");
   expect(shown).toContain('role="checkbox"');
   expect(await listWeeklySchedulesForStudent(studentId)).toEqual(schedules);
+});
+
+it("puts the plan ended note above a cancelled student's last weekly schedule, keeps its check-offs, and hides Plan next week", async () => {
+  await studentWithThisWeek("student", { stripeStatus: "canceled", cancelAtPeriodEnd: true, paidPeriodEndsAt: new Date("2026-10-14T05:00:00Z") });
+  vi.setSystemTime(SATURDAY);
+  const page = await dashboard();
+  expect(page).toContain("Your plan has ended.");
+  expect(page).toContain('href="/dashboard/upload">Pick a plan</a>');
+  expect(page.indexOf("Your plan has ended.")).toBeLessThan(page.indexOf("Monday"));
+  expect(page).toContain('role="checkbox"');
+  expect(page).not.toContain("Plan next week");
+  expect(await progress()).toContain("Your plan has ended.");
+});
+
+it("shows the retrying note with Update card above the week and keeps Plan next week on the weekend, but no note on Progress", async () => {
+  await studentWithThisWeek("student", { stripeStatus: "past_due", renewalFailedAt: new Date("2026-10-13T12:00:00Z") });
+  vi.setSystemTime(SATURDAY);
+  const page = await dashboard();
+  expect(page).toContain("Your last payment didn&#x27;t go through.");
+  expect(page).toContain("Update your card by Tue,\u00a0Oct\u00a020 to keep your plan.");
+  expect(page).toContain("Update card</button>");
+  expect(page).toContain("Plan next week");
+  expect(await progress()).not.toContain("Your plan");
+});
+
+it.each([
+  ["an admin", "admin", {}],
+  ["a paid student", "student", {}],
+  ["a free week student", "student", inFreeWeek],
+] as const)("shows no plan note to %s on This week or Progress", async (_name, role, billing) => {
+  await studentWithThisWeek(role, billing);
+  vi.setSystemTime(new Date("2026-10-14T16:00:00Z"));
+  expect(await dashboard()).not.toContain('aria-label="Your plan"');
+  expect(await progress()).not.toContain('aria-label="Your plan"');
 });
 
 it("keeps a held weekly schedule out of Progress after a failed first charge lapses the student", async () => {
@@ -286,6 +324,8 @@ it("keeps a held weekly schedule out of Progress after a failed first charge lap
 
   vi.setSystemTime(new Date("2026-10-28T16:00:00Z"));
   const markup = await progress();
+  expect(markup).toContain("Your payment didn&#x27;t go through.");
+  expect(markup.indexOf('href="/dashboard/upload"')).toBeLessThan(markup.indexOf("/progress?week=2026-10-12"));
   expect(markup).toContain("/progress?week=2026-10-12");
   expect(markup).not.toContain("/progress?week=2026-10-19");
 });

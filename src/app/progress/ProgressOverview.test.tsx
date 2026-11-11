@@ -44,4 +44,12 @@ describe("ProgressOverview", () => {
     expect(screen.getByRole("link", { name: "Go to This week →" }).getAttribute("href")).toBe("/dashboard");
     expect(screen.queryByRole("region")).toBeNull();
   });
+
+  it("puts a notice above the past weeks", () => {
+    render(<ProgressOverview notice={<section aria-label="Your plan">Your plan has ended.</section>}
+      months={[{ month: "October 2026", weeks: [week("2026-10-19", "Oct 19 – 25", 9, 14)] }]} />);
+    const notice = screen.getByRole("region", { name: "Your plan" });
+    const october = screen.getByRole("region", { name: "October 2026" });
+    expect(notice.compareDocumentPosition(october) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });

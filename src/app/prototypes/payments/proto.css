@@ -1,7 +1,0 @@
-@keyframes proto-value-in {
-  from { opacity: 0; }
-}
-
-.proto-value-in {
-  animation: proto-value-in var(--duration-fast) var(--ease-standard);
-}

@@ -17,7 +17,7 @@ export type PlanStatus =
   | { kind: "free_week"; plan: PlanName; endsAt: Date }
   | { kind: "paid"; plan: PlanName }
   | { kind: "retrying"; plan: PlanName; lapsesAt: Date }
-  | { kind: "lapsed" };
+  | { kind: "lapsed"; reason: "payment_failed" | "cancelled" };
 
 const RETRYING_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -31,19 +31,20 @@ export function planStatus(role: string, record: BillingRecord | null, realNow: 
   if (role === "admin") return { kind: "admin" };
   if (!record) return { kind: "no_plan" };
   const { plan, stripeStatus } = record;
+  const lapsed = { kind: "lapsed", reason: record.cancelAtPeriodEnd ? "cancelled" : "payment_failed" } as const;
 
   if (!record.firstChargeSucceeded) {
     if (!record.freeWeekEndsAt) return { kind: "no_plan" };
     if (realNow < record.freeWeekEndsAt) return { kind: "free_week", plan, endsAt: record.freeWeekEndsAt };
-    return FIRST_CHARGE_FAILED.includes(stripeStatus) ? { kind: "lapsed" } : { kind: "paid", plan };
+    return FIRST_CHARGE_FAILED.includes(stripeStatus) ? lapsed : { kind: "paid", plan };
   }
 
   if (PLAN_ENDED.includes(stripeStatus)) {
-    return record.paidPeriodEndsAt && realNow < record.paidPeriodEndsAt ? { kind: "paid", plan } : { kind: "lapsed" };
+    return record.paidPeriodEndsAt && realNow < record.paidPeriodEndsAt ? { kind: "paid", plan } : lapsed;
   }
   if (record.renewalFailedAt && stripeStatus === "past_due") {
     const lapsesAt = new Date(record.renewalFailedAt.getTime() + RETRYING_DAYS * DAY_MS);
-    return realNow < lapsesAt ? { kind: "retrying", plan, lapsesAt } : { kind: "lapsed" };
+    return realNow < lapsesAt ? { kind: "retrying", plan, lapsesAt } : lapsed;
   }
   return { kind: "paid", plan };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { freeWeekEndingNote, hidesUploadReminder } from "./planNotes";
+import { freeWeekEndingNote, hidesUploadReminder, planProblemNote } from "./planNotes";
 import { planStatus, type BillingRecord } from "./planStatus";
 
 const PRICES = { weeklyCents: 1000, monthlyCents: 2999 };
@@ -58,7 +58,50 @@ describe("freeWeekEndingNote", () => {
   });
 });
 
+describe("planProblemNote", () => {
+  const paid: BillingRecord = {
+    ...inFreeWeek, stripeStatus: "active", firstChargeSucceeded: true, paidPeriodEndsAt: new Date("2026-12-28T06:00:00.000Z"),
+  };
+  const noteAt = (record: BillingRecord, iso: string) => planProblemNote(planStatus("student", record, new Date(iso)));
+
+  it("asks a retrying student to update their card by a deadline that stays on one line", () => {
+    const failing = { ...paid, stripeStatus: "past_due" as const, renewalFailedAt: new Date("2026-12-28T07:00:00.000Z") };
+    expect(noteAt(failing, "2026-12-30T18:00:00.000Z")).toEqual({
+      lead: "Your last payment didn't go through.",
+      rest: "Update your card by Mon,\u00a0Jan\u00a04 to keep your plan.",
+      action: "update_card",
+    });
+  });
+
+  it("tells a student whose first charge failed that their payment didn't go through", () => {
+    expect(noteAt({ ...inFreeWeek, stripeStatus: "past_due" }, "2026-11-23T18:00:00.000Z")).toEqual({
+      lead: "Your payment didn't go through.", rest: "Pick a plan to get new weekly schedules.", action: "pick_plan",
+    });
+  });
+
+  it("tells a student who cancelled that their plan has ended, after a free week or a paid period", () => {
+    const ended = { lead: "Your plan has ended.", rest: "Pick a plan to get new weekly schedules.", action: "pick_plan" };
+    expect(noteAt({ ...inFreeWeek, stripeStatus: "canceled", cancelAtPeriodEnd: true }, "2026-11-23T18:00:00.000Z")).toEqual(ended);
+    expect(noteAt({ ...paid, stripeStatus: "canceled", cancelAtPeriodEnd: true }, "2026-12-29T18:00:00.000Z")).toEqual(ended);
+  });
+
+  it("shows no note to admins, paid students, free week students, or a student with no plan", () => {
+    const now = "2026-11-21T18:00:00.000Z";
+    expect(planProblemNote(planStatus("admin", { ...inFreeWeek, stripeStatus: "past_due" }, new Date(now)))).toBeNull();
+    expect(noteAt(paid, now)).toBeNull();
+    expect(noteAt(inFreeWeek, now)).toBeNull();
+    expect(planProblemNote(planStatus("student", null, new Date(now)))).toBeNull();
+  });
+});
+
 describe("hidesUploadReminder", () => {
+  it("hides the Plan next week reminder from a lapsed student", () => {
+    const failed = { ...inFreeWeek, stripeStatus: "past_due" as const };
+    const saturday = new Date("2026-11-28T18:00:00.000Z");
+    expect(hidesUploadReminder(planStatus("student", failed, saturday), failed, saturday)).toBe(true);
+  });
+
+
   it("hides the Plan next week reminder on a cancelled free week's last weekend only", () => {
     const cancelled = { ...inFreeWeek, cancelAtPeriodEnd: true };
     const hides = (record: BillingRecord, iso: string) => hidesUploadReminder(planStatus("student", record, new Date(iso)), record, new Date(iso));

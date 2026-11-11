@@ -54,14 +54,14 @@ describe("plan status", () => {
   });
 
   it("keeps a student who cancels in the free week until it ends, then lapses them", () => {
-    const cancelled = { ...inFreeWeek, stripeStatus: "canceled" as const };
+    const cancelled = { ...inFreeWeek, stripeStatus: "canceled" as const, cancelAtPeriodEnd: true };
     expect(planStatus("student", cancelled, at("2026-11-20T12:00:00.000Z")).kind).toBe("free_week");
-    expect(planStatus("student", cancelled, FREE_WEEK_ENDS)).toEqual({ kind: "lapsed" });
+    expect(planStatus("student", cancelled, FREE_WEEK_ENDS)).toEqual({ kind: "lapsed", reason: "cancelled" });
   });
 
   it("lapses a student at once when the first charge fails", () => {
     const failed = { ...inFreeWeek, stripeStatus: "past_due" as const };
-    expect(planStatus("student", failed, at("2026-11-23T07:00:00.000Z"))).toEqual({ kind: "lapsed" });
+    expect(planStatus("student", failed, at("2026-11-23T07:00:00.000Z"))).toEqual({ kind: "lapsed", reason: "payment_failed" });
   });
 
   it("does not lapse a student after the free week while the first charge is still being made", () => {
@@ -84,7 +84,12 @@ describe("plan status", () => {
     const failed = { ...paid, stripeStatus: "past_due" as const, renewalFailedAt: at("2026-11-30T07:00:00.000Z") };
     expect(planStatus("student", failed, at("2026-12-07T06:59:59.000Z")))
       .toEqual({ kind: "retrying", plan: "weekly", lapsesAt: at("2026-12-07T07:00:00.000Z") });
-    expect(planStatus("student", failed, at("2026-12-07T07:00:00.000Z"))).toEqual({ kind: "lapsed" });
+    expect(planStatus("student", failed, at("2026-12-07T07:00:00.000Z"))).toEqual({ kind: "lapsed", reason: "payment_failed" });
+  });
+
+  it("gives a failed payment when Stripe ends the plan after its last retry", () => {
+    const ended = { ...paid, stripeStatus: "canceled" as const, paidPeriodEndsAt: at("2026-12-07T07:00:00.000Z") };
+    expect(planStatus("student", ended, at("2026-12-07T07:00:00.000Z"))).toEqual({ kind: "lapsed", reason: "payment_failed" });
   });
 
   it("gives paid again once Stripe's retry of a failed renewal succeeds", () => {
@@ -93,9 +98,9 @@ describe("plan status", () => {
   });
 
   it("keeps a paid student who cancels until the paid period ends", () => {
-    const cancelled = { ...paid, stripeStatus: "canceled" as const };
+    const cancelled = { ...paid, stripeStatus: "canceled" as const, cancelAtPeriodEnd: true };
     expect(planStatus("student", cancelled, at("2026-11-29T12:00:00.000Z")).kind).toBe("paid");
-    expect(planStatus("student", cancelled, at("2026-11-30T06:00:00.000Z"))).toEqual({ kind: "lapsed" });
+    expect(planStatus("student", cancelled, at("2026-11-30T06:00:00.000Z"))).toEqual({ kind: "lapsed", reason: "cancelled" });
   });
 
   it("reports the new plan after a plan switch and keeps the student paid", () => {
@@ -114,7 +119,7 @@ describe("plan status", () => {
       { kind: "retrying", plan: "weekly", lapsesAt: FREE_WEEK_ENDS },
       { kind: "admin" },
       { kind: "no_plan" },
-      { kind: "lapsed" },
+      { kind: "lapsed", reason: "cancelled" },
     ];
     expect(statuses.map(mayStartWeeklyUpload)).toEqual([true, true, true, true, false, false]);
   });
@@ -126,7 +131,7 @@ describe("plan status", () => {
       { kind: "retrying", plan: "weekly", lapsesAt: FREE_WEEK_ENDS },
       { kind: "admin" },
       { kind: "no_plan" },
-      { kind: "lapsed" },
+      { kind: "lapsed", reason: "cancelled" },
     ];
     expect(statuses.map(deletionEndsPlan)).toEqual([true, true, true, false, false, false]);
   });
