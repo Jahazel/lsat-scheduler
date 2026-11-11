@@ -33,6 +33,7 @@ interface ScheduleCheckInViewProps {
   /** The student's local date (YYYY-MM-DD). Adds the pace status and the Today label. */
   today?: string;
   uploadReminder?: boolean;
+  notice?: ReactNode;
   thisWeek?: { drillLink: string | null };
 }
 
@@ -136,6 +137,7 @@ export default function ScheduleCheckInView({
   padding = "px-5 pt-8 pb-16 md:px-18 md:pt-16 md:pb-24",
   today,
   uploadReminder = false,
+  notice,
   thisWeek,
 }: ScheduleCheckInViewProps) {
   const [savedCheckIns, setSavedCheckIns] = useState(checkIns);
@@ -232,6 +234,7 @@ export default function ScheduleCheckInView({
       </div>
       <FailureNotice action={lastSave?.activityId} answer={lastSave?.answer ?? null} />
       <div className={cx("flex flex-col gap-4", padding)}>
+        {notice && <div data-page-section>{notice}</div>}
         {link !== null && !linkedDrill(schedule, link) && (
           <p role="status" className="rounded-md bg-vellum px-4 py-2.5 text-small text-ink">That drill is not in this week.</p>
         )}

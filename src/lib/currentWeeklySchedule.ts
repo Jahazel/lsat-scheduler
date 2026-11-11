@@ -107,7 +107,7 @@ function approvedUpToWeek<Approval extends { approvedAt: string }>(
 
 export const isUploadWeekend = (now: Date, timezone: string) => uploadWeekOf(now, timezone) !== currentWeekInTimezone(now, timezone);
 
-function nextWeekHasUpload(snapshots: ApprovedAnalyticsSnapshot[], now: Date, timezone: string) {
+export function nextWeekHasUpload(snapshots: ApprovedAnalyticsSnapshot[], now: Date, timezone: string) {
   const nextWeek = isoDateInWeek(currentWeekInTimezone(now, timezone), 7);
   return approvedForWeek(snapshots, nextWeek, timezone).length > 0;
 }
