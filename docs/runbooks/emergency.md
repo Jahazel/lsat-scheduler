@@ -104,31 +104,26 @@ rotation.
 
 ### Rotate the Stripe secret key
 
-1. In the Stripe Dashboard, switch to the site's mode: the sandbox for the copy, live mode for the real site.
-2. Open Developers → API keys. Find the secret key (copy) or the site's restricted key (real site), and choose
+1. Copy only: before you rotate, enter the old test key in the shell, so it stays out of shell history. The
+   check below needs it.
+
+   ```sh
+   read -rs OLD_STRIPE_KEY && export OLD_STRIPE_KEY
+   ```
+
+2. In the Stripe Dashboard, switch to the site's mode: the sandbox for the copy, live mode for the real site.
+3. Open Developers → API keys. Find the secret key (copy) or the site's restricted key (real site), and choose
    Rotate key.
-3. Choose when the old key expires. After a leak, choose Now: Checkout fails until step 6 is done. In the
+4. Choose when the old key expires. After a leak, choose Now: Checkout fails until step 7 is done. In the
    drill, choose a short overlap, such as 1 hour.
-4. Copy the new key once from the Stripe dialog. Do not save it in a file.
-5. In Vercel, open the site's project → Settings → Environment Variables. Replace `STRIPE_SECRET_KEY` for
+5. Copy the new key once from the Stripe dialog. Do not save it in a file.
+6. In Vercel, open the site's project → Settings → Environment Variables. Replace `STRIPE_SECRET_KEY` for
    Production, marked Sensitive.
-6. Redeploy the latest production deployment so it reads the new key.
-7. Copy only: replace the sandbox key in `.env.local` with the new test key.
-8. If you chose an overlap, return to Developers → API keys after the checks below pass and make the old key
-   expire now.
-
-**Check that Stripe refuses the old key:**
-
-- Copy: run this with the old test key, entered so it stays out of shell history. Stripe must answer `401`.
-
-  ```sh
-  read -rs OLD_STRIPE_KEY && export OLD_STRIPE_KEY
-  node -e 'fetch("https://api.stripe.com/v1/balance", { headers: { authorization: `Bearer ${process.env.OLD_STRIPE_KEY}` } }).then((response) => console.log(response.status))'
-  unset OLD_STRIPE_KEY
-  ```
-
-- Real site: in Developers → API keys, the old restricted key is listed as expired or is gone. Do not test
-  it from your computer.
+7. Redeploy the latest production deployment so it reads the new key.
+8. Copy only: replace the sandbox key in `.env.local` with the new test key.
+9. Run the checks below that the site works with the new key.
+10. If you chose an overlap, return to Developers → API keys and make the old key expire now.
+11. Run the checks below that Stripe refuses the old key.
 
 **Check that the site works with the new key:**
 
@@ -136,17 +131,38 @@ rotation.
    opens. On the real site, close Checkout without paying.
 2. In Stripe, Developers → Webhooks → the site's endpoint shows no failed deliveries since the rotation.
 
+**Check that Stripe refuses the old key:**
+
+- Copy: run this with the old test key from step 1. Stripe must answer `401`.
+
+  ```sh
+  node -e 'fetch("https://api.stripe.com/v1/balance", { headers: { authorization: `Bearer ${process.env.OLD_STRIPE_KEY}` } }).then((response) => console.log(response.status))'
+  unset OLD_STRIPE_KEY
+  ```
+
+- Real site: in Developers → API keys, the old restricted key is listed as expired or is gone. Do not test
+  it from your computer.
+
 ### Rotate the Stripe message secret
 
-1. In the Stripe Dashboard, switch to the site's mode.
-2. Open Developers → Webhooks, then the site's endpoint (its URL ends in `/api/stripe/webhook`). Choose Roll
+1. Copy only: before you roll, open the copy's endpoint in the sandbox (Developers → Webhooks), reveal the
+   current signing secret, and enter it in the shell, so it stays out of shell history. The check below
+   needs it.
+
+   ```sh
+   read -rs OLD_WEBHOOK_SECRET && export OLD_WEBHOOK_SECRET
+   ```
+
+2. In the Stripe Dashboard, switch to the site's mode.
+3. Open Developers → Webhooks, then the site's endpoint (its URL ends in `/api/stripe/webhook`). Choose Roll
    signing secret.
-3. Choose when the old secret expires. After a leak, choose Now: messages fail until step 6 is done, and
+4. Choose when the old secret expires. After a leak, choose Now: messages fail until step 7 is done, and
    Stripe retries them for up to 3 days. In the drill, choose a short overlap, such as 1 hour. During the
    overlap, Stripe signs each message with both secrets.
-4. Reveal the new signing secret (`whsec_`) and copy it once. Do not save it in a file.
-5. In Vercel, replace `STRIPE_WEBHOOK_SECRET` for Production, marked Sensitive.
-6. Redeploy the latest production deployment before the old secret expires.
+5. Reveal the new signing secret (`whsec_`) and copy it once. Do not save it in a file.
+6. In Vercel, replace `STRIPE_WEBHOOK_SECRET` for Production, marked Sensitive.
+7. Redeploy the latest production deployment before the old secret expires. The site now holds only the new
+   secret, so it refuses the old one at once.
 
 **Check that the site refuses the old secret:**
 
@@ -157,11 +173,9 @@ rotation.
      https://SITE/api/stripe/webhook
    ```
 
-2. Copy only: send a message signed with the old test secret, entered so it stays out of shell history. The
-   site must answer `400`.
+2. Copy only: send a message signed with the old test secret from step 1. The site must answer `400`.
 
    ```sh
-   read -rs OLD_WEBHOOK_SECRET && export OLD_WEBHOOK_SECRET
    node -e '
    const { createHmac } = require("crypto");
    const body = JSON.stringify({ id: "evt_rotation_check", type: "customer.subscription.updated" });
