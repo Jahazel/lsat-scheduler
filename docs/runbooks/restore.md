@@ -97,9 +97,9 @@ Do every step in order. Do not change the site's `DATABASE_URL` before step 7.
    counts. When `K` is not 0, the script exits with an error after it resyncs the rest: those
    subscriptions use a price this site does not sell. Give the owner their IDs; the Stripe message
    receiver keeps refusing them too. Run it a second time. It must print the same counts. Then `unset
-   DATABASE_URL STRIPE_SECRET_KEY AUTH_SECRET`. When `U` is not 0, the script exits with an error: the restored
-   branch holds a billing record that this Stripe account does not know, which usually means the key is
-   from the other mode. Check the key and run it again. If `U` stays above 0, stop and ask the owner. The
+   DATABASE_URL STRIPE_SECRET_KEY AUTH_SECRET`. When `U` is not 0, the script exits with an error: the
+   restored branch holds a billing record that this Stripe account does not know, which usually means the
+   key is from the other mode. Check the key and run it again. If `U` stays above 0, stop and ask the owner. The
    same host rule as the replay applies.
 6. **Check the result.** In Neon's SQL Editor on the restored branch, compare the table counts with
    the counts at the backup time minus the deleted Accounts' records. Check that each deleted test
