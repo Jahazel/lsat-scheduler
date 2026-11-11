@@ -4,8 +4,8 @@ import { runStripePriceCheck } from "./stripePrices";
 
 const env = {
   STRIPE_SECRET_KEY: "sk_test_synthetic",
-  STRIPE_WEEKLY_PRICE_ID: "price_weekly1",
-  STRIPE_MONTHLY_PRICE_ID: "price_monthly1",
+  STRIPE_PRICE_WEEKLY: "price_weekly1",
+  STRIPE_PRICE_MONTHLY: "price_monthly1",
 };
 
 type Price = { id: string; active: boolean; currency: string; unit_amount: number | null; livemode: boolean; recurring: { interval: string; interval_count: number } | null };
@@ -70,7 +70,7 @@ it("fails on an inactive price, a non-dollar price, a missing amount, and a wron
 
 it("fails when the IDs are swapped, so each plan points at the other plan's price", async () => {
   const network = stripe([weekly, monthly]);
-  const swapped = { ...env, STRIPE_WEEKLY_PRICE_ID: monthly.id, STRIPE_MONTHLY_PRICE_ID: weekly.id };
+  const swapped = { ...env, STRIPE_PRICE_WEEKLY: monthly.id, STRIPE_PRICE_MONTHLY: weekly.id };
   const result = await check(network, swapped);
   expect(result.ok).toBe(false);
   expect(result).toMatchObject({ status: "mismatch", problems: expect.arrayContaining([
@@ -95,15 +95,19 @@ it.each([
   [{ STRIPE_SECRET_KEY: undefined }, [{ setting: "STRIPE_SECRET_KEY", problem: "missing" }]],
   [{ STRIPE_SECRET_KEY: "pk_test_publishable" }, [{ setting: "STRIPE_SECRET_KEY", problem: "refused" }]],
   [{ STRIPE_SECRET_KEY: "sk_live_full" }, [{ setting: "STRIPE_SECRET_KEY", problem: "refused" }]],
-  [{ STRIPE_WEEKLY_PRICE_ID: "" }, [{ setting: "STRIPE_WEEKLY_PRICE_ID", problem: "missing" }]],
-  [{ STRIPE_MONTHLY_PRICE_ID: "price_x/../../customers" }, [{ setting: "STRIPE_MONTHLY_PRICE_ID", problem: "refused" }]],
-  [{ STRIPE_MONTHLY_PRICE_ID: env.STRIPE_WEEKLY_PRICE_ID }, [
-    { setting: "STRIPE_WEEKLY_PRICE_ID", problem: "refused" },
-    { setting: "STRIPE_MONTHLY_PRICE_ID", problem: "refused" },
+  [{ STRIPE_PRICE_WEEKLY: "" }, [{ setting: "STRIPE_PRICE_WEEKLY", problem: "missing" }]],
+  [{ STRIPE_PRICE_MONTHLY: "price_x/../../customers" }, [{ setting: "STRIPE_PRICE_MONTHLY", problem: "refused" }]],
+  [{ STRIPE_PRICE_MONTHLY: env.STRIPE_PRICE_WEEKLY }, [
+    { setting: "STRIPE_PRICE_WEEKLY", problem: "refused" },
+    { setting: "STRIPE_PRICE_MONTHLY", problem: "refused" },
   ]],
-  [{ STRIPE_SECRET_KEY: "sk_live_full", STRIPE_WEEKLY_PRICE_ID: undefined }, [
+  [{ STRIPE_SECRET_KEY: "sk_live_full", STRIPE_PRICE_WEEKLY: undefined }, [
     { setting: "STRIPE_SECRET_KEY", problem: "refused" },
-    { setting: "STRIPE_WEEKLY_PRICE_ID", problem: "missing" },
+    { setting: "STRIPE_PRICE_WEEKLY", problem: "missing" },
+  ]],
+  [{ STRIPE_PRICE_WEEKLY: undefined, STRIPE_PRICE_MONTHLY: undefined, STRIPE_WEEKLY_PRICE_ID: "price_weekly1", STRIPE_MONTHLY_PRICE_ID: "price_monthly1" }, [
+    { setting: "STRIPE_PRICE_WEEKLY", problem: "missing" },
+    { setting: "STRIPE_PRICE_MONTHLY", problem: "missing" },
   ]],
 ])("names each missing or refused setting, without its value, before any request: %o", async (changed, settings) => {
   const network = stripe([weekly, monthly]);

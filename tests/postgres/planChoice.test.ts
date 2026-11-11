@@ -84,8 +84,8 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(WEDNESDAY);
   vi.stubEnv("STRIPE_SECRET_KEY", KEY);
-  vi.stubEnv("STRIPE_WEEKLY_PRICE_ID", "price_weekly_test");
-  vi.stubEnv("STRIPE_MONTHLY_PRICE_ID", "price_monthly_test");
+  vi.stubEnv("STRIPE_PRICE_WEEKLY", "price_weekly_test");
+  vi.stubEnv("STRIPE_PRICE_MONTHLY", "price_monthly_test");
   vi.stubEnv("AUTH_SECRET", AUTH_SECRET);
   vi.stubEnv("SITE_URL", SITE);
   stripe.customers = [];
@@ -219,6 +219,22 @@ it("starts Checkout with no free week for a lapsed student, on their Stripe cust
   expect(stripe.sessions[0].form.has("subscription_data[trial_end]")).toBe(false);
   expect(stripe.sessions[0].form.get("customer")).toBe("cus_maya");
   expect(stripe.customers).toEqual([]);
+  expect(Object.fromEntries(["success_url", "cancel_url"].map((key) => [key, stripe.sessions[0].form.get(key)]))).toEqual({
+    success_url: `${SITE}/dashboard/upload?checkout=done`,
+    cancel_url: `${SITE}/dashboard/upload?checkout=closed&plan=weekly`,
+  });
+  await expect(onboarding()).rejects.toThrow("redirect:/dashboard/upload");
+});
+
+it("sends a lapsed student whose new plan Stripe holds back to Starting your plan on the weekly upload page", async () => {
+  const { accountId } = await onboardedStudent();
+  await database.writeBillingRecordAsOwner(accountId, {
+    stripeCustomerId: "cus_maya", stripeStatus: "canceled", paidPeriodEndsAt: new Date("2026-11-01T06:00:00Z"),
+  });
+  stripe.subscriptions.push({ id: "sub_restart", customer: "cus_maya", status: "active" });
+
+  await expect(openStripeCheckout("weekly")).rejects.toThrow("redirect:/dashboard/upload?checkout=done");
+  expect(stripe.sessions).toEqual([]);
 });
 
 it.each([

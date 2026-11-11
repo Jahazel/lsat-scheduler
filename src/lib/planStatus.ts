@@ -1,4 +1,5 @@
 import { currentWeekInTimezone, localDateInTimezone } from "./currentWeeklySchedule";
+import type { PlanChoicePlace } from "./planChoice";
 import { isoDateInWeek } from "./scheduleReasonText";
 import type { billingRecords } from "./postgresSchema";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
@@ -62,6 +63,12 @@ export function planStatusLabel(status: PlanStatus) {
 
 export function mayStartWeeklyUpload(status: PlanStatus) {
   return status.kind !== "no_plan" && status.kind !== "lapsed";
+}
+
+export function planChoicePlace(status: PlanStatus): PlanChoicePlace | null {
+  if (status.kind === "no_plan") return "onboarding";
+  if (status.kind === "lapsed") return "weekly_upload";
+  return null;
 }
 
 export const deletionEndsPlan = (status: PlanStatus) =>

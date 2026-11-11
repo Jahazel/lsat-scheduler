@@ -52,7 +52,8 @@ const profile: Student = {
 
 const progress = async () => renderToStaticMarkup(await ProgressPage({ searchParams: Promise.resolve({}) }));
 const dashboard = async () => renderToStaticMarkup(await DashboardPage({ searchParams: Promise.resolve({}) }));
-const uploadPage = async () => renderToStaticMarkup(await WeeklyUploadPage());
+const uploadPage = async (searchParams: Record<string, string> = {}) =>
+  renderToStaticMarkup(await WeeklyUploadPage({ searchParams: Promise.resolve(searchParams) }));
 
 type Billing = Parameters<typeof database.writeBillingRecordAsOwner>[1] | null;
 
@@ -191,6 +192,67 @@ it("hides a held weekly schedule and refuses its check-offs until the first char
   expect(shown).toContain("Your plan for this week");
   expect(shown).toContain('role="checkbox"');
   expect(await listWeeklySchedulesForStudent(studentId)).toContainEqual(heldWeek);
+});
+
+const lapsedAfterCancelling = { stripeStatus: "canceled", paidPeriodEndsAt: new Date("2026-10-17T05:00:00Z") } as const;
+
+it.each([
+  ["Plan next week", SATURDAY],
+  ["Plan this week", new Date("2026-10-21T16:00:00Z")],
+])("shows a lapsed student plan choice with no free week in place of %s", async (title, at) => {
+  await studentWithThisWeek("student", lapsedAfterCancelling);
+  vi.setSystemTime(at);
+
+  const page = await uploadPage();
+
+  expect(page).toContain("Pick a plan");
+  expect(page).toContain("Your weekly schedules are paused. A new plan starts today, and your weekly upload opens right after.");
+  expect(page).toContain("Add card on Stripe");
+  expect(page).not.toContain("Free week");
+  expect(page).not.toContain(title);
+});
+
+it("brings a lapsed student back from Stripe to plan choice, or to Starting your plan when they added a card", async () => {
+  await studentWithThisWeek("student", lapsedAfterCancelling);
+  vi.setSystemTime(SATURDAY);
+
+  const closed = await uploadPage({ checkout: "closed", plan: "monthly" });
+  expect(closed).toContain("You didn’t add a card.");
+  expect(closed).toContain('checked="" value="monthly"');
+  const done = await uploadPage({ checkout: "done" });
+  expect(done).toContain("Starting your plan…");
+  expect(done).toContain("Stripe is confirming your card. Your weekly upload opens next.");
+});
+
+it("sends a student with no plan from the weekly upload page to onboarding's plan choice", async () => {
+  await studentWithThisWeek("student", null);
+  vi.setSystemTime(SATURDAY);
+
+  await expect(uploadPage()).rejects.toThrow("redirect:/onboarding");
+});
+
+it("shows a lapsed student's held weekly schedule on This week as soon as Stripe confirms the new plan, with no new upload", async () => {
+  const { studentId, accountId } = await studentWithThisWeek("student", inFreeWeek);
+  vi.setSystemTime(SATURDAY);
+  await expect(confirmWeeklyUpload(upload(SATURDAY))).rejects.toThrow("redirect:/dashboard");
+  vi.setSystemTime(NEXT_MONDAY);
+  await dashboard();
+  await database.owner.execute(sql`update billing_records set stripe_status = 'past_due' where account_id = ${accountId}`);
+  const schedules = await listWeeklySchedulesForStudent(studentId);
+
+  expect(await dashboard()).toContain("Your week is ready.");
+  expect(await uploadPage()).toContain("Pick a plan");
+
+  await database.owner.execute(sql`
+    update billing_records
+    set stripe_subscription_id = 'sub_restart', stripe_status = 'active', first_charge_succeeded = true,
+      free_week_ends_at = null, paid_period_ends_at = '2026-10-26T16:00:00Z'
+    where account_id = ${accountId}`);
+  await expect(uploadPage({ checkout: "done" })).rejects.toThrow(/^redirect:\/dashboard$/);
+  const shown = await dashboard();
+  expect(shown).toContain("Your plan for this week");
+  expect(shown).toContain('role="checkbox"');
+  expect(await listWeeklySchedulesForStudent(studentId)).toEqual(schedules);
 });
 
 it("keeps a held weekly schedule out of Progress after a failed first charge lapses the student", async () => {

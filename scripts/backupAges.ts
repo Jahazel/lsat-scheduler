@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { configSchema, oldestDataTime } from "./backupChecker";
+import { settingProblems, type SettingProblem } from "./settingProblems";
 
 const snapshotSchema = z.object({
   id: z.string().min(1),
@@ -31,7 +32,8 @@ type TooOld = { kind: "snapshot" | "branch"; name: string; ageDays: number | "un
 type AgeReport =
   | { ok: true; status: "within-30-days"; tooOld: [] }
   | { ok: false; status: "too-old"; tooOld: TooOld[] }
-  | { ok: false; status: "checker-failed" | "configuration-failed" };
+  | { ok: false; status: "configuration-failed"; settings: SettingProblem<keyof z.infer<typeof configSchema>>[] }
+  | { ok: false; status: "checker-failed" };
 
 export async function runBackupAgeCheck({ env, fetcher = fetch, now = () => new Date() }: {
   env: Readonly<Record<string, string | undefined>>;
@@ -39,7 +41,9 @@ export async function runBackupAgeCheck({ env, fetcher = fetch, now = () => new 
   now?: () => Date;
 }): Promise<AgeReport> {
   const parsed = configSchema.safeParse(env);
-  if (!parsed.success) return { ok: false, status: "configuration-failed" };
+  if (!parsed.success) {
+    return { ok: false, status: "configuration-failed", settings: settingProblems(configSchema.keyof().options, parsed.error, env) };
+  }
   const config = parsed.data;
   try {
     const deadline = AbortSignal.timeout(60_000);
