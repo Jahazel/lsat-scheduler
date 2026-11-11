@@ -20,7 +20,7 @@ const PRICES = { weeklyCents: 1000, monthlyCents: 2999 };
 const FREE_WEEK_ENDS = at("2026-11-23T06:00:00.000Z");
 const inFreeWeek: BillingRecord = {
   plan: "weekly", stripeStatus: "trialing", freeWeekEndsAt: FREE_WEEK_ENDS, paidPeriodEndsAt: FREE_WEEK_ENDS,
-  firstChargeSucceeded: false, renewalFailedAt: null, cancelAtPeriodEnd: false,
+  firstChargeSucceeded: false, renewalFailedAt: null, cancelAtPeriodEnd: false, cancellationReason: null,
 };
 const paid: BillingRecord = {
   ...inFreeWeek, stripeStatus: "active", firstChargeSucceeded: true, paidPeriodEndsAt: at("2026-11-30T06:00:00.000Z"),
@@ -62,6 +62,11 @@ describe("Account Plan card", () => {
       chip: "Cancelled", rows: [["Plan", "Weekly · $10 a week"], ["Ends", "Sun, Nov 29"]], sentence: "It won't renew.",
     },
     {
+      name: "paid, cancelled, with the period just ended while Stripe still says active",
+      record: { ...paid, cancelAtPeriodEnd: true, cancellationReason: "cancellation_requested" as const }, now: at("2026-11-30T06:05:00.000Z"),
+      chip: "Cancelled", rows: [["Plan", "Weekly · $10 a week"]], sentence: "It won't renew.",
+    },
+    {
       name: "free week just ended while Stripe still says trialing", record: inFreeWeek, now: at("2026-11-23T06:05:00.000Z"),
       chip: "Active", rows: [["Plan", "Weekly · $10 a week"]], sentence: null,
     },
@@ -86,6 +91,20 @@ describe("Account Plan card", () => {
     expect(within(card).getByText("Pick a plan to get new weekly schedules.")).toBeTruthy();
     expect(within(card).getByRole("link", { name: "Pick a plan" }).getAttribute("href")).toBe("/dashboard/upload");
     expect(within(card).queryByRole("button")).toBeNull();
+  });
+
+  it("shows a free week cancelled at once in the Stripe Dashboard as cancelled", () => {
+    const record = { ...inFreeWeek, stripeStatus: "canceled" as const, cancellationReason: "cancellation_requested" as const };
+    const card = renderCard(record, at("2026-11-12T15:00:00.000Z"));
+    expect(within(card).getByText("Cancelled", { selector: "span" })).toBeTruthy();
+    expect(rows(card)).toEqual([["Plan", "Weekly · $10 a week"], ["Ends", "Sun, Nov 22"]]);
+  });
+
+  it("shows a free week cancelled in the Customer Portal as lapsed once it ends, with no past end date", () => {
+    const record = { ...inFreeWeek, cancelAtPeriodEnd: true, cancellationReason: "cancellation_requested" as const };
+    const card = renderCard(record, at("2026-11-23T06:05:00.000Z"));
+    expect(within(card).getByText("Lapsed", { selector: "span" })).toBeTruthy();
+    expect(within(card).queryByText(/Nov/)).toBeNull();
   });
 
   it("is not shown to an admin or to a student who has not picked a plan", () => {

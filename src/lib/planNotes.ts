@@ -1,7 +1,7 @@
 import { localDateInTimezone } from "./currentWeeklySchedule";
 import { oneLineDate } from "./planCard";
 import { PLAN_PRICES, planPriceText, type PlanPrices } from "./planPrices";
-import { PLAN_REFUSAL, type BillingRecord, type PlanStatus } from "./planStatus";
+import { PLAN_REFUSAL, planEndReason, type BillingRecord, type PlanStatus } from "./planStatus";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
 
 export type PlanNote = { lead: string; rest: string; action?: "update_card" | "pick_plan" };
@@ -25,7 +25,7 @@ export function freeWeekEndingNote(
   if (daysLeft === null || status.kind !== "free_week") return null;
   const sunday = daysLeft === 1;
   const lead = sunday ? "Your free week ends today." : "Your free week ends Sunday.";
-  if (record?.cancelAtPeriodEnd) return { lead, rest: "You won't be charged." };
+  if (record && planEndReason(record)) return { lead, rest: "You won't be charged." };
 
   const text = planPriceText(prices);
   const [name, price] = status.plan === "weekly" ? ["Weekly", text.weekly] : ["Monthly", text.monthly];
@@ -47,4 +47,4 @@ export function planProblemNote(status: PlanStatus): PlanNote | null {
 }
 
 export const hidesUploadReminder = (status: PlanStatus, record: BillingRecord | null, realNow: Date) =>
-  status.kind === "lapsed" || (record?.cancelAtPeriodEnd === true && daysLeftInEndingFreeWeek(status, realNow) !== null);
+  status.kind === "lapsed" || (record !== null && planEndReason(record) !== null && daysLeftInEndingFreeWeek(status, realNow) !== null);

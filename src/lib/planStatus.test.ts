@@ -6,7 +6,7 @@ const FREE_WEEK_ENDS = at("2026-11-23T06:00:00.000Z");
 
 const inFreeWeek: BillingRecord = {
   plan: "weekly", stripeStatus: "trialing", freeWeekEndsAt: FREE_WEEK_ENDS,
-  paidPeriodEndsAt: FREE_WEEK_ENDS, firstChargeSucceeded: false, renewalFailedAt: null, cancelAtPeriodEnd: false,
+  paidPeriodEndsAt: FREE_WEEK_ENDS, firstChargeSucceeded: false, renewalFailedAt: null, cancelAtPeriodEnd: false, cancellationReason: null,
 };
 const paid: BillingRecord = {
   ...inFreeWeek, stripeStatus: "active", firstChargeSucceeded: true, paidPeriodEndsAt: at("2026-11-30T06:00:00.000Z"),
@@ -59,6 +59,11 @@ describe("plan status", () => {
     expect(planStatus("student", cancelled, FREE_WEEK_ENDS)).toEqual({ kind: "lapsed", reason: "cancelled" });
   });
 
+  it("lapses a student who cancels in the free week once it ends, while Stripe still says trialing", () => {
+    const cancelled = { ...inFreeWeek, cancelAtPeriodEnd: true, cancellationReason: "cancellation_requested" as const };
+    expect(planStatus("student", cancelled, at("2026-11-23T06:05:00.000Z"))).toEqual({ kind: "lapsed", reason: "cancelled" });
+  });
+
   it("lapses a student at once when the first charge fails", () => {
     const failed = { ...inFreeWeek, stripeStatus: "past_due" as const };
     expect(planStatus("student", failed, at("2026-11-23T07:00:00.000Z"))).toEqual({ kind: "lapsed", reason: "payment_failed" });
@@ -73,11 +78,18 @@ describe("plan status", () => {
     expect(planStatus("student", paid, at("2026-11-25T12:00:00.000Z"))).toEqual({ kind: "paid", plan: "weekly" });
   });
 
-  it("starts a plan for a reused email with no free week: no plan until the payment succeeds, then paid", () => {
-    const reused = { ...paid, freeWeekEndsAt: null };
-    expect(planStatus("student", { ...reused, stripeStatus: "incomplete", firstChargeSucceeded: false }, at("2026-11-12T00:00:00.000Z")))
-      .toEqual({ kind: "no_plan" });
-    expect(planStatus("student", reused, at("2026-11-12T00:00:00.000Z"))).toEqual({ kind: "paid", plan: "weekly" });
+  it.each(["incomplete", "active"] as const)(
+    "gives a new plan with no free week paid while Stripe says %s and its first invoice is not paid yet",
+    (stripeStatus) => {
+      const pending = { ...paid, freeWeekEndsAt: null, stripeStatus, firstChargeSucceeded: false };
+      expect(planStatus("student", pending, at("2026-11-12T00:00:00.000Z"))).toEqual({ kind: "paid", plan: "weekly" });
+      expect(planStatus("student", { ...pending, firstChargeSucceeded: true }, at("2026-11-12T00:00:00.000Z"))).toEqual({ kind: "paid", plan: "weekly" });
+    },
+  );
+
+  it("lapses a new plan with no free week when its first payment never goes through", () => {
+    const expired = { ...paid, freeWeekEndsAt: null, stripeStatus: "incomplete_expired" as const, firstChargeSucceeded: false };
+    expect(planStatus("student", expired, at("2026-11-13T00:00:00.000Z"))).toEqual({ kind: "lapsed", reason: "payment_failed" });
   });
 
   it("gives retrying for 7 days after a failed renewal, then lapsed", () => {
@@ -90,6 +102,18 @@ describe("plan status", () => {
   it("gives a failed payment when Stripe ends the plan after its last retry", () => {
     const ended = { ...paid, stripeStatus: "canceled" as const, paidPeriodEndsAt: at("2026-12-07T07:00:00.000Z") };
     expect(planStatus("student", ended, at("2026-12-07T07:00:00.000Z"))).toEqual({ kind: "lapsed", reason: "payment_failed" });
+    expect(planStatus("student", { ...ended, cancellationReason: "payment_failed" }, at("2026-12-07T07:00:00.000Z")))
+      .toEqual({ kind: "lapsed", reason: "payment_failed" });
+  });
+
+  it("keeps renewing a plan whose cancel the student undid, whatever reason Stripe still holds", () => {
+    const undone = { ...inFreeWeek, cancellationReason: "cancellation_requested" as const };
+    expect(planStatus("student", undone, at("2026-11-23T06:05:00.000Z"))).toEqual({ kind: "paid", plan: "weekly" });
+  });
+
+  it("gives a cancel when the plan is cancelled at once in the Stripe Dashboard", () => {
+    const ended = { ...paid, stripeStatus: "canceled" as const, paidPeriodEndsAt: at("2026-11-25T12:00:00.000Z"), cancellationReason: "cancellation_requested" as const };
+    expect(planStatus("student", ended, at("2026-11-25T12:00:00.000Z"))).toEqual({ kind: "lapsed", reason: "cancelled" });
   });
 
   it("gives paid again once Stripe's retry of a failed renewal succeeds", () => {

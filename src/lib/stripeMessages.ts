@@ -81,6 +81,7 @@ const subscriptionSchema = z.object({
   ended_at: seconds.nullable(),
   cancel_at: seconds.nullable(),
   cancel_at_period_end: z.boolean(),
+  cancellation_details: z.object({ reason: z.enum(billingRecords.cancellationReason.enumValues).nullable().catch(null) }).nullable(),
   items: z.object({
     data: z.array(z.object({
       current_period_start: seconds,
@@ -152,6 +153,7 @@ async function billingState(subscription: Subscription, current: BillingRow | un
     firstChargeSucceeded,
     renewalFailedAt: renewalFailing ? earlier(keptFailedAt, failedAt) : null,
     cancelAtPeriodEnd: subscription.cancel_at_period_end || subscription.cancel_at !== null,
+    cancellationReason: subscription.cancellation_details?.reason ?? null,
   };
 }
 

@@ -13,6 +13,7 @@ const PAGE_SIZE = 2;
 type FakeSubscription = {
   id: string; customer: string; status: string; created: number; metadata: Record<string, string>;
   trial_end: number | null; ended_at: number | null; cancel_at: number | null; cancel_at_period_end: boolean;
+  cancellation_details: { reason: string | null };
   items: { data: { current_period_start: number; current_period_end: number; price: { recurring: { interval: string; interval_count: number } } }[] };
   latest_invoice: { created: number; status_transitions: { finalized_at: number | null } } | null;
 };
@@ -74,7 +75,7 @@ async function account(email: string, role: "student" | "admin" = "student") {
 function subscription(id: string, owner: string, changes: Partial<FakeSubscription> = {}): FakeSubscription {
   return {
     id, customer: `cus_${id.slice(4)}`, status: "trialing", created: 1_793_400_000, metadata: { account_id: owner },
-    trial_end: FREE_WEEK_END, ended_at: null, cancel_at: null, cancel_at_period_end: false,
+    trial_end: FREE_WEEK_END, ended_at: null, cancel_at: null, cancel_at_period_end: false, cancellation_details: { reason: null },
     items: { data: [{
       current_period_start: FREE_WEEK_END - 7 * 86_400, current_period_end: FREE_WEEK_END,
       price: { recurring: { interval: "week", interval_count: 1 } },
@@ -92,7 +93,7 @@ const paidMonthly = (id: string, owner: string, changes: Partial<FakeSubscriptio
 
 const records = async () => (await database.owner.execute(sql`
   select account_id, stripe_customer_id, stripe_subscription_id, plan, stripe_status, free_week_ends_at, paid_period_ends_at,
-    first_charge_succeeded, renewal_failed_at, cancel_at_period_end
+    first_charge_succeeded, renewal_failed_at, cancel_at_period_end, cancellation_reason
   from billing_records order by account_id
 `)).rows;
 
@@ -123,17 +124,17 @@ it("saves every Account's plan as Stripe holds it now, leaves out deleted and ad
     {
       account_id: stale, stripe_customer_id: "cus_stale", stripe_subscription_id: "sub_stale", plan: "weekly", stripe_status: "canceled",
       free_week_ends_at: expect.any(String), paid_period_ends_at: expect.any(String),
-      first_charge_succeeded: false, renewal_failed_at: null, cancel_at_period_end: false,
+      first_charge_succeeded: false, renewal_failed_at: null, cancel_at_period_end: false, cancellation_reason: null,
     },
     {
       account_id: started, stripe_customer_id: "cus_started", stripe_subscription_id: "sub_started", plan: "monthly", stripe_status: "active",
       free_week_ends_at: null, paid_period_ends_at: expect.any(String),
-      first_charge_succeeded: true, renewal_failed_at: null, cancel_at_period_end: false,
+      first_charge_succeeded: true, renewal_failed_at: null, cancel_at_period_end: false, cancellation_reason: null,
     },
     {
       account_id: unchanged, stripe_customer_id: "cus_unchanged", stripe_subscription_id: "sub_unchanged", plan: "weekly",
       stripe_status: "trialing", free_week_ends_at: expect.any(String), paid_period_ends_at: expect.any(String),
-      first_charge_succeeded: false, renewal_failed_at: null, cancel_at_period_end: false,
+      first_charge_succeeded: false, renewal_failed_at: null, cancel_at_period_end: false, cancellation_reason: null,
     },
   ].sort((a, b) => a.account_id.localeCompare(b.account_id)));
   const [{ ended }] = (await database.owner.execute<{ ended: boolean }>(sql`

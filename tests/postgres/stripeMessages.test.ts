@@ -15,6 +15,7 @@ const PERIOD_END = FREE_WEEK_END + 7 * 86_400;
 type FakeSubscription = {
   id: string; customer: string; status: string; created: number; metadata: Record<string, string>;
   trial_end: number | null; ended_at: number | null; schedule: string | null; cancel_at: number | null; cancel_at_period_end: boolean;
+  cancellation_details: { reason: string | null } | null;
   items: { data: { current_period_start?: number; current_period_end: number; price: { recurring: { interval: string; interval_count: number } } }[] };
   latest_invoice: { created: number; status_transitions: { finalized_at: number | null } } | null;
 };
@@ -86,7 +87,7 @@ afterAll(() => {
 function subscription(id: string, owner: string, changes: Partial<FakeSubscription> = {}): FakeSubscription {
   return {
     id, customer: `cus_${id.slice(4)}`, status: "trialing", created: 1_793_400_000, metadata: { account_id: owner },
-    trial_end: FREE_WEEK_END, ended_at: null, schedule: null, cancel_at: null, cancel_at_period_end: false,
+    trial_end: FREE_WEEK_END, ended_at: null, schedule: null, cancel_at: null, cancel_at_period_end: false, cancellation_details: { reason: null },
     items: { data: [{ current_period_end: FREE_WEEK_END, price: { recurring: { interval: "week", interval_count: 1 } } }] },
     latest_invoice: { created: 1_793_400_000, status_transitions: { finalized_at: 1_793_400_000 } },
     ...changes,
@@ -119,7 +120,7 @@ const records = async () => (await database.owner.execute<Record<string, string 
   free_week_ends_at: string | null; paid_period_ends_at: string | null; renewal_failed_at: string | null;
 }>(sql`
   select account_id, stripe_customer_id, stripe_subscription_id, plan, stripe_status, free_week_ends_at, paid_period_ends_at,
-    first_charge_succeeded, renewal_failed_at, cancel_at_period_end
+    first_charge_succeeded, renewal_failed_at, cancel_at_period_end, cancellation_reason
   from billing_records order by account_id
 `)).rows.map((row) => ({
   ...row,
@@ -167,7 +168,7 @@ it("saves the subscription Stripe returns when checkout completes, not the messa
   expect(await records()).toEqual([{
     account_id: accountId, stripe_customer_id: "cus_maya", stripe_subscription_id: "sub_maya", plan: "weekly",
     stripe_status: "trialing", free_week_ends_at: new Date(FREE_WEEK_END * 1000), paid_period_ends_at: new Date(FREE_WEEK_END * 1000),
-    first_charge_succeeded: false, renewal_failed_at: null, cancel_at_period_end: false,
+    first_charge_succeeded: false, renewal_failed_at: null, cancel_at_period_end: false, cancellation_reason: null,
   }]);
   expect(await refusals()).toEqual([]);
 });
@@ -332,6 +333,28 @@ it.each([
   stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId, { status: "active", trial_end: null }));
   await send(subscriptionChanged("sub_maya", "updated"));
   expect(await records()).toEqual([expect.objectContaining({ stripe_status: "active", cancel_at_period_end: false })]);
+});
+
+it.each([
+  ["cancelled at once in the Stripe Dashboard", "cancellation_requested"],
+  ["ended by Stripe after its last payment retry", "payment_failed"],
+])("saves why a plan %s ended", async (_how, reason) => {
+  stripe.paidInvoices.set("sub_maya", [1000]);
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId, {
+    status: "canceled", trial_end: null, ended_at: PERIOD_END - 86_400, cancellation_details: { reason },
+  }));
+  await send(subscriptionChanged("sub_maya", "deleted"));
+  expect(await records()).toEqual([expect.objectContaining({ stripe_status: "canceled", cancel_at_period_end: false, cancellation_reason: reason })]);
+});
+
+it.each([
+  ["no cancellation details", null],
+  ["a reason Stripe added later", { reason: "something_new" }],
+])("saves no cancellation reason for %s", async (_what, details) => {
+  stripe.paidInvoices.set("sub_maya", [1000]);
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId, { status: "active", trial_end: null, cancellation_details: details }));
+  await send(subscriptionChanged("sub_maya", "updated"));
+  expect(await records()).toEqual([expect.objectContaining({ stripe_status: "active", cancellation_reason: null })]);
 });
 
 it("replaces a lapsed plan with a newer one, and ignores later messages about the older one", async () => {

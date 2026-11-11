@@ -1,4 +1,4 @@
-import type { BillingRecord, PlanStatus } from "./planStatus";
+import { planEndReason, type BillingRecord, type PlanStatus } from "./planStatus";
 import { PLAN_PRICES, planPriceText, type PlanPrices } from "./planPrices";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
 
@@ -36,14 +36,14 @@ export function planCardFacts(
   if (status.kind === "retrying") {
     return { ...facts, status: "Retrying", tone: "warning", nextDate: { label: "Update card by", date: oneLineDate(status.lapsesAt) }, note: "Payment failed." };
   }
-  const cancelled = record?.cancelAtPeriodEnd || record?.stripeStatus === "canceled";
+  const cancelled = record !== null && planEndReason(record) !== null;
   if (status.kind === "free_week") {
     return cancelled
       ? { ...facts, status: "Cancelled", nextDate: { label: "Ends", date: lastDayOfPeriodEndingAt(status.endsAt) }, note: WONT_RENEW }
       : { ...facts, status: "Free week", nextDate: { label: "First charge", date: oneLineDate(status.endsAt) }, note: `Free week ends ${lastDayOfPeriodEndingAt(status.endsAt)}.` };
   }
-  const periodEnd = record?.paidPeriodEndsAt ?? null;
+  const periodEnd = record?.paidPeriodEndsAt && record.paidPeriodEndsAt > realNow ? record.paidPeriodEndsAt : null;
   return cancelled
     ? { ...facts, status: "Cancelled", nextDate: periodEnd && { label: "Ends", date: lastDayOfPeriodEndingAt(periodEnd) }, note: WONT_RENEW }
-    : { ...facts, status: "Active", nextDate: periodEnd && periodEnd > realNow ? { label: "Renews", date: oneLineDate(periodEnd) } : null, note: null };
+    : { ...facts, status: "Active", nextDate: periodEnd && { label: "Renews", date: oneLineDate(periodEnd) }, note: null };
 }

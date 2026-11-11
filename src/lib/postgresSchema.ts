@@ -162,6 +162,7 @@ export const billingRecords = pgTable("billing_records", {
   firstChargeSucceeded: boolean("first_charge_succeeded").notNull().default(false),
   renewalFailedAt: timestamp("renewal_failed_at", { withTimezone: true }),
   cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+  cancellationReason: text("cancellation_reason", { enum: ["cancellation_requested", "payment_failed", "payment_disputed"] }),
 });
 
 export const usedFreeWeeks = pgTable("used_free_weeks", {
