@@ -201,7 +201,8 @@ The role can connect, use the `public` schema, and select, insert, and delete
 rows in all six domain tables. It can update every domain table except
 `weekly_schedules` and most of `accounts`. On `accounts`, it inserts only
 `email`, `name`, `google_id`, and `password_hash`, and updates only
-`simulated_date`, `session_version`, and `password_hash`. It reads, inserts,
+`simulated_date`, `session_version`, `password_hash`, `deleting_since`,
+`last_signed_in_at`, and `inactive_warning_sent_at`. It reads, inserts,
 updates, and deletes pending signups and reset tokens. Only the owner may give the Admin role, disable an
 Account, or change its Google ID. It reads, inserts, and updates billing records, but
 cannot delete them; a code test keeps the Stripe message receiver their only writer. It
