@@ -1,9 +1,11 @@
 import { eq, sql } from "drizzle-orm";
 import { endPlanNow } from "./billingRepository";
 import { getPostgresDatabase } from "./postgres";
+import { StripeKeyProblem } from "./stripeApi";
 import { accounts } from "./postgresSchema";
 
-export type AdminPromotion = "promoted" | "already-admin" | "no-account" | "no-google" | "plan-not-ended";
+export type AdminPromotion =
+  | "promoted" | "already-admin" | "no-account" | "no-google" | "plan-not-ended" | "stripe-key-missing" | "stripe-key-refused";
 
 export async function endPlanAndMakeAdmin(email: string, db = getPostgresDatabase()): Promise<AdminPromotion> {
   return db.transaction(async (tx) => {
@@ -14,7 +16,8 @@ export async function endPlanAndMakeAdmin(email: string, db = getPostgresDatabas
     if (account.role === "admin") return "already-admin";
     try {
       await endPlanNow(account.id, tx);
-    } catch {
+    } catch (error) {
+      if (error instanceof StripeKeyProblem) return error.problem === "missing" ? "stripe-key-missing" : "stripe-key-refused";
       return "plan-not-ended";
     }
     await tx.update(accounts).set({ role: "admin" }).where(eq(accounts.id, account.id));

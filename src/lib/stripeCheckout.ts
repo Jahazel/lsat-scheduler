@@ -48,7 +48,7 @@ async function usedFreeWeek(db: Database, email: string) {
   return Boolean(used);
 }
 
-const PRICE_SETTING: Record<PlanName, string> = { weekly: "STRIPE_WEEKLY_PRICE_ID", monthly: "STRIPE_MONTHLY_PRICE_ID" };
+const PRICE_SETTING: Record<PlanName, string> = { weekly: "STRIPE_PRICE_WEEKLY", monthly: "STRIPE_PRICE_MONTHLY" };
 
 function priceId(plan: PlanName) {
   const id = process.env[PRICE_SETTING[plan]];

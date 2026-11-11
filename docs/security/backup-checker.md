@@ -94,7 +94,7 @@ The checker has no deletion operation. A Viewer must remain read-only. Use the o
 
 ## Backup age check after a restore
 
-`npm run check-backup-ages` is a separate command for the [restore runbook](../runbooks/restore.md) ([issue 353](https://github.com/Jahazel/lsat-scheduler/issues/353)). It reads `BACKUP_PROJECT_ID`, `BACKUP_BRANCH_ID`, and `NEON_API_KEY`, with the same GET-only requests and limits as the checker. It sends no monitor signal. It checks every snapshot and every branch except the active one, and exits 1 when any can hold data older than 30 days. Unlike the daily checker, it names each one by its Neon name, so the owner can find it in the console. It never prints an ID or a key.
+`npm run check-backup-ages` is a separate command for the [restore runbook](../runbooks/restore.md) ([issue 353](https://github.com/Jahazel/lsat-scheduler/issues/353)). It reads `BACKUP_PROJECT_ID`, `BACKUP_BRANCH_ID`, and `NEON_API_KEY`, with the same GET-only requests and limits as the checker. It sends no monitor signal. It checks every snapshot and every branch except the active one, and exits 1 when any can hold data older than 30 days. Unlike the daily checker, it names each one by its Neon name, so the owner can find it in the console. When a setting is missing or refused, it exits 1 with `configuration-failed` and lists each such setting by name. It never prints an ID, a key, or a setting's value.
 
 ## Local verification and sources
 

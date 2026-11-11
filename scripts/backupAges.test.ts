@@ -111,8 +111,18 @@ it.each([
   expect(await check(network)).toEqual({ ok: false, status: "checker-failed" });
 });
 
-it("refuses missing settings before calling Neon", async () => {
+it.each([
+  [{ NEON_API_KEY: undefined }, [{ setting: "NEON_API_KEY", problem: "missing" }]],
+  [{ NEON_API_KEY: "key with spaces" }, [{ setting: "NEON_API_KEY", problem: "refused" }]],
+  [{ BACKUP_PROJECT_ID: "" }, [{ setting: "BACKUP_PROJECT_ID", problem: "missing" }]],
+  [{ BACKUP_PROJECT_ID: "copy/../other-project", BACKUP_BRANCH_ID: "main-branch" }, [
+    { setting: "BACKUP_PROJECT_ID", problem: "refused" },
+    { setting: "BACKUP_BRANCH_ID", problem: "refused" },
+  ]],
+])("names each missing or refused setting, without its value, before calling Neon: %o", async (changed, settings) => {
   const network = neon({});
-  expect(await check(network, { ...env, NEON_API_KEY: undefined })).toEqual({ ok: false, status: "configuration-failed" });
+  const result = await check(network, { ...env, ...changed });
+  expect(result).toEqual({ ok: false, status: "configuration-failed", settings });
   expect(network.paths).toEqual([]);
+  for (const value of Object.values(changed)) if (value) expect(JSON.stringify(result)).not.toContain(value);
 });
