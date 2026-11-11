@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, isInaccessible, render, screen, within } from "@testing-library/react";
 
-const prices = vi.hoisted(() => ({ PLAN_PRICES: { weeklyCents: 799, monthlyCents: 2500 } }));
+const prices = vi.hoisted(() => ({ PLAN_PRICES: { weeklyCents: 1000, monthlyCents: 2999 } }));
 vi.mock("@/lib/planPrices", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/planPrices")>()),
   get PLAN_PRICES() {
@@ -28,7 +28,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
-  prices.PLAN_PRICES = { weeklyCents: 799, monthlyCents: 2500 };
+  prices.PLAN_PRICES = { weeklyCents: 1000, monthlyCents: 2999 };
 });
 
 describe("Landing page", () => {
@@ -40,7 +40,7 @@ describe("Landing page", () => {
     )).toBeTruthy();
     const starts = screen.getAllByRole("link", { name: "Start free week" });
     expect(starts.map((link) => link.getAttribute("href"))).toEqual(["/signup", "/signup", "/signup", "/signup"]);
-    expect(screen.getAllByText("Your first full week free. No card needed.")).toHaveLength(4);
+    expect(screen.getAllByText("Your first full week free. Cancel before it ends and pay nothing.")).toHaveLength(4);
     const closing = screen.getByRole("region", { name: "Start" });
     expect(within(closing).getByText("Get next week's plan from your own analytics")).toBeTruthy();
     expect(within(closing).getByRole("link", { name: "Start free week" }).getAttribute("href")).toBe("/signup");
@@ -113,23 +113,31 @@ describe("Landing page", () => {
     const pricing = screen.getByRole("region", { name: "Pricing" });
     expect(pricing.id).toBe("pricing");
     expect(within(pricing).getByText((_, el) => el?.textContent === "Your first full week is free")).toBeTruthy();
-    expect(within(pricing).getByText("Pick a plan when your free week ends. Both plans get the same weekly schedule.")).toBeTruthy();
+    expect(within(pricing).getByText("Pick a plan at the end of setup. You pay nothing until your free week ends. Both plans get the same weekly schedule.")).toBeTruthy();
 
     const weekly = within(pricing).getByRole("article", { name: "Weekly" });
-    expect(within(weekly).getByText("$7.99")).toBeTruthy();
+    expect(within(weekly).getByText("$10")).toBeTruthy();
     expect(within(weekly).getByText("a week")).toBeTruthy();
     expect(within(weekly).getByRole("link", { name: "Start free week" }).getAttribute("href")).toBe("/signup");
 
     const monthly = within(pricing).getByRole("article", { name: "Monthly" });
-    expect(within(monthly).getByText("$25")).toBeTruthy();
+    expect(within(monthly).getByText("$29.99")).toBeTruthy();
     expect(within(monthly).getByText("a month")).toBeTruthy();
-    expect(within(monthly).getByText("Best value · about 28% less")).toBeTruthy();
-    expect(within(monthly).getByText("About $34.60 a month on Weekly. Good for a full prep cycle.")).toBeTruthy();
+    expect(within(monthly).getByText("Best value · about 31% less")).toBeTruthy();
+    expect(within(monthly).getByText("About $43.30 a month on Weekly. Good for a full prep cycle.")).toBeTruthy();
     expect(within(monthly).getByRole("link", { name: "Start free week" }).getAttribute("href")).toBe("/signup");
 
     expect(within(pricing).getByText(
       "Cancel anytime. You keep access until your paid week or month ends. No refunds for unused time.",
     )).toBeTruthy();
+  });
+
+  it("never says no card is needed or that a plan is picked when the free week ends", () => {
+    render(<LandingPage />);
+    for (const button of within(screen.getByRole("region", { name: "FAQ" })).getAllByRole("button")) fireEvent.click(button);
+    const text = document.body.textContent ?? "";
+    expect(text).not.toMatch(/no card/i);
+    expect(text).not.toMatch(/when (your|the) free week ends\. Both|pick one when|only when it ends/i);
   });
 
   it("reads the plan cards from the prices module", () => {
@@ -172,8 +180,8 @@ describe("Landing page", () => {
       ["Does this replace a tutor or a course?", "No, it works alongside them. Most self-guided students know they should study but not what to focus on, so they default to taking practice test after practice test."],
       ["Which test prep programs is DrillMap compatible with?", "7Sage today, with more sites coming soon! DrillMap is independent and simply reads the analytics 7Sage already shows you."],
       ["Can I cancel?", "Any time. You keep access until your paid week or month ends. No refunds for any unused time."],
-      ["Do I need a card to start?", "No. Your first full week is free. You pick Weekly ($7.99) or Monthly ($25) only when it ends."],
-      ["What happens after the free week?", "Pick Weekly ($7.99) or Monthly ($25) to keep getting weekly schedules."],
+      ["Do I need a card to start?", "Yes. You add a card when you pick a plan at the end of setup. You pay nothing until your free week ends, and you can cancel any time before then."],
+      ["What happens after the free week?", "The plan you picked starts on its own: Weekly ($10) or Monthly ($29.99). Your weekly schedules keep coming. Cancel before the free week ends and you pay nothing."],
       ["Is the plan made by AI?", "No. Fixed rules built from the tutor's coaching method make the plan. AI only reads your screenshots, and you check what it read."],
     ];
     const shown = (text: string) => !isInaccessible(within(questions).getByText(text));
@@ -191,11 +199,11 @@ describe("Landing page", () => {
     const closing = screen.getByRole("region", { name: "Start" });
     expect(within(closing).getByRole("link", { name: "Start free week" }).getAttribute("href")).toBe("/signup");
     expect(within(closing).getByRole("link", { name: "Log in" }).getAttribute("href")).toBe("/login");
-    expect(within(closing).getByText("Your first full week free. No card needed.")).toBeTruthy();
+    expect(within(closing).getByText("Your first full week free. Cancel before it ends and pay nothing.")).toBeTruthy();
 
     const signposts = within(closing).getAllByRole("heading", { level: 3 });
     expect(signposts.map((title) => title.textContent)).toEqual(["See what you'll pay", "See how it works"]);
-    expect(within(closing).getByText("Weekly ($7.99) or Monthly ($25). Pick one when your free week ends.")).toBeTruthy();
+    expect(within(closing).getByText("Weekly ($10) or Monthly ($29.99). Pick one at the end of setup.")).toBeTruthy();
     expect(within(closing).getByText("Four steps. The last one repeats every weekend.")).toBeTruthy();
 
     const pricing = within(closing).getByRole("link", { name: "Pricing" });
@@ -226,13 +234,13 @@ describe("Landing page", () => {
     prices.PLAN_PRICES = { weeklyCents: 1299, monthlyCents: 3999 };
     render(<LandingPage />);
     const closing = screen.getByRole("region", { name: "Start" });
-    expect(within(closing).getByText("Weekly ($12.99) or Monthly ($39.99). Pick one when your free week ends.")).toBeTruthy();
+    expect(within(closing).getByText("Weekly ($12.99) or Monthly ($39.99). Pick one at the end of setup.")).toBeTruthy();
   });
 
-  it("reads the card answer's prices from the prices module", () => {
+  it("reads the after-the-free-week answer's prices from the prices module", () => {
     prices.PLAN_PRICES = { weeklyCents: 1299, monthlyCents: 3999 };
     render(<LandingPage />);
     const questions = screen.getByRole("region", { name: "FAQ" });
-    expect(within(questions).getByText("No. Your first full week is free. You pick Weekly ($12.99) or Monthly ($39.99) only when it ends.")).toBeTruthy();
+    expect(within(questions).getByText("The plan you picked starts on its own: Weekly ($12.99) or Monthly ($39.99). Your weekly schedules keep coming. Cancel before the free week ends and you pay nothing.")).toBeTruthy();
   });
 });

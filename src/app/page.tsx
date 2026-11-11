@@ -84,7 +84,7 @@ function PricingSection() {
             Your <span className="spectrum-key">first full week</span> is free
           </p>
           <p className="reveal-item max-w-[400px] text-[17px]/[27px] text-smoke [--reveal-delay:80ms] lg:pl-6">
-            Pick a plan when your free week ends. Both plans get the same weekly schedule.
+            Pick a plan at the end of setup. You pay nothing until your free week ends. Both plans get the same weekly schedule.
           </p>
         </div>
         <div className={`grid gap-3 md:grid-cols-2 md:gap-0 md:border-y ${PLAN_RULE}`}>
@@ -151,8 +151,8 @@ function QuestionsSection() {
               answer: "7Sage today, with more sites coming soon! DrillMap is independent and simply reads the analytics 7Sage already shows you.",
             },
             { question: "Can I cancel?", answer: "Any time. You keep access until your paid week or month ends. No refunds for any unused time." },
-            { question: "Do I need a card to start?", answer: `No. Your first full week is free. You pick ${plans} only when it ends.` },
-            { question: "What happens after the free week?", answer: `Pick ${plans} to keep getting weekly schedules.` },
+            { question: "Do I need a card to start?", answer: "Yes. You add a card when you pick a plan at the end of setup. You pay nothing until your free week ends, and you can cancel any time before then." },
+            { question: "What happens after the free week?", answer: `The plan you picked starts on its own: ${plans}. Your weekly schedules keep coming. Cancel before the free week ends and you pay nothing.` },
             {
               question: "Is the plan made by AI?",
               answer: "No. Fixed rules built from the tutor's coaching method make the plan. AI only reads your screenshots, and you check what it read.",
@@ -188,7 +188,7 @@ function ClosingSection() {
           </div>
         </div>
         <Signpost icon={<PriceTagIcon />} title="See what you'll pay" href="#pricing" link="Pricing" className="[--reveal-delay:80ms]">
-          {bothPlans()}. Pick one when your free week ends.
+          {bothPlans()}. Pick one at the end of setup.
         </Signpost>
         <Signpost icon={<RepeatIcon />} title="See how it works" href="#how-it-works" link="How it works" className="[--reveal-delay:160ms]">
           Four steps. The last one repeats every weekend.
