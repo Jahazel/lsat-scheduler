@@ -4,9 +4,16 @@ class StripeRequestFailed extends Error {
   override name = "StripeRequestFailed";
 }
 
+export class StripeKeyProblem extends Error {
+  override name = "StripeKeyProblem";
+  constructor(readonly problem: "missing" | "refused") {
+    super(problem === "missing" ? "STRIPE_SECRET_KEY is not set." : "Stripe refused STRIPE_SECRET_KEY.");
+  }
+}
+
 export function stripeSecretKey() {
   const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey) throw new Error("STRIPE_SECRET_KEY is not set.");
+  if (!secretKey) throw new StripeKeyProblem("missing");
   return secretKey;
 }
 
@@ -22,6 +29,7 @@ export async function stripeRequest(
     body: form ? new URLSearchParams(form) : undefined,
     signal: AbortSignal.timeout(10_000),
   });
+  if (response.status === 401 || response.status === 403) throw new StripeKeyProblem("refused");
   if (!response.ok) throw new StripeRequestFailed(`Stripe answered ${response.status}`);
   return response.json();
 }

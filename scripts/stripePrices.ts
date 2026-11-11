@@ -1,16 +1,15 @@
 import { z } from "zod";
 import { PLAN_PRICES, type PlanPrices } from "../src/lib/planPrices";
+import { settingProblems, type SettingProblem } from "./settingProblems";
 
 const configSchema = z.object({
   STRIPE_SECRET_KEY: z.string().regex(/^(sk_test|rk_test|rk_live)_\w+$/),
-  STRIPE_WEEKLY_PRICE_ID: z.string().regex(/^price_\w+$/),
-  STRIPE_MONTHLY_PRICE_ID: z.string().regex(/^price_\w+$/),
+  STRIPE_PRICE_WEEKLY: z.string().regex(/^price_\w+$/),
+  STRIPE_PRICE_MONTHLY: z.string().regex(/^price_\w+$/),
 }).superRefine((config, context) => {
-  if (config.STRIPE_WEEKLY_PRICE_ID !== config.STRIPE_MONTHLY_PRICE_ID) return;
-  for (const setting of ["STRIPE_WEEKLY_PRICE_ID", "STRIPE_MONTHLY_PRICE_ID"]) context.addIssue({ code: "custom", path: [setting], message: "Both plans use the same price ID." });
+  if (config.STRIPE_PRICE_WEEKLY !== config.STRIPE_PRICE_MONTHLY) return;
+  for (const setting of ["STRIPE_PRICE_WEEKLY", "STRIPE_PRICE_MONTHLY"]) context.addIssue({ code: "custom", path: [setting], message: "Both plans use the same price ID." });
 });
-
-type SettingProblem = { setting: keyof z.infer<typeof configSchema>; problem: "missing" | "refused" };
 
 const priceSchema = z.object({
   active: z.boolean(),
@@ -31,19 +30,13 @@ type Problem =
 type PriceReport =
   | { ok: true; status: "match"; mode: Mode }
   | { ok: false; status: "mismatch"; problems: Problem[] }
-  | { ok: false; status: "configuration-failed"; settings: SettingProblem[] }
+  | { ok: false; status: "configuration-failed"; settings: SettingProblem<keyof z.infer<typeof configSchema>>[] }
   | { ok: false; status: "checker-failed" };
 
 const PLANS = [
-  { plan: "weekly", idSetting: "STRIPE_WEEKLY_PRICE_ID", interval: "week", cents: (prices: PlanPrices) => prices.weeklyCents },
-  { plan: "monthly", idSetting: "STRIPE_MONTHLY_PRICE_ID", interval: "month", cents: (prices: PlanPrices) => prices.monthlyCents },
+  { plan: "weekly", idSetting: "STRIPE_PRICE_WEEKLY", interval: "week", cents: (prices: PlanPrices) => prices.weeklyCents },
+  { plan: "monthly", idSetting: "STRIPE_PRICE_MONTHLY", interval: "month", cents: (prices: PlanPrices) => prices.monthlyCents },
 ] as const;
-
-function settingProblems(error: z.ZodError, env: Readonly<Record<string, string | undefined>>): SettingProblem[] {
-  return configSchema.keyof().options
-    .filter((setting) => error.issues.some((issue) => issue.path[0] === setting))
-    .map((setting) => ({ setting, problem: env[setting] ? "refused" : "missing" }));
-}
 
 const modeOf = (livemode: boolean): Mode => (livemode ? "live" : "test");
 
@@ -53,7 +46,7 @@ export async function runStripePriceCheck({ env, fetcher = fetch, prices = PLAN_
   prices?: PlanPrices;
 }): Promise<PriceReport> {
   const config = configSchema.safeParse(env);
-  if (!config.success) return { ok: false, status: "configuration-failed", settings: settingProblems(config.error, env) };
+  if (!config.success) return { ok: false, status: "configuration-failed", settings: settingProblems(configSchema.keyof().options, config.error, env) };
 
   const problems: Problem[] = [];
   let firstMode: Mode | undefined;
