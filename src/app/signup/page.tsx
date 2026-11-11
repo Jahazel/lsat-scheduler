@@ -75,7 +75,6 @@ function Signup({ onSignUpAgain }: { onSignUpAgain: () => void }) {
 
   if (shownSentTo) return <>{notice}<CheckYourEmail email={shownSentTo} onSignUpAgain={onSignUpAgain} /></>;
 
-  // Submitting by hand keeps the typed values: a form action would clear the form when it returns an error.
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     forgetDraft();
@@ -98,7 +97,7 @@ function Signup({ onSignUpAgain }: { onSignUpAgain: () => void }) {
           </p>
         </div>
         <OrWithEmail />
-        <form ref={formRef} onSubmit={submit} className="flex flex-col gap-8">
+        <form ref={formRef} action={formAction} onSubmit={submit} className="flex flex-col gap-8">
           <div className="flex flex-col gap-4">
             <TextInput label="Name" name="name" autoComplete="name" required error={errors.name} />
             <TextInput label="Email" name="email" type="email" autoComplete="email" required error={errors.email} />

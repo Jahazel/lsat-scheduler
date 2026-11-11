@@ -92,7 +92,7 @@ async function logIn(email: string, password: string) {
   const form = new FormData();
   form.set("email", email);
   form.set("password", password);
-  const outcome = await logInWithPassword({ email: "", notice: null, passwordError: null }, form).then(
+  const outcome = await logInWithPassword({ notice: null, passwordError: null }, form).then(
     (state) => ({ redirectedTo: null, state: planned(state) }),
     (error: Error) => ({ redirectedTo: error.message.replace(/^redirect:/, ""), state: null }),
   );
@@ -106,9 +106,9 @@ const MESSAGES = {
   paused: "Too many tries. Login is paused for a while. Try again later, or reset your password.",
   verifyYourEmail: "Verify your email first. We sent you a new link. Check your spam folder if you don't see it.",
 };
-function refused(email: string, refusal: keyof typeof MESSAGES | "tooLong") {
-  if (refusal === "tooLong") return { email, notice: null, passwordError: "That password is too long. Try a shorter one." };
-  return { email, notice: expect.objectContaining({ text: MESSAGES[refusal] }), passwordError: null };
+function refused(refusal: keyof typeof MESSAGES | "tooLong") {
+  if (refusal === "tooLong") return { notice: null, passwordError: "That password is too long. Try a shorter one." };
+  return { notice: expect.objectContaining({ text: MESSAGES[refusal] }), passwordError: null };
 }
 
 const SessionBody = z.object({ user: z.object({ id: z.string(), role: z.string() }) }).nullable();
@@ -372,12 +372,12 @@ describe("password login", () => {
     expect(await landingAfterLogin(cookie)).toBe("http://localhost:3000/dashboard");
   });
 
-  it("shows one message for a wrong password and an unknown email, and keeps the typed email", async () => {
+  it("shows one message for a wrong password and an unknown email", async () => {
     await verifiedStudent();
     const wrongPassword = await logIn("Maya.Chen@Fastmail.com", WRONG);
     const unknownEmail = await logIn("nobody@example.test", PASSWORD);
-    expect(wrongPassword).toEqual({ redirectedTo: null, state: refused("Maya.Chen@Fastmail.com", "wrongEmailOrPassword"), cookie: "" });
-    expect(unknownEmail).toEqual({ redirectedTo: null, state: refused("nobody@example.test", "wrongEmailOrPassword"), cookie: "" });
+    expect(wrongPassword).toEqual({ redirectedTo: null, state: refused("wrongEmailOrPassword"), cookie: "" });
+    expect(unknownEmail).toEqual({ redirectedTo: null, state: refused("wrongEmailOrPassword"), cookie: "" });
   });
 
   it("refuses a password over 72 bytes with the length message, so two passwords that share 72 bytes never both work", async () => {
@@ -385,7 +385,7 @@ describe("password login", () => {
     await signUp({ password });
     await pressVerify(linkTokenIn(fakeEmails()[0].text));
     const compare = vi.spyOn(bcrypt, "compare");
-    expect(await logIn(EMAIL, `${password}x`)).toEqual({ redirectedTo: null, state: refused(EMAIL, "tooLong"), cookie: "" });
+    expect(await logIn(EMAIL, `${password}x`)).toEqual({ redirectedTo: null, state: refused("tooLong"), cookie: "" });
     expect(compare).not.toHaveBeenCalled();
     expect((await logIn(EMAIL, password)).redirectedTo).toBe("http://localhost:3000/login");
   });
@@ -407,7 +407,7 @@ describe("password login", () => {
     await verifiedStudent();
     await failLogins(10, () => EMAIL);
     const compare = vi.spyOn(bcrypt, "compare");
-    expect(await logIn(EMAIL, PASSWORD)).toEqual({ redirectedTo: null, state: refused(EMAIL, "paused"), cookie: "" });
+    expect(await logIn(EMAIL, PASSWORD)).toEqual({ redirectedTo: null, state: refused("paused"), cookie: "" });
     expect(compare).not.toHaveBeenCalled();
     expect((await logIn("other@example.test", WRONG)).state?.notice?.text).toBe(MESSAGES.wrongEmailOrPassword);
 
@@ -437,7 +437,7 @@ describe("password login", () => {
   it("for a pending signup with the right password, says to verify and sends a new link that replaces the old one", async () => {
     await signUp();
     const oldToken = linkTokenIn(fakeEmails()[0].text);
-    expect(await logIn(EMAIL, PASSWORD)).toEqual({ redirectedTo: null, state: refused(EMAIL, "verifyYourEmail"), cookie: "" });
+    expect(await logIn(EMAIL, PASSWORD)).toEqual({ redirectedTo: null, state: refused("verifyYourEmail"), cookie: "" });
     expect(fakeEmails().map((email) => [email.to, email.subject])).toEqual([
       [EMAIL, "Verify your email for DrillMap"], [EMAIL, "Verify your email for DrillMap"],
     ]);
@@ -519,7 +519,7 @@ describe("password login", () => {
     await database.owner.execute(sql`alter table accounts drop constraint accounts_admin_without_password`);
     try {
       await database.owner.execute(sql`update accounts set role = 'admin' where id = ${id}`);
-      expect(await logIn(EMAIL, PASSWORD)).toEqual({ redirectedTo: null, state: refused(EMAIL, "wrongEmailOrPassword"), cookie: "" });
+      expect(await logIn(EMAIL, PASSWORD)).toEqual({ redirectedTo: null, state: refused("wrongEmailOrPassword"), cookie: "" });
     } finally {
       await database.owner.execute(sql`delete from accounts`);
       await database.owner.execute(sql.raw(`alter table accounts add constraint accounts_admin_without_password ${definition}`));
