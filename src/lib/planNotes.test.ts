@@ -6,7 +6,7 @@ const PRICES = { weeklyCents: 1000, monthlyCents: 2999 };
 const FREE_WEEK_ENDS = new Date("2026-11-23T06:00:00.000Z");
 const inFreeWeek: BillingRecord = {
   plan: "weekly", stripeStatus: "trialing", freeWeekEndsAt: FREE_WEEK_ENDS, paidPeriodEndsAt: FREE_WEEK_ENDS,
-  firstChargeSucceeded: false, renewalFailedAt: null, cancelAtPeriodEnd: false,
+  firstChargeSucceeded: false, renewalFailedAt: null, cancelAtPeriodEnd: false, cancellationReason: null,
 };
 
 function noteAt(iso: string, record: BillingRecord = inFreeWeek, nextWeekSaved = false) {
@@ -50,6 +50,11 @@ describe("freeWeekEndingNote", () => {
     expect(noteAt("2026-11-22T18:00:00.000Z", cancelled)).toEqual({ lead: "Your free week ends today.", rest: "You won't be charged." });
   });
 
+  it("promises no charge after a cancel at once in the Stripe Dashboard", () => {
+    const cancelled = { ...inFreeWeek, stripeStatus: "canceled" as const, cancellationReason: "cancellation_requested" as const };
+    expect(noteAt("2026-11-20T18:00:00.000Z", cancelled)).toEqual({ lead: "Your free week ends Sunday.", rest: "You won't be charged." });
+  });
+
   it("is gone once the free week ends, and never shows outside a free week", () => {
     expect(noteAt("2026-11-23T06:00:00.000Z")).toBeNull();
     const now = new Date("2026-11-21T18:00:00.000Z");
@@ -83,6 +88,22 @@ describe("planProblemNote", () => {
     const ended = { lead: "Your plan has ended.", rest: "Pick a plan to get new weekly schedules.", action: "pick_plan" };
     expect(noteAt({ ...inFreeWeek, stripeStatus: "canceled", cancelAtPeriodEnd: true }, "2026-11-23T18:00:00.000Z")).toEqual(ended);
     expect(noteAt({ ...paid, stripeStatus: "canceled", cancelAtPeriodEnd: true }, "2026-12-29T18:00:00.000Z")).toEqual(ended);
+  });
+
+  it("tells a student whose plan was cancelled at once in the Stripe Dashboard that their plan has ended", () => {
+    const cancelledAtOnce = {
+      ...paid, stripeStatus: "canceled" as const, paidPeriodEndsAt: new Date("2026-12-10T18:00:00.000Z"), cancellationReason: "cancellation_requested" as const,
+    };
+    expect(noteAt(cancelledAtOnce, "2026-12-10T18:00:00.000Z")).toEqual({
+      lead: "Your plan has ended.", rest: "Pick a plan to get new weekly schedules.", action: "pick_plan",
+    });
+  });
+
+  it("still says the payment didn't go through when Stripe ends the plan after its last retry", () => {
+    const endedByStripe = {
+      ...paid, stripeStatus: "canceled" as const, paidPeriodEndsAt: new Date("2026-12-10T18:00:00.000Z"), cancellationReason: "payment_failed" as const,
+    };
+    expect(noteAt(endedByStripe, "2026-12-10T18:00:00.000Z")?.lead).toBe("Your payment didn't go through.");
   });
 
   it("shows no note to admins, paid students, free week students, or a student with no plan", () => {

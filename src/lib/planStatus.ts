@@ -9,7 +9,9 @@ type PlanName = BillingRow["plan"];
 type StripeStatus = BillingRow["stripeStatus"];
 
 export type BillingRecord = Pick<BillingRow,
-  "plan" | "stripeStatus" | "freeWeekEndsAt" | "paidPeriodEndsAt" | "firstChargeSucceeded" | "renewalFailedAt" | "cancelAtPeriodEnd">;
+  "plan" | "stripeStatus" | "freeWeekEndsAt" | "paidPeriodEndsAt" | "firstChargeSucceeded" | "renewalFailedAt" | "cancelAtPeriodEnd" | "cancellationReason">;
+
+type EndReason = "payment_failed" | "cancelled";
 
 export type PlanStatus =
   | { kind: "admin" }
@@ -17,13 +19,18 @@ export type PlanStatus =
   | { kind: "free_week"; plan: PlanName; endsAt: Date }
   | { kind: "paid"; plan: PlanName }
   | { kind: "retrying"; plan: PlanName; lapsesAt: Date }
-  | { kind: "lapsed"; reason: "payment_failed" | "cancelled" };
+  | { kind: "lapsed"; reason: EndReason };
 
 const RETRYING_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const PLAN_ENDED: readonly StripeStatus[] = ["canceled", "unpaid", "incomplete_expired", "paused"];
-const FIRST_CHARGE_FAILED: readonly StripeStatus[] = ["past_due", "incomplete", ...PLAN_ENDED];
+const FIRST_CHARGE_FAILED: readonly StripeStatus[] = ["past_due", ...PLAN_ENDED];
+
+export function planEndReason(record: BillingRecord): EndReason | null {
+  if (record.cancelAtPeriodEnd || record.cancellationReason === "cancellation_requested") return "cancelled";
+  return record.cancellationReason || PLAN_ENDED.includes(record.stripeStatus) ? "payment_failed" : null;
+}
 
 export const PLAN_REFUSAL = "Pick a plan to get new weekly schedules.";
 
@@ -31,12 +38,12 @@ export function planStatus(role: string, record: BillingRecord | null, realNow: 
   if (role === "admin") return { kind: "admin" };
   if (!record) return { kind: "no_plan" };
   const { plan, stripeStatus } = record;
-  const lapsed = { kind: "lapsed", reason: record.cancelAtPeriodEnd ? "cancelled" : "payment_failed" } as const;
+  const endReason = planEndReason(record);
+  const lapsed = { kind: "lapsed", reason: endReason ?? "payment_failed" } as const;
 
   if (!record.firstChargeSucceeded) {
-    if (!record.freeWeekEndsAt) return { kind: "no_plan" };
-    if (realNow < record.freeWeekEndsAt) return { kind: "free_week", plan, endsAt: record.freeWeekEndsAt };
-    return FIRST_CHARGE_FAILED.includes(stripeStatus) ? lapsed : { kind: "paid", plan };
+    if (record.freeWeekEndsAt && realNow < record.freeWeekEndsAt) return { kind: "free_week", plan, endsAt: record.freeWeekEndsAt };
+    return FIRST_CHARGE_FAILED.includes(stripeStatus) || endReason === "cancelled" ? lapsed : { kind: "paid", plan };
   }
 
   if (PLAN_ENDED.includes(stripeStatus)) {

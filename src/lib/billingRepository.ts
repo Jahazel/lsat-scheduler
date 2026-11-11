@@ -22,6 +22,7 @@ function selectAccountPlans() {
       firstChargeSucceeded: billingRecords.firstChargeSucceeded,
       renewalFailedAt: billingRecords.renewalFailedAt,
       cancelAtPeriodEnd: billingRecords.cancelAtPeriodEnd,
+      cancellationReason: billingRecords.cancellationReason,
     })
     .from(accounts)
     .leftJoin(billingRecords, eq(billingRecords.accountId, accounts.id));
@@ -35,6 +36,7 @@ function accountPlan(row: AccountPlanRow, realNow: Date): AccountPlan {
     ? {
       plan, stripeStatus, firstChargeSucceeded, cancelAtPeriodEnd,
       freeWeekEndsAt: row.freeWeekEndsAt, paidPeriodEndsAt: row.paidPeriodEndsAt, renewalFailedAt: row.renewalFailedAt,
+      cancellationReason: row.cancellationReason,
     }
     : null;
   return { status: planStatus(row.role, record, realNow), record };

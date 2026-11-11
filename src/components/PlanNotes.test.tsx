@@ -18,7 +18,7 @@ afterEach(cleanup);
 const FREE_WEEK_ENDS = new Date("2026-11-23T06:00:00.000Z");
 const inFreeWeek: BillingRecord = {
   plan: "weekly", stripeStatus: "trialing", freeWeekEndsAt: FREE_WEEK_ENDS, paidPeriodEndsAt: FREE_WEEK_ENDS,
-  firstChargeSucceeded: false, renewalFailedAt: null, cancelAtPeriodEnd: false,
+  firstChargeSucceeded: false, renewalFailedAt: null, cancelAtPeriodEnd: false, cancellationReason: null,
 };
 
 describe("free week ending note", () => {
