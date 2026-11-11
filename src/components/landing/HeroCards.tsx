@@ -7,11 +7,11 @@ type Card = {
   side: "left" | "right";
   place: string;
   face: string;
-  motion: { delay: number; phoneDelay?: number; phase: number; rise: number; turn: number };
+  motion: { delay: number; phoneDelay?: number; phase: number; rise: number };
   body: ReactNode;
 };
 
-const LIGHT = "flex-col gap-2 border-vellum-line bg-paper p-4 text-ink";
+const LIGHT = "flex-col gap-2 border-void-eclipse/15 bg-paper p-4 text-void-eclipse";
 const LABEL = "flex items-center gap-2 font-mono text-caption tracking-[0.06em] text-smoke uppercase";
 const TITLE = "text-h5 font-semibold";
 const DETAIL = "text-small text-balance text-smoke";
@@ -31,10 +31,10 @@ const CARDS: Card[] = [
     side: "left",
     place: "-rotate-3 md:top-7 md:left-7 md:-rotate-6 min-[1360px]:top-[132px] min-[1360px]:left-[calc(50%-656px)]",
     face: cx(LIGHT, "w-[200px] md:w-[216px] min-[1360px]:w-[236px]"),
-    motion: { delay: 120, phase: 0, rise: -60, turn: -2 },
+    motion: { delay: 120, phase: 0, rise: -60 },
     body: (
       <>
-        <Label dot="bg-spectrum-violet">Monday</Label>
+        <Label dot="bg-abyss-blue/60">Monday</Label>
         <p className={TITLE}>Sufficient assumption</p>
         <p className={DETAIL}>3 drills · 45 min</p>
       </>
@@ -44,7 +44,7 @@ const CARDS: Card[] = [
     side: "left",
     place: "rotate-2 md:top-[548px] md:left-3.5 md:rotate-4 min-[1360px]:top-[348px] min-[1360px]:left-[calc(50%-672px)]",
     face: cx(LIGHT, "w-[210px] md:w-[214px] min-[1360px]:w-[212px] min-[1360px]:gap-1.5 min-[1360px]:p-[18px]"),
-    motion: { delay: 240, phoneDelay: 180, phase: -2.8, rise: -110, turn: 2 },
+    motion: { delay: 240, phoneDelay: 180, phase: -2.8, rise: -110 },
     body: (
       <>
         <Label>PT score</Label>
@@ -56,13 +56,13 @@ const CARDS: Card[] = [
   {
     side: "left",
     place: "hidden min-[1360px]:block min-[1360px]:top-[546px] min-[1360px]:left-[calc(50%-624px)] min-[1360px]:-rotate-3",
-    face: "w-max min-w-[228px] flex-row items-center gap-3 border-vellum-line bg-paper px-4 py-3.5 text-ink",
-    motion: { delay: 360, phase: -3.6, rise: -150, turn: -3 },
+    face: "w-max min-w-[228px] flex-row items-center gap-3 border-void-eclipse/15 bg-paper px-4 py-3.5 text-void-eclipse",
+    motion: { delay: 360, phase: -3.6, rise: -150 },
     body: (
       <>
-        <span className="grid size-6 shrink-0 place-items-center rounded-sm bg-ink">
+        <span className="grid size-6 shrink-0 place-items-center rounded-sm bg-void-eclipse">
           <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-            <path d="M3 7.2 L5.8 10 L11 4.2" fill="none" className="stroke-chalk" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M3 7.2 L5.8 10 L11 4.2" fill="none" className="stroke-paper" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </span>
         <span>
@@ -76,14 +76,14 @@ const CARDS: Card[] = [
     side: "right",
     place: "hidden md:block md:top-5 md:right-7 md:rotate-5 min-[1360px]:top-[120px] min-[1360px]:right-auto min-[1360px]:left-[calc(50%+420px)]",
     face: cx(LIGHT, "md:w-[220px] min-[1360px]:w-[252px]"),
-    motion: { delay: 180, phase: -1.4, rise: -80, turn: 2 },
+    motion: { delay: 180, phase: -1.4, rise: -80 },
     body: (
       <>
-        <Label dot="bg-spectrum-amber">Saturday</Label>
+        <Label dot="bg-abyss-blue/25">Saturday</Label>
         <p className={TITLE}>Timed section</p>
         <p className="flex items-center gap-2">
-          <span className="h-1.5 w-24 overflow-hidden rounded-pill bg-vellum">
-            <span className="block h-full w-3/5 rounded-pill bg-spectrum-amber" />
+          <span className="h-1.5 w-24 overflow-hidden rounded-pill bg-silver-mist">
+            <span className="block h-full w-3/5 rounded-pill bg-abyss-blue/60" />
           </span>
           <span className="font-mono text-caption whitespace-nowrap text-smoke">21 of 35 min</span>
         </p>
@@ -93,12 +93,12 @@ const CARDS: Card[] = [
   {
     side: "right",
     place: "hidden min-[1360px]:block min-[1360px]:top-[340px] min-[1360px]:left-[calc(50%+484px)] min-[1360px]:-rotate-5",
-    face: "w-[188px] flex-col gap-1 border-ink bg-ink p-[18px] text-chalk",
-    motion: { delay: 300, phase: -0.7, rise: -130, turn: -2 },
+    face: "w-[188px] flex-col gap-1 border-abyss-blue bg-abyss-blue p-[18px] text-paper",
+    motion: { delay: 300, phase: -0.7, rise: -130 },
     body: (
       <>
         <p className="text-[44px]/[46px] font-semibold tracking-[-0.03em]">125</p>
-        <p className="text-small text-chalk/72">days to test</p>
+        <p className="text-small text-paper/72">days to test</p>
       </>
     ),
   },
@@ -106,10 +106,10 @@ const CARDS: Card[] = [
     side: "right",
     place: "-rotate-2 md:top-[594px] md:right-4 md:rotate-3 min-[1360px]:top-[536px] min-[1360px]:right-auto min-[1360px]:left-[calc(50%+400px)]",
     face: cx(LIGHT, "w-[200px] md:w-[232px] min-[1360px]:w-[236px]"),
-    motion: { delay: 420, phoneDelay: 240, phase: -2.1, rise: -160, turn: 3 },
+    motion: { delay: 420, phoneDelay: 240, phase: -2.1, rise: -160 },
     body: (
       <>
-        <Label dot="bg-spectrum-pink">Weakest type</Label>
+        <Label dot="bg-abyss-blue">Weakest type</Label>
         <p className={TITLE}>Flaw</p>
         <p className={DETAIL}>Missed 4 of 10 on your last PT</p>
       </>
@@ -118,6 +118,7 @@ const CARDS: Card[] = [
 ];
 
 const PHONE_CARD_COUNT = 3;
+const SCROLL_DRIFT = 0.35;
 const PULL_RADIUS = 200;
 const SPRING_STIFFNESS = 0.12;
 const SPRING_DAMPING = 0.72;
@@ -270,11 +271,10 @@ export function HeroCards() {
               "--delay": `${motion.delay}ms`,
               "--phone-delay": `${motion.phoneDelay ?? motion.delay}ms`,
               "--phase": `${motion.phase}s`,
-              "--rise": `${motion.rise}px`,
-              "--turn": `${motion.turn}deg`,
+              "--scroll-rise": `${motion.rise * SCROLL_DRIFT}px`,
             } as CSSProperties}
           >
-            <div className="hero-card-depth">
+            <div className="hero-card-scroll">
               <div className="hero-card-drift">
                 <div className="hero-card-float">
                   <div
@@ -299,7 +299,7 @@ export function HeroCards() {
             key={index}
             className={cx(
               "h-1.5 rounded-pill transition-[width,background-color] duration-(--duration-base) ease-(--ease-in-out-strong) motion-reduce:transition-none",
-              index === activeDot ? "w-[18px] bg-ink" : "w-1.5 bg-ink/20",
+              index === activeDot ? "w-[18px] bg-void-eclipse" : "w-1.5 bg-void-eclipse/20",
             )}
           />
         ))}

@@ -18,7 +18,7 @@ export default function LandingPage() {
       <section aria-labelledby="landing-title" className="relative isolate flex w-full flex-col items-center overflow-y-clip pt-[86px] pb-12 md:pt-[184px] lg:pt-[166px]">
         <div aria-hidden="true" className="hero-dots pointer-events-none absolute inset-y-0 left-1/2 -z-20 w-screen -translate-x-1/2" />
         <div className="relative z-2 flex w-full flex-col items-center gap-4 text-center md:w-[680px] md:gap-5 lg:w-[800px] lg:gap-6">
-          <h1 id="landing-title" tabIndex={-1} className="outline-none text-[42px]/[44px] font-semibold tracking-[-0.04em] text-balance text-ink md:text-[58px]/[60px] lg:text-[76px]/[78px]">
+          <h1 id="landing-title" tabIndex={-1} className="outline-none text-[42px]/[44px] font-semibold tracking-[-0.04em] text-balance text-void-eclipse md:text-[58px]/[60px] lg:text-[76px]/[78px]">
             Your practice results, turned into next week&apos;s plan
           </h1>
           <p className="text-body text-smoke md:w-[520px] md:text-[18px]/[28px] lg:w-[600px] lg:text-lead">
@@ -32,27 +32,32 @@ export default function LandingPage() {
 
         <HeroCards />
 
-        <div className="relative mt-7 flex w-full justify-center md:mt-[110px] lg:mt-[118px]">
-          <div aria-hidden="true" className="hero-glow pointer-events-none absolute top-1/2 left-1/2 -z-10 w-screen -translate-1/2" />
-          <div className="relative z-2 h-[460px] w-full overflow-clip rounded-md bg-paper shadow-e2 md:h-[432px] md:w-[672px] lg:h-[720px] lg:w-[min(1120px,calc(100%-48px))]">
-            <Image
-              src="/landing/hero-app-nav.png"
-              alt=""
-              width={2880}
-              height={144}
-              sizes={HERO_SCREEN_SIZES}
-              loading="eager"
-              className={HERO_SCREEN_IMAGE}
-            />
-            <Image
-              src="/landing/hero-this-week.png"
-              alt="This week screen: your plan for this week, with Monday to Sunday drills"
-              width={2880}
-              height={3094}
-              sizes={HERO_SCREEN_SIZES}
-              loading="eager"
-              className={HERO_SCREEN_IMAGE}
-            />
+        <div className="relative mt-10 flex w-full justify-center md:mt-[244px] lg:mt-[200px] min-[1360px]:mt-[128px]">
+          <div
+            aria-hidden="true"
+            className="hero-backdrop pointer-events-none absolute -inset-x-3 -top-8 -bottom-6 -z-10 rounded-[24px] md:inset-x-[calc(50%-392px)] md:-top-14 md:rounded-[32px] lg:inset-x-[calc(50%-min(616px,50%-8px))] lg:-top-16"
+          />
+          <div className="relative z-2 w-full rounded-[22px] border border-paper/30 bg-paper/20 p-2 shadow-hero-screen md:w-[688px] lg:w-[min(1136px,calc(100%-32px))]">
+            <div className="h-[460px] overflow-clip rounded-[14px] border border-void-eclipse/15 bg-paper md:h-[432px] lg:h-[720px]">
+              <Image
+                src="/landing/hero-app-nav.png"
+                alt=""
+                width={2880}
+                height={144}
+                sizes={HERO_SCREEN_SIZES}
+                loading="eager"
+                className={HERO_SCREEN_IMAGE}
+              />
+              <Image
+                src="/landing/hero-this-week.png"
+                alt="This week screen: your plan for this week, with Monday to Sunday drills"
+                width={2880}
+                height={3094}
+                sizes={HERO_SCREEN_SIZES}
+                loading="eager"
+                className={HERO_SCREEN_IMAGE}
+              />
+            </div>
           </div>
         </div>
       </section>

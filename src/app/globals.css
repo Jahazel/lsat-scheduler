@@ -129,6 +129,7 @@
   --shadow-e2: 0 24px 60px rgb(10 10 10 / 0.08);
   --shadow-e3: 0 16px 48px rgb(10 10 10 / 0.12);
   --shadow-control: 0 1px 2px rgb(0 0 0 / 0.08);
+  --shadow-hero-screen: 0 30px 80px rgb(11 11 11 / 0.35);
 }
 
 @theme static {
@@ -203,23 +204,8 @@ body:has([data-sign-in-page]) > footer { display: none; }
   );
 }
 
-.hero-glow {
-  --glow-size: 66% 52%;
-  height: 560px;
-  background-image: radial-gradient(
-    ellipse var(--glow-size) at 50% 50% in oklab,
-    color-mix(in oklab, var(--color-spectrum-amber) 90%, transparent) 0%,
-    color-mix(in oklab, var(--color-spectrum-amber) 80%, transparent) 42%,
-    color-mix(in oklab, var(--color-spectrum-pink) 70%, transparent) 62%,
-    color-mix(in oklab, var(--color-spectrum-violet) 45%, transparent) 80%,
-    transparent 100%
-  );
-}
-@media (min-width: 48rem) {
-  .hero-glow { --glow-size: 62% 50%; height: 616px; }
-}
-@media (min-width: 64rem) {
-  .hero-glow { --glow-size: 56% 50%; height: 880px; }
+.hero-backdrop {
+  background-image: linear-gradient(to bottom in oklab, var(--color-void-eclipse) 0%, var(--color-abyss-blue) 45%, var(--color-silver-mist) 100%);
 }
 
 .hero-dots {
@@ -252,7 +238,7 @@ body:has([data-sign-in-page]) > footer { display: none; }
 @keyframes hero-card-drift-left { from { opacity: 0; transform: translate(-40px, 16px) scale(0.96); } }
 @keyframes hero-card-drift-right { from { opacity: 0; transform: translate(40px, 16px) scale(0.96); } }
 @keyframes hero-card-float { 50% { transform: translateY(-4px); } }
-@keyframes hero-card-depth { to { translate: 0 var(--rise); rotate: var(--turn); } }
+@keyframes hero-card-scroll { to { translate: 0 var(--scroll-rise); } }
 
 @media (prefers-reduced-motion: no-preference) {
   .hero-card-drift { animation: hero-card-drift-right var(--duration-reveal) var(--ease-out-strong) var(--phone-delay) both; }
@@ -266,7 +252,7 @@ body:has([data-sign-in-page]) > footer { display: none; }
 }
 @supports (animation-timeline: scroll()) {
   @media (prefers-reduced-motion: no-preference) and (min-width: 48rem) {
-    .hero-card-depth { animation: hero-card-depth linear both; animation-timeline: scroll(root); animation-range: 0 800px; }
+    .hero-card-scroll { animation: hero-card-scroll linear both; animation-timeline: scroll(root); animation-range: 0 800px; }
   }
 }
 
