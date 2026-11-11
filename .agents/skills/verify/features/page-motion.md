@@ -4,7 +4,7 @@ Plain same-origin link clicks between the landing page `/` and the sign-in pages
 
 ## Sub-features
 
-- `motion-landing-sign-in` (#584): landing to Sign up or Log in, and the reverse. Every `[data-page-fade]` and `[data-page-swap]` region fades out, then the new page's regions rise 8 px (4 px at 767 px and narrower) and fade in. The old regions are `inert` with `aria-busy="true"` while they fade out.
+- `motion-landing-sign-in` (#584): landing to Sign up or Log in, and the reverse. Every `[data-page-fade]` and `[data-page-swap]` region fades out, then the new page's regions rise 8 px (4 px at 767 px and narrower) and fade in. The old regions are `inert` with `aria-busy="true"` while they fade out. A `data-page-fade="in-place"` region fades in without the rise: the Log in and Sign up top glow, shown under 1200 px (#809).
 - `motion-logo-glide` (#584): the logo never fades. When its spot differs between the two pages, the visible `[data-page-logo]` glides from the old spot with one `translate(x, y)` animation.
 - `motion-form-fade` (#585): between two sign-in pages, only the `[data-page-swap]` regions (the form and the preview card) fade. The page frame and logo stay still.
 - `motion-history` (#584): Back and Forward use the same fade and return the landing page to its saved scroll spot.

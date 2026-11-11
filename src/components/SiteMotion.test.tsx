@@ -119,6 +119,7 @@ function SignIn({ title, notice, children }: { title: string; notice?: string; c
       <main tabIndex={-1}>
         <div data-sign-in-page style={{ opacity: 1 }}>
           <PageCue page="sign-in" />
+          <div data-page-fade="in-place" aria-label="Top glow" style={{ opacity: 1 }} />
           <Link data-page-logo href="/">DrillMap</Link>
           <div data-page-swap style={{ opacity: 1 }}>
             <h1 tabIndex={-1}>{title}</h1>
@@ -167,7 +168,7 @@ async function click(name: string) {
 }
 
 describe("SiteMotion", () => {
-  it("fades the landing page out, then fades Sign up in with a rise, glides the logo, and focuses the heading", async () => {
+  it("fades the landing page out, then fades Sign up in with a rise, the top glow in place, glides the logo, and focuses the heading", async () => {
     const { rerender } = show("/")!;
     await click("Start free week");
     expect(mocks.push).not.toHaveBeenCalled();
@@ -182,11 +183,11 @@ describe("SiteMotion", () => {
     show("/signup", rerender);
     expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: "instant" });
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sign up for DrillMap" }));
-    expect(entrances().map((a) => a.el.getAttribute("aria-label") ?? "form")).toEqual(["form", "Legal", "Preview panel"]);
-    for (const entrance of entrances()) {
-      expect(entrance.keyframes).toEqual([{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }]);
-      expect(entrance.options).toEqual({ duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" });
-    }
+    expect(entrances().map((a) => a.el.getAttribute("aria-label") ?? "form")).toEqual(["Top glow", "form", "Legal", "Preview panel"]);
+    const [glow, ...rest] = entrances();
+    expect(glow.keyframes).toEqual([{ opacity: 0 }, { opacity: 1, transform: "none" }]);
+    for (const entrance of rest) expect(entrance.keyframes).toEqual([{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }]);
+    for (const entrance of entrances()) expect(entrance.options).toEqual({ duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" });
     expect(glides()).toHaveLength(1);
     expect(glides()[0].keyframes).toEqual([{ transform: "translate(-72px, -12px)" }, { transform: "none" }]);
     expect(glides()[0].options).toEqual({ duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" });
@@ -334,7 +335,7 @@ describe("SiteMotion", () => {
     expect(exits()).toHaveLength(0);
     await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/signup", { scroll: false }));
     show("/signup", rerender);
-    expect(entrances()).toHaveLength(3);
+    expect(entrances()).toHaveLength(4);
     for (const entrance of entrances()) expect([entrance.keyframes, entrance.options]).toEqual([[{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "cubic-bezier(0.2, 0, 0, 1)" }]);
     expect(glides()).toHaveLength(0);
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sign up for DrillMap" }));
@@ -368,7 +369,7 @@ describe("SiteMotion", () => {
     expect(hidden).toHaveLength(2);
     expect([...arrivals, ...calls].filter((a) => hidden.some((el) => el.contains(a.el)))).toEqual([]);
     expect(hidden.some((el) => el.querySelector("[inert], [aria-busy]") || el.matches("[inert], [aria-busy]"))).toBe(false);
-    expect(exits().map((a) => a.el.getAttribute("aria-label") ?? "form")).toEqual(["form", "Legal", "Preview panel"]);
+    expect(exits().map((a) => a.el.getAttribute("aria-label") ?? "form")).toEqual(["Top glow", "form", "Legal", "Preview panel"]);
   });
 
   it("shows a redirected page as it is and frees the content that stays on screen", async () => {
@@ -412,7 +413,7 @@ describe("SiteMotion", () => {
     await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledOnce());
     mocks.pathname = "/signup";
     rerender(<StrictMode><SignIn title="Sign up for DrillMap" /><SiteMotion signedIn={false} /></StrictMode>);
-    expect(entrances()).toHaveLength(3);
+    expect(entrances()).toHaveLength(4);
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Sign up for DrillMap" }));
   });
 
@@ -545,7 +546,7 @@ describe("SiteMotion", () => {
     it("fades a sign-in page through to Terms and glides the logo to the top-bar spot", async () => {
       const { rerender } = show("/login")!;
       await click("Terms");
-      expect(exits().map((a) => a.el.getAttribute("aria-label") ?? "form")).toEqual(["form", "Legal", "Preview panel"]);
+      expect(exits().map((a) => a.el.getAttribute("aria-label") ?? "form")).toEqual(["Top glow", "form", "Legal", "Preview panel"]);
       finishExits();
       await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/legal/terms", { scroll: false }));
 
@@ -574,7 +575,7 @@ describe("SiteMotion", () => {
   describe("between sign-in pages", () => {
     const formOf = (title: string) => screen.getByRole("heading", { name: title }).parentElement!;
     const card = () => screen.getByLabelText("Preview card");
-    const anchors = () => [screen.getByRole("navigation", { name: "Legal" }), screen.getByLabelText("Preview panel"), screen.getByRole("link", { name: "DrillMap" })];
+    const anchors = () => [screen.getByLabelText("Top glow"), screen.getByRole("navigation", { name: "Legal" }), screen.getByLabelText("Preview panel"), screen.getByRole("link", { name: "DrillMap" })];
 
     it("fades only the form and the preview card, rises them in, and focuses the form heading", async () => {
       const { rerender } = show("/signup")!;
