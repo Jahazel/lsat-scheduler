@@ -9,6 +9,9 @@ import { postgresActivityCheckIns } from "@/lib/activityCheckInRepository";
 import { localDateInTimezone } from "@/lib/currentWeeklySchedule";
 import ScheduleCheckInView from "@/components/ScheduleCheckInView";
 import { PageArrival } from "@/components/PagePlaceholder";
+import { PlanStatusBadge } from "@/components/PlanStatusBadge";
+import { loadAccountPlan } from "@/lib/billingRepository";
+import { isHeldWeek } from "@/lib/planStatus";
 
 export default async function AdminStudentPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -24,12 +27,14 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
   }
 
   const now = new Date();
+  const plan = await loadAccountPlan(record.userId);
   const currentWeek = await loadReadOnlyCurrentWeek({
     ...postgresCurrentWeekRepositories,
     activityCheckIns: postgresActivityCheckIns,
     studentId: record.id,
     timezone: SCHEDULE_TIMEZONE,
     now: () => now,
+    isHeldWeek: (weekStartDate) => isHeldWeek(plan.record, weekStartDate),
   });
 
   return (
@@ -44,7 +49,10 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
             Viewing as admin — read only
           </span>
         </div>
-        <p className="mt-4 text-small text-smoke">{record.email}</p>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <p className="text-small text-smoke">{record.email}</p>
+          <PlanStatusBadge status={plan.status} />
+        </div>
       </div>
       {currentWeek.kind === "schedule" ? (
         <ScheduleCheckInView

@@ -123,6 +123,49 @@ it("an Admin reads a student's Weekly schedule and profile without saving a sche
   expect(await everyRow()).toEqual(before);
 });
 
+const day = 24 * 60 * 60 * 1000;
+const planStatusCases = [
+  ["No plan", null],
+  ["Free week", { stripeStatus: "trialing", firstChargeSucceeded: false, freeWeekEndsAt: new Date(Date.parse("2026-10-12T16:00:00Z") + 5 * day) }],
+  ["Paid", { stripeStatus: "active", paidPeriodEndsAt: new Date(Date.parse("2026-10-12T16:00:00Z") + 5 * day) }],
+  ["Retrying", { stripeStatus: "past_due", renewalFailedAt: new Date(Date.parse("2026-10-12T16:00:00Z") - 2 * day) }],
+  ["Lapsed", { stripeStatus: "canceled", paidPeriodEndsAt: new Date(Date.parse("2026-10-12T16:00:00Z") - day) }],
+] as const;
+
+function planStatusOf(markup: string, name: string) {
+  const row = markup.split("<li").find((item) => item.includes(`>${name}</span>`));
+  return row?.match(/data-plan-status="[^"]+"[^>]*>([^<]+)</)?.[1];
+}
+
+it.each(planStatusCases)("both Admin student pages show the plan status %s", async (label, billing) => {
+  const { account, saved } = await student("Sam");
+  if (billing) await database.writeBillingRecordAsOwner(account.id, billing);
+  const admin = await student("Admin", "admin");
+  signIn(admin.account);
+  const list = renderToStaticMarkup(await AdminPage());
+  expect(planStatusOf(list, "Sam")).toBe(label);
+  expect(renderToStaticMarkup(await studentPage(saved.id))).toMatch(new RegExp(`data-plan-status="[^"]+"[^>]*>${label}<`));
+});
+
+it("the Admin student page hides a held weekly schedule until the first charge succeeds", async () => {
+  const sam = await student("Sam");
+  await approve(sam.saved.id);
+  signIn(sam.account);
+  await dashboard();
+  await database.writeBillingRecordAsOwner(sam.account.id, {
+    stripeStatus: "trialing", firstChargeSucceeded: false, freeWeekEndsAt: new Date("2026-10-12T05:00:00Z"),
+  });
+  const admin = await student("Admin", "admin");
+  signIn(admin.account);
+
+  const held = renderToStaticMarkup(await studentPage(sam.saved.id));
+  expect(held).not.toContain("Your plan for this week");
+  expect(held).toContain("This student&#x27;s weekly schedule for this week is held.");
+
+  await database.owner.execute(sql`update billing_records set first_charge_succeeded = true, stripe_status = 'active'`);
+  expect(renderToStaticMarkup(await studentPage(sam.saved.id))).toContain("Your plan for this week");
+});
+
 it("an Admin gets not found for an Admin-owned, missing, or malformed student ID", async () => {
   const admin = await student("Admin", "admin");
   signIn(admin.account);

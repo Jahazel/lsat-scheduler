@@ -18,10 +18,12 @@ interface LoadReadOnlyCurrentWeekInput extends ReadOnlyCurrentWeekRepositories {
   studentId: string;
   timezone: string;
   now: () => Date;
+  isHeldWeek: (weekStartDate: string) => boolean;
 }
 
 export type ReadOnlyCurrentWeekResult =
   | { kind: "schedule"; schedule: PersistedWeeklySchedule; checkIns: ActivityCheckIn[] }
+  | { kind: "held_week" }
   | { kind: "next_week_preview"; weekStartDate: string }
   | { kind: "next_week_upload_confirmed"; weekStartDate: string }
   | { kind: "analytics_required" }
@@ -33,6 +35,7 @@ export async function loadReadOnlyCurrentWeek(input: LoadReadOnlyCurrentWeekInpu
   const weekStartDate = currentWeekInTimezone(input.now(), input.timezone);
   const schedule = await input.weeklySchedules.findByStudentAndWeek(input.studentId, weekStartDate);
   if (schedule) {
+    if (input.isHeldWeek(weekStartDate)) return { kind: "held_week" };
     return {
       kind: "schedule",
       schedule,
@@ -62,6 +65,8 @@ const formatWeekStart = (weekStartDate: string) => previewStartDate.format(new D
 
 export function adminScheduleStateMessage(result: Exclude<ReadOnlyCurrentWeekResult, { kind: "schedule" }>) {
   switch (result.kind) {
+    case "held_week":
+      return "This student's weekly schedule for this week is held. It appears when their first payment goes through.";
     case "next_week_preview":
       return `This student has saved their plan for next week. It starts ${formatWeekStart(result.weekStartDate)}.`;
     case "next_week_upload_confirmed":

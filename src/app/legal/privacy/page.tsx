@@ -32,8 +32,8 @@ const SECTIONS: LegalSection[] = [
     body: (
       <p>
         You can see your own data. The two people who run DrillMap (admins) can see every student&rsquo;s name,
-        email address, weekly study time, and saved weekly schedule with its activity check-ins, for support and to
-        check that the app works.
+        email address, weekly study time, plan status (free week, paid, retrying, or lapsed), and saved weekly
+        schedule with its activity check-ins, for support and to check that the app works.
       </p>
     ),
   },

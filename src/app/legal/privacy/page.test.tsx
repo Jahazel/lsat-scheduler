@@ -47,6 +47,13 @@ describe("Privacy page", () => {
     expect(text).toContain("Used free week list: 12 months from the day your free week starts.");
   });
 
+  it("tells students that admins see their plan status", () => {
+    const { container } = render(<PrivacyPage />);
+    expect(container.textContent).toContain(
+      "weekly study time, plan status (free week, paid, retrying, or lapsed), and saved weekly schedule with its activity check-ins",
+    );
+  });
+
   it("links the privacy contact mailbox", () => {
     render(<PrivacyPage />);
     const contact = screen.getByRole("link", { name: "privacy@drillmap.xyz" });
