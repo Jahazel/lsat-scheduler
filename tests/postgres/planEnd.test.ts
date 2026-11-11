@@ -17,6 +17,7 @@ const stripe = vi.hoisted(() => ({
   subscriptions: new Map<string, { customer: string; status: string }>(),
   requests: [] as string[],
   failing: false,
+  refusingKey: false,
   accountsWhenCancelled: [] as number[],
 }));
 
@@ -29,6 +30,7 @@ vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
   }
   const method = init?.method ?? "GET";
   stripe.requests.push(`${method} ${url.pathname}${url.search}`);
+  if (stripe.refusingKey) return Response.json({ error: { type: "invalid_request_error" } }, { status: 401 });
   if (stripe.failing) return Response.json({ error: { type: "api_error" } }, { status: 500 });
   if (method === "GET" && url.pathname === "/v1/subscriptions") {
     const customer = url.searchParams.get("customer");
@@ -56,6 +58,7 @@ beforeEach(async () => {
   stripe.requests.length = 0;
   stripe.accountsWhenCancelled.length = 0;
   stripe.failing = false;
+  stripe.refusingKey = false;
   state.session = null;
   await database.owner.execute(sql`truncate accounts, deletion_list, security_log cascade`);
 });
@@ -187,6 +190,22 @@ it("keeps the Account a student when Stripe fails to cancel its plan", async () 
   stripe.failing = true;
 
   expect(await endPlanAndMakeAdmin("maya@example.test", database.owner)).toBe("plan-not-ended");
+
+  expect(stripe.subscriptions.get("sub_maya")?.status).toBe("active");
+  expect(await accountRows()).toEqual([
+    { email: "maya@example.test", role: "student", deleting: false, stripe_subscription_id: "sub_maya" },
+  ]);
+});
+
+it.each([
+  ["missing", "stripe-key-missing"],
+  ["refused by Stripe", "stripe-key-refused"],
+] as const)("keeps an Account with a plan a student and reports the Stripe key when it is %s", async (keyProblem, status) => {
+  await studentWithPlan("maya@example.test", "active");
+  if (keyProblem === "missing") vi.stubEnv("STRIPE_SECRET_KEY", "");
+  else stripe.refusingKey = true;
+
+  expect(await endPlanAndMakeAdmin("maya@example.test", database.owner)).toBe(status);
 
   expect(stripe.subscriptions.get("sub_maya")?.status).toBe("active");
   expect(await accountRows()).toEqual([

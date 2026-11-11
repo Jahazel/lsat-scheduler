@@ -19,10 +19,11 @@ afterAll(async () => {
   await database?.cleanup();
 });
 
-function runScript(name: string, args: string[]) {
+function runScript(name: string, args: string[], { preload = [] as string[], env = {} as Record<string, string> } = {}) {
   return new Promise<{ code: number; output: string }>((resolve, reject) => {
-    execFile(process.execPath, ["--import", "tsx", `scripts/${name}.mts`, ...args], {
-      env: { PATH: process.env.PATH, NODE_ENV: "test", DATABASE_URL: database.setting },
+    const imports = ["tsx", ...preload].flatMap((module) => ["--import", module]);
+    execFile(process.execPath, [...imports, `scripts/${name}.mts`, ...args], {
+      env: { PATH: process.env.PATH, NODE_ENV: "test", DATABASE_URL: database.setting, ...env },
       timeout: 15000,
     }, (error, stdout, stderr) => {
       if (error?.killed || error?.signal) return reject(new Error(`${name} timed out.`));
@@ -103,6 +104,27 @@ it("make-admin refuses an Account that never signed in with Google", async () =>
   expect(refused.output).toContain("has not signed in with Google");
   expect(await rows(sql`select role, password_hash is not null as has_password from accounts`))
     .toEqual([{ role: "student", has_password: true }]);
+});
+
+it.each([
+  ["missing", "STRIPE_SECRET_KEY is not set", {}],
+  ["refused by Stripe", "Stripe refused STRIPE_SECRET_KEY", {
+    preload: ["./scripts/test-fixtures/stripe-refuses-key.mjs"], env: { STRIPE_SECRET_KEY: "sk_test_refused_value" },
+  }],
+])("make-admin names STRIPE_SECRET_KEY when it is %s for an Account with a plan and keeps it a student", async (_case, problem, run) => {
+  const [account] = await rows(sql`insert into accounts (email, name, google_id)
+    values ('planned@test.local', 'Planned', 'throwaway-google') returning id`);
+  await owner.db.execute(sql`insert into billing_records (account_id, stripe_customer_id, stripe_subscription_id, plan, stripe_status)
+    values (${account.id}::uuid, 'cus_planned', 'sub_planned', 'weekly', 'active')`);
+
+  const refused = await runScript("make-admin", ["planned@test.local"], run);
+  expect(refused).toEqual({
+    code: 1,
+    output: `${problem}, so the plan of planned@test.local was not cancelled and the Account is still a student. `
+      + "An Account with a plan needs a valid STRIPE_SECRET_KEY. Set it and try again.\n",
+  });
+  expect(refused.output).not.toContain("sk_test_refused_value");
+  expect(await rows(sql`select role from accounts`)).toEqual([{ role: "student" }]);
 });
 
 it("make-admin promotes a Google Account", async () => {
