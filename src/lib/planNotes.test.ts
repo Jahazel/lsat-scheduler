@@ -59,11 +59,12 @@ describe("freeWeekEndingNote", () => {
 });
 
 describe("hidesUploadReminder", () => {
-  it("hides the Plan next week reminder for a cancelled free week only", () => {
-    const now = new Date("2026-11-21T18:00:00.000Z");
+  it("hides the Plan next week reminder on a cancelled free week's last weekend only", () => {
     const cancelled = { ...inFreeWeek, cancelAtPeriodEnd: true };
-    expect(hidesUploadReminder(planStatus("student", cancelled, now), cancelled)).toBe(true);
-    expect(hidesUploadReminder(planStatus("student", inFreeWeek, now), inFreeWeek)).toBe(false);
-    expect(hidesUploadReminder({ kind: "paid", plan: "weekly" }, cancelled)).toBe(false);
+    const hides = (record: BillingRecord, iso: string) => hidesUploadReminder(planStatus("student", record, new Date(iso)), record, new Date(iso));
+    expect(hides(cancelled, "2026-11-21T18:00:00.000Z")).toBe(true);
+    expect(hides(cancelled, "2026-11-14T18:00:00.000Z")).toBe(false);
+    expect(hides(inFreeWeek, "2026-11-21T18:00:00.000Z")).toBe(false);
+    expect(hides({ ...cancelled, firstChargeSucceeded: true, stripeStatus: "active", paidPeriodEndsAt: new Date("2026-11-30T06:00:00.000Z") }, "2026-11-28T18:00:00.000Z")).toBe(false);
   });
 });

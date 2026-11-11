@@ -80,7 +80,9 @@ export default async function DashboardPage({
   if (currentWeek.kind === "analytics_required" || currentWeek.kind === "plan_required") redirect("/dashboard/upload");
   const { schedule } = currentWeek;
   const preview = currentWeek.kind === "next_week_preview";
+  const realNow = new Date();
   if (isHeldWeek(record, schedule.weekStartDate)) {
+    const lastFreeWeekendNote = preview && freeWeekEndingNote(plan, record, realNow, true);
     return (
       <div data-page-fade className="min-h-screen">
         <PageCue page="this-week" />
@@ -92,12 +94,11 @@ export default async function DashboardPage({
           />
         </div>
         <div className="px-5 pt-8 pb-16 md:px-18 md:pt-16 md:pb-24">
-          <div data-page-section><HeldWeek /></div>
+          <div data-page-section>{lastFreeWeekendNote ? <PlanNotice note={lastFreeWeekendNote} /> : <HeldWeek />}</div>
         </div>
       </div>
     );
   }
-  const realNow = new Date();
   const [checkIns, snapshots] = await Promise.all([
     preview ? [] : postgresActivityCheckIns.listForSchedule(schedule.id),
     listApprovedAnalyticsSnapshots(doc.id),
@@ -126,7 +127,7 @@ export default async function DashboardPage({
           />
         ) : undefined}
         today={localDateInTimezone(now, SCHEDULE_TIMEZONE)}
-        uploadReminder={!preview && !hidesUploadReminder(plan, record) && showsUploadReminder(snapshots, now, SCHEDULE_TIMEZONE)}
+        uploadReminder={!preview && !hidesUploadReminder(plan, record, realNow) && showsUploadReminder(snapshots, now, SCHEDULE_TIMEZONE)}
         notice={note && <PlanNotice note={note} />}
         thisWeek={{ drillLink: (Array.isArray(drill) ? drill[0] : drill) ?? null }}
       />

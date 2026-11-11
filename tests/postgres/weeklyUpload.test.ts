@@ -199,6 +199,21 @@ it("hides a held weekly schedule and refuses its check-offs until the first char
   expect(await listWeeklySchedulesForStudent(studentId)).toContainEqual(heldWeek);
 });
 
+it("keeps the free week ending note, not the held weekly schedule, on a last free weekend with no weekly schedule", async () => {
+  const { studentId } = await studentWithThisWeek("student", inFreeWeek);
+  await database.owner.execute(sql`delete from weekly_schedules where student_id = ${studentId}`);
+  await database.owner.execute(sql`delete from analytics_snapshots where student_id = ${studentId}`);
+  vi.setSystemTime(SATURDAY);
+  await expect(confirmWeeklyUpload({ ...upload(SATURDAY), practiceTest: null })).rejects.toThrow("redirect:/dashboard");
+
+  const page = await dashboard();
+  expect(page).toContain("Your free week ends Sunday.");
+  expect(page).toContain("Your plan for next week appears then.");
+  expect(page).not.toContain("Your week is ready.");
+  expect(page).not.toContain('role="checkbox"');
+  expect((await listWeeklySchedulesForStudent(studentId)).map(({ weekStartDate }) => weekStartDate)).toEqual(["2026-10-19"]);
+});
+
 const lapsedAfterCancelling = { stripeStatus: "canceled", paidPeriodEndsAt: new Date("2026-10-17T05:00:00Z") } as const;
 
 it.each([
