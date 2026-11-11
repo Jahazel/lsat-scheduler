@@ -448,6 +448,9 @@ it("adds deletion list rows but cannot read, change, or erase them, and prunes o
   await ownerDb().execute(sql`truncate deletion_list`);
   const accountId = randomUUID();
   await appDb().execute(sql`insert into deletion_list (account_id, email_hash) values (${accountId}, repeat('c', 64))`);
+  expect((await appDb().execute(sql`
+    select is_on_deletion_list(${accountId}) as listed, is_on_deletion_list(${randomUUID()}) as other
+  `)).rows).toEqual([{ listed: true, other: false }]);
   for (const query of [
     sql`select * from deletion_list`,
     sql`update deletion_list set email_hash = repeat('d', 64)`,

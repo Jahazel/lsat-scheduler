@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeEach, expect, it, vi } from "vitest";
-import { resyncBillingRecords } from "../../src/lib/stripeMessages";
+import { billingResyncReport, resyncBillingRecords } from "../../src/lib/stripeMessages";
 import { setUpAppTestDatabase } from "./appTestDatabase";
 
 const KEY = "sk_test_resync_key";
@@ -111,7 +111,7 @@ it("saves every Account's plan as Stripe holds it now, leaves out deleted and ad
 
   const first = await resyncBillingRecords(database.owner, KEY);
 
-  expect(first).toEqual({ listed: 5, saved: 3, leftOut: 2, notInStripe: 0 });
+  expect(first).toEqual({ listed: 5, saved: 3, leftOut: 2, unknownPrice: [], notInStripe: 0 });
   const saved = await records();
   expect(saved).toEqual([
     {
@@ -147,13 +147,30 @@ it("keeps an Account's newest plan whatever order Stripe lists its subscriptions
   stripe.subscriptions.set("sub_new", paidMonthly("sub_new", maya, { customer: "cus_maya", created: 1_793_500_000 }));
   stripe.paidInvoices.set("sub_new", [2999]);
 
-  expect(await resyncBillingRecords(database.owner, KEY)).toEqual({ listed: 2, saved: 1, leftOut: 1, notInStripe: 0 });
+  expect(await resyncBillingRecords(database.owner, KEY)).toEqual({ listed: 2, saved: 1, leftOut: 1, unknownPrice: [], notInStripe: 0 });
   expect(await records()).toEqual([expect.objectContaining({ stripe_subscription_id: "sub_new", stripe_status: "active" })]);
 
   await database.owner.execute(sql`truncate billing_records`);
   await database.writeBillingRecordAsOwner(maya, { stripeCustomerId: "cus_maya", stripeSubscriptionId: "sub_old" });
-  expect(await resyncBillingRecords(database.owner, KEY)).toEqual({ listed: 2, saved: 1, leftOut: 1, notInStripe: 0 });
+  expect(await resyncBillingRecords(database.owner, KEY)).toEqual({ listed: 2, saved: 1, leftOut: 1, unknownPrice: [], notInStripe: 0 });
   expect(await records()).toEqual([expect.objectContaining({ stripe_subscription_id: "sub_new", stripe_status: "active" })]);
+});
+
+it("skips a subscription whose price is not Weekly or Monthly, names it, and resyncs the rest", async () => {
+  const yearly = await account("yearly@example.test");
+  const maya = await account("maya@example.test");
+  stripe.subscriptions.set("sub_yearly", paidMonthly("sub_yearly", yearly, {
+    created: 1_793_500_000,
+    items: { data: [{ current_period_start: FREE_WEEK_END, current_period_end: PERIOD_END, price: { recurring: { interval: "year", interval_count: 1 } } }] },
+  }));
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", maya));
+
+  const counts = await resyncBillingRecords(database.owner, KEY);
+
+  expect(counts).toEqual({ listed: 2, saved: 1, leftOut: 0, unknownPrice: ["sub_yearly"], notInStripe: 0 });
+  expect(await records()).toEqual([expect.objectContaining({ account_id: maya, stripe_subscription_id: "sub_maya" })]);
+  expect(billingResyncReport(counts)).toBe("Stripe subscriptions: 2. Billing records saved: 1. Left out: 0. "
+    + "Skipped for a price that is not Weekly or Monthly: 1 (sub_yearly). Billing records Stripe does not list: 0.\n");
 });
 
 it("takes a failing renewal's date from Stripe, not from the restored record", async () => {
@@ -180,7 +197,7 @@ it("counts a billing record whose subscription Stripe does not list, and leaves 
   await database.writeBillingRecordAsOwner(lost, { stripeCustomerId: "cus_lost", stripeSubscriptionId: "sub_lost" });
   const before = await records();
 
-  expect(await resyncBillingRecords(database.owner, KEY)).toEqual({ listed: 0, saved: 0, leftOut: 0, notInStripe: 1 });
+  expect(await resyncBillingRecords(database.owner, KEY)).toEqual({ listed: 0, saved: 0, leftOut: 0, unknownPrice: [], notInStripe: 1 });
   expect(await records()).toEqual(before);
 });
 

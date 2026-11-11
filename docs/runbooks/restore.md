@@ -18,8 +18,10 @@ still needs the owner's approval before the site uses the restored branch.
 - **Billing resync**: `npm run resync-billing`. It asks Stripe for every subscription and saves each one's
   current state on the restored branch, with the same code the Stripe message receiver uses. Billing state
   follows Stripe, so a plan started, changed, or cancelled after the backup comes back as Stripe holds it.
-  It saves nothing for an Account the replay deleted, so a deleted Account's plan does not come back. It
-  prints only four counts. A second run saves the same records.
+  It saves nothing for an Account the replay deleted, so a deleted Account's plan does not come back. When
+  Stripe still holds an open plan for an Account on the deletion list, it ends that plan in Stripe. It
+  skips a subscription whose price is not Weekly or Monthly, goes on with the rest, and names the skipped
+  subscription IDs. It prints only those IDs and five counts. A second run saves the same records.
 - **Age check**: `npm run check-backup-ages`. It reads the real age of every Neon snapshot and every
   branch except the active one. It fails when any can hold data older than 30 days, and names each
   one by its Neon name.
@@ -86,9 +88,12 @@ Do every step in order. Do not change the site's `DATABASE_URL` before step 7.
    npm run resync-billing
    ```
 
-   It prints `Stripe subscriptions: N. Billing records saved: S. Left out: L. Billing records Stripe does
-   not list: U.` Left out counts subscriptions of deleted Accounts, of Admins, and an Account's older
-   subscriptions. Record the four counts. Run it a second time. It must print the same counts. Then `unset
+   It prints `Stripe subscriptions: N. Billing records saved: S. Left out: L. Skipped for a price that is
+   not Weekly or Monthly: K (sub_…). Billing records Stripe does not list: U.` Left out counts
+   subscriptions of deleted Accounts, of Admins, and an Account's older subscriptions. Record the five
+   counts. When `K` is not 0, the script exits with an error after it resyncs the rest: those
+   subscriptions use a price this site does not sell. Give the owner their IDs; the Stripe message
+   receiver keeps refusing them too. Run it a second time. It must print the same counts. Then `unset
    DATABASE_URL STRIPE_SECRET_KEY`. When `U` is not 0, the script exits with an error: the restored
    branch holds a billing record that this Stripe account does not know, which usually means the key is
    from the other mode. Check the key and run it again. If `U` stays above 0, stop and ask the owner. The
