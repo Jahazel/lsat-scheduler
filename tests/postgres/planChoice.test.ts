@@ -60,6 +60,13 @@ vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
     stripe.sessions.push(session);
     return Response.json({ id: session.id, url: `${CHECKOUT_URL}${session.id}` });
   }
+  const cancel = /^\/v1\/subscriptions\/(sub_\w+)$/.exec(url.pathname);
+  const cancelling = cancel && init?.method === "DELETE" && stripe.subscriptions.find((subscription) => subscription.id === cancel[1]);
+  if (cancelling && cancelling.status !== "canceled") {
+    if (stripe.sessions.length) throw new Error("Cancelled a subscription after Checkout started");
+    cancelling.status = "canceled";
+    return Response.json(cancelling);
+  }
   const expire = /^\/v1\/checkout\/sessions\/(cs_\w+)\/expire$/.exec(url.pathname);
   const expiring = expire && post && stripe.sessions.find((session) => session.id === expire[1] && session.status === "open");
   if (expiring) {
@@ -235,6 +242,22 @@ it("sends a lapsed student whose new plan Stripe holds back to Starting your pla
 
   await expect(openStripeCheckout("weekly")).rejects.toThrow("redirect:/dashboard/upload?checkout=done");
   expect(stripe.sessions).toEqual([]);
+});
+
+it.each(["past_due", "unpaid", "paused"])("cancels a lapsed student's old %s plan before a restart's Checkout starts", async (status) => {
+  const { accountId } = await onboardedStudent();
+  await database.writeBillingRecordAsOwner(accountId, {
+    stripeCustomerId: "cus_maya", stripeSubscriptionId: "sub_old", stripeStatus: "past_due", renewalFailedAt: new Date("2026-11-01T15:00:00Z"),
+  });
+  stripe.subscriptions.push(
+    { id: "sub_old", customer: "cus_maya", status },
+    { id: "sub_older", customer: "cus_maya", status: "canceled" },
+  );
+
+  await expect(openStripeCheckout("weekly")).resolves.toEqual({ checkoutUrl: `${CHECKOUT_URL}cs_test1` });
+
+  expect(stripe.subscriptions.map(({ id, status }) => [id, status])).toEqual([["sub_old", "canceled"], ["sub_older", "canceled"]]);
+  expect(stripe.sessions.map(({ status }) => status)).toEqual(["open"]);
 });
 
 it.each([

@@ -81,6 +81,8 @@ const openSessions = stripeList(z.object({ id: z.string().regex(/^cs_\w+$/) }));
 // Stripe can still be sending the message for one of these, so the billing record does not show it yet.
 const STARTED_OR_STARTING = ["trialing", "active", "past_due", "incomplete"];
 
+const ENDED = ["canceled", "incomplete_expired"];
+
 // Stripe takes an expiry 30 minutes to 24 hours after it creates the session; these leave room for the request.
 const MIN_CHECKOUT_MINUTES = 31;
 const MAX_CHECKOUT_HOURS = 23;
@@ -107,8 +109,8 @@ function checkoutExpiry(realNow: Date) {
 export type CheckoutStart = { kind: "checkout"; url: string } | { kind: "starting"; place: PlanChoicePlace } | { kind: "refused" };
 
 /**
- * Starts Stripe Checkout for the Account, one at a time: it closes the Account's open Checkout sessions first, and
- * starts none while Stripe holds a subscription that the billing record does not show yet.
+ * Starts Stripe Checkout for the Account, one at a time: it closes the Account's open Checkout sessions and cancels its
+ * old subscriptions first, and starts none while Stripe holds a subscription that the billing record does not show yet.
  */
 export async function startCheckout(accountId: string, plan: PlanName, realNow: Date): Promise<CheckoutStart> {
   return getPostgresDatabase().transaction(async (tx) => {
@@ -118,9 +120,13 @@ export async function startCheckout(accountId: string, plan: PlanName, realNow: 
     const secretKey = stripeSecretKey();
     const customer = await accountCustomer(accountId, standing, secretKey);
 
-    const held = subscriptions.parse(await stripeRequest(`subscriptions?customer=${customer}&status=all&limit=100`, secretKey));
-    if (held.data.some(({ id, status }) => id !== standing.subscriptionId && STARTED_OR_STARTING.includes(status))) {
+    const held = subscriptions.parse(await stripeRequest(`subscriptions?customer=${customer}&status=all&limit=100`, secretKey))
+      .data.filter(({ status }) => !ENDED.includes(status));
+    if (held.some(({ id, status }) => id !== standing.subscriptionId && STARTED_OR_STARTING.includes(status))) {
       return { kind: "starting", place: standing.place };
+    }
+    for (const subscription of held) {
+      await stripeRequest(`subscriptions/${subscription.id}`, secretKey, undefined, "DELETE");
     }
     const open = openSessions.parse(await stripeRequest(`checkout/sessions?customer=${customer}&status=open&limit=100`, secretKey));
     for (const session of open.data) {
