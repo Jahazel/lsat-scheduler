@@ -11,7 +11,7 @@ export function LinkArrow() {
   );
 }
 
-export function StartFreeWeekLink({ className, arrow }: { className?: string; arrow?: boolean }) {
+export function StartFreeWeekLink({ className }: { className?: string }) {
   return (
     <Link
       href="/signup"
@@ -25,7 +25,6 @@ export function StartFreeWeekLink({ className, arrow }: { className?: string; ar
       )}
     >
       Start free week
-      {arrow && <LinkArrow />}
     </Link>
   );
 }

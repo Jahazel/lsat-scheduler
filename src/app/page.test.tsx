@@ -152,6 +152,16 @@ describe("Landing page", () => {
     expect(within(monthly).getByText("About $56.30 a month on Weekly. Good for a full prep cycle.")).toBeTruthy();
   });
 
+  it("shows Monthly like Weekly, with no badge or gradient, when Monthly saves nothing", () => {
+    prices.PLAN_PRICES = { weeklyCents: 1000, monthlyCents: 4333 };
+    render(<LandingPage />);
+    const weekly = screen.getByRole("article", { name: "Weekly" });
+    const monthly = screen.getByRole("article", { name: "Monthly" });
+    expect(within(monthly).getByText("$43.33")).toBeTruthy();
+    expect(within(monthly).queryByText(/Best value/)).toBeNull();
+    expect(monthly.children).toHaveLength(weekly.children.length);
+  });
+
   it("answers the nine questions in order, all closed, opening one at a time", () => {
     render(<LandingPage />);
     const questions = screen.getByRole("region", { name: "FAQ" });
