@@ -7,7 +7,7 @@ import { PASSWORD_MESSAGES } from "@/lib/passwordRules";
 import { answerAction } from "@/lib/securityLog";
 import type { Answer, FormState } from "@/lib/unexpectedFailure";
 
-export type LoginState = { email: string; notice: LoginNotice | null; passwordError: string | null };
+export type LoginState = { notice: LoginNotice | null; passwordError: string | null };
 
 export async function signInWithGoogle(): Promise<FormState> {
   return answerAction("/login", async () => {
@@ -18,15 +18,13 @@ export async function signInWithGoogle(): Promise<FormState> {
 
 export async function logInWithPassword(_state: Answer<LoginState> | null, formData: FormData): Promise<Answer<LoginState>> {
   return answerAction("/login", async () => {
-    const email = formData.get("email");
     try {
-      await signIn("credentials", { email, password: formData.get("password"), redirectTo: "/login" });
+      await signIn("credentials", { email: formData.get("email"), password: formData.get("password"), redirectTo: "/login" });
     } catch (error) {
       if (!(error instanceof LoginRefused)) throw error;
       if (isSignInRefusal(error.code)) redirect(loginRefusalPath(error.code));
-      const typedEmail = typeof email === "string" ? email : "";
-      if (error.code === "tooLong") return { email: typedEmail, notice: null, passwordError: PASSWORD_MESSAGES.tooLong };
-      return { email: typedEmail, notice: PASSWORD_LOGIN_NOTICES[error.code], passwordError: null };
+      if (error.code === "tooLong") return { notice: null, passwordError: PASSWORD_MESSAGES.tooLong };
+      return { notice: PASSWORD_LOGIN_NOTICES[error.code], passwordError: null };
     }
     throw new Error("A password login that succeeds always redirects.");
   });

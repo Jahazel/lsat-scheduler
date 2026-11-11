@@ -120,7 +120,7 @@ async function logIn(email: string, password: string) {
   form.set("email", email);
   form.set("password", password);
   request.setCookie.mockReset();
-  const refused = await logInWithPassword({ email: "", notice: null, passwordError: null }, form).then(planned, () => null);
+  const refused = await logInWithPassword({ notice: null, passwordError: null }, form).then(planned, () => null);
   const cookie = request.setCookie.mock.calls.findLast(([name]) => name === COOKIE)?.[1] ?? "";
   return { refused, cookie: cookie as string };
 }
