@@ -14,7 +14,7 @@ const PERIOD_END = FREE_WEEK_END + 7 * 86_400;
 
 type FakeSubscription = {
   id: string; customer: string; status: string; created: number; metadata: Record<string, string>;
-  trial_end: number | null; ended_at: number | null; schedule: string | null;
+  trial_end: number | null; ended_at: number | null; schedule: string | null; cancel_at: number | null; cancel_at_period_end: boolean;
   items: { data: { current_period_start?: number; current_period_end: number; price: { recurring: { interval: string; interval_count: number } } }[] };
   latest_invoice: { created: number; status_transitions: { finalized_at: number | null } } | null;
 };
@@ -78,7 +78,7 @@ afterAll(() => {
 function subscription(id: string, owner: string, changes: Partial<FakeSubscription> = {}): FakeSubscription {
   return {
     id, customer: `cus_${id.slice(4)}`, status: "trialing", created: 1_793_400_000, metadata: { account_id: owner },
-    trial_end: FREE_WEEK_END, ended_at: null, schedule: null,
+    trial_end: FREE_WEEK_END, ended_at: null, schedule: null, cancel_at: null, cancel_at_period_end: false,
     items: { data: [{ current_period_end: FREE_WEEK_END, price: { recurring: { interval: "week", interval_count: 1 } } }] },
     latest_invoice: { created: 1_793_400_000, status_transitions: { finalized_at: 1_793_400_000 } },
     ...changes,
@@ -111,7 +111,7 @@ const records = async () => (await database.owner.execute<Record<string, string 
   free_week_ends_at: string | null; paid_period_ends_at: string | null; renewal_failed_at: string | null;
 }>(sql`
   select account_id, stripe_customer_id, stripe_subscription_id, plan, stripe_status, free_week_ends_at, paid_period_ends_at,
-    first_charge_succeeded, renewal_failed_at
+    first_charge_succeeded, renewal_failed_at, cancel_at_period_end
   from billing_records order by account_id
 `)).rows.map((row) => ({
   ...row,
@@ -159,7 +159,7 @@ it("saves the subscription Stripe returns when checkout completes, not the messa
   expect(await records()).toEqual([{
     account_id: accountId, stripe_customer_id: "cus_maya", stripe_subscription_id: "sub_maya", plan: "weekly",
     stripe_status: "trialing", free_week_ends_at: new Date(FREE_WEEK_END * 1000), paid_period_ends_at: new Date(FREE_WEEK_END * 1000),
-    first_charge_succeeded: false, renewal_failed_at: null,
+    first_charge_succeeded: false, renewal_failed_at: null, cancel_at_period_end: false,
   }]);
   expect(await refusals()).toEqual([]);
 });
@@ -309,6 +309,20 @@ it("saves a cancelled plan's end so access lasts until the paid period ends", as
   }));
   await send(subscriptionChanged("sub_maya", "deleted"));
   expect(await records()).toEqual([expect.objectContaining({ stripe_status: "canceled", paid_period_ends_at: new Date(endedAt * 1000) })]);
+});
+
+it.each([
+  ["at the end of its period", { cancel_at_period_end: true }],
+  ["on a set date", { cancel_at: PERIOD_END }],
+])("saves that a plan cancelled %s won't renew, and that it renews again once the student undoes it", async (_when, cancel) => {
+  stripe.paidInvoices.set("sub_maya", [1000]);
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId, { status: "active", trial_end: null, ...cancel }));
+  await send(subscriptionChanged("sub_maya", "updated"));
+  expect(await records()).toEqual([expect.objectContaining({ stripe_status: "active", cancel_at_period_end: true })]);
+
+  stripe.subscriptions.set("sub_maya", subscription("sub_maya", accountId, { status: "active", trial_end: null }));
+  await send(subscriptionChanged("sub_maya", "updated"));
+  expect(await records()).toEqual([expect.objectContaining({ stripe_status: "active", cancel_at_period_end: false })]);
 });
 
 it("replaces a lapsed plan with a newer one, and ignores later messages about the older one", async () => {

@@ -82,11 +82,11 @@ const MAX_CHECKOUT_HOURS = 23;
 async function accountCustomer(accountId: string, standing: Extract<PlanChoiceStanding, { kind: "choose" }>, secretKey: string) {
   if (standing.customerId) return standing.customerId;
   const query = new URLSearchParams({ email: standing.email, limit: "100" });
-  const found = customers.parse(await stripeRequest(`customers?${query}`, { secretKey }))
+  const found = customers.parse(await stripeRequest(`customers?${query}`, secretKey))
     .data.find((customer) => customer.metadata.account_id === accountId);
   if (found) return found.id;
-  const form = new URLSearchParams({ email: standing.email, "metadata[account_id]": accountId });
-  return z.object({ id: customerId }).parse(await stripeRequest("customers", { secretKey, form })).id;
+  const form = { email: standing.email, "metadata[account_id]": accountId };
+  return z.object({ id: customerId }).parse(await stripeRequest("customers", secretKey, form)).id;
 }
 
 /** The session closes at the next Chicago midnight, so the free week counted today is the one the student gets. */
@@ -111,16 +111,16 @@ export async function startCheckout(accountId: string, plan: PlanName, realNow: 
     const secretKey = stripeSecretKey();
     const customer = await accountCustomer(accountId, standing, secretKey);
 
-    const held = subscriptions.parse(await stripeRequest(`subscriptions?customer=${customer}&status=all&limit=100`, { secretKey }));
+    const held = subscriptions.parse(await stripeRequest(`subscriptions?customer=${customer}&status=all&limit=100`, secretKey));
     if (held.data.some(({ id, status }) => id !== standing.subscriptionId && STARTED_OR_STARTING.includes(status))) {
       return { kind: "starting" };
     }
-    const open = openSessions.parse(await stripeRequest(`checkout/sessions?customer=${customer}&status=open&limit=100`, { secretKey }));
+    const open = openSessions.parse(await stripeRequest(`checkout/sessions?customer=${customer}&status=open&limit=100`, secretKey));
     for (const session of open.data) {
-      await stripeRequest(`checkout/sessions/${session.id}/expire`, { secretKey, form: new URLSearchParams() });
+      await stripeRequest(`checkout/sessions/${session.id}/expire`, secretKey, {});
     }
 
-    const form = new URLSearchParams({
+    const form: Record<string, string> = {
       mode: "subscription",
       customer,
       "line_items[0][price]": priceId(plan),
@@ -132,9 +132,9 @@ export async function startCheckout(accountId: string, plan: PlanName, realNow: 
       expires_at: String(checkoutExpiry(realNow)),
       success_url: returnUrl({ checkout: "done" }),
       cancel_url: returnUrl({ checkout: "closed", plan }),
-    });
-    if (standing.freeWeekEndsAt) form.set("subscription_data[trial_end]", String(Math.floor(standing.freeWeekEndsAt.getTime() / 1000)));
-    const session = z.object({ url: checkoutUrl }).parse(await stripeRequest("checkout/sessions", { secretKey, form }));
+    };
+    if (standing.freeWeekEndsAt) form["subscription_data[trial_end]"] = String(Math.floor(standing.freeWeekEndsAt.getTime() / 1000));
+    const session = z.object({ url: checkoutUrl }).parse(await stripeRequest("checkout/sessions", secretKey, form));
     return { kind: "checkout", url: session.url };
   });
 }

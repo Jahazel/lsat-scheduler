@@ -135,7 +135,7 @@ describe("Test controls", () => {
     expect((screen.getByRole("button", { name: "Rebuild this week" }) as HTMLButtonElement).disabled).toBe(true);
   });
   it("keeps rebuild available when a reset fails", async () => {
-    mocks.data.mockRejectedValueOnce(new Error("Reset failed."));
+    mocks.data.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     const user = userEvent.setup();
     const controls = <TestControls state={{ ...state, weekHasSchedule: false }} onClose={() => {}} />;
     const view = render(
@@ -143,12 +143,13 @@ describe("Test controls", () => {
         <CurrentWeekReport week={state.weekStartDate} hasSchedule />
         {controls}
       </AdminTestProvider>,
+      { wrapper: FailureToastProvider },
     );
     view.rerender(<AdminTestProvider>{controls}</AdminTestProvider>);
 
     await user.click(screen.getByRole("button", { name: "Reset test data" }));
     await user.click(screen.getByRole("button", { name: "Confirm reset" }));
-    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "Reset failed.");
+    expect((await screen.findByRole("alert")).textContent).toContain("No connection. Check your signal and try again.");
     expect((screen.getByRole("button", { name: "Rebuild this week" }) as HTMLButtonElement).disabled).toBe(false);
   });
   it("shows the failure toast, not a completion message, when a control fails unexpectedly", async () => {
@@ -165,15 +166,30 @@ describe("Test controls", () => {
     expect(mocks.push).not.toHaveBeenCalled();
     expect((screen.getByRole("button", { name: "Confirm rebuild" }) as HTMLButtonElement).disabled).toBe(false);
   });
-  it("shows the rebuild error instead of a completion message", async () => {
-    mocks.rebuild.mockRejectedValueOnce(new Error("There is no weekly schedule to rebuild."));
+  it("shows the no-connection toast, not an inline error, when a control cannot reach the server", async () => {
+    mocks.rebuild.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     const user = userEvent.setup();
-    render(<TestControls state={state} onClose={() => {}} />);
+    render(<TestControls state={state} onClose={() => {}} />, { wrapper: FailureToastProvider });
     await user.click(screen.getByRole("button", { name: "Rebuild this week" }));
     await user.click(screen.getByRole("button", { name: "Confirm rebuild" }));
-    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "There is no weekly schedule to rebuild.");
+    const toast = await screen.findByRole("alert");
+    expect(toast.textContent).toContain("No connection. Check your signal and try again.");
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
     expect(screen.queryByText("Rebuild this week complete.")).toBeNull();
     expect(mocks.push).not.toHaveBeenCalled();
+    expect((screen.getByRole("button", { name: "Confirm rebuild" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+  it("shows the failure toast, not an inline error, when a control's reply cannot be read", async () => {
+    mocks.everything.mockRejectedValueOnce(new Error("Server Action failed"));
+    const user = userEvent.setup();
+    render(<TestControls state={state} onClose={() => {}} />, { wrapper: FailureToastProvider });
+    await user.click(screen.getByRole("button", { name: "Reset everything" }));
+    await user.click(screen.getByRole("button", { name: "Confirm reset" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("Something went wrong. Try again.");
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.queryByText("Server Action failed")).toBeNull();
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect((screen.getByRole("button", { name: "Confirm reset" }) as HTMLButtonElement).disabled).toBe(false);
   });
   it("clears the completion message when another reset confirmation opens", async () => {
     const user = userEvent.setup();
@@ -183,17 +199,6 @@ describe("Test controls", () => {
     await screen.findByText("Reset test data complete.");
     await user.click(screen.getByRole("button", { name: "Reset everything" }));
     expect(screen.queryByText("Reset test data complete.")).toBeNull();
-  });
-  it("clears the reset error when another reset confirmation opens", async () => {
-    mocks.data.mockRejectedValueOnce(new Error("Reset failed."));
-    const user = userEvent.setup();
-    render(<TestControls state={state} onClose={() => {}} />);
-    await user.click(screen.getByRole("button", { name: "Reset test data" }));
-    await user.click(screen.getByRole("button", { name: "Confirm reset" }));
-    await screen.findByRole("alert");
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
-    await user.click(screen.getByRole("button", { name: "Reset everything" }));
-    expect(screen.queryByRole("alert")).toBeNull();
   });
   it("keeps keyboard focus when a reset confirmation opens and is cancelled", async () => {
     const user = userEvent.setup();
