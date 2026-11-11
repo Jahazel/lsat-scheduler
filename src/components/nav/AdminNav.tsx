@@ -103,7 +103,7 @@ export default function AdminNav(props: StudentNavProps & { testState?: TestCont
 
   return (
     <>
-      <header className={HEADER}>
+      <header data-site-header={studentSide ? "workspace-lg" : "workspace"} className={HEADER}>
         {studentSide ? (
           <StudentNav {...props} uploadNeeded={uploadNeeded} workspaceSwitcher={switcher} />
         ) : (

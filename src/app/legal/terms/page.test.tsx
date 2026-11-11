@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import TermsPage from "./page";
 
 const prices = vi.hoisted(() => {
@@ -17,7 +17,22 @@ vi.mock("@/lib/planPrices", async (importOriginal) => ({
 afterEach(() => {
   cleanup();
   prices.PLAN_PRICES = prices.approved;
+  history.replaceState(null, "", "/legal/terms");
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
+
+function stubClipboard(writeText: (text: string) => Promise<void>) {
+  const spy = vi.fn(writeText);
+  vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText: spy } });
+  return spy;
+}
+
+async function copyLinkTo(title: string) {
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: `Copy link to ${title}` }));
+  });
+}
 
 function pageText() {
   const { container } = render(<TermsPage />);
@@ -139,5 +154,55 @@ describe("Terms page", () => {
       ["notice-for-california-residents", "Notice for California residents"],
       ["contact", "Contact"],
     ]);
+  });
+
+  it("names each copy button after its section", () => {
+    render(<TermsPage />);
+    const headings = screen.getAllByRole("heading", { level: 2 }).map((heading) => `Copy link to ${heading.textContent}`);
+    expect(screen.getAllByRole("button", { name: /^Copy link to / }).map((button) => button.getAttribute("aria-label"))).toEqual(headings);
+  });
+
+  it("copies a section's full link, shows it in the address without a new history entry, and announces it once", async () => {
+    history.replaceState(null, "", "/legal/terms");
+    const writeText = stubClipboard(async () => {});
+    render(<TermsPage />);
+    const entries = history.length;
+
+    await copyLinkTo("Cancelling and refunds");
+
+    expect(writeText).toHaveBeenCalledWith(`${location.origin}/legal/terms#cancelling-and-refunds`);
+    expect(location.hash).toBe("#cancelling-and-refunds");
+    expect(history.length).toBe(entries);
+    expect(screen.getByRole("button", { name: "Copy link to Cancelling and refunds" }).textContent).toBe("Copied");
+    expect(screen.getAllByRole("status").map((status) => status.textContent)).toEqual(["Link copied"]);
+  });
+
+  it("says when the link could not be copied, then returns to the link icon", async () => {
+    vi.useFakeTimers();
+    stubClipboard(() => Promise.reject(new Error("denied")));
+    render(<TermsPage />);
+
+    await copyLinkTo("Contact");
+
+    const button = screen.getByRole("button", { name: "Copy link to Contact" });
+    expect(button.textContent).toBe("Couldn’t copy");
+    expect(screen.getByRole("status").textContent).toBe("Could not copy the link");
+    act(() => {
+      vi.advanceTimersByTime(1600);
+    });
+    expect(button.textContent).toBe("");
+    expect(screen.getByRole("status").textContent).toBe("");
+  });
+
+  it("moves focus to the section heading when the page opens at a section", () => {
+    history.replaceState(null, "", "/legal/terms#cancelling-and-refunds");
+    render(<TermsPage />);
+    expect(document.activeElement).toBe(screen.getByRole("heading", { level: 2, name: "Cancelling and refunds" }));
+  });
+
+  it("opens an unknown section link without moving focus", () => {
+    history.replaceState(null, "", "/legal/terms#unknown");
+    render(<TermsPage />);
+    expect(document.activeElement).toBe(document.body);
   });
 });
