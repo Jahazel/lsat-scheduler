@@ -69,5 +69,5 @@ export default auth(async (req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|google-g.svg|landing/[^/]+\\.png$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon\\.svg$|apple-icon\\.png$|manifest\\.webmanifest$|icon-192\\.png$|icon-512\\.png$|maskable-512\\.png$|google-g.svg|landing/[^/]+\\.png$).*)"],
 };
