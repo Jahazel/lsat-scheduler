@@ -32,7 +32,7 @@ const SCREENSHOTS: Record<GuideContent["section"], Screenshot[]> = {
   ],
 };
 
-const ARROW = { tail: 48, gap: 3, head: 16, headSpread: 10, stroke: 4, halo: 8 };
+const ARROW = { tail: 24, gap: 3, head: 10, headSpread: 5, stroke: 3 };
 const POINTING: Record<Arrow["from"], [number, number]> = { left: [1, 0], right: [-1, 0], below: [0, -1] };
 
 function arrowPath({ x, y, from }: Arrow) {
@@ -46,7 +46,6 @@ function Arrows({ screenshot: { width, height, arrows } }: { screenshot: Screens
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="pointer-events-none absolute inset-0 size-full" fill="none"
       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {paths.map((d, index) => <path key={`halo ${index}`} d={d} stroke="var(--color-paper)" strokeWidth={ARROW.halo} />)}
       {paths.map((d, index) => <path key={index} d={d} stroke="var(--color-abyss-blue)" strokeWidth={ARROW.stroke} />)}
     </svg>
   );
