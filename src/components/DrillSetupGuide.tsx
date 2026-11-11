@@ -14,21 +14,37 @@ const PRESS = cx(
 );
 const OUTLINE = cx("inline-flex h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xs border border-vellum-line bg-paper px-3.5 text-small font-medium text-ink pointer-hover:bg-vellum", PRESS);
 
-const START_DRILL_SCREENSHOT = { src: "/drill-setup-guide/step-1-start-drill.png", width: 2000, height: 1399 };
-const SCREENSHOTS: Record<GuideContent["section"], { src: string; width: number; height: number }[]> = {
+type Arrow = { x: number; y: number; from: "left" | "right" };
+type Screenshot = { src: string; width: number; height: number; arrows: Arrow[] };
+
+const SCREENSHOTS: Record<GuideContent["section"], Screenshot[]> = {
   "Logical Reasoning": [
-    START_DRILL_SCREENSHOT,
-    { src: "/drill-setup-guide/lr-step-2-customize.png", width: 2000, height: 857 },
-    { src: "/drill-setup-guide/lr-step-3-filters.png", width: 2000, height: 1383 },
-    { src: "/drill-setup-guide/lr-step-4-count-and-start.png", width: 2000, height: 1184 },
+    { src: "/drill-setup-guide/lr-step-1-start-drill.png", width: 630, height: 280, arrows: [{ x: 187, y: 212, from: "right" }] },
+    { src: "/drill-setup-guide/lr-step-2-customize.png", width: 630, height: 350, arrows: [{ x: 124, y: 198, from: "left" }] },
+    { src: "/drill-setup-guide/lr-step-3-filters.png", width: 650, height: 850, arrows: [{ x: 128, y: 336, from: "left" }, { x: 128, y: 404, from: "left" }] },
+    { src: "/drill-setup-guide/lr-step-4-count-and-start.png", width: 580, height: 330, arrows: [{ x: 455, y: 64, from: "right" }, { x: 455, y: 149, from: "right" }] },
   ],
   "Reading Comprehension": [
-    START_DRILL_SCREENSHOT,
-    { src: "/drill-setup-guide/rc-step-2-customize.png", width: 2000, height: 1111 },
-    { src: "/drill-setup-guide/rc-step-3-filters.png", width: 2000, height: 1081 },
-    { src: "/drill-setup-guide/rc-step-4-count-and-start.png", width: 2000, height: 1107 },
+    { src: "/drill-setup-guide/rc-step-1-start-drill.png", width: 630, height: 280, arrows: [{ x: 188, y: 212, from: "right" }] },
+    { src: "/drill-setup-guide/rc-step-2-customize.png", width: 630, height: 350, arrows: [{ x: 122, y: 197, from: "left" }] },
+    { src: "/drill-setup-guide/rc-step-3-filters.png", width: 650, height: 830, arrows: [{ x: 126, y: 334, from: "left" }, { x: 126, y: 402, from: "left" }] },
+    { src: "/drill-setup-guide/rc-step-4-count-and-start.png", width: 580, height: 320, arrows: [{ x: 453, y: 62, from: "right" }, { x: 453, y: 147, from: "right" }] },
   ],
 };
+
+function Arrows({ screenshot: { width, height, arrows } }: { screenshot: Screenshot }) {
+  const paths = arrows.map(({ x, y, from }) => {
+    const toward = from === "left" ? 1 : -1;
+    return `M${x - toward * 100} ${y}H${x - toward * 4}M${x - toward * 28} ${y - 18}L${x} ${y}L${x - toward * 28} ${y + 18}`;
+  });
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="pointer-events-none absolute inset-0 size-full" fill="none"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {paths.map((d) => <path key={`halo ${d}`} d={d} stroke="var(--color-paper)" strokeWidth="14" />)}
+      {paths.map((d) => <path key={d} d={d} stroke="var(--color-danger)" strokeWidth="7" />)}
+    </svg>
+  );
+}
 
 type Move = { direction: 1 | -1; animate: boolean };
 
@@ -179,14 +195,16 @@ export function DrillSetupGuide({ open, onClose, returnFocusTo, day, label, guid
             zoomed ? "overflow-auto overscroll-contain" : "overflow-hidden")}>
             <button ref={screenshot} type="button" aria-pressed={zoomed}
               aria-label={zoomed ? "Fit the screenshot" : "Show the screenshot at real size"} onClick={() => setZoomed(!zoomed)}
+              style={zoomed ? undefined : { containerType: "size" }}
               className={cx("touch-manipulation [-webkit-tap-highlight-color:transparent]", FOCUS_INSET, zoomed
                 ? "block cursor-zoom-out"
                 : "absolute inset-x-4 top-4 bottom-0 flex cursor-zoom-in items-end justify-center md:inset-6 md:items-center")}>
-              <Image src={screenshotOf.src} width={screenshotOf.width} height={screenshotOf.height} alt={`7Sage, step ${card + 1}`}
-                unoptimized loading="eager" draggable={false} style={zoomed ? { width: screenshotOf.width } : undefined}
-                className={zoomed
-                  ? "block h-auto max-w-none"
-                  : "block h-auto max-h-full w-auto max-w-full rounded-t-xs ring-1 ring-ink/8 md:rounded-xs"} />
+              <span className={cx("relative block", !zoomed && "overflow-hidden rounded-t-xs ring-1 ring-ink/8 md:rounded-xs")}
+                style={{ width: zoomed ? screenshotOf.width : `min(100cqw, 100cqh * ${screenshotOf.width / screenshotOf.height}, ${screenshotOf.width}px)` }}>
+                <Image src={screenshotOf.src} width={screenshotOf.width} height={screenshotOf.height} alt={`7Sage, step ${card + 1}`}
+                  unoptimized loading="eager" draggable={false} className="block h-auto w-full max-w-none" />
+                <Arrows screenshot={screenshotOf} />
+              </span>
             </button>
             {!zoomed && (
               <span aria-hidden="true"
