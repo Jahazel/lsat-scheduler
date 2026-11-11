@@ -2,10 +2,16 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { ReactNode } from "react";
 import { cx } from "@/components/ui/classes";
-import { ON_DARK, ON_LIGHT, ProtoLogo } from "../logo/ProtoLogo";
 
 const WEB = path.join(process.cwd(), "docs/design/site-logo/kit/web");
 const png = (file: string) => `data:image/png;base64,${readFileSync(path.join(WEB, file)).toString("base64")}`;
+
+function favicon(dark: boolean) {
+  const svg = readFileSync(path.join(WEB, "favicon.svg"), "utf8");
+  const darkRule = /@media \(prefers-color-scheme:dark\)\{([^}]*\})\}/;
+  const shown = dark ? svg.replace(/<style>.*<\/style>/, `<style>${svg.match(darkRule)?.[1]}</style>`) : svg.replace(darkRule, "");
+  return `data:image/svg+xml;base64,${Buffer.from(shown).toString("base64")}`;
+}
 
 function Caption({ children }: { children: ReactNode }) {
   return <p className="bg-graphite px-5 py-2 font-mono text-label text-fog uppercase md:px-18">{children}</p>;
@@ -15,9 +21,8 @@ function Tab({ dark }: { dark: boolean }) {
   return (
     <div className={cx("flex items-end gap-1 px-3 pt-2", dark ? "bg-graphite" : "bg-silver-mist")}>
       <div className={cx("flex h-9 w-60 items-center gap-2 rounded-t-md px-3 text-small", dark ? "bg-graphite-raised text-chalk" : "bg-paper text-ink")}>
-        <span className="flex size-4 shrink-0 items-center justify-center">
-          <ProtoLogo form="small" className={cx("h-4", dark ? ON_DARK : ON_LIGHT)} />
-        </span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={favicon(dark)} alt="" className="size-4 shrink-0" />
         <span className="truncate">This week · DrillMap</span>
       </div>
       <div className={cx("flex h-9 w-60 items-center gap-2 px-3 text-small", dark ? "text-fog" : "text-smoke")}>

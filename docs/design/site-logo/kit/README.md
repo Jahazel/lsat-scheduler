@@ -5,9 +5,9 @@ Colours: Void Eclipse #0B0B0B · Abyss Blue #2B3B79 (end square, light grounds o
 
 ## svg/
 - drillmap-horizontal.svg — primary lockup (also -black, -reversed, -currentcolor for inline React use; accent via --logo-accent)
-- drillmap-stacked.svg / -reversed — Log in and Sign up glow
+- drillmap-stacked.svg / -reversed — stacked lockup (not used on the site: the owner chose no logo on the Log in glow, 2026-11-11)
 - drillmap-symbol.svg / -black / -reversed — the mark alone, 32 px and up
-- drillmap-symbol-small.svg / -small-reversed — 16–31 px cut: solid start dot, thicker line
+- drillmap-symbol-small.svg / -small-reversed — 16–31 px cut: solid start dot, thicker line (also -small-currentcolor for inline React use; accent via --logo-accent)
 - drillmap-wordmark.svg / -reversed — name only
 
 ## web/

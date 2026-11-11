@@ -7,6 +7,8 @@ export const SCENES: Record<Scene, string> = { bars: "Top bars", login: "Log in"
 
 export type View = { size: FrameSize; scene: Scene; reducedMotion: boolean; worst: boolean };
 
+export const isScene = (value: unknown): value is Scene => typeof value === "string" && value in SCENES;
+
 type Param = string | string[] | undefined;
 const one = (value: Param) => (Array.isArray(value) ? value[0] : value);
 
@@ -15,7 +17,7 @@ export function readView(params: Record<string, Param>): View {
   const scene = one(params.scene);
   return {
     size: size === "tablet" || size === "mobile" ? size : "desktop",
-    scene: scene === "login" || scene === "signup" || scene === "footer" || scene === "icons" ? scene : "bars",
+    scene: isScene(scene) ? scene : "bars",
     reducedMotion: one(params.rm) === "1",
     worst: one(params.data) === "worst",
   };

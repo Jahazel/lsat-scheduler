@@ -4,7 +4,7 @@ Tracking ticket: #827. Spec: #838. Tickets: #839, #840, #841. Screenshots: `docs
 
 ## Job
 
-A visitor or student sees the DrillMap route logo wherever the site names itself: every top bar, the footer, the Log in and Sign up glow panel, and the browser tab. The logo replaces the plain word "DrillMap" and still takes them home when they press it.
+A visitor or student sees the DrillMap route logo wherever the site names itself: every top bar, Log in and Sign up from 1200 px up, the footer, and the browser tab. The logo replaces the plain word "DrillMap" and still takes them home when they press it.
 
 ## The logo (decided before this brief)
 
@@ -45,7 +45,7 @@ The logo shows no user data. The layout cases are:
 
 - The narrowest phone, 320 px, with the workspace switcher and the tab pill beside the logo.
 - 200% browser zoom on every top bar.
-- The Log in glow band at a short window (height 500 px or less).
+- Log in and Sign up below 1200 px keep the empty logo row above the form, as the screenshots show; only the logo goes.
 - Light and dark browser tabs for the favicon.
 
 ## Out of scope

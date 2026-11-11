@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { HEIGHTS, SCENES, WIDTHS, viewQuery, type FrameSize, type Scene, type View } from "./view";
+import { HEIGHTS, SCENES, WIDTHS, isScene, viewQuery, type FrameSize, type Scene, type View } from "./view";
 
 const TOOL = "h-8 rounded-md px-3 text-[13px] text-fog hover:text-chalk data-on:bg-graphite-line data-on:text-chalk";
 
@@ -14,9 +14,9 @@ export default function Frame({ initial }: { initial: View }) {
   }, [view]);
 
   useEffect(() => {
-    const onMessage = (event: MessageEvent<{ type?: string; scene?: Scene }>) => {
+    const onMessage = (event: MessageEvent<{ type?: string; scene?: unknown }>) => {
       const scene = event.data?.scene;
-      if (event.origin === location.origin && event.data?.type === "scene" && scene) setView((v) => ({ ...v, scene }));
+      if (event.origin === location.origin && event.data?.type === "scene" && isScene(scene)) setView((v) => ({ ...v, scene }));
     };
     addEventListener("message", onMessage);
     return () => removeEventListener("message", onMessage);
