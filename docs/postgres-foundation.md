@@ -210,7 +210,9 @@ reads and inserts handled Stripe message IDs and runs `prune_stripe_messages()`,
 daily cleanup calls to drop IDs older than 30 days. It reads and inserts used free week
 rows, so plan choice can check for an earlier free week and the Stripe message receiver can
 add one, and runs `prune_used_free_weeks()`, which the daily cleanup calls to drop rows
-older than 12 months. The Weekly schedule trigger stays in place as a second
+older than 12 months. It adds deletion list rows but cannot read them; it can only
+run `is_on_deletion_list(uuid)`, which tells the Stripe message receiver whether one Account
+ID is listed. The Weekly schedule trigger stays in place as a second
 protection for the database owner. The app role cannot create roles,
 databases, schemas, tables, temporary tables, or other schema objects.
 It cannot alter, drop, truncate, or disable triggers on the domain tables.
