@@ -660,6 +660,14 @@ body:has(.save-bar[data-shown]) .failure-toast-slot { transform: translateY(-88p
 
 html:has(.ui-dialog[open]) { overflow: hidden; }
 html[data-page-scrollbar]:has(.ui-dialog[open]) { scrollbar-gutter: stable; }
+.ui-dialog {
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+}
+@media (min-width: 48rem) {
+  .ui-dialog {
+    padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+  }
+}
 .ui-dialog,
 .ui-dialog::backdrop { transition: opacity var(--duration-base) ease-out; }
 .ui-dialog::backdrop { background: color-mix(in srgb, var(--color-ink) var(--opacity-muted), transparent); }
