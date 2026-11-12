@@ -91,7 +91,7 @@ The shortest interactive first proof is [sign-up and Account](features/sign-up-a
 
 ### Fixture Accounts
 
-Seed each fixture Account with one command. The Account is onboarded with the feature map's baseline answers. An onboarded student also gets a paid Weekly plan: a billing record written straight to the database, since no Stripe runs locally. Change that record with `psql` to test the free week, a lapsed student, or a held weekly schedule. A student onboarded through the UI has no plan until Stripe Checkout finishes; `local.mjs plan "$VERIFY_RUN_DIR" <email> start` writes the free-week record Stripe's webhook would write, and `end` removes the record, as if Stripe ended the plan. Add `--not-onboarded` for an Account with no Student, as a first Google sign-in leaves it:
+Seed each fixture Account with one command. The Account is onboarded with the feature map's baseline answers. An onboarded student also gets a paid Weekly plan: a billing record written straight to the database, since no Stripe runs locally. Change that record with `psql` to test the free week, a lapsed student, or a held weekly schedule. A student onboarded through the UI has no plan until Stripe Checkout finishes; `local.mjs plan "$VERIFY_RUN_DIR" <email> start` writes the free-week record and the used free week that Stripe's webhook would write, and `end` removes the record, as if Stripe ended the plan. Add `--not-onboarded` for an Account with no Student, as a first Google sign-in leaves it:
 
 ```bash
 ./.agents/skills/verify/scripts/local.mjs seed "$VERIFY_RUN_DIR" student amy@example.test
