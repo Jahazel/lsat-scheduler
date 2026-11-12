@@ -5,25 +5,9 @@ body:has([data-proto-scene]) footer:not([data-proto-scene] *) {
 [data-proto-scene] [data-site-header] {
   position: static;
 }
-[data-proto-swapped] {
-  display: inline-flex;
-  align-items: center;
-  font-size: 0 !important;
-  line-height: 0 !important;
-}
 html[data-proto-still] *,
 html[data-proto-still] *::before,
 html[data-proto-still] *::after {
   animation: none !important;
   transition-property: opacity, background-color, color !important;
-}
-@media (width < 1200px) {
-  [data-proto-scene] [data-sign-in-page] [data-page-logo] {
-    display: none;
-  }
-}
-@media (360px <= width < 390px) {
-  [data-proto-scene] [data-site-header="bar"] > div {
-    column-gap: 1.5rem;
-  }
 }

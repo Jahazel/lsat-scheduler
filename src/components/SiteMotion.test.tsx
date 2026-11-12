@@ -194,17 +194,24 @@ describe("SiteMotion", () => {
     expect(glides()[0].keyframes.some((frame) => "opacity" in frame)).toBe(false);
   });
 
-  it("rises 4 px on a 600 px phone, and the sign-in logo takes the reverse path to the landing page", async () => {
+  it("rises 4 px on a 600 px phone", async () => {
     width = 600;
+    const { rerender } = show("/")!;
+    await click("Log in");
+    finishExits();
+    await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/login", { scroll: false }));
+    show("/login", rerender);
+    const risers = entrances().filter((a) => a.el.getAttribute("aria-label") !== "Top glow");
+    expect(risers).toHaveLength(3);
+    for (const entrance of risers) expect(entrance.keyframes[0]).toEqual({ opacity: 0, transform: "translateY(4px)" });
+  });
+
+  it("glides the sign-in logo on the reverse path to the landing page", async () => {
     const { rerender } = show("/login")!;
     await click("DrillMap");
     finishExits();
     await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/", { scroll: false }));
     show("/", rerender);
-    expect(entrances().map((a) => a.keyframes[0])).toEqual([
-      { opacity: 0, transform: "translateY(4px)" },
-      { opacity: 0, transform: "translateY(4px)" },
-    ]);
     expect(glides()[0].keyframes[0]).toEqual({ transform: "translate(72px, 12px)" });
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your practice results" }));
   });

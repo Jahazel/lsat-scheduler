@@ -51,7 +51,7 @@ export function Bars({ landingBar, worst }: { landingBar: ReactNode; worst: bool
       <Caption>Signed-in top bar · no plan yet</Caption>
       <header data-site-header="workspace" className={HEADER}>
         <div className={BAR}>
-          <Logo href="/" />
+          <Logo href="/" form="mark-below-md" />
           <SignOutButton variant="text" size="md">Log out</SignOutButton>
         </div>
       </header>

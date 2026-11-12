@@ -116,7 +116,7 @@ export default function StudentNav(props: StudentNavProps & { workspaceSwitcher?
     <>
       <div className={cx(MOBILE_BAR, props.workspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.mobileHeader : "md:hidden")}>
         <div className="flex min-w-0 items-center gap-1 sm:gap-3">
-          <Logo href="/dashboard" compact />
+          <Logo href="/dashboard" form="mark" />
           {props.workspaceSwitcher && <span className="text-fog" aria-hidden data-workspace-separator="true">/</span>}
           {props.workspaceSwitcher}
         </div>

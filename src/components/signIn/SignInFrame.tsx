@@ -13,7 +13,6 @@ const LEGAL = [
 
 const GLOW_HEIGHT = "h-46 md:h-60 [@media(max-height:500px)]:h-38 min-[1200px]:hidden";
 const BELOW_GLOW = "pt-28 md:pt-42 [@media(max-height:500px)]:pt-20 min-[1200px]:pt-12";
-const LIGHT_LOGO = "[&>a]:text-chalk max-[1200px]:[&>a]:focus-visible:outline-chalk min-[1200px]:[&>a]:text-ink";
 
 export function SignInFrame({ title, lead, preview, children }: {
   title: string;
@@ -26,7 +25,7 @@ export function SignInFrame({ title, lead, preview, children }: {
       <PageCue page="sign-in" />
       <div data-page-fade="in-place" aria-hidden className={cx("absolute inset-x-0 top-0 -z-10 bg-sign-in-top-glow", GLOW_HEIGHT)} />
       <div className="flex w-full flex-col px-[max(--spacing(5),calc(50%-200px))] py-8 min-[1200px]:w-170 min-[1200px]:shrink-0 min-[1200px]:px-30">
-        <div className={cx("flex h-10 items-center justify-center min-[1200px]:justify-start", LIGHT_LOGO)}>
+        <div className="flex h-10 items-center *:hidden min-[1200px]:*:flex">
           <Logo href="/" />
         </div>
         <div data-page-swap className={cx("flex grow flex-col justify-center pb-12", BELOW_GLOW)}>

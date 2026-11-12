@@ -3,7 +3,6 @@ import "../proto.css";
 import LoginPage from "@/app/login/page";
 import SignupPage from "@/app/signup/page";
 import SignedOutTopBar from "@/components/nav/SignedOutTopBar";
-import { LogoSwap } from "../logo/LogoSwap";
 import { Bars } from "../scenes/Bars";
 import { Footers } from "../scenes/Footer";
 import { Icons } from "../scenes/Icons";
@@ -17,7 +16,6 @@ export default async function SiteLogoScreen({ searchParams }: PageProps<"/proto
   return (
     <div data-proto-scene>
       <StillMotion on={view.reducedMotion} />
-      <LogoSwap />
       <ProtoFlow />
       {view.scene === "bars" && <Bars landingBar={<SignedOutTopBar />} worst={view.worst} />}
       {view.scene === "login" && (await LoginPage({ searchParams: Promise.resolve(view.worst ? { error: "AccessDenied" } : {}) } as PageProps<"/login">))}
