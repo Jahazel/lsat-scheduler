@@ -18,10 +18,7 @@ import { TAP_AREA, cx } from "@/components/ui/classes";
 import { SECTIONS, type Statement } from "@/lib/analyticsReview";
 import { callAction } from "@/lib/callAction";
 import { analyticsInputs, confirmLock, type ReviewDraft } from "@/lib/reviewDraft";
-import {
-  ConfirmBar, ReviewStatements, SnapshotReviewFields,
-  boxId, statementId, tierId, useFocusAfterRender,
-} from "@/components/SnapshotReviewFields";
+import { ConfirmBar, boxId, statementId, tierId, useFocusAfterRender } from "@/components/SnapshotReviewFields";
 import {
   FieldMessage, GoalTestDateSelect, OfficialAttemptRows, ScoreInput,
 } from "@/components/StudyProfileFields";
@@ -51,7 +48,7 @@ import { MAX_OFFICIAL_ATTEMPTS, type upcomingTestMonths } from "@/lib/studentPro
 import type { Accommodation } from "@/lib/studyProfileDraft";
 import { TEST_TIME_LABEL } from "@/lib/studyWeek";
 import type { createStudentProfile } from "./actions";
-import LivePreview from "./LivePreview";
+import { ReviewBars, ReviewStatementList } from "./ReviewBars";
 import { RoadToTestDay } from "./RoadToTestDay";
 import { PINNED_BAR, ROAD_PANEL, STEP_COLUMN, STEP_CONTENT, STEP_GRID } from "./shell";
 import { StepCount } from "./StepCount";
@@ -159,24 +156,20 @@ export default function OnboardingWizard({
           </div>
         </div>
       </div>
-      {state.step === "review" && draft ? (
-        <LivePreview state={state} drills={drills} />
-      ) : (
-        <aside data-page-fade aria-label="Road to test day" className={ROAD_PANEL}>
-          <div data-page-swap data-page-section className="sticky top-30">
-            <RoadToTestDay
-              values={state.values}
-              firstName={firstName}
-              today={today}
-              testMonths={goalTestDateOptions}
-              weekSet={state.step !== "goal"}
-              focusWeek={state.step === "week"}
-              analyticsAdded={state.step === "analytics" && Boolean(draft)}
-              drills={drills}
-            />
-          </div>
-        </aside>
-      )}
+      <aside data-page-fade aria-label="Road to test day" className={ROAD_PANEL}>
+        <div data-page-swap data-page-section className="sticky top-30">
+          <RoadToTestDay
+            values={state.values}
+            firstName={firstName}
+            today={today}
+            testMonths={goalTestDateOptions}
+            weekSet={state.step !== "goal"}
+            focusWeek={state.step === "week"}
+            analyticsAdded={(state.step === "analytics" || state.step === "review") && Boolean(draft)}
+            drills={drills}
+          />
+        </div>
+      </aside>
       <FailureNotice answer={saveAnswer} />
       {SECTIONS.map((section) => <LastFinishedReadNotice key={section} read={screenshot(state, section)?.read} />)}
     </div>
@@ -417,8 +410,8 @@ function AnalyticsStep({
         onChange={(input) => dispatch({ type: "chooseInput", input, at: new Date() })}
       />
       {typed && typedDraft ? (
-        <div className="flex flex-col gap-5">
-          <SnapshotReviewFields draft={typedDraft} lrRead={[]} files={{}} dispatch={dispatch} />
+        <div className="flex flex-col gap-8">
+          <ReviewBars draft={typedDraft} lrRead={[]} files={{}} dispatch={dispatch} />
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -506,18 +499,16 @@ function ReviewStep({ state, draft, dispatch }: { state: WizardState; draft: Rev
         <StepHeading
           state={state}
           title="Check what we read"
-          lede={<>Compare each value with your screenshots<span className="hidden lg:inline"> on the right</span>.</>}
+          lede="Compare each value with your screenshots."
         />
       )}
-      <div className="flex flex-col gap-5">
-        <SnapshotReviewFields
-          draft={draft}
-          lrRead={readRows(state, "LR")}
-          files={{ LR: screenshotFile(state, "LR"), RC: screenshotFile(state, "RC") }}
-          dispatch={dispatch}
-        />
-        <ReviewStatements draft={draft} statements={reviewStatements(state)} dispatch={dispatch} />
-      </div>
+      <ReviewBars
+        draft={draft}
+        lrRead={readRows(state, "LR")}
+        files={{ LR: screenshotFile(state, "LR"), RC: screenshotFile(state, "RC") }}
+        dispatch={dispatch}
+      />
+      <ReviewStatementList draft={draft} statements={reviewStatements(state)} dispatch={dispatch} />
     </div>
   );
 }

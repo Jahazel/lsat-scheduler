@@ -411,7 +411,7 @@ function RemoveButton({ type, onRemove }: { type: LRType; onRemove: () => void }
   );
 }
 
-const TIER_LABEL: Record<PriorityTier, string> = { highest: "Highest", high: "High", medium: "Medium", low: "Low" };
+export const TIER_LABEL: Record<PriorityTier, string> = { highest: "Highest", high: "High", medium: "Medium", low: "Low" };
 
 function TierRow({ type, tier, message, onTier, onRemove, onLeave }: {
   type: LRType;
@@ -497,14 +497,16 @@ const ADD_TYPE_GROUPS: { list: ReviewList; label: string; typedLabel: string; no
   },
 ];
 
-function AddType({
+export function AddType({
   draft,
   typed,
   onAdd,
+  linkClassName = "px-3",
 }: {
   draft: ReviewDraft;
   typed: boolean;
   onAdd: (type: LRType, list: ReviewList) => void;
+  linkClassName?: string;
 }) {
   const requestFocus = useFocusAfterRender();
   const prefix = useContext(IdPrefix);
@@ -555,7 +557,7 @@ function AddType({
           setOpen(true);
           requestFocus(`${prefix}add-type-search`);
         }}
-        className={`flex items-center gap-2 self-start px-3 text-small ${LINK_BUTTON}`}
+        className={`flex items-center gap-2 self-start text-small ${linkClassName} ${LINK_BUTTON}`}
       >
         <svg aria-hidden viewBox="0 0 14 14" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
           <path d="M7 2v10M2 7h10" />

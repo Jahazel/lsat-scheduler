@@ -34,7 +34,6 @@ const student = { firstName: "Dana", today: "2026-10-19" };
 const countText = (text: string) => (_: string, el: Element | null) => el?.tagName === "P" && el.textContent === text;
 const stepCount = (text: string) => screen.getByText(countText(text));
 const queryStepCount = (text: string) => screen.queryByText(countText(text));
-const preview = () => within(screen.getByRole("complementary", { name: "Preview of This week" }));
 const road = () => within(screen.getByRole("complementary", { name: "Road to test day" }));
 
 const screenshot = new File(["png"], "lr-analytics.png", { type: "image/png" });
@@ -803,6 +802,9 @@ describe("OnboardingWizard", () => {
     }
 
     const box = (type: string) => screen.getByLabelText(`${type} accuracy`) as HTMLInputElement;
+    const flag = (type: string) => screen.getByRole("switch", { name: type }) as HTMLInputElement;
+    const tierOf = (type: string) => document.getElementById(flag(type).getAttribute("aria-describedby") ?? "")?.textContent;
+    const rowOf = (type: string) => within(box(type).closest("div")!.parentElement!);
     const confirmButton = () => screen.getByRole("button", { name: "Confirm snapshot" });
     const statements = ["I reviewed these values and they match my screenshots.", "These screenshots show my latest 7Sage analytics."];
 
@@ -842,27 +844,37 @@ describe("OnboardingWizard", () => {
       await upload(steps.user);
       await upload(steps.user, rcScreenshot, "RC");
       await steps.user.click(await enabledContinue());
-      expect((screen.getByLabelText("Sampling") as HTMLInputElement).checked).toBe(true);
-      expect(screen.getByText("High on 7Sage")).toBeDefined();
+      expect(flag("Sampling").checked).toBe(true);
+      expect(tierOf("Sampling")).toBe("High on 7Sage");
     });
 
     it("walks Goal → Week → Analytics → Review → Confirm and sends the edited values and ticked flags", async () => {
       const { user, onSave } = await openReview();
 
-      expect(screen.getByText("Accuracy · 2 types")).toBeDefined();
+      expect(screen.getByText("Same order as your screenshot · grey shows the value we read before you changed it")).toBeDefined();
+      const accuracyBoxes = screen.getAllByRole("textbox").map((input) => input.getAttribute("aria-label"));
+      expect(accuracyBoxes).toEqual(["Strengthen accuracy", "Necessary assumption accuracy", ...["Law", "Comparative", "Science", "Humanities", "Art"].map((type) => `${type} accuracy`)]);
       expect(box("Strengthen").value).toBe("68");
-      expect((screen.getByLabelText("Causal reasoning") as HTMLInputElement).checked).toBe(true);
-      expect(screen.getByText("Highest on 7Sage")).toBeDefined();
-      expect((screen.getByLabelText("Link assumption") as HTMLInputElement).checked).toBe(false);
-      expect(screen.getByText("Medium on 7Sage")).toBeDefined();
+      expect(screen.getByText("Priority flags · switched-on flags go first")).toBeDefined();
+      expect(flag("Causal reasoning").checked).toBe(true);
+      expect(tierOf("Causal reasoning")).toBe("Highest on 7Sage");
+      expect(flag("Link assumption").checked).toBe(false);
+      expect(tierOf("Link assumption")).toBe("Medium on 7Sage");
+      expect(screen.queryByText(/^Was /)).toBeNull();
       expect(confirmButton().getAttribute("aria-disabled")).toBe("true");
       expect(screen.getByText("Tick both statements to confirm.")).toBeDefined();
 
       await user.clear(box("Necessary assumption"));
       await user.type(box("Necessary assumption"), "76");
-      expect(screen.getByText("was 71%")).toBeDefined();
-      await user.click(screen.getByLabelText("Causal reasoning"));
-      await user.click(screen.getByLabelText("Link assumption"));
+      expect(rowOf("Necessary assumption").getByText("Was 71%")).toBeDefined();
+      expect(screen.getAllByText(/^Was /)).toHaveLength(1);
+      await user.clear(box("Necessary assumption"));
+      await user.type(box("Necessary assumption"), "71");
+      expect(screen.queryByText(/^Was /)).toBeNull();
+      await user.clear(box("Necessary assumption"));
+      await user.type(box("Necessary assumption"), "76");
+      await user.click(flag("Causal reasoning"));
+      await user.click(flag("Link assumption"));
       await user.click(screen.getByRole("button", { name: "Remove Strengthen" }));
       for (const statement of statements) await user.click(screen.getByLabelText(statement));
       expect(confirmButton().getAttribute("aria-disabled")).toBeNull();
@@ -942,7 +954,7 @@ describe("OnboardingWizard", () => {
       await user.clear(screen.getByRole("combobox"));
       await user.type(screen.getByRole("combobox"), "causal ch");
       await user.keyboard("{Enter}");
-      expect((screen.getByLabelText("Causal chain") as HTMLInputElement).checked).toBe(false);
+      expect(flag("Causal chain").checked).toBe(false);
       expect(document.activeElement).toBe(link());
 
       await user.click(link());
@@ -956,7 +968,7 @@ describe("OnboardingWizard", () => {
 
       await user.click(screen.getByRole("button", { name: "Remove Strengthen" }));
       await user.click(screen.getByRole("button", { name: "Remove Necessary assumption" }));
-      await user.click(screen.getByLabelText("Causal reasoning"));
+      await user.click(flag("Causal reasoning"));
       for (const statement of statements) await user.click(screen.getByLabelText(statement));
       expect(screen.getByText("Add an accuracy value or tick a flag to confirm.")).toBeDefined();
 
@@ -1021,46 +1033,64 @@ describe("OnboardingWizard", () => {
       expect((confirmButton() as HTMLButtonElement).disabled).toBe(false);
     });
 
-    it("expands each uploaded screenshot inline with Show your LR or RC screenshot", async () => {
+    it("opens each uploaded screenshot inline with Show screenshot", async () => {
       const { user } = await openReview();
+      expect(screen.queryByRole("img", { name: /screenshot/ })).toBeNull();
 
-      const toggle = screen.getByRole("button", { name: /Show your LR screenshot/ });
+      const toggle = screen.getByRole("button", { name: "Show screenshot of Logical Reasoning" });
       expect(toggle.getAttribute("aria-expanded")).toBe("false");
       await user.click(toggle);
       expect(toggle.getAttribute("aria-expanded")).toBe("true");
-      const inline = within(toggle.parentElement!);
-      expect(inline.getByRole("img", { name: "Your 7Sage Logical Reasoning screenshot" }).getAttribute("src")).toBe("blob:screenshot");
+      expect(toggle.textContent).toBe("Hide screenshot of Logical Reasoning");
+      const inline = within(document.getElementById(toggle.getAttribute("aria-controls") ?? "")!);
+      await waitFor(() => expect(inline.getByRole("img", { name: "Your 7Sage Logical Reasoning screenshot" }).getAttribute("src")).toBe("blob:screenshot"));
       expect(URL.createObjectURL).toHaveBeenCalledWith(screenshot);
       await user.click(toggle);
-      expect(inline.queryByRole("img", { name: "Your 7Sage Logical Reasoning screenshot" })).toBeNull();
+      expect(screen.queryByRole("img", { name: "Your 7Sage Logical Reasoning screenshot" })).toBeNull();
       expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:screenshot");
 
-      await user.click(screen.getByRole("button", { name: /Show your RC screenshot/ }));
+      await user.click(screen.getByRole("button", { name: "Show screenshot of Reading Comprehension" }));
       expect(URL.createObjectURL).toHaveBeenCalledWith(rcScreenshot);
     });
 
     it("shows the 5 passage types with the lowest marked Goes first and no remove button", async () => {
       const { user } = await openReview();
 
-      expect(screen.getByText("Passage types · lowest goes first in your plan")).toBeDefined();
+      expect(screen.getByText("The lowest passage type, in dark blue, goes first in your plan")).toBeDefined();
       for (const type of ["Law", "Comparative", "Science", "Humanities", "Art"]) expect(box(type)).toBeDefined();
-      expect(within(box("Law").closest("div")!.parentElement!).getByText("Goes first")).toBeDefined();
+      expect(rowOf("Law").getByText("Goes first")).toBeDefined();
       expect(screen.queryByRole("button", { name: "Remove Law" })).toBeNull();
 
       await user.clear(box("Law"));
       await user.type(box("Law"), "90");
-      expect(within(box("Science").closest("div")!.parentElement!).getByText("Goes first")).toBeDefined();
+      expect(rowOf("Science").getByText("Goes first")).toBeDefined();
       expect(screen.getAllByText("Goes first")).toHaveLength(1);
 
       await user.clear(box("Science"));
       await user.type(box("Science"), "40");
-      expect(within(box("Science").closest("div")!.parentElement!).getByText("Goes first")).toBeDefined();
+      expect(rowOf("Science").getByText("Goes first")).toBeDefined();
+    });
+
+    it("marks a type the student added, and shows Was only on a changed value", async () => {
+      const { user } = await openReview();
+      await user.click(screen.getByRole("button", { name: "Add a type the screenshot missed" }));
+      await user.type(screen.getByRole("combobox"), "Diagram");
+      await user.keyboard("{Enter}");
+      await user.type(box("Diagram"), "47");
+
+      expect(rowOf("Diagram").getByText("Added by you")).toBeDefined();
+      expect(rowOf("Diagram").queryByText(/^Was /)).toBeNull();
+      await user.clear(box("Law"));
+      await user.type(box("Law"), "90");
+      expect(rowOf("Law").getByText("Was 58%")).toBeDefined();
+      expect(rowOf("Strengthen").queryByText(/^Was |Added by you/)).toBeNull();
     });
 
     it("saves only the passage types with a value when the RC screenshot misses some", async () => {
       const missingArt: ExtractReply = { kind: "rows", showsPassageTypes: true, rows: rcRows.kind === "rows" ? rcRows.rows.slice(0, 4) : [] };
       const { user, onSave } = await openReview(undefined, read, missingArt);
       expect(box("Art").value).toBe("");
+      expect(screen.queryByText("Added by you")).toBeNull();
       expect(screen.queryByText("not found")).toBeNull();
       expect(screen.queryByText(/Enter/)).toBeNull();
 
@@ -1076,6 +1106,7 @@ describe("OnboardingWizard", () => {
       const { user, onSave } = await openReview(undefined, read, { kind: "rows", showsPassageTypes: true, rows: [] });
       for (const type of ["Law", "Comparative", "Science", "Humanities", "Art"]) expect(box(type).value).toBe("");
       expect(screen.queryByText("Goes first")).toBeNull();
+      expect(screen.queryByText("Added by you")).toBeNull();
 
       for (const statement of statements) await user.click(screen.getByLabelText(statement));
       await user.click(confirmButton());
@@ -1095,7 +1126,7 @@ describe("OnboardingWizard", () => {
     });
   });
 
-  it("draws Road to test day from each step, and keeps the screenshots beside Review", async () => {
+  it("draws Road to test day from each step, Review included", async () => {
     const user = userEvent.setup();
     render(<OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={vi.fn()} extract={bySection()} />);
 
@@ -1123,13 +1154,10 @@ describe("OnboardingWizard", () => {
     await upload(user, rcScreenshot, "RC");
     await user.click(await enabledContinue());
 
-    expect(screen.queryByRole("complementary", { name: "Road to test day" })).toBeNull();
-    expect(preview().getByText("Not confirmed yet")).toBeDefined();
-    expect(preview().getByText("Your Monday from these values")).toBeDefined();
-    expect(preview().getByRole("img", { name: "Your 7Sage Logical Reasoning screenshot" }).getAttribute("src")).toBe("blob:screenshot");
-    expect(preview().getByRole("img", { name: "Your 7Sage Reading Comprehension screenshot" })).toBeDefined();
-    expect(URL.createObjectURL).toHaveBeenCalledWith(screenshot);
-    expect(URL.createObjectURL).toHaveBeenCalledWith(rcScreenshot);
+    expect(stepCount("Step 4 of 4 · Review")).toBeDefined();
+    expect(road().getByText("· 13 h 30 · practice test Sat", { exact: false })).toBeDefined();
+    expect(road().getByText("Monday:")).toBeDefined();
+    expect(screen.queryByRole("complementary", { name: "Preview of This week" })).toBeNull();
   });
 });
 
@@ -1178,7 +1206,8 @@ describe("OnboardingWizard · Type them", () => {
 
     await user.click(screen.getByLabelText("Type them"));
     expect(screen.getByText("No question types yet.")).toBeDefined();
-    expect(box("Law").value).toBe("");
+    for (const type of ["Law", "Comparative", "Science", "Humanities", "Art"]) expect(box(type).value).toBe("");
+    expect(screen.queryByText("Goes first")).toBeNull();
     expect(continueButton().disabled).toBe(true);
     expect(screen.getByText("Add a Logical Reasoning type to continue.")).toBeDefined();
 
@@ -1193,6 +1222,8 @@ describe("OnboardingWizard · Type them", () => {
     expect(stepCount("Step 4 of 4 · Review")).toBeDefined();
     expect(screen.getByRole("heading", { name: "Check your analytics" })).toBeDefined();
     expect(box("Diagram").value).toBe("64");
+    expect(within(box("Law").closest("div")!.parentElement!).getByText("Goes first")).toBeDefined();
+    expect(screen.queryByText(/^Was |Added by you/)).toBeNull();
     const confirm = screen.getByRole("button", { name: "Confirm snapshot" });
     for (const statement of ["I copied these values from my 7Sage Analytics page.", "These are my latest 7Sage analytics."]) {
       await user.click(screen.getByLabelText(statement));
@@ -1249,7 +1280,7 @@ describe("OnboardingWizard · Type them", () => {
     await user.click(continueButton());
 
     expect(screen.getByRole("heading", { name: "Check your analytics" })).toBeDefined();
-    expect(screen.queryByRole("button", { name: /Show your RC screenshot/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Show screenshot/ })).toBeNull();
     expect(screen.queryByRole("img", { name: /screenshot/ })).toBeNull();
   });
 
