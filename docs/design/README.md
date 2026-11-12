@@ -280,3 +280,25 @@ These files replace `landing-page/` for colors and scroll motion; that folder st
 | `6-login-*`, `7-signup-*` | Log in and Sign up with the Glow; at 1100 px the panel is hidden (#798) | #809 |
 
 Prices are sample data; the plan prices decide what the app shows.
+
+## Onboarding redesign (`onboarding-redesign/`)
+
+Screenshots of the approved prototype for design #852 and spec #861, taken 2026-11-12. Brief:
+`research/onboarding-redesign/brief.md`. Motion rows: `research/onboarding-redesign/motion.md`. The clickable prototype
+is the dev-only route `/prototypes/onboarding-redesign`; #868 deletes it. These shots replace `onboarding/` for the
+onboarding steps. Each file name ends in `-desktop`, `-tablet`, or `-phone`.
+
+| File | State | Screen ticket |
+| --- | --- | --- |
+| `01-empty-first-step-*`, `01b-goal-filled-*`, `02-field-error-*` | Goal step: empty, filled, field error | #863 |
+| `23-name-nonlatin-*`, `24-name-one-letter-*`, `25-name-none-*` | Greeting name cases | #863 |
+| `03b-week-filled-*`, `03-short-pt-day-*`, `04-no-pt-day-*` | Week step: filled, short practice-test day, no practice-test day | #864 |
+| `04b-analytics-idle-*`, `05-scanning-off-*`, `06-screenshot-rejected-*` | Analytics: before upload, scanning off, wrong file | #865 |
+| `07-reading-*`, `08-read-*`, `09-read-failed-cannot-*`, `10-read-failed-timeout-*`, `11-read-refused-*` | Analytics read states | #865 |
+| `12-review-screenshots-*`, `13-review-screenshots-worst-*`, `14-review-typed-*` | Review: screenshots, worst case, typed | #866 |
+| `15-saving-*`, `16-save-failed-*`, `17-save-refused-*` | Save states | #867 |
+| `18-reveal-drills-*`, `19-reveal-drills-worst-*`, `20-reveal-skipped-*`, `21-reveal-admin-*` | Week reveal | #867 |
+| `22-plan-choice-*` | Plan choice in the new frame | #868 |
+
+Files with `worst` hold test data (long names, extreme values, fake raised prices); the onboarding rules decide what the
+app shows. Phone basics (#862) apply to every phone shot.
