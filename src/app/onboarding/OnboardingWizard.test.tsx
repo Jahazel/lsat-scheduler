@@ -1033,6 +1033,7 @@ describe("OnboardingWizard · scanning off", () => {
     await user.click(screen.getByLabelText("Practice test on Friday"));
     await user.selectOptions(screen.getByLabelText("Friday hours"), "2");
     await user.selectOptions(screen.getByLabelText("Friday minutes"), "30");
+    expect(road().getByText("Drills fill in after you add analytics.")).toBeDefined();
     await user.click(continueButton());
 
     expect(stepCount("Step 3 of 4 · Analytics")).toBeDefined();
