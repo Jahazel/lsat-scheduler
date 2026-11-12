@@ -5,11 +5,9 @@ import { FailureNotice } from "@/components/FailureNotice";
 import { Button } from "@/components/ui/Button";
 import { MOTION, cx } from "@/components/ui/classes";
 import { callAction } from "@/lib/callAction";
-import { PLAN_NAMES, type PlanChoiceOffer, type PlanChoicePlace, type PlanName } from "@/lib/planChoice";
+import { PLAN_NAMES, PLAN_TERMS, type PlanChoiceOffer, type PlanChoicePlace, type PlanName } from "@/lib/planChoice";
 import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
 import { PlanShell } from "./PlanShell";
-
-export const PLAN_TERMS = "Cancel anytime. You keep access until your paid week or month ends. No refunds for unused time.";
 
 type PlanChoiceProps = {
   place: PlanChoicePlace;
