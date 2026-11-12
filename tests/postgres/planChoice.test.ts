@@ -28,6 +28,8 @@ const stripe = {
   customers: [] as { id: string; email: string; metadata: Record<string, string> }[],
   sessions: [] as FakeSession[],
   subscriptions: [] as { id: string; customer: string; status: string }[],
+  invoices: [] as { id: string; subscription: string; status: string }[],
+  endsAfterListing: [] as string[],
   down: false,
 };
 
@@ -51,7 +53,20 @@ vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
     return Response.json(customer);
   }
   if (url.pathname === "/v1/subscriptions" && !post) {
-    return Response.json({ data: stripe.subscriptions.filter((subscription) => subscription.customer === query.get("customer")) });
+    const listed = structuredClone(stripe.subscriptions.filter((subscription) => subscription.customer === query.get("customer")));
+    for (const subscription of stripe.subscriptions) {
+      if (stripe.endsAfterListing.includes(subscription.id)) subscription.status = "canceled";
+    }
+    return Response.json({ data: listed });
+  }
+  if (url.pathname === "/v1/invoices" && !post) {
+    return Response.json({ data: stripe.invoices.filter((invoice) => invoice.subscription === query.get("subscription") && invoice.status === query.get("status")) });
+  }
+  const voidPath = /^\/v1\/invoices\/(in_\w+)\/void$/.exec(url.pathname);
+  const voiding = voidPath && post && stripe.invoices.find((invoice) => invoice.id === voidPath[1] && invoice.status === "open");
+  if (voiding) {
+    voiding.status = "void";
+    return Response.json(voiding);
   }
   if (url.pathname === "/v1/checkout/sessions" && !post) {
     return Response.json({ data: stripe.sessions.filter((session) => session.customer === query.get("customer") && session.status === query.get("status")) });
@@ -68,6 +83,8 @@ vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
     cancelling.status = "canceled";
     return Response.json(cancelling);
   }
+  const fetched = cancel && init?.method === "GET" && stripe.subscriptions.find((subscription) => subscription.id === cancel[1]);
+  if (fetched) return Response.json(fetched);
   const expire = /^\/v1\/checkout\/sessions\/(cs_\w+)\/expire$/.exec(url.pathname);
   const expiring = expire && post && stripe.sessions.find((session) => session.id === expire[1] && session.status === "open");
   if (expiring) {
@@ -99,6 +116,8 @@ beforeEach(async () => {
   stripe.customers = [];
   stripe.sessions = [];
   stripe.subscriptions = [];
+  stripe.invoices = [];
+  stripe.endsAfterListing = [];
   stripe.down = false;
   state.session = null;
   await database.owner.execute(sql`truncate accounts, security_log, used_free_weeks cascade`);
@@ -259,6 +278,36 @@ it.each(["past_due", "unpaid", "paused"])("cancels a lapsed student's old %s pla
 
   expect(stripe.subscriptions.map(({ id, status }) => [id, status])).toEqual([["sub_old", "canceled"], ["sub_older", "canceled"]]);
   expect(stripe.sessions.map(({ status }) => status)).toEqual(["open"]);
+});
+
+it("voids the open invoice of a lapsed student's old plan when a restart cancels it, so the student cannot pay it", async () => {
+  const { accountId } = await onboardedStudent();
+  await database.writeBillingRecordAsOwner(accountId, {
+    stripeCustomerId: "cus_maya", stripeSubscriptionId: "sub_old", stripeStatus: "past_due", renewalFailedAt: new Date("2026-11-01T15:00:00Z"),
+  });
+  stripe.subscriptions.push({ id: "sub_old", customer: "cus_maya", status: "past_due" });
+  stripe.invoices.push(
+    { id: "in_failed", subscription: "sub_old", status: "open" },
+    { id: "in_paid", subscription: "sub_old", status: "paid" },
+  );
+
+  await expect(openStripeCheckout("weekly")).resolves.toEqual({ checkoutUrl: `${CHECKOUT_URL}cs_test1` });
+
+  expect(stripe.invoices.map(({ id, status }) => [id, status])).toEqual([["in_failed", "void"], ["in_paid", "paid"]]);
+});
+
+it("starts Checkout without the failure notice when Stripe ends the old plan just before the restart cancels it", async () => {
+  const { accountId } = await onboardedStudent();
+  await database.writeBillingRecordAsOwner(accountId, {
+    stripeCustomerId: "cus_maya", stripeSubscriptionId: "sub_old", stripeStatus: "past_due", renewalFailedAt: new Date("2026-11-01T15:00:00Z"),
+  });
+  stripe.subscriptions.push({ id: "sub_old", customer: "cus_maya", status: "past_due" });
+  stripe.invoices.push({ id: "in_failed", subscription: "sub_old", status: "open" });
+  stripe.endsAfterListing = ["sub_old"];
+
+  await expect(openStripeCheckout("weekly")).resolves.toEqual({ checkoutUrl: `${CHECKOUT_URL}cs_test1` });
+
+  expect(stripe.invoices.map(({ id, status }) => [id, status])).toEqual([["in_failed", "void"]]);
 });
 
 it("keeps a lapsed student's old plan that a late retry paid, and shows Starting your plan until its message arrives", async () => {

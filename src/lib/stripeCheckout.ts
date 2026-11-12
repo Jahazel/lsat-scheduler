@@ -75,7 +75,9 @@ const checkoutUrl = z.string().refine((url) => url.startsWith("https://checkout.
 const customerId = z.string().regex(/^cus_\w+$/);
 const stripeList = <Item extends z.ZodTypeAny>(item: Item) => z.object({ data: z.array(item) });
 const customers = stripeList(z.object({ id: customerId, metadata: z.record(z.string(), z.string()) }));
-const subscriptions = stripeList(z.object({ id: z.string(), status: z.string() }));
+const subscription = z.object({ id: z.string(), status: z.string() });
+const subscriptions = stripeList(subscription);
+const openInvoices = stripeList(z.object({ id: z.string().regex(/^in_\w+$/) }));
 const openSessions = stripeList(z.object({ id: z.string().regex(/^cs_\w+$/) }));
 
 // Stripe can still be sending the message for one of these, so the billing record does not show it yet.
@@ -109,6 +111,15 @@ function checkoutExpiry(realNow: Date) {
   return Math.floor(Math.min(Math.max(nextMidnight.getTime(), earliest), latest) / 1000);
 }
 
+async function cancelUnlessEnded(id: string, secretKey: string) {
+  try {
+    await stripeRequest(`subscriptions/${id}`, secretKey, undefined, "DELETE");
+  } catch (error) {
+    const { status } = subscription.parse(await stripeRequest(`subscriptions/${id}`, secretKey));
+    if (!ENDED.includes(status)) throw error;
+  }
+}
+
 export type CheckoutStart = { kind: "checkout"; url: string } | { kind: "starting"; place: PlanChoicePlace } | { kind: "refused" };
 
 /**
@@ -128,8 +139,12 @@ export async function startCheckout(accountId: string, plan: PlanName, realNow: 
     if (held.some(({ id, status }) => (id === standing.subscriptionId ? PAID_AGAIN : STARTED_OR_STARTING).includes(status))) {
       return { kind: "starting", place: standing.place };
     }
-    for (const subscription of held) {
-      await stripeRequest(`subscriptions/${subscription.id}`, secretKey, undefined, "DELETE");
+    for (const { id } of held) {
+      await cancelUnlessEnded(id, secretKey);
+      const unpaid = openInvoices.parse(await stripeRequest(`invoices?subscription=${id}&status=open&limit=100`, secretKey));
+      for (const invoice of unpaid.data) {
+        await stripeRequest(`invoices/${invoice.id}/void`, secretKey, {});
+      }
     }
     const open = openSessions.parse(await stripeRequest(`checkout/sessions?customer=${customer}&status=open&limit=100`, secretKey));
     for (const session of open.data) {
