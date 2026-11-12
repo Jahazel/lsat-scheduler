@@ -186,10 +186,9 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   local("plan", email, "start");
   await heading(WEEKLY_UPLOAD);
   assert.equal(new URL(page.url()).pathname, "/dashboard/upload");
+  log("Require the header's full navigation after the in-page move, with no reload");
+  await page.getByRole("navigation", { name: "Primary" }).filter({ visible: true }).first().waitFor();
   await capture("weekly-upload-after-plan-start");
-  log("Reload, since the header keeps its no-plan form after the in-page move from Starting your plan");
-  await page.reload();
-  await heading(WEEKLY_UPLOAD);
   log("Open Study settings through navigation");
   await page.getByRole("link", { name: "Study settings", exact: true }).click();
   await heading("Study settings");
