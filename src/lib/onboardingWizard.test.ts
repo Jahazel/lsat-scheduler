@@ -7,10 +7,12 @@ import {
   profileWithAttempts,
   goalGain,
   previewDrills,
+  savedAnswers,
   scoreMessages,
   screenshot,
   toProfileInput,
   stepPlace,
+  weekReveal,
   weeksToTest,
   wizardReducer,
   type WizardAction,
@@ -384,6 +386,46 @@ describe("onboarding wizard", () => {
       expect(accuracyMessage(draftOf(over), "Diagram")).toBe("Enter a percentage from 0 to 100.");
     });
 
+    describe("Week reveal", () => {
+      const TODAY = "2026-10-19";
+
+      it("builds the week and drills from the saved answers, the same as the preview for those answers", () => {
+        const confirmed = onReview(readRows, { type: "editAccuracy", rowType: "Necessary assumption", text: "20" }, ...tickBoth);
+        const input = confirmSnapshotInput(confirmed)!;
+        const saved = wizardReducer(wizardReducer(confirmed, { type: "saveStarted" }), { type: "saved", input });
+        const reveal = weekReveal(savedAnswers(saved)!, TODAY);
+
+        expect(reveal.analyticsAdded).toBe(true);
+        expect(reveal.drills).toEqual(previewDrills(confirmed, TODAY));
+        expect(reveal.drills?.day).toBe("MONDAY");
+        expect(reveal.drills?.items.map(({ minutes, label, detail }) => [minutes, label, detail])).toEqual([
+          ["1 h", "1 Full LR Section", null],
+          ["30 min", "Necessary + Sufficient assumption", { kind: "accuracy", text: "20%" }],
+        ]);
+        expect(reveal.days).toEqual(previewWeek(confirmed.values).days);
+        expect(reveal.totalMinutes).toBe(6 * 90 + 150);
+      });
+
+      it("has the week but no drills after Skip for now", () => {
+        const ready = run(validGoal, { type: "continue" }, pickSaturday, { type: "continue" });
+        const reveal = weekReveal({ ...profileWithAttempts(ready)!, analyticsRows: [], analyticsApproval: null }, TODAY);
+
+        expect(reveal.analyticsAdded).toBe(false);
+        expect(reveal.drills).toBeNull();
+        expect(reveal.days.find(({ practiceTest }) => practiceTest)?.day).toBe("SATURDAY");
+      });
+
+      it("keeps the saved answers and ignores every later action", () => {
+        const confirmed = onReview(readRows, ...tickBoth);
+        const input = confirmSnapshotInput(confirmed)!;
+        const saved = wizardReducer(wizardReducer(confirmed, { type: "saveStarted" }), { type: "saved", input });
+
+        expect(savedAnswers(saved)).toBe(input);
+        expect(wizardReducer(saved, { type: "back" })).toBe(saved);
+        expect(wizardReducer(saved, { type: "saveStarted" })).toBe(saved);
+      });
+    });
+
     it("accepts a decimal read from the screenshot after focus leaves its box", () => {
       const decimalRead = [{ ...readRows[0], accuracy: 9.5 }, ...readRows.slice(1)];
       const state = onReview(decimalRead, { type: "leaveRow", rowType: "Diagram" }, ...tickBoth);
@@ -696,7 +738,7 @@ describe("onboarding wizard", () => {
       };
       const flagged = previewDrills(read(longMonday), TODAY)?.items.find(({ label }) => label === "Phenomenon-hypothesis (LR)");
 
-      expect(flagged?.detail).toEqual({ kind: "flag" });
+      expect(flagged?.detail).toEqual({ kind: "flag", tier: "highest" });
     });
   });
 });

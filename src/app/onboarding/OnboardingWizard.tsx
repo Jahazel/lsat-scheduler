@@ -32,10 +32,13 @@ import {
   profileWithAttempts,
   scoreMessages,
   previewDrills,
+  saveRefusal,
+  savedAnswers,
   screenshot,
   weeksToTest,
   wizardReducer,
   type AttemptsDraft,
+  type SaveInput,
   type WizardAction,
   type WizardState,
 } from "@/lib/onboardingWizard";
@@ -52,6 +55,7 @@ import { ReviewBars, ReviewStatementList } from "./ReviewBars";
 import { RoadToTestDay } from "./RoadToTestDay";
 import { PINNED_BAR, ROAD_PANEL, STEP_COLUMN, STEP_CONTENT, STEP_GRID } from "./shell";
 import { StepCount } from "./StepCount";
+import { RevealAction, WeekReveal } from "./WeekReveal";
 import { ScreenshotDropArea, WhereToFindIt } from "./ScreenshotDropArea";
 import { WEEK_NOTE_ID, WeekStepperTable } from "./WeekStepperTable";
 
@@ -63,6 +67,7 @@ interface OnboardingWizardProps {
   today: string;
   goalTestDateOptions: ReturnType<typeof upcomingTestMonths>;
   scanningOff?: boolean;
+  admin?: boolean;
   onSave: typeof createStudentProfile;
   extract?: typeof extractScreenshot;
 }
@@ -76,6 +81,7 @@ export default function OnboardingWizard({
   today,
   goalTestDateOptions,
   scanningOff = false,
+  admin = false,
   onSave,
   extract = extractScreenshot,
 }: OnboardingWizardProps) {
@@ -86,6 +92,9 @@ export default function OnboardingWizard({
   const { screenshots } = state;
   const [saveAnswer, setSaveAnswer] = useState<Awaited<ReturnType<typeof onSave>>>();
   const stepRegion = useRef<HTMLDivElement>(null);
+  const column = useRef<HTMLDivElement>(null);
+  const pinnedBar = usePinnedBarHeight();
+  const saved = savedAnswers(state);
 
   function send(action: WizardAction) {
     const changesStep = (action.type === "continue" || action.type === "back") && wizardReducer(state, action).step !== state.step;
@@ -105,13 +114,14 @@ export default function OnboardingWizard({
     dispatch(rejection ? { type: "screenshotRejected", section, message: rejection.message } : { type: "readQueued", section, file });
   }
 
-  async function save(input: Parameters<typeof onSave>[0]) {
+  async function save(input: SaveInput) {
     dispatch({ type: "saveStarted" });
     try {
       const answer = await callAction(onSave)(input);
       setSaveAnswer(answer);
       if (isUnexpectedFailure(answer)) dispatch({ type: "saveEnded" });
       else if (answer) dispatch({ type: "saveRefused", message: answer.error });
+      else slideStep(column.current!, STEP_SLIDE, () => dispatch({ type: "saved", input }), { opacity: 0 });
     } catch {
       dispatch({ type: "saveFailed" });
     }
@@ -138,21 +148,25 @@ export default function OnboardingWizard({
   return (
     <div className={STEP_GRID}>
       <PageCue page="onboarding" />
-      <StepCount step={state.step} />
-      <div data-page-swap data-page-section className={STEP_COLUMN}>
+      <StepCount step={saved ? "reveal" : state.step} />
+      <div ref={column} data-page-swap data-page-section className={STEP_COLUMN}>
         <div ref={stepRegion} data-onboarding-step className={STEP_CONTENT}>
           <div className="w-full max-w-[440px]">
+            {saved ? <WeekReveal saved={saved} today={today} testMonths={goalTestDateOptions} /> : <>
             {state.step === "goal" && <GoalStep state={state} dispatch={send} firstName={firstName} goalTestDateOptions={goalTestDateOptions} today={today} />}
             {state.step === "week" && <WeekStep state={state} dispatch={send} />}
             {state.step === "analytics" && <AnalyticsStep state={state} scanningOff={scanningOff} dispatch={send} onFile={readScreenshot} />}
             {state.step === "review" && draft && <ReviewStep state={state} draft={draft} dispatch={send} />}
+            </>}
           </div>
         </div>
-        <div className={PINNED_BAR}>
+        <div ref={pinnedBar} data-pinned-bar className={PINNED_BAR}>
           <div className="mx-auto max-w-[440px]">
+            {saved ? <RevealAction admin={admin} /> : <>
             {(state.step === "goal" || state.step === "week") && <StepActions state={state} dispatch={send} />}
             {state.step === "analytics" && <AnalyticsActions state={state} dispatch={send} onSkip={skipForNow} />}
             {state.step === "review" && draft && <ReviewActions state={state} draft={draft} dispatch={send} onConfirm={confirmSnapshot} />}
+            </>}
           </div>
         </div>
       </div>
@@ -164,9 +178,9 @@ export default function OnboardingWizard({
             today={today}
             testMonths={goalTestDateOptions}
             weekSet={state.step !== "goal"}
-            focusWeek={state.step === "week"}
+            focusWeek={state.step === "week" && !saved}
             analyticsAdded={(state.step === "analytics" || state.step === "review") && Boolean(draft)}
-            drills={drills}
+            drills={saved ? "hidden" : drills}
           />
         </div>
       </aside>
@@ -464,9 +478,9 @@ function AnalyticsActions({ state, dispatch, onSkip }: { state: WizardState; dis
         {typed ? " · Your schedule starts after you add your analytics." : " · Your schedule starts after you add both."}
       </p>
       <p role="status" className="text-center text-small text-smoke">
-        {state.save === "failed"
-          ? "We couldn't save your plan. Press Skip for now again."
-          : typeof state.save === "object" && state.save.refused}
+        {saving
+          ? "Saving your plan. This takes a few seconds."
+          : state.save === "failed" ? "We couldn't save your plan. Press Skip for now again." : saveRefusal(state)}
       </p>
     </div>
   );
@@ -545,7 +559,7 @@ function ReviewActions({
     ? "Saving your plan. This takes a few seconds."
     : state.save === "failed"
       ? "We couldn't save your plan. Press Confirm snapshot again."
-      : typeof state.save === "object" ? state.save.refused : reason ?? (typed && "Your first weekly schedule uses these values like a scan.");
+      : saveRefusal(state) ?? reason ?? (typed && "Your first weekly schedule uses these values like a scan.");
 
   return (
     <ConfirmBar
@@ -566,4 +580,18 @@ function screenshotFile(state: WizardState, section: AnalyticsSection) {
 function readRows(state: WizardState, section: AnalyticsSection) {
   const read = screenshot(state, section)?.read;
   return read?.status === "read" ? read.value.rows : [];
+}
+
+function usePinnedBarHeight() {
+  const bar = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    const observer = new ResizeObserver(([entry]) => root.style.setProperty("--pinned-bar", `${(entry.target as HTMLElement).offsetHeight}px`));
+    observer.observe(bar.current!);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--pinned-bar");
+    };
+  }, []);
+  return bar;
 }

@@ -50,7 +50,7 @@ beforeEach(async () => {
 });
 
 async function onboard() {
-  await expect(createStudentProfile(profileInput)).rejects.toThrow("redirect:/dashboard");
+  await expect(createStudentProfile(profileInput)).resolves.toBeUndefined();
 }
 
 async function studentRows() {
@@ -271,7 +271,7 @@ describe.each(["student-a", "student-b", "admin", "no-session"] as const)("%s ca
     const owner = actors[actor];
     session(owner);
     await onboard();
-    await onboard();
+    await expect(createStudentProfile(profileInput)).rejects.toThrow("redirect:/dashboard");
     expect(await findStudentByAccountId(owner.id)).toMatchObject(profile);
     expect((await getPostgresDatabase().execute(sql`select account_id from students`)).rows).toEqual([{ account_id: owner.id }]);
     expect(await saveStudySettings({ ...settings, goalScore: 170 })).toBeNull();
@@ -369,7 +369,7 @@ it("onboarding saves approved analytics with its student and refuses a partial w
       confirmation: { extractedValuesMatch: true as const, isLatestAnalytics: true as const, confirmedAt: now },
     },
   };
-  await expect(createStudentProfile(input)).rejects.toThrow("redirect:/dashboard");
+  await expect(createStudentProfile(input)).resolves.toBeUndefined();
   const student = await findStudentByAccountId(a.id);
   expect((await getPostgresDatabase().execute(sql`select student_id, extraction_source,
     extracted_values_match, is_latest_analytics, rc_accuracy_by_type from analytics_snapshots`)).rows).toEqual([{
@@ -380,7 +380,7 @@ it("onboarding saves approved analytics with its student and refuses a partial w
   expect((await getPostgresDatabase().execute(sql`select id from analytics_snapshots`)).rows).toHaveLength(1);
   const withoutRC = await account("snapshot-no-rc@example.test");
   session(withoutRC);
-  await expect(createStudentProfile({ ...input, analyticsRows: input.analyticsRows.slice(0, 1) })).rejects.toThrow("redirect:/dashboard");
+  await expect(createStudentProfile({ ...input, analyticsRows: input.analyticsRows.slice(0, 1) })).resolves.toBeUndefined();
   const noRC = await findStudentByAccountId(withoutRC.id);
   expect((await getPostgresDatabase().execute(sql`select rc_accuracy_by_type from analytics_snapshots where student_id = ${noRC?.id}`)).rows)
     .toEqual([{ rc_accuracy_by_type: {} }]);
@@ -478,7 +478,7 @@ describe.each([
 it("onboarding saves 7Sage for a profile sent without a platform", async () => {
   const owner = await account("no-platform@example.test");
   session(owner);
-  await expect(createStudentProfile(profileInput)).rejects.toThrow("redirect:/dashboard");
+  await expect(createStudentProfile(profileInput)).resolves.toBeUndefined();
   expect(await studentRows()).toMatchObject([{ platform: "7Sage" }]);
 });
 
@@ -488,7 +488,7 @@ it("onboarding stores each day's capacity and a Sunday practice-test day", async
   const dailyCapacityMinutes = { ...profile.dailyCapacityMinutes, MONDAY: 30, SATURDAY: 225 };
   await expect(createStudentProfile({
     ...profileInput, dailyCapacityMinutes, preferredPracticeTestDay: "SUNDAY",
-  })).rejects.toThrow("redirect:/dashboard");
+  })).resolves.toBeUndefined();
   expect(await findStudentByAccountId(owner.id)).toMatchObject({ dailyCapacityMinutes, preferredPracticeTestDay: "SUNDAY" });
 });
 
@@ -497,7 +497,7 @@ it("Study settings show onboarding's official attempts and save the edited list"
   session(owner);
   await database.writeBillingRecordAsOwner(owner.id);
   const officialAttempts = [{ score: 152, month: "2025-06" }, { score: 149, month: "2026-01" }];
-  await expect(createStudentProfile({ ...profileInput, officialAttempts })).rejects.toThrow("redirect:/dashboard");
+  await expect(createStudentProfile({ ...profileInput, officialAttempts })).resolves.toBeUndefined();
   const page = renderToStaticMarkup(await StudySettingsPage());
   expect(page).toContain('value="152"');
   expect(page).toContain('value="149"');
@@ -524,7 +524,7 @@ it.each([
 ])("Study settings refuse $name and keep the stored attempts", async ({ officialAttempts }) => {
   session(await account("bad-settings-attempt@example.test"));
   const stored = [{ score: 152, month: "2025-06" }];
-  await expect(createStudentProfile({ ...profileInput, officialAttempts: stored })).rejects.toThrow("redirect:/dashboard");
+  await expect(createStudentProfile({ ...profileInput, officialAttempts: stored })).resolves.toBeUndefined();
   const before = await studentRows();
   await expectUnexpectedFailure(database, saveStudySettings({ ...settings, goalScore: 170, officialAttempts }), "ZodError");
   expect(await studentRows()).toEqual(before);

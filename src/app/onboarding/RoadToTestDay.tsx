@@ -1,9 +1,8 @@
 import { cx } from "@/components/ui/classes";
 import { DAY_LABEL, type upcomingTestMonths } from "@/lib/studentProfile";
-import { goalGain, weeksToTest, type PreviewDrill, type WizardValues } from "@/lib/onboardingWizard";
+import { goalGain, weeksToTest, type WeekDrills, type WizardValues } from "@/lib/onboardingWizard";
 import { shortDuration } from "@/lib/formatDuration";
 import { DAY_SHORT_LABEL, previewWeek, testTimeName, weeklyTotalMinutes } from "@/lib/studyWeek";
-import type { DayOfWeek } from "@/lib/types";
 
 const W = 400;
 const H = 120;
@@ -29,7 +28,7 @@ export function RoadToTestDay({
   weekSet: boolean;
   focusWeek: boolean;
   analyticsAdded: boolean;
-  drills: { day: DayOfWeek; items: PreviewDrill[] } | null;
+  drills: WeekDrills | null | "hidden";
 }) {
   const weeks = weeksToTest(values.goalTestDate, today);
   const month = testMonths.find((option) => option.value === values.goalTestDate)?.label;
@@ -97,7 +96,7 @@ export function RoadToTestDay({
             );
           })}
         </ol>
-        {drills ? (
+        {drills === "hidden" ? null : drills ? (
           <p className="border-t border-vellum-line pt-3 text-small text-smoke">
             <span className="font-medium text-ink">{`${DAY_LABEL[drills.day]}:`}</span> {drills.items.map(({ label }) => label).join(" · ")}
           </p>

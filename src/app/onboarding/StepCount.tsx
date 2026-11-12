@@ -33,15 +33,24 @@ function Ring({ share }: { share: number }) {
   );
 }
 
-export function StepCount({ step }: { step: WizardStep }) {
+function Check() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 20 20" aria-hidden className="shrink-0">
+      <circle cx="10" cy="10" r="10" className="fill-accent" />
+      <path d="m6 10.2 2.6 2.6L14 7.4" fill="none" className="stroke-paper" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function StepCount({ step }: { step: WizardStep | "reveal" }) {
   const slot = useTopBarSlot();
-  const place = stepPlace(step);
+  const place = step === "reveal" ? null : stepPlace(step);
   const count = (
     <p className="flex items-center gap-2 whitespace-nowrap text-small text-smoke">
-      <Ring share={place.number / place.of} />
+      {place ? <Ring share={place.number / place.of} /> : <Check />}
       <span>
-        <span className="font-medium text-ink">{`Step ${place.number} of ${place.of}`}</span>
-        <span className="max-[360px]:sr-only">{` · ${place.name}`}</span>
+        <span className="font-medium text-ink">{place ? `Step ${place.number} of ${place.of}` : "Done"}</span>
+        <span className="max-[360px]:sr-only">{` · ${place ? place.name : "Week reveal"}`}</span>
       </span>
     </p>
   );

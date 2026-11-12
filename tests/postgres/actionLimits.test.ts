@@ -159,7 +159,7 @@ it("onboarding shares the snapshot save counter and refuses before any write", a
     .toEqual({ error: "You've saved your analytics 5 times today. Try again tomorrow, after midnight Central time." });
   expect(await findStudentByAccountId(account.id)).toBeNull();
 
-  await expect(createStudentProfile({ ...input, analyticsRows: [], analyticsApproval: null })).rejects.toThrow("redirect:/dashboard");
+  await expect(createStudentProfile({ ...input, analyticsRows: [], analyticsApproval: null })).resolves.toBeUndefined();
   expect(await findStudentByAccountId(account.id)).not.toBeNull();
 });
 
@@ -180,7 +180,8 @@ it("counts only the onboarding save that wrote a snapshot when several run at th
     },
   };
   const results = await Promise.allSettled(Array.from({ length: 5 }, () => createStudentProfile(input)));
-  expect(results.map((result) => result.status === "rejected" && String(result.reason))).toEqual(Array(5).fill("Error: redirect:/dashboard"));
+  expect(results.map((result) => (result.status === "rejected" ? String(result.reason) : "saved")).sort())
+    .toEqual(["Error: redirect:/dashboard", "Error: redirect:/dashboard", "Error: redirect:/dashboard", "Error: redirect:/dashboard", "saved"]);
   const student = await findStudentByAccountId(account.id);
   expect((await database.owner.execute(sql`select id from analytics_snapshots where student_id = ${student?.id}`)).rows).toHaveLength(1);
 
