@@ -123,8 +123,8 @@ async function cancelUnlessEnded(id: string, secretKey: string) {
 export type CheckoutStart = { kind: "checkout"; url: string } | { kind: "starting"; place: PlanChoicePlace } | { kind: "refused" };
 
 /**
- * Starts Stripe Checkout for the Account, one at a time: it closes the Account's open Checkout sessions and cancels its
- * old subscriptions first, and starts none while Stripe holds a subscription that the billing record does not show yet.
+ * Starts Stripe Checkout for the Account, one at a time: it closes the Account's open Checkout sessions, cancels its
+ * old subscriptions, and voids their open invoices first, and starts none while Stripe holds a subscription that the billing record does not show yet.
  */
 export async function startCheckout(accountId: string, plan: PlanName, realNow: Date): Promise<CheckoutStart> {
   return getPostgresDatabase().transaction(async (tx) => {
@@ -141,10 +141,10 @@ export async function startCheckout(accountId: string, plan: PlanName, realNow: 
     }
     for (const { id } of held) {
       await cancelUnlessEnded(id, secretKey);
-      const unpaid = openInvoices.parse(await stripeRequest(`invoices?subscription=${id}&status=open&limit=100`, secretKey));
-      for (const invoice of unpaid.data) {
-        await stripeRequest(`invoices/${invoice.id}/void`, secretKey, {});
-      }
+    }
+    const unpaid = openInvoices.parse(await stripeRequest(`invoices?customer=${customer}&status=open&limit=100`, secretKey));
+    for (const invoice of unpaid.data) {
+      await stripeRequest(`invoices/${invoice.id}/void`, secretKey, {});
     }
     const open = openSessions.parse(await stripeRequest(`checkout/sessions?customer=${customer}&status=open&limit=100`, secretKey));
     for (const session of open.data) {
