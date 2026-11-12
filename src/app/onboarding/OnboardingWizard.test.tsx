@@ -1090,6 +1090,7 @@ describe("OnboardingWizard", () => {
       const missingArt: ExtractReply = { kind: "rows", showsPassageTypes: true, rows: rcRows.kind === "rows" ? rcRows.rows.slice(0, 4) : [] };
       const { user, onSave } = await openReview(undefined, read, missingArt);
       expect(box("Art").value).toBe("");
+      expect(screen.queryByText("Added by you")).toBeNull();
       expect(screen.queryByText("not found")).toBeNull();
       expect(screen.queryByText(/Enter/)).toBeNull();
 
@@ -1105,6 +1106,7 @@ describe("OnboardingWizard", () => {
       const { user, onSave } = await openReview(undefined, read, { kind: "rows", showsPassageTypes: true, rows: [] });
       for (const type of ["Law", "Comparative", "Science", "Humanities", "Art"]) expect(box(type).value).toBe("");
       expect(screen.queryByText("Goes first")).toBeNull();
+      expect(screen.queryByText("Added by you")).toBeNull();
 
       for (const statement of statements) await user.click(screen.getByLabelText(statement));
       await user.click(confirmButton());

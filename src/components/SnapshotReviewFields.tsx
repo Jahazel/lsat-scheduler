@@ -413,7 +413,7 @@ function RemoveButton({ type, onRemove }: { type: LRType; onRemove: () => void }
 
 export const TIER_LABEL: Record<PriorityTier, string> = { highest: "Highest", high: "High", medium: "Medium", low: "Low" };
 
-export function TierRow({ type, tier, message, onTier, onRemove, onLeave }: {
+function TierRow({ type, tier, message, onTier, onRemove, onLeave }: {
   type: LRType;
   tier: PriorityTier | undefined;
   message: string | null;

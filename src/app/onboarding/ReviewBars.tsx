@@ -2,13 +2,13 @@
 
 import { useId, useState, type ReactNode } from "react";
 import {
-  AddType, ReviewCheckbox, ScreenshotCard, TIER_LABEL, TierRow,
+  AddType, ReviewCheckbox, ScreenshotCard, TIER_LABEL,
   boxId, statementId, tierId, useDeferWhilePointerDown, useFocusAfterRender,
 } from "@/components/SnapshotReviewFields";
 import { TAP_AREA, FOCUS, cx } from "@/components/ui/classes";
 import { SECTION_NAME, accuracyError, isTyped, lowestPassageType, type ReviewRow, type Statement } from "@/lib/analyticsReview";
 import { accuracyMessage, boxText, emptyListNote, tierMessage, type ReviewAction, type ReviewDraft, type ReviewList } from "@/lib/reviewDraft";
-import { isTopPriorityTier, type AnalyticsExtractedRow, type AnalyticsSection, type LRType, type PriorityTier } from "@/lib/types";
+import { PRIORITY_TIERS, isTopPriorityTier, type AnalyticsExtractedRow, type AnalyticsSection, type LRType, type PriorityTier } from "@/lib/types";
 
 type Dispatch = (action: ReviewAction) => void;
 
@@ -62,16 +62,6 @@ export function ReviewBars({ draft, lrRead, files, dispatch }: {
         )}
         {accuracyRows.length > 0 && <div className="flex flex-col gap-1">{accuracyRows.map(barRow)}</div>}
         {!typed && emptyNote("accuracy")}
-        <AddType
-          draft={draft}
-          typed={typed}
-          linkClassName={TAP_AREA}
-          onAdd={(type, list) => {
-            dispatch({ type: "addType", rowType: type });
-            if (list === "accuracy") requestFocus(boxId(type));
-            else if (typed) requestFocus(tierId(type));
-          }}
-        />
         {typed && flagRows.length > 0 && (
           <>
             <p className={cx(CAPTION, "pt-4")}>Priority tier · types 7Sage ranks instead · Highest and High go first in your plan</p>
@@ -90,6 +80,16 @@ export function ReviewBars({ draft, lrRead, files, dispatch }: {
             </div>
           </>
         )}
+        <AddType
+          draft={draft}
+          typed={typed}
+          linkClassName={TAP_AREA}
+          onAdd={(type, list) => {
+            dispatch({ type: "addType", rowType: type });
+            if (list === "accuracy") requestFocus(boxId(type));
+            else if (typed) requestFocus(tierId(type));
+          }}
+        />
         {!typed && (
           <>
             <p className={cx(CAPTION, "pt-4")}>Priority flags · switched-on flags go first</p>
@@ -185,13 +185,14 @@ function BarRow({ entry, typed, goesFirst, text, message, dispatch, onLeave }: {
   const { row, original } = entry;
   const id = boxId(row.type);
   const was = original?.accuracy !== undefined && original.accuracy !== row.accuracy ? original.accuracy : null;
-  const changed = original === null ? !typed : was !== null;
+  const added = original === null && !typed && row.category !== "passage";
+  const changed = added || was !== null;
   const value = accuracyError(row) ? 0 : (row.accuracy ?? 0);
   const note: ReactNode = message ? (
     <span id={`${id}-message`} className="text-caption text-danger-ink">{message}</span>
   ) : was !== null ? (
     <span className="text-caption text-accent">{`Was ${was}%`}</span>
-  ) : original === null && !typed ? (
+  ) : added ? (
     <span className="text-caption text-accent">Added by you</span>
   ) : null;
 
@@ -288,5 +289,61 @@ function FlagSwitch({ type, tier, on, onToggle }: { type: LRType; tier: Priority
         className="relative h-6 w-10 shrink-0 rounded-full bg-vellum-line transition-colors duration-(--duration-fast) ease-out peer-checked:bg-accent peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent after:absolute after:top-0.5 after:left-0.5 after:size-5 after:rounded-full after:bg-paper after:shadow-e1 after:transition-transform after:duration-(--duration-fast) after:ease-(--ease-out-strong) peer-checked:after:translate-x-4"
       />
     </label>
+  );
+}
+
+function TierRow({ type, tier, message, onTier, onRemove, onLeave }: {
+  type: LRType;
+  tier: PriorityTier | undefined;
+  message: string | null;
+  onTier: (tier: PriorityTier) => void;
+  onRemove: () => void;
+  onLeave: () => void;
+}) {
+  const id = tierId(type);
+  return (
+    <div
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) onLeave();
+      }}
+      className="flex flex-col gap-1.5 py-2"
+    >
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span className="min-w-0 flex-1 text-small text-ink [overflow-wrap:anywhere]">{type}</span>
+        <div className="flex items-center gap-3">
+          <div
+            role="radiogroup"
+            aria-label={`${type} tier`}
+            aria-invalid={message ? true : undefined}
+            aria-describedby={message ? `${id}-message` : undefined}
+            className={cx("flex w-[196px] shrink-0 gap-0.5 rounded-sm border bg-vellum p-0.5", message ? "border-danger" : "border-transparent")}
+          >
+            {PRIORITY_TIERS.map((option, index) => (
+              <label
+                key={option}
+                className={cx(
+                  "flex h-8 flex-1 cursor-pointer items-center justify-center rounded-[4px] text-caption has-checked:bg-paper has-checked:font-semibold has-checked:shadow-control has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent",
+                  TAP_AREA,
+                  tier === option ? (isTopPriorityTier(option) ? "text-accent" : "text-ink") : "text-smoke hover:text-ink",
+                )}
+              >
+                <input
+                  id={index === 0 ? id : undefined}
+                  type="radio"
+                  name={id}
+                  value={option}
+                  checked={tier === option}
+                  onChange={() => onTier(option)}
+                  className="sr-only"
+                />
+                {TIER_LABEL[option]}
+              </label>
+            ))}
+          </div>
+          <RemoveButton type={type} onRemove={onRemove} />
+        </div>
+      </div>
+      {message && <p id={`${id}-message`} className="text-caption text-danger-ink">{message}</p>}
+    </div>
   );
 }
