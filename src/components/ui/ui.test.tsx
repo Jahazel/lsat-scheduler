@@ -291,6 +291,12 @@ describe("app shell pieces", () => {
     expect(screen.queryByRole("link", { name: "Log in" })).toBeNull();
   });
 
+  it("names DrillMap in the footer without making the logo a link", () => {
+    render(<Footer signedIn />);
+    expect(screen.getByRole("contentinfo").textContent).toContain("DrillMap");
+    expect(screen.queryByRole("link", { name: "DrillMap" })).toBeNull();
+  });
+
   it("renders the footer's legal links and AI line", () => {
     render(<Footer signedIn={false} />);
     expect(screen.getByText("Plans follow fixed rules. AI only reads your screenshots.")).toBeTruthy();
