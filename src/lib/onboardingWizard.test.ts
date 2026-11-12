@@ -5,12 +5,13 @@ import {
   confirmSnapshotInput,
   initialWizardState,
   profileWithAttempts,
-  previewHeader,
+  goalGain,
   previewDrills,
   scoreMessages,
   screenshot,
   toProfileInput,
-  stepLabel,
+  stepPlace,
+  weeksToTest,
   wizardReducer,
   type WizardAction,
   type WizardState,
@@ -53,7 +54,7 @@ describe("onboarding wizard", () => {
   it("starts on Step 1 with no scores, no test date, and no practice-test day", () => {
     const state = initialWizardState();
 
-    expect(stepLabel(state.step, true)).toBe("Step 1 of 5 · Goal");
+    expect(stepPlace(state.step)).toEqual({ number: 1, of: 4, name: "Goal" });
     expect(state.values.currentScore).toBe("");
     expect(state.values.goalTestDate).toBe("");
     expect(state.values.preferredPracticeTestDay).toBeNull();
@@ -95,7 +96,7 @@ describe("onboarding wizard", () => {
 
   it("blocks Week until a practice-test day is chosen, then moves on", () => {
     const week = run(validGoal, { type: "continue" });
-    expect(stepLabel(week.step, false)).toBe("Step 2 of 4 · Week");
+    expect(stepPlace(week.step)).toEqual({ number: 2, of: 4, name: "Week" });
     expect(blockedReason(week)).toBe("Pick a practice-test day to continue.");
     expect(wizardReducer(week, { type: "continue" }).step).toBe("week");
 
@@ -105,7 +106,7 @@ describe("onboarding wizard", () => {
       pickSaturday,
       { type: "continue" },
     );
-    expect(stepLabel(analytics.step, true)).toBe("Step 3 of 5 · Analytics");
+    expect(stepPlace(analytics.step)).toEqual({ number: 3, of: 4, name: "Analytics" });
   });
 
   it("keeps every value on Back", () => {
@@ -556,21 +557,17 @@ describe("onboarding wizard", () => {
   describe("live preview", () => {
     const TODAY = "2026-10-19";
 
-    it("fills the header lines from Step 1 values", () => {
-      const state = run(validGoal, { type: "edit", values: { accommodationMultiplier: 1.5 } });
-
-      expect(previewHeader(state.values, "Dana", TODAY)).toEqual({
-        greeting: "Hi Dana · 7Sage · 1.5× time",
-        scores: "150 → 165",
-        target: "by Nov 1 · 13 days away",
-        countdown: "13 days to test",
-      });
+    it("counts whole weeks to the test month, at least one", () => {
+      expect(weeksToTest("2027-01-01", "2026-11-12")).toBe(7);
+      expect(weeksToTest("2026-11-01", "2026-10-29")).toBe(1);
+      expect(weeksToTest("", TODAY)).toBeNull();
     });
 
-    it("shows dashes for empty scores and no target before a test date is chosen", () => {
-      const header = previewHeader(initialWizardState().values, "Dana", TODAY);
-
-      expect(header).toEqual({ greeting: "Hi Dana · 7Sage · standard time", scores: "— → —", target: null, countdown: null });
+    it("gives the gain from the current score only for a valid goal above it", () => {
+      expect(goalGain({ currentScore: "150", goalScore: "165" })).toBe(15);
+      expect(goalGain({ currentScore: "150", goalScore: "140" })).toBeNull();
+      expect(goalGain({ currentScore: "150", goalScore: "190" })).toBeNull();
+      expect(goalGain({ currentScore: "", goalScore: "165" })).toBeNull();
     });
 
     const designWeek: WizardAction = {

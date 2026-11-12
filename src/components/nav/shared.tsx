@@ -18,6 +18,8 @@ export const MOBILE_BAR = "flex h-14 items-center justify-between gap-3 px-5";
 export const DESKTOP_BAR = "flex h-18 items-center justify-between gap-6 px-18";
 export const BAR = `${MOBILE_BAR} md:h-18 md:px-18`;
 
+export const TOP_BAR_STEP_SLOT = "top-bar-step";
+
 export function Logo({ href, form = "full" }: { href: string; form?: "full" | "mark" | "mark-below-md" }) {
   return (
     <Link href={href} data-page-logo className={cx("flex shrink-0 items-center rounded-xs", LOGO_ON_LIGHT, FOCUS)}>

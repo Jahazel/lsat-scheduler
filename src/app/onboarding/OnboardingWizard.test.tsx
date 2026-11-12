@@ -32,8 +32,12 @@ function continueButton() {
   return screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement;
 }
 
-const student = { firstName: "Dana", initials: "DR", today: "2026-10-19" };
+const student = { firstName: "Dana", today: "2026-10-19" };
+const countText = (text: string) => (_: string, el: Element | null) => el?.tagName === "P" && el.textContent === text;
+const stepCount = (text: string) => screen.getByText(countText(text));
+const queryStepCount = (text: string) => screen.queryByText(countText(text));
 const preview = () => within(screen.getByRole("complementary", { name: "Preview of This week" }));
+const road = () => within(screen.getByRole("complementary", { name: "Road to test day" }));
 
 const screenshot = new File(["png"], "lr-analytics.png", { type: "image/png" });
 const rcScreenshot = new File(["png"], "rc-analytics.png", { type: "image/png" });
@@ -63,10 +67,73 @@ const TOAST_TEXT = "Something went wrong. Try again.Error code 3f9a01c2";
 const bySection = (lr: ExtractReply = rows, rc: ExtractReply = rcRows) =>
   vi.fn<Extract>(async (_file, section) => (section === "LR" ? lr : rc));
 
-it("counts four steps for an admin, who skips plan choice", () => {
-  render(<OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} withPlanStep={false} onSave={vi.fn()} />);
+describe("OnboardingWizard · frame and Goal", () => {
+  const options = upcomingTestMonths("2026-10-18");
 
-  expect(screen.getByText("Step 1 of 4 · Goal")).toBeDefined();
+  it("puts the step count in the top bar's slot", () => {
+    const slot = document.body.appendChild(Object.assign(document.createElement("div"), { id: "top-bar-step" }));
+    render(<OnboardingWizard {...student} goalTestDateOptions={options} onSave={vi.fn()} />);
+
+    expect(slot.contains(stepCount("Step 1 of 4 · Goal"))).toBe(true);
+    slot.remove();
+  });
+
+  it("shows the step count above the questions when the top bar has no slot, as for an admin", () => {
+    render(<OnboardingWizard {...student} goalTestDateOptions={options} onSave={vi.fn()} />);
+
+    const count = stepCount("Step 1 of 4 · Goal");
+    expect(count.closest("[data-onboarding-step]")).toBeNull();
+  });
+
+  it.each([
+    ["there", "Hi there, set your goal score"],
+    ["J", "Hi J, set your goal score"],
+    ["美玲", "Hi 美玲, set your goal score"],
+  ])("greets %s by first name", (firstName, heading) => {
+    render(<OnboardingWizard {...student} firstName={firstName} goalTestDateOptions={options} onSave={vi.fn()} />);
+
+    expect(screen.getByRole("heading", { level: 1, name: heading })).toBeDefined();
+    expect(road().getByText(`Hi ${firstName} · standard time`)).toBeDefined();
+  });
+
+  it("shows the gain under the goal and the weeks under the date, and the field error in place of the gain", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingWizard {...student} goalTestDateOptions={options} onSave={vi.fn()} />);
+
+    expect(screen.queryByText(/from your current score/)).toBeNull();
+    expect(screen.queryByText(/weeks? away/)).toBeNull();
+    await user.type(screen.getByLabelText("Current PT score"), "150");
+    await user.type(screen.getByLabelText("Goal score"), "165");
+    expect(screen.getByText("+15 from your current score")).toBeDefined();
+    expect(screen.getByLabelText("Goal score").getAttribute("aria-invalid")).toBeNull();
+    await user.selectOptions(screen.getByLabelText("Goal test date"), "January 2027");
+    expect(screen.getByText("About 11 weeks away")).toBeDefined();
+
+    await user.clear(screen.getByLabelText("Goal score"));
+    await user.type(screen.getByLabelText("Goal score"), "140");
+    await user.tab();
+    expect(screen.queryByText(/from your current score/)).toBeNull();
+    expect(screen.getByText("Your goal must be higher than your current score, 150.")).toBeDefined();
+  });
+
+  it("keeps score boxes to three digits and lists past attempts by short month", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingWizard {...student} goalTestDateOptions={options} onSave={vi.fn()} />);
+
+    await user.type(screen.getByLabelText("Current PT score"), "1505");
+    expect((screen.getByLabelText("Current PT score") as HTMLInputElement).value).toBe("150");
+    await user.click(screen.getByLabelText("I've taken it"));
+    expect(within(screen.getByLabelText("Attempt 1 month and year")).getByRole("option", { name: "Oct 2026" })).toBeDefined();
+  });
+
+  it("shows Test time as a labelled choice", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingWizard {...student} goalTestDateOptions={options} onSave={vi.fn()} />);
+
+    expect(screen.getByText("Your approved accommodation, if any.")).toBeDefined();
+    await user.click(within(screen.getByRole("radiogroup", { name: "Test time" })).getByLabelText("2× time"));
+    expect(road().getByText("Hi Dana · 2× time")).toBeDefined();
+  });
 });
 
 async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract = bySection()) {
@@ -76,7 +143,7 @@ async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract 
     { wrapper: FailureToastProvider },
   );
 
-  expect(screen.getByText("Step 1 of 5 · Goal")).toBeDefined();
+  expect(stepCount("Step 1 of 4 · Goal")).toBeDefined();
   expect(continueButton().disabled).toBe(true);
   await user.type(screen.getByLabelText("Current PT score"), "150");
   await user.type(screen.getByLabelText("Goal score"), "148");
@@ -88,7 +155,7 @@ async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract 
   await user.click(screen.getByLabelText("1.5× time"));
   await user.click(continueButton());
 
-  expect(screen.getByText("Step 2 of 5 · Week")).toBeDefined();
+  expect(stepCount("Step 2 of 4 · Week")).toBeDefined();
   expect(continueButton().disabled).toBe(true);
   expect(screen.getByText("Pick a practice-test day to continue.")).toBeDefined();
   await user.selectOptions(screen.getByLabelText("All days hours"), "2");
@@ -105,7 +172,7 @@ async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract 
   expect(screen.queryByRole("status")).toBeNull();
   await user.click(continueButton());
 
-  expect(screen.getByText("Step 3 of 5 · Analytics")).toBeDefined();
+  expect(stepCount("Step 3 of 4 · Analytics")).toBeDefined();
   return { user, onSave, extract };
 }
 
@@ -184,7 +251,7 @@ describe("OnboardingWizard", () => {
       expect(continueButton().disabled).toBe(true);
       expect(screen.getByText("Fix your attempts above to continue.")).toBeDefined();
 
-      await user.selectOptions(screen.getByLabelText("Attempt 1 month and year"), "June 2025");
+      await user.selectOptions(screen.getByLabelText("Attempt 1 month and year"), "Jun 2025");
       await user.clear(score);
       await user.type(score, "152");
       await user.click(screen.getByRole("button", { name: "Add another attempt" }));
@@ -202,12 +269,12 @@ describe("OnboardingWizard", () => {
       const { user, onSave } = await goal();
       await user.click(screen.getByLabelText("I've taken it"));
       await user.type(screen.getByLabelText("Attempt 1 score"), "152");
-      await user.selectOptions(screen.getByLabelText("Attempt 1 month and year"), "June 2025");
+      await user.selectOptions(screen.getByLabelText("Attempt 1 month and year"), "Jun 2025");
       await user.click(screen.getByRole("button", { name: "Add another attempt" }));
       await user.type(screen.getByLabelText("Attempt 2 score"), "140");
       await user.click(screen.getByRole("button", { name: "Add another attempt" }));
       await user.type(screen.getByLabelText("Attempt 3 score"), "149");
-      await user.selectOptions(screen.getByLabelText("Attempt 3 month and year"), "January 2026");
+      await user.selectOptions(screen.getByLabelText("Attempt 3 month and year"), "Jan 2026");
       await user.click(screen.getByRole("button", { name: "Remove attempt 2" }));
 
       expect((screen.getByLabelText("Attempt 2 score") as HTMLInputElement).value).toBe("149");
@@ -265,7 +332,7 @@ describe("OnboardingWizard", () => {
 
     await user.click(screen.getByRole("button", { name: "Skip for now" }));
     expect((await screen.findByRole("alert")).textContent).toBe("No connection. Check your signal and try again.");
-    expect(screen.getByText("Step 3 of 5 · Analytics")).toBeDefined();
+    expect(stepCount("Step 3 of 4 · Analytics")).toBeDefined();
     expect(screen.queryByText(/We couldn't save your plan/)).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Skip for now" }));
@@ -279,7 +346,7 @@ describe("OnboardingWizard", () => {
     await user.click(screen.getByRole("button", { name: "Skip for now" }));
     expect((await screen.findByRole("alert")).textContent).toBe(TOAST_TEXT);
     expect(screen.getAllByText("Something went wrong. Try again.")).toHaveLength(1);
-    expect(screen.getByText("Step 3 of 5 · Analytics")).toBeDefined();
+    expect(stepCount("Step 3 of 4 · Analytics")).toBeDefined();
     expect(screen.queryByText(/We couldn't save your plan/)).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Back" }));
@@ -300,7 +367,7 @@ describe("OnboardingWizard", () => {
     const note = await screen.findByText(refusal);
     expect(note.getAttribute("role")).toBe("status");
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.getByText("Step 3 of 5 · Analytics")).toBeDefined();
+    expect(stepCount("Step 3 of 4 · Analytics")).toBeDefined();
 
     await user.click(screen.getByRole("button", { name: "Skip for now" }));
     expect(onSave).toHaveBeenCalledTimes(2);
@@ -326,7 +393,7 @@ describe("OnboardingWizard", () => {
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Add your 7Sage analytics" }));
     await user.click(screen.getByRole("button", { name: "Back" }));
     await user.click(screen.getByRole("button", { name: "Back" }));
-    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Set your target" }));
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Hi Dana, set your goal score" }));
   });
 
   describe("Step 3 · Analytics", () => {
@@ -378,7 +445,7 @@ describe("OnboardingWizard", () => {
       expect(screen.getByText("You can replace either screenshot before you confirm.")).toBeDefined();
       await user.click(checkTheValues());
 
-      expect(screen.getByText("Step 4 of 5 · Review")).toBeDefined();
+      expect(stepCount("Step 4 of 4 · Review")).toBeDefined();
       await user.click(screen.getByRole("button", { name: "Back" }));
       expect(screen.getByText("Logical Reasoning · found 2 rows")).toBeDefined();
       expect(extract).toHaveBeenCalledWith(screenshot, "LR");
@@ -412,7 +479,7 @@ describe("OnboardingWizard", () => {
       expect((await screen.findByRole("alert")).textContent).toBe(TOAST_TEXT);
       expect(screen.getAllByText("Something went wrong. Try again.")).toHaveLength(1);
       expect(screen.getByText(rowDetail("lr-analytics.png · not read"))).toBeDefined();
-      expect(screen.getByText("Step 3 of 5 · Analytics")).toBeDefined();
+      expect(stepCount("Step 3 of 4 · Analytics")).toBeDefined();
 
       await user.click(screen.getByRole("button", { name: "Try again" }));
       expect(await screen.findByText(rowDetail("lr-analytics.png · Reading now"))).toBeDefined();
@@ -457,7 +524,7 @@ describe("OnboardingWizard", () => {
       expect(screen.getByText("Logical Reasoning question types")).toBeDefined();
       expect(checkTheValues().disabled).toBe(true);
       await user.click(checkTheValues());
-      expect(screen.queryByText("Step 4 of 5 · Review")).toBeNull();
+      expect(queryStepCount("Step 4 of 4 · Review")).toBeNull();
 
       await upload(user);
       expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
@@ -594,7 +661,7 @@ describe("OnboardingWizard", () => {
       await upload(steps.user);
       await upload(steps.user, rcScreenshot, "RC");
       await steps.user.click(await screen.findByRole("button", { name: "Check the values" }));
-      expect(screen.getByText("Step 4 of 5 · Review")).toBeDefined();
+      expect(stepCount("Step 4 of 4 · Review")).toBeDefined();
       return steps;
     }
 
@@ -612,7 +679,7 @@ describe("OnboardingWizard", () => {
       await upload(steps.user, rcScreenshot, "RC");
       await steps.user.click(await screen.findByRole("button", { name: "Check the values" }));
 
-      expect(screen.getByText("Step 4 of 5 · Review")).toBeDefined();
+      expect(stepCount("Step 4 of 4 · Review")).toBeDefined();
       expect(screen.queryByText(refusal)).toBeNull();
     });
 
@@ -625,7 +692,7 @@ describe("OnboardingWizard", () => {
       await upload(steps.user, rcScreenshot, "RC");
       await steps.user.click(await screen.findByRole("button", { name: "Check the values" }));
 
-      expect(screen.getByText("Step 4 of 5 · Review")).toBeDefined();
+      expect(stepCount("Step 4 of 4 · Review")).toBeDefined();
       expect(screen.queryByText(/We couldn't save your plan/)).toBeNull();
     });
 
@@ -797,7 +864,7 @@ describe("OnboardingWizard", () => {
       await user.click(confirmButton());
       expect((await screen.findByRole("alert")).textContent).toBe(TOAST_TEXT);
       expect(screen.getAllByText("Something went wrong. Try again.")).toHaveLength(1);
-      expect(screen.getByText("Step 4 of 5 · Review")).toBeDefined();
+      expect(stepCount("Step 4 of 4 · Review")).toBeDefined();
       expect((screen.getByLabelText(statements[1]) as HTMLInputElement).checked).toBe(true);
       expect(box("Strengthen").value).toBe("68");
 
@@ -893,36 +960,35 @@ describe("OnboardingWizard", () => {
     });
   });
 
-  it("mirrors each step in the This week preview", async () => {
+  it("draws Road to test day from each step, and keeps the screenshots beside Review", async () => {
     const user = userEvent.setup();
     render(<OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={vi.fn()} extract={bySection()} />);
 
-    expect(preview().getByText("Hi Dana · 7Sage · standard time")).toBeDefined();
+    expect(road().getByText("Hi Dana · standard time")).toBeDefined();
+    expect(road().getByRole("heading", { name: "Your road to test day" })).toBeDefined();
+    expect(road().getByText("set on the next step", { exact: false })).toBeDefined();
     await user.type(screen.getByLabelText("Current PT score"), "150");
     await user.type(screen.getByLabelText("Goal score"), "165");
-    await user.selectOptions(screen.getByLabelText("Goal test date"), "November 2026");
+    await user.selectOptions(screen.getByLabelText("Goal test date"), "January 2027");
     await user.click(screen.getByLabelText("1.5× time"));
-    expect(preview().getByText("Hi Dana · 7Sage · 1.5× time")).toBeDefined();
-    expect(preview().getByText("150 → 165")).toBeDefined();
-    expect(preview().getByText("by Nov 1 · 13 days away")).toBeDefined();
-    expect(preview().getByText("13 days to test")).toBeDefined();
-    expect(preview().queryByText(/of study/)).toBeNull();
+    expect(road().getByText("Hi Dana · 1.5× time")).toBeDefined();
+    expect(road().getByRole("heading", { name: "11 weeks to the January 2027 LSAT" })).toBeDefined();
+    expect(road().getByRole("img", { name: "From 150 now to 165 by test day" })).toBeDefined();
     await user.click(continueButton());
 
-    expect(preview().getByText("10 h 30 min of study · practice-test day not chosen")).toBeDefined();
+    expect(road().getByText("· 10 h 30", { exact: false })).toBeDefined();
     await user.click(screen.getByLabelText("Practice test on Saturday"));
     await user.selectOptions(screen.getByLabelText("Saturday hours"), "4");
-    expect(preview().getByText("13 h 30 min of study · practice test on Saturday")).toBeDefined();
-    expect(preview().getByText("4 h 30")).toBeDefined();
-    expect(preview().getByText("Your drills fill in after you upload analytics.")).toBeDefined();
+    expect(road().getByText("· 13 h 30 · practice test Sat", { exact: false })).toBeDefined();
+    expect(road().getByText("Drills fill in after you add analytics.")).toBeDefined();
     await user.click(continueButton());
 
     await upload(user);
-    expect(await preview().findByText("Extracted · not confirmed")).toBeDefined();
-    expect(preview().getByText("Monday's drills")).toBeDefined();
+    expect(await road().findByText("Monday:")).toBeDefined();
     await upload(user, rcScreenshot, "RC");
     await user.click(await screen.findByRole("button", { name: "Check the values" }));
 
+    expect(screen.queryByRole("complementary", { name: "Road to test day" })).toBeNull();
     expect(preview().getByText("Not confirmed yet")).toBeDefined();
     expect(preview().getByText("Your Monday from these values")).toBeDefined();
     expect(preview().getByRole("img", { name: "Your 7Sage Logical Reasoning screenshot" }).getAttribute("src")).toBe("blob:screenshot");
@@ -951,7 +1017,7 @@ describe("OnboardingWizard · scanning off", () => {
     await user.selectOptions(screen.getByLabelText("Friday minutes"), "30");
     await user.click(continueButton());
 
-    expect(screen.getByText("Step 3 of 5 · Analytics")).toBeDefined();
+    expect(stepCount("Step 3 of 4 · Analytics")).toBeDefined();
     expect(screen.getByText("Scanning is off right now. Enter your analytics by hand.")).toBeDefined();
     expect(screen.getByText("Type them below. Your first weekly schedule works the same way as with screenshots.")).toBeDefined();
     expect((screen.getByLabelText("Type them") as HTMLInputElement).checked).toBe(true);
@@ -988,7 +1054,7 @@ describe("OnboardingWizard · Type them", () => {
     await user.type(box("Law"), "58");
     await user.click(continueButton());
 
-    expect(screen.getByText("Step 4 of 5 · Review")).toBeDefined();
+    expect(stepCount("Step 4 of 4 · Review")).toBeDefined();
     expect(screen.getByRole("heading", { name: "Check your analytics" })).toBeDefined();
     expect(box("Diagram").value).toBe("64");
     const confirm = screen.getByRole("button", { name: "Confirm snapshot" });
@@ -1034,7 +1100,6 @@ describe("OnboardingWizard · Type them", () => {
     expect(screen.getByText("Pick the tier 7Sage shows, or remove this row.")).toBeDefined();
     expect(continueButton().disabled).toBe(true);
     expect(screen.getByText("Fix 3 values above to continue.")).toBeDefined();
-    expect(preview().getByText("Typed · not confirmed")).toBeDefined();
   });
 
   it("shows no screenshot on the typed check page, even after one was uploaded", async () => {
@@ -1151,7 +1216,7 @@ describe("OnboardingWizard · step slide", () => {
     await user.click(screen.getByRole("button", { name: "Back" }));
 
     expect(all.map((a) => a.el)).toEqual([region]);
-    expect(region.contains(screen.getByText("Step 3 of 5 · Analytics"))).toBe(false);
+    expect(region.contains(stepCount("Step 3 of 4 · Analytics"))).toBe(false);
     expect(all[0].keyframes.at(-1)).toEqual({ opacity: 0, transform: "translateX(8px)" });
     expect(all[0].options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.23, 1, 0.32, 1)", fill: "forwards" });
     expect(region.hasAttribute("inert")).toBe(true);
@@ -1159,7 +1224,7 @@ describe("OnboardingWizard · step slide", () => {
     expect(screen.getByRole("heading", { name: "Add your 7Sage analytics" })).toBeDefined();
 
     finishExits();
-    await waitFor(() => expect(screen.getByText("Step 2 of 5 · Week")).toBeDefined());
+    await waitFor(() => expect(stepCount("Step 2 of 4 · Week")).toBeDefined());
     expect(all.map((a) => a.el)).toEqual([region, region]);
     expect(all[1].keyframes).toEqual([{ opacity: 0, transform: "translateX(-8px)" }, { opacity: 1, transform: "none" }]);
     expect(all[1].options).toMatchObject({ duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" });
@@ -1172,14 +1237,14 @@ describe("OnboardingWizard · step slide", () => {
     const { user } = await onAnalyticsWithMotion();
     await user.click(screen.getByRole("button", { name: "Back" }));
     finishExits();
-    await waitFor(() => expect(screen.getByText("Step 2 of 5 · Week")).toBeDefined());
+    await waitFor(() => expect(stepCount("Step 2 of 4 · Week")).toBeDefined());
     all = [];
 
     await user.click(continueButton());
     expect(all[0].keyframes.at(-1)).toEqual({ opacity: 0, transform: "translateX(-8px)" });
     finishExits();
 
-    await waitFor(() => expect(screen.getByText("Step 3 of 5 · Analytics")).toBeDefined());
+    await waitFor(() => expect(stepCount("Step 3 of 4 · Analytics")).toBeDefined());
     expect(all[1].keyframes[0]).toEqual({ opacity: 0, transform: "translateX(8px)" });
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Add your 7Sage analytics" }));
   });
@@ -1188,7 +1253,7 @@ describe("OnboardingWizard · step slide", () => {
     const { user } = await onAnalyticsWithMotion();
     await user.click(screen.getByRole("button", { name: "Back" }));
     finishExits();
-    await waitFor(() => expect(screen.getByText("Step 2 of 5 · Week")).toBeDefined());
+    await waitFor(() => expect(stepCount("Step 2 of 4 · Week")).toBeDefined());
     all = [];
 
     const region = stepRegion();
@@ -1205,7 +1270,7 @@ describe("OnboardingWizard · step slide", () => {
 
     await user.click(screen.getByRole("button", { name: "Back" }));
 
-    expect(screen.getByText("Step 2 of 5 · Week")).toBeDefined();
+    expect(stepCount("Step 2 of 4 · Week")).toBeDefined();
     expect(all).toHaveLength(1);
     expect(all[0].keyframes).toEqual([{ opacity: 0 }, { opacity: 1 }]);
     expect(all[0].options.duration).toBe(120);

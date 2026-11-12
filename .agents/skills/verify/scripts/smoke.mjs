@@ -5,6 +5,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { resolve } from "node:path";
 import { drive } from "./browser.mjs";
 
+const GOAL_HEADING = /, set your goal score$/;
 const directory = process.argv[2];
 if (!directory || process.argv.length !== 3) throw new Error("Usage: smoke.mjs .verification/evidence/<run-name>");
 const email = "verify-smoke@example.test";
@@ -139,7 +140,7 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   assert.equal(failedLogins?.count, 10, "The paused try counted no failure.");
   log("Log in with the new password");
   await logInOnForm(page, email, PASSWORD);
-  await heading("Set your target");
+  await heading(GOAL_HEADING);
   assert.equal(new URL(page.url()).pathname, "/onboarding");
   const signedUp = records("records-signup");
   assert.equal(signedUp.accounts.length, 1);
@@ -147,7 +148,7 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   assert.equal(signedUp.accounts[0].role, "student");
   assert.equal(signedUp.students.length, 0);
   await page.reload();
-  await heading("Set your target");
+  await heading(GOAL_HEADING);
   log("Enter scores 150 and 165 and June 2027 on Step 1 · Goal");
   await page.getByLabel("Current PT score", { exact: true }).fill("150");
   await page.getByLabel("Goal score", { exact: true }).fill("165");

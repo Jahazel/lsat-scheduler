@@ -1,13 +1,11 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { PageArrival } from "@/components/PagePlaceholder";
-import { isAdminUser } from "@/lib/accessControl";
 import { PLAN_CHOICE_PATHS } from "@/lib/planChoice";
 import { readScanningOff } from "@/lib/scanSpending";
 import { planChoiceStanding } from "@/lib/stripeCheckout";
 import { studentSideToday } from "@/lib/studentClock";
 import { upcomingTestMonths } from "@/lib/studentProfile";
-import { initialsFor } from "@/lib/studentNav";
 import { findStudentByAccountId } from "@/lib/studentRepository";
 import OnboardingWizard from "./OnboardingWizard";
 import { PlanChoiceScreen, type PlanChoiceSearchParams } from "./PlanChoiceScreen";
@@ -38,11 +36,9 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
     <div>
       <OnboardingWizard
         firstName={session.user.name?.trim().split(/\s+/)[0] || "there"}
-        initials={initialsFor(session.user.name, session.user.email)}
         today={today}
         goalTestDateOptions={upcomingTestMonths(today)}
         scanningOff={(await readScanningOff(new Date())).analytics}
-        withPlanStep={!isAdminUser(session.user)}
         onSave={createStudentProfile}
       />
       <PageArrival page="Onboarding" />

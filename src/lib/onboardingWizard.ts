@@ -44,8 +44,8 @@ import {
   type Accommodation,
   type AttemptRow,
 } from "./studyProfileDraft";
-import { testTimeName, type WeekValues } from "./studyWeek";
-import { testCountdown, testCountdownLabel } from "./testCountdown";
+import type { WeekValues } from "./studyWeek";
+import { testCountdown } from "./testCountdown";
 import type { Activity, AnalyticsExtractedRow, AnalyticsSection, DayOfWeek } from "./types";
 
 const STEP_NAMES = ["Goal", "Week", "Analytics", "Review"] as const;
@@ -135,9 +135,9 @@ export function initialWizardState(): WizardState {
   };
 }
 
-export function stepLabel(step: WizardStep, withPlanStep: boolean): string {
+export function stepPlace(step: WizardStep) {
   const index = STEPS.indexOf(step);
-  return `Step ${index + 1} of ${STEP_NAMES.length + (withPlanStep ? 1 : 0)} · ${STEP_NAMES[index]}`;
+  return { number: index + 1, of: STEPS.length, name: STEP_NAMES[index] };
 }
 
 const SCORE_BOX_NAME: Record<ScoreBox, string> = { currentScore: "your current score", goalScore: "your goal score" };
@@ -190,20 +190,16 @@ function addAttemptRow(state: WizardState): WizardState {
 
 const utcDay = (isoDate: string) => new Date(`${isoDate}T00:00:00.000Z`);
 
-export function previewHeader(values: WizardValues, firstName: string, today: string) {
-  const score = (text: string) => text.trim() || "—";
-  const greeting = `Hi ${firstName} · 7Sage · ${testTimeName(values.accommodationMultiplier)}`;
-  const scores = `${score(values.currentScore)} → ${score(values.goalScore)}`;
-  if (!values.goalTestDate) return { greeting, scores, target: null, countdown: null };
-  const date = utcDay(values.goalTestDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-  const countdown = testCountdown(values.goalTestDate, utcDay(today), "UTC");
-  const days = countdown?.kind === "days" ? countdown.days : 0;
-  return {
-    greeting,
-    scores,
-    target: `by ${date} · ${days} ${days === 1 ? "day" : "days"} away`,
-    countdown: testCountdownLabel(countdown),
-  };
+export function weeksToTest(goalTestDate: string, today: string): number | null {
+  if (!goalTestDate) return null;
+  const countdown = testCountdown(goalTestDate, utcDay(today), "UTC");
+  return countdown?.kind === "days" ? Math.max(1, Math.round(countdown.days / 7)) : null;
+}
+
+export function goalGain(values: Pick<WizardValues, "currentScore" | "goalScore">): number | null {
+  const current = parseScoreText(values.currentScore);
+  const goal = parseScoreText(values.goalScore);
+  return inScoreRange(current) && inScoreRange(goal) && goal > current ? goal - current : null;
 }
 
 export type PreviewDrill = {

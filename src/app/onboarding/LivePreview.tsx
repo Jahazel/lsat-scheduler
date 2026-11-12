@@ -2,103 +2,27 @@
 
 import { DAY_LABEL } from "@/lib/studentProfile";
 import { SECTIONS } from "@/lib/analyticsReview";
-import { activeDraft, previewDrills, previewHeader, screenshot, type PreviewDrill, type WizardState } from "@/lib/onboardingWizard";
+import { screenshot, type PreviewDrill, type WizardState } from "@/lib/onboardingWizard";
 import { DrillList, type DrillItem } from "@/components/WeekPreview";
-import { LiveWeekPreview } from "@/components/StudyProfileFields";
 import { ScreenshotCard } from "@/components/SnapshotReviewFields";
-import { PREVIEW_CARD, PREVIEW_PANEL, SKELETON } from "./shell";
+import type { DayOfWeek } from "@/lib/types";
 
-interface LivePreviewProps {
-  state: WizardState;
-  firstName: string;
-  initials: string;
-  today: string;
-}
-
-export default function LivePreview({ state, firstName, initials, today }: LivePreviewProps) {
-  const drills = state.step === "analytics" || state.step === "review" ? previewDrills(state, today) : null;
-
-  const draft = activeDraft(state);
+export default function LivePreview({ state, drills }: { state: WizardState; drills: { day: DayOfWeek; items: PreviewDrill[] } | null }) {
   const typed = state.analyticsInput === "typed";
-
-  if (state.step === "review" && draft) {
-    return (
-      <aside aria-label="Preview of This week" className="hidden flex-col gap-4 bg-vellum px-8 pb-12 pt-32 lg:flex xl:px-18">
-        {!typed && SECTIONS.map((section) => {
-          const file = screenshot(state, section)?.file;
-          return file && <ScreenshotCard key={section} section={section} file={file} />;
-        })}
-        <div className="flex flex-col gap-2.5 rounded-sm border border-vellum-line bg-paper p-4">
-          {drills ? (
-            <DrillList title={`Your ${DAY_LABEL[drills.day]} from these values`} tag="Not confirmed yet" items={drillItems(drills.items)} />
-          ) : (
-            <p className="text-small text-smoke">No drilling days left this week.</p>
-          )}
-        </div>
-      </aside>
-    );
-  }
-
-  const header = previewHeader(state.values, firstName, today);
   return (
-    <aside data-page-fade aria-label="Preview of This week" className={PREVIEW_PANEL}>
-      <div data-page-swap data-page-section className={PREVIEW_CARD}>
-        <div className="flex h-14 shrink-0 items-center justify-between border-b border-vellum-line px-5 xl:px-7">
-          <div className="flex items-center gap-5">
-            <span className="text-body font-semibold tracking-[-0.02em] text-ink">DrillMap</span>
-            <span className="flex h-7 items-center rounded-full bg-vellum px-3 text-small font-medium text-ink">This week</span>
-            <span aria-hidden className={`hidden w-14 xl:block ${SKELETON}`} />
-            <span aria-hidden className={`hidden w-20 xl:block ${SKELETON}`} />
-          </div>
-          <div className="flex items-center gap-4">
-            {header.countdown && (
-              <span className="rounded-full border border-accent/25 bg-accent/8 px-2.5 py-1 text-small font-medium text-accent">
-                {header.countdown}
-              </span>
-            )}
-            <span className="grid size-[30px] place-items-center rounded-full bg-vellum text-caption font-medium text-ink">{initials}</span>
-          </div>
-        </div>
-        <div className="flex flex-col gap-2.5 px-5 pb-6 pt-8 xl:px-7">
-          <p className="text-small text-smoke">{header.greeting}</p>
-          <p className="flex flex-wrap items-baseline gap-x-3.5">
-            <span className="text-[40px] font-semibold leading-[44px] tracking-display text-ink">{header.scores}</span>
-            {header.target && <span className="text-body font-medium text-accent">{header.target}</span>}
-          </p>
-        </div>
-        <div className="flex grow flex-col gap-3 border-t border-vellum-line bg-vellum px-5 py-6 xl:px-7">
-          {state.step === "goal" ? <SkeletonDays /> : <LiveWeekPreview values={state.values} highlight={drills?.day ?? null} />}
-          {state.step !== "goal" &&
-            (drills ? (
-              <div className="flex flex-col gap-2.5 rounded-sm border border-vellum-line bg-paper p-5">
-                <DrillList title={`${DAY_LABEL[drills.day]}'s drills`} tag={typed ? "Typed · not confirmed" : "Extracted · not confirmed"} items={drillItems(drills.items)} />
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3 rounded-sm border border-dashed border-vellum-line p-5">
-                <p className="text-small text-smoke">
-                  {draft ? "No drilling days left this week." : "Your drills fill in after you upload analytics."}
-                </p>
-                <span aria-hidden className={`w-3/5 max-w-[260px] ${SKELETON} bg-vellum-line`} />
-                <span aria-hidden className={`w-2/5 max-w-[200px] ${SKELETON} bg-vellum-line`} />
-              </div>
-            ))}
-        </div>
+    <aside aria-label="Preview of This week" className="hidden flex-col gap-4 bg-vellum px-8 pb-12 pt-12 lg:flex xl:px-18">
+      {!typed && SECTIONS.map((section) => {
+        const file = screenshot(state, section)?.file;
+        return file && <ScreenshotCard key={section} section={section} file={file} />;
+      })}
+      <div className="flex flex-col gap-2.5 rounded-sm border border-vellum-line bg-paper p-4">
+        {drills ? (
+          <DrillList title={`Your ${DAY_LABEL[drills.day]} from these values`} tag="Not confirmed yet" items={drillItems(drills.items)} />
+        ) : (
+          <p className="text-small text-smoke">No drilling days left this week.</p>
+        )}
       </div>
     </aside>
-  );
-}
-
-export function SkeletonDays() {
-  return (
-    <div aria-hidden className="flex flex-col gap-3">
-      {[[120, 260, 200], [96, 300], [136, 240, 180]].map((bars, index) => (
-        <div key={index} className="flex flex-col gap-3 rounded-sm border border-vellum-line bg-paper p-5">
-          {bars.map((width, bar) => (
-            <span key={bar} className={`${SKELETON} ${bar === 0 ? "bg-vellum-line" : ""}`} style={{ width }} />
-          ))}
-        </div>
-      ))}
-    </div>
   );
 }
 
