@@ -1,5 +1,5 @@
 import { flushSync } from "react-dom";
-import { durationMs, fadeIn, fadeOut, motionToken, reducedMotion, riseFrom, slideFrom } from "@/lib/motion";
+import { durationMs, fadeIn, fadeOut, motionToken, reducedMotion, riseFrom, slideFrom, stopAtCurrentFrame } from "@/lib/motion";
 
 type Mover = "leave" | "arrival" | "swap" | "dim";
 const movers = new Map<HTMLElement, Mover>();
@@ -94,6 +94,29 @@ export function slideStep(el: HTMLElement, x: number, update: () => void, enter:
   if (el.contains(document.activeElement)) document.querySelector<HTMLElement>("main")?.focus({ preventScroll: true });
   hold(el, "swap");
   fadeOut(el, { x, shorten: true }).finished.then(() => el.isConnected && show(), () => {});
+}
+
+let slidOut: { el: HTMLElement; x: number } | null = null;
+
+export function slideOutForServer(el: HTMLElement, x: number) {
+  slidOut = { el, x };
+  hold(el, "leave");
+  if ("animate" in Element.prototype && !reducedMotion()) fadeOut(el, { x, shorten: true });
+}
+
+export function slideInFromServer(el: HTMLElement) {
+  if (!slidOut || slidOut.el.isConnected) return;
+  const { el: old, x } = slidOut;
+  slidOut = null;
+  letGo(old);
+  if ("animate" in Element.prototype) fadeIn(el, slideFrom(x));
+}
+
+export function stayAfterServer(el: HTMLElement) {
+  if (slidOut?.el !== el) return;
+  slidOut = null;
+  if ("animate" in Element.prototype) showAgain(el, stopAtCurrentFrame(el));
+  else letGo(el);
 }
 
 export function dim(el: HTMLElement, options: { to: number; x?: number }) {

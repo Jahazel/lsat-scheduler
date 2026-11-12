@@ -52,6 +52,15 @@ export default function PlanChoice({ place, offer, cameBackWithoutCard, initialP
             changesWith={plan}
           />
         )}
+        actions={(
+          <div className="flex flex-col gap-3">
+            <p className="text-small text-ink">By continuing, you agree your plan renews {picked.every} until you cancel.</p>
+            <Button className="w-full" waiting={opening} waitLabel="Opening Stripe…" onClick={addCard}>
+              Add card on Stripe
+            </Button>
+            <p className="text-center text-caption text-smoke">You add your card on Stripe, then come back here.</p>
+          </div>
+        )}
       >
         <div className="flex flex-col gap-8">
           {cameBackWithoutCard && (
@@ -91,16 +100,9 @@ export default function PlanChoice({ place, offer, cameBackWithoutCard, initialP
               </>
             )}
           </dl>
-          <div className="flex flex-col gap-4">
-            <p className="text-small text-smoke">Plus any sales tax. Stripe shows the total before you pay.</p>
-            <p className="text-small text-smoke">{PLAN_TERMS}</p>
-            <div className="flex flex-col gap-3">
-              <p className="text-small text-ink">By continuing, you agree your plan renews {picked.every} until you cancel.</p>
-              <Button className="w-full" waiting={opening} waitLabel="Opening Stripe…" onClick={addCard}>
-                Add card on Stripe
-              </Button>
-              <p className="text-center text-caption text-smoke">You add your card on Stripe, then come back here.</p>
-            </div>
+          <div className="flex flex-col gap-2 text-small text-smoke">
+            <p>Plus any sales tax. Stripe shows the total before you pay.</p>
+            <p>{PLAN_TERMS}</p>
           </div>
         </div>
       </PlanShell>
@@ -160,9 +162,9 @@ function PlanCards({ offer, plan, onPick }: { offer: PlanChoiceOffer; plan: Plan
 
 function StripePreview({ name, headline, then, changesWith }: { name: string; headline: string; then: string; changesWith: PlanName }) {
   return (
-    <aside data-page-section aria-label="What happens next" className="hidden flex-col gap-4 bg-vellum px-8 pt-32 pb-12 lg:flex xl:px-18">
-      <p className="font-mono text-label uppercase text-smoke">Next · on Stripe</p>
-      <div className="flex max-w-[520px] flex-col gap-5 rounded-tl-sm bg-paper p-8 shadow-e2">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-6 rounded-lg bg-paper p-8 shadow-e1">
+        <p className="text-small text-smoke">Next · on Stripe</p>
         <div className="flex flex-col gap-1">
           <span key={`name-${changesWith}`} className="value-in text-small text-smoke">DrillMap {name}</span>
           <span key={`headline-${changesWith}`} className="value-in text-h4 font-semibold text-ink">{headline}</span>
@@ -170,15 +172,15 @@ function StripePreview({ name, headline, then, changesWith }: { name: string; he
         </div>
         <div aria-hidden className="flex flex-col gap-2">
           <span className="h-2 w-20 rounded bg-vellum-line" />
-          <span className="h-11 rounded-xs border border-vellum-line" />
+          <span className="h-11 rounded-sm border border-vellum-line" />
           <span className="h-2 w-28 rounded bg-vellum-line" />
-          <span className="h-11 rounded-xs border border-vellum-line" />
+          <span className="h-11 rounded-sm border border-vellum-line" />
         </div>
-        <span aria-hidden className="flex h-11 items-center justify-center rounded-xs bg-vellum-line text-small text-smoke">Add card</span>
+        <span aria-hidden className="flex h-11 items-center justify-center rounded-pill bg-vellum text-small text-smoke">Add card</span>
       </div>
-      <p className="max-w-[520px] text-small text-smoke">
+      <p className="px-2 text-small text-smoke">
         Stripe hosts this page, so your card number never reaches DrillMap. You come back here when you finish.
       </p>
-    </aside>
+    </div>
   );
 }
