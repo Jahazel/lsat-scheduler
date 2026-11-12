@@ -8,6 +8,8 @@ export type PlanName = (typeof PLAN_NAMES)[number];
 
 export const isPlanName = (value: unknown): value is PlanName => PLAN_NAMES.includes(value as PlanName);
 
+export const PLAN_TERMS = "Cancel anytime. You keep access until your paid week or month ends. No refunds for unused time.";
+
 export type PlanChoicePlace = "onboarding" | "weekly_upload";
 
 export const PLAN_CHOICE_PATHS: Record<PlanChoicePlace, string> = { onboarding: "/onboarding", weekly_upload: "/dashboard/upload" };

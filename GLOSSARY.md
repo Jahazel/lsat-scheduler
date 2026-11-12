@@ -121,7 +121,7 @@ A short record of each deleted Account: its Account ID, a keyed hash of its emai
 _Avoid_: tombstone, deleted accounts table
 
 **Deletion replay**:
-Running the deletion list again on a database restored from a backup, before the site uses it, so that a deleted Account stays deleted.
+Running the deletion list again on a database restored from a backup, before the site uses it, so that a deleted Account stays deleted. It also copies the used free week list from the current database, so a deleted Account's email cannot get a second free week.
 _Avoid_: tombstone replay, re-deletion
 
 **Sign out of all devices**:
