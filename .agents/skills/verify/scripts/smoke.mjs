@@ -39,9 +39,9 @@ async function verificationLink(email) {
   }
   throw new Error(`No verification email for ${email} in app.log.`);
 }
-const LIMITATIONS = ["No nonempty analytics or schedule history in the deletion fixture", "Google refusal and Disabled Account states are opened by their reason links; real Google sign-in and its refusals need the copy", "No capacity-notice settings entry, mobile navigation, or screenshot extraction"];
+const LIMITATIONS = ["No nonempty analytics or schedule history in the deletion fixture", "Google refusal and Disabled Account states are opened by their reason links; real Google sign-in and its refusals need the copy", "Stripe Checkout and the plan's end at deletion are stand-in billing record writes", "No capacity-notice settings entry, mobile navigation, or screenshot extraction"];
 
-const result = await drive(directory, "smoke", async ({ page, url, log, goto, signInAs, heading, capture, records, newSession }) => {
+const result = await drive(directory, "smoke", async ({ page, url, log, goto, signInAs, heading, capture, records, local, newSession }) => {
   const initial = records("records-before");
   assert.equal(initial.accounts.length, 0, "Smoke requires an empty disposable database.");
   await goto("/");
@@ -168,7 +168,8 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   await heading("Add your 7Sage analytics");
   log("Skip analytics for now");
   await page.getByRole("button", { name: "Skip for now", exact: true }).click();
-  await heading(WEEKLY_UPLOAD);
+  await heading("Pick your plan");
+  await page.getByRole("button", { name: "Add card on Stripe", exact: true }).waitFor();
   const onboarded = records("records-onboarding");
   assert.equal(onboarded.students.length, 1);
   assert.equal(onboarded.students[0].goal_score, 165);
@@ -176,6 +177,19 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   assert.equal(onboarded.students[0].goal_test_date, "2027-06-01");
   assert.deepEqual(dailyCapacities(onboarded.students[0]), [90, 90, 90, 90, 90, 150, 90]);
   assert.equal(onboarded.weekly_schedules.length, 0);
+  assert.equal(onboarded.billing_records.length, 0, "Skipping analytics starts no plan.");
+  await capture("onboarding-pick-your-plan");
+  log("Return from Stripe Checkout, then stand in for its webhook by writing the free-week billing record");
+  await goto("/onboarding?checkout=done");
+  await heading("Starting your plan…");
+  await capture("onboarding-starting-your-plan");
+  local("plan", email, "start");
+  await heading(WEEKLY_UPLOAD);
+  assert.equal(new URL(page.url()).pathname, "/dashboard/upload");
+  await capture("weekly-upload-after-plan-start");
+  log("Reload, since the header keeps its no-plan form after the in-page move from Starting your plan");
+  await page.reload();
+  await heading(WEEKLY_UPLOAD);
   log("Open Study settings through navigation");
   await page.getByRole("link", { name: "Study settings", exact: true }).click();
   await heading("Study settings");
@@ -236,11 +250,13 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   const deletion = page.locator("form").filter({ has: page.locator('input[name="confirmation"]') });
   await deletion.getByLabel("Current password", { exact: true }).fill(PASSWORD);
   await deletion.getByLabel("Type DELETE to confirm", { exact: true }).fill("DELETE");
+  log("Stand in for Stripe ending the plan; with no Stripe, deletion would stop at Your Account is being deleted");
+  local("plan", email, "end");
   log("Delete the disposable student's Account");
   await page.getByRole("button", { name: "Delete account", exact: true }).click();
   await page.locator("main").getByRole("link", { name: "Start free week", exact: true }).first().waitFor();
   const deleted = records("records-deleted");
-  for (const collection of ["accounts", "students", "analytics_snapshots", "weekly_schedules", "activity_check_ins"]) assert.equal(deleted[collection].length, 0);
+  for (const collection of ["accounts", "students", "billing_records", "analytics_snapshots", "weekly_schedules", "activity_check_ins"]) assert.equal(deleted[collection].length, 0);
   log("Reload Account in the second browser after the deletion");
   await second.page.reload();
   await second.page.getByText("Your session ended. Log in again.", { exact: true }).waitFor();

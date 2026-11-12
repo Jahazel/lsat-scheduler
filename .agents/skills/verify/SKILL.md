@@ -67,7 +67,7 @@ node "$VERIFY_RUN_DIR/scratch/tools/node_modules/playwright/cli.js" install chro
 
 An existing Playwright installation can replace that install. Set `VERIFY_PLAYWRIGHT_MODULE` to its absolute `index.mjs` path. Browser downloads use Playwright's shared cache; do not delete that cache during cleanup.
 
-`smoke.mjs` is the baseline: the Login and Signup states, a password signup that follows the logged verification link to the first password sign-in, an Account lifecycle, and the onboarding and settings recipes. Require an empty disposable database and exit code 0. Its evidence is in `$VERIFY_RUN_DIR/smoke/`, and its untested paths are in its last output line. Run cleanup even if smoke fails.
+`smoke.mjs` is the baseline: the Login and Signup states, a password signup that follows the logged verification link to the first password sign-in, an Account lifecycle, and the onboarding and settings recipes. It stands in for Stripe twice with `local.mjs plan`: it starts the free week after `Pick your plan`, and ends the plan just before Account deletion, which otherwise stops at `Your Account is being deleted.` because ending a plan calls Stripe. Require an empty disposable database and exit code 0. Its evidence is in `$VERIFY_RUN_DIR/smoke/`, and its untested paths are in its last output line. Run cleanup even if smoke fails.
 
 For any other Playwright check, write a short script in the run directory that calls `drive` from [scripts/browser.mjs](scripts/browser.mjs). Do not write browser setup yourself. Write only the user steps:
 
@@ -91,7 +91,7 @@ The shortest interactive first proof is [sign-up and Account](features/sign-up-a
 
 ### Fixture Accounts
 
-Seed each fixture Account with one command. The Account is onboarded with the feature map's baseline answers. An onboarded student also gets a paid Weekly plan: a billing record written straight to the database, since no Stripe runs locally. Change that record with `psql` to test the free week, a lapsed student, or a held weekly schedule. Add `--not-onboarded` for an Account with no Student, as a first Google sign-in leaves it:
+Seed each fixture Account with one command. The Account is onboarded with the feature map's baseline answers. An onboarded student also gets a paid Weekly plan: a billing record written straight to the database, since no Stripe runs locally. Change that record with `psql` to test the free week, a lapsed student, or a held weekly schedule. A student onboarded through the UI has no plan until Stripe Checkout finishes; `local.mjs plan "$VERIFY_RUN_DIR" <email> start` writes the free-week record Stripe's webhook would write, and `end` removes the record, as if Stripe ended the plan. Add `--not-onboarded` for an Account with no Student, as a first Google sign-in leaves it:
 
 ```bash
 ./.agents/skills/verify/scripts/local.mjs seed "$VERIFY_RUN_DIR" student amy@example.test

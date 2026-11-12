@@ -33,6 +33,11 @@ const commands = {
     does: "Print a one-hour session cookie (name, value, url) that signs the browser in as an existing Account.",
     example: "session \"$VERIFY_RUN_DIR\" verify-admin@example.test",
   },
+  plan: {
+    args: " <email> start|end", valid: (extra) => extra.length === 2 && ["start", "end"].includes(extra[1]),
+    does: "Stand in for Stripe, which never runs locally. start writes the free-week Weekly plan that Stripe's webhook writes after Checkout. end removes the billing record, as if Stripe ended the plan, so Account deletion can finish. Prints JSON.",
+    example: "plan \"$VERIFY_RUN_DIR\" verify-smoke@example.test start",
+  },
   inspect: {
     args: "", valid: (extra) => extra.length === 0,
     does: "Run doctor, then print this run's stored records as JSON. Never reads password hashes.",
@@ -301,6 +306,19 @@ if (command === "session") {
     });
     console.log(JSON.stringify({ name, value, url }, null, 2));
   } finally { await closePostgresDatabase(); }
+}
+if (command === "plan") {
+  await doctor();
+  const [email, change] = extra;
+  const written = await postgres((db) => db.execute(change === "start" ? sql`
+    insert into billing_records (account_id, stripe_customer_id, stripe_subscription_id, plan, stripe_status, free_week_ends_at)
+    select id, 'cus_verify_' || id, 'sub_verify_' || id, 'weekly', 'trialing', now() + interval '7 days' from accounts where email = ${email}
+    on conflict (account_id) do nothing
+  ` : sql`delete from billing_records where account_id = (select id from accounts where email = ${email})`));
+  if (written.rowCount !== 1) {
+    throw new Error(`No plan ${change === "start" ? "started" : "ended"} for ${email}: no such Account, or it ${change === "start" ? "already has" : "has no"} billing record.`);
+  }
+  console.log(JSON.stringify({ email, plan: change === "start" ? "free week" : "none" }, null, 2));
 }
 if (command === "reset-signup-limit") {
   await doctor();
