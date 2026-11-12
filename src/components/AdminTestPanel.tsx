@@ -101,13 +101,13 @@ export default function AdminTestPanel({ state, panelId }: { state: TestControlS
         ref={dialog}
         id={panelId}
         aria-label="Test controls"
-        className="fixed inset-y-0 left-auto right-0 m-0 h-dvh max-h-none w-80 max-w-full overflow-y-auto bg-paper p-0 backdrop:bg-ink/30 lg:hidden"
+        className="fixed inset-y-0 left-auto right-0 m-0 h-dvh max-h-none w-[calc(20rem+env(safe-area-inset-right))] max-w-full overflow-y-auto bg-paper p-0 backdrop:bg-ink/30 lg:hidden"
         onClick={(event) => {
           // Only backdrop clicks reach the dialog itself; the inner box covers the panel.
           if (event.target === event.currentTarget) dialog.current?.close();
         }}
       >
-        <div className="min-h-full">
+        <div className="min-h-full pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)]">
           <TestControls state={state} onClose={() => dialog.current?.close()} />
         </div>
       </dialog>

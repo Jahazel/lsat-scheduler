@@ -114,7 +114,7 @@ function ToastSlot({ children }: { children: ReactNode }) {
   }, []);
   const slot = (
     <div
-      className="failure-toast-slot pointer-events-none fixed inset-x-0 z-50 grid justify-items-center px-3 *:col-start-1 *:row-start-1"
+      className="failure-toast-slot pointer-events-none fixed inset-x-0 z-50 grid justify-items-center *:col-start-1 *:row-start-1"
       style={keyboardInset > 0 ? { bottom: keyboardInset + 12 } : undefined}
     >
       {children}

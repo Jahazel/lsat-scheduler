@@ -170,7 +170,7 @@ export function StudentTabBar({ uploadNeeded, withWorkspaceSwitcher = false }: {
       data-tab-bar
       data-page-fade
       data-workspace-tabs={withWorkspaceSwitcher || undefined}
-      className={cx("fixed inset-x-3 bottom-3 z-40 grid grid-cols-3 rounded-md border border-vellum-line bg-paper pb-[env(safe-area-inset-bottom)] shadow-e1", withWorkspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.mobileTabBar : "md:hidden")}
+      className={cx("fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] right-[max(0.75rem,env(safe-area-inset-right))] z-40 grid grid-cols-3 rounded-md border border-vellum-line bg-paper shadow-e1", withWorkspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.mobileTabBar : "md:hidden")}
     >
       {TABS.map((tab) => {
         const active = isActive(tab.href);

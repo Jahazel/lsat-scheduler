@@ -6,6 +6,7 @@ import { postgresAdminClock, studentSideNow } from "@/lib/studentClock";
 import { auth } from "@/auth";
 import { loadAccountPlan } from "@/lib/billingRepository";
 import { SignOutButton, SignOutForm } from "@/components/SignOutForm";
+import { TAP_AREA } from "@/components/ui/classes";
 import { initialsFor, loadStudentNavState } from "@/lib/studentNav";
 import AdminNav from "./AdminNav";
 import StudentNav, { StudentTabBar } from "./StudentNav";
@@ -16,7 +17,7 @@ import { BAR, HEADER, Logo } from "./shared";
 function LogOutButton() {
   return (
     <SignOutForm action={logOut}>
-      <SignOutButton variant="text" size="md">Log out</SignOutButton>
+      <SignOutButton variant="text" size="md" className={TAP_AREA}>Log out</SignOutButton>
     </SignOutForm>
   );
 }

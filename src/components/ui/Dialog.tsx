@@ -80,7 +80,7 @@ export function Dialog({ open, onClose, returnFocusTo, onKeyDown, children, clas
       onClick={(event) => {
         if (event.target === event.currentTarget && pressStartedOutside.current) onClose();
       }}
-      className="ui-dialog fixed inset-0 m-0 h-dvh w-full max-h-none max-w-none overflow-hidden overscroll-contain bg-transparent p-3 md:p-6"
+      className="ui-dialog fixed inset-0 m-0 h-dvh w-full max-h-none max-w-none overflow-hidden overscroll-contain bg-transparent"
     >
       <div className="pointer-events-none flex h-full items-center justify-center">
         <div className={cx("ui-dialog-panel pointer-events-auto max-h-full max-w-full overflow-auto rounded-lg bg-paper shadow-e3", className)}>
