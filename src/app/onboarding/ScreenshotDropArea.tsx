@@ -143,7 +143,7 @@ function IdleArea({ section, rejectionId, onChoose, onFile }: { section: Analyti
       <span className={cx("flex flex-col items-center gap-1", SWAP)}>
         <span className="mb-2"><UploadGlyph /></span>
         <span className="text-small font-medium text-ink">{SECTION_NAME[section]}</span>
-        <span id={`${id}-hint`} className="max-w-[240px] text-caption text-fog">{dragging ? "Drop to add it." : HINT[section]}</span>
+        <span id={`${id}-hint`} className="max-w-[240px] text-caption text-smoke">{dragging ? "Drop to add it." : HINT[section]}</span>
       </span>
     </button>
   );
@@ -252,7 +252,7 @@ function FilledArea({
         >
           {text && <span key={text} className={cx("block", SWAP)}>{text}</span>}
         </span>
-        {!pill && <FileName name={file.name} className="text-caption text-fog" />}
+        {!pill && <FileName name={file.name} className="text-caption text-smoke" />}
       </span>
       <span key={`${look}-actions`} className={cx("flex w-full min-w-0 flex-col items-center gap-3", SWAP)}>
         {pill && (
