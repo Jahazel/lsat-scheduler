@@ -81,14 +81,23 @@ Do every step in order. Do not change the site's `DATABASE_URL` before step 7.
    that host to the list in the local checkout for this run and removes it after. The script cannot
    reach a production host. A production restore waits for the owner's decision on how to run the
    replay there.
-5. **Run the billing resync.** Run it only after the replay. Copy the site's `STRIPE_SECRET_KEY` from
-   Vercel: the copy's test-mode key for a copy restore, the live key for the real site. Copy the site's
-   `AUTH_SECRET` again: the used free week list is keyed with it. Use the restored branch's owner
-   connection string again:
+5. **Run the billing resync.** Run it only after the replay. Get a Stripe key for the site:
+
+   - Copy restore: the copy's sandbox secret key. Your `.env.local` holds the same key (J7). You can also
+     reveal it in the sandbox under Developers → API keys.
+   - Real-site restore: the site's own key is marked Sensitive in Vercel, so it cannot be read back, and
+     it must not go on your computer (J7). Create a one-run restore key instead. In the Stripe Dashboard,
+     switch to live mode and open Developers → API keys → Create restricted key. Name it
+     `restore-YYYY-MM-DD`. Give it only Subscriptions: Write and Invoices: Read; the resync lists
+     subscriptions and their paid invoices, and ends the plans of deleted Accounts. Copy the key once from
+     the Stripe dialog. Do not save it anywhere, not even in the password manager.
+
+   Copy the site's `AUTH_SECRET` again: the used free week list is keyed with it. Use the restored branch's
+   owner connection string again:
 
    ```sh
    read -rs DATABASE_URL        # the restored branch
-   read -rs STRIPE_SECRET_KEY   # the site's STRIPE_SECRET_KEY from Vercel
+   read -rs STRIPE_SECRET_KEY   # the copy's sandbox key, or the one-run restore key
    read -rs AUTH_SECRET         # the site's AUTH_SECRET from Vercel, for the email hashes
    export DATABASE_URL STRIPE_SECRET_KEY AUTH_SECRET
    npm run resync-billing
@@ -104,6 +113,9 @@ Do every step in order. Do not change the site's `DATABASE_URL` before step 7.
    restored branch holds a billing record that this Stripe account does not know, which usually means the
    key is from the other mode. Check the key and run it again. If `U` stays above 0, stop and ask the owner. The
    same host rule as the replay applies.
+
+   Real site: when the resync is done or you stop, delete the one-run restore key in Developers → API keys,
+   and check that it is gone from the list.
 6. **Check the result.** In Neon's SQL Editor on the restored branch, compare the table counts with
    the counts at the backup time minus the deleted Accounts' records. The `used_free_weeks` table is
    the exception: the replay and the billing resync add rows to it, so it holds at least `F` rows.
