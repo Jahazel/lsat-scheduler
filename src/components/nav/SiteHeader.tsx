@@ -12,7 +12,7 @@ import AdminNav from "./AdminNav";
 import StudentNav, { StudentTabBar } from "./StudentNav";
 import { logOut } from "./actions";
 import SignedOutTopBar from "./SignedOutTopBar";
-import { BAR, HEADER, Logo } from "./shared";
+import { BAR, HEADER, Logo, TOP_BAR_STEP_SLOT } from "./shared";
 
 function LogOutButton() {
   return (
@@ -61,7 +61,10 @@ export default async function SiteHeader() {
     return (
       <header data-site-header="workspace" className={HEADER}>
         <div className={BAR}>
-          <Logo href="/" form="mark-below-md" />
+          <div className="flex min-w-0 items-center gap-4">
+            <Logo href="/" form="mark-below-md" />
+            <div id={TOP_BAR_STEP_SLOT} className="contents" />
+          </div>
           <div data-page-fade>
             <LogOutButton />
           </div>

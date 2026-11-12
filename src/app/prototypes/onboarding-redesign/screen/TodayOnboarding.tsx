@@ -48,7 +48,6 @@ export function TodayOnboarding() {
       </header>
       <OnboardingWizard
         firstName="Dana"
-        initials="DR"
         today={TODAY}
         goalTestDateOptions={upcomingTestMonths(TODAY)}
         onSave={async () => {

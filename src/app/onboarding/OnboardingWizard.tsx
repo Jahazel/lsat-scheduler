@@ -22,22 +22,24 @@ import { SECTION_NAME, SECTIONS, type Statement } from "@/lib/analyticsReview";
 import { callAction } from "@/lib/callAction";
 import { analyticsInputs, confirmLock, type ReviewDraft } from "@/lib/reviewDraft";
 import {
-  ConfirmBar, ReviewStatements, STEP_PRIMARY as PRIMARY, STEP_SECONDARY as SECONDARY, SnapshotReviewFields,
+  ConfirmBar, ReviewStatements, SnapshotReviewFields,
   boxId, statementId, tierId, useFocusAfterRender,
 } from "@/components/SnapshotReviewFields";
 import {
-  FieldMessage, GoalTestDateSelect, OfficialAttemptRows, ScoreInput, TestTimeChoice, WeekFields,
+  FieldMessage, GoalTestDateSelect, OfficialAttemptRows, ScoreInput, WeekFields,
 } from "@/components/StudyProfileFields";
 import {
   activeDraft,
   blockedReason,
   bothRead,
   confirmSnapshotInput,
+  goalGain,
   initialWizardState,
   profileWithAttempts,
   scoreMessages,
+  previewDrills,
   screenshot,
-  stepLabel,
+  weeksToTest,
   wizardReducer,
   type AttemptsDraft,
   type Screenshot,
@@ -51,22 +53,23 @@ import type { AnalyticsExtractedRow, AnalyticsSection } from "@/lib/types";
 import { slideStep } from "@/lib/pageMotion";
 import { isUnexpectedFailure } from "@/lib/unexpectedFailure";
 import { MAX_OFFICIAL_ATTEMPTS, type upcomingTestMonths } from "@/lib/studentProfile";
+import type { Accommodation } from "@/lib/studyProfileDraft";
+import { TEST_TIME_LABEL } from "@/lib/studyWeek";
 import type { createStudentProfile } from "./actions";
 import LivePreview from "./LivePreview";
-import { ONBOARDING_COLUMN, ONBOARDING_GRID } from "./shell";
+import { RoadToTestDay } from "./RoadToTestDay";
+import { PINNED_BAR, ROAD_PANEL, STEP_COLUMN, STEP_CONTENT, STEP_GRID } from "./shell";
+import { StepCount } from "./StepCount";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 const SMALL_BUTTON = `h-10 self-start rounded-sm border border-vellum-line bg-paper px-[18px] text-small font-medium text-ink transition-colors duration-(--duration-fast) ease-out hover:bg-vellum ${FOCUS}`;
 const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline aria-disabled:no-underline ${FOCUS}`;
-const CHANGE_LATER = "You can change these any time in Study settings.";
 
 interface OnboardingWizardProps {
   firstName: string;
-  initials: string;
   today: string;
   goalTestDateOptions: ReturnType<typeof upcomingTestMonths>;
   scanningOff?: boolean;
-  withPlanStep?: boolean;
   onSave: typeof createStudentProfile;
   extract?: typeof extractScreenshot;
 }
@@ -77,11 +80,9 @@ const STEP_SLIDE = 8;
 
 export default function OnboardingWizard({
   firstName,
-  initials,
   today,
   goalTestDateOptions,
   scanningOff = false,
-  withPlanStep = true,
   onSave,
   extract = extractScreenshot,
 }: OnboardingWizardProps) {
@@ -139,23 +140,47 @@ export default function OnboardingWizard({
     return "sent";
   }
 
+  const drills = state.step === "analytics" || state.step === "review" ? previewDrills(state, today) : null;
+
   return (
-    <div className={ONBOARDING_GRID}>
+    <div className={STEP_GRID}>
       <PageCue page="onboarding" />
-      <div className={ONBOARDING_COLUMN}>
-        <div data-page-swap data-page-section className="w-full lg:max-w-[440px]">
-          <p className="mb-2 font-mono text-label uppercase text-smoke">{stepLabel(state.step, withPlanStep)}</p>
-          <div ref={stepRegion} data-onboarding-step>
-            {state.step === "goal" && <GoalStep state={state} dispatch={send} goalTestDateOptions={goalTestDateOptions} today={today} />}
+      <StepCount step={state.step} />
+      <div data-page-swap data-page-section className={STEP_COLUMN}>
+        <div ref={stepRegion} data-onboarding-step className={STEP_CONTENT}>
+          <div className="w-full max-w-[440px]">
+            {state.step === "goal" && <GoalStep state={state} dispatch={send} firstName={firstName} goalTestDateOptions={goalTestDateOptions} today={today} />}
             {state.step === "week" && <WeekStep state={state} dispatch={send} />}
-            {state.step === "analytics" && (
-              <AnalyticsStep state={state} scanningOff={scanningOff} dispatch={send} onSkip={skipForNow} onFile={readScreenshot} />
-            )}
-            {state.step === "review" && draft && <ReviewStep state={state} draft={draft} dispatch={send} onConfirm={confirmSnapshot} />}
+            {state.step === "analytics" && <AnalyticsStep state={state} scanningOff={scanningOff} dispatch={send} onFile={readScreenshot} />}
+            {state.step === "review" && draft && <ReviewStep state={state} draft={draft} dispatch={send} />}
+          </div>
+        </div>
+        <div className={PINNED_BAR}>
+          <div className="mx-auto max-w-[440px]">
+            {(state.step === "goal" || state.step === "week") && <StepActions state={state} dispatch={send} />}
+            {state.step === "analytics" && <AnalyticsActions state={state} dispatch={send} onSkip={skipForNow} />}
+            {state.step === "review" && draft && <ReviewActions state={state} draft={draft} dispatch={send} onConfirm={confirmSnapshot} />}
           </div>
         </div>
       </div>
-      <LivePreview state={state} firstName={firstName} initials={initials} today={today} />
+      {state.step === "review" && draft ? (
+        <LivePreview state={state} drills={drills} />
+      ) : (
+        <aside data-page-fade aria-label="Road to test day" className={ROAD_PANEL}>
+          <div data-page-swap data-page-section className="sticky top-30">
+            <RoadToTestDay
+              values={state.values}
+              firstName={firstName}
+              today={today}
+              testMonths={goalTestDateOptions}
+              weekSet={state.step !== "goal"}
+              focusWeek={state.step === "week"}
+              analyticsAdded={state.step === "analytics" && Boolean(draft)}
+              drills={drills}
+            />
+          </div>
+        </aside>
+      )}
       <FailureNotice answer={saveAnswer} />
       {SECTIONS.map((section) => <LastFinishedReadNotice key={section} read={screenshot(state, section)?.read} />)}
     </div>
@@ -178,79 +203,122 @@ function StepHeading({ state, title, lede }: { state: WizardState; title: string
   );
 }
 
-function StepForm({ state, dispatch, children }: { state: WizardState; dispatch: Dispatch; children: ReactNode }) {
-  const reason = blockedReason(state);
+const STEP_FORM = "onboarding-step-form";
+
+function StepForm({ dispatch, children }: { dispatch: Dispatch; children: ReactNode }) {
   function submit(event: FormEvent) {
     event.preventDefault();
     dispatch({ type: "continue" });
   }
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-8">
+    <form id={STEP_FORM} onSubmit={submit} noValidate className="flex flex-col gap-8">
       {children}
-      <div className="flex flex-col gap-4">
-        <div className="flex gap-3">
-          {state.step !== "goal" && (
-            <button type="button" onClick={() => dispatch({ type: "back" })} className={SECONDARY}>
-              Back
-            </button>
-          )}
-          <button type="submit" disabled={Boolean(reason)} aria-describedby="continue-note" className={PRIMARY}>
-            Continue
-          </button>
-        </div>
-        <p id="continue-note" className="text-center text-small text-smoke">
-          {reason ?? CHANGE_LATER}
-        </p>
-      </div>
     </form>
   );
 }
 
+function StepActions({ state, dispatch }: { state: WizardState; dispatch: Dispatch }) {
+  const reason = blockedReason(state);
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-3">
+        {state.step !== "goal" && (
+          <Button variant="outline" onClick={() => dispatch({ type: "back" })}>
+            Back
+          </Button>
+        )}
+        <Button type="submit" form={STEP_FORM} disabled={Boolean(reason)} aria-describedby={reason ? "continue-note" : undefined} className="flex-1">
+          Continue
+        </Button>
+      </div>
+      {reason && <p id="continue-note" className="text-center text-small text-smoke">{reason}</p>}
+    </div>
+  );
+}
+
+const TEST_TIMES = ([1, 1.5, 2] satisfies Accommodation[]).map((multiplier) => ({ value: String(multiplier), label: TEST_TIME_LABEL[multiplier], multiplier }));
+
 function GoalStep({
   state,
   dispatch,
+  firstName,
   goalTestDateOptions,
   today,
 }: {
   state: WizardState;
   dispatch: Dispatch;
+  firstName: string;
   goalTestDateOptions: OnboardingWizardProps["goalTestDateOptions"];
   today: string;
 }) {
   const messages = scoreMessages(state);
   const goalMessage = messages.goalScore ?? messages.goalNotAbove;
+  const gain = goalGain(state.values);
+  const weeks = weeksToTest(state.values.goalTestDate, today);
   const edit = (values: Partial<WizardState["values"]>) => dispatch({ type: "edit", values });
 
   return (
-    <StepForm state={state} dispatch={dispatch}>
-      <StepHeading state={state} title="Set your target" lede="Where you are now, where you want to be, and when." />
-      <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-3">
+    <StepForm dispatch={dispatch}>
+      <StepHeading state={state} title={`Hi ${firstName}, set your goal score`} lede="Where you are now, where you want to be, and when." />
+      <div className="flex flex-col gap-6">
+        <div className="grid grid-cols-2 items-start gap-3">
+          <div className="flex flex-col gap-2">
             <ScoreInput
               label="Current PT score"
+              placeholder="150"
               value={state.values.currentScore}
               messageId={messages.currentScore ? "current-score-message" : null}
               onChange={(currentScore) => edit({ currentScore })}
               onBlur={() => dispatch({ type: "leaveScoreBox", box: "currentScore" })}
             />
+            {messages.currentScore && <FieldMessage id="current-score-message">{messages.currentScore}</FieldMessage>}
+          </div>
+          <div className="flex flex-col gap-2">
             <ScoreInput
               label="Goal score"
+              placeholder="165"
               value={state.values.goalScore}
               messageId={goalMessage ? "goal-score-message" : null}
+              hintId={gain !== null ? "goal-gain" : null}
               onChange={(goalScore) => edit({ goalScore })}
               onBlur={() => dispatch({ type: "leaveScoreBox", box: "goalScore" })}
             />
+            {goalMessage ? (
+              <FieldMessage id="goal-score-message">{goalMessage}</FieldMessage>
+            ) : (
+              gain !== null && <p id="goal-gain" className="text-caption font-medium text-accent">{`+${gain} from your current score`}</p>
+            )}
           </div>
-          {messages.currentScore && <FieldMessage id="current-score-message">{messages.currentScore}</FieldMessage>}
-          {goalMessage && <FieldMessage id="goal-score-message">{goalMessage}</FieldMessage>}
         </div>
 
-        <GoalTestDateSelect label="Goal test date" value={state.values.goalTestDate} options={goalTestDateOptions} onChange={(goalTestDate) => edit({ goalTestDate })} />
+        <div className="flex flex-col gap-2">
+          <GoalTestDateSelect
+            label="Goal test date"
+            value={state.values.goalTestDate}
+            options={goalTestDateOptions}
+            noticeId={weeks ? "goal-test-weeks" : null}
+            onChange={(goalTestDate) => edit({ goalTestDate })}
+          />
+          {weeks && <p id="goal-test-weeks" className="text-caption text-smoke">{`About ${weeks} ${weeks === 1 ? "week" : "weeks"} away`}</p>}
+        </div>
 
-        <TestTimeChoice value={state.values.accommodationMultiplier} onChange={(accommodationMultiplier) => edit({ accommodationMultiplier })} />
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-x-3 gap-y-0.5 sm:flex-row sm:items-baseline sm:justify-between">
+            <span className="text-small font-medium text-ink">Test time</span>
+            <span className="text-caption text-smoke sm:text-right">Your approved accommodation, if any.</span>
+          </div>
+          <SegmentedSwitch
+            name="testTime"
+            label="Test time"
+            options={TEST_TIMES}
+            value={String(state.values.accommodationMultiplier)}
+            onChange={(value) => edit({ accommodationMultiplier: TEST_TIMES.find((time) => time.value === value)!.multiplier })}
+          />
+        </div>
 
-        <OfficialAttempts attempts={state.attempts} dispatch={dispatch} today={today} />
+        <div className="border-t border-vellum-line pt-6">
+          <OfficialAttempts attempts={state.attempts} dispatch={dispatch} today={today} />
+        </div>
       </div>
     </StepForm>
   );
@@ -266,11 +334,11 @@ function OfficialAttempts({ attempts, dispatch, today }: { attempts: AttemptsDra
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-baseline justify-between gap-3">
+      <div className="flex flex-col gap-x-3 gap-y-0.5 sm:flex-row sm:items-baseline sm:justify-between">
         <span id={`${id}-label`} className="text-small font-medium text-ink">
           Official LSAT attempts
         </span>
-        <span id={`${id}-note`} className="text-right text-caption text-smoke">
+        <span id={`${id}-note`} className="text-caption text-smoke sm:text-right">
           For your record. It does not change your plan.
         </span>
       </div>
@@ -303,7 +371,7 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
   const { values } = state;
 
   return (
-    <StepForm state={state} dispatch={dispatch}>
+    <StepForm dispatch={dispatch}>
       <StepHeading
         state={state}
         title="Plan your week"
@@ -328,21 +396,17 @@ function AnalyticsStep({
   state,
   scanningOff,
   dispatch,
-  onSkip,
   onFile,
 }: {
   state: WizardState;
   scanningOff: boolean;
   dispatch: Dispatch;
-  onSkip: () => void;
   onFile: (section: AnalyticsSection, file: File) => void;
 }) {
-  const saving = state.save === "saving";
   const { typedDraft } = state;
   const typed = state.analyticsInput === "typed";
   const anyAdded = !typed && state.screenshots.files.length > 0;
   const lrRead = readRows(state, "LR");
-  const reason = blockedReason(state);
 
   return (
     <div className="flex flex-col gap-8">
@@ -378,35 +442,44 @@ function AnalyticsStep({
           {!anyAdded && <WhereToFindIt />}
         </div>
       )}
-      <div className="flex flex-col gap-4">
-        <div className="flex gap-3">
-          <button type="button" disabled={saving} onClick={() => dispatch({ type: "back" })} className={SECONDARY}>
-            Back
-          </button>
-          <button
-            type="button"
-            disabled={saving || Boolean(reason)}
-            aria-describedby={typed ? "continue-note" : undefined}
-            onClick={() => dispatch({ type: "continue" })}
-            className={PRIMARY}
-          >
-            {anyAdded ? "Check the values" : "Continue"}
-          </button>
-        </div>
-        {anyAdded && <p className="text-center text-small text-smoke">You can replace either screenshot before you confirm.</p>}
-        {typed && reason && <p id="continue-note" className="text-center text-small text-smoke">{reason}</p>}
-        <p className="text-center text-small text-smoke">
-          <Button variant="bare" waiting={saving} waitLabel="Saving…" holdsWidth={false} onClick={onSkip} className={LINK_BUTTON}>
-            Skip for now
-          </Button>
-          {typed ? " · Your schedule starts after you add your analytics." : " · Your schedule starts after you add both."}
-        </p>
-        <p role="status" className="text-center text-small text-smoke">
-          {state.save === "failed"
-            ? "We couldn't save your plan. Press Skip for now again."
-            : typeof state.save === "object" && state.save.refused}
-        </p>
+    </div>
+  );
+}
+
+function AnalyticsActions({ state, dispatch, onSkip }: { state: WizardState; dispatch: Dispatch; onSkip: () => void }) {
+  const saving = state.save === "saving";
+  const typed = state.analyticsInput === "typed";
+  const anyAdded = !typed && state.screenshots.files.length > 0;
+  const reason = blockedReason(state);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-3">
+        <Button variant="outline" disabled={saving} onClick={() => dispatch({ type: "back" })}>
+          Back
+        </Button>
+        <Button
+          disabled={saving || Boolean(reason)}
+          aria-describedby={typed && reason ? "continue-note" : undefined}
+          onClick={() => dispatch({ type: "continue" })}
+          className="flex-1"
+        >
+          {anyAdded ? "Check the values" : "Continue"}
+        </Button>
       </div>
+      {anyAdded && <p className="text-center text-small text-smoke">You can replace either screenshot before you confirm.</p>}
+      {typed && reason && <p id="continue-note" className="text-center text-small text-smoke">{reason}</p>}
+      <p className="text-center text-small text-smoke">
+        <Button variant="bare" waiting={saving} waitLabel="Saving…" holdsWidth={false} onClick={onSkip} className={LINK_BUTTON}>
+          Skip for now
+        </Button>
+        {typed ? " · Your schedule starts after you add your analytics." : " · Your schedule starts after you add both."}
+      </p>
+      <p role="status" className="text-center text-small text-smoke">
+        {state.save === "failed"
+          ? "We couldn't save your plan. Press Skip for now again."
+          : typeof state.save === "object" && state.save.refused}
+      </p>
     </div>
   );
 }
@@ -711,40 +784,12 @@ const TYPED_STATEMENTS: { statement: Statement; text: string }[] = [
   { statement: "isLatestAnalytics", text: "These are my latest 7Sage analytics." },
 ];
 
-function ReviewStep({
-  state,
-  draft,
-  dispatch,
-  onConfirm,
-}: {
-  state: WizardState;
-  draft: ReviewDraft;
-  dispatch: Dispatch;
-  onConfirm: () => "locked" | "sent";
-}) {
-  const saving = state.save === "saving";
-  const reason = blockedReason(state);
-  const requestFocus = useFocusAfterRender();
-  const { review } = draft;
+function reviewStatements(state: WizardState) {
+  return state.analyticsInput === "typed" ? TYPED_STATEMENTS : STATEMENTS;
+}
+
+function ReviewStep({ state, draft, dispatch }: { state: WizardState; draft: ReviewDraft; dispatch: Dispatch }) {
   const typed = state.analyticsInput === "typed";
-  const statements = typed ? TYPED_STATEMENTS : STATEMENTS;
-
-  function confirm() {
-    const lock = confirmLock(review);
-    if (onConfirm() === "sent" || !lock) return;
-    const { fix } = lock;
-    if (fix.at === "box") requestFocus(boxId(fix.type));
-    else if (fix.at === "tier") requestFocus(tierId(fix.type));
-    else if (fix.at === "add-type") requestFocus("add-type-link");
-    else requestFocus(statementId(statements.findIndex(({ statement }) => !review.confirmation[statement])));
-  }
-
-  const note = saving
-    ? "Saving your plan. This takes a few seconds."
-    : state.save === "failed"
-      ? "We couldn't save your plan. Press Confirm snapshot again."
-      : typeof state.save === "object" ? state.save.refused : reason ?? (typed && "Your first weekly schedule uses these values like a scan.");
-
   return (
     <div className="flex flex-col gap-8">
       {typed ? (
@@ -767,17 +812,55 @@ function ReviewStep({
           files={{ LR: screenshotFile(state, "LR"), RC: screenshotFile(state, "RC") }}
           dispatch={dispatch}
         />
-        <ReviewStatements draft={draft} statements={statements} dispatch={dispatch} />
+        <ReviewStatements draft={draft} statements={reviewStatements(state)} dispatch={dispatch} />
       </div>
-      <ConfirmBar
-        label="Confirm snapshot"
-        saving={saving}
-        locked={Boolean(reason)}
-        note={note}
-        onBack={() => dispatch({ type: "back" })}
-        onConfirm={confirm}
-      />
     </div>
+  );
+}
+
+function ReviewActions({
+  state,
+  draft,
+  dispatch,
+  onConfirm,
+}: {
+  state: WizardState;
+  draft: ReviewDraft;
+  dispatch: Dispatch;
+  onConfirm: () => "locked" | "sent";
+}) {
+  const saving = state.save === "saving";
+  const reason = blockedReason(state);
+  const requestFocus = useFocusAfterRender();
+  const { review } = draft;
+  const typed = state.analyticsInput === "typed";
+  const statements = reviewStatements(state);
+
+  function confirm() {
+    const lock = confirmLock(review);
+    if (onConfirm() === "sent" || !lock) return;
+    const { fix } = lock;
+    if (fix.at === "box") requestFocus(boxId(fix.type));
+    else if (fix.at === "tier") requestFocus(tierId(fix.type));
+    else if (fix.at === "add-type") requestFocus("add-type-link");
+    else requestFocus(statementId(statements.findIndex(({ statement }) => !review.confirmation[statement])));
+  }
+
+  const note = saving
+    ? "Saving your plan. This takes a few seconds."
+    : state.save === "failed"
+      ? "We couldn't save your plan. Press Confirm snapshot again."
+      : typeof state.save === "object" ? state.save.refused : reason ?? (typed && "Your first weekly schedule uses these values like a scan.");
+
+  return (
+    <ConfirmBar
+      label="Confirm snapshot"
+      saving={saving}
+      locked={Boolean(reason)}
+      note={note}
+      onBack={() => dispatch({ type: "back" })}
+      onConfirm={confirm}
+    />
   );
 }
 

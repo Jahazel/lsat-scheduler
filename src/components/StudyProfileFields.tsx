@@ -27,6 +27,8 @@ const EMPTY_HIGHLIGHTED_FIELD = `${FIELD_SHAPE} text-smoke border-warning-ink sh
 const SELECT = `h-[34px] min-w-0 flex-1 rounded-sm border bg-paper px-2 text-small text-ink ${FOCUS}`;
 const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline ${FOCUS}`;
 
+const SHORT_MONTH = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+
 const fieldBox = (invalid: boolean) => `${FIELD} ${invalid ? "border-danger" : "border-vellum-line"}`;
 
 export function FieldMessage({ id, icon = false, children }: { id: string; icon?: boolean; children: ReactNode }) {
@@ -47,12 +49,16 @@ export function ScoreInput({
   label,
   value,
   messageId,
+  hintId = null,
+  placeholder,
   onChange,
   onBlur,
 }: {
   label: string;
   value: string;
   messageId: string | null;
+  hintId?: string | null;
+  placeholder?: string;
   onChange: (value: string) => void;
   onBlur?: () => void;
 }) {
@@ -62,11 +68,13 @@ export function ScoreInput({
       <input
         inputMode="numeric"
         autoComplete="off"
+        maxLength={3}
+        placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
         aria-invalid={messageId ? true : undefined}
-        aria-describedby={messageId ?? undefined}
+        aria-describedby={messageId ?? hintId ?? undefined}
         className={fieldBox(Boolean(messageId))}
       />
     </label>
@@ -159,7 +167,7 @@ export function OfficialAttemptRows({
   onAdd: () => void;
 }) {
   const deferWhilePointerDown = useDeferWhilePointerDown();
-  const months = attemptMonths(today);
+  const months = attemptMonths(today).map(({ value }) => ({ value, label: SHORT_MONTH.format(new Date(`${value}-01T00:00:00Z`)) }));
 
   return (
     <div className="flex flex-col gap-2 pt-1">
@@ -186,6 +194,7 @@ export function OfficialAttemptRows({
                   inputMode="numeric"
                   autoComplete="off"
                   aria-label={`Attempt ${index + 1} score`}
+                  maxLength={3}
                   value={row.score}
                   onChange={(e) => onEdit(row.id, { score: e.target.value })}
                   onBlur={() => deferWhilePointerDown(() => onLeave(row.id, "score"))}

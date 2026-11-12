@@ -6,16 +6,15 @@ import OnboardingLoading from "./loading";
 afterEach(cleanup);
 
 describe("Onboarding loading placeholder", () => {
-  it("takes the Goal step's shape: the step line, every Goal field, Continue, and the preview panel", () => {
+  it("takes the Goal step's shape: the greeting, every Goal field, Continue, and Road to test day", () => {
     const { container } = render(<OnboardingLoading />);
     const text = container.textContent;
-    expect(text).toContain("Step 1 of 4 · Goal");
-    expect(text).toContain("Set your target");
+    expect(text).toContain("Hi there, set your goal score");
     for (const field of ["Current PT score", "Goal score", "Goal test date", "Test time", "Standard", "1.5× time", "2× time"]) {
       expect(text).toContain(field);
     }
     for (const part of ["Official LSAT attempts", "None yet", "I've taken it", "Continue", "Enter both scores to continue."]) expect(text).toContain(part);
-    for (const part of ["DrillMap", "This week", "— → —"]) expect(text).toContain(part);
+    expect(text).toContain("Your road to test day");
   });
 
   it("is hidden from screen readers", () => {
