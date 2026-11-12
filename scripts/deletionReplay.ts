@@ -23,7 +23,7 @@ export async function replayDeletionList({ list, restored }: { list: Database; r
     if (freeWeeks.length) {
       await tx.insert(usedFreeWeeks).values(freeWeeks).onConflictDoUpdate({
         target: usedFreeWeeks.emailHash,
-        set: { usedOn: sql`greatest(${usedFreeWeeks.usedOn}, excluded.used_on)` },
+        set: { usedOn: sql`excluded.used_on` },
       });
     }
     return { listed: rows.length, deleted: deleted.length, freeWeeks: freeWeeks.length };

@@ -158,7 +158,7 @@ it("deletes each restored Account on the deletion list or marked deleting, bring
   expect(await recordsOf(markedId)).toEqual(allRecords);
 
   const first = await replay();
-  expect(first).toEqual({ code: 0, stdout: "Deletion list rows: 2. Restored Accounts deleted: 3. Used free week rows copied: 2.\n", stderr: "" });
+  expect(first).toEqual({ code: 0, stdout: "Deletion list rows: 2. Restored Accounts deleted: 3. Used free week rows: 2.\n", stderr: "" });
   expect(await recordsOf(deletedId)).toEqual(noRecords);
   expect(await recordsOf(sameEmailId)).toEqual(noRecords);
   expect(await recordsOf(markedId)).toEqual(noRecords);
@@ -173,10 +173,13 @@ it("deletes each restored Account on the deletion list or marked deleting, bring
   ]);
 
   const second = await replay();
-  expect(second).toEqual({ code: 0, stdout: "Deletion list rows: 2. Restored Accounts deleted: 0. Used free week rows copied: 2.\n", stderr: "" });
+  expect(second).toEqual({ code: 0, stdout: "Deletion list rows: 2. Restored Accounts deleted: 0. Used free week rows: 2.\n", stderr: "" });
   expect(await recordsOf(keptId)).toEqual(allRecords);
   expect((await restored.db.execute(sql`select 1 from deletion_list`)).rows).toHaveLength(4);
-  expect(await usedFreeWeeks()).toHaveLength(2);
+  expect(await usedFreeWeeks()).toEqual([
+    [emailHash("deleted@test.local"), "2026-11-02"],
+    [emailHash("kept@test.local"), "2026-11-09"],
+  ]);
 });
 
 it("refuses to run without the key that made the email hashes", async () => {
