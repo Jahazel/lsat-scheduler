@@ -134,7 +134,7 @@ describe("OnboardingWizard · frame and Goal", () => {
     await user.selectOptions(screen.getByLabelText("Goal test date"), "January 2027");
     await user.click(continueButton());
     await user.click(screen.getByLabelText("Practice test on Sunday"));
-    await user.selectOptions(screen.getByLabelText("Sunday hours"), "3");
+    await user.selectOptions(screen.getByLabelText("Sunday study time"), "3 h");
     await user.click(continueButton());
     expect(road().getByText("Drills fill in after you add analytics.")).toBeDefined();
 
@@ -151,6 +151,85 @@ describe("OnboardingWizard · frame and Goal", () => {
     expect(screen.getByText("Your approved accommodation, if any.")).toBeDefined();
     await user.click(within(screen.getByRole("radiogroup", { name: "Test time" })).getByLabelText("2× time"));
     expect(road().getByText("Hi Dana · 2× time")).toBeDefined();
+  });
+});
+
+describe("OnboardingWizard · Week step", () => {
+  const options = upcomingTestMonths("2026-10-18");
+  async function openWeek() {
+    const user = userEvent.setup();
+    render(<OnboardingWizard {...student} goalTestDateOptions={options} onSave={vi.fn()} />);
+    await user.type(screen.getByLabelText("Current PT score"), "150");
+    await user.type(screen.getByLabelText("Goal score"), "165");
+    await user.selectOptions(screen.getByLabelText("Goal test date"), "January 2027");
+    await user.click(continueButton());
+    return user;
+  }
+  const time = (day: string) => screen.getByLabelText(`${day} study time`) as HTMLSelectElement;
+  const less = (day: string) => screen.getByRole("button", { name: `15 min less on ${day}` }) as HTMLButtonElement;
+  const more = (day: string) => screen.getByRole("button", { name: `15 min more on ${day}` }) as HTMLButtonElement;
+
+  it("steps a day by 15 minutes and stops at 30 min and 8 h, with the select showing the same time", async () => {
+    const user = await openWeek();
+    expect(screen.getByRole("columnheader", { name: "Practice test" })).toBeDefined();
+    expect(time("Monday").selectedOptions[0].textContent).toBe("1 h 30");
+
+    await user.click(more("Monday"));
+    expect(time("Monday").selectedOptions[0].textContent).toBe("1 h 45");
+    expect(screen.getByText("10 h 45")).toBeDefined();
+
+    await user.selectOptions(time("Monday"), "45 min");
+    await user.click(less("Monday"));
+    expect(time("Monday").selectedOptions[0].textContent).toBe("30 min");
+    expect(less("Monday").disabled).toBe(true);
+
+    await user.selectOptions(time("Monday"), "7 h 45");
+    expect(more("Monday").disabled).toBe(false);
+    await user.click(more("Monday"));
+    expect(time("Monday").selectedOptions[0].textContent).toBe("8 h");
+    expect(more("Monday").disabled).toBe(true);
+    expect(less("Monday").disabled).toBe(false);
+  });
+
+  it("sets every day with the All row and Apply", async () => {
+    const user = await openWeek();
+    await user.click(more("all days"));
+    await user.click(more("all days"));
+    expect(time("Monday").selectedOptions[0].textContent).toBe("1 h 30");
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
+      expect(time(day).selectedOptions[0].textContent).toBe("2 h");
+    }
+    expect(screen.getByText("14 h")).toBeDefined();
+    expect(road().getByText("· 14 h", { exact: false })).toBeDefined();
+  });
+
+  it("blocks Continue with today's reason under the total until a practice-test day is picked", async () => {
+    const user = await openWeek();
+    const reason = screen.getByText("Pick a practice-test day to continue.");
+    expect(continueButton().disabled).toBe(true);
+    expect(continueButton().getAttribute("aria-describedby")).toBe(reason.id);
+
+    await user.click(screen.getByLabelText("Practice test on Saturday"));
+    expect(screen.queryByText("Pick a practice-test day to continue.")).toBeNull();
+  });
+
+  it("puts the short practice-test day message on that day's row and clears it once the day has the time", async () => {
+    const user = await openWeek();
+    await user.click(screen.getByLabelText("Practice test on Saturday"));
+
+    const message = "Saturday needs at least 2 h 30 for a full practice test. Add time or pick another day.";
+    const row = screen.getByText(message).closest("tr")!.previousElementSibling as HTMLElement;
+    expect(within(row).getByRole("rowheader", { name: "Sat" })).toBeDefined();
+    expect(continueButton().disabled).toBe(true);
+    expect(continueButton().getAttribute("aria-describedby")).toBe(screen.getByText(message).id);
+    expect(screen.queryByText(/A full practice test takes/)).toBeNull();
+
+    for (let i = 0; i < 4; i += 1) await user.click(more("Saturday"));
+    expect(screen.queryByText(message)).toBeNull();
+    expect(screen.getByText(countText("Saturday has 2 h 30. A full practice test takes 2 h 30 with standard time."))).toBeDefined();
+    expect(continueButton().disabled).toBe(false);
   });
 });
 
@@ -176,17 +255,15 @@ async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract 
   expect(stepCount("Step 2 of 4 · Week")).toBeDefined();
   expect(continueButton().disabled).toBe(true);
   expect(screen.getByText("Pick a practice-test day to continue.")).toBeDefined();
-  await user.selectOptions(screen.getByLabelText("All days hours"), "2");
+  await user.selectOptions(screen.getByLabelText("All days study time"), "2 h 30");
   await user.click(screen.getByRole("button", { name: "Apply" }));
-  await user.selectOptions(screen.getByLabelText("Friday hours"), "1");
-  await user.selectOptions(screen.getByLabelText("Friday minutes"), "0");
+  await user.selectOptions(screen.getByLabelText("Friday study time"), "1 h");
   await user.click(screen.getByLabelText("Practice test on Friday"));
-  expect(screen.getByText("A full practice test takes 3 h 8 with 1.5× time.")).toBeDefined();
   expect(screen.getByText("Friday needs at least 3 h 15 for a full practice test. Add time or pick another day.")).toBeDefined();
   expect(continueButton().disabled).toBe(true);
-  await user.selectOptions(screen.getByLabelText("Friday hours"), "3");
-  await user.selectOptions(screen.getByLabelText("Friday minutes"), "15");
+  await user.selectOptions(screen.getByLabelText("Friday study time"), "3 h 15");
   expect(screen.queryByText(/for a full practice test/)).toBeNull();
+  expect(screen.getByText(countText("Friday has 3 h 15. A full practice test takes 3 h 8 with 1.5× time."))).toBeDefined();
   expect(screen.queryByRole("status")).toBeNull();
   await user.click(continueButton());
 
@@ -299,8 +376,7 @@ describe("OnboardingWizard", () => {
       expect(screen.queryByLabelText("Attempt 3 score")).toBeNull();
       await user.click(continueButton());
       await user.click(screen.getByLabelText("Practice test on Saturday"));
-      await user.selectOptions(screen.getByLabelText("Saturday hours"), "2");
-      await user.selectOptions(screen.getByLabelText("Saturday minutes"), "30");
+      await user.selectOptions(screen.getByLabelText("Saturday study time"), "2 h 30");
       await user.click(continueButton());
       await user.click(screen.getByRole("button", { name: "Skip for now" }));
 
@@ -318,7 +394,7 @@ describe("OnboardingWizard", () => {
 
     await user.click(screen.getByRole("button", { name: "Back" }));
     expect((screen.getByLabelText("Practice test on Friday") as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByLabelText("Monday hours") as HTMLSelectElement).value).toBe("2");
+    expect((screen.getByLabelText("Monday study time") as HTMLSelectElement).value).toBe("150");
     await user.click(screen.getByRole("button", { name: "Back" }));
     expect((screen.getByLabelText("Goal score") as HTMLInputElement).value).toBe("165");
     expect((screen.getByLabelText("1.5× time") as HTMLInputElement).checked).toBe(true);
@@ -996,7 +1072,7 @@ describe("OnboardingWizard", () => {
 
     expect(road().getByText("· 10 h 30", { exact: false })).toBeDefined();
     await user.click(screen.getByLabelText("Practice test on Saturday"));
-    await user.selectOptions(screen.getByLabelText("Saturday hours"), "4");
+    await user.selectOptions(screen.getByLabelText("Saturday study time"), "4 h 30");
     expect(road().getByText("· 13 h 30 · practice test Sat", { exact: false })).toBeDefined();
     expect(road().getByText("Drills fill in after you add analytics.")).toBeDefined();
     await user.click(continueButton());
@@ -1031,8 +1107,7 @@ describe("OnboardingWizard · scanning off", () => {
     await user.selectOptions(screen.getByLabelText("Goal test date"), "November 2026");
     await user.click(continueButton());
     await user.click(screen.getByLabelText("Practice test on Friday"));
-    await user.selectOptions(screen.getByLabelText("Friday hours"), "2");
-    await user.selectOptions(screen.getByLabelText("Friday minutes"), "30");
+    await user.selectOptions(screen.getByLabelText("Friday study time"), "2 h 30");
     expect(road().getByText("Drills fill in after you add analytics.")).toBeDefined();
     await user.click(continueButton());
 
@@ -1249,7 +1324,7 @@ describe("OnboardingWizard · step slide", () => {
     expect(all[1].options).toMatchObject({ duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" });
     expect(region.hasAttribute("inert")).toBe(false);
     expect(region.hasAttribute("aria-busy")).toBe(false);
-    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Plan your week" }));
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Pick your study days" }));
   });
 
   it("Continue slides the step out to the left, then the next step in from the right", async () => {
@@ -1293,6 +1368,6 @@ describe("OnboardingWizard · step slide", () => {
     expect(all).toHaveLength(1);
     expect(all[0].keyframes).toEqual([{ opacity: 0 }, { opacity: 1 }]);
     expect(all[0].options.duration).toBe(120);
-    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Plan your week" }));
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Pick your study days" }));
   });
 });
