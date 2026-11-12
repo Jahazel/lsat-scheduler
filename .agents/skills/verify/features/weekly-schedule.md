@@ -15,6 +15,8 @@ A student approves an analytics snapshot before DrillMap creates a saved weekly 
 - `scan-money` counts $0.02 for each analytics scan and $0.03 for each practice-test section scan in `scan_spending`, and refuses every scan while the owner's switch is on or when the count would go over the monthly limit (#251).
 - `scanning-off` opens `Type them` in onboarding and the weekly upload while scanning is off, and lets a practice-test week confirm without the practice test (#254).
 - `drill-guide` opens a drill's setup guide from its `Set up` button or from a drill link, `/dashboard?drill=<weekOf>:<DAY>:<index>`, and keeps Back, Forward, and reload in step with it (#638).
+- `held-week` (#680): the week that starts on the free week's end date is held until the first charge succeeds. Its weekly schedule is saved, but This week shows `Your week is ready.` / `It appears when your first payment goes through.` under the usual header, with no checkboxes. To reach it, seed a student, then set its `billing_records` row with `psql` to `first_charge_succeeded=false` and `free_week_ends_at` at this week's Monday, midnight America/Chicago (label it fixture setup), and confirm an upload.
+- `lapsed-plan`: with `stripe_status='canceled'`, This week shows `Your payment didn't go through. Pick a plan to get new weekly schedules.` with a `Pick a plan` link; a held week then reads `Your week is saved.` / `It appears as soon as you pick a plan.` `/dashboard/upload` shows the `Pick a plan` choice instead of the upload.
 - `schedule-reasons` shows week notes in the header and each day's reasons under its heading, such as `Not scheduled because this weekly schedule started Wednesday.` No capacity notice appears.
 
 ## How to get to it (user POV)

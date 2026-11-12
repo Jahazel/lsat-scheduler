@@ -9,6 +9,7 @@ An Admin views students' saved schedules without editing them. Their own student
 - `admin-date` moves the Admin's own clock forward.
 - `admin-sample` generates improving, steady, or slipping analytics for approval.
 - `admin-resets` rebuilds this week or resets test history with confirmation.
+- `admin-plan` shows each student's plan badge (`No plan`, `Free week`, `Paid`, `Retrying`, `Lapsed`; `Admin` for Admins) on the list and the read-only view, and a `Needs analytics` badge until the student has an approved snapshot. A held week reads `This student's weekly schedule for this week is held. It appears when their first payment goes through.` instead of the schedule.
 
 ## How to get to it (user POV)
 
