@@ -8,6 +8,7 @@ import { GridGap, LineGrid, SectionLabel } from "@/components/landing/LineGrid";
 import { FREE_WEEK_NOTE, LinkArrow, StartFreeWeekLink } from "@/components/landing/StartFreeWeekLink";
 import { NightBand } from "@/components/landing/NightBand";
 import { FOCUS_ON_DARK, cx } from "@/components/ui/classes";
+import { PLAN_TERMS } from "@/lib/planChoice";
 import { PLAN_PRICES, planPriceText } from "@/lib/planPrices";
 
 const HERO_SCREEN_SIZES = "(min-width: 1024px) 1120px, (min-width: 768px) 672px, 840px";
@@ -112,7 +113,7 @@ function PricingSection() {
           </PlanCard>
         </div>
         <p className="reveal-item reveal-fade pt-5 text-small text-smoke [--reveal-delay:280ms] lg:px-6">
-          Cancel anytime. You keep access until your paid week or month ends. No refunds for unused time.
+          {PLAN_TERMS}
         </p>
       </div>
     </RevealSection>
