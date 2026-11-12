@@ -123,8 +123,9 @@ async function cancelUnlessEnded(id: string, secretKey: string) {
 export type CheckoutStart = { kind: "checkout"; url: string } | { kind: "starting"; place: PlanChoicePlace } | { kind: "refused" };
 
 /**
- * Starts Stripe Checkout for the Account, one at a time: it closes the Account's open Checkout sessions, cancels its
- * old subscriptions, and voids the customer's open invoices first, and starts none while Stripe holds a subscription that the billing record does not show yet.
+ * Starts Stripe Checkout for the Account, one at a time. It closes the Account's open Checkout sessions before it lists
+ * subscriptions, so none can finish unseen; then it cancels old subscriptions and voids the customer's open invoices.
+ * It starts none while Stripe holds a subscription that the billing record does not show yet.
  */
 export async function startCheckout(accountId: string, plan: PlanName, realNow: Date): Promise<CheckoutStart> {
   return getPostgresDatabase().transaction(async (tx) => {
@@ -134,6 +135,10 @@ export async function startCheckout(accountId: string, plan: PlanName, realNow: 
     const secretKey = stripeSecretKey();
     const customer = await accountCustomer(accountId, standing, secretKey);
 
+    const open = openSessions.parse(await stripeRequest(`checkout/sessions?customer=${customer}&status=open&limit=100`, secretKey));
+    for (const session of open.data) {
+      await stripeRequest(`checkout/sessions/${session.id}/expire`, secretKey, {});
+    }
     const held = subscriptions.parse(await stripeRequest(`subscriptions?customer=${customer}&status=all&limit=100`, secretKey))
       .data.filter(({ status }) => !ENDED.includes(status));
     if (held.some(({ id, status }) => (id === standing.subscriptionId ? PAID_AGAIN : STARTED_OR_STARTING).includes(status))) {
@@ -145,10 +150,6 @@ export async function startCheckout(accountId: string, plan: PlanName, realNow: 
     const unpaid = openInvoices.parse(await stripeRequest(`invoices?customer=${customer}&status=open&limit=100`, secretKey));
     for (const invoice of unpaid.data) {
       await stripeRequest(`invoices/${invoice.id}/void`, secretKey, {});
-    }
-    const open = openSessions.parse(await stripeRequest(`checkout/sessions?customer=${customer}&status=open&limit=100`, secretKey));
-    for (const session of open.data) {
-      await stripeRequest(`checkout/sessions/${session.id}/expire`, secretKey, {});
     }
 
     const form: Record<string, string> = {
