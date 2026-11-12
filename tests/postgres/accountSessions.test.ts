@@ -318,7 +318,7 @@ it("the same paths work for a fresh session, so the refusal is the session check
   expect((await extractPracticeTest(await screenshotRequest("/api/practice-test/extract", request.cookie))).status).toBe(502);
   expect((await extractAnalytics(await screenshotRequest("/api/analytics/extract", request.cookie))).status).toBe(502);
   expect(request.createMessage).toHaveBeenCalledTimes(2);
-  await expect(createStudentProfile(profileInput)).rejects.toThrow("redirect:/dashboard");
+  await expect(createStudentProfile(profileInput)).resolves.toBeUndefined();
   expect(await savedRows()).toMatchObject({ students: 1 });
 });
 

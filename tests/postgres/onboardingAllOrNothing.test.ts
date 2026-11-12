@@ -66,15 +66,15 @@ async function countSnapshotSaves(times: number, accountId: string) {
   return results;
 }
 
-it("two onboarding saves at the same time make one Student and one Analytics snapshot, and both go to the dashboard", async () => {
+it("two onboarding saves at the same time make one Student and one Analytics snapshot; the second goes to the dashboard", async () => {
   await signedInStudent();
   const input = onboardingInput();
   await database.owner.execute(sql`create table student_insert_attempts (at timestamptz not null default clock_timestamp())`);
   await withInsertTrigger("students", "INSERT INTO student_insert_attempts DEFAULT VALUES;", () =>
     withInsertTrigger("analytics_snapshots", "PERFORM pg_sleep(0.5);", async () => {
       const results = await Promise.allSettled([createStudentProfile(input), createStudentProfile(input)]);
-      expect(results.map((result) => result.status === "rejected" && String(result.reason)))
-        .toEqual(["Error: redirect:/dashboard", "Error: redirect:/dashboard"]);
+      expect(results.map((result) => (result.status === "rejected" ? String(result.reason) : "saved")).sort())
+        .toEqual(["Error: redirect:/dashboard", "saved"]);
     }));
   expect((await database.owner.execute(sql`select at from student_insert_attempts`)).rows).toHaveLength(2);
   expect(await savedRows()).toEqual({ students: 1, snapshots: 1 });
@@ -88,7 +88,7 @@ it("a failure after the Student insert leaves no Student, no Analytics snapshot,
   });
   expect(await savedRows()).toEqual({ students: 0, snapshots: 0 });
 
-  await expect(createStudentProfile(input)).rejects.toThrow("redirect:/dashboard");
+  await expect(createStudentProfile(input)).resolves.toBeUndefined();
   expect(await savedRows()).toEqual({ students: 1, snapshots: 1 });
   expect(await countSnapshotSaves(5, account.id)).toEqual([...Array(4).fill({ allowed: true }), expect.objectContaining({ allowed: false })]);
 });

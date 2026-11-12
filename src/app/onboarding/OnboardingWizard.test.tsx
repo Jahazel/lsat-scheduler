@@ -10,6 +10,8 @@ import type { FailureCode } from "@/lib/unexpectedFailure";
 import { FailureToastProvider } from "@/components/FailureNotice";
 import OnboardingWizard from "./OnboardingWizard";
 
+const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/onboarding" }));
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -20,6 +22,13 @@ beforeEach(() => {
     },
   );
   vi.stubGlobal("matchMedia", () => ({ matches: false }));
+  vi.stubGlobal("scrollTo", vi.fn());
+  vi.stubGlobal("ResizeObserver", class {
+    observe() {}
+    disconnect() {}
+  });
+  router.push.mockClear();
+  router.refresh.mockClear();
 });
 afterEach(() => {
   cleanup();
@@ -141,6 +150,27 @@ describe("OnboardingWizard · frame and Goal", () => {
     await waitFor(() => expect(road().getByText("No drilling days left this week.")).toBeDefined());
   });
 
+  it("heads the reveal's drills This week's drills when no drilling day is left", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingWizard {...student} today="2026-10-25" goalTestDateOptions={options} onSave={vi.fn(async () => {})} extract={bySection()} />);
+    await user.type(screen.getByLabelText("Current PT score"), "150");
+    await user.type(screen.getByLabelText("Goal score"), "165");
+    await user.selectOptions(screen.getByLabelText("Goal test date"), "January 2027");
+    await user.click(continueButton());
+    await user.click(screen.getByLabelText("Practice test on Sunday"));
+    await user.selectOptions(screen.getByLabelText("Sunday study time"), "3 h");
+    await user.click(continueButton());
+    await upload(user);
+    await upload(user, rcScreenshot, "RC");
+    await user.click(await enabledContinue());
+    await user.click(screen.getByLabelText("I reviewed these values and they match my screenshots."));
+    await user.click(screen.getByLabelText("These screenshots show my latest 7Sage analytics."));
+    await user.click(screen.getByRole("button", { name: "Confirm snapshot" }));
+
+    expect(await screen.findByRole("heading", { name: "This week's drills" })).toBeDefined();
+    expect(screen.getByText("No drilling days left this week.")).toBeDefined();
+  });
+
   it("shows Test time as a labelled choice", async () => {
     const user = userEvent.setup();
     render(<OnboardingWizard {...student} goalTestDateOptions={options} onSave={vi.fn()} />);
@@ -229,10 +259,10 @@ describe("OnboardingWizard · Week step", () => {
   });
 });
 
-async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract = bySection()) {
+async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract = bySection(), admin = false) {
   const user = userEvent.setup();
   render(
-    <OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={onSave} extract={extract} />,
+    <OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={onSave} extract={extract} admin={admin} />,
     { wrapper: FailureToastProvider },
   );
 
@@ -299,6 +329,45 @@ describe("OnboardingWizard", () => {
       officialAttempts: [],
       analyticsRows: [],
       analyticsApproval: null,
+    });
+  });
+
+  describe("Week reveal", () => {
+    const tile = (name: RegExp) => screen.getByRole("listitem", { name });
+
+    it("shows the week saved after Skip for now, with no drills, and Choose your plan opens Plan choice", async () => {
+      const { user } = await fillGoalAndWeek();
+      await user.click(screen.getByRole("button", { name: "Skip for now" }));
+
+      expect(await screen.findByRole("heading", { level: 1, name: "Your first week is ready" })).toBeDefined();
+      expect(stepCount("Done · Week reveal")).toBeDefined();
+      expect(screen.getByText("Here is the week DrillMap made for you.")).toBeDefined();
+      expect(screen.getByText("November 2026 LSAT · 2 weeks away")).toBeDefined();
+      expect(screen.getByText("150 → 165")).toBeDefined();
+      expect(screen.getByText("+15 to go")).toBeDefined();
+      expect(screen.getByText("18 h 15 · practice test Friday")).toBeDefined();
+      expect(tile(/^Monday, 2 h 30$/)).toBeDefined();
+      expect(tile(/^Friday, 3 h 15, practice test$/)).toBeDefined();
+      expect(within(tile(/^Friday/)).getByText("PT")).toBeDefined();
+      expect(screen.getByRole("heading", { name: "Monday's drills" })).toBeDefined();
+      expect(screen.getByText("Drills fill in after you add your analytics.")).toBeDefined();
+      expect(road().queryByText(/Drills fill in after you add analytics/)).toBeNull();
+      expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Go to This week" })).toBeNull();
+
+      await user.click(screen.getByRole("button", { name: "Choose your plan" }));
+      expect(router.refresh).toHaveBeenCalledTimes(1);
+      expect(router.push).not.toHaveBeenCalled();
+    });
+
+    it("gives an admin Go to This week instead of Plan choice, and refreshes the header there", async () => {
+      const { user } = await fillGoalAndWeek(undefined, undefined, true);
+      await user.click(screen.getByRole("button", { name: "Skip for now" }));
+
+      await user.click(await screen.findByRole("button", { name: "Go to This week" }));
+      expect(screen.queryByRole("button", { name: "Choose your plan" })).toBeNull();
+      expect(router.push).toHaveBeenCalledWith("/dashboard");
+      expect(router.refresh).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -416,6 +485,7 @@ describe("OnboardingWizard", () => {
     expect(saving.textContent).toBe("Saving…");
     expect(saving.parentElement?.textContent).toBe("Saving… · Your schedule starts after you add both.");
     expect((screen.getByRole("button", { name: "Back" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText("Saving your plan. This takes a few seconds.")).toBeDefined();
 
     failSave(new Error("Server Action failed"));
     expect(await screen.findByText("We couldn't save your plan. Press Skip for now again.")).toBeDefined();
@@ -1031,6 +1101,24 @@ describe("OnboardingWizard", () => {
       expect(screen.queryByRole("alert")).toBeNull();
       expect((screen.getByLabelText(statements[1]) as HTMLInputElement).checked).toBe(true);
       expect((confirmButton() as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it("shows the Week reveal with the first drilling day's drills from the confirmed values", async () => {
+      const { user } = await openReview();
+      await user.clear(box("Strengthen"));
+      await user.type(box("Strengthen"), "40");
+      for (const statement of statements) await user.click(screen.getByLabelText(statement));
+      await user.click(confirmButton());
+
+      expect(await screen.findByRole("heading", { level: 1, name: "Your first week is ready" })).toBeDefined();
+      const drills = within(screen.getByRole("heading", { name: "Thursday's drills" }).parentElement!).getAllByRole("listitem");
+      expect(drills.map((row) => row.textContent)).toEqual([
+        "43 min2 RC Passages Law L2, Science L458% accuracy",
+        "1 h 15 min1 Full LR Section",
+        "38 minStrengthen + Weaken40% accuracy",
+      ]);
+      expect(screen.queryByText("Drills fill in after you add your analytics.")).toBeNull();
+      expect(road().queryByText(/^Thursday:/)).toBeNull();
     });
 
     it("opens each uploaded screenshot inline with Show screenshot", async () => {

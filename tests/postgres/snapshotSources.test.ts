@@ -106,7 +106,7 @@ it("onboarding saves a manual entry typed 3 days ago and gives this week's weekl
   const account = await signIn("student");
   const typed = approval("manual_entry", MONDAY, new Date(MONDAY.getTime() - THREE_DAYS_MS));
   await expect(createStudentProfile({ ...profile, officialAttempts: [], analyticsRows: untrusted(rows), analyticsApproval: typed }))
-    .rejects.toThrow("redirect:/dashboard");
+    .resolves.toBeUndefined();
   const student = await findStudentByAccountId(account.id);
   if (!student) throw new Error("Onboarding saved no student");
   expect(await listApprovedAnalyticsSnapshots(student.id)).toEqual([expect.objectContaining({

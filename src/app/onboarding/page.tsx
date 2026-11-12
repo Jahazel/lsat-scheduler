@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { isAdminUser } from "@/lib/accessControl";
 import { PageArrival } from "@/components/PagePlaceholder";
 import { PLAN_CHOICE_PATHS } from "@/lib/planChoice";
 import { readScanningOff } from "@/lib/scanSpending";
@@ -39,6 +40,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
         today={today}
         goalTestDateOptions={upcomingTestMonths(today)}
         scanningOff={(await readScanningOff(new Date())).analytics}
+        admin={isAdminUser(session.user)}
         onSave={createStudentProfile}
       />
       <PageArrival page="Onboarding" />

@@ -169,8 +169,9 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   await heading("Add your 7Sage analytics");
   log("Skip analytics for now");
   await page.getByRole("button", { name: "Skip for now", exact: true }).click();
-  await heading("Pick your plan");
-  await page.getByRole("button", { name: "Add card on Stripe", exact: true }).waitFor();
+  await heading("Your first week is ready");
+  await page.getByText("Drills fill in after you add your analytics.", { exact: true }).waitFor();
+  await capture("onboarding-week-reveal");
   const onboarded = records("records-onboarding");
   assert.equal(onboarded.students.length, 1);
   assert.equal(onboarded.students[0].goal_score, 165);
@@ -179,6 +180,9 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   assert.deepEqual(dailyCapacities(onboarded.students[0]), [90, 90, 90, 90, 90, 150, 90]);
   assert.equal(onboarded.weekly_schedules.length, 0);
   assert.equal(onboarded.billing_records.length, 0, "Skipping analytics starts no plan.");
+  await page.getByRole("button", { name: "Choose your plan", exact: true }).click();
+  await heading("Pick your plan");
+  await page.getByRole("button", { name: "Add card on Stripe", exact: true }).waitFor();
   await capture("onboarding-pick-your-plan");
   log("Return from Stripe Checkout, then stand in for its webhook by writing the free-week billing record");
   await goto("/onboarding?checkout=done");

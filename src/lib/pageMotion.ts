@@ -82,13 +82,13 @@ export function fadeFormThrough(update: () => void) {
   });
 }
 
-export function slideStep(el: HTMLElement, x: number, update: () => void) {
+export function slideStep(el: HTMLElement, x: number, update: () => void, enter: Keyframe = slideFrom(x)) {
   if (!("animate" in Element.prototype)) return update();
   const show = () => {
     for (const animation of el.getAnimations()) animation.cancel();
     letGo(el);
     flushSync(update);
-    fadeIn(el, slideFrom(x));
+    fadeIn(el, enter);
   };
   if (reducedMotion()) return show();
   if (el.contains(document.activeElement)) document.querySelector<HTMLElement>("main")?.focus({ preventScroll: true });

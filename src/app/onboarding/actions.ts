@@ -2,7 +2,6 @@
 
 import { dateInScheduleTimezone } from "@/lib/adminTestWorkspace";
 import { studentSideClock } from "@/lib/studentClock";
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { createStudent, findStudentByAccountId } from "@/lib/studentRepository";
@@ -58,9 +57,6 @@ export async function createStudentProfile(
       throw error;
     }
     if (!student) redirect("/dashboard");
-
-    revalidatePath("/", "layout");
-    redirect("/dashboard");
   });
 }
 

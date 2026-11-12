@@ -44,9 +44,9 @@ import {
   type Accommodation,
   type AttemptRow,
 } from "./studyProfileDraft";
-import type { WeekValues } from "./studyWeek";
+import { previewWeek, weeklyTotalMinutes, type WeekValues } from "./studyWeek";
 import { testCountdown } from "./testCountdown";
-import type { Activity, AnalyticsExtractedRow, AnalyticsSection, DayOfWeek } from "./types";
+import type { Activity, AnalyticsExtractedRow, AnalyticsSection, DayOfWeek, PriorityTier } from "./types";
 
 const STEP_NAMES = ["Goal", "Week", "Analytics", "Review"] as const;
 export type WizardStep = "goal" | "week" | "analytics" | "review";
@@ -84,7 +84,7 @@ export interface WizardState {
   draft: ReviewDraft | null;
   analyticsInput: AnalyticsInput;
   typedDraft: ReviewDraft | null;
-  save: "idle" | "saving" | "failed" | { refused: string };
+  save: "idle" | "saving" | "failed" | { refused: string } | { saved: SaveInput };
 }
 
 export type WizardAction =
@@ -107,7 +107,8 @@ export type WizardAction =
   | { type: "saveStarted" }
   | { type: "saveFailed" }
   | { type: "saveEnded" }
-  | { type: "saveRefused"; message: string };
+  | { type: "saveRefused"; message: string }
+  | { type: "saved"; input: SaveInput };
 
 const DEFAULT_DAILY_MINUTES = 90;
 
@@ -206,18 +207,16 @@ export type PreviewDrill = {
   activity: Activity;
   minutes: string;
   label: string;
-  detail: { kind: "accuracy"; text: string } | { kind: "flag" } | null;
+  detail: { kind: "accuracy"; text: string } | { kind: "flag"; tier: PriorityTier | undefined } | null;
 };
 
 export function activeDraft(state: WizardState): ReviewDraft | null {
   return state.analyticsInput === "typed" ? state.typedDraft : state.draft;
 }
 
-export function previewDrills(state: WizardState, today: string): { day: DayOfWeek; items: PreviewDrill[] } | null {
-  const draft = activeDraft(state);
-  const profile = toProfileInput(state.values);
-  if (!profile || !draft) return null;
-  const rows = draft.review.rows.map(({ row }) => row).filter((row) => !accuracyError(row));
+export type WeekDrills = { day: DayOfWeek; items: PreviewDrill[] };
+
+function drillsFor(profile: StudentProfileInput, rows: AnalyticsExtractedRow[], today: string): WeekDrills | null {
   const todayIndex = (utcDay(today).getUTCDay() + 6) % 7;
   const weekOf = currentWeekInTimezone(utcDay(today), "UTC");
   const week = generateWeek(
@@ -240,10 +239,27 @@ export function previewDrills(state: WizardState, today: string): { day: DayOfWe
     const row = rows.find(({ type }) => type === activity.types[0]);
     const detail = row?.accuracy !== undefined
       ? { kind: "accuracy" as const, text: `${row.accuracy}%` }
-      : row?.category === "restricted" && row.isTopPriority ? { kind: "flag" as const } : null;
+      : row?.category === "restricted" && row.isTopPriority ? { kind: "flag" as const, tier: row.priorityTier } : null;
     return { activity, minutes, label: lrTypesName(activity.types), detail };
   });
   return { day, items };
+}
+
+export function previewDrills(state: WizardState, today: string): WeekDrills | null {
+  const draft = activeDraft(state);
+  const profile = toProfileInput(state.values);
+  if (!profile || !draft) return null;
+  return drillsFor(profile, draft.review.rows.map(({ row }) => row).filter((row) => !accuracyError(row)), today);
+}
+
+export function weekReveal(saved: SaveInput, today: string) {
+  const analyticsAdded = saved.analyticsRows.length > 0;
+  return {
+    days: previewWeek(saved).days,
+    totalMinutes: weeklyTotalMinutes(saved),
+    analyticsAdded,
+    drills: analyticsAdded ? drillsFor(saved, saved.analyticsRows, today) : null,
+  };
 }
 
 export function blockedReason(state: WizardState): string | null {
@@ -293,6 +309,14 @@ export function toProfileInput(values: WizardValues): StudentProfileInput | null
   };
 }
 
+export function savedAnswers(state: WizardState): SaveInput | null {
+  return typeof state.save === "object" && "saved" in state.save ? state.save.saved : null;
+}
+
+export function saveRefusal(state: WizardState): string | null {
+  return typeof state.save === "object" && "refused" in state.save ? state.save.refused : null;
+}
+
 export function screenshot(state: WizardState, section: AnalyticsSection): Screenshot | undefined {
   return slotFile(state.screenshots, section);
 }
@@ -316,6 +340,11 @@ export function profileWithAttempts(state: WizardState): ProfileWithAttempts | n
 export type ConfirmSnapshotInput = ProfileWithAttempts & {
   analyticsRows: AnalyticsExtractedRow[];
   analyticsApproval: SnapshotApprovalMetadata;
+};
+
+export type SaveInput = ProfileWithAttempts & {
+  analyticsRows: AnalyticsExtractedRow[];
+  analyticsApproval: SnapshotApprovalMetadata | null;
 };
 
 export function confirmSnapshotInput(state: WizardState): ConfirmSnapshotInput | null {
@@ -366,7 +395,8 @@ function updateDraft(state: WizardState, update: (draft: ReviewDraft) => ReviewD
 }
 
 export function wizardReducer(state: WizardState, action: WizardAction): WizardState {
-  if (state.save === "saving" && !["saveFailed", "saveEnded", "saveRefused", "readStarted", "readEnded"].includes(action.type)) return state;
+  if (savedAnswers(state)) return state;
+  if (state.save === "saving" && !["saveFailed", "saveEnded", "saveRefused", "saved", "readStarted", "readEnded"].includes(action.type)) return state;
   switch (action.type) {
     case "edit":
       return { ...state, values: { ...state.values, ...action.values } };
@@ -421,6 +451,8 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       return { ...state, save: "idle" };
     case "saveRefused":
       return { ...state, save: { refused: action.message } };
+    case "saved":
+      return { ...state, save: { saved: action.input } };
     default: {
       const _exhaustive: never = action;
       return _exhaustive;
