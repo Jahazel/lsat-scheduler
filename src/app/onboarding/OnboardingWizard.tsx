@@ -13,12 +13,9 @@ import { FailureNotice, LastFinishedReadNotice } from "@/components/FailureNotic
 import { ScanningOffNote } from "@/components/ScanningOffNote";
 import { PageCue } from "@/components/SiteMotion";
 import { Button } from "@/components/ui/Button";
-import { DropZone } from "@/components/ui/DropZone";
-import { FileRow, WaitNote } from "@/components/ui/FileRow";
-import { ReadDetail, ReadingBar, useReadingBar } from "@/components/ui/ReadingBar";
 import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
-import { CheckGlyph, ClockGlyph, ReadingGlyph } from "@/components/ui/StatusIcon";
-import { SECTION_NAME, SECTIONS, type Statement } from "@/lib/analyticsReview";
+import { TAP_AREA, cx } from "@/components/ui/classes";
+import { SECTIONS, type Statement } from "@/lib/analyticsReview";
 import { callAction } from "@/lib/callAction";
 import { analyticsInputs, confirmLock, type ReviewDraft } from "@/lib/reviewDraft";
 import {
@@ -42,14 +39,12 @@ import {
   weeksToTest,
   wizardReducer,
   type AttemptsDraft,
-  type Screenshot,
   type WizardAction,
   type WizardState,
 } from "@/lib/onboardingWizard";
-import { SIGN_IN_EXPIRED, SignInAgainLink } from "@/components/SignInExpired";
 import { nextRead } from "@/lib/screenshotReadQueue";
-import { CONNECTION_LOST, SCREENSHOT_LIMITS, SCREENSHOT_MEDIA_TYPES, SCREENSHOT_NOTICE, checkScreenshotType, extractScreenshot } from "@/lib/screenshotUpload";
-import type { AnalyticsExtractedRow, AnalyticsSection } from "@/lib/types";
+import { SCREENSHOT_LIMITS, SCREENSHOT_NOTICE, checkScreenshotType, extractScreenshot } from "@/lib/screenshotUpload";
+import type { AnalyticsSection } from "@/lib/types";
 import { slideStep } from "@/lib/pageMotion";
 import { isUnexpectedFailure } from "@/lib/unexpectedFailure";
 import { MAX_OFFICIAL_ATTEMPTS, type upcomingTestMonths } from "@/lib/studentProfile";
@@ -60,10 +55,10 @@ import LivePreview from "./LivePreview";
 import { RoadToTestDay } from "./RoadToTestDay";
 import { PINNED_BAR, ROAD_PANEL, STEP_COLUMN, STEP_CONTENT, STEP_GRID } from "./shell";
 import { StepCount } from "./StepCount";
+import { ScreenshotDropArea, WhereToFindIt } from "./ScreenshotDropArea";
 import { WEEK_NOTE_ID, WeekStepperTable } from "./WeekStepperTable";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
-const SMALL_BUTTON = `h-10 self-start rounded-sm border border-vellum-line bg-paper px-[18px] text-small font-medium text-ink transition-colors duration-(--duration-fast) ease-out hover:bg-vellum ${FOCUS}`;
 const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline aria-disabled:no-underline ${FOCUS}`;
 
 interface OnboardingWizardProps {
@@ -405,12 +400,14 @@ function AnalyticsStep({
 }) {
   const { typedDraft } = state;
   const typed = state.analyticsInput === "typed";
-  const anyAdded = !typed && state.screenshots.files.length > 0;
-  const lrRead = readRows(state, "LR");
 
   return (
     <div className="flex flex-col gap-8">
-      <StepHeading state={state} title="Add your 7Sage analytics" lede="Two screenshots, or the same values typed by you, tell us what to drill first." />
+      <StepHeading
+        state={state}
+        title="Add your 7Sage analytics"
+        lede={typed ? "Type the values from your 7Sage Analytics page. They tell us what to drill first." : "Two screenshots tell us what to drill first."}
+      />
       {scanningOff && <ScanningOffNote>Type them below. Your first weekly schedule works the same way as with screenshots.</ScanningOffNote>}
       <SegmentedSwitch
         name="analyticsInput"
@@ -424,22 +421,22 @@ function AnalyticsStep({
           <SnapshotReviewFields draft={typedDraft} lrRead={[]} files={{}} dispatch={dispatch} />
         </div>
       ) : (
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-3">
-            {SECTIONS.map((section) => (
-              <SectionUpload
-                key={section}
-                section={section}
-                screenshot={screenshot(state, section)}
-                rejection={state.rejections[section]}
-                onFile={(file) => onFile(section, file)}
-              />
-            ))}
-            {!anyAdded && <p className="text-small text-smoke">{SCREENSHOT_LIMITS} each.</p>}
-            <p className="text-small text-smoke">{SCREENSHOT_NOTICE}</p>
-          </div>
-          {screenshot(state, "LR")?.read.status === "read" && <RowsFound rows={lrRead} complete={bothRead(state)} />}
-          {!anyAdded && <WhereToFindIt />}
+        <div className="flex flex-col gap-3">
+          {SECTIONS.map((section) => (
+            <ScreenshotDropArea
+              key={section}
+              section={section}
+              screenshot={screenshot(state, section)}
+              rejection={state.rejections[section]}
+              onFile={(file) => onFile(section, file)}
+              onTypeInstead={() => dispatch({ type: "chooseInput", input: "typed", at: new Date() })}
+            />
+          ))}
+          <p className="text-small text-smoke">
+            {bothRead(state) ? "Next, you check each value. Nothing counts until you confirm." : `${SCREENSHOT_LIMITS} each.`}
+          </p>
+          <WhereToFindIt />
+          <p className="text-caption text-smoke">{SCREENSHOT_NOTICE}</p>
         </div>
       )}
     </div>
@@ -449,7 +446,6 @@ function AnalyticsStep({
 function AnalyticsActions({ state, dispatch, onSkip }: { state: WizardState; dispatch: Dispatch; onSkip: () => void }) {
   const saving = state.save === "saving";
   const typed = state.analyticsInput === "typed";
-  const anyAdded = !typed && state.screenshots.files.length > 0;
   const reason = blockedReason(state);
 
   return (
@@ -464,13 +460,12 @@ function AnalyticsActions({ state, dispatch, onSkip }: { state: WizardState; dis
           onClick={() => dispatch({ type: "continue" })}
           className="flex-1"
         >
-          {anyAdded ? "Check the values" : "Continue"}
+          Continue
         </Button>
       </div>
-      {anyAdded && <p className="text-center text-small text-smoke">You can replace either screenshot before you confirm.</p>}
       {typed && reason && <p id="continue-note" className="text-center text-small text-smoke">{reason}</p>}
       <p className="text-center text-small text-smoke">
-        <Button variant="bare" waiting={saving} waitLabel="Saving…" holdsWidth={false} onClick={onSkip} className={LINK_BUTTON}>
+        <Button variant="bare" waiting={saving} waitLabel="Saving…" holdsWidth={false} onClick={onSkip} className={cx(LINK_BUTTON, TAP_AREA)}>
           Skip for now
         </Button>
         {typed ? " · Your schedule starts after you add your analytics." : " · Your schedule starts after you add both."}
@@ -481,297 +476,6 @@ function AnalyticsActions({ state, dispatch, onSkip }: { state: WizardState; dis
           : typeof state.save === "object" && state.save.refused}
       </p>
     </div>
-  );
-}
-
-function SectionUpload({
-  section,
-  screenshot,
-  rejection,
-  onFile,
-}: {
-  section: AnalyticsSection;
-  screenshot: Screenshot | undefined;
-  rejection: string | null;
-  onFile: (file: File) => void;
-}) {
-  const picker = useRef<HTMLInputElement>(null);
-  const zone = useRef<HTMLDivElement>(null);
-  const accept = SCREENSHOT_MEDIA_TYPES.join(",");
-  useEffect(() => {
-    if (rejection && document.activeElement === document.body) zone.current?.querySelector("button")?.focus();
-  }, [rejection]);
-  if (!screenshot) {
-    return (
-      <div ref={zone}>
-        <DropZone label={`${SECTION_NAME[section]} screenshot`} accept={accept} error={rejection ?? undefined} onFile={onFile} />
-      </div>
-    );
-  }
-  return (
-    <>
-      <input
-        ref={picker}
-        type="file"
-        hidden
-        aria-label={`${SECTION_NAME[section]} screenshot file`}
-        accept={accept}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file) onFile(file);
-        }}
-      />
-      <ScreenshotFileRow
-        section={section}
-        screenshot={screenshot}
-        rejection={rejection}
-        onChoose={() => picker.current?.click()}
-        onTryAgain={() => onFile(screenshot.file)}
-      />
-    </>
-  );
-}
-
-function WhereToFindIt() {
-  const steps = [
-    "In 7Sage, open the Analytics page you checked most recently.",
-    "Screenshot the Logical Reasoning section. Show every question type with its percentage or priority tier.",
-    "Screenshot the Reading Comprehension section. Show every passage type it lists.",
-  ];
-  return (
-    <div className="flex flex-col gap-3">
-      <h2 className="text-small font-semibold text-ink">Where to find it</h2>
-      <ol className="flex flex-col gap-3">
-        {steps.map((step, index) => (
-          <li key={step} className="flex items-baseline gap-3 text-small text-ink">
-            <span aria-hidden className="w-4 shrink-0 font-mono text-caption text-smoke">
-              {index + 1}
-            </span>
-            {step}
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
-const FILE_STATUS: Record<Exclude<Screenshot["read"]["status"], "read" | "rejected">, { text: string; problem: boolean }> = {
-  added: { text: "Waiting to read", problem: false },
-  waiting: { text: "Waiting to read", problem: false },
-  reading: { text: "Reading now", problem: false },
-  refused: { text: "not read", problem: false },
-  failed: { text: "not read", problem: true },
-  "timed-out": { text: "Reading took too long and stopped.", problem: true },
-  "connection-lost": { text: CONNECTION_LOST, problem: false },
-  "cannot-read": { text: "We couldn't read the rows in it.", problem: true },
-  "signed-out": { text: SIGN_IN_EXPIRED, problem: true },
-  "no-rows": { text: "No question types in this one.", problem: true },
-};
-
-function readSummary(section: AnalyticsSection, count: number) {
-  const noun = section === "LR" ? "question type" : "passage type";
-  return `${count} ${noun}${count === 1 ? "" : "s"}`;
-}
-
-function ScreenshotFileRow({
-  section,
-  screenshot,
-  rejection,
-  onChoose,
-  onTryAgain,
-}: {
-  section: AnalyticsSection;
-  screenshot: Screenshot;
-  rejection: string | null;
-  onChoose: () => void;
-  onTryAgain: () => void;
-}) {
-  const { read } = screenshot;
-  const bar = useReadingBar(read.status);
-  const status = bar.phase === "filling" ? "reading" : read.status;
-  const row = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (document.activeElement === document.body) row.current?.focus();
-  }, [status]);
-  const problem = status !== "reading" && (read.status === "rejected" || (read.status !== "read" && FILE_STATUS[read.status].problem));
-  const statusText = status === "reading" ? FILE_STATUS.reading.text
-    : read.status === "read" ? readSummary(section, read.value.rows.length)
-    : read.status === "rejected" ? read.message
-    : FILE_STATUS[read.status].text;
-
-  return (
-    <div className="flex flex-col gap-3">
-      <FileRow
-        ref={row}
-        tabIndex={-1}
-        className="gap-4"
-        tone={status === "refused" ? "warning" : problem ? "danger" : "default"}
-        title={SECTION_NAME[section]}
-        detail={
-          <ReadDetail
-            name={screenshot.file.name}
-            status={statusText}
-            glyph={status === "read" ? <CheckGlyph /> : status === "waiting" ? <ClockGlyph /> : status === "reading" ? <ReadingGlyph /> : null}
-            className={problem ? "text-danger-ink" : status === "reading" ? "text-accent" : "text-smoke"}
-          />
-        }
-        bar={<ReadingBar label={`Reading your ${SECTION_NAME[section]} screenshot`} {...bar} />}
-        action={
-          <button type="button" onClick={onChoose} className={`shrink-0 text-small ${LINK_BUTTON}`}>
-            Replace
-          </button>
-        }
-      >
-        {status === "connection-lost" && (
-          <button type="button" onClick={onTryAgain} className={SMALL_BUTTON}>
-            Try again
-          </button>
-        )}
-        {(status === "cannot-read" || status === "timed-out" || status === "failed") && (
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={onTryAgain} className={SMALL_BUTTON}>
-              Try again
-            </button>
-            {status === "cannot-read" && (
-              <button type="button" onClick={onChoose} className={SMALL_BUTTON}>
-                Choose a sharper screenshot
-              </button>
-            )}
-          </div>
-        )}
-        {read.status === "refused" && (
-          <div className="flex flex-col gap-2.5">
-            <WaitNote>{read.message}</WaitNote>
-            {read.tryAgain && (
-              <button type="button" onClick={onTryAgain} className={`self-start pl-5.5 text-small ${LINK_BUTTON}`}>
-                Try again
-              </button>
-            )}
-          </div>
-        )}
-        {status === "signed-out" && <SignInAgainLink className={`inline-flex items-center ${SMALL_BUTTON}`} />}
-        {status === "no-rows" && (
-          <>
-            <RightPartExample section={section} />
-            <button type="button" onClick={onChoose} className={SMALL_BUTTON}>
-              Choose another screenshot
-            </button>
-          </>
-        )}
-      </FileRow>
-      {rejection && (
-        <p role="alert" className="text-small text-danger-ink">
-          {rejection}
-        </p>
-      )}
-    </div>
-  );
-}
-
-const EXAMPLE: Record<AnalyticsSection, { title: string; rows: { type: string; value: string; bar?: number }[] }> = {
-  LR: {
-    title: "Logical Reasoning question types",
-    rows: [
-      { type: "Diagram", value: "64%", bar: 64 },
-      { type: "Conditional reasoning", value: "68%", bar: 68 },
-      { type: "Necessary assumption", value: "71%", bar: 71 },
-      { type: "Phenomenon-hypothesis", value: "HIGHEST" },
-      { type: "Causal reasoning", value: "MEDIUM" },
-    ],
-  },
-  RC: {
-    title: "Reading Comprehension passage types",
-    rows: [
-      { type: "Law", value: "58%", bar: 58 },
-      { type: "Comparative", value: "70%", bar: 70 },
-      { type: "Science", value: "64%", bar: 64 },
-      { type: "Humanities", value: "81%", bar: 81 },
-      { type: "Art", value: "77%", bar: 77 },
-    ],
-  },
-};
-
-function RightPartExample({ section }: { section: AnalyticsSection }) {
-  const { title, rows } = EXAMPLE[section];
-  return (
-    <figure className="flex flex-col gap-3">
-      <figcaption className="flex items-baseline justify-between">
-        <span className="text-small font-semibold text-ink">Capture this part of 7Sage Analytics</span>
-        <span className="text-caption text-smoke">Example</span>
-      </figcaption>
-      <div className="flex flex-col gap-3 rounded-sm bg-vellum p-4">
-        <div aria-hidden className="flex items-center gap-3 opacity-55">
-          <span className="h-2 w-11 rounded bg-ink/35" />
-          <span className="h-2 w-16 rounded bg-ink/15" />
-          <span className="h-2 w-[52px] rounded bg-ink/15" />
-        </div>
-        <div aria-hidden className="flex h-11 items-end gap-1.5 rounded-sm bg-paper p-2 opacity-55">
-          {[14, 20, 18, 26, 24, 28].map((height, index) => (
-            <span key={index} className="w-3.5 rounded-sm bg-ink/15" style={{ height }} />
-          ))}
-        </div>
-        <div className="flex flex-col gap-2 rounded-sm border-2 border-accent bg-paper p-3 text-caption">
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-ink">{title}</span>
-            <span className="shrink-0 whitespace-nowrap rounded-full bg-ink px-2 py-0.5 font-medium text-chalk">This part</span>
-          </div>
-          {rows.map((row) => (
-            <div key={row.type} className="flex items-center gap-2">
-              <span className="w-[148px] shrink-0 text-smoke">{row.type}</span>
-              <span aria-hidden className="flex h-1.5 grow rounded-full bg-vellum">
-                {row.bar !== undefined && <span className="h-1.5 rounded-full bg-ink/30" style={{ width: `${row.bar}%` }} />}
-              </span>
-              <span className="shrink-0 text-right font-mono text-smoke">{row.value}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </figure>
-  );
-}
-
-function RowsFound({ rows, complete }: { rows: AnalyticsExtractedRow[]; complete: boolean }) {
-  const count = `${rows.length} ${rows.length === 1 ? "row" : "rows"}`;
-  return (
-    <div className="flex flex-col gap-6">
-      <table className="w-full border-collapse text-small">
-        <thead>
-          <tr className="h-7 border-b border-vellum-line text-caption text-smoke">
-            <th scope="col" className="px-3 text-left font-regular">
-              Logical Reasoning · {complete ? `found ${count}` : `found so far, ${count}`}
-            </th>
-            <th scope="col" className="px-3 text-right font-regular">Accuracy or priority</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.type} className="h-[38px] border-b border-vellum-line">
-              <th scope="row" className="px-3 text-left font-regular text-ink">{row.type}</th>
-              <td className="px-3 text-right">
-                <RowValue row={row} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="px-3 text-small text-smoke">
-        Next, you check each value and confirm this is your latest 7Sage analytics. Nothing counts until you confirm.
-      </p>
-    </div>
-  );
-}
-
-function RowValue({ row }: { row: AnalyticsExtractedRow }) {
-  if (row.accuracy !== undefined) return <span className="font-mono text-mono text-ink">{row.accuracy}%</span>;
-  if (row.category !== "restricted" || !row.isTopPriority) return <span className="text-smoke">—</span>;
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/tint px-2 py-0.5 text-caption font-medium text-accent">
-      <svg aria-hidden viewBox="0 0 10 10" className="size-2.5" fill="currentColor" stroke="currentColor" strokeLinejoin="round">
-        <path d="M2 9V1.5h5.5L6.5 3.5l1 2H2" />
-      </svg>
-      {row.priorityTier === "high" ? "High" : "Highest"} priority
-    </span>
   );
 }
 
