@@ -124,7 +124,7 @@ export type CheckoutStart = { kind: "checkout"; url: string } | { kind: "startin
 
 /**
  * Starts Stripe Checkout for the Account, one at a time: it closes the Account's open Checkout sessions, cancels its
- * old subscriptions, and voids their open invoices first, and starts none while Stripe holds a subscription that the billing record does not show yet.
+ * old subscriptions, and voids the customer's open invoices first, and starts none while Stripe holds a subscription that the billing record does not show yet.
  */
 export async function startCheckout(accountId: string, plan: PlanName, realNow: Date): Promise<CheckoutStart> {
   return getPostgresDatabase().transaction(async (tx) => {
