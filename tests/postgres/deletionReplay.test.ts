@@ -58,6 +58,13 @@ async function seedStudentWithRecords(db: ReturnType<typeof createPostgresConnec
   return account.id;
 }
 
+async function usedFreeWeeks() {
+  const rows = (await restored.db.execute<{ email_hash: string; used_on: string }>(sql`
+    select email_hash, used_on::text from used_free_weeks order by used_on
+  `)).rows;
+  return rows.map((row) => [row.email_hash, row.used_on]);
+}
+
 async function recordsOf(accountId: string) {
   const [counts] = (await restored.db.execute(sql`
     select
@@ -101,6 +108,9 @@ beforeAll(async () => {
     keptId = await seedStudentWithRecords(seeding.db, "kept@test.local");
     sameEmailId = await seedStudentWithRecords(seeding.db, "same-email@test.local");
     markedId = await seedStudentWithRecords(seeding.db, "marked@test.local");
+    await seeding.db.execute(sql`
+      insert into used_free_weeks (email_hash, used_on) values (${emailHash("kept@test.local")}, '2025-11-03')
+    `);
   } finally {
     await seeding.close();
   }
@@ -114,7 +124,11 @@ beforeAll(async () => {
   process.env.DATABASE_URL = liveSetting;
   const live = getPostgresDatabase();
   await live.execute(sql`update accounts set deleting_since = now() where id = ${deletedId}::uuid`);
+  await live.execute(sql`
+    insert into used_free_weeks (email_hash, used_on) values (${emailHash("deleted@test.local")}, '2026-11-02')
+  `);
   expect(await finishDeletion(deletedId, "/account")).toBe("deleted");
+  await live.execute(sql`update used_free_weeks set used_on = '2026-11-09' where email_hash = ${emailHash("kept@test.local")}`);
   await live.execute(sql`update accounts set deleting_since = now() where id = ${markedId}::uuid`);
   await live.execute(sql`
     insert into deletion_list (account_id, email_hash) values (${randomUUID()}::uuid, ${emailHash("same-email@test.local")})
@@ -138,13 +152,13 @@ afterAll(async () => {
   process.env.AUTH_SECRET = originalSecret;
 });
 
-it("deletes each restored Account on the deletion list or marked deleting, with all its records, and a second run deletes nothing", async () => {
+it("deletes each restored Account on the deletion list or marked deleting, brings back the used free week list, and a second run changes nothing", async () => {
   expect(await recordsOf(deletedId)).toEqual(allRecords);
   expect(await recordsOf(sameEmailId)).toEqual(allRecords);
   expect(await recordsOf(markedId)).toEqual(allRecords);
 
   const first = await replay();
-  expect(first).toEqual({ code: 0, stdout: "Deletion list rows: 2. Restored Accounts deleted: 3.\n", stderr: "" });
+  expect(first).toEqual({ code: 0, stdout: "Deletion list rows: 2. Restored Accounts deleted: 3. Used free week rows copied: 2.\n", stderr: "" });
   expect(await recordsOf(deletedId)).toEqual(noRecords);
   expect(await recordsOf(sameEmailId)).toEqual(noRecords);
   expect(await recordsOf(markedId)).toEqual(noRecords);
@@ -153,10 +167,16 @@ it("deletes each restored Account on the deletion list or marked deleting, with 
   expect(listed).toHaveLength(4);
   expect(listed.map((row) => row.account_id)).toEqual(expect.arrayContaining([deletedId, sameEmailId, markedId]));
 
+  expect(await usedFreeWeeks()).toEqual([
+    [emailHash("deleted@test.local"), "2026-11-02"],
+    [emailHash("kept@test.local"), "2026-11-09"],
+  ]);
+
   const second = await replay();
-  expect(second).toEqual({ code: 0, stdout: "Deletion list rows: 2. Restored Accounts deleted: 0.\n", stderr: "" });
+  expect(second).toEqual({ code: 0, stdout: "Deletion list rows: 2. Restored Accounts deleted: 0. Used free week rows copied: 2.\n", stderr: "" });
   expect(await recordsOf(keptId)).toEqual(allRecords);
   expect((await restored.db.execute(sql`select 1 from deletion_list`)).rows).toHaveLength(4);
+  expect(await usedFreeWeeks()).toHaveLength(2);
 });
 
 it("refuses to run without the key that made the email hashes", async () => {
