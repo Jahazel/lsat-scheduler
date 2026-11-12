@@ -154,7 +154,7 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   await page.getByLabel("Goal score", { exact: true }).fill("165");
   await page.getByLabel("Goal test date", { exact: true }).selectOption("2027-06-01");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await heading("Plan your week");
+  await heading("Pick your study days");
   log("Choose Saturday on Step 2 · Week");
   await page.getByText("Pick a practice-test day to continue.", { exact: true }).waitFor();
   await page.getByLabel("Practice test on Saturday", { exact: true }).check();
@@ -162,7 +162,7 @@ const result = await drive(directory, "smoke", async ({ page, url, log, goto, si
   await page.getByText(SHORT_SATURDAY, { exact: true }).waitFor();
   assert.equal(await page.getByRole("button", { name: "Continue", exact: true }).isDisabled(), true);
   await capture("onboarding-week-short-day");
-  await page.getByLabel("Saturday hours", { exact: true }).selectOption("2");
+  await page.getByLabel("Saturday study time", { exact: true }).selectOption({ label: "2 h 30" });
   await page.getByText(SHORT_SATURDAY, { exact: true }).waitFor({ state: "detached" });
   await capture("onboarding-week");
   await page.getByRole("button", { name: "Continue", exact: true }).click();

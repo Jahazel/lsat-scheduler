@@ -26,7 +26,7 @@ import {
   boxId, statementId, tierId, useFocusAfterRender,
 } from "@/components/SnapshotReviewFields";
 import {
-  FieldMessage, GoalTestDateSelect, OfficialAttemptRows, ScoreInput, WeekFields,
+  FieldMessage, GoalTestDateSelect, OfficialAttemptRows, ScoreInput,
 } from "@/components/StudyProfileFields";
 import {
   activeDraft,
@@ -60,6 +60,7 @@ import LivePreview from "./LivePreview";
 import { RoadToTestDay } from "./RoadToTestDay";
 import { PINNED_BAR, ROAD_PANEL, STEP_COLUMN, STEP_CONTENT, STEP_GRID } from "./shell";
 import { StepCount } from "./StepCount";
+import { WEEK_NOTE_ID, WeekStepperTable } from "./WeekStepperTable";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 const SMALL_BUTTON = `h-10 self-start rounded-sm border border-vellum-line bg-paper px-[18px] text-small font-medium text-ink transition-colors duration-(--duration-fast) ease-out hover:bg-vellum ${FOCUS}`;
@@ -219,6 +220,8 @@ function StepForm({ dispatch, children }: { dispatch: Dispatch; children: ReactN
 
 function StepActions({ state, dispatch }: { state: WizardState; dispatch: Dispatch }) {
   const reason = blockedReason(state);
+  const noteInStep = state.step === "week";
+  const noteId = noteInStep ? WEEK_NOTE_ID : "continue-note";
   return (
     <div className="flex flex-col gap-3">
       <div className="flex gap-3">
@@ -227,11 +230,11 @@ function StepActions({ state, dispatch }: { state: WizardState; dispatch: Dispat
             Back
           </Button>
         )}
-        <Button type="submit" form={STEP_FORM} disabled={Boolean(reason)} aria-describedby={reason ? "continue-note" : undefined} className="flex-1">
+        <Button type="submit" form={STEP_FORM} disabled={Boolean(reason)} aria-describedby={reason ? noteId : undefined} className="flex-1">
           Continue
         </Button>
       </div>
-      {reason && <p id="continue-note" className="text-center text-small text-smoke">{reason}</p>}
+      {reason && !noteInStep && <p id="continue-note" className="text-center text-small text-smoke">{reason}</p>}
     </div>
   );
 }
@@ -372,15 +375,12 @@ function WeekStep({ state, dispatch }: { state: WizardState; dispatch: Dispatch 
 
   return (
     <StepForm dispatch={dispatch}>
-      <StepHeading
-        state={state}
-        title="Plan your week"
-        lede="How much time you can study each day. Each day needs at least 30 min. We choose your rest day."
-      />
-      <WeekFields
+      <StepHeading state={state} title="Pick your study days" lede="How much time you can study each day. We choose your rest day." />
+      <WeekStepperTable
         values={values}
         allDaysMinutes={values.allDaysMinutes}
         accommodation={values.accommodationMultiplier}
+        continueBlockedReason={blockedReason(state)}
         onAllDaysChange={(minutes) => dispatch({ type: "edit", values: { allDaysMinutes: minutes } })}
         onApplyAllDays={() => dispatch({ type: "applyAllDays" })}
         onDayChange={(day, minutes) =>
