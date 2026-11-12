@@ -9,7 +9,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import StudentNav, { StudentTabBar, type StudentNavProps } from "./StudentNav";
 import { NavIcon } from "./NavIcon";
 import { SignOutButton, SignOutForm } from "@/components/SignOutForm";
-import { FOCUS, cx } from "@/components/ui/classes";
+import { FOCUS, TAP_AREA, cx } from "@/components/ui/classes";
 import { BAR, HEADER, Logo, TABS, isTabActive } from "./shared";
 
 function WorkspaceSwitcher({ studentSide, adminSide }: { studentSide: boolean; adminSide: boolean }) {
@@ -114,7 +114,7 @@ export default function AdminNav(props: StudentNavProps & { testState?: TestCont
               {switcher}
             </div>
             <SignOutForm action={props.logOut}>
-              <SignOutButton variant="text" size="md">Log out</SignOutButton>
+              <SignOutButton variant="text" size="md" className={TAP_AREA}>Log out</SignOutButton>
             </SignOutForm>
           </div>
         )}

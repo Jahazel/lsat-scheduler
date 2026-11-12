@@ -155,12 +155,17 @@
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
   }
+  html { -webkit-tap-highlight-color: transparent; }
+  :where(a, button, input, select, textarea, label, summary, [role="button"]) { touch-action: manipulation; }
+  :where(button, [role="button"], [role="tab"], [role="menuitem"]) { -webkit-user-select: none; user-select: none; }
 }
 
 body {
   background: var(--color-vellum);
   color: var(--color-ink);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 @media (min-width: 64rem) {
@@ -515,16 +520,20 @@ body:has([data-landing-page]) > footer > * { border-color: color-mix(in oklab, v
   .start-cta:active, .start-ghost:active { scale: 1; }
 }
 
-/* The floating tab bar's top edge sits 78px above the window bottom (StudentTabBar), so 86px leaves 8px. */
-.failure-toast-slot { bottom: 12px; }
+/* The floating tab bar's top edge sits 78px above the safe area's bottom (StudentTabBar), so 86px leaves 8px. */
+.failure-toast-slot {
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  padding-left: max(12px, env(safe-area-inset-left));
+  padding-right: max(12px, env(safe-area-inset-right));
+}
 body:has([data-tab-bar]) .failure-toast-slot { bottom: calc(86px + env(safe-area-inset-bottom)); }
 @media (min-width: 48rem) {
   .failure-toast-slot,
-  body:has([data-tab-bar]) .failure-toast-slot { bottom: 32px; }
+  body:has([data-tab-bar]) .failure-toast-slot { bottom: calc(32px + env(safe-area-inset-bottom)); }
   body:has([data-workspace-tabs]) .failure-toast-slot { bottom: calc(86px + env(safe-area-inset-bottom)); }
 }
 @media (min-width: 64rem) {
-  body:has([data-workspace-tabs]) .failure-toast-slot { bottom: 32px; }
+  body:has([data-workspace-tabs]) .failure-toast-slot { bottom: calc(32px + env(safe-area-inset-bottom)); }
 }
 
 .failure-toast {
@@ -550,17 +559,25 @@ body:has([data-tab-bar]) .failure-toast-slot { bottom: calc(86px + env(safe-area
   .failure-toast { --rise: 0px; --drop: 0px; transition-duration: var(--duration-fast); }
 }
 
-.save-bar { left: 12px; right: 12px; bottom: 12px; }
+.save-bar {
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
+  bottom: calc(12px + env(safe-area-inset-bottom));
+}
 body:has([data-tab-bar]) .save-bar { bottom: calc(86px + env(safe-area-inset-bottom)); }
 @media (min-width: 48rem) {
   .save-bar,
-  body:has([data-tab-bar]) .save-bar { left: 32px; right: 32px; bottom: 24px; }
+  body:has([data-tab-bar]) .save-bar {
+    left: max(32px, env(safe-area-inset-left));
+    right: max(32px, env(safe-area-inset-right));
+    bottom: calc(24px + env(safe-area-inset-bottom));
+  }
   body:has([data-workspace-tabs]) .save-bar { bottom: calc(86px + env(safe-area-inset-bottom)); }
 }
 @media (min-width: 64rem) {
   .save-bar,
   body:has([data-tab-bar]) .save-bar,
-  body:has([data-workspace-tabs]) .save-bar { left: 72px; right: 72px; bottom: 24px; }
+  body:has([data-workspace-tabs]) .save-bar { left: 72px; right: 72px; bottom: calc(24px + env(safe-area-inset-bottom)); }
   body:has([data-test-dock="expanded"]) .save-bar { right: calc(20rem + 72px); }
   body:has([data-test-dock="collapsed"]) .save-bar { right: calc(5rem + 72px); }
 }
