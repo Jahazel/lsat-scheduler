@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { MOTION, cx } from "@/components/ui/classes";
 import { PLAN_NAMES, planChoiceOffer, type PlanName } from "@/lib/planChoice";
 import { PLAN_PRICES } from "@/lib/planPrices";
-import { PLAN_TERMS } from "@/app/onboarding/PlanChoice";
+import { PLAN_TERMS } from "@/lib/planChoice";
 import { Columns } from "./columns";
 import type { DataSet, PlanState } from "../view";
 

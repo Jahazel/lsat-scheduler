@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   DATA_SETS,
   HEIGHTS,
@@ -64,9 +64,8 @@ export default function Frame({ initial }: { initial: View }) {
   const [loads, setLoads] = useState(0);
   const at = useRef<Where | null>(null);
   const set = (change: Partial<View>) => setView((v) => ({ ...v, ...change }));
-  // The picker inside the frame reports its variant back; only a scene, motion, data, or start-step change reloads the frame.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const src = useMemo(() => `/prototypes/onboarding-redesign/screen?${viewQuery(view, false)}`, [view.scene, view.reducedMotion, view.data, view.step, view.reveal, view.plan, view.save, view.read, view.scanOff, view.name, view.page]);
+  // The frame's address leaves out the size and the variant the screen reports back, so changing them never reloads it.
+  const src = `/prototypes/onboarding-redesign/screen?${viewQuery({ ...view, v: initial.v }, false)}`;
 
   useEffect(() => {
     history.replaceState(null, "", `?${viewQuery(view)}`);
