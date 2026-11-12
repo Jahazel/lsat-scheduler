@@ -13,7 +13,7 @@ try {
   const restored = createPostgresConnection();
   connections.push(restored);
   const counts = await replayDeletionList({ list: list.db, restored: restored.db });
-  process.stdout.write(`Deletion list rows: ${counts.listed}. Restored Accounts deleted: ${counts.deleted}.\n`);
+  process.stdout.write(`Deletion list rows: ${counts.listed}. Restored Accounts deleted: ${counts.deleted}. Used free week rows: ${counts.freeWeeks}.\n`);
 } catch (error) {
   const message = error instanceof Error && (error.message.startsWith("Refusing database host ")
     || error.message === "AUTH_SECRET is not set."

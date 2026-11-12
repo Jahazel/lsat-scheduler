@@ -14,7 +14,10 @@ still needs the owner's approval before the site uses the restored branch.
 - **Replay**: `npm run replay-deletions`. It deletes from the restored branch every Account on the
   current branch's deletion list, by ID or by email hash, and every Account the current branch marks
   as deleting, with all its records. It copies the list
-  rows to the restored branch. It prints only two counts. A second run deletes nothing.
+  rows to the restored branch. It also copies the current branch's used free week list, with each row's
+  date, so an email that started a free week after the backup and was then deleted cannot get a second
+  free week. When both branches hold a row for one email, the current branch's date stays. It prints
+  only three counts. A second run deletes nothing.
 - **Billing resync**: `npm run resync-billing`. It asks Stripe for every subscription and saves each one's
   current state on the restored branch, with the same code the Stripe message receiver uses. Billing state
   follows Stripe, so a plan started, changed, or cancelled after the backup comes back as Stripe holds it.
@@ -68,9 +71,9 @@ Do every step in order. Do not change the site's `DATABASE_URL` before step 7.
    npm run replay-deletions
    ```
 
-   It prints `Deletion list rows: N. Restored Accounts deleted: M.` Record both counts. Run it a
-   second time. It must print `Restored Accounts deleted: 0.` Then `unset DATABASE_URL
-   DELETION_LIST_URL AUTH_SECRET`. If the current branch is lost, the deletions since the backup are
+   It prints `Deletion list rows: N. Restored Accounts deleted: M. Used free week rows: F.` Record
+   the three counts. Run it a second time. It must print `Restored Accounts deleted: 0.` Then `unset
+   DATABASE_URL DELETION_LIST_URL AUTH_SECRET`. If the current branch is lost, the deletions since the backup are
    lost too. Stop and ask the owner before going on.
 
    The script refuses every host except a local database and the approved copy hosts in
@@ -102,8 +105,9 @@ Do every step in order. Do not change the site's `DATABASE_URL` before step 7.
    key is from the other mode. Check the key and run it again. If `U` stays above 0, stop and ask the owner. The
    same host rule as the replay applies.
 6. **Check the result.** In Neon's SQL Editor on the restored branch, compare the table counts with
-   the counts at the backup time minus the deleted Accounts' records. Check that each deleted test
-   Account is gone. Record counts only.
+   the counts at the backup time minus the deleted Accounts' records. The `used_free_weeks` table is
+   the exception: the replay and the billing resync add rows to it, so it holds at least `F` rows.
+   Check that each deleted test Account is gone. Record counts only.
 7. **Let the site use the restored branch.** With the owner's approval, change the site's
    `DATABASE_URL` in Vercel to the restored branch and deploy. Recheck both Admins.
 8. **Protect the restored branch.** Set `BACKUP_BRANCH_ID` to the restored branch's ID in both
@@ -118,5 +122,5 @@ Do every step in order. Do not change the site's `DATABASE_URL` before step 7.
 ## Evidence record
 
 Record the UTC date, the commit, the restored branch name, the backup time, both age check results,
-both replay counts, both billing resync counts, the table counts, and what was deleted in step 9. Record no email, Account ID,
-connection string, or key.
+the three replay counts, both billing resync counts, the table counts, and what was deleted in step 9.
+Record no email, Account ID, connection string, or key.
