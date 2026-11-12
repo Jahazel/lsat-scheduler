@@ -10,8 +10,6 @@ import type { FailureCode } from "@/lib/unexpectedFailure";
 import { FailureToastProvider } from "@/components/FailureNotice";
 import OnboardingWizard from "./OnboardingWizard";
 
-const rowDetail = (text: string | RegExp) => (_: string, el: Element | null) =>
-  el?.getAttribute("aria-live") === "polite" && (typeof text === "string" ? el.textContent === text : text.test(el.textContent ?? ""));
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -140,7 +138,7 @@ describe("OnboardingWizard · frame and Goal", () => {
 
     await upload(user);
     await upload(user, rcScreenshot, "RC");
-    await screen.findByRole("button", { name: "Check the values" });
+    await enabledContinue();
     await waitFor(() => expect(road().getByText("No drilling days left this week.")).toBeDefined());
   });
 
@@ -270,8 +268,15 @@ async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract 
   return { user, onSave, extract };
 }
 
-function checkTheValues() {
-  return screen.getByRole("button", { name: "Check the values" }) as HTMLButtonElement;
+async function enabledContinue() {
+  await waitFor(() => expect(continueButton().disabled).toBe(false));
+  return continueButton();
+}
+
+const dropArea = (section: AnalyticsSection) => screen.getByRole("group", { name: new RegExp(SECTION_NAME[section]) });
+
+async function findInArea(section: AnalyticsSection, text: string) {
+  return within(await screen.findByRole("group", { name: new RegExp(SECTION_NAME[section]) })).findByText(text);
 }
 
 async function upload(user: ReturnType<typeof userEvent.setup>, file = screenshot, section: AnalyticsSection = "LR") {
@@ -520,27 +525,27 @@ describe("OnboardingWizard", () => {
       expect((screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement).disabled).toBe(true);
 
       await upload(user);
-      expect(screen.getByText(rowDetail("lr-analytics.png · Reading now"))).toBeDefined();
+      expect(within(dropArea("LR")).getByText("Reading your screenshot…")).toBeDefined();
       expect(screen.getByRole("progressbar", { name: "Reading your Logical Reasoning screenshot" })).toBeDefined();
-      expect(checkTheValues().disabled).toBe(true);
+      expect(continueButton().disabled).toBe(true);
       expect(screen.getByRole("button", { name: "Skip for now" })).toBeDefined();
 
       finishRead(rows);
-      expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
-      expect(screen.getByRole("rowheader", { name: "Strengthen" })).toBeDefined();
-      expect(within(screen.getByRole("table")).getByText("68%")).toBeDefined();
-      expect(screen.getByText("Highest priority")).toBeDefined();
-      expect(checkTheValues().disabled).toBe(true);
+      expect(await findInArea("LR", "2 question types found")).toBeDefined();
+      expect(within(dropArea("LR")).getByText("lr-analytics.png")).toBeDefined();
+      expect(within(dropArea("LR")).getByRole("button", { name: "Replace" })).toBeDefined();
+      expect(screen.queryByRole("table")).toBeNull();
+      expect(screen.getByText("PNG, JPG, or WEBP · 4 MB or less each.")).toBeDefined();
+      expect(continueButton().disabled).toBe(true);
 
       await upload(user, rcScreenshot, "RC");
-      expect(await screen.findByText(rowDetail("rc-analytics.png · 5 passage types"))).toBeDefined();
-      expect(screen.getByText("Logical Reasoning · found 2 rows")).toBeDefined();
-      expect(screen.getByText("You can replace either screenshot before you confirm.")).toBeDefined();
-      await user.click(checkTheValues());
+      expect(await findInArea("RC", "5 passage types found")).toBeDefined();
+      expect(screen.getByText("Next, you check each value. Nothing counts until you confirm.")).toBeDefined();
+      await user.click(continueButton());
 
       expect(stepCount("Step 4 of 4 · Review")).toBeDefined();
       await user.click(screen.getByRole("button", { name: "Back" }));
-      expect(screen.getByText("Logical Reasoning · found 2 rows")).toBeDefined();
+      expect(within(dropArea("LR")).getByText("2 question types found")).toBeDefined();
       expect(extract).toHaveBeenCalledWith(screenshot, "LR");
       expect(extract).toHaveBeenCalledWith(rcScreenshot, "RC");
     });
@@ -552,11 +557,11 @@ describe("OnboardingWizard", () => {
       const { user } = await fillGoalAndWeek(undefined, extract);
 
       await upload(user);
-      expect(await screen.findByText(rowDetail("lr-analytics.png · Connection lost. Your file is still here."))).toBeDefined();
+      expect(await findInArea("LR", "Connection lost. Your file is still here.")).toBeDefined();
       expect(screen.queryByRole("alert")).toBeNull();
       await user.click(screen.getByRole("button", { name: "Try again" }));
 
-      expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
+      expect(await findInArea("LR", "2 question types found")).toBeDefined();
       expect(extract).toHaveBeenCalledTimes(2);
       expect(extract.mock.calls[1][0]).toBe(screenshot);
     });
@@ -571,14 +576,14 @@ describe("OnboardingWizard", () => {
       await upload(user);
       expect((await screen.findByRole("alert")).textContent).toBe(TOAST_TEXT);
       expect(screen.getAllByText("Something went wrong. Try again.")).toHaveLength(1);
-      expect(screen.getByText(rowDetail("lr-analytics.png · not read"))).toBeDefined();
+      expect(screen.getByRole("group", { name: "Logical Reasoning · not read" })).toBeDefined();
       expect(stepCount("Step 3 of 4 · Analytics")).toBeDefined();
 
       await user.click(screen.getByRole("button", { name: "Try again" }));
-      expect(await screen.findByText(rowDetail("lr-analytics.png · Reading now"))).toBeDefined();
+      expect(await findInArea("LR", "Reading your screenshot…")).toBeDefined();
       expect(screen.getByRole("alert")).toBeDefined();
       finishRetry(rows);
-      expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
+      expect(await findInArea("LR", "2 question types found")).toBeDefined();
       await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
       expect(extract.mock.calls[1][0]).toBe(screenshot);
     });
@@ -600,7 +605,7 @@ describe("OnboardingWizard", () => {
 
       expect(await screen.findByText(/We couldn't read the rows in it\./)).toBeDefined();
       expect(screen.getByRole("button", { name: "Choose a sharper screenshot" })).toBeDefined();
-      expect(checkTheValues().disabled).toBe(true);
+      expect(continueButton().disabled).toBe(true);
     });
 
     it("shows the right part of 7Sage when a read finds zero rows, and never reaches Review", async () => {
@@ -615,17 +620,17 @@ describe("OnboardingWizard", () => {
       expect(await screen.findByText(/No question types in this one\./)).toBeDefined();
       expect(screen.getByText("Capture this part of 7Sage Analytics")).toBeDefined();
       expect(screen.getByText("Logical Reasoning question types")).toBeDefined();
-      expect(checkTheValues().disabled).toBe(true);
-      await user.click(checkTheValues());
+      expect(continueButton().disabled).toBe(true);
+      await user.click(continueButton());
       expect(queryStepCount("Step 4 of 4 · Review")).toBeNull();
 
       await upload(user);
-      expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
+      expect(await findInArea("LR", "2 question types found")).toBeDefined();
       expect(screen.getByText(/lr-analytics\.png/)).toBeDefined();
 
       await upload(user, rcScreenshot, "RC");
-      expect(await screen.findByText(rowDetail("rc-analytics.png · 5 passage types"))).toBeDefined();
-      expect(checkTheValues().disabled).toBe(false);
+      expect(await findInArea("RC", "5 passage types found")).toBeDefined();
+      expect(continueButton().disabled).toBe(false);
     });
 
     it("rejects a wrong type before any upload", async () => {
@@ -674,7 +679,7 @@ describe("OnboardingWizard", () => {
       expect(zone.textContent).toContain("Drop to add it");
       expect(screen.getByRole("button", { name: /Logical Reasoning screenshot/ }).textContent).not.toContain("Drop to add it");
       fireEvent.dragLeave(zone);
-      expect(zone.textContent).toContain("Drop it here");
+      expect(zone.textContent).toContain("Click to browse, or drop a file here.");
     });
 
     it("drops a late reply for a screenshot that was replaced", async () => {
@@ -684,13 +689,13 @@ describe("OnboardingWizard", () => {
 
       await upload(user, new File(["png"], "first.png", { type: "image/png" }));
       await upload(user);
-      expect(screen.getByText(rowDetail("lr-analytics.png · Waiting to read"))).toBeDefined();
+      expect(within(dropArea("LR")).getByText("Waiting to read")).toBeDefined();
       expect(extract).toHaveBeenCalledOnce();
       replies[0]({ kind: "cannot-read" });
       await waitFor(() => expect(extract).toHaveBeenCalledTimes(2));
       replies[1](rows);
 
-      expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
+      expect(await findInArea("LR", "2 question types found")).toBeDefined();
       expect(screen.queryByText(/We couldn't read the rows in it\./)).toBeNull();
     });
 
@@ -702,11 +707,11 @@ describe("OnboardingWizard", () => {
 
       await upload(user);
       await upload(user, rcScreenshot, "RC");
-      expect(screen.getByText(rowDetail("rc-analytics.png · Waiting to read"))).toBeDefined();
+      expect(within(dropArea("RC")).getByText("Waiting to read")).toBeDefined();
       expect(extract).toHaveBeenCalledOnce();
 
       finishLr(rows);
-      expect(await screen.findByText(rowDetail("rc-analytics.png · 5 passage types"))).toBeDefined();
+      expect(await findInArea("RC", "5 passage types found")).toBeDefined();
       expect(extract).toHaveBeenCalledTimes(2);
     });
 
@@ -722,6 +727,45 @@ describe("OnboardingWizard", () => {
 
       expect(await screen.findAllByText(message)).toHaveLength(2);
       expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+      expect(screen.getAllByRole("button", { name: "Type them instead" })).toHaveLength(2);
+      expect(extract).toHaveBeenCalledOnce();
+    });
+
+    it("offers Type them instead at the daily read limit and switches to the typed path", async () => {
+      const message = "You've read 10 screenshots today. You can scan again tomorrow, after midnight Central time.";
+      const { user, extract } = await fillGoalAndWeek(undefined, vi.fn<Extract>(async () => ({ kind: "refused", refused: "daily-limit", message })));
+
+      await upload(user);
+      expect(await findInArea("LR", message)).toBeDefined();
+      expect(screen.getByRole("group", { name: "Logical Reasoning · not read" })).toBeDefined();
+      expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+      await user.click(screen.getByRole("button", { name: "Type them instead" }));
+
+      expect((screen.getByLabelText("Type them") as HTMLInputElement).checked).toBe(true);
+      expect(screen.getByRole("button", { name: "Add a question type" })).toBeDefined();
+      expect(screen.getByText("Type the values from your 7Sage Analytics page. They tell us what to drill first.")).toBeDefined();
+      expect(extract).toHaveBeenCalledOnce();
+    });
+
+    it("keeps the end of a long file name in the read pill", async () => {
+      const { user } = await fillGoalAndWeek();
+
+      await upload(user, new File(["png"], "Screenshot 2026-10-19 at 9.41.07 Logical Reasoning.png", { type: "image/png" }));
+
+      expect(await findInArea("LR", "2 question types found")).toBeDefined();
+      expect(within(dropArea("LR")).getByText("Reasoning.png")).toBeDefined();
+      expect(within(dropArea("LR")).getByTitle("Screenshot 2026-10-19 at 9.41.07 Logical Reasoning.png")).toBeDefined();
+    });
+
+    it("keeps a read screenshot and shows today's message when its replacement is the wrong type", async () => {
+      const { user, extract } = await fillGoalAndWeek();
+      await upload(user);
+      expect(await findInArea("LR", "2 question types found")).toBeDefined();
+
+      fireEvent.drop(dropArea("LR"), { dataTransfer: { files: [new File(["%PDF"], "study-notes.pdf", { type: "application/pdf" })] } });
+
+      expect(screen.getByRole("alert").textContent).toBe("That file is not a PNG, JPG, or WEBP. Choose a screenshot in one of those types.");
+      expect(within(dropArea("LR")).getByText("2 question types found")).toBeDefined();
       expect(extract).toHaveBeenCalledOnce();
     });
 
@@ -730,10 +774,10 @@ describe("OnboardingWizard", () => {
       const { user } = await fillGoalAndWeek(undefined, extract);
 
       await upload(user);
-      expect(await screen.findByText(rowDetail("lr-analytics.png · Reading took too long and stopped."))).toBeDefined();
+      expect(await findInArea("LR", "Reading took too long and stopped.")).toBeDefined();
       await user.click(screen.getByRole("button", { name: "Try again" }));
 
-      expect(await screen.findByText("Logical Reasoning · found so far, 2 rows")).toBeDefined();
+      expect(await findInArea("LR", "2 question types found")).toBeDefined();
       expect(extract).toHaveBeenCalledTimes(2);
     });
   });
@@ -753,7 +797,7 @@ describe("OnboardingWizard", () => {
       const steps = await fillGoalAndWeek(onSave, bySection(reply, rcReply));
       await upload(steps.user);
       await upload(steps.user, rcScreenshot, "RC");
-      await steps.user.click(await screen.findByRole("button", { name: "Check the values" }));
+      await steps.user.click(await enabledContinue());
       expect(stepCount("Step 4 of 4 · Review")).toBeDefined();
       return steps;
     }
@@ -770,7 +814,7 @@ describe("OnboardingWizard", () => {
 
       await upload(steps.user);
       await upload(steps.user, rcScreenshot, "RC");
-      await steps.user.click(await screen.findByRole("button", { name: "Check the values" }));
+      await steps.user.click(await enabledContinue());
 
       expect(stepCount("Step 4 of 4 · Review")).toBeDefined();
       expect(screen.queryByText(refusal)).toBeNull();
@@ -783,13 +827,13 @@ describe("OnboardingWizard", () => {
 
       await upload(steps.user);
       await upload(steps.user, rcScreenshot, "RC");
-      await steps.user.click(await screen.findByRole("button", { name: "Check the values" }));
+      await steps.user.click(await enabledContinue());
 
       expect(stepCount("Step 4 of 4 · Review")).toBeDefined();
       expect(screen.queryByText(/We couldn't save your plan/)).toBeNull();
     });
 
-    it("shows a scanned High row as top priority on Step 3 and ticked on Step 4", async () => {
+    it("ticks a scanned High row on Step 4", async () => {
       const highRead: ExtractReply = {
         kind: "rows",
         rows: [{ type: "Sampling", category: "restricted", isTopPriority: true, priorityTier: "high" }],
@@ -797,9 +841,7 @@ describe("OnboardingWizard", () => {
       const steps = await fillGoalAndWeek(undefined, bySection(highRead));
       await upload(steps.user);
       await upload(steps.user, rcScreenshot, "RC");
-      expect(await screen.findByText("High priority")).toBeDefined();
-
-      await steps.user.click(await screen.findByRole("button", { name: "Check the values" }));
+      await steps.user.click(await enabledContinue());
       expect((screen.getByLabelText("Sampling") as HTMLInputElement).checked).toBe(true);
       expect(screen.getByText("High on 7Sage")).toBeDefined();
     });
@@ -1079,7 +1121,7 @@ describe("OnboardingWizard", () => {
     await upload(user);
     expect(await road().findByText("Monday:")).toBeDefined();
     await upload(user, rcScreenshot, "RC");
-    await user.click(await screen.findByRole("button", { name: "Check the values" }));
+    await user.click(await enabledContinue());
 
     expect(screen.queryByRole("complementary", { name: "Road to test day" })).toBeNull();
     expect(preview().getByText("Not confirmed yet")).toBeDefined();
@@ -1115,6 +1157,7 @@ describe("OnboardingWizard · scanning off", () => {
     expect(screen.getByText("Type them below. Your first weekly schedule works the same way as with screenshots.")).toBeDefined();
     expect((screen.getByLabelText("Type them") as HTMLInputElement).checked).toBe(true);
     expect((screen.getByLabelText("Screenshots") as HTMLInputElement).disabled).toBe(true);
+    expect(screen.getByText("Type the values from your 7Sage Analytics page. They tell us what to drill first.")).toBeDefined();
     expect(screen.getByText("No question types yet.")).toBeDefined();
     expect(screen.queryByLabelText("Logical Reasoning screenshot file")).toBeNull();
   });
@@ -1198,7 +1241,7 @@ describe("OnboardingWizard · Type them", () => {
   it("shows no screenshot on the typed check page, even after one was uploaded", async () => {
     const { user } = await fillGoalAndWeek();
     await upload(user, rcScreenshot, "RC");
-    await screen.findByText(rowDetail("rc-analytics.png · 5 passage types"));
+    await findInArea("RC", "5 passage types found");
 
     await user.click(screen.getByLabelText("Type them"));
     await addType(user, "Diagram");
