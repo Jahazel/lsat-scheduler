@@ -126,6 +126,24 @@ describe("OnboardingWizard · frame and Goal", () => {
     expect(within(screen.getByLabelText("Attempt 1 month and year")).getByRole("option", { name: "Oct 2026" })).toBeDefined();
   });
 
+  it("says no drilling days are left, not to add analytics, once analytics are in on a week with no drill day left", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingWizard {...student} today="2026-10-25" goalTestDateOptions={options} onSave={vi.fn()} extract={bySection()} />);
+    await user.type(screen.getByLabelText("Current PT score"), "150");
+    await user.type(screen.getByLabelText("Goal score"), "165");
+    await user.selectOptions(screen.getByLabelText("Goal test date"), "January 2027");
+    await user.click(continueButton());
+    await user.click(screen.getByLabelText("Practice test on Sunday"));
+    await user.selectOptions(screen.getByLabelText("Sunday hours"), "3");
+    await user.click(continueButton());
+    expect(road().getByText("Drills fill in after you add analytics.")).toBeDefined();
+
+    await upload(user);
+    await upload(user, rcScreenshot, "RC");
+    await screen.findByRole("button", { name: "Check the values" });
+    await waitFor(() => expect(road().getByText("No drilling days left this week.")).toBeDefined());
+  });
+
   it("shows Test time as a labelled choice", async () => {
     const user = userEvent.setup();
     render(<OnboardingWizard {...student} goalTestDateOptions={options} onSave={vi.fn()} />);

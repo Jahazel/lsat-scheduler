@@ -19,6 +19,7 @@ export function RoadToTestDay({
   testMonths,
   weekSet,
   focusWeek,
+  analyticsAdded,
   drills,
 }: {
   values: WizardValues;
@@ -27,6 +28,7 @@ export function RoadToTestDay({
   testMonths: ReturnType<typeof upcomingTestMonths>;
   weekSet: boolean;
   focusWeek: boolean;
+  analyticsAdded: boolean;
   drills: { day: DayOfWeek; items: PreviewDrill[] } | null;
 }) {
   const weeks = weeksToTest(values.goalTestDate, today);
@@ -71,7 +73,7 @@ export function RoadToTestDay({
           <span><span className="text-smoke">goal</span> <span className="font-semibold tabular-nums text-accent">{values.goalScore.trim() || "—"}</span></span>
         </p>
       </div>
-      <div className={cx("flex flex-col gap-3 rounded-md border p-4 transition-colors duration-(--duration-base) ease-out", focusWeek ? "border-accent/40" : "border-vellum-line")}>
+      <div className={cx("flex flex-col gap-3 rounded-md border p-4 transition-colors duration-(--duration-base) ease-(--ease-out-strong)", focusWeek ? "border-accent/40" : "border-vellum-line")}>
         <p className="text-small">
           <span className="font-semibold text-ink">Week 1</span>
           <span className="text-smoke">
@@ -100,7 +102,9 @@ export function RoadToTestDay({
             <span className="font-medium text-ink">{`${DAY_LABEL[drills.day]}:`}</span> {drills.items.map(({ label }) => label).join(" · ")}
           </p>
         ) : (
-          <p className="border-t border-vellum-line pt-3 text-small text-smoke">Drills fill in after you add analytics.</p>
+          <p className="border-t border-vellum-line pt-3 text-small text-smoke">
+            {analyticsAdded ? "No drilling days left this week." : "Drills fill in after you add analytics."}
+          </p>
         )}
       </div>
     </div>

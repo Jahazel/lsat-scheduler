@@ -175,6 +175,7 @@ export default function OnboardingWizard({
               testMonths={goalTestDateOptions}
               weekSet={state.step !== "goal"}
               focusWeek={state.step === "week"}
+              analyticsAdded={Boolean(draft)}
               drills={drills}
             />
           </div>
