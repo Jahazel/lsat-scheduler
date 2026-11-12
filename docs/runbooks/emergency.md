@@ -80,9 +80,10 @@ that branch:
    name the restored branch. If it names only other copies, go on and remove them afterwards.
 2. Run `npm run replay-deletions` on the restored branch, with the current branch's deletion list. Run it
    twice. The second run must print `Restored Accounts deleted: 0.`
-3. Then run `npm run resync-billing` on the restored branch with the site's `STRIPE_SECRET_KEY` and
-   `AUTH_SECRET`. Run it twice. Both runs must print the same counts and end with `Billing records Stripe
-   does not list: 0.`
+3. Then run `npm run resync-billing` on the restored branch with a Stripe key and the site's
+   `AUTH_SECRET`. The copy uses its sandbox key. The real site uses a one-run restricted key that you create
+   for the restore and delete after it; the [restore runbook](restore.md) says how. Run it twice. Both
+   runs must print the same counts and end with `Billing records Stripe does not list: 0.`
 
 Only then change the site's `DATABASE_URL`. The replay refuses production hosts. On the real site, do not
 let the site use a restored branch until the owner decides how to run the replay there. Afterwards, remove the former branch, every `_old_` branch,
@@ -95,10 +96,19 @@ Rotate the Stripe secret key and the Stripe message secret after a leak, and in 
 
 | Site | Stripe mode | `STRIPE_SECRET_KEY` | `STRIPE_WEBHOOK_SECRET` |
 | --- | --- | --- | --- |
-| Copy | Sandbox (test mode) | Test secret key (`sk_test_`) | The copy's endpoint signing secret |
+| Copy | Sandbox (test mode) | Test secret key (`sk_test_`). Your computer's `.env.local` holds the same key (J7). | The copy's endpoint signing secret |
 | Real site | Live mode | Restricted live key (`rk_live_`) | The real site's endpoint signing secret |
 
-Never place a live key or the real site's message secret on your computer, not even the old one (J7, J8).
+The real site also has a price-check key: a restricted live key whose only permission is Prices: Read. The
+release check in J8 uses it. It lives only in the password manager.
+
+Never place a live key or the real site's message secret on your computer, not even the old one. J7 allows
+two exceptions. Each is entered with `read -rs`, set in the shell for one run, and saved in no file:
+
+- the price-check key, for the J8 release check;
+- a one-run restore key, which the [restore runbook](restore.md) creates for a real-site billing resync
+  and deletes right after. It needs no rotation.
+
 Never print a key or a secret, and never paste one into an issue or a chat. Record only the date of each
 rotation.
 
@@ -122,7 +132,8 @@ rotation.
 6. In Vercel, open the site's project → Settings → Environment Variables. Replace `STRIPE_SECRET_KEY` for
    Production, marked Sensitive.
 7. Redeploy the latest production deployment so it reads the new key.
-8. Copy only: replace the sandbox key in `.env.local` with the new test key.
+8. Copy only: replace the sandbox key in `.env.local` with the new test key. Your computer shares the
+   copy's key (J7), so the old key now fails there too.
 9. Run the checks below that the site works with the new key.
 10. If you chose an overlap, return to Developers → API keys and make the old key expire now.
 11. Run the checks below that Stripe refuses the old key.
@@ -146,6 +157,18 @@ rotation.
 
 - Real site: in Developers → API keys, the old restricted key is listed as expired or is gone. Do not test
   it from your computer.
+
+### Rotate the price-check key
+
+1. In the Stripe Dashboard, switch to live mode and open Developers → API keys.
+2. Find the restricted key whose only permission is Prices: Read, and choose Rotate key. Choose Now: only the
+   release check uses this key.
+3. Copy the new key once from the Stripe dialog. Replace the old key in the password manager. Do not save it
+   in a file.
+4. Check that the new key works: run `npm run check-stripe-prices` with the real site's settings, as J8
+   describes. It must pass and print that it read live mode. Then `unset STRIPE_SECRET_KEY`.
+5. Check that Stripe refuses the old key: in Developers → API keys, the old key is listed as expired or is
+   gone. Do not test it from your computer.
 
 ### Rotate the Stripe message secret
 

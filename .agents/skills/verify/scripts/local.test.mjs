@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const script = fileURLToPath(new URL("./local.mjs", import.meta.url));
-const commands = ["launch", "doctor", "seed", "session", "inspect", "reset-signup-limit", "logs", "cleanup"];
+const commands = ["launch", "doctor", "seed", "session", "plan", "inspect", "reset-signup-limit", "logs", "cleanup"];
 
 function local(...args) {
   const env = { ...process.env };
@@ -65,7 +65,7 @@ describe("local.mjs help", { timeout: 30_000 }, () => {
     for (const args of [
       ["launch", run, "extra"], ["doctor", run, "extra"], ["inspect", run, "extra"], ["reset-signup-limit", run, "extra"], ["cleanup", run, "extra"],
       ["seed", run, "student"], ["seed", run, "admin", "a@example.test", "--onboarded"],
-      ["session", run], ["session", run, "a@example.test", "--signed-in-minutes-ago", "ten"],
+      ["session", run], ["plan", run, "a@example.test"], ["plan", run, "a@example.test", "cancel"], ["session", run, "a@example.test", "--signed-in-minutes-ago", "ten"],
       ["logs", run, "--from"], ["logs", run, "--from", "abc"],
       ["doctor"],
     ]) {
