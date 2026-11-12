@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import StartingPlan, { ASK_EVERY_MS, SLOW_AFTER_MS } from "./StartingPlan";
 
-const router = vi.hoisted(() => ({ push: vi.fn() }));
+const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/onboarding" }));
 
 beforeEach(() => {
@@ -13,6 +13,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   router.push.mockReset();
+  router.refresh.mockReset();
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -28,8 +29,10 @@ it("waits for Stripe to confirm the plan, then opens This week", async () => {
   expect(screen.getByRole("progressbar", { name: "Starting your plan" })).toBeDefined();
   await wait(ASK_EVERY_MS);
   expect(router.push).not.toHaveBeenCalled();
+  expect(router.refresh).not.toHaveBeenCalled();
   await wait(ASK_EVERY_MS);
   expect(router.push).toHaveBeenCalledWith("/dashboard");
+  expect(router.refresh).toHaveBeenCalledTimes(1);
 });
 
 it("says it is taking longer than usual after about 20 seconds, and Try again waits again", async () => {
@@ -71,4 +74,5 @@ it("sends a lapsed student on to the weekly upload page once Stripe confirms the
   expect(screen.queryByRole("complementary")).toBeNull();
   await wait(ASK_EVERY_MS * 2);
   expect(router.push).toHaveBeenCalledWith("/dashboard/upload");
+  expect(router.refresh).toHaveBeenCalledTimes(1);
 });

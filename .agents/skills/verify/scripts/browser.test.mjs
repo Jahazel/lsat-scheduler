@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chromiumLaunchOptions, drive, isAppCspViolation } from "./browser.mjs";
+import { chromiumLaunchOptions, drive, editableFieldsHydrated, isAppCspViolation } from "./browser.mjs";
 
 const violation = "Applying inline style violates the following Content Security Policy directive 'style-src 'self' 'nonce-abc''.";
 const devtools = "http://127.0.0.1:3100/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_1a2b3c.js";
@@ -17,6 +17,20 @@ describe("isAppCspViolation", () => {
 
   it("ignores console messages that are not CSP violations", () => {
     expect(isAppCspViolation("Hydration finished", "http://127.0.0.1:3100/login")).toBe(false);
+  });
+});
+
+describe("editableFieldsHydrated", () => {
+  const page = (...fields) => ({ querySelectorAll: () => fields });
+  const hydrated = () => ({ __reactFiber$abc: {} });
+
+  it("waits while any text field has no React fiber yet", () => {
+    expect(editableFieldsHydrated(page(hydrated(), {}))).toBe(false);
+  });
+
+  it("is ready when every text field has its React fiber, or there is none", () => {
+    expect(editableFieldsHydrated(page(hydrated(), hydrated()))).toBe(true);
+    expect(editableFieldsHydrated(page())).toBe(true);
   });
 });
 

@@ -23,7 +23,7 @@ const AUTH_SECRET = randomBytes(32).toString("hex");
 const SITE = "https://copy.drillmap.test";
 const CHECKOUT_URL = "https://checkout.stripe.com/c/pay/";
 
-type FakeSession = { id: string; customer: string; status: "open" | "expired"; form: URLSearchParams };
+type FakeSession = { id: string; customer: string; status: "open" | "expired" | "complete"; form: URLSearchParams };
 const stripe = {
   customers: [] as { id: string; email: string; metadata: Record<string, string> }[],
   sessions: [] as FakeSession[],
@@ -31,8 +31,18 @@ const stripe = {
   invoices: [] as { id: string; customer: string; subscription: string; status: string }[],
   voidFailsOnce: false,
   endsAfterListing: [] as string[],
+  finishesCheckoutBeforeListing: null as string | null,
   down: false,
 };
+
+function completeOpenSessions() {
+  for (const session of stripe.sessions.filter(({ status }) => status === "open")) {
+    session.status = "complete";
+    const subscription = `sub_paid${stripe.subscriptions.length + 1}`;
+    stripe.subscriptions.push({ id: subscription, customer: session.customer, status: "incomplete" });
+    stripe.invoices.push({ id: `in_first${stripe.invoices.length + 1}`, customer: session.customer, subscription, status: "open" });
+  }
+}
 
 vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
   const url = new URL(String(input));
@@ -45,6 +55,7 @@ vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
   const post = init?.method === "POST";
   const form = new URLSearchParams(String(init?.body ?? ""));
   const query = url.searchParams;
+  if (init?.method === "GET" && url.pathname === stripe.finishesCheckoutBeforeListing) completeOpenSessions();
   if (url.pathname === "/v1/customers" && !post) {
     return Response.json({ data: stripe.customers.filter((customer) => customer.email === query.get("email")) });
   }
@@ -84,7 +95,7 @@ vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
   const cancel = /^\/v1\/subscriptions\/(sub_\w+)$/.exec(url.pathname);
   const cancelling = cancel && init?.method === "DELETE" && stripe.subscriptions.find((subscription) => subscription.id === cancel[1]);
   if (cancelling && cancelling.status !== "canceled") {
-    if (stripe.sessions.length) throw new Error("Cancelled a subscription after Checkout started");
+    if (stripe.sessions.some(({ status }) => status === "open")) throw new Error("Cancelled a subscription after Checkout started");
     cancelling.status = "canceled";
     return Response.json(cancelling);
   }
@@ -123,6 +134,7 @@ beforeEach(async () => {
   stripe.subscriptions = [];
   stripe.invoices = [];
   stripe.endsAfterListing = [];
+  stripe.finishesCheckoutBeforeListing = null;
   stripe.voidFailsOnce = false;
   stripe.down = false;
   state.session = null;
@@ -204,6 +216,30 @@ it("starts no second Checkout while Stripe holds a plan whose message has not ar
 
   await expect(openStripeCheckout("monthly")).rejects.toThrow("redirect:/onboarding?checkout=done");
   expect(stripe.sessions).toHaveLength(1);
+});
+
+it("shows Starting your plan when the student finishes an older Checkout just before the open sessions are closed, and voids none of its invoices", async () => {
+  await onboardedStudent();
+  await openStripeCheckout("weekly");
+  stripe.finishesCheckoutBeforeListing = "/v1/checkout/sessions";
+
+  await expect(openStripeCheckout("monthly")).rejects.toThrow("redirect:/onboarding?checkout=done");
+
+  expect(stripe.sessions.map(({ status }) => status)).toEqual(["complete"]);
+  expect(stripe.subscriptions.map(({ status }) => status)).toEqual(["incomplete"]);
+  expect(stripe.invoices.map(({ status }) => status)).toEqual(["open"]);
+});
+
+it("closes an older Checkout before it reads the student's plans, so finishing it later voids no invoice", async () => {
+  await onboardedStudent();
+  await openStripeCheckout("weekly");
+  stripe.finishesCheckoutBeforeListing = "/v1/invoices";
+
+  await expect(openStripeCheckout("monthly")).resolves.toEqual({ checkoutUrl: `${CHECKOUT_URL}cs_test2` });
+
+  expect(stripe.sessions.map(({ status }) => status)).toEqual(["expired", "open"]);
+  expect(stripe.subscriptions).toEqual([]);
+  expect(stripe.invoices).toEqual([]);
 });
 
 it.each([

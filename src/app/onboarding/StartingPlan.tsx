@@ -30,7 +30,10 @@ export default function StartingPlan({ place, hasPlanStarted }: { place: PlanCho
     async function ask() {
       const started = await callAction(hasPlanStarted)().catch(() => false);
       if (stopped) return;
-      if (started === true) return router.push(NEXT[place].path);
+      if (started === true) {
+        router.push(NEXT[place].path);
+        return router.refresh();
+      }
       if (Date.now() - startedAt >= SLOW_AFTER_MS) return setSlow(true);
       timer = setTimeout(ask, ASK_EVERY_MS);
     }
