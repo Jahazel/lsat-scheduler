@@ -43,7 +43,7 @@ export function WeekReveal({
   const month = testMonths.find((option) => option.value === saved.goalTestDate)?.label;
   const weeks = weeksToTest(saved.goalTestDate, today);
   const practiceTestDay = saved.preferredPracticeTestDay;
-  const drillDay: DayOfWeek = week.drills?.day ?? "MONDAY";
+  const drillDay: DayOfWeek | null = week.drills?.day ?? (week.analyticsAdded ? null : "MONDAY");
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     scrollTo({ top: 0 });
@@ -111,7 +111,7 @@ export function WeekReveal({
         </ol>
       </div>
       <div className="week-reveal-rise flex flex-col gap-3" style={rise(3)}>
-        <h2 className="text-body font-semibold text-ink">{`${DAY_LABEL[drillDay]}'s drills`}</h2>
+        <h2 className="text-body font-semibold text-ink">{drillDay ? `${DAY_LABEL[drillDay]}'s drills` : "This week's drills"}</h2>
         {week.drills ? (
           <ul className="flex flex-col gap-2">
             {week.drills.items.map(({ label, minutes, detail }, index) => {
@@ -142,7 +142,10 @@ export function RevealAction({ admin }: { admin: boolean }) {
   const [leaving, startLeaving] = useTransition();
 
   function leave() {
-    startLeaving(() => (admin ? router.push("/dashboard") : router.refresh()));
+    startLeaving(() => {
+      if (admin) router.push("/dashboard");
+      router.refresh();
+    });
   }
 
   return (

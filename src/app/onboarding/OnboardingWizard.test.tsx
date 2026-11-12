@@ -150,6 +150,27 @@ describe("OnboardingWizard · frame and Goal", () => {
     await waitFor(() => expect(road().getByText("No drilling days left this week.")).toBeDefined());
   });
 
+  it("heads the reveal's drills This week's drills when no drilling day is left", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingWizard {...student} today="2026-10-25" goalTestDateOptions={options} onSave={vi.fn(async () => {})} extract={bySection()} />);
+    await user.type(screen.getByLabelText("Current PT score"), "150");
+    await user.type(screen.getByLabelText("Goal score"), "165");
+    await user.selectOptions(screen.getByLabelText("Goal test date"), "January 2027");
+    await user.click(continueButton());
+    await user.click(screen.getByLabelText("Practice test on Sunday"));
+    await user.selectOptions(screen.getByLabelText("Sunday study time"), "3 h");
+    await user.click(continueButton());
+    await upload(user);
+    await upload(user, rcScreenshot, "RC");
+    await user.click(await enabledContinue());
+    await user.click(screen.getByLabelText("I reviewed these values and they match my screenshots."));
+    await user.click(screen.getByLabelText("These screenshots show my latest 7Sage analytics."));
+    await user.click(screen.getByRole("button", { name: "Confirm snapshot" }));
+
+    expect(await screen.findByRole("heading", { name: "This week's drills" })).toBeDefined();
+    expect(screen.getByText("No drilling days left this week.")).toBeDefined();
+  });
+
   it("shows Test time as a labelled choice", async () => {
     const user = userEvent.setup();
     render(<OnboardingWizard {...student} goalTestDateOptions={options} onSave={vi.fn()} />);
@@ -339,14 +360,14 @@ describe("OnboardingWizard", () => {
       expect(router.push).not.toHaveBeenCalled();
     });
 
-    it("gives an admin Go to This week instead of Plan choice", async () => {
+    it("gives an admin Go to This week instead of Plan choice, and refreshes the header there", async () => {
       const { user } = await fillGoalAndWeek(undefined, undefined, true);
       await user.click(screen.getByRole("button", { name: "Skip for now" }));
 
       await user.click(await screen.findByRole("button", { name: "Go to This week" }));
       expect(screen.queryByRole("button", { name: "Choose your plan" })).toBeNull();
       expect(router.push).toHaveBeenCalledWith("/dashboard");
-      expect(router.refresh).not.toHaveBeenCalled();
+      expect(router.refresh).toHaveBeenCalledTimes(1);
     });
   });
 
