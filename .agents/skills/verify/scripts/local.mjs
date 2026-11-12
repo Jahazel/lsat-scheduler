@@ -35,7 +35,7 @@ const commands = {
   },
   plan: {
     args: " <email> start|end", valid: (extra) => extra.length === 2 && ["start", "end"].includes(extra[1]),
-    does: "Stand in for Stripe, which never runs locally. start writes the free-week Weekly plan and the used free week that Stripe's webhook writes after Checkout. end removes the billing record, as if Stripe ended the plan, so Account deletion can finish. Prints JSON.",
+    does: "Stand in for Stripe, which never runs locally. start writes what Stripe's webhook writes after Checkout: the free-week Weekly plan and the used free week, or a paid Weekly plan with no free week when the email already used one, since Checkout then charges at once. Its JSON plan is 'free week' or 'paid'. end removes the billing record, as if Stripe ended the plan, so Account deletion can finish. Prints JSON.",
     example: "plan \"$VERIFY_RUN_DIR\" verify-smoke@example.test start",
   },
   inspect: {
@@ -314,20 +314,27 @@ if (command === "plan") {
   process.env.AUTH_SECRET = readFileSync(resolve(run, "scratch/auth-secret"), "utf8");
   const { emailHash } = await tsImport("../../../../src/lib/emailHash.ts", import.meta.url);
   const { freeWeekEnd } = await tsImport("../../../../src/lib/planStatus.ts", import.meta.url);
+  let plan = "none";
   const written = await postgres((db) => db.transaction(async (tx) => {
     if (change === "end") return tx.execute(sql`delete from billing_records where account_id = (select id from accounts where email = ${email})`);
-    const started = await tx.execute(sql`
+    const alreadyUsedFreeWeek = await tx.execute(sql`select 1 from used_free_weeks where email_hash = ${emailHash(email)}`);
+    plan = alreadyUsedFreeWeek.rowCount ? "paid" : "free week";
+    const started = await tx.execute(plan === "paid" ? sql`
+      insert into billing_records (account_id, stripe_customer_id, stripe_subscription_id, plan, stripe_status, first_charge_succeeded)
+      select id, 'cus_verify_' || id, 'sub_verify_' || id, 'weekly', 'active', true from accounts where email = ${email}
+      on conflict (account_id) do nothing
+    ` : sql`
       insert into billing_records (account_id, stripe_customer_id, stripe_subscription_id, plan, stripe_status, free_week_ends_at)
       select id, 'cus_verify_' || id, 'sub_verify_' || id, 'weekly', 'trialing', ${freeWeekEnd(new Date()).toISOString()} from accounts where email = ${email}
       on conflict (account_id) do nothing
     `);
-    if (started.rowCount === 1) await tx.execute(sql`insert into used_free_weeks (email_hash) values (${emailHash(email)}) on conflict do nothing`);
+    if (started.rowCount === 1 && plan === "free week") await tx.execute(sql`insert into used_free_weeks (email_hash) values (${emailHash(email)}) on conflict do nothing`);
     return started;
   }));
   if (written.rowCount !== 1) {
     throw new Error(`No plan ${change === "start" ? "started" : "ended"} for ${email}: no such Account, or it ${change === "start" ? "already has" : "has no"} billing record.`);
   }
-  console.log(JSON.stringify({ email, plan: change === "start" ? "free week" : "none" }, null, 2));
+  console.log(JSON.stringify({ email, plan }, null, 2));
 }
 if (command === "reset-signup-limit") {
   await doctor();

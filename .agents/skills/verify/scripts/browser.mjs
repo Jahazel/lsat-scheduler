@@ -12,6 +12,13 @@ export function isAppCspViolation(text, sourceUrl) {
   return text.includes("Content Security Policy") && !NEXT_DEVTOOLS_CHUNK.test(sourceUrl);
 }
 
+// Playwright hides the caret by styling every text field. React compares a field's attributes when it hydrates
+// the field, and records its fiber on the field in the same step, so a field with a fiber is safe to style.
+export function editableFieldsHydrated(root = document) {
+  return [...root.querySelectorAll("input,textarea,[contenteditable]")]
+    .every((field) => Object.keys(field).some((key) => key.startsWith("__reactFiber$")));
+}
+
 export function chromiumLaunchOptions({ showScrollbars = false } = {}) {
   return showScrollbars ? { headless: true, ignoreDefaultArgs: ["--hide-scrollbars"] } : { headless: true };
 }
@@ -59,7 +66,8 @@ export async function drive(directory, name, steps, options) {
         // A full-page screenshot draws sticky elements where the current scroll puts them, so take it from the top.
         // A navigation in progress can refuse the scroll; the screenshot is still worth taking then.
         const scroll = await page.evaluate(() => { const at = [window.scrollX, window.scrollY]; window.scrollTo({ left: 0, top: 0, behavior: "instant" }); return at; }).catch(() => null);
-        await page.screenshot({ path: resolve(out, `${file}.png`), fullPage: true });
+        const hydrated = await page.waitForFunction(editableFieldsHydrated, undefined, { timeout: 10_000 }).then(() => true, () => false);
+        await page.screenshot({ path: resolve(out, `${file}.png`), fullPage: true, caret: hydrated ? "hide" : "initial" });
         if (scroll) await page.evaluate(([left, top]) => window.scrollTo({ left, top, behavior: "instant" }), scroll).catch(() => {});
         writeFileSync(resolve(out, `${file}.aria.txt`), await page.locator("body").ariaSnapshot());
       },
