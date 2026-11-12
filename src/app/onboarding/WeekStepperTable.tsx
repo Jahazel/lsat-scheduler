@@ -29,7 +29,7 @@ const COLUMNS = (
 
 const STEP_BUTTON = cx(
   "grid size-11 shrink-0 place-items-center rounded-sm text-body text-ink transition-colors duration-(--duration-fast) ease-out",
-  "pointer-hover:bg-vellum active:bg-vellum-line disabled:cursor-not-allowed disabled:text-fog disabled:hover:bg-transparent",
+  "enabled:pointer-hover:bg-vellum enabled:active:bg-vellum-line disabled:cursor-not-allowed disabled:text-fog",
   FOCUS,
 );
 
@@ -139,7 +139,7 @@ export function WeekStepperTable({
                   </td>
                 </tr>
                 {message && (
-                  <tr className={cx(tint, "border-b border-vellum-line")}>
+                  <tr className={cx(tint, "border-b border-vellum-line starting:bg-transparent")}>
                     <td />
                     <td colSpan={2} className="pr-2 pb-2.5">
                       <p id={WEEK_NOTE_ID} className="text-caption text-danger-ink">{message}</p>

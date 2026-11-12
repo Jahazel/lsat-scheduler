@@ -220,8 +220,7 @@ describe("OnboardingWizard · Week step", () => {
     await user.click(screen.getByLabelText("Practice test on Saturday"));
 
     const message = "Saturday needs at least 2 h 30 for a full practice test. Add time or pick another day.";
-    const row = screen.getByText(message).closest("tr")!.previousElementSibling as HTMLElement;
-    expect(within(row).getByRole("rowheader", { name: "Sat" })).toBeDefined();
+    expect(screen.getByRole("radio", { name: "Practice test on Saturday", description: message })).toBeDefined();
     expect(continueButton().disabled).toBe(true);
     expect(continueButton().getAttribute("aria-describedby")).toBe(screen.getByText(message).id);
     expect(screen.queryByText(/A full practice test takes/)).toBeNull();
