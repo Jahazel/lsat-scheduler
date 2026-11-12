@@ -1,0 +1,71 @@
+body:has([data-proto-scene]) [data-site-header]:not([data-proto-scene] *),
+body:has([data-proto-scene]) footer:not([data-proto-scene] *) {
+  display: none;
+}
+[data-proto-scene] [data-site-header] {
+  position: static;
+}
+html[data-proto-still] *,
+html[data-proto-still] *::before,
+html[data-proto-still] *::after {
+  animation: none !important;
+  transition-property: opacity, background-color, color !important;
+}
+
+nextjs-portal {
+  display: none;
+}
+
+
+.analytics-swap {
+  animation: analytics-swap var(--duration-base) var(--ease-out-strong) both;
+}
+@keyframes analytics-swap {
+  from { opacity: 0; transform: translateY(4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .analytics-swap { animation-name: analytics-fade; }
+}
+@keyframes analytics-fade {
+  from { opacity: 0; }
+}
+
+/* Week reveal: seen once per student, so it may use a first-run wave. Delays are set inline per element. */
+.reveal-in {
+  animation: reveal-in var(--duration-slow) var(--ease-out-strong) both;
+}
+@keyframes reveal-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+/* clip-path, not scaleY: the bar uncovers from its base and the "PT" label inside is never squashed. */
+.reveal-grow {
+  animation: reveal-grow var(--duration-slow) var(--ease-out-strong) both;
+}
+@keyframes reveal-grow {
+  from { clip-path: inset(100% 0 0 0); }
+  to { clip-path: inset(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal-in,
+  .reveal-grow {
+    animation-name: analytics-fade;
+    animation-duration: var(--duration-base);
+    animation-delay: 0ms !important;
+  }
+}
+
+/* mobile-native, onboarding scope: no grey tap flash, no double-tap wait, no text selection on a long press of a control. */
+[data-proto-scene] {
+  -webkit-tap-highlight-color: transparent;
+}
+[data-proto-scene] :is(button, a, label, summary, select, [role="button"]) {
+  touch-action: manipulation;
+}
+[data-proto-scene] :is(button, summary, [role="button"]) {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html:has([data-proto-scene]) .failure-toast-slot {
+  bottom: calc(var(--pinned-bar, 0px) + 12px);
+}

@@ -84,6 +84,10 @@ _Avoid_: dashboard, current plan
 The page where a student adds two analytics screenshots, four practice-test section screenshots, and their current score, then confirms what was read. Confirming saves the analytics snapshot, the practice-test result if there is one, and the current score together. An upload confirmed from Saturday onward is "Plan next week" and counts for the next weekly schedule. The weekly upload closes once the week it counts for has a weekly schedule. An upload confirmed Monday to Friday, when the week has no weekly schedule yet, is "Plan this week" and counts for the rest of the current week. When the week before the planned week had no practice test, it asks only for the analytics screenshots.
 _Avoid_: weekly check-in, analytics upload
 
+**Week reveal**:
+The onboarding screen, shown after the student's profile saves, that shows their target, their week, and Monday's drills before Plan choice. A student who skipped analytics sees their week without drills.
+_Avoid_: summary screen, preview, results page
+
 **Progress**:
 The student's history across finished weeks: each past weekly schedule, newest first, opened read-in-place and read-only.
 _Avoid_: history, past plans
