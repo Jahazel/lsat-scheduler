@@ -5,10 +5,13 @@ export function usePinnedBarHeight() {
   useEffect(() => {
     const el = bar.current!;
     const root = document.documentElement;
-    const observer = new ResizeObserver(() => root.style.setProperty("--pinned-bar", `${getComputedStyle(el).position === "sticky" ? el.offsetHeight : 0}px`));
+    const update = () => root.style.setProperty("--pinned-bar", `${getComputedStyle(el).position === "sticky" ? el.offsetHeight : 0}px`);
+    const observer = new ResizeObserver(update);
     observer.observe(el);
+    addEventListener("resize", update);
     return () => {
       observer.disconnect();
+      removeEventListener("resize", update);
       root.style.removeProperty("--pinned-bar");
     };
   }, []);

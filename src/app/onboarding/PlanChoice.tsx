@@ -50,6 +50,7 @@ export default function PlanChoice({ place, offer, cameBackWithoutCard, initialP
             headline={freeWeek ? `Free until ${freeWeek.endsShort}` : `${picked.price} today`}
             then={`Then ${picked.price} ${picked.per} starting ${freeWeek ? freeWeek.firstChargeShort : offer.renews[plan]}`}
             changesWith={plan}
+            lapsed={lapsed}
           />
         )}
         actions={(
@@ -100,7 +101,7 @@ export default function PlanChoice({ place, offer, cameBackWithoutCard, initialP
               </>
             )}
           </dl>
-          <div className="flex flex-col gap-2 text-small text-smoke">
+          <div className={cx("flex flex-col text-small text-smoke", lapsed ? "gap-4" : "gap-2")}>
             <p>Plus any sales tax. Stripe shows the total before you pay.</p>
             <p>{PLAN_TERMS}</p>
           </div>
@@ -160,11 +161,16 @@ function PlanCards({ offer, plan, onPick }: { offer: PlanChoiceOffer; plan: Plan
   );
 }
 
-function StripePreview({ name, headline, then, changesWith }: { name: string; headline: string; then: string; changesWith: PlanName }) {
+function StripePreview({ name, headline, then, changesWith, lapsed }: { name: string; headline: string; then: string; changesWith: PlanName; lapsed: boolean }) {
+  const label = lapsed
+    ? <p className="font-mono text-label uppercase text-smoke">Next · on Stripe</p>
+    : <p className="text-small text-smoke">Next · on Stripe</p>;
+  const field = cx("h-11 border border-vellum-line", lapsed ? "rounded-xs" : "rounded-sm");
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-6 rounded-lg bg-paper p-8 shadow-e1">
-        <p className="text-small text-smoke">Next · on Stripe</p>
+      {lapsed && label}
+      <div className={cx("flex flex-col bg-paper p-8", lapsed ? "gap-5 rounded-tl-sm shadow-e2" : "gap-6 rounded-lg shadow-e1")}>
+        {!lapsed && label}
         <div className="flex flex-col gap-1">
           <span key={`name-${changesWith}`} className="value-in text-small text-smoke">DrillMap {name}</span>
           <span key={`headline-${changesWith}`} className="value-in text-h4 font-semibold text-ink">{headline}</span>
@@ -172,13 +178,13 @@ function StripePreview({ name, headline, then, changesWith }: { name: string; he
         </div>
         <div aria-hidden className="flex flex-col gap-2">
           <span className="h-2 w-20 rounded bg-vellum-line" />
-          <span className="h-11 rounded-sm border border-vellum-line" />
+          <span className={field} />
           <span className="h-2 w-28 rounded bg-vellum-line" />
-          <span className="h-11 rounded-sm border border-vellum-line" />
+          <span className={field} />
         </div>
-        <span aria-hidden className="flex h-11 items-center justify-center rounded-pill bg-vellum text-small text-smoke">Add card</span>
+        <span aria-hidden className={cx("flex h-11 items-center justify-center text-small text-smoke", lapsed ? "rounded-xs bg-vellum-line" : "rounded-pill bg-vellum")}>Add card</span>
       </div>
-      <p className="px-2 text-small text-smoke">
+      <p className={cx("text-small text-smoke", !lapsed && "px-2")}>
         Stripe hosts this page, so your card number never reaches DrillMap. You come back here when you finish.
       </p>
     </div>
