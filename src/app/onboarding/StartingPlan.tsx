@@ -61,7 +61,7 @@ export default function StartingPlan({ place, hasPlanStarted }: { place: PlanCho
             <button
               type="button"
               onClick={tryAgain}
-              className={cx("-my-3 touch-manipulation select-none rounded-xs py-3 font-medium text-accent hover:underline", FOCUS)}
+              className={cx("-my-3 select-none rounded-xs py-3 font-medium text-accent hover:underline", FOCUS)}
             >
               Try again
             </button>

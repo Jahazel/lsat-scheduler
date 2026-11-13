@@ -82,7 +82,7 @@ function SetUpButton({ label, expanded, onOpen, ref }: {
     <button ref={ref} type="button" aria-haspopup="dialog" aria-expanded={expanded} aria-label={`Set up ${label}`}
       onClick={(event) => onOpen(event.currentTarget)}
       className={cx("mt-0.5 h-8 shrink-0 whitespace-nowrap rounded-sm px-2.5 text-small font-medium text-smoke pointer-hover:text-ink",
-        "touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-97 motion-reduce:active:scale-100",
+        "select-none active:scale-97 motion-reduce:active:scale-100",
         "[transition:color_var(--duration-fast)_ease-out,scale_var(--duration-fast)_var(--ease-out-strong)]", FOCUS)}>
       Set up
     </button>
