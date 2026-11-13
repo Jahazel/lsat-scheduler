@@ -31,7 +31,7 @@ export default async function AccountPage() {
 
   return (
     <div className="min-h-screen bg-vellum">
-      <PageArrival page="Account" />
+      <PageArrival page="Account" look="fade" />
       <header data-page-section className="border-b border-vellum-line bg-paper px-5 pt-6 pb-6 md:px-18 md:pt-12 md:pb-10">
         <div className="mx-auto flex max-w-content flex-col gap-3">
           <h1 className="text-h3 font-semibold text-ink md:text-h2">Account</h1>

@@ -17,7 +17,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { ReminderStrip } from "@/components/ui/ReminderStrip";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { StatusIcon } from "@/components/ui/StatusIcon";
-import { FOCUS, MOTION, cx } from "@/components/ui/classes";
+import { COLUMN_GUTTER, FOCUS, MOTION, PAGE_COLUMN, cx } from "@/components/ui/classes";
 import { DrillSetupGuide } from "@/components/DrillSetupGuide";
 import { DRILL_LINK_PARAMETER, drillSetupGuide, type DrillSetupGuide as DrillSetupGuideContent } from "@/lib/drillSetupGuide";
 
@@ -134,7 +134,7 @@ export default function ScheduleCheckInView({
   readOnly = false,
   header,
   footer,
-  padding = "px-5 pt-8 pb-16 md:px-18 md:pt-16 md:pb-24",
+  padding = cx(PAGE_COLUMN, "pt-8 pb-16 md:pt-16 md:pb-24"),
   today,
   uploadReminder = false,
   notice,
@@ -216,6 +216,7 @@ export default function ScheduleCheckInView({
 
   return (
     <>
+      {notice && <div data-page-section className={cx(PAGE_COLUMN, "py-5 md:py-8")}>{notice}</div>}
       <div data-page-section>
         {uploadReminder && (
           <ReminderStrip
@@ -225,6 +226,7 @@ export default function ScheduleCheckInView({
           />
         )}
         {header ?? <PageHeader
+          gutter={COLUMN_GUTTER}
           eyebrow={`Week of ${formatScheduleWeekOf(schedule.weekOf)}`}
           title="Your plan for this week"
           lead={readOnly ? undefined : "Your plan is set. Check off as you go."}
@@ -234,7 +236,6 @@ export default function ScheduleCheckInView({
       </div>
       <FailureNotice action={lastSave?.activityId} answer={lastSave?.answer ?? null} />
       <div className={cx("flex flex-col gap-4", padding)}>
-        {notice && <div data-page-section>{notice}</div>}
         {link !== null && !linkedDrill(schedule, link) && (
           <p role="status" className="rounded-md bg-vellum px-4 py-2.5 text-small text-ink">That drill is not in this week.</p>
         )}

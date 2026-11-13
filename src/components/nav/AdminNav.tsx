@@ -1,7 +1,7 @@
 "use client";
 
 import { useAdminTest } from "@/components/AdminTestContext";
-import AdminTestPanel, { AdminTestOpener } from "@/components/AdminTestPanel";
+import AdminTestPanel from "@/components/AdminTestPanel";
 import type { TestControlState } from "@/components/TestControls";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -9,7 +9,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import StudentNav, { StudentTabBar, type StudentNavProps } from "./StudentNav";
 import { NavIcon } from "./NavIcon";
 import { SignOutButton, SignOutForm } from "@/components/SignOutForm";
-import { FOCUS, TAP_AREA, cx } from "@/components/ui/classes";
+import { FOCUS, PAGE_COLUMN, TAP_AREA, cx } from "@/components/ui/classes";
 import { BAR, HEADER, Logo, TABS, isTabActive } from "./shared";
 
 function WorkspaceSwitcher({ studentSide, adminSide }: { studentSide: boolean; adminSide: boolean }) {
@@ -53,7 +53,7 @@ function WorkspaceSwitcher({ studentSide, adminSide }: { studentSide: boolean; a
         aria-expanded={open}
         aria-controls={menuId}
         onClick={() => setOpen((value) => !value)}
-        className={cx("flex min-h-11 items-center gap-1 rounded-sm px-2 text-small font-medium text-ink hover:bg-vellum", FOCUS)}
+        className={cx("flex min-h-11 items-center gap-1 rounded-sm px-2 text-small font-medium text-ink pointer-hover:bg-vellum", FOCUS)}
       >
         {studentSide ? "My student side" : "All students"}
         <NavIcon name="chevron" className="size-4 text-smoke" />
@@ -73,7 +73,7 @@ function WorkspaceSwitcher({ studentSide, adminSide }: { studentSide: boolean; a
               href={option.href}
               aria-current={option.active ? "true" : undefined}
               onClick={() => setOpen(false)}
-              className={cx("flex items-center justify-between gap-3 px-4 py-3 text-small text-ink hover:bg-vellum", option.active && "bg-vellum font-semibold", FOCUS)}
+              className={cx("flex items-center justify-between gap-3 px-4 py-3 text-small text-ink pointer-hover:bg-vellum", option.active && "bg-vellum font-semibold", FOCUS)}
             >
               <span>
                 <span className={cx("block font-medium", option.active && "font-semibold")}>{option.label}</span>
@@ -98,7 +98,6 @@ export default function AdminNav(props: StudentNavProps & { testState?: TestCont
     .some((href) => isTabActive(pathname, href));
   const adminSide = isTabActive(pathname, "/admin");
   const switcher = <WorkspaceSwitcher key={pathname} studentSide={studentSide} adminSide={adminSide} />;
-  const testPanelId = useId();
   const testState = studentSide ? props.testState : undefined;
 
   return (
@@ -118,9 +117,12 @@ export default function AdminNav(props: StudentNavProps & { testState?: TestCont
             </SignOutForm>
           </div>
         )}
-        {testState && <AdminTestOpener state={testState} panelId={testPanelId} />}
       </header>
-      {testState && <AdminTestPanel state={testState} panelId={testPanelId} />}
+      {testState && (
+        <div data-page-fade className={cx(PAGE_COLUMN, "py-5 md:py-8")}>
+          <AdminTestPanel state={testState} />
+        </div>
+      )}
       {studentSide && <StudentTabBar uploadNeeded={uploadNeeded} withWorkspaceSwitcher />}
     </>
   );

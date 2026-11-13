@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/Card";
-import { PLACEHOLDER_SHAPE, cx } from "@/components/ui/classes";
+import { COLUMN_GUTTER, PAGE_COLUMN, PLACEHOLDER_SHAPE, cx } from "@/components/ui/classes";
 
 const DOT = "shrink-0 rounded-pill bg-vellum-line";
 
@@ -16,7 +16,7 @@ const DAYS: { day: string; kind: string; rows: string[] }[] = [
 export function ThisWeekShapes({ lead }: { lead: boolean }) {
   return (
     <>
-      <div className="border-b border-vellum-line bg-paper px-5 pt-6 pb-6 md:px-18 md:pt-12 md:pb-10">
+      <div className={cx("border-b border-vellum-line bg-paper pt-6 pb-6 md:pt-12 md:pb-10", COLUMN_GUTTER)}>
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between lg:gap-4">
           <div className="flex min-w-0 flex-1 flex-col gap-1.5 md:gap-3">
             <p className="text-caption md:text-small"><span className={PLACEHOLDER_SHAPE}>Week of November 2</span></p>
@@ -41,7 +41,7 @@ export function ThisWeekShapes({ lead }: { lead: boolean }) {
           </div>
         </div>
       </div>
-      <div className="flex flex-col gap-4 px-5 pt-8 pb-16 md:px-18 md:pt-16 md:pb-24">
+      <div className={cx(PAGE_COLUMN, "flex flex-col gap-4 pt-8 pb-16 md:pt-16 md:pb-24")}>
         {DAYS.map(({ day, kind, rows }) => (
           <Card key={day} className={rows.length === 0 ? "gap-2" : undefined}>
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-2">

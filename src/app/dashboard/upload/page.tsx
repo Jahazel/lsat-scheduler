@@ -26,7 +26,7 @@ export default async function WeeklyUploadPage({ searchParams }: { searchParams:
     return (
       <div data-page-fade>
         <PageCue page="this-week" />
-        <PageArrival page="Weekly upload" />
+        <PageArrival page="Weekly upload" look="fade" />
         <PlanChoiceScreen place="weekly_upload" freeWeekEndsAt={null} realNow={new Date()} searchParams={await searchParams} />
       </div>
     );
@@ -51,7 +51,7 @@ export default async function WeeklyUploadPage({ searchParams }: { searchParams:
   return (
     <div data-page-fade>
       <PageCue page="this-week" />
-      <PageArrival page="Weekly upload" />
+      <PageArrival page="Weekly upload" look="fade" />
       <WeeklyUploadFlow basis={basis} initialScore={doc.currentScore} scanningOff={await readScanningOff(clock.real)} confirm={confirmWeeklyUpload} />
     </div>
   );

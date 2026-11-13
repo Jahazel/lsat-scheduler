@@ -92,6 +92,17 @@ describe("page motion", () => {
     }
   });
 
+  it("fades a tab's sections in place, together, for 120 ms, with or without reduced motion", () => {
+    const root = page(`<section data-page-section>Week</section><section data-page-section>Today</section>`);
+    for (const still of [false, true]) {
+      reduced = still;
+      running = [];
+      arriveSections(root, "fade");
+      expect(running.map((a) => a.keyframes)).toEqual([[{ opacity: 0 }, { opacity: 1 }], [{ opacity: 0 }, { opacity: 1 }]]);
+      expect(running.map((a) => [a.options.duration, a.options.delay ?? 0, a.options.easing])).toEqual([[120, 0, "ease-out"], [120, 0, "ease-out"]]);
+    }
+  });
+
   it("keeps the Progress dim interactive, and hands its sections their rise when the next page arrives", () => {
     const area = page(`<section data-page-section>Week</section>`);
     dim(area, { to: 0.5 });

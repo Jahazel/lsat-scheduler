@@ -16,7 +16,7 @@ An Admin views students' saved schedules without editing them. Their own student
 - An Admin signs in and lands on `/admin`, the All students list. The list includes onboarded ordinary students and excludes Admin-owned profiles.
 - Open the workspace switcher with `All students` or `My student side`, then choose the other workspace option.
 - Choose a student card on All students to open `/admin/students/<id>`. Use `← All students` to return.
-- On the Admin's student side, use the open Test controls panel. The desktop dock starts expanded. If collapsed, use the button whose name includes `Expand test controls` and the current date. At narrow widths, use the header button whose name includes `Open test controls` to open the overlay.
+- On the Admin's student side, open Test controls with the dashed chip at the top of the page column, under the top bar: the button named `Admin date: <date> · Change · Open test controls` (`Real date: …` before a Simulated date is set). It opens the Test controls slide-over at every width.
 
 ## Driving it with browser tools
 
@@ -38,7 +38,7 @@ Preconditions:
 - Rebuild and reset use Postgres transactions.
 - Each sample approval uses one of the Account's 5 analytics saves for the real day. Generate sample and `Back` use none. Resets and Simulated date do not give saves back. A full recipe with two weekly approvals leaves 3; seed a second Admin for more.
 - Sample generation is unavailable before onboarding. It creates candidate values; approval still requires both statements.
-- Test controls can be collapsed. On desktop, `Generate sample` collapses the dock. Expand it again before the next control. The desktop dock and the narrow-width overlay are both in the DOM, so each control name matches twice. In T3, add `>> visible=true` to the locator, such as `role=button[name="Next Monday"] >> visible=true`. Use snapshot names rather than coordinates. Resize the browser and exercise the overlay when responsive controls change.
+- Test controls is one slide-over, so each control name matches once. `Generate sample` closes it; open it again from the chip before the next control. Use snapshot names rather than coordinates.
 - Test controls render only on the Admin's student side (`/dashboard`, `/dashboard/upload`, `/onboarding`, `/account`), not on `/admin` or `/admin/students/<id>`. After an Admin visit to `/`, which lands on `/admin`, open `/dashboard` before the next control.
 - Direct Admin views of students use the real date. Simulated date affects only the Admin's own student side.
 - Account deletion is unavailable for Admins. Use the disposable student fixture for that separate path. After `Reset everything`, the Admin's `/account` redirects to `/onboarding` until they onboard again.

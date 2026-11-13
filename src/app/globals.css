@@ -168,13 +168,6 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
-@media (min-width: 64rem) {
-  body:has([data-test-dock="expanded"]) main,
-  body:has([data-test-dock="expanded"]) footer { margin-right: 20rem; }
-  body:has([data-test-dock="collapsed"]) main,
-  body:has([data-test-dock="collapsed"]) footer { margin-right: 5rem; }
-}
-
 :root { --site-header: 0px; }
 :root:has([data-site-header="bar"]) { --site-header: 4rem; }
 :root:has(:is([data-site-header="workspace"], [data-site-header="workspace-lg"])) { --site-header: calc(3.5rem + 1px); }
@@ -299,6 +292,18 @@ body:has([data-landing-page]) > footer > * { border-color: color-mix(in oklab, v
 }
 @media (prefers-reduced-motion: reduce) {
   html[data-arrival] :is([data-page-fade], [data-page-swap]) { --arrive-rise: 0px; animation-duration: var(--duration-fast); }
+}
+
+.menu-pop {
+  transition: opacity 160ms var(--ease-out-strong), transform 160ms var(--ease-out-strong);
+}
+@starting-style {
+  .menu-pop { opacity: 0; transform: scale(0.96); }
+}
+@media (prefers-reduced-motion: reduce) {
+  @starting-style {
+    .menu-pop { transform: none; }
+  }
 }
 
 @keyframes legal-copy-label-in { from { opacity: 0; transform: translateX(-2px); } }
@@ -597,8 +602,6 @@ body:has([data-tab-bar]) .save-bar { bottom: calc(86px + env(safe-area-inset-bot
   .save-bar,
   body:has([data-tab-bar]) .save-bar,
   body:has([data-workspace-tabs]) .save-bar { left: 72px; right: 72px; bottom: calc(24px + env(safe-area-inset-bottom)); }
-  body:has([data-test-dock="expanded"]) .save-bar { right: calc(20rem + 72px); }
-  body:has([data-test-dock="collapsed"]) .save-bar { right: calc(5rem + 72px); }
 }
 
 .save-bar {

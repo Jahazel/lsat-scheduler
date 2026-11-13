@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type Ref } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   setSimulatedDate,
@@ -78,13 +78,9 @@ export function displaySimulatedDate(date: string) {
 export default function TestControls({
   state,
   onClose,
-  closeRef,
-  closeExpanded,
 }: {
   state: TestControlState;
   onClose: () => void;
-  closeRef?: Ref<HTMLButtonElement>;
-  closeExpanded?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -159,12 +155,10 @@ export default function TestControls({
           </p>
         </div>
         <button
-          ref={closeRef}
           type="button"
           onClick={onClose}
           className={BUTTON}
           aria-label="Close test controls"
-          aria-expanded={closeExpanded}
         >
           Close
         </button>

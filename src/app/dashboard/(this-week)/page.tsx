@@ -7,6 +7,7 @@ import {
   currentWeekInTimezone, loadOrGenerateCurrentWeek, localDateInTimezone, nextWeekHasUpload, showsUploadReminder,
 } from "@/lib/currentWeeklySchedule";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { COLUMN_GUTTER, PAGE_COLUMN, cx } from "@/components/ui/classes";
 import { formatScheduleWeekOf, weekNotes } from "@/lib/scheduleCheckInSummary";
 import { listApprovedAnalyticsSnapshots } from "@/lib/analyticsSnapshotRepository";
 import { mockRules } from "@/lib/mockData";
@@ -87,15 +88,16 @@ export default async function DashboardPage({
     return (
       <div data-page-fade className="min-h-screen">
         <PageCue page="this-week" />
-        <PageArrival page="This week" />
+        <PageArrival page="This week" look="fade" />
+        {problem && <div data-page-section className={cx(PAGE_COLUMN, "py-5 md:py-8")}><PlanNotice note={problem} /></div>}
         <div data-page-section>
           <PageHeader
+            gutter={COLUMN_GUTTER}
             eyebrow={`Week of ${formatScheduleWeekOf(schedule.weekStartDate)}`}
             title={preview ? "Your plan for next week" : "Your plan for this week"}
           />
         </div>
-        <div className="flex flex-col gap-4 px-5 pt-8 pb-16 md:px-18 md:pt-16 md:pb-24">
-          {problem && <div data-page-section><PlanNotice note={problem} /></div>}
+        <div className={cx(PAGE_COLUMN, "flex flex-col gap-4 pt-8 pb-16 md:pt-16 md:pb-24")}>
           <div data-page-section>
             {lastFreeWeekendNote ? <PlanNotice note={lastFreeWeekendNote} /> : <HeldWeek lapsed={plan.kind === "lapsed"} />}
           </div>
@@ -112,7 +114,7 @@ export default async function DashboardPage({
   return (
     <div data-page-fade className="min-h-screen">
       <PageCue page="this-week" />
-      <PageArrival page="This week" />
+      <PageArrival page="This week" look="fade" />
       {isAdminUser(session.user) && (
         <CurrentWeekReport week={currentWeekInTimezone(now, SCHEDULE_TIMEZONE)} hasSchedule={!preview} hasPreview={preview} />
       )}
@@ -124,6 +126,7 @@ export default async function DashboardPage({
         readOnly={preview}
         header={preview ? (
           <PageHeader
+            gutter={COLUMN_GUTTER}
             eyebrow={`Next week · starts ${previewStartDate.format(new Date(`${schedule.weekStartDate}T00:00:00.000Z`))}`}
             title="Your plan for next week"
             lead="Your upload is saved. Check-ins open on Monday."

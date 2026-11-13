@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 afterEach(cleanup);
@@ -17,7 +17,7 @@ import { FailureToastProvider } from "@/components/FailureNotice";
 import type { FailureCode } from "@/lib/unexpectedFailure";
 
 const props = {
-  initials: "QA", email: "qa@example.test", countdownLabel: "30 days to test",
+  name: "Quinn Avery", initials: "QA", email: "qa@example.test", countdownLabel: "30 days to test",
   isTestDay: false, uploadNeeded: true, logOut: async () => ({ goTo: "/?signedOut=1" as const }),
 };
 
@@ -137,46 +137,25 @@ describe("workspace switcher interactions", () => {
   });
 });
 
-describe("admin test dock", () => {
+describe("admin simulated date", () => {
   const testState = { date: "2026-10-07", realDate: "2026-09-27", weekStartDate: "2026-10-05", simulated: true, onboarded: true, weekHasSchedule: true, uploadWeekHasSchedule: true, uploadWeekend: false };
-  beforeEach(() => {
-    mocks.pathname = "/dashboard";
-    vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
-  });
-  afterEach(() => vi.unstubAllGlobals());
+  beforeEach(() => { mocks.pathname = "/dashboard"; });
 
-  it("keeps keyboard focus on the matching button when the dock closes and opens", async () => {
-    const user = userEvent.setup();
-    render(<AdminNav {...props} testState={testState} />);
-    const dock = screen.getByRole("complementary", { name: "Test controls" });
-    const close = within(dock).getByRole("button", { name: "Close test controls" });
-    expect(close.getAttribute("aria-expanded")).toBe("true");
-    await user.click(close);
-    const expand = within(dock).getByRole("button", { name: /Expand test controls/ });
-    expect(document.activeElement).toBe(expand);
-    expect(expand.getAttribute("aria-expanded")).toBe("false");
-    await user.keyboard("{Enter}");
-    expect(document.activeElement).toBe(within(dock).getByRole("button", { name: "Close test controls" }));
-  });
-
-  it("names the closed dock with its visible simulated date", async () => {
-    const user = userEvent.setup();
-    render(<AdminNav {...props} testState={testState} />);
-    const dock = screen.getByRole("complementary", { name: "Test controls" });
-    await user.click(within(dock).getByRole("button", { name: "Close test controls" }));
-    expect(within(dock).getByRole("button", { name: "Simulated Oct 7, 2026 Expand test controls" })).toBeDefined();
-  });
-
-  it("places the dock and slide-over outside the header and keeps the mobile opener inside it", () => {
+  it("sits under the header, at the top of the page column, and opens the live test controls", () => {
     render(<AdminNav {...props} testState={testState} />);
     const header = screen.getByRole("banner");
-    const dock = screen.getByRole("complementary", { name: "Test controls" });
+    const chip = screen.getByRole("button", { name: /Admin date:\s*Oct 7, 2026\s*·\s*Change/ });
     const slideOver = screen.getByRole("dialog", { hidden: true });
-    const opener = screen.getByRole("button", { name: /Open test controls/ });
-    expect(header.contains(dock)).toBe(false);
+    expect(header.contains(chip)).toBe(false);
     expect(header.contains(slideOver)).toBe(false);
-    expect(header.contains(opener)).toBe(true);
-    expect(opener.getAttribute("aria-controls")).toBe(slideOver.id);
+    expect(chip.getAttribute("aria-haspopup")).toBe("dialog");
+    expect(screen.queryByRole("complementary", { name: "Test controls" })).toBeNull();
+  });
+
+  it("is absent on the admin side", () => {
+    mocks.pathname = "/admin";
+    render(<AdminNav {...props} testState={testState} />);
+    expect(screen.queryByRole("button", { name: /Admin date/ })).toBeNull();
   });
 });
 
@@ -201,10 +180,10 @@ describe("Log out waiting", () => {
   const waitingLogOut = () => new Promise<{ unexpectedFailure: FailureCode }>((resolve) => { finish = () => resolve({ unexpectedFailure: "3f9a01c2" as FailureCode }); });
   const expectWaiting = async (button: HTMLElement) => {
     await vi.waitFor(() => expect(button.getAttribute("aria-disabled")).toBe("true"));
-    expect(button.querySelector("svg")).not.toBeNull();
+    const waitingIcons = button.querySelectorAll("svg").length;
     finish();
     await vi.waitFor(() => expect(button.hasAttribute("aria-disabled")).toBe(false));
-    expect(button.querySelector("svg")).toBeNull();
+    expect(button.querySelectorAll("svg").length).toBeLessThan(waitingIcons);
   };
 
   it("shows the waiting ring on the account menu's Log out while it signs out", async () => {
@@ -225,24 +204,27 @@ describe("Log out waiting", () => {
   });
 });
 
-describe("This week tab", () => {
+describe("current tab", () => {
   afterEach(() => { mocks.pathname = "/admin"; });
 
   it.each([
-    [true, "/dashboard/upload"],
-    [false, "/dashboard"],
-  ])("with upload needed %s, goes to %s on the top bar and the phone tab bar, and stays current on This week and Weekly upload", (uploadNeeded, href) => {
-    for (const path of ["/dashboard", "/dashboard/upload"]) {
-      mocks.pathname = path;
-      render(<><StudentNav {...props} uploadNeeded={uploadNeeded} /><StudentTabBar uploadNeeded={uploadNeeded} /></>);
-      const tabs = screen.getAllByRole("link").filter((link) => link.textContent!.includes("This week"));
-      expect(tabs).toHaveLength(2);
-      for (const tab of tabs) {
-        expect(tab.getAttribute("href")).toBe(href);
-        expect(tab.getAttribute("aria-current")).toBe("page");
-      }
-      cleanup();
-    }
+    ["/dashboard", "This week"],
+    ["/dashboard/upload", "Upload"],
+    ["/progress", "Progress"],
+    ["/settings/anything", "Settings"],
+  ])("on %s marks only %s, on the top bar and the phone tab bar", (path, short) => {
+    mocks.pathname = path;
+    render(<><StudentNav {...props} /><StudentTabBar uploadNeeded={false} /></>);
+    const current = screen.getAllByRole("link").filter((link) => link.getAttribute("aria-current") === "page");
+    expect(current).toHaveLength(2);
+    for (const tab of current) expect(tab.textContent).toContain(short);
+  });
+
+  it("links This week to This week even when an upload is due", () => {
+    mocks.pathname = "/progress";
+    render(<><StudentNav {...props} uploadNeeded /><StudentTabBar uploadNeeded /></>);
+    const thisWeek = screen.getAllByRole("link").filter((link) => link.textContent!.startsWith("This week"));
+    expect(thisWeek.map((link) => link.getAttribute("href"))).toEqual(["/dashboard", "/dashboard"]);
   });
 });
 
