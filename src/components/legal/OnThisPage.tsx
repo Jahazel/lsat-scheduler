@@ -10,7 +10,7 @@ const WIDE = "(min-width: 1024px)";
 const PANEL_MAX = "60dvh";
 const PANEL_GAP_PX = 8;
 const OWN_SCROLL = ["wheel", "touchmove", "keydown"] as const;
-const TOUCH = "touch-manipulation select-none [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none]";
+const TOUCH = "select-none [-webkit-touch-callout:none]";
 const LINK = cx(TOUCH, "text-small text-smoke transition-colors duration-(--duration-fast) ease-[ease] motion-reduce:transition-none pointer-hover:text-ink active:text-ink aria-[current]:text-ink");
 
 const readingLineWhereJumpsStop = (section: HTMLElement) => parseFloat(getComputedStyle(section).scrollMarginTop) + 1;

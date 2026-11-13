@@ -1,14 +1,22 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import { createPortal } from "react-dom";
-import { TOP_BAR_STEP_SLOT } from "@/components/nav/shared";
+import { useLayoutEffect, useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
 import { stepPlace, type WizardStep } from "@/lib/onboardingWizard";
 
-const noSubscription = () => () => {};
+type CountedStep = WizardStep | "reveal" | "plan";
 
-function useTopBarSlot() {
-  return useSyncExternalStore(noSubscription, () => document.getElementById(TOP_BAR_STEP_SLOT), () => undefined);
+let topBarStep: CountedStep | null = null;
+const listeners = new Set<() => void>();
+
+function setTopBarStep(step: CountedStep | null) {
+  topBarStep = step;
+  for (const listener of listeners) listener();
+}
+
+function subscribeToTopBarStep(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 function Ring({ share }: { share: number }) {
@@ -42,17 +50,16 @@ function Check() {
   );
 }
 
-function stepLabel(step: WizardStep | "reveal" | "plan") {
+function stepLabel(step: CountedStep) {
   if (step === "reveal") return { lead: "Done", name: "Week reveal", share: null };
   if (step === "plan") return { lead: "Last step", name: "Plan", share: null };
   const place = stepPlace(step);
   return { lead: `Step ${place.number} of ${place.of}`, name: place.name, share: place.number / place.of };
 }
 
-export function StepCount({ step }: { step: WizardStep | "reveal" | "plan" }) {
-  const slot = useTopBarSlot();
+function Count({ step }: { step: CountedStep }) {
   const { lead, name, share } = stepLabel(step);
-  const count = (
+  return (
     <p className="flex items-center gap-2 whitespace-nowrap text-small text-smoke">
       {share === null ? <Check /> : <Ring share={share} />}
       <span>
@@ -61,13 +68,23 @@ export function StepCount({ step }: { step: WizardStep | "reveal" | "plan" }) {
       </span>
     </p>
   );
-  if (slot === undefined) return null;
-  if (!slot) return <div className="px-5 pt-6 md:px-10">{count}</div>;
-  return createPortal(
+}
+
+export function TopBarStepCount({ first }: { first: CountedStep }) {
+  const step = useSyncExternalStore(subscribeToTopBarStep, () => topBarStep ?? first, () => first);
+  if (usePathname() !== "/onboarding") return null;
+  return (
     <span className="flex items-center gap-4">
       <span aria-hidden className="h-5 w-px bg-vellum-line" />
-      {count}
-    </span>,
-    slot,
+      <Count step={step} />
+    </span>
   );
+}
+
+export function StepCount({ step, aboveQuestions = false }: { step: CountedStep; aboveQuestions?: boolean }) {
+  useLayoutEffect(() => {
+    setTopBarStep(step);
+    return () => setTopBarStep(null);
+  }, [step]);
+  return aboveQuestions ? <div className="px-5 pt-6 md:px-10"><Count step={step} /></div> : null;
 }

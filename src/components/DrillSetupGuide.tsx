@@ -8,7 +8,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { FOCUS, FOCUS_INSET, cx } from "@/components/ui/classes";
 
 const PRESS = cx(
-  "touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-97 motion-reduce:active:scale-100",
+  "select-none active:scale-97 motion-reduce:active:scale-100",
   "[transition:color_var(--duration-fast)_ease-out,background-color_var(--duration-fast)_ease-out,border-color_var(--duration-fast)_ease-out,scale_var(--duration-fast)_var(--ease-out-strong)]",
   FOCUS,
 );
@@ -201,7 +201,7 @@ export function DrillSetupGuide({ open, onClose, returnFocusTo, day, label, guid
             <button ref={screenshot} type="button" aria-pressed={zoomed}
               aria-label={zoomed ? "Fit the screenshot" : "Show the screenshot at real size"} onClick={() => setZoomed(!zoomed)}
               style={zoomed ? undefined : { containerType: "size" }}
-              className={cx("touch-manipulation [-webkit-tap-highlight-color:transparent]", FOCUS_INSET, zoomed
+              className={cx(FOCUS_INSET, zoomed
                 ? "block cursor-zoom-out"
                 : "absolute inset-x-4 top-4 bottom-0 flex cursor-zoom-in items-end justify-center md:inset-6 md:items-center")}>
               <span className={cx("relative block", !zoomed && "overflow-hidden rounded-t-xs ring-1 ring-ink/8 md:rounded-xs")}
@@ -230,8 +230,7 @@ export function DrillSetupGuide({ open, onClose, returnFocusTo, day, label, guid
                 {guide.steps.map((_, index) => (
                   <button key={index} type="button" aria-label={`Step ${index + 1}`} aria-current={index === card ? "step" : undefined}
                     onClick={() => go(index)}
-                    className={cx("relative h-1.5 rounded-pill after:absolute after:-inset-x-1 after:-inset-y-[9px] after:content-['']",
-                      "touch-manipulation [-webkit-tap-highlight-color:transparent]", FOCUS,
+                    className={cx("relative h-1.5 rounded-pill after:absolute after:-inset-x-1 after:-inset-y-[9px] after:content-['']", FOCUS,
                       index === card ? "w-5 bg-ink" : "w-1.5 bg-vellum-line")} />
                 ))}
               </div>

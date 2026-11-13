@@ -1,6 +1,6 @@
 # Motion spec: landing page colors and scroll motion
 
-Tracking ticket: #773. Brief: [brief.md](brief.md). Prototype: `/prototypes/landing-colors` (dev only).
+Tracking ticket: #773. Brief: [brief.md](brief.md). The prototype was removed once the landing page was built; the live pages are `/`, `/login`, and `/signup`.
 
 All values are the project's motion tokens in `src/app/globals.css`: `--duration-fast` 120 ms, `--duration-base` 200 ms, `--duration-slow` 320 ms, `--duration-reveal` 600 ms, `--ease-standard`, `--ease-out-strong`, `--ease-in-out-strong`, `--ease-float`. "Reduced motion" means the visitor's system asks for less motion; the prototype's Reduced motion button forces the same result.
 

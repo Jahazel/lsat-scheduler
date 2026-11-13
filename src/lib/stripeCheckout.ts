@@ -79,6 +79,7 @@ const subscription = z.object({ id: z.string(), status: z.string() });
 const subscriptions = stripeList(subscription);
 const openInvoices = stripeList(z.object({ id: z.string().regex(/^in_\w+$/) }));
 const openSessions = stripeList(z.object({ id: z.string().regex(/^cs_\w+$/) }));
+const checkoutSession = z.object({ status: z.string() });
 
 // Stripe can still be sending the message for one of these, so the billing record does not show it yet.
 const STARTED_OR_STARTING = ["trialing", "active", "past_due", "incomplete"];
@@ -120,6 +121,17 @@ async function cancelUnlessEnded(id: string, secretKey: string) {
   }
 }
 
+async function closeCheckout(id: string, secretKey: string): Promise<"expired" | "complete"> {
+  try {
+    await stripeRequest(`checkout/sessions/${id}/expire`, secretKey, {});
+    return "expired";
+  } catch (error) {
+    const { status } = checkoutSession.parse(await stripeRequest(`checkout/sessions/${id}`, secretKey));
+    if (status !== "complete") throw error;
+    return "complete";
+  }
+}
+
 export type CheckoutStart = { kind: "checkout"; url: string } | { kind: "starting"; place: PlanChoicePlace } | { kind: "refused" };
 
 /**
@@ -136,9 +148,9 @@ export async function startCheckout(accountId: string, plan: PlanName, realNow: 
     const customer = await accountCustomer(accountId, standing, secretKey);
 
     const open = openSessions.parse(await stripeRequest(`checkout/sessions?customer=${customer}&status=open&limit=100`, secretKey));
-    for (const session of open.data) {
-      await stripeRequest(`checkout/sessions/${session.id}/expire`, secretKey, {});
-    }
+    const closed = [];
+    for (const session of open.data) closed.push(await closeCheckout(session.id, secretKey));
+    if (closed.includes("complete")) return { kind: "starting", place: standing.place };
     const held = subscriptions.parse(await stripeRequest(`subscriptions?customer=${customer}&status=all&limit=100`, secretKey))
       .data.filter(({ status }) => !ENDED.includes(status));
     if (held.some(({ id, status }) => (id === standing.subscriptionId ? PAID_AGAIN : STARTED_OR_STARTING).includes(status))) {

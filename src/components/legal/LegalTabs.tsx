@@ -32,7 +32,7 @@ export function LegalTabs({ current }: { current: LegalPageId }) {
           href={`/legal/${tab}`}
           aria-current={tab === current ? "page" : undefined}
           className={cx(
-            "flex h-11 shrink-0 touch-manipulation items-center border-b-2 text-small whitespace-nowrap select-none [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] active:text-ink",
+            "flex h-11 shrink-0 items-center border-b-2 text-small whitespace-nowrap select-none [-webkit-touch-callout:none] active:text-ink",
             "transition-[color,border-color] duration-(--duration-fast) ease-[ease] motion-reduce:transition-none",
             tab === current ? "border-ink font-medium text-ink" : "border-transparent text-smoke pointer-hover:text-ink",
             FOCUS_INSET,

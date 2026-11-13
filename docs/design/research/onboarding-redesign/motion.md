@@ -14,7 +14,7 @@ One row per row of the brief's Flow map, in the same order.
 | --- | --- | --- | --- | --- |
 | Whole page, Sign-up → first question | Google sign-in finishes | Today's whole-page arrival: the old page fades out, then the top bar, question column, and preview rise in, 40 ms apart | Fast exit, Strong ease-out; Base entry, Standard curve | Old page goes at once; new parts fade in, Fast, no rise |
 | Whole page, any app page → first question | A student with no profile opens This week, Progress, Study settings, Account, or Weekly upload | Same whole-page arrival as the row above | Same as above | Same as above |
-| Question column | Continue (answers valid) | The step fades out moving 8 px left, the next step fades in from 8 px right; the step ring fills; the preview's week bars and focus border follow | Column: Fast exit, Base entry, Standard curve. Ring: Base, Strong ease-out. Preview: Base, Strong ease-out | Step swaps with a Fast fade; ring and bars change at once |
+| Question column | Continue (answers valid) | The step fades out moving 8 px left, the next step fades in from 8 px right; the step ring fills; the preview's week bars and focus border follow | Column: Fast exit, Base entry, Standard curve. Ring: Base, Strong ease-out. Preview: Base, Strong ease-out | Step swaps with a Fast fade; ring, bars, and focus border change at once |
 | Question column | Back | Mirror of Continue: out to the right, in from the left; answers stay | Same as Continue | Same as Continue |
 | Whole page | Reload on any step | None: a browser load opens the first question with answers lost (#853) | — | — |
 | Whole page | Log out | Log out shows its wait spinner; the Log in page then appears with no app motion, as today | — | Same |

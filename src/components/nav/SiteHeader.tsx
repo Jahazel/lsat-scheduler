@@ -12,7 +12,8 @@ import AdminNav from "./AdminNav";
 import StudentNav, { StudentTabBar } from "./StudentNav";
 import { logOut } from "./actions";
 import SignedOutTopBar from "./SignedOutTopBar";
-import { BAR, HEADER, Logo, TOP_BAR_STEP_SLOT } from "./shared";
+import { TopBarStepCount } from "@/app/onboarding/StepCount";
+import { BAR, HEADER, Logo } from "./shared";
 
 function LogOutButton() {
   return (
@@ -64,7 +65,7 @@ export default async function SiteHeader() {
         <div className={BAR}>
           <div className="flex min-w-0 items-center gap-4">
             <Logo href="/" form="mark-below-md" />
-            <div id={TOP_BAR_STEP_SLOT} className="contents" />
+            <TopBarStepCount first={state ? "plan" : "goal"} />
           </div>
           <div data-page-fade>
             <LogOutButton />
