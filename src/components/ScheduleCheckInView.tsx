@@ -16,12 +16,14 @@ import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ReminderStrip } from "@/components/ui/ReminderStrip";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { StatusIcon } from "@/components/ui/StatusIcon";
+import { InfoGlyph, StatusIcon } from "@/components/ui/StatusIcon";
 import { COLUMN_GUTTER, FOCUS, MOTION, PAGE_COLUMN, cx } from "@/components/ui/classes";
 import { DrillSetupGuide } from "@/components/DrillSetupGuide";
 import { DRILL_LINK_PARAMETER, drillSetupGuide, type DrillSetupGuide as DrillSetupGuideContent } from "@/lib/drillSetupGuide";
 import type { RoadToTestDay } from "@/lib/roadToTestDay";
 import { WeekHeader } from "@/components/WeekHeader";
+import { TodayCard, type NextStudyDay } from "@/components/TodayCard";
+import { buttonClass } from "@/components/ui/Button";
 
 interface ScheduleCheckInViewProps {
   scheduleId: string;
@@ -40,6 +42,11 @@ interface ScheduleCheckInViewProps {
 }
 
 const shortDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+const formatDate = (isoDate: string) => shortDate.format(new Date(`${isoDate}T00:00:00.000Z`));
+
+function emptyDayText(plan: DayPlan) {
+  return plan.type === "rest" ? "Rest day. Nothing planned." : plan.type === "unscheduled" ? "Not scheduled." : "Nothing scheduled.";
+}
 
 function dayKind(plan: DayPlan, practiceTestDays: DayPlan["day"][]) {
   switch (plan.type) {
@@ -74,18 +81,20 @@ function ActivityRow({ label, done, onToggle, setUp }: { label: string; done: bo
   );
 }
 
-function SetUpButton({ label, expanded, onOpen, ref }: {
+function SetUpButton({ label, expanded, onOpen, ref, look = "row" }: {
   label: string;
   expanded: boolean;
   onOpen: (opener: HTMLElement) => void;
   ref: Ref<HTMLButtonElement>;
+  look?: "row" | "quiet" | "outline";
 }) {
+  const quiet = cx("shrink-0 whitespace-nowrap rounded-sm px-2.5 text-small font-medium text-smoke pointer-hover:text-ink",
+    "select-none active:scale-97 motion-reduce:active:scale-100",
+    "[transition:color_var(--duration-fast)_ease-out,scale_var(--duration-fast)_var(--ease-out-strong)]", FOCUS);
   return (
     <button ref={ref} type="button" aria-haspopup="dialog" aria-expanded={expanded} aria-label={`Set up ${label}`}
       onClick={(event) => onOpen(event.currentTarget)}
-      className={cx("mt-0.5 h-8 shrink-0 whitespace-nowrap rounded-sm px-2.5 text-small font-medium text-smoke pointer-hover:text-ink",
-        "select-none active:scale-97 motion-reduce:active:scale-100",
-        "[transition:color_var(--duration-fast)_ease-out,scale_var(--duration-fast)_var(--ease-out-strong)]", FOCUS)}>
+      className={look === "outline" ? buttonClass({ variant: "outline", size: "md" }) : cx(quiet, look === "row" ? "mt-0.5 h-8" : "h-10")}>
       Set up
     </button>
   );
@@ -149,6 +158,7 @@ export default function ScheduleCheckInView({
   const [, startTransition] = useTransition();
   const [openGuide, setOpenGuide] = useState<OpenGuide | null>(null);
   const setUpButtons = useRef(new Map<string, HTMLButtonElement>());
+  const todayRows = useRef(new Map<string, HTMLButtonElement>());
   const guideEntry = useRef<"none" | "open" | "closing">("none");
   const openedOnLoad = useRef(false);
   const link = thisWeek?.drillLink ?? null;
@@ -162,6 +172,8 @@ export default function ScheduleCheckInView({
   const dueSoFar = today === undefined ? undefined : activitiesOn((date) => date <= today);
   const dueBeforeToday = today === undefined ? 0 : activitiesOn((date) => date < today);
   const practiceTestDays = DAY_ORDER.filter((day) => schedule.days[day].type === "practice_test");
+  const dayReasons = (day: DayOfWeek) => schedule.reasons?.filter((reason) =>
+    reason.placement.scope === "day" && reason.placement.day === day && reason.code !== "capacity_overage") ?? [];
 
   function showGuide(activityId: string, day: DayOfWeek, label: string, guide: DrillSetupGuideContent, opener: HTMLElement,
     entryUrl = location.href) {
@@ -198,8 +210,59 @@ export default function ScheduleCheckInView({
     const entryUrl = location.href;
     if (reloaded !== undefined && linked) guideEntry.current = "open";
     else if (reloaded !== undefined || linked) clearGuideEntry();
-    if (linked) showGuide(linked.activityId, linked.day, linked.label, linked.guide, setUpButtons.current.get(linked.activityId)!, entryUrl);
+    const opener = linked && (setUpButtons.current.get(linked.activityId) ?? todayRows.current.get(linked.activityId));
+    if (linked) showGuide(linked.activityId, linked.day, linked.label, linked.guide, opener!, entryUrl);
   });
+
+  function setUpFor(day: DayOfWeek, index: number, look?: "row" | "quiet" | "outline") {
+    const activity = schedule.days[day].activities[index]!;
+    const activityId = scheduleActivityId(day, index);
+    const guide = drillSetupGuide(activity);
+    if (!guide) return null;
+    const label = activityLabel(activity);
+    return <SetUpButton label={label} look={look} expanded={openGuide?.open === true && openGuide.activityId === activityId}
+      ref={(button) => {
+        if (button) setUpButtons.current.set(activityId, button);
+        else setUpButtons.current.delete(activityId);
+      }}
+      onOpen={(opener) => showGuide(activityId, day, label, guide, opener)} />;
+  }
+
+  const todayIndex = thisWeek && !readOnly ? dates.indexOf(today ?? "") : -1;
+  const todayDay = DAY_ORDER[todayIndex];
+
+  function todayCard(day: DayOfWeek) {
+    const plan = schedule.days[day];
+    const reasons = dayReasons(day);
+    const unscheduledReason = plan.type === "unscheduled" ? reasons.find((reason) => reason.code === "unscheduled_day") : undefined;
+    const nextDay = DAY_ORDER.slice(todayIndex + 1).find((later) => schedule.days[later].activities.length > 0);
+    const next: NextStudyDay | null = nextDay ? {
+      day: dayName(nextDay),
+      date: formatDate(dates[DAY_ORDER.indexOf(nextDay)]!),
+      activities: schedule.days[nextDay].activities.length,
+      minutes: Math.round(schedule.days[nextDay].activities.reduce((total, activity) => total + plannedActivityMinutes(activity), 0)),
+    } : null;
+    return <TodayCard
+      day={dayName(day)}
+      date={formatDate(dates[todayIndex]!)}
+      activities={plan.activities.map((activity, index) => ({
+        id: scheduleActivityId(day, index),
+        label: activityLabel(activity),
+        minutes: plannedActivityMinutes(activity),
+        section: drillSetupGuide(activity)?.section ?? null,
+      }))}
+      notes={reasons.filter((reason) => reason !== unscheduledReason).map((reason) => reason.sentence)}
+      emptyText={unscheduledReason?.sentence ?? emptyDayText(plan)}
+      next={next}
+      doneIds={doneIds}
+      onToggle={toggle}
+      setUp={(activityId, look) => setUpFor(day, plan.activities.findIndex((_, index) => scheduleActivityId(day, index) === activityId), look)}
+      rowRef={(activityId) => (button) => {
+        if (button) todayRows.current.set(activityId, button);
+        else todayRows.current.delete(activityId);
+      }}
+    />;
+  }
 
   function toggle(activityId: string) {
     const status = doneIds.has(activityId) ? "not_started" : "completed";
@@ -248,17 +311,20 @@ export default function ScheduleCheckInView({
       <FailureNotice action={lastSave?.activityId} answer={lastSave?.answer ?? null} />
       <div className={cx("flex flex-col gap-4", padding ?? cx(PAGE_COLUMN, thisWeek ? "pt-6 pb-16 md:pb-24" : "pt-8 pb-16 md:pt-16 md:pb-24"))}>
         {link !== null && !linkedDrill(schedule, link) && (
-          <p role="status" className="rounded-md bg-vellum px-4 py-2.5 text-small text-ink">That drill is not in this week.</p>
+          <p role="status" className="flex items-center gap-2 rounded-lg border border-vellum-line bg-paper px-4 py-3 text-small text-ink shadow-control">
+            <InfoGlyph className="size-4" />That drill is not in this week.
+          </p>
         )}
+        {todayDay && todayCard(todayDay)}
         {DAY_ORDER.map((day, dayIndex) => {
+          if (day === todayDay) return null;
           const plan = schedule.days[day];
           const plannedMinutes = Math.round(plan.activities.reduce((total, activity) => total + plannedActivityMinutes(activity), 0));
-          const dayReasons = schedule.reasons?.filter((reason) =>
-            reason.placement.scope === "day" && reason.placement.day === day && reason.code !== "capacity_overage") ?? [];
+          const reasons = dayReasons(day);
           const activityIds = plan.activities.map((_, index) => scheduleActivityId(day, index));
           const allDone = activityIds.length > 0 && activityIds.every((id) => doneIds.has(id));
           const isToday = dates[dayIndex] === today;
-          const date = shortDate.format(new Date(`${dates[dayIndex]}T00:00:00.000Z`));
+          const date = formatDate(dates[dayIndex]!);
           return (
             <section key={day} data-page-section>
               <Card className={plan.activities.length === 0 ? "gap-2" : undefined}>
@@ -273,24 +339,14 @@ export default function ScheduleCheckInView({
                     {allDone && <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-small text-ink"><StatusIcon name="check-circle" />All done</span>}
                   </div>
                 </div>
-                {dayReasons.map((reason, index) => <p className="px-2 text-small text-smoke" key={`${reason.code}-${index}`}>{reason.sentence}</p>)}
+                {reasons.map((reason, index) => <p className="px-2 text-small text-smoke" key={`${reason.code}-${index}`}>{reason.sentence}</p>)}
                 {plan.activities.length === 0 ? (
-                  plan.type === "unscheduled" && dayReasons.length > 0 ? null : <p className="px-2 text-small text-smoke">
-                    {plan.type === "rest" ? "Rest day. Nothing planned." : plan.type === "unscheduled" ? "Not scheduled." : "Nothing scheduled."}
-                  </p>
+                  plan.type === "unscheduled" && reasons.length > 0 ? null : <p className="px-2 text-small text-smoke">{emptyDayText(plan)}</p>
                 ) : (
                   <ul className="flex flex-col">
                     {plan.activities.map((activity, index) => {
                       const activityId = activityIds[index]!;
-                      const label = activityLabel(activity);
-                      const guide = drillSetupGuide(activity);
-                      const setUp = guide && <SetUpButton label={label} expanded={openGuide?.open === true && openGuide.activityId === activityId}
-                        ref={(button) => {
-                          if (button) setUpButtons.current.set(activityId, button);
-                          else setUpButtons.current.delete(activityId);
-                        }}
-                        onOpen={(opener) => showGuide(activityId, day, label, guide, opener)} />;
-                      return <ActivityRow key={activityId} label={label} done={doneIds.has(activityId)} setUp={setUp}
+                      return <ActivityRow key={activityId} label={activityLabel(activity)} done={doneIds.has(activityId)} setUp={setUpFor(day, index)}
                         onToggle={readOnly ? undefined : () => toggle(activityId)} />;
                     })}
                   </ul>

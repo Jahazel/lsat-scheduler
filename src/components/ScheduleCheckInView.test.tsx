@@ -334,6 +334,166 @@ describe("ScheduleCheckInView", () => {
     });
   });
 
+  describe("Today card on This week", () => {
+    const TUESDAY = "2026-08-25";
+    const todayCard = () => screen.getByRole("region", { name: /^Today/ });
+    const upNext = () => within(todayCard()).getByText("Up next").parentElement!;
+    const markDone = () => within(todayCard()).getByRole("button", { name: /^Mark done/ });
+    const renderToday = (today: string, props: { checkIns?: ActivityCheckIn[]; drillLink?: string; schedule?: ReturnType<typeof week> } = {}) => {
+      history.replaceState(null, "", "/dashboard");
+      return render(<ScheduleCheckInView scheduleId="schedule-1" schedule={props.schedule ?? week()} student={mockStudent}
+        checkIns={props.checkIns ?? []} today={today} thisWeek={{ drillLink: props.drillLink ?? null, road }} />, { wrapper: FailureToastProvider });
+    };
+
+    it("shows the first activity not done as Up next, and the day's other activities under it with rounded minutes", () => {
+      renderToday(TUESDAY);
+      expect(within(todayCard()).getByRole("heading", { level: 2 }).textContent).toBe("TodayTuesday, Aug 25");
+      expect(within(todayCard()).getByText("0 of 4 done · 1 h 37 left")).toBeTruthy();
+      expect(upNext().textContent).toBe("Up next10 Weaken + Strengthen (L2-4)30 min · Logical Reasoning");
+      expect(within(todayCard()).getByRole("button", { name: "Set up 10 Weaken + Strengthen (L2-4)" })).toBeTruthy();
+      expect(markDone().getAttribute("aria-label")).toBe("Mark done: 10 Weaken + Strengthen (L2-4)");
+
+      const rows = within(todayCard()).getAllByRole("checkbox");
+      expect(rows.map((row) => row.textContent)).toEqual([
+        "5 Conditional reasoning (L2-4)15 min", "1 RC Passage Art L217 min", "2 RC Passages Humanities L2, Science L435 min"]);
+      expect(within(todayCard()).getAllByRole("button", { name: /^Set up/ })).toHaveLength(4);
+      expect(screen.queryByRole("heading", { level: 2, name: /^Tuesday/ })).toBeNull();
+      expect(screen.getByRole("heading", { level: 2, name: /^Monday/ })).toBeTruthy();
+    });
+
+    it("drops Set up from ticked drills in the list and counts what is left", () => {
+      renderToday(TUESDAY, { checkIns: [done("TUESDAY:1")] });
+      expect(within(todayCard()).getByText("1 of 4 done · 1 h 22 left")).toBeTruthy();
+      expect(within(todayCard()).queryByRole("button", { name: "Set up 5 Conditional reasoning (L2-4)" })).toBeNull();
+      expect(within(todayCard()).getByRole("checkbox", { name: "5 Conditional reasoning (L2-4)15 min" }).getAttribute("aria-checked")).toBe("true");
+    });
+
+    it("keeps focus on Mark done, which then names the next activity", async () => {
+      const user = userEvent.setup();
+      renderToday(TUESDAY);
+      const button = markDone();
+      await user.click(button);
+      expect(saveActivityCheckIn).toHaveBeenLastCalledWith({ scheduleId: "schedule-1", activityId: "TUESDAY:0", status: "completed" });
+      expect(markDone()).toBe(button);
+      expect(document.activeElement).toBe(button);
+      expect(button.getAttribute("aria-label")).toBe("Mark done: 5 Conditional reasoning (L2-4)");
+      expect(upNext().textContent).toBe("Up next5 Conditional reasoning (L2-4)15 min · Logical Reasoning");
+      expect(within(todayCard()).getByRole("checkbox", { name: "10 Weaken + Strengthen (L2-4)30 min" }).getAttribute("aria-checked")).toBe("true");
+
+      await user.keyboard("{Enter}");
+      expect(button.getAttribute("aria-label")).toBe("Mark done: 1 RC Passage Art L2");
+      await waitFor(() => expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe("2"));
+    });
+
+    it("reads All done for today with the next study day once every activity is ticked, and moves focus there", async () => {
+      renderToday(TUESDAY, { checkIns: [done("TUESDAY:0"), done("TUESDAY:1"), done("TUESDAY:2")] });
+      await userEvent.click(markDone());
+      expect(within(todayCard()).getByText("4 of 4 done")).toBeTruthy();
+      const allDone = within(todayCard()).getByText("All done for today").parentElement!;
+      expect(allDone.textContent).toBe("All done for todayNext: Thursday, Aug 27 · 5 activities, 1 h 35");
+      expect(document.activeElement).toBe(allDone);
+      expect(within(todayCard()).queryByRole("button", { name: /^Mark done/ })).toBeNull();
+      expect(within(todayCard()).getAllByRole("checkbox")).toHaveLength(4);
+      expect(within(todayCard()).queryByRole("button", { name: /^Set up/ })).toBeNull();
+    });
+
+    it("says nothing else is planned when today is the last study day", () => {
+      renderToday("2026-08-30", { checkIns: [done("SUNDAY:0")] });
+      expect(within(todayCard()).getByText("All done for today").parentElement!.textContent)
+        .toBe("All done for todayNothing else is planned this week.");
+    });
+
+    it("shows a rest day and the next study day", () => {
+      renderToday("2026-08-26");
+      expect(within(todayCard()).getByText("Rest day. Nothing planned.")).toBeTruthy();
+      expect(within(todayCard()).getByText(/^Next:/).textContent).toBe("Next: Thursday, Aug 27 · 5 activities, 1 h 35");
+      expect(within(todayCard()).queryByText(/ done/)).toBeNull();
+      expect(within(todayCard()).queryByRole("button")).toBeNull();
+    });
+
+    it("shows why an unscheduled day is empty, and today's day notes under the header", () => {
+      const schedule = week();
+      schedule.days.MONDAY = { day: "MONDAY", type: "unscheduled", activities: [], totalMinutes: 0 };
+      schedule.reasons = [
+        { code: "unscheduled_day", placement: { scope: "day", day: "MONDAY" }, sentence: "Not scheduled because this weekly schedule started Tuesday." },
+        { code: "rest_day_moved", placement: { scope: "day", day: "MONDAY" }, sentence: "Rest day moved to Wednesday." },
+      ];
+      renderToday("2026-08-24", { schedule });
+      expect(within(todayCard()).getAllByText("Not scheduled because this weekly schedule started Tuesday.")).toHaveLength(1);
+      expect(within(todayCard()).getByText("Rest day moved to Wednesday.")).toBeTruthy();
+      expect(within(todayCard()).getByText(/^Next:/).textContent).toBe("Next: Tuesday, Aug 25 · 4 activities, 1 h 37");
+    });
+
+    it.each([
+      ["practice-test", "2026-08-29", "Practice Test (from PT 130+)"],
+      ["review", "2026-08-30", "PT Review + Blind Review"],
+    ])("shows the %s day's one activity with its time and no Set up", (_, today, label) => {
+      renderToday(today);
+      expect(upNext().textContent).toBe(`Up next${label}2 h 30`);
+      expect(markDone().getAttribute("aria-label")).toBe(`Mark done: ${label}`);
+      expect(within(todayCard()).queryByRole("button", { name: /^Set up/ })).toBeNull();
+      expect(within(todayCard()).queryByRole("checkbox")).toBeNull();
+    });
+
+    it("returns Up next to its saved state and shows the error code when Mark done fails", async () => {
+      saveActivityCheckIn.mockResolvedValue({ unexpectedFailure: "3f9a01c2" });
+      renderToday(TUESDAY);
+      await userEvent.click(markDone());
+      expect((await screen.findByRole("alert")).textContent).toBe("Something went wrong. Try again.Error code 3f9a01c2");
+      expect(markDone().getAttribute("aria-label")).toBe("Mark done: 10 Weaken + Strengthen (L2-4)");
+      expect(within(todayCard()).getByText("0 of 4 done · 1 h 37 left")).toBeTruthy();
+    });
+
+    it("opens the setup guide from Up next and from a row, and Esc returns focus to that Set up", async () => {
+      const user = userEvent.setup();
+      renderToday(TUESDAY);
+      for (const label of ["10 Weaken + Strengthen (L2-4)", "1 RC Passage Art L2"]) {
+        const setUp = within(todayCard()).getByRole("button", { name: `Set up ${label}` });
+        await user.click(setUp);
+        expect(screen.getByRole("dialog", { name: `Drill setup guide · Tuesday · ${label}` }).getAttribute("open")).not.toBeNull();
+        await user.keyboard("{Escape}");
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+        expect(document.activeElement).toBe(setUp);
+      }
+      expect(saveActivityCheckIn).not.toHaveBeenCalled();
+    });
+
+    it("opens the guide a drill link names in today's card, and closing returns focus to Up next's Set up", async () => {
+      const user = userEvent.setup();
+      renderToday(TUESDAY, { drillLink: `${week().weekOf}:TUESDAY:0` });
+      expect(screen.getByRole("dialog", { name: "Drill setup guide · Tuesday · 10 Weaken + Strengthen (L2-4)" }).getAttribute("open")).not.toBeNull();
+      await user.click(screen.getByRole("button", { name: "Close the drill setup guide" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      expect(document.activeElement).toBe(within(todayCard()).getByRole("button", { name: "Set up 10 Weaken + Strengthen (L2-4)" }));
+    });
+
+    it("returns focus to the row when a drill link names a drill already ticked today", async () => {
+      const user = userEvent.setup();
+      renderToday(TUESDAY, { checkIns: [done("TUESDAY:2")], drillLink: `${week().weekOf}:TUESDAY:2` });
+      await user.click(screen.getByRole("button", { name: "Close the drill setup guide" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      expect(document.activeElement).toBe(within(todayCard()).getByRole("checkbox", { name: "1 RC Passage Art L217 min" }));
+    });
+
+    it("shows That drill is not in this week above the Today card for a drill from another week", () => {
+      renderToday(TUESDAY, { drillLink: "2026-08-17:TUESDAY:0" });
+      const notice = screen.getByRole("status");
+      expect(notice.textContent).toBe("That drill is not in this week.");
+      expect(notice.compareDocumentPosition(todayCard()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    it("shows no Today card on next week's preview or outside the week", () => {
+      const { unmount } = render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent}
+        checkIns={[]} today={TUESDAY} readOnly thisWeek={{ drillLink: null, road }} />);
+      expect(screen.queryByRole("region", { name: /^Today/ })).toBeNull();
+      unmount();
+      renderToday("2026-08-31");
+      expect(screen.queryByRole("region", { name: /^Today/ })).toBeNull();
+      expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(7);
+    });
+  });
+
   describe("drill setup guide", () => {
     const paired = "10 Weaken + Strengthen (L2-4)";
     const renderWeek = (props: { checkIns?: ActivityCheckIn[]; readOnly?: boolean } = {}) =>
