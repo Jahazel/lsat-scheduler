@@ -53,8 +53,9 @@ import { TEST_TIME_LABEL } from "@/lib/studyWeek";
 import type { createStudentProfile } from "./actions";
 import { ReviewBars, ReviewStatementList } from "./ReviewBars";
 import { RoadToTestDay } from "./RoadToTestDay";
-import { PINNED_BAR, ROAD_PANEL, STEP_COLUMN, STEP_CONTENT, STEP_GRID } from "./shell";
+import { PINNED_BAR, ROAD_PANEL, STEP_COLUMN, STEP_CONTENT, STEP_GRID, STEP_SLIDE } from "./shell";
 import { StepCount } from "./StepCount";
+import { usePinnedBarHeight } from "./usePinnedBarHeight";
 import { RevealAction, WeekReveal } from "./WeekReveal";
 import { ScreenshotDropArea, WhereToFindIt } from "./ScreenshotDropArea";
 import { WEEK_NOTE_ID, WeekStepperTable } from "./WeekStepperTable";
@@ -74,8 +75,6 @@ interface OnboardingWizardProps {
 
 type Dispatch = (action: WizardAction) => void;
 
-const STEP_SLIDE = 8;
-
 export default function OnboardingWizard({
   firstName,
   today,
@@ -93,6 +92,7 @@ export default function OnboardingWizard({
   const [saveAnswer, setSaveAnswer] = useState<Awaited<ReturnType<typeof onSave>>>();
   const stepRegion = useRef<HTMLDivElement>(null);
   const column = useRef<HTMLDivElement>(null);
+  const area = useRef<HTMLDivElement>(null);
   const pinnedBar = usePinnedBarHeight();
   const saved = savedAnswers(state);
 
@@ -146,7 +146,7 @@ export default function OnboardingWizard({
   const drills = state.step === "analytics" || state.step === "review" ? previewDrills(state, today) : null;
 
   return (
-    <div className={STEP_GRID}>
+    <div ref={area} className={STEP_GRID}>
       <PageCue page="onboarding" />
       <StepCount step={saved ? "reveal" : state.step} />
       <div ref={column} data-page-swap data-page-section className={STEP_COLUMN}>
@@ -162,7 +162,7 @@ export default function OnboardingWizard({
         </div>
         <div ref={pinnedBar} data-pinned-bar className={PINNED_BAR}>
           <div className="mx-auto max-w-[440px]">
-            {saved ? <RevealAction admin={admin} /> : <>
+            {saved ? <RevealAction admin={admin} area={area} /> : <>
             {(state.step === "goal" || state.step === "week") && <StepActions state={state} dispatch={send} />}
             {state.step === "analytics" && <AnalyticsActions state={state} dispatch={send} onSkip={skipForNow} />}
             {state.step === "review" && draft && <ReviewActions state={state} draft={draft} dispatch={send} onConfirm={confirmSnapshot} />}
@@ -580,18 +580,4 @@ function screenshotFile(state: WizardState, section: AnalyticsSection) {
 function readRows(state: WizardState, section: AnalyticsSection) {
   const read = screenshot(state, section)?.read;
   return read?.status === "read" ? read.value.rows : [];
-}
-
-function usePinnedBarHeight() {
-  const bar = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const root = document.documentElement;
-    const observer = new ResizeObserver(([entry]) => root.style.setProperty("--pinned-bar", `${(entry.target as HTMLElement).offsetHeight}px`));
-    observer.observe(bar.current!);
-    return () => {
-      observer.disconnect();
-      root.style.removeProperty("--pinned-bar");
-    };
-  }, []);
-  return bar;
 }

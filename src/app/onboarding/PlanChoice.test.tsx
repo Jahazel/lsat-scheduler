@@ -18,6 +18,10 @@ const assign = vi.fn();
 beforeEach(() => {
   vi.stubGlobal("matchMedia", () => ({ matches: false }));
   vi.stubGlobal("location", { ...window.location, assign });
+  vi.stubGlobal("ResizeObserver", class {
+    observe() {}
+    disconnect() {}
+  });
 });
 afterEach(() => {
   cleanup();
@@ -54,7 +58,8 @@ const card = (name: string) => screen.getByRole("radio", { name: new RegExp(name
 it("shows both plans with prices, the free week end, the first charge, and the renewal terms, with Weekly picked", () => {
   renderPlanChoice();
 
-  expect(screen.getByText("Step 5 of 5 · Plan")).toBeDefined();
+  expect(screen.getByText("Last step").parentElement!.textContent).toBe("Last step · Plan");
+  expect(screen.queryByText(/Step \d of/)).toBeNull();
   expect(screen.getByRole("heading", { level: 1, name: "Pick your plan" })).toBeDefined();
   expect(screen.getByText(/Your free week runs until/).textContent).toBe("Your free week runs until Sunday, Nov 22. You pay nothing before then.");
   expect((card("Weekly") as HTMLInputElement).checked).toBe(true);
@@ -65,6 +70,17 @@ it("shows both plans with prices, the free week end, the first charge, and the r
   expect(screen.getByText("Cancel anytime. You keep access until your paid week or month ends. No refunds for unused time.")).toBeDefined();
   expect(screen.getByText("By continuing, you agree your plan renews each week until you cancel.")).toBeDefined();
   expect(screen.getByRole("button", { name: "Add card on Stripe" })).toBeDefined();
+});
+
+it("puts the consent line, the pay button, and its caption together in the pinned bar", async () => {
+  const { user } = renderPlanChoice();
+  const bar = () => within(document.querySelector<HTMLElement>("[data-pinned-bar]")!);
+
+  expect(bar().getByText("By continuing, you agree your plan renews each week until you cancel.")).toBeDefined();
+  expect(bar().getByRole("button", { name: "Add card on Stripe" })).toBeDefined();
+  expect(bar().getByText("You add your card on Stripe, then come back here.")).toBeDefined();
+  await user.click(card("Monthly"));
+  expect(bar().getByText("By continuing, you agree your plan renews each month until you cancel.")).toBeDefined();
 });
 
 it("changes the first charge, the agreement line, and the Stripe preview when Monthly is picked", async () => {
@@ -93,7 +109,8 @@ it("says the plan starts today, with today's charge and the renewal date, for an
 it("shows a lapsed student plan choice in place of the weekly upload: no onboarding step, no free week, and the charge today", async () => {
   const { user } = renderPlanChoice({ place: "weekly_upload", freeWeekEndsAt: null });
 
-  expect(screen.queryByText("Step 5 of 5 · Plan")).toBeNull();
+  expect(screen.queryByText("Last step")).toBeNull();
+  expect(document.querySelector("[data-pinned-bar]")).toBeNull();
   expect(screen.getByRole("heading", { level: 1, name: "Pick a plan" })).toBeDefined();
   expect(screen.getByText("Your weekly schedules are paused. A new plan starts today, and your weekly upload opens right after.")).toBeDefined();
   expect(screen.queryByText(/free week/)).toBeNull();

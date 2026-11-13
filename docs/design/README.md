@@ -284,8 +284,8 @@ Prices are sample data; the plan prices decide what the app shows.
 ## Onboarding redesign (`onboarding-redesign/`)
 
 Screenshots of the approved prototype for design #852 and spec #861, taken 2026-11-12. Brief:
-`research/onboarding-redesign/brief.md`. Motion rows: `research/onboarding-redesign/motion.md`. The clickable prototype
-is the dev-only route `/prototypes/onboarding-redesign`; #868 deletes it. These shots replace `onboarding/` for the
+`research/onboarding-redesign/brief.md`. Motion rows: `research/onboarding-redesign/motion.md`. The clickable prototype,
+the dev-only route `/prototypes/onboarding-redesign`, was deleted by #868. These shots replace `onboarding/` for the
 onboarding steps. Each file name ends in `-desktop`, `-tablet`, or `-phone`.
 
 | File | State | Screen ticket |
