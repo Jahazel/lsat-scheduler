@@ -1,6 +1,6 @@
 # Motion spec: plan choice, free week and Account billing
 
-Waits for the owner's approval of the final prototype (`src/app/prototypes/payments`).
+The prototype was removed once the screens were built. The live screens are Plan choice on `/onboarding` and `/dashboard/upload`, the Plan card on `/account`, and the plan notes on This week and Progress.
 
 This feature adds no new motion. Every row reuses a motion the owner already approved: the page arrival from loading states (`../loading-states/motion.md`), the button Ring and the reading bar Loop from the same file, and the failure toast (`../failure-toast/motion.md`). The rows are one set to approve, not options.
 
