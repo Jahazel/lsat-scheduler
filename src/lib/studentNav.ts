@@ -14,11 +14,17 @@ export interface StudentNavState {
   hasUploadWeek?: boolean;
 }
 
+const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+function graphemes(text: string) {
+  return Array.from(graphemeSegmenter.segment(text), ({ segment }) => segment);
+}
+
 export function initialsFor(name: string | null | undefined, email: string | null | undefined) {
-  const words = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  const words = (name ?? "").trim().split(/\s+/).filter(Boolean).map(graphemes);
   if (words.length > 1) return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (email?.[0] ?? "?").toUpperCase();
+  if (words.length === 1) return words[0].slice(0, 2).join("").toUpperCase();
+  return (graphemes(email ?? "")[0] ?? "?").toUpperCase();
 }
 
 /** Returns null when the Account has no student record. */
