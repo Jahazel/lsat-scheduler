@@ -50,7 +50,17 @@ export default function PlanChoice({ place, offer, cameBackWithoutCard, initialP
             headline={freeWeek ? `Free until ${freeWeek.endsShort}` : `${picked.price} today`}
             then={`Then ${picked.price} ${picked.per} starting ${freeWeek ? freeWeek.firstChargeShort : offer.renews[plan]}`}
             changesWith={plan}
+            lapsed={lapsed}
           />
+        )}
+        actions={(
+          <div className="flex flex-col gap-3">
+            <p className="text-small text-ink">By continuing, you agree your plan renews {picked.every} until you cancel.</p>
+            <Button className="w-full" waiting={opening} waitLabel="Opening Stripe…" onClick={addCard}>
+              Add card on Stripe
+            </Button>
+            <p className="text-center text-caption text-smoke">You add your card on Stripe, then come back here.</p>
+          </div>
         )}
       >
         <div className="flex flex-col gap-8">
@@ -91,16 +101,9 @@ export default function PlanChoice({ place, offer, cameBackWithoutCard, initialP
               </>
             )}
           </dl>
-          <div className="flex flex-col gap-4">
-            <p className="text-small text-smoke">Plus any sales tax. Stripe shows the total before you pay.</p>
-            <p className="text-small text-smoke">{PLAN_TERMS}</p>
-            <div className="flex flex-col gap-3">
-              <p className="text-small text-ink">By continuing, you agree your plan renews {picked.every} until you cancel.</p>
-              <Button className="w-full" waiting={opening} waitLabel="Opening Stripe…" onClick={addCard}>
-                Add card on Stripe
-              </Button>
-              <p className="text-center text-caption text-smoke">You add your card on Stripe, then come back here.</p>
-            </div>
+          <div className={cx("flex flex-col text-small text-smoke", lapsed ? "gap-4" : "gap-2")}>
+            <p>Plus any sales tax. Stripe shows the total before you pay.</p>
+            <p>{PLAN_TERMS}</p>
           </div>
         </div>
       </PlanShell>
@@ -158,11 +161,16 @@ function PlanCards({ offer, plan, onPick }: { offer: PlanChoiceOffer; plan: Plan
   );
 }
 
-function StripePreview({ name, headline, then, changesWith }: { name: string; headline: string; then: string; changesWith: PlanName }) {
+function StripePreview({ name, headline, then, changesWith, lapsed }: { name: string; headline: string; then: string; changesWith: PlanName; lapsed: boolean }) {
+  const label = lapsed
+    ? <p className="font-mono text-label uppercase text-smoke">Next · on Stripe</p>
+    : <p className="text-small text-smoke">Next · on Stripe</p>;
+  const field = cx("h-11 border border-vellum-line", lapsed ? "rounded-xs" : "rounded-sm");
   return (
-    <aside data-page-section aria-label="What happens next" className="hidden flex-col gap-4 bg-vellum px-8 pt-32 pb-12 lg:flex xl:px-18">
-      <p className="font-mono text-label uppercase text-smoke">Next · on Stripe</p>
-      <div className="flex max-w-[520px] flex-col gap-5 rounded-tl-sm bg-paper p-8 shadow-e2">
+    <div className="flex flex-col gap-4">
+      {lapsed && label}
+      <div className={cx("flex flex-col bg-paper p-8", lapsed ? "gap-5 rounded-tl-sm shadow-e2" : "gap-6 rounded-lg shadow-e1")}>
+        {!lapsed && label}
         <div className="flex flex-col gap-1">
           <span key={`name-${changesWith}`} className="value-in text-small text-smoke">DrillMap {name}</span>
           <span key={`headline-${changesWith}`} className="value-in text-h4 font-semibold text-ink">{headline}</span>
@@ -170,15 +178,15 @@ function StripePreview({ name, headline, then, changesWith }: { name: string; he
         </div>
         <div aria-hidden className="flex flex-col gap-2">
           <span className="h-2 w-20 rounded bg-vellum-line" />
-          <span className="h-11 rounded-xs border border-vellum-line" />
+          <span className={field} />
           <span className="h-2 w-28 rounded bg-vellum-line" />
-          <span className="h-11 rounded-xs border border-vellum-line" />
+          <span className={field} />
         </div>
-        <span aria-hidden className="flex h-11 items-center justify-center rounded-xs bg-vellum-line text-small text-smoke">Add card</span>
+        <span aria-hidden className={cx("flex h-11 items-center justify-center text-small text-smoke", lapsed ? "rounded-xs bg-vellum-line" : "rounded-pill bg-vellum")}>Add card</span>
       </div>
-      <p className="max-w-[520px] text-small text-smoke">
+      <p className={cx("text-small text-smoke", !lapsed && "px-2")}>
         Stripe hosts this page, so your card number never reaches DrillMap. You come back here when you finish.
       </p>
-    </aside>
+    </div>
   );
 }

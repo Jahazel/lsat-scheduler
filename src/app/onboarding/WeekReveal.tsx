@@ -1,14 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useTransition, type CSSProperties } from "react";
+import { useEffect, useRef, useTransition, type CSSProperties, type RefObject } from "react";
 import { TIER_LABEL } from "@/components/SnapshotReviewFields";
 import { Button } from "@/components/ui/Button";
 import { cx } from "@/components/ui/classes";
+import { slideOutForServer, stayAfterServer } from "@/lib/pageMotion";
 import { weekReveal, weeksToTest, type PreviewDrill, type SaveInput } from "@/lib/onboardingWizard";
 import { shortDuration } from "@/lib/formatDuration";
 import { DAY_LABEL, type upcomingTestMonths } from "@/lib/studentProfile";
 import type { DayOfWeek } from "@/lib/types";
+import { STEP_SLIDE } from "./shell";
 
 const RISE_MS = [0, 70, 120, 160];
 const BAR_PX = 80;
@@ -137,11 +139,22 @@ export function WeekReveal({
   );
 }
 
-export function RevealAction({ admin }: { admin: boolean }) {
+export function RevealAction({ admin, area }: { admin: boolean; area: RefObject<HTMLElement | null> }) {
   const router = useRouter();
   const [leaving, startLeaving] = useTransition();
+  const slid = useRef(false);
+
+  useEffect(() => {
+    if (leaving || !slid.current) return;
+    slid.current = false;
+    stayAfterServer(area.current!);
+  }, [leaving, area]);
 
   function leave() {
+    if (!admin) {
+      slid.current = true;
+      slideOutForServer(area.current!, STEP_SLIDE);
+    }
     startLeaving(() => {
       if (admin) router.push("/dashboard");
       router.refresh();

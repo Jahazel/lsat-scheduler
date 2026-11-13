@@ -431,7 +431,8 @@ it("shows a new student plan choice as onboarding's last step and builds no week
   const { accountId } = await onboardedStudent();
 
   const page = await onboarding();
-  expect(page).toContain("Step 5 of 5 · Plan");
+  expect(page).toContain("Pick your plan");
+  expect(page).toMatch(/data-pinned-bar[^>]*>[^]*By continuing, you agree your plan renews each week until you cancel\.[^]*Add card on Stripe/);
   expect(page).toContain("Sunday, Nov 22");
   expect(page).toContain("Mon, Nov 23");
   await expect(DashboardPage({ searchParams: Promise.resolve({}) })).rejects.toThrow("redirect:/onboarding");

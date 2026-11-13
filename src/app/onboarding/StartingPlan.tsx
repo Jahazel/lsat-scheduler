@@ -74,9 +74,9 @@ export default function StartingPlan({ place, hasPlanStarted }: { place: PlanCho
 
 function NextWeekSketch() {
   return (
-    <aside data-page-section aria-label="What happens next" className="hidden flex-col gap-4 bg-vellum px-8 pt-32 pb-12 lg:flex xl:px-18">
-      <p className="font-mono text-label uppercase text-smoke">Next · This week</p>
-      <div aria-hidden className="flex max-w-[520px] flex-col gap-5 rounded-tl-sm bg-paper p-8 shadow-e2">
+    <div className="flex flex-col gap-6 rounded-lg bg-paper p-8 shadow-e1">
+      <p className="text-small text-smoke">Next · This week</p>
+      <div aria-hidden className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
           <span className={cx(SKELETON, "w-24")} />
           <span className="h-4 w-56 rounded bg-vellum-line" />
@@ -89,6 +89,6 @@ function NextWeekSketch() {
           </div>
         ))}
       </div>
-    </aside>
+    </div>
   );
 }

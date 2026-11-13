@@ -4,7 +4,7 @@ Tracking ticket: #852. Brief: [brief.md](brief.md).
 
 Durations and curves are the tokens in `src/app/globals.css`: Fast 120 ms, Base 200 ms, Slow 320 ms, Standard curve (`--ease-standard`), Strong ease-out (`--ease-out-strong`).
 "Rise" means 8 px on screens 768 px and wider and 4 px below, as in `src/lib/pageMotion.ts`.
-The prototype plays every row at `/prototypes/onboarding-redesign`.
+The prototype that played every row, `/prototypes/onboarding-redesign`, was deleted by #868.
 
 ## Flow map transitions
 
