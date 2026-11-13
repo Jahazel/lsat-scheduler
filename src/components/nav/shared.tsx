@@ -20,7 +20,7 @@ export const currentTabHref = (pathname: string) =>
 export const HEADER = "sticky top-0 z-40 border-b border-vellum-line bg-paper";
 export const MOBILE_BAR = "flex h-14 items-center justify-between gap-3 px-5";
 export const DESKTOP_BAR = `@container flex h-18 items-center justify-between gap-6 ${PAGE_COLUMN}`;
-export const BAR = `flex h-14 items-center justify-between gap-3 md:h-18 ${PAGE_COLUMN}`;
+export const BAR = `${MOBILE_BAR} md:h-18 md:px-18`;
 
 export function Logo({ href, form = "full" }: { href: string; form?: "full" | "mark" | "mark-below-md" }) {
   return (
