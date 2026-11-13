@@ -32,6 +32,7 @@ const stripe = {
   voidFailsOnce: false,
   endsAfterListing: [] as string[],
   finishesCheckoutBeforeListing: null as string | null,
+  finishesCheckoutAfterListingSessions: false,
   down: false,
 };
 
@@ -85,7 +86,10 @@ vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
     return Response.json(voiding);
   }
   if (url.pathname === "/v1/checkout/sessions" && !post) {
-    return Response.json({ data: stripe.sessions.filter((session) => session.customer === query.get("customer") && session.status === query.get("status")) });
+    const listed = stripe.sessions.filter((session) => session.customer === query.get("customer") && session.status === query.get("status"))
+      .map(({ id }) => ({ id }));
+    if (stripe.finishesCheckoutAfterListingSessions) completeOpenSessions();
+    return Response.json({ data: listed });
   }
   if (url.pathname === "/v1/checkout/sessions" && post) {
     const session: FakeSession = { id: `cs_test${stripe.sessions.length + 1}`, customer: form.get("customer") ?? "", status: "open", form };
@@ -107,6 +111,10 @@ vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
     expiring.status = "expired";
     return Response.json({ id: expiring.id, status: "expired" });
   }
+  if (expire && post) return Response.json({ error: { type: "invalid_request_error" } }, { status: 400 });
+  const sessionPath = /^\/v1\/checkout\/sessions\/(cs_\w+)$/.exec(url.pathname);
+  const session = sessionPath && init?.method === "GET" && stripe.sessions.find(({ id }) => id === sessionPath[1]);
+  if (session) return Response.json({ id: session.id, status: session.status });
   return Response.json({ error: { type: "invalid_request_error" } }, { status: 404 });
 });
 
@@ -135,6 +143,7 @@ beforeEach(async () => {
   stripe.invoices = [];
   stripe.endsAfterListing = [];
   stripe.finishesCheckoutBeforeListing = null;
+  stripe.finishesCheckoutAfterListingSessions = false;
   stripe.voidFailsOnce = false;
   stripe.down = false;
   state.session = null;
@@ -227,6 +236,17 @@ it("shows Starting your plan when the student finishes an older Checkout just be
 
   expect(stripe.sessions.map(({ status }) => status)).toEqual(["complete"]);
   expect(stripe.subscriptions.map(({ status }) => status)).toEqual(["incomplete"]);
+  expect(stripe.invoices.map(({ status }) => status)).toEqual(["open"]);
+});
+
+it("shows Starting your plan when the student finishes an older Checkout between the listing and its closing, and voids none of its invoices", async () => {
+  await onboardedStudent();
+  await openStripeCheckout("weekly");
+  stripe.finishesCheckoutAfterListingSessions = true;
+
+  await expect(openStripeCheckout("monthly")).rejects.toThrow("redirect:/onboarding?checkout=done");
+
+  expect(stripe.sessions.map(({ status }) => status)).toEqual(["complete"]);
   expect(stripe.invoices.map(({ status }) => status)).toEqual(["open"]);
 });
 

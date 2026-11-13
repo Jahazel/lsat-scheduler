@@ -64,8 +64,8 @@ export function CopySectionLink({ id, title }: { id: string; title: string }) {
       aria-label={`Copy link to ${title}`}
       onClick={copy}
       className={cx(
-        "relative mt-1 flex h-7 shrink-0 touch-manipulation items-center gap-1.5 rounded-xs px-1.5 text-fog select-none",
-        "[-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] active:text-ink pointer-hover:text-ink before:absolute before:-inset-2",
+        "relative mt-1 flex h-7 shrink-0 items-center gap-1.5 rounded-xs px-1.5 text-fog select-none",
+        "[-webkit-touch-callout:none] active:text-ink pointer-hover:text-ink before:absolute before:-inset-2",
         "transition-opacity duration-(--duration-fast) ease-[ease]",
         result ? "opacity-100" : "pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100",
         FOCUS,

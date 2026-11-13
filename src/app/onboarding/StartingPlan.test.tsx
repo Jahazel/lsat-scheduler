@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { TopBarStepCount } from "./StepCount";
 import StartingPlan, { ASK_EVERY_MS, SLOW_AFTER_MS } from "./StartingPlan";
 
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
@@ -22,11 +23,12 @@ const wait = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
 
 it("waits for Stripe to confirm the plan, then opens This week", async () => {
   const hasPlanStarted = vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true);
+  const topBar = render(<TopBarStepCount first="goal" />).container;
   render(<StartingPlan place="onboarding" hasPlanStarted={hasPlanStarted} />);
 
   expect(screen.getByRole("heading", { name: "Starting your plan…" })).toBeDefined();
   expect(screen.getByText("Stripe is confirming your card. This week opens next.")).toBeDefined();
-  expect(screen.getByText("Last step").parentElement!.textContent).toBe("Last step · Plan");
+  expect(within(topBar).getByText("Last step").parentElement!.textContent).toBe("Last step · Plan");
   expect(screen.getByRole("progressbar", { name: "Starting your plan" })).toBeDefined();
   await wait(ASK_EVERY_MS);
   expect(router.push).not.toHaveBeenCalled();

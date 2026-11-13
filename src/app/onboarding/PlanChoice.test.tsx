@@ -6,6 +6,7 @@ import { FailureToastProvider } from "@/components/FailureNotice";
 import { planChoiceOffer, type PlanChoicePlace, type PlanName } from "@/lib/planChoice";
 import type { Answer, FailureCode } from "@/lib/unexpectedFailure";
 import PlanChoice from "./PlanChoice";
+import { TopBarStepCount } from "./StepCount";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/onboarding" }));
 
@@ -56,9 +57,10 @@ const facts = () => Object.fromEntries(
 const card = (name: string) => screen.getByRole("radio", { name: new RegExp(name) });
 
 it("shows both plans with prices, the free week end, the first charge, and the renewal terms, with Weekly picked", () => {
+  const topBar = render(<TopBarStepCount first="goal" />).container;
   renderPlanChoice();
 
-  expect(screen.getByText("Last step").parentElement!.textContent).toBe("Last step · Plan");
+  expect(within(topBar).getByText("Last step").parentElement!.textContent).toBe("Last step · Plan");
   expect(screen.queryByText(/Step \d of/)).toBeNull();
   expect(screen.getByRole("heading", { level: 1, name: "Pick your plan" })).toBeDefined();
   expect(screen.getByText(/Your free week runs until/).textContent).toBe("Your free week runs until Sunday, Nov 22. You pay nothing before then.");

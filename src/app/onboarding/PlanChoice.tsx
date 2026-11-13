@@ -134,7 +134,7 @@ function PlanCards({ offer, plan, onPick }: { offer: PlanChoiceOffer; plan: Plan
           <label
             key={name}
             className={cx(
-              "relative flex cursor-pointer select-none touch-manipulation flex-col gap-3 rounded-md border bg-paper p-4 [-webkit-tap-highlight-color:transparent] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent",
+              "relative flex cursor-pointer select-none flex-col gap-3 rounded-md border bg-paper p-4 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent",
               isPicked ? "border-ink shadow-[inset_0_0_0_1px_var(--color-ink)]" : "border-vellum-line hover:border-fog",
               "transition-[border-color,box-shadow,scale] duration-(--duration-fast) ease-out active:scale-[0.98] motion-reduce:active:scale-100",
             )}

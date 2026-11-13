@@ -29,7 +29,7 @@ export function RelatedSections({ sources }: { sources: RelatedSources }) {
             <Link
               href={`/legal/${link.page}#${link.id}`}
               className={cx(
-                "group block touch-manipulation rounded-r-xs py-1 pl-4 select-none [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] active:opacity-70",
+                "group block rounded-r-xs py-1 pl-4 select-none [-webkit-touch-callout:none] active:opacity-70",
                 FOCUS,
               )}
             >
