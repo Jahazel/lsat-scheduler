@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { arriveSections, dim, fadeFormThrough, handOff, riseIn, slideStep, swapsInside } from "./pageMotion";
+import { arriveSections, dim, fadeFormThrough, handOff, riseIn, slideInFromServer, slideOutForServer, slideStep, stayAfterServer, swapsInside } from "./pageMotion";
 
 type Running = { el: Element; keyframes: Keyframe[]; options: KeyframeAnimationOptions; finish: () => void };
 let running: Running[] = [];
@@ -101,5 +101,44 @@ describe("page motion", () => {
     handOff(area, area);
     expect(area.hasAttribute("aria-busy")).toBe(false);
     expect(running.filter((a) => a.options.fill === "backwards").map((a) => a.el.textContent)).toEqual(["Week"]);
+  });
+
+  it("slides a screen out 8 px left while the server builds the next one, then slides the next one in from 8 px right", () => {
+    const old = page(`<div>Week reveal</div>`);
+    slideOutForServer(old, 8);
+    expect(old.hasAttribute("inert")).toBe(true);
+    expect(running.map((a) => a.keyframes.at(-1))).toEqual([{ opacity: 0, transform: "translateX(-8px)" }]);
+
+    old.remove();
+    const next = page(`<div>Plan choice</div>`);
+    slideInFromServer(next);
+    expect(old.hasAttribute("inert")).toBe(false);
+    expect(running.at(-1)!.el).toBe(next);
+    expect(running.at(-1)!.keyframes[0]).toEqual({ opacity: 0, transform: "translateX(8px)" });
+  });
+
+  it("fades the next screen in, with no slide, under reduced motion", () => {
+    reduced = true;
+    const old = page(`<div>Week reveal</div>`);
+    slideOutForServer(old, 8);
+    expect(running).toEqual([]);
+
+    old.remove();
+    const next = page(`<div>Plan choice</div>`);
+    slideInFromServer(next);
+    expect(running.map((a) => a.keyframes)).toEqual([[{ opacity: 0 }, { opacity: 1 }]]);
+  });
+
+  it("does not slide in a screen that opens without a slide out, and shows the old screen again when the server keeps it", () => {
+    slideInFromServer(page(`<div>Plan choice</div>`));
+    expect(running).toEqual([]);
+
+    const old = page(`<div>Week reveal</div>`);
+    slideOutForServer(old, 8);
+    stayAfterServer(old);
+    expect(old.hasAttribute("inert")).toBe(false);
+    expect(running.at(-1)!.keyframes.at(-1)).toEqual({ opacity: 1, transform: "none" });
+    slideInFromServer(page(`<div>Plan choice</div>`));
+    expect(running.at(-1)!.el).toBe(old);
   });
 });

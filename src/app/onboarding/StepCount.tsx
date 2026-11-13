@@ -42,15 +42,22 @@ function Check() {
   );
 }
 
-export function StepCount({ step }: { step: WizardStep | "reveal" }) {
+function stepLabel(step: WizardStep | "reveal" | "plan") {
+  if (step === "reveal") return { lead: "Done", name: "Week reveal", share: null };
+  if (step === "plan") return { lead: "Last step", name: "Plan", share: null };
+  const place = stepPlace(step);
+  return { lead: `Step ${place.number} of ${place.of}`, name: place.name, share: place.number / place.of };
+}
+
+export function StepCount({ step }: { step: WizardStep | "reveal" | "plan" }) {
   const slot = useTopBarSlot();
-  const place = step === "reveal" ? null : stepPlace(step);
+  const { lead, name, share } = stepLabel(step);
   const count = (
     <p className="flex items-center gap-2 whitespace-nowrap text-small text-smoke">
-      {place ? <Ring share={place.number / place.of} /> : <Check />}
+      {share === null ? <Check /> : <Ring share={share} />}
       <span>
-        <span className="font-medium text-ink">{place ? `Step ${place.number} of ${place.of}` : "Done"}</span>
-        <span className="max-[360px]:sr-only">{` · ${place ? place.name : "Week reveal"}`}</span>
+        <span className="font-medium text-ink">{lead}</span>
+        <span className="max-[360px]:sr-only">{` · ${name}`}</span>
       </span>
     </p>
   );
