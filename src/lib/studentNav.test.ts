@@ -12,6 +12,21 @@ describe("initialsFor", () => {
     expect(initialsFor(null, "jo@example.com")).toBe("J");
     expect(initialsFor("  ", undefined)).toBe("?");
   });
+
+  it("keeps today's results for Latin, accented, and non-Latin names", () => {
+    expect(initialsFor("Ana López", null)).toBe("AL");
+    expect(initialsFor("Q", null)).toBe("Q");
+    expect(initialsFor("佐藤 美咲", null)).toBe("佐美");
+    expect(initialsFor(undefined, undefined)).toBe("?");
+  });
+
+  it("keeps an emoji whole when it starts a name part", () => {
+    expect(initialsFor("🌟Ana López", null)).toBe("🌟L");
+    expect(initialsFor("🇯🇵 Kenji", null)).toBe("🇯🇵K");
+    expect(initialsFor("👨‍👩‍👧 Family", null)).toBe("👨‍👩‍👧F");
+    expect(initialsFor("👩🏽‍💻", null)).toBe("👩🏽‍💻");
+    expect(initialsFor(null, "🌟@example.com")).toBe("🌟");
+  });
 });
 
 const mocks = vi.hoisted(() => ({ findStudent: vi.fn(), execute: vi.fn(), snapshots: vi.fn() }));
