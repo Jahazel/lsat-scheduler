@@ -66,7 +66,7 @@ export function TodayCard({ day, date, activities, notes, emptyText, next, doneI
   const swap = changed && "up-next-swap";
 
   return (
-    <section aria-labelledby="today-title" className="flex flex-col gap-4 rounded-lg border border-vellum-line bg-paper p-4 shadow-control md:p-6">
+    <section data-page-section aria-labelledby="today-title" className="flex flex-col gap-4 rounded-lg border border-vellum-line bg-paper p-4 shadow-control md:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 id="today-title" className="flex flex-wrap items-baseline gap-x-2">
           <span className="text-h5 font-semibold text-ink">Today</span>
@@ -80,9 +80,11 @@ export function TodayCard({ day, date, activities, notes, emptyText, next, doneI
       </div>
       {notes.length > 0 && <div className="-mt-2 flex flex-col gap-1">{notes.map((note) => <p key={note} className="text-small text-smoke">{note}</p>)}</div>}
       {activities.length === 0 ? (
-        <div className="flex flex-col gap-1 rounded-md bg-vellum px-4 py-5 md:px-5">
-          <p className="text-body text-ink">{emptyText}</p>
-          <NextLine next={next} />
+        <div className="rounded-md bg-vellum px-4 py-5 md:px-5">
+          <div className="flex flex-col gap-1 px-2">
+            <p className="text-body text-ink">{emptyText}</p>
+            <NextLine next={next} />
+          </div>
         </div>
       ) : upNext ? (
         <div className="flex flex-col gap-4 rounded-md bg-vellum p-4 md:flex-row md:items-center md:justify-between md:gap-6 md:p-5">
