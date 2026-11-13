@@ -302,3 +302,25 @@ onboarding steps. Each file name ends in `-desktop`, `-tablet`, or `-phone`.
 
 Files with `worst` hold test data (long names, extreme values, fake raised prices); the onboarding rules decide what the
 app shows. Phone basics (#862) apply to every phone shot.
+
+## This week redesign (`this-week-redesign/`)
+
+Screenshots of the approved prototype for design #881 and spec #891, taken 2026-11-12. Brief:
+`research/this-week-redesign/brief.md`. Motion rows: `research/this-week-redesign/motion.md`. The clickable prototype
+is the dev-only route `/prototypes/this-week-redesign`; #898 deletes it. These shots replace `this-week/` for the This
+week page and the signed-in frame. Each file name ends in `-desktop`, `-tablet`, or `-phone`.
+
+| File | State | Screen ticket |
+| --- | --- | --- |
+| `01-normal-*`, `12-free-week-ending-*`, `13-payment-retrying-*`, `14-lapsed-*`, `18-test-day-*`, `21-admin-date-*` | Frame, plan note card, countdown chip, admin date | #893 |
+| `22-old-history-link-*`, `23-no-schedule-*`, `24-no-profile-*` | Redirect targets in the new frame | #893 |
+| `29-name-none-*`, `30-name-non-latin-*`, `31-name-emoji-*` | User menu name cases | #893, #892 |
+| `07-week-done-*`, `08-behind-pace-*`, `19-near-test-week-*`, `25-worst-case-*`, `28-one-activity-test-passed-*` | Week header and summary card | #894 |
+| `03-rest-today-*`, `04-practice-test-day-*`, `05-review-day-*`, `06-all-done-today-*`, `26-worst-case-today-*`, `32-light-week-*` | Today card | #895 |
+| `15-save-failed-*`, `16-drill-link-*`, `17-drill-not-in-week-*` | Save failure and drill links | #895 |
+| `02-started-late-*`, `27-32-activities-*` | Rest of the week | #896 |
+| `09-upload-due-*`, `10-next-week-preview-*`, `11-held-week-*` | Notices | #897 |
+| `20-loading-*` | Loading placeholder | #898 |
+
+Files with `worst`, `32-activities`, `one-activity`, `name-`, and `light-week` hold test data; the This week rules decide
+what the app shows.

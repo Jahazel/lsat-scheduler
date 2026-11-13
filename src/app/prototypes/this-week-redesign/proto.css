@@ -1,0 +1,70 @@
+body:has([data-proto-scene]) [data-site-header]:not([data-proto-scene] *),
+body:has([data-proto-scene]) footer:not([data-proto-scene] *) {
+  display: none;
+}
+html[data-proto-still] *,
+html[data-proto-still] *::before,
+html[data-proto-still] *::after {
+  animation-name: proto-fade !important;
+  animation-delay: 0ms !important;
+  transition-property: opacity, background-color, color !important;
+}
+/* The live sweep hides under the real reduced-motion setting; the prototype switch matches it. */
+html[data-proto-still] .page-placeholder-sweep {
+  display: none;
+}
+nextjs-portal {
+  display: none;
+}
+
+@keyframes proto-fade {
+  from { opacity: 0; }
+}
+
+/* A page switch inside the frame: content only, opacity only, because the student switches pages many times a day. */
+.page-in {
+  animation: proto-fade var(--duration-fast) ease-out both;
+}
+
+/* Arriving from Log in, onboarding, or Stripe: the live page arrival (globals.css page-arrive), a short rise and fade. */
+.page-arrive {
+  --arrive-rise: 8px;
+  animation: page-arrive var(--duration-base) var(--ease-standard) both;
+}
+@media (max-width: 767px) {
+  .page-arrive { --arrive-rise: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-arrive { --arrive-rise: 0px; animation-duration: var(--duration-fast); }
+}
+
+/* Today: the Up next text swaps when its activity is ticked, a few times a day. */
+.today-swap {
+  animation: today-swap var(--duration-base) var(--ease-out-strong) both;
+}
+@keyframes today-swap {
+  from { opacity: 0; transform: translateY(4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .today-swap { animation-name: proto-fade; }
+}
+
+/* The user menu grows from its trigger. A transition, so a quick second tap reverses it from where it is. */
+.menu-pop {
+  transition: opacity 160ms var(--ease-out-strong), transform 160ms var(--ease-out-strong);
+}
+@starting-style {
+  .menu-pop { opacity: 0; transform: scale(0.96); }
+}
+@media (prefers-reduced-motion: reduce) {
+  @starting-style {
+    .menu-pop { transform: none; }
+  }
+}
+
+[data-proto-scene] {
+  -webkit-tap-highlight-color: transparent;
+}
+[data-proto-scene] :is(button, a, label, summary, select, [role="button"]) {
+  touch-action: manipulation;
+}
