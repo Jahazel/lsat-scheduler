@@ -31,8 +31,8 @@ export default auth(async (req) => {
     return withHeaders(NextResponse.json({ error: "Request refused" }, { status: forged.status }));
   }
 
-  // Design prototypes run only on the dev server, open without a session, inside their own toolbar page's frame.
-  if (process.env.NODE_ENV === "development" && req.nextUrl.pathname.startsWith("/prototypes/")) {
+  const devPrototypeInToolbarFrame = process.env.NODE_ENV === "development" && req.nextUrl.pathname.startsWith("/prototypes/");
+  if (devPrototypeInToolbarFrame) {
     const framed = csp.value.replace("frame-ancestors 'none'", "frame-ancestors 'self'");
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set(csp.header, framed);
