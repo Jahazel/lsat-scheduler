@@ -65,7 +65,7 @@ describe("phone tab bar", () => {
 describe("countdown chip", () => {
   const goal = "2026-11-20";
   const at = (date: string) => testCountdownLabel(testCountdown(goal, new Date(`${date}T18:00:00Z`), "America/Chicago"));
-  const chip = () => screen.queryByText((_, element) => element?.tagName === "SPAN" && /to test$|^Test day$/.test(element.textContent ?? "") && !!element.querySelector("svg"));
+  const chip = () => screen.queryByText(/ to test$|^Test day$/);
 
   it.each([
     ["2026-11-10", "10 days to test"],

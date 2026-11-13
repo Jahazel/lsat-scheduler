@@ -72,6 +72,6 @@ Flat by default. Depth comes from a 1 px Vellum Line border.
 - **Focus.** Every control shows a 2 px Accent focus ring with a 2 px offset.
 - **Motion.** 120 ms for hover, 200 ms for press and focus; overlays such as the Dialog open in 200 ms
   and close in 120 ms (see `docs/design/research/drill-setup-guide/motion.md`); honor `prefers-reduced-motion`.
-- **Admin controls.** Admins get a workspace dropdown next to the wordmark and, on their student side, a test-controls
-  dock for the simulated date. Past dates show a "Past" label; the current date shows "Today" and `aria-current="date"`.
+- **Admin controls.** Admins get a workspace dropdown next to the wordmark and, on their student side, a dashed date chip
+  at the top of the page column that opens the test controls for the simulated date. Past dates show a "Past" label; the current date shows "Today" and `aria-current="date"`.
 - **Don't** build a generic SaaS landing page or a legacy test-prep look (see PRODUCT.md).
