@@ -35,6 +35,8 @@ export default auth(async (req) => {
   if (devPrototypeInToolbarFrame) {
     const framed = csp.value.replace("frame-ancestors 'none'", "frame-ancestors 'self'");
     const requestHeaders = new Headers(req.headers);
+    requestHeaders.delete("Content-Security-Policy");
+    requestHeaders.delete("Content-Security-Policy-Report-Only");
     requestHeaders.set(csp.header, framed);
     const response = withHeaders(NextResponse.next({ request: { headers: requestHeaders } }));
     response.headers.set(csp.header, framed);
