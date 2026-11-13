@@ -148,8 +148,8 @@ export default function OnboardingWizard({
   return (
     <div ref={area} className={STEP_GRID}>
       <PageCue page="onboarding" />
-      <StepCount step={saved ? "reveal" : state.step} />
       <div ref={column} data-page-swap data-page-section className={STEP_COLUMN}>
+        <StepCount step={saved ? "reveal" : state.step} aboveQuestions={admin} />
         <div ref={stepRegion} data-onboarding-step className={STEP_CONTENT}>
           <div className="w-full max-w-[440px]">
             {saved ? <WeekReveal saved={saved} today={today} testMonths={goalTestDateOptions} /> : <>

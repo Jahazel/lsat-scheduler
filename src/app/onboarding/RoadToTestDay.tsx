@@ -72,7 +72,7 @@ export function RoadToTestDay({
           <span><span className="text-smoke">goal</span> <span className="font-semibold tabular-nums text-accent">{values.goalScore.trim() || "—"}</span></span>
         </p>
       </div>
-      <div className={cx("flex flex-col gap-3 rounded-md border p-4 transition-colors duration-(--duration-base) ease-(--ease-out-strong)", focusWeek ? "border-accent/40" : "border-vellum-line")}>
+      <div className={cx("flex flex-col gap-3 rounded-md border p-4 transition-colors duration-(--duration-base) ease-(--ease-out-strong) motion-reduce:transition-none", focusWeek ? "border-accent/40" : "border-vellum-line")}>
         <p className="text-small">
           <span className="font-semibold text-ink">Week 1</span>
           <span className="text-smoke">

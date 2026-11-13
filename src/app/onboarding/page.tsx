@@ -12,6 +12,8 @@ import OnboardingWizard from "./OnboardingWizard";
 import { PlanChoiceScreen, type PlanChoiceSearchParams } from "./PlanChoiceScreen";
 import { createStudentProfile } from "./actions";
 
+const CLIP_SIDEWAYS_SLIDE = "overflow-x-clip";
+
 export default async function OnboardingPage({ searchParams }: { searchParams: Promise<PlanChoiceSearchParams> }) {
   const session = await auth();
   if (!session?.user) {
@@ -25,7 +27,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
     if (standing.kind !== "choose") redirect("/dashboard");
     if (standing.place !== "onboarding") redirect(PLAN_CHOICE_PATHS[standing.place]);
     return (
-      <div>
+      <div className={CLIP_SIDEWAYS_SLIDE}>
         <PlanChoiceScreen place="onboarding" freeWeekEndsAt={standing.freeWeekEndsAt} realNow={realNow} searchParams={await searchParams} />
         <PageArrival page="Onboarding" />
       </div>
@@ -34,7 +36,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
 
   const today = await studentSideToday(session.user);
   return (
-    <div>
+    <div className={CLIP_SIDEWAYS_SLIDE}>
       <OnboardingWizard
         firstName={session.user.name?.trim().split(/\s+/)[0] || "there"}
         today={today}

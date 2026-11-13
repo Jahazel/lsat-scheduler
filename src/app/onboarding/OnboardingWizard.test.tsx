@@ -9,11 +9,15 @@ import { upcomingTestMonths } from "@/lib/studentProfile";
 import type { FailureCode } from "@/lib/unexpectedFailure";
 import { FailureToastProvider } from "@/components/FailureNotice";
 import OnboardingWizard from "./OnboardingWizard";
+import { TopBarStepCount } from "./StepCount";
 
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/onboarding" }));
 
+let topBar: HTMLElement;
+
 beforeEach(() => {
+  topBar = render(<TopBarStepCount first="goal" />).container;
   vi.stubGlobal(
     "URL",
     class extends URL {
@@ -76,18 +80,18 @@ const bySection = (lr: ExtractReply = rows, rc: ExtractReply = rcRows) =>
 describe("OnboardingWizard · frame and Goal", () => {
   const options = upcomingTestMonths("2026-10-18");
 
-  it("puts the step count in the top bar's slot", () => {
-    const slot = document.body.appendChild(Object.assign(document.createElement("div"), { id: "top-bar-step" }));
-    render(<OnboardingWizard {...student} goalTestDateOptions={options} onSave={vi.fn()} />);
+  it("moves the top bar's step count on with the wizard's step", async () => {
+    await fillGoalAndWeek();
 
-    expect(slot.contains(stepCount("Step 1 of 4 · Goal"))).toBe(true);
-    slot.remove();
+    expect(topBar.contains(stepCount("Step 3 of 4 · Analytics"))).toBe(true);
   });
 
-  it("shows the step count above the questions when the top bar has no slot, as for an admin", () => {
-    render(<OnboardingWizard {...student} goalTestDateOptions={options} onSave={vi.fn()} />);
+  it("shows an Admin's step count at the top of the question column, since an Admin's top bar has no count", () => {
+    cleanup();
+    render(<OnboardingWizard {...student} admin goalTestDateOptions={options} onSave={vi.fn()} />);
 
     const count = stepCount("Step 1 of 4 · Goal");
+    expect(count.closest("[data-page-section]")?.firstElementChild?.contains(count)).toBe(true);
     expect(count.closest("[data-onboarding-step]")).toBeNull();
   });
 
@@ -260,6 +264,7 @@ describe("OnboardingWizard · Week step", () => {
 });
 
 async function fillGoalAndWeek(onSave = vi.fn(async () => {}), extract: Extract = bySection(), admin = false) {
+  if (admin) cleanup();
   const user = userEvent.setup();
   render(
     <OnboardingWizard {...student} goalTestDateOptions={upcomingTestMonths("2026-10-18")} onSave={onSave} extract={extract} admin={admin} />,
@@ -1246,6 +1251,18 @@ describe("OnboardingWizard", () => {
     expect(road().getByText("· 13 h 30 · practice test Sat", { exact: false })).toBeDefined();
     expect(road().getByText("Monday:")).toBeDefined();
     expect(screen.queryByRole("complementary", { name: "Preview of This week" })).toBeNull();
+  });
+
+  it("says drills fill in after analytics again when Back leaves Analytics with a draft", async () => {
+    const { user } = await fillGoalAndWeek();
+    await upload(user);
+    expect(await road().findByText("Thursday:")).toBeDefined();
+
+    await user.click(screen.getByRole("button", { name: "Back" }));
+
+    await waitFor(() => expect(stepCount("Step 2 of 4 · Week")).toBeDefined());
+    expect(road().getByText("Drills fill in after you add analytics.")).toBeDefined();
+    expect(road().queryByText("Thursday:")).toBeNull();
   });
 });
 
