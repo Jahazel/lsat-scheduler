@@ -8,7 +8,8 @@ import {
 } from "@/lib/currentWeeklySchedule";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { COLUMN_GUTTER, PAGE_COLUMN, cx } from "@/components/ui/classes";
-import { formatScheduleWeekOf, weekNotes } from "@/lib/scheduleCheckInSummary";
+import { formatScheduleWeekOf } from "@/lib/scheduleCheckInSummary";
+import { roadToTestDay } from "@/lib/roadToTestDay";
 import { listApprovedAnalyticsSnapshots } from "@/lib/analyticsSnapshotRepository";
 import { mockRules } from "@/lib/mockData";
 import { postgresCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
@@ -24,10 +25,6 @@ import { loadChosenPlan } from "@/lib/billingRepository";
 import { isHeldWeek } from "@/lib/planStatus";
 import { freeWeekEndingNote, hidesUploadReminder, planProblemNote } from "@/lib/planNotes";
 import { HeldWeek, PlanNotice } from "@/components/PlanNotes";
-
-const previewStartDate = new Intl.DateTimeFormat("en-US", {
-  weekday: "long", month: "short", day: "numeric", timeZone: "UTC",
-});
 
 type DashboardSearchParams = { historyWeek?: string | string[]; [DRILL_LINK_PARAMETER]?: string | string[] };
 
@@ -124,19 +121,10 @@ export default async function DashboardPage({
         student={schedule.generationInputs.student}
         checkIns={checkIns}
         readOnly={preview}
-        header={preview ? (
-          <PageHeader
-            gutter={COLUMN_GUTTER}
-            eyebrow={`Next week · starts ${previewStartDate.format(new Date(`${schedule.weekStartDate}T00:00:00.000Z`))}`}
-            title="Your plan for next week"
-            lead="Your upload is saved. Check-ins open on Monday."
-            notes={weekNotes(schedule.schedule)}
-          />
-        ) : undefined}
         today={localDateInTimezone(now, SCHEDULE_TIMEZONE)}
         uploadReminder={!preview && !hidesUploadReminder(plan, record, realNow) && showsUploadReminder(snapshots, now, SCHEDULE_TIMEZONE)}
         notice={note && <PlanNotice note={note} />}
-        thisWeek={{ drillLink: (Array.isArray(drill) ? drill[0] : drill) ?? null }}
+        thisWeek={{ drillLink: (Array.isArray(drill) ? drill[0] : drill) ?? null, road: roadToTestDay(doc, now, SCHEDULE_TIMEZONE) }}
       />
     </div>
   );
