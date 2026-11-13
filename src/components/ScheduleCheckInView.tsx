@@ -20,6 +20,8 @@ import { StatusIcon } from "@/components/ui/StatusIcon";
 import { COLUMN_GUTTER, FOCUS, MOTION, PAGE_COLUMN, cx } from "@/components/ui/classes";
 import { DrillSetupGuide } from "@/components/DrillSetupGuide";
 import { DRILL_LINK_PARAMETER, drillSetupGuide, type DrillSetupGuide as DrillSetupGuideContent } from "@/lib/drillSetupGuide";
+import type { RoadToTestDay } from "@/lib/roadToTestDay";
+import { WeekHeader } from "@/components/WeekHeader";
 
 interface ScheduleCheckInViewProps {
   scheduleId: string;
@@ -34,7 +36,7 @@ interface ScheduleCheckInViewProps {
   today?: string;
   uploadReminder?: boolean;
   notice?: ReactNode;
-  thisWeek?: { drillLink: string | null };
+  thisWeek?: { drillLink: string | null; road: RoadToTestDay };
 }
 
 const shortDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -134,7 +136,7 @@ export default function ScheduleCheckInView({
   readOnly = false,
   header,
   footer,
-  padding = cx(PAGE_COLUMN, "pt-8 pb-16 md:pt-16 md:pb-24"),
+  padding,
   today,
   uploadReminder = false,
   notice,
@@ -155,8 +157,10 @@ export default function ScheduleCheckInView({
   const totalActivities = scheduledActivityCount(schedule);
   const doneActivities = totalActivities - remainingActivityCount(schedule, savedCheckIns);
   const dates = DAY_ORDER.map((_, index) => isoDateInWeek(schedule.weekOf, index));
-  const dueSoFar = today === undefined ? undefined : DAY_ORDER.reduce(
-    (due, day, index) => dates[index]! <= today ? due + schedule.days[day].activities.length : due, 0);
+  const activitiesOn = (counts: (date: string) => boolean) => DAY_ORDER.reduce(
+    (due, day, index) => counts(dates[index]!) ? due + schedule.days[day].activities.length : due, 0);
+  const dueSoFar = today === undefined ? undefined : activitiesOn((date) => date <= today);
+  const dueBeforeToday = today === undefined ? 0 : activitiesOn((date) => date < today);
   const practiceTestDays = DAY_ORDER.filter((day) => schedule.days[day].type === "practice_test");
 
   function showGuide(activityId: string, day: DayOfWeek, label: string, guide: DrillSetupGuideContent, opener: HTMLElement,
@@ -225,7 +229,14 @@ export default function ScheduleCheckInView({
             action="Plan next week"
           />
         )}
-        {header ?? <PageHeader
+        {thisWeek ? <WeekHeader
+          className={cx(PAGE_COLUMN, "pt-8 lg:pt-10")}
+          weekOf={schedule.weekOf}
+          preview={readOnly}
+          notes={weekNotes(schedule)}
+          count={{ done: doneActivities, total: totalActivities, dueBeforeToday }}
+          road={thisWeek.road}
+        /> : header ?? <PageHeader
           gutter={COLUMN_GUTTER}
           eyebrow={`Week of ${formatScheduleWeekOf(schedule.weekOf)}`}
           title="Your plan for this week"
@@ -235,7 +246,7 @@ export default function ScheduleCheckInView({
         />}
       </div>
       <FailureNotice action={lastSave?.activityId} answer={lastSave?.answer ?? null} />
-      <div className={cx("flex flex-col gap-4", padding)}>
+      <div className={cx("flex flex-col gap-4", padding ?? cx(PAGE_COLUMN, thisWeek ? "pt-6 pb-16 md:pb-24" : "pt-8 pb-16 md:pt-16 md:pb-24"))}>
         {link !== null && !linkedDrill(schedule, link) && (
           <p role="status" className="rounded-md bg-vellum px-4 py-2.5 text-small text-ink">That drill is not in this week.</p>
         )}

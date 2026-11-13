@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { generateWeek } from "@/lib/engine";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "@/lib/mockData";
 import type { ActivityCheckIn } from "@/lib/types";
+import type { RoadToTestDay } from "@/lib/roadToTestDay";
 
 const { saveActivityCheckIn } = vi.hoisted(() => ({ saveActivityCheckIn: vi.fn() }));
 vi.mock("@/app/dashboard/actions", () => ({ saveActivityCheckIn }));
@@ -37,6 +38,7 @@ beforeEach(() => {
 
 const week = () => generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName);
 const done = (activityId: string): ActivityCheckIn => ({ scheduleId: "schedule-1", activityId, status: "completed" });
+const road: RoadToTestDay = { current: 150, goal: 165, month: "January", year: "2027", left: { kind: "weeks", count: 9 } };
 const dayCard = (day: string) => screen.getByRole("heading", { level: 2, name: new RegExp(`^${day}`) }).closest("section")!;
 
 describe("ScheduleCheckInView", () => {
@@ -230,6 +232,106 @@ describe("ScheduleCheckInView", () => {
 
     expect(screen.queryByRole("complementary", { name: "Reminder" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Plan next week" })).toBeNull();
+  });
+
+  describe("week header on This week", () => {
+    const MONDAY = "2026-08-24";
+    const WEDNESDAY = "2026-08-26";
+    const summary = () => screen.getByRole("region", { name: "Week summary" });
+    const renderWeek = (props: { checkIns?: ActivityCheckIn[]; today?: string; road?: RoadToTestDay; readOnly?: boolean; schedule?: ReturnType<typeof week> } = {}) =>
+      render(<ScheduleCheckInView scheduleId="schedule-1" schedule={props.schedule ?? week()} student={mockStudent}
+        checkIns={props.checkIns ?? []} today={props.today ?? MONDAY} readOnly={props.readOnly}
+        thisWeek={{ drillLink: null, road: props.road ?? road }} />);
+    const allIds = (schedule = week()) => Object.values(schedule.days).flatMap((day) => day.activities.map((_, index) => `${day.day}:${index}`));
+
+    it("titles the week and shows the done count, an on-pace pill, and the road to the test", () => {
+      renderWeek();
+      expect(screen.getByText("Week of August 24")).toBeTruthy();
+      expect(screen.getByRole("heading", { level: 1, name: "Your plan for this week" })).toBeTruthy();
+      expect(screen.getByText("Your plan is set. Check off as you go.")).toBeTruthy();
+      expect(within(summary()).getByText("of 18 done")).toBeTruthy();
+      expect(within(summary()).getByText("On pace")).toBeTruthy();
+      expect(within(summary()).getByRole("progressbar").getAttribute("aria-valuenow")).toBe("0");
+      expect(within(summary()).getByText("9 weeks to the January LSAT")).toBeTruthy();
+      expect(within(summary()).getByRole("img", { name: "From 150 now to 165 by the January 2027 LSAT, 9 weeks away." })).toBeTruthy();
+    });
+
+    it("counts only the days before today as due, so ticks past that read ahead", () => {
+      renderWeek({ checkIns: [done("MONDAY:0")] });
+      expect(within(summary()).getByText("1 ahead")).toBeTruthy();
+    });
+
+    it("shows how many activities are behind when earlier days are not done", () => {
+      const schedule = week();
+      const due = schedule.days.MONDAY.activities.length + schedule.days.TUESDAY.activities.length;
+      renderWeek({ schedule, checkIns: [done("MONDAY:0")], today: WEDNESDAY });
+      expect(within(summary()).getByText(`${due - 1} behind`)).toBeTruthy();
+    });
+
+    it("reads Week done once every activity is ticked", () => {
+      renderWeek({ checkIns: allIds().map(done), today: WEDNESDAY });
+      expect(within(summary()).getByText("18")).toBeTruthy();
+      expect(within(summary()).getByText("Week done")).toBeTruthy();
+      expect(within(summary()).queryByText(/behind|ahead|On pace/)).toBeNull();
+    });
+
+    it("says Nothing planned this week with no bar or pill when the week has no activities", () => {
+      const schedule = week();
+      for (const day of Object.values(schedule.days)) day.activities = [];
+      renderWeek({ schedule });
+      expect(within(summary()).getByText("Nothing planned this week.")).toBeTruthy();
+      expect(within(summary()).queryByRole("progressbar")).toBeNull();
+      expect(within(summary()).queryByText(/On pace|done/)).toBeNull();
+    });
+
+    it("counts days under a week out, and says Test day on the day", () => {
+      const { unmount } = renderWeek({ road: { ...road, month: "November", year: "2026", left: { kind: "days", count: 4 } } });
+      expect(within(summary()).getByText("4 days to the November LSAT")).toBeTruthy();
+      unmount();
+      renderWeek({ road: { ...road, left: { kind: "test_day" } } });
+      expect(within(summary()).getByText("Test day")).toBeTruthy();
+    });
+
+    it("says the test has passed and links to Study settings after the test date", () => {
+      renderWeek({ road: { ...road, month: "November", year: "2026", left: { kind: "passed" } } });
+      expect(summary().textContent).toContain("Your November LSAT has passed. Set your next test date in Study settings.");
+      expect(within(summary()).getByRole("link", { name: "Study settings" }).getAttribute("href")).toBe("/settings");
+      expect(within(summary()).queryByRole("img")).toBeNull();
+    });
+
+    it("shows next week's preview with the planned count and no bar or pill", () => {
+      renderWeek({ readOnly: true });
+      expect(screen.getByText("Next week · starts Monday, Aug 24")).toBeTruthy();
+      expect(screen.getByRole("heading", { level: 1, name: "Your plan for next week" })).toBeTruthy();
+      expect(summary().textContent).toContain("18 activities planned");
+      expect(within(summary()).queryByRole("progressbar")).toBeNull();
+      expect(within(summary()).queryByText("On pace")).toBeNull();
+    });
+
+    it("updates the count, the pill, and the bar on a tick and an untick", async () => {
+      renderWeek({ today: "2026-08-25" });
+      const bar = within(summary()).getByRole("progressbar");
+      expect(within(summary()).getByText(/behind$/).textContent).toBe(`${week().days.MONDAY.activities.length} behind`);
+      const row = within(dayCard("Monday")).getByRole("checkbox", { name: "1 Full LR Section" });
+
+      await userEvent.click(row);
+      expect(within(summary()).getByText("1")).toBeTruthy();
+      expect(bar.getAttribute("aria-valuenow")).toBe("1");
+      expect(within(summary()).getByText(/behind$/).textContent).toBe(`${week().days.MONDAY.activities.length - 1} behind`);
+
+      await userEvent.click(row);
+      expect(bar.getAttribute("aria-valuenow")).toBe("0");
+      expect(within(summary()).getByText(/behind$/).textContent).toBe(`${week().days.MONDAY.activities.length} behind`);
+    });
+
+    it("offers Show N more for week notes past the first two", async () => {
+      const schedule = week();
+      schedule.reasons = ["One.", "Two.", "Three.", "Four."].map((sentence) => ({ code: "starred_rotation" as const, placement: { scope: "week" as const }, sentence }));
+      renderWeek({ schedule });
+      await userEvent.click(screen.getByRole("button", { name: "Show 2 more" }));
+      expect(screen.queryByRole("button", { name: /Show \d more/ })).toBeNull();
+      expect(screen.getByText("Four.")).toBeTruthy();
+    });
   });
 
   describe("drill setup guide", () => {
@@ -445,13 +547,13 @@ describe("ScheduleCheckInView", () => {
       const renderThisWeek = (drillLink: string | null, schedule = week()) => {
         history.replaceState({ entry: "this week" }, "", drillLink === null ? "/dashboard" : `/dashboard?drill=${drillLink}`);
         return render(<ScheduleCheckInView scheduleId="schedule-1" schedule={schedule} student={mockStudent} checkIns={[]}
-          thisWeek={{ drillLink }} />);
+          thisWeek={{ drillLink, road }} />);
       };
       const onThisWeekEntry = () => expect(history.state).toEqual({ entry: "this week" });
       const reload = (unmount: () => void, drillLink: string | null = null) => {
         unmount();
         return render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]}
-          thisWeek={{ drillLink }} />);
+          thisWeek={{ drillLink, road }} />);
       };
 
       it("opens the guide for the drill a link names, and closing it takes the drill out of the address", async () => {
