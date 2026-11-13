@@ -124,8 +124,12 @@ export function dim(el: HTMLElement, options: { to: number; x?: number }) {
   return fadeOut(el, options);
 }
 
-export function arriveSections(page: Element) {
+/** `fade` is a tab change: the content fades in place, because a student switches tabs many times a day. */
+export function arriveSections(page: Element, look: "rise" | "fade" = "rise") {
   const sections = [...page.querySelectorAll<HTMLElement>("[data-page-section]")].filter((section) => !held(section));
+  if (look === "fade") {
+    return sections.map((section) => section.animate([{ opacity: 0 }, { opacity: 1 }], { duration: durationMs("--duration-fast"), easing: "ease-out", fill: "backwards" }));
+  }
   const still = reducedMotion();
   const y = rise();
   return sections.map((section, index) => section.animate(

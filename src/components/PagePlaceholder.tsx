@@ -58,7 +58,7 @@ export function PagePlaceholder({ wait = PLACEHOLDER_WAIT_MS, children }: { wait
 const noChange = () => () => {};
 
 // React has no hydration flag; useSyncExternalStore reads its server snapshot only while hydrating.
-export function PageArrival({ page }: { page: string }) {
+export function PageArrival({ page, look }: { page: string; look?: "rise" | "fade" }) {
   const ref = useRef<HTMLParagraphElement>(null);
   const hydrating = useSyncExternalStore(noChange, () => false, () => true);
   const [openedByApp] = useState(!hydrating);
@@ -67,11 +67,11 @@ export function PageArrival({ page }: { page: string }) {
     const status = ref.current!;
     // Screen readers announce a status line only when its text changes after it is on the page.
     const announce = requestAnimationFrame(() => { status.textContent = `${page} loaded`; });
-    const arrivals = arriveSections(status.parentElement!);
+    const arrivals = arriveSections(status.parentElement!, look);
     return () => {
       cancelAnimationFrame(announce);
       arrivals.forEach((arrival) => arrival.cancel());
     };
-  }, [openedByApp, page]);
+  }, [openedByApp, page, look]);
   return <p ref={ref} role="status" className="sr-only" />;
 }

@@ -27,7 +27,7 @@ export function ProgressScreen({ week = null, requested = null, children }: { we
   const pageShown = useContext(PageShown);
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => pageShown(week, requested, ref.current!));
-  return <div ref={ref} className="min-h-screen"><PageArrival page="Progress" />{children}</div>;
+  return <div ref={ref} className="min-h-screen"><PageArrival page="Progress" look="fade" />{children}</div>;
 }
 
 export default function ProgressMotion({ children }: { children: ReactNode }) {

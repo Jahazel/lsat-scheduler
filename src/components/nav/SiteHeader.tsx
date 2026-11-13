@@ -46,6 +46,7 @@ export default async function SiteHeader() {
     return (
       <AdminNav
         testState={testState}
+        name={user.name?.trim() || null}
         initials={initialsFor(user.name, user.email)}
         email={user.email ?? ""}
         countdownLabel={state?.countdownLabel ?? null}
@@ -77,6 +78,7 @@ export default async function SiteHeader() {
     <>
       <header data-site-header="workspace" className={HEADER}>
         <StudentNav
+          name={user.name?.trim() || null}
           initials={initialsFor(user.name, user.email)}
           email={user.email ?? ""}
           countdownLabel={state.countdownLabel}

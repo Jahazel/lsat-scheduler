@@ -19,7 +19,7 @@ export default async function StudySettingsPage() {
 
   return (
     <div className="min-h-screen bg-vellum">
-      <PageArrival page="Study settings" />
+      <PageArrival page="Study settings" look="fade" />
       <StudySettingsForm
         currentScore={student.currentScore}
         saved={{

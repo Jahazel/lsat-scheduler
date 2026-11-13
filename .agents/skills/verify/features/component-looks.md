@@ -7,7 +7,6 @@ Read each value with `getComputedStyle` in a short read-only `page.evaluate`. Co
 ## Entry points
 
 - `looks-focus-ring`: on `/login`, the `Email` textbox and the `Continue with Google` button; on `/signup`, the consent checkbox; on `/dashboard/upload`, the `Current score` textbox, the label around the checked `Screenshots` radio, and the `Logical Reasoning screenshot` drop zone. Each focused control shows a solid 2 px accent outline 2 px outside it. The focused checkbox's border is ink. The checked switch option's label has a white `background-color` (`rgb(255, 255, 255)`); the unchecked one's is transparent.
-- `looks-closed-dock-ring`: as an Admin on My student side, close Test controls, then focus `Expand test controls`. Its accent outline has `outline-offset: -2px`, inside the strip that clips it.
 - `looks-disabled-button`: on `/dashboard/upload` before any analytics, `Read my screenshots` is disabled with `opacity: 0.4`.
 - `looks-field-error`: type `190` in `Current score` and leave it. The box has `aria-invalid="true"` and a danger ink border.
 - `looks-drop-zone`: dispatch `dragover` with a `DataTransfer` holding a PNG on the `Logical Reasoning screenshot` zone. It reads `Drop to add it`, with an accent border and an accent tint background. Choose a GIF in `Reading Comprehension screenshot file`: the zone has `data-state="error"` and a danger ink border.

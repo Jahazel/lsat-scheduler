@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { FOCUS, MOTION, cx } from "./classes";
+import { FOCUS, cx } from "./classes";
 
 export function NavTab({ href, current, children }: { href: string; current: boolean; children: ReactNode }) {
   return (
@@ -8,9 +8,9 @@ export function NavTab({ href, current, children }: { href: string; current: boo
       href={href}
       aria-current={current ? "page" : undefined}
       className={cx(
-        "flex h-10 items-center gap-1.5 whitespace-nowrap rounded-pill px-4 text-body text-ink hover:bg-vellum",
-        current ? "bg-vellum font-medium" : "font-regular",
-        MOTION,
+        "flex h-10 items-center gap-2 whitespace-nowrap rounded-pill px-4 text-small",
+        "transition-[color,background-color,scale] duration-(--duration-fast) ease-(--ease-out-strong) pointer-hover:bg-vellum pointer-hover:text-ink active:scale-[0.97] motion-reduce:active:scale-100",
+        current ? "bg-vellum font-medium text-ink" : "text-smoke",
         FOCUS,
       )}
     >
