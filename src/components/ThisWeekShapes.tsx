@@ -13,7 +13,7 @@ const DAYS: { day: string; kind: string; rows: string[] }[] = [
   { day: "Sunday Nov 8", kind: "Drilling · 1 h 30 min of 1 h 30 min", rows: ["5 Must be true (L3-5)"] },
 ];
 
-export function ThisWeekShapes({ lead }: { lead: boolean }) {
+export function ThisWeekShapes() {
   return (
     <>
       <div className={cx("border-b border-vellum-line bg-paper pt-6 pb-6 md:pt-12 md:pb-10", COLUMN_GUTTER)}>
@@ -21,7 +21,6 @@ export function ThisWeekShapes({ lead }: { lead: boolean }) {
           <div className="flex min-w-0 flex-1 flex-col gap-1.5 md:gap-3">
             <p className="text-caption md:text-small"><span className={PLACEHOLDER_SHAPE}>Week of November 2</span></p>
             <p className="text-h3 font-medium md:text-h2"><span className={PLACEHOLDER_SHAPE}>Your plan for this week</span></p>
-            {lead && <p className="text-body md:text-lead"><span className={PLACEHOLDER_SHAPE}>Your plan is set. Check off as you go.</span></p>}
             <p className="flex items-center gap-2 text-small">
               <span className={cx(DOT, "size-3.5")} />
               <span className={PLACEHOLDER_SHAPE}>Necessary assumption comes first this week. You missed it most on your last practice test.</span>
