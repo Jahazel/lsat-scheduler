@@ -12,7 +12,7 @@ export default function AdminStudentLoading() {
         </div>
         <p className="mt-4 text-small"><span className={PLACEHOLDER_SHAPE}>amy@example.test</span></p>
       </div>
-      <ThisWeekShapes lead={false} />
+      <ThisWeekShapes />
     </PagePlaceholder>
   );
 }

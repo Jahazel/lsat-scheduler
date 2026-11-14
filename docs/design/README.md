@@ -306,8 +306,8 @@ app shows. Phone basics (#862) apply to every phone shot.
 ## This week redesign (`this-week-redesign/`)
 
 Screenshots of the approved prototype for design #881 and spec #891, taken 2026-11-12. Brief:
-`research/this-week-redesign/brief.md`. Motion rows: `research/this-week-redesign/motion.md`. The clickable prototype
-is the dev-only route `/prototypes/this-week-redesign`; #898 deletes it. These shots replace `this-week/` for the This
+`research/this-week-redesign/brief.md`. Motion rows: `research/this-week-redesign/motion.md`. The clickable prototype,
+the dev-only route `/prototypes/this-week-redesign`, was deleted by #898. These shots replace `this-week/` for the This
 week page and the signed-in frame. Each file name ends in `-desktop`, `-tablet`, or `-phone`.
 
 | File | State | Screen ticket |
