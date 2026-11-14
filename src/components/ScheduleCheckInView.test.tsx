@@ -286,6 +286,7 @@ describe("ScheduleCheckInView", () => {
       renderWeek({ readOnly: true });
       expect(screen.getByText("Next week · starts Monday, Aug 24")).toBeTruthy();
       expect(screen.getByRole("heading", { level: 1, name: "Your plan for next week" })).toBeTruthy();
+      expect(screen.getByText("Your upload is saved. Check-ins open on Monday.")).toBeTruthy();
       expect(summary().textContent).toContain("18 activities planned");
       expect(within(summary()).queryByRole("progressbar")).toBeNull();
       expect(within(summary()).queryByText("On pace")).toBeNull();

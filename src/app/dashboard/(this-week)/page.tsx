@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { findStudentByAccountId } from "@/lib/studentRepository";
 import {
-  currentWeekInTimezone, loadOrGenerateCurrentWeek, localDateInTimezone, nextWeekHasUpload, showsUploadReminder,
+  currentWeekInTimezone, loadOrGenerateCurrentWeek, localDateInTimezone, nextWeekHasUpload,
 } from "@/lib/currentWeeklySchedule";
 import { roadToTestDay } from "@/lib/roadToTestDay";
 import { listApprovedAnalyticsSnapshots } from "@/lib/analyticsSnapshotRepository";
@@ -20,7 +20,7 @@ import { PageArrival } from "@/components/PagePlaceholder";
 import { CurrentWeekReport } from "@/components/AdminTestContext";
 import { loadChosenPlan } from "@/lib/billingRepository";
 import { isHeldWeek } from "@/lib/planStatus";
-import { freeWeekEndingNote, hidesUploadReminder, planProblemNote } from "@/lib/planNotes";
+import { freeWeekEndingNote, planProblemNote, showsUploadCard } from "@/lib/planNotes";
 import { HeldWeek, PlanNotices } from "@/components/PlanNotes";
 
 type DashboardSearchParams = { historyWeek?: string | string[]; [DRILL_LINK_PARAMETER]?: string | string[] };
@@ -90,7 +90,7 @@ export default async function DashboardPage({
     listApprovedAnalyticsSnapshots(doc.id),
   ]);
   const note = problem ?? (preview ? null : freeWeekEndingNote(plan, record, realNow, nextWeekHasUpload(snapshots, realNow, SCHEDULE_TIMEZONE)));
-  const uploadDue = !preview && !hidesUploadReminder(plan, record, realNow) && showsUploadReminder(snapshots, now, SCHEDULE_TIMEZONE);
+  const uploadDue = !preview && showsUploadCard(plan, record, snapshots, now, realNow);
 
   return (
     <div data-page-fade className="min-h-screen">

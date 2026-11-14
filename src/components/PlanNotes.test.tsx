@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { generateWeek } from "@/lib/engine";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "@/lib/mockData";
-import { freeWeekEndingNote, hidesUploadReminder, planProblemNote } from "@/lib/planNotes";
+import { freeWeekEndingNote, planProblemNote, showsUploadCard } from "@/lib/planNotes";
 import { planStatus, type BillingRecord } from "@/lib/planStatus";
 
 vi.mock("@/app/dashboard/actions", () => ({ saveActivityCheckIn: vi.fn() }));
@@ -91,7 +91,7 @@ describe("weekend upload card", () => {
   function renderWeekend(record: BillingRecord) {
     const status = planStatus("student", record, SATURDAY);
     const note = planProblemNote(status);
-    const uploadDue = !hidesUploadReminder(status, record, SATURDAY);
+    const uploadDue = showsUploadCard(status, record, [], SATURDAY, SATURDAY);
     render(<ScheduleCheckInView scheduleId="schedule-1" schedule={generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName)}
       student={mockStudent} checkIns={[]} notice={(note || uploadDue) && <PlanNotices note={note} uploadDue={uploadDue} />} />);
   }

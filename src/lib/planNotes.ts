@@ -1,4 +1,5 @@
-import { localDateInTimezone } from "./currentWeeklySchedule";
+import { localDateInTimezone, showsUploadReminder } from "./currentWeeklySchedule";
+import type { ApprovedAnalyticsSnapshot } from "./types";
 import { oneLineDate } from "./planCard";
 import { PLAN_PRICES, planPriceText, type PlanPrices } from "./planPrices";
 import { PLAN_REFUSAL, planEndReason, type BillingRecord, type PlanStatus } from "./planStatus";
@@ -48,3 +49,7 @@ export function planProblemNote(status: PlanStatus): PlanNote | null {
 
 export const hidesUploadReminder = (status: PlanStatus, record: BillingRecord | null, realNow: Date) =>
   status.kind === "lapsed" || (record !== null && planEndReason(record) !== null && daysLeftInEndingFreeWeek(status, realNow) !== null);
+
+export const showsUploadCard = (
+  status: PlanStatus, record: BillingRecord | null, snapshots: ApprovedAnalyticsSnapshot[], now: Date, realNow: Date,
+) => !hidesUploadReminder(status, record, realNow) && showsUploadReminder(snapshots, now, SCHEDULE_TIMEZONE);
