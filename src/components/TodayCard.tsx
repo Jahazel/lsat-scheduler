@@ -41,6 +41,49 @@ export function TickMark({ done }: { done: boolean }) {
   );
 }
 
+export function ActivityRows({ activities, minutes, doneIds, onToggle, setUp, rowRef }: {
+  activities: TodayActivity[];
+  minutes: ReadonlyMap<string, number>;
+  doneIds: ReadonlySet<string>;
+  onToggle?: (activityId: string) => void;
+  setUp: (activityId: string) => ReactNode;
+  rowRef?: (activityId: string) => Ref<HTMLButtonElement>;
+}) {
+  const setUpColumn = activities.some((activity) => activity.section !== null && !doneIds.has(activity.id));
+  const row = "flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-1.5 text-left";
+  return (
+    <ul className="flex flex-col">
+      {activities.map((activity) => {
+        const done = doneIds.has(activity.id);
+        const content = <>
+          <TickMark done={done} />
+          <span className="flex min-w-0 flex-1 flex-col md:flex-row md:items-center md:gap-3">
+            <span className={cx("min-w-0 flex-1 text-small", TICK, done ? "text-smoke line-through decoration-fog" : "text-ink")}>
+              <ActivityLabel label={activity.label} />
+            </span>
+            <span className="shrink-0 text-caption text-smoke tabular-nums md:text-small">{shortDuration(minutes.get(activity.id)!)}</span>
+          </span>
+        </>;
+        return (
+          <li key={activity.id} className="flex items-center gap-1">
+            {onToggle ? (
+              <button ref={rowRef?.(activity.id)} type="button" role="checkbox" aria-checked={done} onClick={() => onToggle(activity.id)}
+                className={cx("group pointer-hover:hover:bg-vellum focus-visible:outline-none", row, TICK)}>
+                {content}
+              </button>
+            ) : (
+              <span className={row}>{content}<span className="sr-only">{done ? ", done" : ", not done"}</span></span>
+            )}
+            {setUpColumn && (
+              <span className="flex w-[72px] shrink-0 justify-end">{activity.section !== null && !done && setUp(activity.id)}</span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function NextLine({ next }: { next: NextStudyDay | null }) {
   if (!next) return <p className="text-small text-smoke">Nothing else is planned this week.</p>;
   return (
@@ -56,7 +99,6 @@ export function TodayCard({ day, date, activities, notes, emptyText, next, doneI
   const left = activities.filter((activity) => !doneIds.has(activity.id));
   const upNext = left[0];
   const others = activities.filter((activity) => activity !== upNext);
-  const setUpColumn = others.some((activity) => activity.section !== null && !doneIds.has(activity.id));
   const leftMinutes = left.reduce((total, activity) => total + minutes.get(activity.id)!, 0);
   const focusAllDone = useRef(false);
   const shown = upNext?.id ?? "all done";
@@ -113,30 +155,8 @@ export function TodayCard({ day, date, activities, notes, emptyText, next, doneI
           <div className="pl-7"><NextLine next={next} /></div>
         </div>
       )}
-      {others.length > 0 && (
-        <ul className="flex flex-col">
-          {others.map((activity) => {
-            const done = doneIds.has(activity.id);
-            return (
-              <li key={activity.id} className="flex items-center gap-1">
-                <button ref={rowRef(activity.id)} type="button" role="checkbox" aria-checked={done} onClick={() => onToggle(activity.id)}
-                  className={cx("group flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-1.5 text-left pointer-hover:hover:bg-vellum focus-visible:outline-none", TICK)}>
-                  <TickMark done={done} />
-                  <span className="flex min-w-0 flex-1 flex-col md:flex-row md:items-center md:gap-3">
-                    <span className={cx("min-w-0 flex-1 text-small", TICK, done ? "text-smoke line-through decoration-fog" : "text-ink")}>
-                      <ActivityLabel label={activity.label} />
-                    </span>
-                    <span className="shrink-0 text-caption text-smoke tabular-nums md:text-small">{shortDuration(minutes.get(activity.id)!)}</span>
-                  </span>
-                </button>
-                {setUpColumn && (
-                  <span className="flex w-[72px] shrink-0 justify-end">{activity.section !== null && !done && setUp(activity.id, "quiet")}</span>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      {others.length > 0 && <ActivityRows activities={others} minutes={minutes} doneIds={doneIds} onToggle={onToggle}
+        setUp={(activityId) => setUp(activityId, "quiet")} rowRef={rowRef} />}
     </section>
   );
 }

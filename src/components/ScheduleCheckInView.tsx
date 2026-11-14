@@ -22,7 +22,8 @@ import { DrillSetupGuide } from "@/components/DrillSetupGuide";
 import { DRILL_LINK_PARAMETER, drillSetupGuide, type DrillSetupGuide as DrillSetupGuideContent } from "@/lib/drillSetupGuide";
 import type { RoadToTestDay } from "@/lib/roadToTestDay";
 import { WeekHeader } from "@/components/WeekHeader";
-import { TodayCard, type NextStudyDay } from "@/components/TodayCard";
+import { TodayCard, type NextStudyDay, type TodayActivity } from "@/components/TodayCard";
+import { DayCard } from "@/components/DayCard";
 import { buttonClass } from "@/components/ui/Button";
 
 interface ScheduleCheckInViewProps {
@@ -81,8 +82,9 @@ function ActivityRow({ label, done, onToggle, setUp }: { label: string; done: bo
   );
 }
 
-function SetUpButton({ label, expanded, onOpen, ref, look = "row" }: {
+function SetUpButton({ label, where, expanded, onOpen, ref, look = "row" }: {
   label: string;
+  where?: string;
   expanded: boolean;
   onOpen: (opener: HTMLElement) => void;
   ref: Ref<HTMLButtonElement>;
@@ -92,7 +94,7 @@ function SetUpButton({ label, expanded, onOpen, ref, look = "row" }: {
     "select-none active:scale-97 motion-reduce:active:scale-100",
     "[transition:color_var(--duration-fast)_ease-out,scale_var(--duration-fast)_var(--ease-out-strong)]", FOCUS);
   return (
-    <button ref={ref} type="button" aria-haspopup="dialog" aria-expanded={expanded} aria-label={`Set up ${label}`}
+    <button ref={ref} type="button" aria-haspopup="dialog" aria-expanded={expanded} aria-label={`Set up ${label}${where ? `, ${where}` : ""}`}
       onClick={(event) => onOpen(event.currentTarget)}
       className={look === "outline" ? buttonClass({ variant: "outline", size: "md" }) : cx(quiet, look === "row" ? "mt-0.5 h-8" : "h-10")}>
       Set up
@@ -158,7 +160,7 @@ export default function ScheduleCheckInView({
   const [, startTransition] = useTransition();
   const [openGuide, setOpenGuide] = useState<OpenGuide | null>(null);
   const setUpButtons = useRef(new Map<string, HTMLButtonElement>());
-  const todayRows = useRef(new Map<string, HTMLButtonElement>());
+  const rows = useRef(new Map<string, HTMLButtonElement>());
   const guideEntry = useRef<"none" | "open" | "closing">("none");
   const openedOnLoad = useRef(false);
   const link = thisWeek?.drillLink ?? null;
@@ -210,17 +212,17 @@ export default function ScheduleCheckInView({
     const entryUrl = location.href;
     if (reloaded !== undefined && linked) guideEntry.current = "open";
     else if (reloaded !== undefined || linked) clearGuideEntry();
-    const opener = linked && (setUpButtons.current.get(linked.activityId) ?? todayRows.current.get(linked.activityId));
+    const opener = linked && (setUpButtons.current.get(linked.activityId) ?? rows.current.get(linked.activityId));
     if (linked) showGuide(linked.activityId, linked.day, linked.label, linked.guide, opener!, entryUrl);
   });
 
-  function setUpFor(day: DayOfWeek, index: number, look?: "row" | "quiet" | "outline") {
+  function setUpFor(day: DayOfWeek, index: number, look?: "row" | "quiet" | "outline", where?: string) {
     const activity = schedule.days[day].activities[index]!;
     const activityId = scheduleActivityId(day, index);
     const guide = drillSetupGuide(activity);
     if (!guide) return null;
     const label = activityLabel(activity);
-    return <SetUpButton label={label} look={look} expanded={openGuide?.open === true && openGuide.activityId === activityId}
+    return <SetUpButton label={label} where={where} look={look} expanded={openGuide?.open === true && openGuide.activityId === activityId}
       ref={(button) => {
         if (button) setUpButtons.current.set(activityId, button);
         else setUpButtons.current.delete(activityId);
@@ -231,10 +233,30 @@ export default function ScheduleCheckInView({
   const todayIndex = thisWeek && !readOnly ? dates.indexOf(today ?? "") : -1;
   const todayDay = DAY_ORDER[todayIndex];
 
-  function todayCard(day: DayOfWeek) {
+  const activitiesOf = (day: DayOfWeek): TodayActivity[] => schedule.days[day].activities.map((activity, index) => ({
+    id: scheduleActivityId(day, index),
+    label: activityLabel(activity),
+    minutes: plannedActivityMinutes(activity),
+    section: drillSetupGuide(activity)?.section ?? null,
+  }));
+  const indexOf = (day: DayOfWeek, activityId: string) =>
+    schedule.days[day].activities.findIndex((_, index) => scheduleActivityId(day, index) === activityId);
+  const rowRef = (activityId: string) => (button: HTMLButtonElement | null) => {
+    if (button) rows.current.set(activityId, button);
+    else rows.current.delete(activityId);
+  };
+
+  function dayText(day: DayOfWeek) {
     const plan = schedule.days[day];
     const reasons = dayReasons(day);
     const unscheduledReason = plan.type === "unscheduled" ? reasons.find((reason) => reason.code === "unscheduled_day") : undefined;
+    return {
+      notes: reasons.filter((reason) => reason !== unscheduledReason).map((reason) => reason.sentence),
+      emptyText: unscheduledReason?.sentence ?? emptyDayText(plan),
+    };
+  }
+
+  function todayCard(day: DayOfWeek) {
     const nextDay = DAY_ORDER.slice(todayIndex + 1).find((later) => schedule.days[later].activities.length > 0);
     const next: NextStudyDay | null = nextDay ? {
       day: dayName(nextDay),
@@ -245,23 +267,36 @@ export default function ScheduleCheckInView({
     return <TodayCard
       day={dayName(day)}
       date={formatDate(dates[todayIndex]!)}
-      activities={plan.activities.map((activity, index) => ({
-        id: scheduleActivityId(day, index),
-        label: activityLabel(activity),
-        minutes: plannedActivityMinutes(activity),
-        section: drillSetupGuide(activity)?.section ?? null,
-      }))}
-      notes={reasons.filter((reason) => reason !== unscheduledReason).map((reason) => reason.sentence)}
-      emptyText={unscheduledReason?.sentence ?? emptyDayText(plan)}
+      activities={activitiesOf(day)}
+      {...dayText(day)}
       next={next}
       doneIds={doneIds}
       onToggle={toggle}
-      setUp={(activityId, look) => setUpFor(day, plan.activities.findIndex((_, index) => scheduleActivityId(day, index) === activityId), look)}
-      rowRef={(activityId) => (button) => {
-        if (button) todayRows.current.set(activityId, button);
-        else todayRows.current.delete(activityId);
-      }}
+      setUp={(activityId, look) => setUpFor(day, indexOf(day, activityId), look)}
+      rowRef={rowRef}
     />;
+  }
+
+  function restOfWeek() {
+    const heading = readOnly ? "Days" : todayDay === "SUNDAY" ? "Earlier this week" : "Rest of the week";
+    return (
+      <section data-page-section aria-labelledby="rest-of-week" className="flex flex-col gap-3">
+        <h2 id="rest-of-week" className={cx("px-1 text-small font-medium text-smoke", readOnly && "sr-only")}>{heading}</h2>
+        {DAY_ORDER.map((day, dayIndex) => day !== todayDay && <DayCard key={day}
+          day={dayName(day)}
+          date={formatDate(dates[dayIndex]!)}
+          kind={dayKind(schedule.days[day], practiceTestDays)}
+          capacityMinutes={student.dailyCapacityMinutes[day]}
+          activities={activitiesOf(day)}
+          {...dayText(day)}
+          past={today !== undefined && dates[dayIndex]! < today}
+          doneIds={doneIds}
+          onToggle={readOnly ? undefined : toggle}
+          setUp={(activityId) => setUpFor(day, indexOf(day, activityId), "quiet", dayName(day))}
+          rowRef={rowRef}
+        />)}
+      </section>
+    );
   }
 
   function toggle(activityId: string) {
@@ -309,15 +344,14 @@ export default function ScheduleCheckInView({
         />}
       </div>
       <FailureNotice action={lastSave?.activityId} answer={lastSave?.answer ?? null} />
-      <div className={cx("flex flex-col gap-4", padding ?? cx(PAGE_COLUMN, thisWeek ? "pt-6 pb-16 md:pb-24" : "pt-8 pb-16 md:pt-16 md:pb-24"))}>
+      <div className={cx("flex flex-col", thisWeek ? "gap-6" : "gap-4", padding ?? cx(PAGE_COLUMN, thisWeek ? "pt-6 pb-16 md:pb-24" : "pt-8 pb-16 md:pt-16 md:pb-24"))}>
         {link !== null && !linkedDrill(schedule, link) && (
           <p role="status" className="flex items-center gap-2 rounded-lg border border-vellum-line bg-paper px-4 py-3 text-small text-ink shadow-control">
             <InfoGlyph className="size-4" />That drill is not in this week.
           </p>
         )}
         {todayDay && todayCard(todayDay)}
-        {DAY_ORDER.map((day, dayIndex) => {
-          if (day === todayDay) return null;
+        {thisWeek ? restOfWeek() : DAY_ORDER.map((day, dayIndex) => {
           const plan = schedule.days[day];
           const plannedMinutes = Math.round(plan.activities.reduce((total, activity) => total + plannedActivityMinutes(activity), 0));
           const reasons = dayReasons(day);

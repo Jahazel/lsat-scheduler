@@ -39,7 +39,7 @@ beforeEach(() => {
 const week = () => generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName);
 const done = (activityId: string): ActivityCheckIn => ({ scheduleId: "schedule-1", activityId, status: "completed" });
 const road: RoadToTestDay = { current: 150, goal: 165, month: "January", year: "2027", left: { kind: "weeks", count: 9 } };
-const dayCard = (day: string) => screen.getByRole("heading", { level: 2, name: new RegExp(`^${day}`) }).closest("section")!;
+const dayCard = (day: string) => screen.getByRole("heading", { name: new RegExp(`^${day}`) }).closest("section")!;
 
 describe("ScheduleCheckInView", () => {
   it("checks a line off with one press and clears it with the next", async () => {
@@ -312,7 +312,7 @@ describe("ScheduleCheckInView", () => {
       renderWeek({ today: "2026-08-25" });
       const bar = within(summary()).getByRole("progressbar");
       expect(within(summary()).getByText(/behind$/).textContent).toBe(`${week().days.MONDAY.activities.length} behind`);
-      const row = within(dayCard("Monday")).getByRole("checkbox", { name: "1 Full LR Section" });
+      const row = within(dayCard("Monday")).getByRole("checkbox", { name: /^1 Full LR Section/ });
 
       await userEvent.click(row);
       expect(within(summary()).getByText("1")).toBeTruthy();
@@ -357,8 +357,8 @@ describe("ScheduleCheckInView", () => {
       expect(rows.map((row) => row.textContent)).toEqual([
         "5 Conditional reasoning (L2-4)15 min", "1 RC Passage Art L217 min", "2 RC Passages Humanities L2, Science L435 min"]);
       expect(within(todayCard()).getAllByRole("button", { name: /^Set up/ })).toHaveLength(4);
-      expect(screen.queryByRole("heading", { level: 2, name: /^Tuesday/ })).toBeNull();
-      expect(screen.getByRole("heading", { level: 2, name: /^Monday/ })).toBeTruthy();
+      expect(screen.queryByRole("region", { name: "Tuesday" })).toBeNull();
+      expect(screen.getByRole("region", { name: "Monday" })).toBeTruthy();
     });
 
     it("drops Set up from ticked drills in the list and counts what is left", () => {
@@ -490,7 +490,104 @@ describe("ScheduleCheckInView", () => {
       unmount();
       renderToday("2026-08-31");
       expect(screen.queryByRole("region", { name: /^Today/ })).toBeNull();
-      expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(7);
+      expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(7);
+    });
+  });
+
+  describe("Rest of the week on This week", () => {
+    const TUESDAY = "2026-08-25";
+    const card = (day: string) => screen.getByRole("region", { name: day });
+    const renderRest = (props: { today?: string; checkIns?: ActivityCheckIn[]; readOnly?: boolean; schedule?: ReturnType<typeof week> } = {}) =>
+      render(<ScheduleCheckInView scheduleId="schedule-1" schedule={props.schedule ?? week()} student={mockStudent}
+        checkIns={props.checkIns ?? []} today={props.today ?? TUESDAY} readOnly={props.readOnly} thisWeek={{ drillLink: null, road }} />,
+      { wrapper: FailureToastProvider });
+    const dayNames = () => screen.getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent!.split(" ")[0]);
+
+    it("lists the other days in date order under Rest of the week", () => {
+      renderRest();
+      expect(screen.getByRole("heading", { level: 2, name: "Rest of the week" })).toBeTruthy();
+      expect(dayNames()).toEqual(["Monday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]);
+    });
+
+    it("reads Earlier this week on Sunday", () => {
+      renderRest({ today: "2026-08-30" });
+      expect(screen.getByRole("heading", { level: 2, name: "Earlier this week" })).toBeTruthy();
+      expect(screen.queryByText("Rest of the week")).toBeNull();
+      expect(dayNames()).toEqual(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]);
+    });
+
+    it("shows all seven days with read-only rows and no Rest of the week heading on next week's preview", async () => {
+      renderRest({ readOnly: true, today: "2026-08-22" });
+      expect(screen.queryByText("Rest of the week")).toBeNull();
+      expect(screen.queryByText("Earlier this week")).toBeNull();
+      expect(dayNames()).toEqual(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]);
+      expect(screen.queryByRole("checkbox")).toBeNull();
+      await userEvent.click(within(card("Monday")).getByText("1 Full LR Section"));
+      expect(saveActivityCheckIn).not.toHaveBeenCalled();
+      expect(within(card("Monday")).getAllByRole("listitem")[0]!.textContent).toBe("1 Full LR Section1 h, not done");
+      expect(within(card("Tuesday")).getByRole("button", { name: "Set up 10 Weaken + Strengthen (L2-4), Tuesday" })).toBeTruthy();
+      expect(within(card("Monday")).queryByText(/of \d+ done/)).toBeNull();
+    });
+
+    it("shows the day line, rows with their minutes, and a Set up that names the day", () => {
+      renderRest();
+      const thursday = card("Thursday");
+      expect(within(thursday).getByText("Drilling · 1 h 35 of 1 h 30")).toBeTruthy();
+      expect(within(thursday).getAllByRole("checkbox").map((row) => row.textContent)).toEqual([
+        "2 RC Passages Law L3, Comparative L535 min", "5 Flaw or descriptive weakening (L2-4)15 min", "5 Phenomenon-hypothesis (LR) (L2-4)15 min",
+        "5 Math (L2-4)15 min", "5 Diagram (L2-4)15 min"]);
+      expect(within(thursday).getByRole("button", { name: "Set up 5 Math (L2-4), Thursday" })).toBeTruthy();
+    });
+
+    it("counts done rows on past days, and on later days once something is ticked", () => {
+      renderRest({ checkIns: [done("THURSDAY:1"), done("SATURDAY:0")] });
+      expect(within(card("Monday")).getByText("0 of 2 done")).toBeTruthy();
+      expect(within(card("Thursday")).getByText("1 of 5 done")).toBeTruthy();
+      expect(within(card("Saturday")).getByText("All done")).toBeTruthy();
+      expect(within(card("Friday")).queryByText(/done/)).toBeNull();
+    });
+
+    it("ticks a row on another day: it saves, counts, and drops that row's Set up", async () => {
+      renderRest();
+      const row = within(card("Friday")).getByRole("checkbox", { name: /^5 Must be false/ });
+      await userEvent.click(row);
+      expect(row.getAttribute("aria-checked")).toBe("true");
+      expect(saveActivityCheckIn).toHaveBeenLastCalledWith({ scheduleId: "schedule-1", activityId: "FRIDAY:3", status: "completed" });
+      expect(within(card("Friday")).getByText("1 of 5 done")).toBeTruthy();
+      expect(within(card("Friday")).queryByRole("button", { name: "Set up 5 Must be false (L2-4), Friday" })).toBeNull();
+
+      await userEvent.click(row);
+      expect(row.getAttribute("aria-checked")).toBe("false");
+      expect(within(card("Friday")).queryByText(/done/)).toBeNull();
+    });
+
+    it("numbers two practice tests in one week", () => {
+      const schedule = week();
+      schedule.days.FRIDAY = { ...schedule.days.SATURDAY, day: "FRIDAY" };
+      renderRest({ schedule });
+      expect(within(card("Friday")).getByText(/^Practice test 1 of 2 · /)).toBeTruthy();
+      expect(within(card("Saturday")).getByText(/^Practice test 2 of 2 · /)).toBeTruthy();
+    });
+
+    it("shrinks rest days and unscheduled days to one line, with their day notes under it", () => {
+      const schedule = week();
+      schedule.days.MONDAY = { day: "MONDAY", type: "unscheduled", activities: [], totalMinutes: 0 };
+      schedule.reasons = [
+        { code: "unscheduled_day", placement: { scope: "day", day: "MONDAY" }, sentence: "Not scheduled because this weekly schedule started Tuesday." },
+        { code: "rest_day_moved", placement: { scope: "day", day: "WEDNESDAY" }, sentence: "Rest day moved to Wednesday." },
+      ];
+      renderRest({ schedule });
+      expect(card("Monday").textContent).toBe("Monday Aug 24Not scheduled because this weekly schedule started Tuesday.");
+      expect(card("Wednesday").textContent).toBe("Wednesday Aug 26Rest day. Nothing planned.Rest day moved to Wednesday.");
+      expect(within(card("Wednesday")).queryByRole("checkbox")).toBeNull();
+      expect(within(card("Wednesday")).queryByText(/Rest day ·/)).toBeNull();
+    });
+
+    it("shows a drilling day's notes under its header", () => {
+      const schedule = week();
+      schedule.reasons = [{ code: "rest_day_moved", placement: { scope: "day", day: "THURSDAY" }, sentence: "Rest day moved to Wednesday." }];
+      renderRest({ schedule });
+      expect(within(card("Thursday")).getByText("Rest day moved to Wednesday.")).toBeTruthy();
     });
   });
 
@@ -710,6 +807,7 @@ describe("ScheduleCheckInView", () => {
           thisWeek={{ drillLink, road }} />);
       };
       const onThisWeekEntry = () => expect(history.state).toEqual({ entry: "this week" });
+      const setUp = (label: string) => screen.getByRole("button", { name: `Set up ${label}, Tuesday` });
       const reload = (unmount: () => void, drillLink: string | null = null) => {
         unmount();
         return render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]}
