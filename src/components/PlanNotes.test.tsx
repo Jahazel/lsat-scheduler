@@ -3,14 +3,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { generateWeek } from "@/lib/engine";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "@/lib/mockData";
-import { freeWeekEndingNote, planProblemNote } from "@/lib/planNotes";
+import { freeWeekEndingNote, hidesUploadReminder, planProblemNote } from "@/lib/planNotes";
 import { planStatus, type BillingRecord } from "@/lib/planStatus";
 
 vi.mock("@/app/dashboard/actions", () => ({ saveActivityCheckIn: vi.fn() }));
 const accountActions = vi.hoisted(() => ({ openCustomerPortalFromThisWeek: vi.fn(() => new Promise<null>(() => {})) }));
 vi.mock("@/app/account/actions", () => accountActions);
 
-import { HeldWeek, PlanNotice } from "./PlanNotes";
+import { HeldWeek, PlanNotice, PlanNotices } from "./PlanNotes";
 import ScheduleCheckInView from "./ScheduleCheckInView";
 
 afterEach(cleanup);
@@ -35,16 +35,6 @@ describe("free week ending note", () => {
     const [first] = screen.getAllByRole("heading", { level: 2 });
     expect(first.textContent).toBe("Your free week ends Sunday.");
     expect(screen.getByRole("heading", { level: 2, name: /^Monday/ })).toBeTruthy();
-  });
-});
-
-describe("held weekly schedule", () => {
-  it("shows the waiting card and no days", () => {
-    render(<HeldWeek />);
-    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Your week is ready.");
-    expect(screen.getByText("It appears when your first payment goes through.")).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: /^Monday/ })).toBeNull();
-    expect(screen.queryByRole("checkbox")).toBeNull();
   });
 });
 
@@ -91,10 +81,86 @@ describe("retrying and lapsed notes", () => {
     expect(screen.getByRole("heading", { level: 2, name: /^Monday/ })).toBeTruthy();
   });
 
-  it("shows the lapsed waiting card in place of a held week's days", () => {
-    render(<HeldWeek lapsed />);
-    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Your week is saved.");
-    expect(screen.getByText("It appears as soon as you pick a plan.")).toBeTruthy();
+});
+
+describe("weekend upload card", () => {
+  const SATURDAY = new Date("2026-12-26T18:00:00.000Z");
+  const paid: BillingRecord = {
+    ...inFreeWeek, stripeStatus: "active", firstChargeSucceeded: true, paidPeriodEndsAt: new Date("2027-01-04T06:00:00.000Z"),
+  };
+  function renderWeekend(record: BillingRecord) {
+    const status = planStatus("student", record, SATURDAY);
+    const note = planProblemNote(status);
+    const uploadDue = !hidesUploadReminder(status, record, SATURDAY);
+    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName)}
+      student={mockStudent} checkIns={[]} notice={(note || uploadDue) && <PlanNotices note={note} uploadDue={uploadDue} />} />);
+  }
+
+  it("sits above the week with Plan next week opening the weekly upload", () => {
+    renderWeekend(paid);
+    const card = screen.getByRole("region", { name: "Next week" });
+    expect(within(card).getByRole("heading", { level: 2 }).textContent).toBe("Next week starts Monday.");
+    expect(within(card).getByText("Add your screenshots to build your weekly schedule.")).toBeTruthy();
+    const plan = within(card).getByRole("link", { name: "Plan next week" });
+    expect(plan.getAttribute("href")).toBe("/dashboard/upload");
+    expect(within(card).queryByRole("button")).toBeNull();
+    expect(card.compareDocumentPosition(screen.getByRole("heading", { level: 1 })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("sits under a payment-retrying note, so Update card reads first", () => {
+    renderWeekend({ ...paid, stripeStatus: "past_due", renewalFailedAt: new Date("2026-12-25T07:00:00.000Z") });
+    const [note, upload] = screen.getAllByRole("region").filter((region) => ["Your plan", "Next week"].includes(region.getAttribute("aria-label")!));
+    expect(note!.getAttribute("aria-label")).toBe("Your plan");
+    expect(within(note!).getByRole("button", { name: "Update card" })).toBeTruthy();
+    expect(within(upload!).getByRole("link", { name: "Plan next week" }).getAttribute("href")).toBe("/dashboard/upload");
+  });
+
+  it("hides when the plan has ended", () => {
+    renderWeekend({ ...paid, stripeStatus: "canceled", cancelAtPeriodEnd: true, paidPeriodEndsAt: new Date("2026-12-21T06:00:00.000Z") });
+    expect(screen.getByRole("region", { name: "Your plan" })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Next week" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Plan next week" })).toBeNull();
+  });
+});
+
+describe("held weekly schedule", () => {
+  const MONDAY = "2026-11-23";
+  const held = (props: Partial<Parameters<typeof HeldWeek>[0]> = {}) =>
+    render(<HeldWeek weekOf={MONDAY} preview={false} problem={null} freeWeekEnding={null} lapsed={false} {...props} />);
+
+  it("shows the title and the waiting card, and no days", () => {
+    held();
+    expect(screen.getByText("Week of November 23")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Your plan for this week");
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Your week is ready.");
+    expect(screen.getByText("It appears when your first payment goes through.")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: /^Monday/ })).toBeNull();
     expect(screen.queryByRole("checkbox")).toBeNull();
+  });
+
+  it("shows the lapsed note above the title and the lapsed waiting card", () => {
+    const record: BillingRecord = { ...inFreeWeek, stripeStatus: "canceled", cancelAtPeriodEnd: true };
+    const now = new Date("2026-11-24T18:00:00.000Z");
+    held({ problem: planProblemNote(planStatus("student", record, now)), lapsed: true });
+    const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
+    expect(headings).toEqual(["Your plan has ended.", "Your plan for this week", "Your week is saved."]);
+    expect(screen.getByText("It appears as soon as you pick a plan.")).toBeTruthy();
+  });
+
+  it("reads as next week's plan on a held preview", () => {
+    held({ preview: true });
+    expect(screen.getByText("Next week · starts Monday, Nov 23")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Your plan for next week");
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Your week is ready.");
+  });
+
+  it("drops the waiting card under the free-week-ending note, which says when next week appears", () => {
+    const saturday = new Date("2026-11-21T18:00:00.000Z");
+    const freeWeekEnding = freeWeekEndingNote(planStatus("student", inFreeWeek, saturday), inFreeWeek, saturday, true, { weeklyCents: 1000, monthlyCents: 2999 });
+    held({ preview: true, freeWeekEnding });
+    const notice = screen.getByRole("region", { name: "Your plan" });
+    expect(within(notice).getByText("Your Weekly plan starts Monday at $10. Your plan for next week appears then.")).toBeTruthy();
+    expect(screen.getAllByRole("heading").map((heading) => heading.textContent)).toEqual(["Your free week ends Sunday.", "Your plan for next week"]);
+    expect(screen.queryByText("Your week is ready.")).toBeNull();
   });
 });

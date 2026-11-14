@@ -10,7 +10,6 @@ import { Footer } from "./Footer";
 import { NavTab } from "./NavTab";
 import { PageHeader } from "./PageHeader";
 import { ProgressBar } from "./ProgressBar";
-import { ReminderStrip } from "./ReminderStrip";
 import { SegmentedSwitch } from "./SegmentedSwitch";
 import { TextInput } from "./TextInput";
 
@@ -267,12 +266,6 @@ describe("app shell pieces", () => {
     const current = screen.getByRole("link", { name: "This week" });
     expect(current.getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("link", { name: "Progress" }).hasAttribute("aria-current")).toBe(false);
-  });
-
-  it("renders the reminder strip with its link and no close button", () => {
-    render(<ReminderStrip message="Next week starts Monday." href="/dashboard/upload" action="Plan next week" />);
-    expect(screen.getByRole("link", { name: "Plan next week" }).getAttribute("href")).toBe("/dashboard/upload");
-    expect(screen.queryByRole("button")).toBeNull();
   });
 
   it("renders the page header band", () => {

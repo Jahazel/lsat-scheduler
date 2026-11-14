@@ -14,10 +14,9 @@ import { callAction } from "@/lib/callAction";
 import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { ReminderStrip } from "@/components/ui/ReminderStrip";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { InfoGlyph, StatusIcon } from "@/components/ui/StatusIcon";
-import { COLUMN_GUTTER, FOCUS, MOTION, PAGE_COLUMN, cx } from "@/components/ui/classes";
+import { COLUMN_GUTTER, FOCUS, MOTION, NOTICE_SLOT, PAGE_COLUMN, cx } from "@/components/ui/classes";
 import { DrillSetupGuide } from "@/components/DrillSetupGuide";
 import { DRILL_LINK_PARAMETER, drillSetupGuide, type DrillSetupGuide as DrillSetupGuideContent } from "@/lib/drillSetupGuide";
 import type { RoadToTestDay } from "@/lib/roadToTestDay";
@@ -37,7 +36,6 @@ interface ScheduleCheckInViewProps {
   padding?: string;
   /** The student's local date (YYYY-MM-DD). Adds the pace status and the Today label. */
   today?: string;
-  uploadReminder?: boolean;
   notice?: ReactNode;
   thisWeek?: { drillLink: string | null; road: RoadToTestDay };
 }
@@ -149,7 +147,6 @@ export default function ScheduleCheckInView({
   footer,
   padding,
   today,
-  uploadReminder = false,
   notice,
   thisWeek,
 }: ScheduleCheckInViewProps) {
@@ -318,17 +315,10 @@ export default function ScheduleCheckInView({
 
   return (
     <>
-      {notice && <div data-page-section className={cx(PAGE_COLUMN, "py-5 md:py-8")}>{notice}</div>}
+      {notice && <div data-page-section className={cx(PAGE_COLUMN, NOTICE_SLOT)}>{notice}</div>}
       <div data-page-section>
-        {uploadReminder && (
-          <ReminderStrip
-            message="Next week starts Monday. Add your screenshots to build your weekly schedule."
-            href="/dashboard/upload"
-            action="Plan next week"
-          />
-        )}
         {thisWeek ? <WeekHeader
-          className={cx(PAGE_COLUMN, "pt-8 lg:pt-10")}
+          className={cx(PAGE_COLUMN, notice ? "pt-6" : "pt-8 lg:pt-10")}
           weekOf={schedule.weekOf}
           preview={readOnly}
           notes={weekNotes(schedule)}

@@ -6,9 +6,6 @@ import { findStudentByAccountId } from "@/lib/studentRepository";
 import {
   currentWeekInTimezone, loadOrGenerateCurrentWeek, localDateInTimezone, nextWeekHasUpload, showsUploadReminder,
 } from "@/lib/currentWeeklySchedule";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { COLUMN_GUTTER, PAGE_COLUMN, cx } from "@/components/ui/classes";
-import { formatScheduleWeekOf } from "@/lib/scheduleCheckInSummary";
 import { roadToTestDay } from "@/lib/roadToTestDay";
 import { listApprovedAnalyticsSnapshots } from "@/lib/analyticsSnapshotRepository";
 import { mockRules } from "@/lib/mockData";
@@ -24,7 +21,7 @@ import { CurrentWeekReport } from "@/components/AdminTestContext";
 import { loadChosenPlan } from "@/lib/billingRepository";
 import { isHeldWeek } from "@/lib/planStatus";
 import { freeWeekEndingNote, hidesUploadReminder, planProblemNote } from "@/lib/planNotes";
-import { HeldWeek, PlanNotice } from "@/components/PlanNotes";
+import { HeldWeek, PlanNotices } from "@/components/PlanNotes";
 
 type DashboardSearchParams = { historyWeek?: string | string[]; [DRILL_LINK_PARAMETER]?: string | string[] };
 
@@ -80,33 +77,20 @@ export default async function DashboardPage({
   const preview = currentWeek.kind === "next_week_preview";
   const realNow = new Date();
   const problem = planProblemNote(plan);
-  if (isHeldWeek(record, schedule.weekStartDate)) {
-    const lastFreeWeekendNote = preview && !problem && freeWeekEndingNote(plan, record, realNow, true);
-    return (
-      <div data-page-fade className="min-h-screen">
-        <PageCue page="this-week" />
-        <PageArrival page="This week" look="fade" />
-        {problem && <div data-page-section className={cx(PAGE_COLUMN, "py-5 md:py-8")}><PlanNotice note={problem} /></div>}
-        <div data-page-section>
-          <PageHeader
-            gutter={COLUMN_GUTTER}
-            eyebrow={`Week of ${formatScheduleWeekOf(schedule.weekStartDate)}`}
-            title={preview ? "Your plan for next week" : "Your plan for this week"}
-          />
-        </div>
-        <div className={cx(PAGE_COLUMN, "flex flex-col gap-4 pt-8 pb-16 md:pt-16 md:pb-24")}>
-          <div data-page-section>
-            {lastFreeWeekendNote ? <PlanNotice note={lastFreeWeekendNote} /> : <HeldWeek lapsed={plan.kind === "lapsed"} />}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (isHeldWeek(record, schedule.weekStartDate)) return (
+    <div data-page-fade className="min-h-screen">
+      <PageCue page="this-week" />
+      <PageArrival page="This week" look="fade" />
+      <HeldWeek weekOf={schedule.weekStartDate} preview={preview} problem={problem} lapsed={plan.kind === "lapsed"}
+        freeWeekEnding={preview ? freeWeekEndingNote(plan, record, realNow, true) : null} />
+    </div>
+  );
   const [checkIns, snapshots] = await Promise.all([
     preview ? [] : postgresActivityCheckIns.listForSchedule(schedule.id),
     listApprovedAnalyticsSnapshots(doc.id),
   ]);
   const note = problem ?? (preview ? null : freeWeekEndingNote(plan, record, realNow, nextWeekHasUpload(snapshots, realNow, SCHEDULE_TIMEZONE)));
+  const uploadDue = !preview && !hidesUploadReminder(plan, record, realNow) && showsUploadReminder(snapshots, now, SCHEDULE_TIMEZONE);
 
   return (
     <div data-page-fade className="min-h-screen">
@@ -122,8 +106,7 @@ export default async function DashboardPage({
         checkIns={checkIns}
         readOnly={preview}
         today={localDateInTimezone(now, SCHEDULE_TIMEZONE)}
-        uploadReminder={!preview && !hidesUploadReminder(plan, record, realNow) && showsUploadReminder(snapshots, now, SCHEDULE_TIMEZONE)}
-        notice={note && <PlanNotice note={note} />}
+        notice={(note || uploadDue) && <PlanNotices note={note} uploadDue={uploadDue} />}
         thisWeek={{ drillLink: (Array.isArray(drill) ? drill[0] : drill) ?? null, road: roadToTestDay(doc, now, SCHEDULE_TIMEZONE) }}
       />
     </div>

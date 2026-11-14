@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import type { RoadToTestDay } from "@/lib/roadToTestDay";
 import { formatScheduleWeekOf } from "@/lib/scheduleCheckInSummary";
@@ -136,6 +136,16 @@ function Count({ count, preview }: { count: WeekCount; preview: boolean }) {
 
 const previewStart = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" });
 
+export function WeekTitle({ weekOf, preview, children }: { weekOf: string; preview: boolean; children?: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p className="text-small text-smoke">{preview ? `Next week · starts ${previewStart.format(new Date(`${weekOf}T00:00:00.000Z`))}` : `Week of ${formatScheduleWeekOf(weekOf)}`}</p>
+      <h1 className="text-h3 font-semibold text-balance text-ink">{preview ? "Your plan for next week" : "Your plan for this week"}</h1>
+      {children}
+    </div>
+  );
+}
+
 export function WeekHeader({ weekOf, preview, notes, count, road, className }: {
   weekOf: string;
   preview: boolean;
@@ -147,11 +157,9 @@ export function WeekHeader({ weekOf, preview, notes, count, road, className }: {
   return (
     <header className={cx("flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between lg:gap-8", className)}>
       <div className="flex min-w-0 flex-1 flex-col gap-5 lg:pt-2">
-        <div className="flex flex-col gap-1.5">
-          <p className="text-small text-smoke">{preview ? `Next week · starts ${previewStart.format(new Date(`${weekOf}T00:00:00.000Z`))}` : `Week of ${formatScheduleWeekOf(weekOf)}`}</p>
-          <h1 className="text-h3 font-semibold text-balance text-ink">{preview ? "Your plan for next week" : "Your plan for this week"}</h1>
+        <WeekTitle weekOf={weekOf} preview={preview}>
           <p className="text-body text-smoke">{preview ? "Your upload is saved. Check-ins open on Monday." : "Your plan is set. Check off as you go."}</p>
-        </div>
+        </WeekTitle>
         <Notes notes={notes} />
       </div>
       <section aria-label="Week summary" className="flex flex-col gap-4 rounded-lg border border-vellum-line bg-paper p-5 shadow-control lg:w-80 lg:shrink-0">
