@@ -358,6 +358,13 @@ body:has([data-landing-page]) > footer > * { border-color: color-mix(in oklab, v
   .drop-area-swap { animation-name: drop-area-fade; }
 }
 
+@keyframes up-next-swap { from { opacity: 0; transform: translateY(4px); } }
+@keyframes up-next-fade { from { opacity: 0; } }
+.up-next-swap { animation: up-next-swap var(--duration-base) var(--ease-out-strong) both; }
+@media (prefers-reduced-motion: reduce) {
+  .up-next-swap { animation-name: up-next-fade; }
+}
+
 @keyframes week-reveal-rise { from { opacity: 0; transform: translateY(8px); } }
 @keyframes week-reveal-bar { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0); } }
 @keyframes week-reveal-fade { from { opacity: 0; } }
