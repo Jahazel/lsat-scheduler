@@ -524,7 +524,7 @@ describe("ScheduleCheckInView", () => {
       expect(screen.queryByRole("checkbox")).toBeNull();
       await userEvent.click(within(card("Monday")).getByText("1 Full LR Section"));
       expect(saveActivityCheckIn).not.toHaveBeenCalled();
-      expect(within(card("Monday")).getByText("1 Full LR Section").parentElement!.parentElement!.textContent).toBe("1 Full LR Section1 h, not done");
+      expect(within(card("Monday")).getAllByRole("listitem")[0]!.textContent).toBe("1 Full LR Section1 h, not done");
       expect(within(card("Tuesday")).getByRole("button", { name: "Set up 10 Weaken + Strengthen (L2-4), Tuesday" })).toBeTruthy();
       expect(within(card("Monday")).queryByText(/of \d+ done/)).toBeNull();
     });
