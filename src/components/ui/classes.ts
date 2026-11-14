@@ -14,6 +14,7 @@ export const MOTION = "transition-colors duration-(--duration-fast) ease-out act
 export const PLACEHOLDER_SHAPE = "rounded bg-vellum-line text-transparent box-decoration-clone";
 
 export const PAGE_COLUMN = "mx-auto w-full max-w-content px-5 md:px-6 lg:px-10";
+export const NOTICE_SLOT = "pt-5 md:pt-8 lg:pt-10";
 export const COLUMN_GUTTER = "px-5 md:px-[max(1.5rem,calc(50%-var(--container-content)/2+1.5rem))] lg:px-[max(2.5rem,calc(50%-var(--container-content)/2+2.5rem))]";
 
 export const cx = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(" ");

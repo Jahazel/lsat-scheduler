@@ -217,23 +217,6 @@ describe("ScheduleCheckInView", () => {
     expect(screen.getAllByText(/^Practice test [12] of 2 · /)).toHaveLength(2);
   });
 
-  it("shows the Plan next week reminder above the plan, linking to the weekly upload, with no way to close it", () => {
-    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} uploadReminder />);
-    const reminder = screen.getByRole("complementary", { name: "Reminder" });
-
-    expect(reminder.textContent).toContain("Next week starts Monday. Add your screenshots to build your weekly schedule.");
-    expect(within(reminder).getByRole("link", { name: "Plan next week" }).getAttribute("href")).toBe("/dashboard/upload");
-    expect(within(reminder).queryByRole("button")).toBeNull();
-    expect(reminder.compareDocumentPosition(screen.getByRole("heading", { level: 1 })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it("shows no reminder unless the weekend asks for next week's upload", () => {
-    render(<ScheduleCheckInView scheduleId="schedule-1" schedule={week()} student={mockStudent} checkIns={[]} />);
-
-    expect(screen.queryByRole("complementary", { name: "Reminder" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Plan next week" })).toBeNull();
-  });
-
   describe("week header on This week", () => {
     const MONDAY = "2026-08-24";
     const WEDNESDAY = "2026-08-26";
@@ -303,6 +286,7 @@ describe("ScheduleCheckInView", () => {
       renderWeek({ readOnly: true });
       expect(screen.getByText("Next week · starts Monday, Aug 24")).toBeTruthy();
       expect(screen.getByRole("heading", { level: 1, name: "Your plan for next week" })).toBeTruthy();
+      expect(screen.getByText("Your upload is saved. Check-ins open on Monday.")).toBeTruthy();
       expect(summary().textContent).toContain("18 activities planned");
       expect(within(summary()).queryByRole("progressbar")).toBeNull();
       expect(within(summary()).queryByText("On pace")).toBeNull();
