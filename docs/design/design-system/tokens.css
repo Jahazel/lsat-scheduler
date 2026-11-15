@@ -1,4 +1,4 @@
-/* Exported from Paper "DrillMap · Design" (file 01M3Q7R5SFFG7M27V23S82A5VD), get_tokens format=tailwind, 2026-10-20. */
+/* Exported from Paper "DrillMap · Design" (file 01M3Q7R5SFFG7M27V23S82A5VD), get_tokens format=tailwind, 2026-10-20. Ink and Accent set by hand to the landing palette, 2026-11-15. */
 @theme {
   --color-void: #000000;
   --color-graphite: #141414;
@@ -7,7 +7,7 @@
   --color-vellum: #F6F6F6;
   --color-paper: #FFFFFF;
   --color-vellum-line: #E4E4E4;
-  --color-ink: #0A0A0A;
+  --color-ink: #0B0B0B;
   --color-chalk: #FAFAFA;
   --color-fog: #8A8A8A;
   --color-smoke: #5C5C5C;
@@ -20,7 +20,7 @@
   --color-danger-ink: #C23532;
   --color-warning: #D29922;
   --color-warning-ink: #9A6700;
-  --color-accent: #123A94;
+  --color-accent: #2B3B79;
   --font-sans: Geist;
   --font-mono: Geist Mono;
   --text-caption: 12px;

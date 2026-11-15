@@ -87,7 +87,7 @@ export function LeaveGuard({ dirty, waitForSave }: { dirty: boolean; waitForSave
           >
             Leave
           </button>
-          <button ref={stayButton} type="button" onClick={stay} className={cx("h-10 rounded-sm bg-ink px-[18px] text-small font-medium text-paper", DIALOG_FOCUS)}>
+          <button ref={stayButton} type="button" onClick={stay} className={cx("h-10 rounded-sm bg-ink px-[18px] text-small font-medium text-paper pointer-hover:bg-accent", DIALOG_FOCUS)}>
             Stay
           </button>
         </div>

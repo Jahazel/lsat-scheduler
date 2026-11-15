@@ -35,8 +35,8 @@ Use the token names in code. `src/app/designTokens.test.ts` fails on the brand n
 | Text, primary | `text-ink` | Headings, body, button labels |
 | Text, secondary | `text-smoke` | All secondary text under 18 px |
 | Text, muted | `text-fog` | Placeholders, disabled labels, icons, text at 18 px and up |
-| Primary action | `bg-ink text-chalk`, hover `pointer-hover:bg-accent` | Every dark button: primary buttons, pills, and selected segments. A bordered dark button also takes `pointer-hover:border-accent`. |
-| Accent | `text-accent`, `outline-accent`, `bg-accent` | Links, focus rings, progress fills, the dark button hover, and one resting button fill: the drill setup guide's Next step / Done button (`src/components/DrillSetupGuide.tsx`). Never a card fill in the app. |
+| Primary action | `bg-ink text-chalk`, hover `pointer-hover:bg-accent`, press `active:bg-accent` on shared `Button` | Every dark button: primary buttons and pills. A bordered dark button also takes `pointer-hover:border-accent`. |
+| Accent | `text-accent`, `outline-accent`, `bg-accent` | Links, focus rings, progress fills, dark button hover and press, and one resting button fill: the drill setup guide's Next step / Done button (`src/components/DrillSetupGuide.tsx`). Never a card fill in the app. |
 | Accent tint | `bg-accent/tint`, `bg-accent/faint` | Tinted backgrounds (14% and 8%) |
 | Status | `text-success-ink`, `text-warning-ink`, `text-danger-ink` | Status text; the base color (`bg-success`, …) is for dots and icons |
 | Dark surface | `bg-ink`, `border-graphite-line` | Dark panels and the footer |

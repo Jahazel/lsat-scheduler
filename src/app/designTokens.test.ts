@@ -15,7 +15,7 @@ const BROWSER_READ_COLOR_FILES = new Set(["app/manifest.ts", "app/manifest.test.
 const RULES: { name: string; pattern: RegExp }[] = [
   { name: "old ink or teal accent token", pattern: /\b(?:ink|accent)-\d{2,3}\b/g },
   { name: "old ambient shadow token", pattern: /proof-ambient/g },
-  { name: "brand color name, not its token", pattern: /\b(?:void-eclipse|abyss-blue|silver-mist|graphite-raised)\b/g },
+  { name: "landing color name or removed token", pattern: /\b(?:void-eclipse|abyss-blue|silver-mist|graphite-raised)\b/g },
   {
     name: "Tailwind default palette color",
     pattern: new RegExp(
@@ -86,10 +86,10 @@ describe("design tokens", () => {
     ]);
     expect(findTokenViolations("shadow-proof-ambient")).toEqual(["old ambient shadow token: proof-ambient"]);
     expect(findTokenViolations("bg-void-eclipse pointer-hover:bg-abyss-blue var(--color-silver-mist) hover:bg-graphite-raised")).toEqual([
-      "brand color name, not its token: void-eclipse",
-      "brand color name, not its token: abyss-blue",
-      "brand color name, not its token: silver-mist",
-      "brand color name, not its token: graphite-raised",
+      "landing color name or removed token: void-eclipse",
+      "landing color name or removed token: abyss-blue",
+      "landing color name or removed token: silver-mist",
+      "landing color name or removed token: graphite-raised",
     ]);
     expect(findTokenViolations("bg-white text-red-600 border-s-zinc-200 var(--color-red-500)")).toEqual([
       "Tailwind default palette color: bg-white",
