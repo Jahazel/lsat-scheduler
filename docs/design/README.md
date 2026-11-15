@@ -20,7 +20,7 @@ data; the rules in spec #191 decide what the app shows.
 | `tokens.css` | File tokens | Colors, type scale, weights, tracking, leading, spacing, radius, opacity, breakpoints, containers (Tailwind v4 `@theme`) |
 | `05-foundations` | Design System · 05 — Foundations II | Color roles, type ramp, spacing, grid, elevation, icons, motion |
 | `06-component-states` | Design System · 06 — Component States | Buttons, text inputs, nav bar, page header band, progress bar, component specs |
-| `07-this-week-patterns` | Design System · 07 — This week patterns | Reminder strip, day card, activity row, status icons, footer, copy rules |
+| `07-this-week-patterns` | Design System · 07 — This week patterns | Day card, activity row, status icons, footer, copy rules |
 
 `onboarding/states` also shows three controls not yet on the Design System page: the segmented switch, the checkbox,
 and the drop zone's keyboard focus.

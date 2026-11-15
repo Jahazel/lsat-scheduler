@@ -8,7 +8,7 @@ are the source. Start at `docs/design/README.md`.
 | `docs/design/design-system/tokens.css` | Every token: color, text size, leading, tracking, weight, spacing, radius, opacity, breakpoint, container |
 | `docs/design/design-system/05-foundations` | Color roles, type ramp, spacing, grid, elevation, icons, motion |
 | `docs/design/design-system/06-component-states` | Buttons, text inputs, nav bar, page header band, progress bar, component specs |
-| `docs/design/design-system/07-this-week-patterns` | Reminder strip, day card, activity row, status icons, footer, copy rules |
+| `docs/design/design-system/07-this-week-patterns` | Day card, activity row, status icons, footer, copy rules |
 | `docs/design/<area>/` | Screen boards. A screen board wins over a Design System board. |
 
 `src/app/globals.css` holds the same tokens as the app's Tailwind theme, plus the elevation shadows. Tailwind's default
@@ -17,7 +17,15 @@ application code uses an old token name, a Tailwind palette color or type class,
 
 ## Color roles
 
-One light ground: Vellum page, Paper cards, Ink text, one Accent blue.
+The landing page sets the palette for the whole site: three brand colors on one light ground.
+
+| Brand color | Token | Hex |
+| --- | --- | --- |
+| Void Eclipse | `ink` | `#0B0B0B` |
+| Abyss Blue | `accent` | `#2B3B79` |
+| Silver Mist | `vellum-line` | `#E4E4E4` |
+
+Use the token names in code. `src/app/designTokens.test.ts` fails on the brand names as class names.
 
 | Role | Class | Use |
 | --- | --- | --- |
@@ -27,12 +35,12 @@ One light ground: Vellum page, Paper cards, Ink text, one Accent blue.
 | Text, primary | `text-ink` | Headings, body, button labels |
 | Text, secondary | `text-smoke` | All secondary text under 18 px |
 | Text, muted | `text-fog` | Placeholders, disabled labels, icons, text at 18 px and up |
-| Primary action | `bg-ink text-chalk`, hover `bg-graphite-raised` | Primary buttons and selected segments |
-| Accent | `text-accent`, `outline-accent`, `bg-accent` | Links, focus rings, progress fills, and one button: the drill setup guide's Next step / Done button (`src/components/DrillSetupGuide.tsx`). Never any other button fill, and never a card fill. |
+| Primary action | `bg-ink text-chalk`, hover `pointer-hover:bg-accent` | Every dark button: primary buttons, pills, and selected segments. A bordered dark button also takes `pointer-hover:border-accent`. |
+| Accent | `text-accent`, `outline-accent`, `bg-accent` | Links, focus rings, progress fills, the dark button hover, and one resting button fill: the drill setup guide's Next step / Done button (`src/components/DrillSetupGuide.tsx`). Never a card fill in the app. |
 | Accent tint | `bg-accent/tint`, `bg-accent/faint` | Tinted backgrounds (14% and 8%) |
 | Status | `text-success-ink`, `text-warning-ink`, `text-danger-ink` | Status text; the base color (`bg-success`, …) is for dots and icons |
-| Dark surface | `bg-ink`, `bg-graphite-raised`, `border-graphite-line` | Dark panels on Vellum |
-| Spectrum | `bg-sign-in-glow`; `spectrum-violet`, `spectrum-pink`, `spectrum-amber` | Brand surfaces only: the Log in and Sign up glow, the landing hero glow behind the product screen, and the landing How it works color panels. Never text, buttons, or app screens. |
+| Dark surface | `bg-ink`, `border-graphite-line` | Dark panels and the footer |
+| Brand gradient | `bg-sign-in-glow`; Ink to Accent to Vellum Line | Brand surfaces only: the Log in and Sign up glow, the landing hero glow, the How it works panels, and the landing closing band. Never text or app screens. |
 
 **Never color alone.** Every status pairs its color with an icon or a word.
 
@@ -68,7 +76,7 @@ Flat by default. Depth comes from a 1 px Vellum Line border.
 
 - **Two registers.** The landing page is a brand surface: proof numbers (178, Stanford Law, 200+ students) get their own
   visual step, never body size. The signed-in app is a calm weekly tool: flat, bordered, Accent only for links, focus,
-  progress, and the drill setup guide's step button.
+  progress, dark button hovers, and the drill setup guide's step button.
 - **Focus.** Every control shows a 2 px Accent focus ring with a 2 px offset.
 - **Motion.** 120 ms for hover, 200 ms for press and focus; overlays such as the Dialog open in 200 ms
   and close in 120 ms (see `docs/design/research/drill-setup-guide/motion.md`); honor `prefers-reduced-motion`.

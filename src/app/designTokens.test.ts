@@ -15,6 +15,7 @@ const BROWSER_READ_COLOR_FILES = new Set(["app/manifest.ts", "app/manifest.test.
 const RULES: { name: string; pattern: RegExp }[] = [
   { name: "old ink or teal accent token", pattern: /\b(?:ink|accent)-\d{2,3}\b/g },
   { name: "old ambient shadow token", pattern: /proof-ambient/g },
+  { name: "brand color name, not its token", pattern: /\b(?:void-eclipse|abyss-blue|silver-mist|graphite-raised)\b/g },
   {
     name: "Tailwind default palette color",
     pattern: new RegExp(
@@ -84,6 +85,12 @@ describe("design tokens", () => {
       "old ink or teal accent token: ink-900",
     ]);
     expect(findTokenViolations("shadow-proof-ambient")).toEqual(["old ambient shadow token: proof-ambient"]);
+    expect(findTokenViolations("bg-void-eclipse pointer-hover:bg-abyss-blue var(--color-silver-mist) hover:bg-graphite-raised")).toEqual([
+      "brand color name, not its token: void-eclipse",
+      "brand color name, not its token: abyss-blue",
+      "brand color name, not its token: silver-mist",
+      "brand color name, not its token: graphite-raised",
+    ]);
     expect(findTokenViolations("bg-white text-red-600 border-s-zinc-200 var(--color-red-500)")).toEqual([
       "Tailwind default palette color: bg-white",
       "Tailwind default palette color: text-red-600",
@@ -105,7 +112,7 @@ describe("design tokens", () => {
   it("allows Paper tokens", () => {
     expect(
       findTokenViolations(
-        `className="bg-vellum text-ink border-vellum-line bg-accent/tint text-danger-ink shadow-e2 accent-accent hover:bg-graphite-raised text-chalk text-small sm:text-h2 font-regular tracking-heading"`,
+        `className="bg-vellum text-ink border-vellum-line bg-accent/tint text-danger-ink shadow-e2 accent-accent pointer-hover:bg-accent text-chalk text-small sm:text-h2 font-regular tracking-heading"`,
       ),
     ).toEqual([]);
     expect(findTokenViolations("// Fix #202\n/* see #191 */\nconst url = \"https://example.test\";")).toEqual([]);

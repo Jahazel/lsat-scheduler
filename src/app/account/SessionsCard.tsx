@@ -52,7 +52,7 @@ function ConfirmButtons({ onCancel }: { onCancel: () => void }) {
         variant="bare"
         waiting={pending}
         waitLabel="Signing out…"
-        className={cx(BUTTON, "sm:min-w-52 bg-ink text-chalk hover:bg-graphite-raised", MOTION, FOCUS)}
+        className={cx(BUTTON, "sm:min-w-52 bg-ink text-chalk pointer-hover:bg-accent", MOTION, FOCUS)}
       >
         Sign out of all devices
       </Button>

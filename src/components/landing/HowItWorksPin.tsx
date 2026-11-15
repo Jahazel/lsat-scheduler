@@ -154,7 +154,7 @@ export function HowItWorksPin({ steps, intro }: { steps: Step[]; intro: string }
                     ref={(fill) => {
                       fillRefs.current[index] = fill;
                     }}
-                    className="block h-full origin-left bg-abyss-blue [transform:scaleX(0)]"
+                    className="block h-full origin-left bg-accent [transform:scaleX(0)]"
                   />
                 </span>
               </button>
@@ -192,7 +192,7 @@ export function HowItWorksPin({ steps, intro }: { steps: Step[]; intro: string }
 export function StepFrame({ className, children }: { className?: string; children: React.ReactNode }) {
   return (
     <div className={cx("rounded-[16px] border border-paper/60 bg-vellum p-1.5 shadow-step-screen", className)}>
-      <div className="size-full overflow-clip rounded-[10px] border border-silver-mist bg-paper">{children}</div>
+      <div className="size-full overflow-clip rounded-[10px] border border-vellum-line bg-paper">{children}</div>
     </div>
   );
 }

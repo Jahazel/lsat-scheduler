@@ -6,9 +6,9 @@ export type ButtonVariant = "primary" | "outline" | "text";
 export type ButtonSize = "lg" | "md";
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: "bg-ink text-chalk hover:bg-graphite-line active:bg-graphite-line active:text-chalk/strong",
-  outline: "border border-vellum-line bg-paper text-ink hover:bg-vellum active:bg-vellum active:text-ink/strong",
-  text: "text-ink hover:bg-vellum-line active:bg-vellum-line active:text-ink/strong",
+  primary: "bg-ink text-chalk pointer-hover:bg-accent active:bg-accent active:text-chalk/strong",
+  outline: "border border-vellum-line bg-paper text-ink pointer-hover:bg-vellum active:bg-vellum active:text-ink/strong",
+  text: "text-ink pointer-hover:bg-vellum-line active:bg-vellum-line active:text-ink/strong",
 };
 
 const SIZES: Record<ButtonSize, string> = {
@@ -101,7 +101,7 @@ export function IconButton({
       type={type}
       aria-label={label}
       className={cx(
-        "inline-flex shrink-0 items-center justify-center rounded-pill text-ink hover:bg-vellum-line",
+        "inline-flex shrink-0 items-center justify-center rounded-pill text-ink pointer-hover:bg-vellum-line",
         "disabled:pointer-events-none disabled:opacity-muted",
         size === "md" ? "size-8 [&_svg]:size-3.5" : "size-7 [&_svg]:size-2.5",
         MOTION,

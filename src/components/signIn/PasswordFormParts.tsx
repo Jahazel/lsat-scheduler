@@ -25,7 +25,7 @@ export function SubmitButton({ label, workingLabel, pending: submitting }: { lab
       waitLabel={workingLabel}
       className={cx(
         "flex h-12 w-full items-center justify-center rounded-sm border border-ink bg-ink text-body leading-[20px] font-medium text-chalk",
-        "hover:bg-graphite-raised",
+        "pointer-hover:border-accent pointer-hover:bg-accent",
         MOTION,
         FOCUS,
       )}

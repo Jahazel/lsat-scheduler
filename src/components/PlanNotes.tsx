@@ -15,7 +15,7 @@ const PILL_SHAPE = cx(
   "transition-[background-color,scale] duration-(--duration-fast) ease-(--ease-out-strong) active:scale-[0.97] motion-reduce:active:scale-100",
   FOCUS,
 );
-const PILL = cx(PILL_SHAPE, "bg-ink text-chalk pointer-hover:bg-graphite-line");
+const PILL = cx(PILL_SHAPE, "bg-ink text-chalk pointer-hover:bg-accent");
 const OUTLINE_PILL = cx(PILL_SHAPE, "border border-vellum-line bg-paper text-ink pointer-hover:bg-vellum");
 const NOTICE_CARD = "flex flex-wrap items-center justify-between gap-3 rounded-lg border border-vellum-line bg-paper p-4 shadow-control";
 

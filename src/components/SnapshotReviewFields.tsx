@@ -13,7 +13,7 @@ import { FOCUS } from "./ui/classes";
 
 
 const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline ${FOCUS}`;
-export const STEP_PRIMARY = `h-11 flex-1 rounded-sm bg-ink text-body font-medium text-chalk transition-colors duration-(--duration-fast) ease-out hover:bg-graphite-raised disabled:cursor-not-allowed disabled:bg-vellum-line disabled:text-smoke ${FOCUS}`;
+export const STEP_PRIMARY = `h-11 flex-1 rounded-sm bg-ink text-body font-medium text-chalk transition-colors duration-(--duration-fast) ease-out pointer-hover:bg-accent disabled:cursor-not-allowed disabled:bg-vellum-line disabled:text-smoke ${FOCUS}`;
 export const STEP_SECONDARY = `h-11 w-28 shrink-0 rounded-sm border border-vellum-line bg-paper text-body font-medium text-ink transition-colors duration-(--duration-fast) ease-out hover:bg-vellum disabled:cursor-not-allowed disabled:text-fog ${FOCUS}`;
 
 export const boxId = (type: AnalyticsType, prefix = "") => `${prefix}accuracy-${type.replace(/\W+/g, "-")}`;
@@ -155,7 +155,7 @@ export function ConfirmBar({ label, saving, locked, note, onBack, onConfirm }: {
           onClick={onConfirm}
           aria-describedby="confirm-note"
           className={`h-11 flex-1 rounded-sm text-body font-medium transition-colors duration-(--duration-fast) ease-out ${FOCUS} ${
-            locked && !saving ? "cursor-not-allowed bg-vellum-line text-smoke" : "bg-ink text-chalk hover:bg-graphite-raised"
+            locked && !saving ? "cursor-not-allowed bg-vellum-line text-smoke" : "bg-ink text-chalk pointer-hover:bg-accent"
           }`}
         >
           {label}

@@ -12,7 +12,7 @@ export function Footer({ signedIn }: { signedIn: boolean }) {
   return (
     <footer data-page-fade className="flex flex-col gap-12 bg-graphite px-5 pt-16 pb-12 md:px-18">
       <div className="flex items-center justify-between gap-4">
-        <p className="text-silver-mist">
+        <p className="text-vellum-line">
           <RouteLogo form="full" />
           <span className="sr-only">DrillMap</span>
         </p>

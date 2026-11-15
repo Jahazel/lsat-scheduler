@@ -21,12 +21,11 @@
   --tracking-*: initial;
   --color-void: #000000;
   --color-graphite: #141414;
-  --color-graphite-raised: #1C1C1C;
   --color-graphite-line: #262626;
   --color-vellum: #F6F6F6;
   --color-paper: #FFFFFF;
   --color-vellum-line: #E4E4E4;
-  --color-ink: #0A0A0A;
+  --color-ink: #0B0B0B;
   --color-chalk: #FAFAFA;
   --color-fog: #8A8A8A;
   --color-smoke: #5C5C5C;
@@ -38,10 +37,7 @@
   --color-warning-ink: #9A6700;
   --color-warning-wash: #FFF6DB;
   --color-warning-line: #EADBA8;
-  --color-accent: #123A94;
-  --color-void-eclipse: #0B0B0B;
-  --color-abyss-blue: #2B3B79;
-  --color-silver-mist: #E4E4E4;
+  --color-accent: #2B3B79;
   --text-caption: 12px;
   --text-mono: 13px;
   --text-small: 14px;
@@ -180,17 +176,17 @@ body {
 
 body:has([data-sign-in-page]) > header,
 body:has([data-sign-in-page]) > footer { display: none; }
-body:has([data-landing-page]) > footer { background-color: var(--color-void-eclipse); }
+body:has([data-landing-page]) > footer { background-color: var(--color-ink); }
 body:has([data-landing-page]) > footer > * { border-color: color-mix(in oklab, var(--color-chalk) 12%, transparent); }
 
 @utility bg-sign-in-glow {
   background-image: radial-gradient(
     ellipse 120% 95% at 50% 0% in oklab,
-    var(--color-void-eclipse) 0%,
-    var(--color-abyss-blue) 24%,
-    color-mix(in oklab, var(--color-abyss-blue) 85%, var(--color-silver-mist)) 46%,
-    color-mix(in oklab, var(--color-abyss-blue) 35%, var(--color-silver-mist)) 70%,
-    color-mix(in oklab, var(--color-silver-mist) 60%, transparent) 88%,
+    var(--color-ink) 0%,
+    var(--color-accent) 24%,
+    color-mix(in oklab, var(--color-accent) 85%, var(--color-vellum-line)) 46%,
+    color-mix(in oklab, var(--color-accent) 35%, var(--color-vellum-line)) 70%,
+    color-mix(in oklab, var(--color-vellum-line) 60%, transparent) 88%,
     transparent 100%
   );
 }
@@ -198,16 +194,16 @@ body:has([data-landing-page]) > footer > * { border-color: color-mix(in oklab, v
 @utility bg-sign-in-top-glow {
   background-image: radial-gradient(
     ellipse 110% 100% at 50% 0% in oklab,
-    var(--color-void-eclipse) 0%,
-    var(--color-abyss-blue) 30%,
-    color-mix(in oklab, var(--color-abyss-blue) 60%, var(--color-silver-mist)) 56%,
-    color-mix(in oklab, var(--color-silver-mist) 55%, transparent) 78%,
+    var(--color-ink) 0%,
+    var(--color-accent) 30%,
+    color-mix(in oklab, var(--color-accent) 60%, var(--color-vellum-line)) 56%,
+    color-mix(in oklab, var(--color-vellum-line) 55%, transparent) 78%,
     transparent 100%
   );
 }
 
 .hero-backdrop {
-  background-image: linear-gradient(to bottom in oklab, var(--color-void-eclipse) 0%, var(--color-abyss-blue) 45%, var(--color-silver-mist) 100%);
+  background-image: linear-gradient(to bottom in oklab, var(--color-ink) 0%, var(--color-accent) 45%, var(--color-vellum-line) 100%);
 }
 
 .line-grid {
@@ -380,10 +376,10 @@ body:has([data-pinned-bar]) .failure-toast-slot { bottom: calc(var(--pinned-bar,
 @keyframes value-in { from { opacity: 0; } }
 .value-in { animation: value-in var(--duration-fast) var(--ease-standard); }
 
-.how-shade-1 { background-image: linear-gradient(to bottom in oklab, var(--color-abyss-blue), color-mix(in oklab, var(--color-abyss-blue) 75%, var(--color-silver-mist))); }
-.how-shade-2 { background-image: linear-gradient(to bottom in oklab, color-mix(in oklab, var(--color-abyss-blue) 75%, var(--color-silver-mist)), color-mix(in oklab, var(--color-abyss-blue) 50%, var(--color-silver-mist))); }
-.how-shade-3 { background-image: linear-gradient(to bottom in oklab, color-mix(in oklab, var(--color-abyss-blue) 50%, var(--color-silver-mist)), color-mix(in oklab, var(--color-abyss-blue) 25%, var(--color-silver-mist))); }
-.how-shade-4 { background-image: linear-gradient(to bottom in oklab, color-mix(in oklab, var(--color-abyss-blue) 25%, var(--color-silver-mist)), var(--color-silver-mist)); }
+.how-shade-1 { background-image: linear-gradient(to bottom in oklab, var(--color-accent), color-mix(in oklab, var(--color-accent) 75%, var(--color-vellum-line))); }
+.how-shade-2 { background-image: linear-gradient(to bottom in oklab, color-mix(in oklab, var(--color-accent) 75%, var(--color-vellum-line)), color-mix(in oklab, var(--color-accent) 50%, var(--color-vellum-line))); }
+.how-shade-3 { background-image: linear-gradient(to bottom in oklab, color-mix(in oklab, var(--color-accent) 50%, var(--color-vellum-line)), color-mix(in oklab, var(--color-accent) 25%, var(--color-vellum-line))); }
+.how-shade-4 { background-image: linear-gradient(to bottom in oklab, color-mix(in oklab, var(--color-accent) 25%, var(--color-vellum-line)), var(--color-vellum-line)); }
 
 .how-key { position: relative; white-space: nowrap; }
 .how-key::after {
@@ -393,7 +389,7 @@ body:has([data-pinned-bar]) .failure-toast-slot { bottom: calc(var(--pinned-bar,
   bottom: 1px;
   height: 3px;
   border-radius: 2px;
-  background: var(--color-abyss-blue);
+  background: var(--color-accent);
   transform-origin: left;
 }
 
@@ -457,7 +453,7 @@ body:has([data-pinned-bar]) .failure-toast-slot { bottom: calc(var(--pinned-bar,
   bottom: 2px;
   height: 3px;
   border-radius: 999px;
-  background: var(--color-abyss-blue);
+  background: var(--color-accent);
   transform-origin: left;
   pointer-events: none;
 }
@@ -475,10 +471,10 @@ body:has([data-pinned-bar]) .failure-toast-slot { bottom: calc(var(--pinned-bar,
   [data-reveal="shown"] .plan-mat { transition: opacity var(--duration-fast) ease; }
 }
 
-.plan-frame { background-color: color-mix(in oklab, var(--color-silver-mist) 45%, var(--color-paper)); }
+.plan-frame { background-color: color-mix(in oklab, var(--color-vellum-line) 45%, var(--color-paper)); }
 .plan-card {
   position: relative;
-  border-color: color-mix(in oklab, var(--color-silver-mist), var(--color-ink) 6%);
+  border-color: color-mix(in oklab, var(--color-vellum-line), var(--color-ink) 6%);
   transition: border-color var(--duration-base) ease;
 }
 .plan-card::after {
@@ -492,7 +488,7 @@ body:has([data-pinned-bar]) .failure-toast-slot { bottom: calc(var(--pinned-bar,
   pointer-events: none;
 }
 @media (hover: hover) and (pointer: fine) {
-  .plan-card:hover { border-color: color-mix(in oklab, var(--color-silver-mist), var(--color-ink) 14%); }
+  .plan-card:hover { border-color: color-mix(in oklab, var(--color-vellum-line), var(--color-ink) 14%); }
   .plan-card:hover::after { opacity: 1; }
 }
 
@@ -503,7 +499,7 @@ body:has([data-pinned-bar]) .failure-toast-slot { bottom: calc(var(--pinned-bar,
   color: var(--color-ink);
   transition: background-color var(--duration-base) ease, border-color var(--duration-base) ease, color var(--duration-base) ease;
 }
-.faq-row[aria-expanded="true"] .faq-icon { border-color: var(--color-abyss-blue); background-color: var(--color-abyss-blue); color: var(--color-chalk); }
+.faq-row[aria-expanded="true"] .faq-icon { border-color: var(--color-accent); background-color: var(--color-accent); color: var(--color-chalk); }
 @media (hover: hover) and (pointer: fine) {
   .faq-row:hover .faq-question { color: var(--color-smoke); }
   .faq-row:not([aria-expanded="true"]):hover .faq-icon { border-color: color-mix(in oklab, var(--color-vellum-line), var(--color-ink) 8%); }
@@ -521,7 +517,7 @@ body:has([data-pinned-bar]) .failure-toast-slot { bottom: calc(var(--pinned-bar,
   --grid-ink: color-mix(in oklab, var(--color-chalk) 12%, transparent);
   --grid-line: repeating-linear-gradient(to bottom, var(--grid-ink) 0 4px, transparent 4px 8px);
   --band-blue: 150px;
-  background: linear-gradient(to bottom in oklab, transparent 0, var(--color-silver-mist) 40px, var(--color-abyss-blue) var(--band-blue), var(--color-void-eclipse) 100%);
+  background: linear-gradient(to bottom in oklab, transparent 0, var(--color-vellum-line) 40px, var(--color-accent) var(--band-blue), var(--color-ink) 100%);
 }
 @media (min-width: 48rem) { .start-band { --band-blue: 200px; } }
 @media (min-width: 64rem) { .start-band { --band-blue: 230px; } }
@@ -534,17 +530,17 @@ body:has([data-pinned-bar]) .failure-toast-slot { bottom: calc(var(--pinned-bar,
 @media (min-width: 48rem) {
   .start-band-middle { display: block; background-image: var(--grid-line); background-position: 50% 0; }
 }
-.start-band-quiet { color: color-mix(in oklab, var(--color-silver-mist) 82%, var(--color-abyss-blue)); }
-.signpost-icon { color: color-mix(in oklab, var(--color-silver-mist) 70%, var(--color-abyss-blue)); }
+.start-band-quiet { color: color-mix(in oklab, var(--color-vellum-line) 82%, var(--color-accent)); }
+.signpost-icon { color: color-mix(in oklab, var(--color-vellum-line) 70%, var(--color-accent)); }
 
 .start-cta { transition: background-color var(--duration-fast) ease, scale var(--duration-fast) var(--ease-out-strong); }
 .start-ghost { transition: border-color var(--duration-fast) ease, scale var(--duration-fast) var(--ease-out-strong); }
 .start-cta:active, .start-ghost:active { scale: 0.97; }
 .signpost-link { transition: color var(--duration-fast) ease; }
 @media (hover: hover) and (pointer: fine) {
-  .start-cta:hover { background-color: var(--color-silver-mist); }
+  .start-cta:hover { background-color: var(--color-vellum-line); }
   .start-ghost:hover { border-color: color-mix(in oklab, var(--color-chalk) 45%, transparent); }
-  .signpost-link:hover { color: color-mix(in oklab, var(--color-silver-mist) 70%, var(--color-abyss-blue)); }
+  .signpost-link:hover { color: color-mix(in oklab, var(--color-vellum-line) 70%, var(--color-accent)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .start-cta, .start-ghost { transition-property: background-color, border-color; }

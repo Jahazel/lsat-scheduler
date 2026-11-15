@@ -5,7 +5,7 @@ const FULL_NAME = "M1158.0 0V-710H1394.0Q1564.0 -710 1655.5 -617.5Q1747.0 -525 1
 const MARK_ROUTE = "M72,48 H184 A48,48 0 0 1 184,144 H72 A16,16 0 0 0 72,176 H164 V208 H72 A48,48 0 0 1 72,112 H184 A16,16 0 0 0 184,80 H72 Z M48,64 A24,24 0 1 1 96,64 A24,24 0 1 1 48,64 Z";
 const END_SQUARE = "M164,172 H204 V212 H164 Z";
 
-export const LOGO_ON_LIGHT = "text-void-eclipse [--logo-accent:var(--color-abyss-blue)]";
+export const LOGO_ON_LIGHT = "text-ink [--logo-accent:var(--color-accent)]";
 
 export function RouteLogo({ form, className }: { form: "full" | "mark"; className?: string }) {
   if (form === "mark") {
