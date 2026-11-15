@@ -7,7 +7,7 @@ import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { noteGoogleArrival } from "@/lib/googleArrival";
 
 const LOOKS = {
-  dark: "border-ink bg-ink text-chalk hover:bg-graphite-raised",
+  dark: "border-ink bg-ink text-chalk pointer-hover:border-accent pointer-hover:bg-accent",
   light: "border-vellum-line bg-paper text-ink hover:bg-vellum",
 };
 

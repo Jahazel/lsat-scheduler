@@ -69,7 +69,7 @@ function AvatarMenu({ name, initials, email, logOut, compact }: Pick<StudentNavP
           setOpen(!open);
         }}
         className={cx(
-          "relative flex shrink-0 items-center justify-center rounded-pill bg-ink font-semibold text-chalk before:absolute before:content-[''] pointer-hover:bg-graphite-line active:scale-[0.96]",
+          "relative flex shrink-0 items-center justify-center rounded-pill bg-ink font-semibold text-chalk before:absolute before:content-[''] pointer-hover:bg-accent active:scale-[0.96]",
           compact ? "size-8 text-caption before:-inset-1.5" : "size-10 text-small before:-inset-0.5",
           open && "ring-4 ring-vellum-line",
           PRESS,

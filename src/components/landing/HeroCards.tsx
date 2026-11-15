@@ -11,7 +11,7 @@ type Card = {
   body: ReactNode;
 };
 
-const LIGHT = "flex-col gap-2 border-void-eclipse/15 bg-paper p-4 text-void-eclipse";
+const LIGHT = "flex-col gap-2 border-ink/15 bg-paper p-4 text-ink";
 const LABEL = "flex items-center gap-2 font-mono text-caption tracking-[0.06em] text-smoke uppercase";
 const TITLE = "text-h5 font-semibold";
 const DETAIL = "text-small text-balance text-smoke";
@@ -34,7 +34,7 @@ const CARDS: Card[] = [
     motion: { delay: 120, phase: 0, rise: -60 },
     body: (
       <>
-        <Label dot="bg-abyss-blue/60">Monday</Label>
+        <Label dot="bg-accent/60">Monday</Label>
         <p className={TITLE}>Sufficient assumption</p>
         <p className={DETAIL}>3 drills · 45 min</p>
       </>
@@ -56,11 +56,11 @@ const CARDS: Card[] = [
   {
     side: "left",
     place: "hidden min-[1360px]:block min-[1360px]:top-[546px] min-[1360px]:left-[calc(50%-624px)] min-[1360px]:-rotate-3",
-    face: "w-max min-w-[228px] flex-row items-center gap-3 border-void-eclipse/15 bg-paper px-4 py-3.5 text-void-eclipse",
+    face: "w-max min-w-[228px] flex-row items-center gap-3 border-ink/15 bg-paper px-4 py-3.5 text-ink",
     motion: { delay: 360, phase: -3.6, rise: -150 },
     body: (
       <>
-        <span className="grid size-6 shrink-0 place-items-center rounded-sm bg-void-eclipse">
+        <span className="grid size-6 shrink-0 place-items-center rounded-sm bg-ink">
           <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
             <path d="M3 7.2 L5.8 10 L11 4.2" fill="none" className="stroke-paper" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -79,11 +79,11 @@ const CARDS: Card[] = [
     motion: { delay: 180, phase: -1.4, rise: -80 },
     body: (
       <>
-        <Label dot="bg-abyss-blue/25">Saturday</Label>
+        <Label dot="bg-accent/25">Saturday</Label>
         <p className={TITLE}>Timed section</p>
         <p className="flex items-center gap-2">
-          <span className="h-1.5 w-24 overflow-hidden rounded-pill bg-silver-mist">
-            <span className="block h-full w-3/5 rounded-pill bg-abyss-blue/60" />
+          <span className="h-1.5 w-24 overflow-hidden rounded-pill bg-vellum-line">
+            <span className="block h-full w-3/5 rounded-pill bg-accent/60" />
           </span>
           <span className="font-mono text-caption whitespace-nowrap text-smoke">21 of 35 min</span>
         </p>
@@ -93,7 +93,7 @@ const CARDS: Card[] = [
   {
     side: "right",
     place: "hidden min-[1360px]:block min-[1360px]:top-[340px] min-[1360px]:left-[calc(50%+484px)] min-[1360px]:-rotate-5",
-    face: "w-[188px] flex-col gap-1 border-abyss-blue bg-abyss-blue p-[18px] text-paper",
+    face: "w-[188px] flex-col gap-1 border-accent bg-accent p-[18px] text-paper",
     motion: { delay: 300, phase: -0.7, rise: -130 },
     body: (
       <>
@@ -109,7 +109,7 @@ const CARDS: Card[] = [
     motion: { delay: 420, phoneDelay: 240, phase: -2.1, rise: -160 },
     body: (
       <>
-        <Label dot="bg-abyss-blue">Weakest type</Label>
+        <Label dot="bg-accent">Weakest type</Label>
         <p className={TITLE}>Flaw</p>
         <p className={DETAIL}>Missed 4 of 10 on your last PT</p>
       </>
@@ -299,7 +299,7 @@ export function HeroCards() {
             key={index}
             className={cx(
               "h-1.5 rounded-pill transition-[width,background-color] duration-(--duration-base) ease-(--ease-in-out-strong) motion-reduce:transition-none",
-              index === activeDot ? "w-[18px] bg-void-eclipse" : "w-1.5 bg-void-eclipse/20",
+              index === activeDot ? "w-[18px] bg-ink" : "w-1.5 bg-ink/20",
             )}
           />
         ))}

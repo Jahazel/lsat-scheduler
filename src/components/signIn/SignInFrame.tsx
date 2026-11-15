@@ -48,7 +48,7 @@ export function SignInFrame({ title, lead, preview, children }: {
       <div data-page-fade aria-hidden className="hidden grow py-4 pr-4 min-[1200px]:flex">
         <div className="relative flex grow items-center justify-center overflow-clip rounded-lg bg-vellum">
           <div className="absolute inset-0 bg-sign-in-glow" />
-          <div data-page-swap className="relative flex w-110 shrink-0 flex-col gap-5 rounded-md border border-silver-mist bg-paper p-6 shadow-e2">
+          <div data-page-swap className="relative flex w-110 shrink-0 flex-col gap-5 rounded-md border border-vellum-line bg-paper p-6 shadow-e2">
             {preview}
           </div>
         </div>

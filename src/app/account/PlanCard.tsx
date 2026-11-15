@@ -35,7 +35,7 @@ export function PlanCard({ facts }: { facts: PlanCardFacts }) {
       </div>
       <div className="flex min-w-0 flex-col justify-end md:w-[360px]">
         {facts.action === "pick" ? (
-          <Link href="/dashboard/upload" className={cx(BUTTON, "bg-ink text-chalk hover:bg-graphite-raised")}>Pick a plan</Link>
+          <Link href="/dashboard/upload" className={cx(BUTTON, "bg-ink text-chalk pointer-hover:bg-accent")}>Pick a plan</Link>
         ) : (
           <ActionForm action={openCustomerPortal}>
             <ManageButton />

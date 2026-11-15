@@ -46,7 +46,7 @@ function Arrows({ screenshot: { width, height, arrows } }: { screenshot: Screens
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="pointer-events-none absolute inset-0 size-full" fill="none"
       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {paths.map((d, index) => <path key={index} d={d} stroke="var(--color-abyss-blue)" strokeWidth={ARROW.stroke} />)}
+      {paths.map((d, index) => <path key={index} d={d} stroke="var(--color-accent)" strokeWidth={ARROW.stroke} />)}
     </svg>
   );
 }
