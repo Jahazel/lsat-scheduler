@@ -90,6 +90,48 @@ const CLASS_SELECTOR = String.raw`/^([^\[]|\[[^\]]*\])*[.][A-Za-z_-]|\[class[~|^
 const CLASS_NAME_TEST =
   "Test what the student sees or hears (role, name, text, aria state), not class names. Check styling in the verify browser run.";
 
+const DOM_WALK_TEST =
+  "Find what the student sees by role, name, or text (getByRole, within, a list item's text), not by stepping through parent, child, or sibling elements.";
+
+const testFileSyntax = [
+  ...serverActionShape,
+  ...["value", "quasis.0.value.raw"].map((argument) => ({
+    selector: `CallExpression[callee.property.name=/^(querySelector|querySelectorAll|closest|matches)$/][arguments.0.${argument}=${CLASS_SELECTOR}]`,
+    message: CLASS_NAME_TEST,
+  })),
+  {
+    selector: "CallExpression[callee.property.name=/^(getAttribute|hasAttribute|toHaveAttribute)$/][arguments.0.value='class']",
+    message: CLASS_NAME_TEST,
+  },
+];
+
+const DOM_WALK = {
+  selector: "MemberExpression[computed=false][property.name=/^(parent(Element|Node)|children|childNodes|childElementCount|(first|last)(Element)?Child|(next|previous)(Element)?Sibling)$/]",
+  message: DOM_WALK_TEST,
+};
+
+const TESTS_STILL_WALKING_THE_DOM = [
+  "src/app/account/PlanCard.test.tsx",
+  "src/app/account/loading.test.tsx",
+  "src/app/admin/loading.test.tsx",
+  "src/app/admin/students/\\[id\\]/loading.test.tsx",
+  "src/app/dashboard/\\(this-week\\)/loading.test.tsx",
+  "src/app/dashboard/upload/WeeklyCheck.test.tsx",
+  "src/app/dashboard/upload/loading.test.tsx",
+  "src/app/onboarding/OnboardingWizard.test.tsx",
+  "src/app/onboarding/PlanChoice.test.tsx",
+  "src/app/onboarding/StartingPlan.test.tsx",
+  "src/app/onboarding/loading.test.tsx",
+  "src/app/progress/ProgressMotion.test.tsx",
+  "src/app/settings/StudySettingsForm.test.tsx",
+  "src/app/settings/loading.test.tsx",
+  "src/components/PagePlaceholder.test.tsx",
+  "src/components/ScheduleCheckInView.test.tsx",
+  "src/components/SiteMotion.test.tsx",
+  "src/components/landing/HowItWorks.test.tsx",
+  "src/components/nav/StudentNav.test.tsx",
+];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -137,18 +179,13 @@ const eslintConfig = defineConfig([
           message: CLASS_NAME_TEST,
         })),
       ],
-      "no-restricted-syntax": [
-        "error",
-        ...serverActionShape,
-        ...["value", "quasis.0.value.raw"].map((argument) => ({
-          selector: `CallExpression[callee.property.name=/^(querySelector|querySelectorAll|closest|matches)$/][arguments.0.${argument}=${CLASS_SELECTOR}]`,
-          message: CLASS_NAME_TEST,
-        })),
-        {
-          selector: "CallExpression[callee.property.name=/^(getAttribute|hasAttribute|toHaveAttribute)$/][arguments.0.value='class']",
-          message: CLASS_NAME_TEST,
-        },
-      ],
+      "no-restricted-syntax": ["error", ...testFileSyntax, DOM_WALK],
+    },
+  },
+  {
+    files: TESTS_STILL_WALKING_THE_DOM,
+    rules: {
+      "no-restricted-syntax": ["error", ...testFileSyntax],
     },
   },
   {
