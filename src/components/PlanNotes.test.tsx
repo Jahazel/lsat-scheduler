@@ -30,10 +30,10 @@ describe("free week ending note", () => {
       student={mockStudent} checkIns={[]} notice={<PlanNotice note={note} />} />);
 
     const notice = screen.getByRole("region", { name: "Your plan" });
-    expect(within(notice).getByRole("heading", { level: 2 }).textContent).toBe("Your free week ends Sunday.");
+    expect(within(notice).getByText("Your free week ends Sunday.")).toBeTruthy();
     expect(within(notice).getByText("Your Weekly plan starts Monday at $10.")).toBeTruthy();
-    const [first] = screen.getAllByRole("heading", { level: 2 });
-    expect(first.textContent).toBe("Your free week ends Sunday.");
+    expect(within(notice).queryByRole("heading")).toBeNull();
+    expect(screen.getAllByRole("heading")[0]).toBe(screen.getByRole("heading", { level: 1 }));
     expect(screen.getByRole("heading", { level: 2, name: /^Monday/ })).toBeTruthy();
   });
 });
@@ -51,7 +51,7 @@ describe("retrying and lapsed notes", () => {
 
   it("shows the retrying note with its card deadline on one line, and Update card opens Stripe with the Ring", async () => {
     const notice = renderNote({ ...paid, stripeStatus: "past_due", renewalFailedAt: new Date("2026-12-28T07:00:00.000Z") }, "2026-12-30T18:00:00.000Z");
-    expect(within(notice).getByRole("heading", { level: 2 }).textContent).toBe("Your last payment didn't go through.");
+    expect(within(notice).getByText("Your last payment didn't go through.")).toBeTruthy();
     expect(within(notice).getByText(/^Update your card by/).textContent).toBe("Update your card by Mon,\u00a0Jan\u00a04 to keep your plan.");
 
     fireEvent.click(within(notice).getByRole("button", { name: "Update card" }));
@@ -64,7 +64,7 @@ describe("retrying and lapsed notes", () => {
     ["plan ended", { ...paid, stripeStatus: "canceled" as const, cancelAtPeriodEnd: true }, "2026-12-29T18:00:00.000Z", "Your plan has ended."],
   ])("shows the lapsed note after a %s, with Pick a plan opening plan choice on the weekly upload page", (_case, record, iso, lead) => {
     const notice = renderNote(record, iso);
-    expect(within(notice).getByRole("heading", { level: 2 }).textContent).toBe(lead);
+    expect(within(notice).getByText(lead)).toBeTruthy();
     expect(within(notice).getByText("Pick a plan to get new weekly schedules.")).toBeTruthy();
     expect(within(notice).getByRole("link", { name: "Pick a plan" }).getAttribute("href")).toBe("/dashboard/upload");
     expect(within(notice).queryByRole("button")).toBeNull();
@@ -76,8 +76,9 @@ describe("retrying and lapsed notes", () => {
     if (!note) throw new Error("A lapsed student has a note");
     render(<ScheduleCheckInView scheduleId="schedule-1" schedule={generateWeek(mockStudent, mockAnalytics, mockRules, mockStudentName)}
       student={mockStudent} checkIns={[]} notice={<PlanNotice note={note} />} />);
-    const [first] = screen.getAllByRole("heading", { level: 2 });
-    expect(first.textContent).toBe("Your plan has ended.");
+    const notice = screen.getByRole("region", { name: "Your plan" });
+    expect(within(notice).getByText("Your plan has ended.")).toBeTruthy();
+    expect(screen.getAllByRole("heading")[0]).toBe(screen.getByRole("heading", { level: 1 }));
     expect(screen.getByRole("heading", { level: 2, name: /^Monday/ })).toBeTruthy();
   });
 
@@ -99,7 +100,8 @@ describe("weekend upload card", () => {
   it("sits above the week with Plan next week opening the weekly upload", () => {
     renderWeekend(paid);
     const card = screen.getByRole("region", { name: "Next week" });
-    expect(within(card).getByRole("heading", { level: 2 }).textContent).toBe("Next week starts Monday.");
+    expect(within(card).getByText("Next week starts Monday.")).toBeTruthy();
+    expect(screen.getAllByRole("heading")[0]).toBe(screen.getByRole("heading", { level: 1 }));
     expect(within(card).getByText("Add your screenshots to build your weekly schedule.")).toBeTruthy();
     const plan = within(card).getByRole("link", { name: "Plan next week" });
     expect(plan.getAttribute("href")).toBe("/dashboard/upload");
@@ -143,7 +145,8 @@ describe("held weekly schedule", () => {
     const now = new Date("2026-11-24T18:00:00.000Z");
     held({ problem: planProblemNote(planStatus("student", record, now)), lapsed: true });
     const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
-    expect(headings).toEqual(["Your plan has ended.", "Your plan for this week", "Your week is saved."]);
+    expect(headings).toEqual(["Your plan for this week", "Your week is saved."]);
+    expect(within(screen.getByRole("region", { name: "Your plan" })).getByText("Your plan has ended.")).toBeTruthy();
     expect(screen.getByText("It appears as soon as you pick a plan.")).toBeTruthy();
   });
 
@@ -160,7 +163,7 @@ describe("held weekly schedule", () => {
     held({ preview: true, freeWeekEnding });
     const notice = screen.getByRole("region", { name: "Your plan" });
     expect(within(notice).getByText("Your Weekly plan starts Monday at $10. Your plan for next week appears then.")).toBeTruthy();
-    expect(screen.getAllByRole("heading").map((heading) => heading.textContent)).toEqual(["Your free week ends Sunday.", "Your plan for next week"]);
+    expect(screen.getAllByRole("heading").map((heading) => heading.textContent)).toEqual(["Your plan for next week"]);
     expect(screen.queryByText("Your week is ready.")).toBeNull();
   });
 });

@@ -38,7 +38,7 @@ function UploadCard({ outline }: { outline: boolean }) {
           </svg>
         </span>
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h2 className="text-small font-medium text-ink">Next week starts Monday.</h2>
+          <p className="text-small font-medium text-ink">Next week starts Monday.</p>
           <p className="text-caption text-smoke">Add your screenshots to build your weekly schedule.</p>
         </div>
       </div>
@@ -62,7 +62,7 @@ export function PlanNotice({ note }: { note: PlanNote }) {
           </svg>
         </span>
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h2 className="text-small font-medium text-ink">{note.lead}</h2>
+          <p className="text-small font-medium text-ink">{note.lead}</p>
           <p className="text-caption text-smoke">{note.rest}</p>
         </div>
       </div>
@@ -104,7 +104,7 @@ export function HeldWeek({ weekOf, preview, problem, freeWeekEnding, lapsed }: {
   return (
     <>
       {note && <div data-page-section className={cx(PAGE_COLUMN, NOTICE_SLOT)}><PlanNotice note={note} /></div>}
-      <div data-page-section className={cx(PAGE_COLUMN, "flex flex-col gap-6 pb-16 md:pb-24", note ? "pt-6" : "pt-8 lg:pt-10")}>
+      <div data-page-section className={cx(PAGE_COLUMN, "flex flex-col gap-6 pb-16 md:pb-24", note ? "pt-4 md:pt-6" : "pt-5 md:pt-8 lg:pt-10")}>
         <WeekTitle weekOf={weekOf} preview={preview} />
         {!noteSaysWhen && (
           <Card className="items-center gap-3 px-6 py-14 text-center md:py-20">
