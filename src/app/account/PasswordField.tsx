@@ -3,12 +3,10 @@
 import { useId } from "react";
 import { FOCUS, cx } from "@/components/ui/classes";
 
-export function PasswordField({ label, name, autoComplete, value, onChange, readOnly, helper, error }: {
+export function PasswordField({ label, name, autoComplete, readOnly, helper, error }: {
   label: string;
   name: string;
   autoComplete: "current-password" | "new-password";
-  value: string;
-  onChange: (value: string) => void;
   readOnly: boolean;
   helper?: string;
   error?: string;
@@ -25,8 +23,6 @@ export function PasswordField({ label, name, autoComplete, value, onChange, read
         name={name}
         type="password"
         autoComplete={autoComplete}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
         readOnly={readOnly}
         aria-invalid={error ? true : undefined}
         aria-describedby={note ? `${id}-note` : undefined}
