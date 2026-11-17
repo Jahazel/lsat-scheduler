@@ -3,10 +3,10 @@ import type { PlanChoicePlace } from "./planChoice";
 import { isoDateInWeek } from "./scheduleReasonText";
 import type { billingRecords } from "./postgresSchema";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
+import { firstChargeFailed, givesNoWeeklySchedules } from "./stripeStatus";
 
 type BillingRow = typeof billingRecords.$inferSelect;
 type PlanName = BillingRow["plan"];
-type StripeStatus = BillingRow["stripeStatus"];
 
 export type BillingRecord = Pick<BillingRow,
   "plan" | "stripeStatus" | "freeWeekEndsAt" | "paidPeriodEndsAt" | "firstChargeSucceeded" | "renewalFailedAt" | "cancelAtPeriodEnd" | "cancellationReason">;
@@ -24,12 +24,9 @@ export type PlanStatus =
 const RETRYING_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const PLAN_ENDED: readonly StripeStatus[] = ["canceled", "unpaid", "incomplete_expired", "paused"];
-const FIRST_CHARGE_FAILED: readonly StripeStatus[] = ["past_due", ...PLAN_ENDED];
-
 export function planEndReason(record: BillingRecord): EndReason | null {
   if (record.cancelAtPeriodEnd) return "cancelled";
-  if (!PLAN_ENDED.includes(record.stripeStatus)) return null;
+  if (!givesNoWeeklySchedules(record.stripeStatus)) return null;
   return record.cancellationReason === "cancellation_requested" ? "cancelled" : "payment_failed";
 }
 
@@ -44,10 +41,10 @@ export function planStatus(role: string, record: BillingRecord | null, realNow: 
 
   if (!record.firstChargeSucceeded) {
     if (record.freeWeekEndsAt && realNow < record.freeWeekEndsAt) return { kind: "free_week", plan, endsAt: record.freeWeekEndsAt };
-    return FIRST_CHARGE_FAILED.includes(stripeStatus) || endReason === "cancelled" ? lapsed : { kind: "paid", plan };
+    return firstChargeFailed(stripeStatus) || endReason === "cancelled" ? lapsed : { kind: "paid", plan };
   }
 
-  if (PLAN_ENDED.includes(stripeStatus)) {
+  if (givesNoWeeklySchedules(stripeStatus)) {
     return record.paidPeriodEndsAt && realNow < record.paidPeriodEndsAt ? { kind: "paid", plan } : lapsed;
   }
   if (record.renewalFailedAt && stripeStatus === "past_due") {

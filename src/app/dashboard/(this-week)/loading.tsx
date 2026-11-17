@@ -111,7 +111,7 @@ function RestOfWeek() {
 export default function ThisWeekLoading() {
   return (
     <PagePlaceholder>
-      <div className={cx(PAGE_COLUMN, "flex flex-col gap-6 pt-8 pb-16 md:pb-24 lg:pt-10")}>
+      <div className={cx(PAGE_COLUMN, "flex flex-col gap-6 pt-5 pb-16 md:pt-8 md:pb-24 lg:pt-10")}>
         <Header />
         <Today />
         <RestOfWeek />

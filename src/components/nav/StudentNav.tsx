@@ -175,7 +175,7 @@ export function StudentTabBar({ uploadNeeded, withWorkspaceSwitcher = false }: {
       data-tab-bar
       data-page-fade
       data-workspace-tabs={withWorkspaceSwitcher || undefined}
-      className={cx("fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] right-[max(0.75rem,env(safe-area-inset-right))] z-40 grid grid-cols-4 rounded-lg border border-vellum-line bg-paper p-1 shadow-e1", withWorkspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.mobileTabBar : "md:hidden")}
+      className={cx("fixed bottom-(--tab-bar-inset) min-h-(--tab-bar-height) left-[max(0.75rem,env(safe-area-inset-left))] right-[max(0.75rem,env(safe-area-inset-right))] z-40 grid grid-cols-4 rounded-lg border border-vellum-line bg-paper p-1 shadow-e1", withWorkspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.mobileTabBar : "md:hidden")}
     >
       {TABS.map((tab) => {
         const active = tab.href === current;
@@ -185,7 +185,7 @@ export function StudentTabBar({ uploadNeeded, withWorkspaceSwitcher = false }: {
             href={tab.href}
             aria-current={active ? "page" : undefined}
             className={cx(
-              "flex min-h-14 flex-col items-center justify-center gap-1 rounded-md text-caption active:scale-[0.96]",
+              "flex flex-col items-center justify-center gap-1 rounded-md text-caption active:scale-[0.96]",
               active ? "bg-vellum font-medium text-ink" : "text-smoke",
               PRESS,
               FOCUS,
