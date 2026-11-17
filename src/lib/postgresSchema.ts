@@ -5,6 +5,7 @@ import type {
 } from "./types";
 import type { PracticeTestResult } from "./practiceTestResult";
 import type { OfficialAttempt } from "./studentProfile";
+import { STRIPE_STATUSES } from "./stripeStatus";
 
 type SavedOneTypeActivity = { drillMinutes: number; reviewMinutes?: number; isFullSection: boolean } & (
   | { kind: "LR"; type: LRType; questionCount: number; difficultyRange: string }
@@ -154,9 +155,7 @@ export const billingRecords = pgTable("billing_records", {
   stripeCustomerId: text("stripe_customer_id").notNull().unique(),
   stripeSubscriptionId: text("stripe_subscription_id").notNull().unique(),
   plan: text("plan", { enum: ["weekly", "monthly"] }).notNull(),
-  stripeStatus: text("stripe_status", {
-    enum: ["trialing", "active", "past_due", "unpaid", "canceled", "incomplete", "incomplete_expired", "paused"],
-  }).notNull(),
+  stripeStatus: text("stripe_status", { enum: STRIPE_STATUSES }).notNull(),
   freeWeekEndsAt: timestamp("free_week_ends_at", { withTimezone: true }),
   paidPeriodEndsAt: timestamp("paid_period_ends_at", { withTimezone: true }),
   firstChargeSucceeded: boolean("first_charge_succeeded").notNull().default(false),

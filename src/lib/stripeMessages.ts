@@ -7,6 +7,7 @@ import { getPostgresDatabase, type PostgresTransaction } from "./postgres";
 import { billingRecords, stripeMessages, usedFreeWeeks } from "./postgresSchema";
 import type { Subject } from "./securityLog";
 import { stripeRequest, stripeSecretKey } from "./stripeApi";
+import { STRIPE_STATUSES, neverPaidForThisPeriod, stripeCannotCancel } from "./stripeStatus";
 
 export const STRIPE_MESSAGE_ROUTE = "/api/stripe/webhook";
 
@@ -74,7 +75,7 @@ const seconds = z.number().int().transform((value) => new Date(value * 1000));
 const subscriptionSchema = z.object({
   id: subscriptionId,
   customer: z.string().regex(/^cus_\w+$/),
-  status: z.enum(["trialing", "active", "past_due", "unpaid", "canceled", "incomplete", "incomplete_expired", "paused"]),
+  status: z.enum(STRIPE_STATUSES),
   created: z.number().int(),
   metadata: z.record(z.string(), z.string()),
   trial_start: seconds.nullable(),
@@ -128,11 +129,9 @@ const earlier = (a: Date | null, b: Date | null) => (a && b ? (a < b ? a : b) : 
 
 const isNewer = (a: Subscription, b: Subscription) => a.created > b.created || (a.created === b.created && a.id > b.id);
 
-const NEVER_PAID_FOR_THIS_PERIOD: readonly Subscription["status"][] = ["unpaid", "paused", "incomplete", "incomplete_expired"];
-
 function paidPeriodEnd(subscription: Subscription) {
   const period = subscription.items.data[0];
-  if (NEVER_PAID_FOR_THIS_PERIOD.includes(subscription.status)) return period.current_period_start;
+  if (neverPaidForThisPeriod(subscription.status)) return period.current_period_start;
   return subscription.ended_at ?? period.current_period_end;
 }
 
@@ -219,13 +218,11 @@ async function addUsedFreeWeek(tx: PostgresTransaction, email: string, usedOn?: 
   await tx.insert(usedFreeWeeks).values({ emailHash: emailHash(email), usedOn }).onConflictDoNothing();
 }
 
-const ENDED: readonly Subscription["status"][] = ["canceled", "incomplete_expired"];
-
 async function endPlanOfDeletedAccount(
   tx: PostgresTransaction, subscription: Subscription, accountId: string, secretKey: string,
 ): Promise<SaveOutcome> {
   const [{ listed }] = (await tx.execute<{ listed: boolean }>(sql`select is_on_deletion_list(${accountId}) as listed`)).rows;
-  if (!listed || ENDED.includes(subscription.status)) return { kind: "refused", result: "unknownAccount", who: { nobody: true } };
+  if (!listed || stripeCannotCancel(subscription.status)) return { kind: "refused", result: "unknownAccount", who: { nobody: true } };
   await stripeRequest(`subscriptions/${subscription.id}`, secretKey, undefined, "DELETE");
   return { kind: "refused", result: "deletedAccountPlanEnded", who: { nobody: true } };
 }
