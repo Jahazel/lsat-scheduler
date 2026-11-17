@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import type { Session } from "next-auth";
 import { afterAll, beforeEach, expect, it, vi } from "vitest";
 import { setUpAppTestDatabase } from "./appTestDatabase";
+import { fakeLink } from "./fakeNavigation";
 import { findAccountById } from "../../src/lib/accountRepository";
 import { createStudent, updateStudySettings } from "../../src/lib/studentRepository";
 import { listWeeklySchedulesForStudent } from "../../src/lib/weeklyScheduleRepository";
@@ -67,23 +68,58 @@ async function everyRow() {
   return rows[0];
 }
 
-it("All students lists non-Admin students by name with their email, marks who needs analytics, and writes nothing", async () => {
+async function studentsPage(query: Record<string, string> = {}) {
+  fakeLink.search = new URLSearchParams(query).toString();
+  return renderToStaticMarkup(await AdminPage());
+}
+const listRows = (markup: string) => markup.split("<li").slice(1);
+const listNames = (markup: string) =>
+  listRows(markup).map((row) => row.match(/<span class="min-w-0 font-medium[^"]*">([^<]+)<\/span>/)?.[1]);
+
+it("Students lists non-Admin students by name with their counts, analytics, and this week's schedule, and writes nothing", async () => {
   await student("zed");
   const bea = await student("Bea");
   await approve(bea.saved.id);
+  const amy = await student("amy");
+  signIn(amy.account);
+  await approve(amy.saved.id);
+  await dashboard();
+  await database.owner.execute(sql`update students set created_at = '2026-10-10T12:00:00Z' where id = ${bea.saved.id}`);
   const admin = await student("Admin", "admin");
-  await student("amy");
   signIn(admin.account);
   const before = await everyRow();
-  const markup = renderToStaticMarkup(await AdminPage());
+  const markup = await studentsPage();
   expect(await everyRow()).toEqual(before);
-  const names = [...markup.matchAll(/<span class="font-medium[^"]*">([^<]+)<\/span>/g)].map((match) => match[1]);
-  expect(names).toEqual(["amy", "Bea", "zed"]);
+  expect(listNames(markup)).toEqual(["amy", "Bea", "zed"]);
   expect(markup).toContain("bea@example.test");
-  const marked = [...markup.matchAll(/<span class="font-medium[^"]*">([^<]+)<\/span>(<span[^>]*>Needs analytics)?/g)]
-    .filter((match) => match[2]).map((match) => match[1]);
-  expect(marked).toEqual(["amy", "zed"]);
   expect(markup).not.toContain("admin@example.test");
+  expect(listRows(markup).map((row) => row.includes("Needs analytics"))).toEqual([false, false, true]);
+  const counts = markup.match(/<p class="flex flex-wrap[^"]*">(.*?)<\/p>/)?.[1].replace(/<[^>]+>/g, "");
+  expect(counts).toBe("3 students3 on a paid plan0 in a free week0 retrying or lapsed1 needs analytics1 has this week&#x27;s schedule");
+  expect(markup).toMatch(/>Oct 10<\/td>/);
+  expect(markup).toMatch(/>Jun 2027<\/td>/);
+  expect(markup).toContain("10 h 30 min per week");
+});
+
+it("Students opens with the search, filter, and sort in its link", async () => {
+  await student("Amy");
+  const bea = await student("Bea");
+  await approve(bea.saved.id);
+  await student("Cy");
+  const admin = await student("Admin", "admin");
+  signIn(admin.account);
+  expect(listNames(await studentsPage({ q: "y", analytics: "needed", sort: "newest" }))).toEqual(["Cy", "Amy"]);
+  const none = await studentsPage({ q: "zzzz" });
+  expect(none).toContain("No students match.");
+  expect(none).toContain("Clear filters");
+});
+
+it("Students with no onboarded students shows zero counts and says so", async () => {
+  const admin = await student("Admin", "admin");
+  signIn(admin.account);
+  const markup = await studentsPage();
+  expect(markup).toContain("No students have completed onboarding yet.");
+  expect(markup).toMatch(/>0<\/span> students/);
 });
 
 async function approve(studentId: string, weekOf = "2026-10-12") {
@@ -134,8 +170,8 @@ const planStatusCases = [
 ] as const;
 
 function planStatusOf(markup: string, name: string) {
-  const row = markup.split("<li").find((item) => item.includes(`>${name}</span>`));
-  return row?.match(/data-plan-status="[^"]+"[^>]*>([^<]+)</)?.[1];
+  const row = listRows(markup).find((item) => item.includes(`>${name}</span>`));
+  return planStatusCases.map(([label]) => label).find((label) => row?.includes(`>${label}</span>`));
 }
 
 async function replaceBillingRecord(accountId: string, billing: Parameters<typeof database.writeBillingRecordAsOwner>[1] | null) {
@@ -148,7 +184,7 @@ it.each(planStatusCases)("both Admin student pages show the plan status %s", asy
   await replaceBillingRecord(account.id, billing);
   const admin = await student("Admin", "admin");
   signIn(admin.account);
-  const list = renderToStaticMarkup(await AdminPage());
+  const list = await studentsPage();
   expect(planStatusOf(list, "Sam")).toBe(label);
   expect(renderToStaticMarkup(await studentPage(saved.id))).toMatch(new RegExp(`data-plan-status="[^"]+"[^>]*>${label}<`));
 });

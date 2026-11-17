@@ -88,3 +88,11 @@ export async function listWeeklySchedulesForStudent(studentId: string) {
     .where(eq(weeklySchedules.studentId, studentId)).orderBy(desc(weeklySchedules.weekStartDate));
   return records.map(persistedWeeklySchedule);
 }
+
+export async function listStudentIdsWithScheduleForWeek(weekStartDate: string) {
+  const records = await getPostgresDatabase()
+    .selectDistinct({ studentId: weeklySchedules.studentId })
+    .from(weeklySchedules)
+    .where(eq(weeklySchedules.weekStartDate, weekStartDate));
+  return records.map((record) => record.studentId);
+}

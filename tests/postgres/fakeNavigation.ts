@@ -14,3 +14,6 @@ export function unstable_rethrow(error: unknown) {
 
 export const useRouter = () => ({ refresh: vi.fn(), push: vi.fn() });
 export const usePathname = () => "/dashboard";
+
+export const fakeLink = { search: "" };
+export const useSearchParams = () => new URLSearchParams(fakeLink.search);

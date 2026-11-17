@@ -1,24 +1,19 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, isInaccessible, render, within } from "@testing-library/react";
-import AllStudentsLoading from "./loading";
+import StudentsLoading from "./loading";
 
 afterEach(cleanup);
 
-describe("All students loading placeholder", () => {
-  it("takes All students' shape: the title and a list of five students", () => {
-    const { container } = render(<AllStudentsLoading />);
-    expect(container.textContent).toContain("All students");
-    const rows = container.querySelectorAll("li");
-    expect(rows).toHaveLength(5);
-    for (const row of rows) {
-      expect(row.textContent).toContain("Needs analytics");
-      expect(row.textContent).toMatch(/@example\.test · .+ per week/);
-    }
+describe("Students loading placeholder", () => {
+  it("takes the Students shape: the title, then a list of six students", () => {
+    const { container } = render(<StudentsLoading />);
+    expect(container.textContent).toBe("Students");
+    expect(container.querySelectorAll("li")).toHaveLength(6);
   });
 
   it("is hidden from screen readers", () => {
-    const { container } = render(<AllStudentsLoading />);
-    expect(isInaccessible(within(container).getByText("All students"))).toBe(true);
+    const { container } = render(<StudentsLoading />);
+    expect(isInaccessible(within(container).getByText("Students"))).toBe(true);
   });
 });
