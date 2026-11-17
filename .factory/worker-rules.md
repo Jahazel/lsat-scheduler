@@ -1,3 +1,4 @@
+- The project setup installed the packages and started a loopback Postgres. `DATABASE_URL` in the shell points at it. It holds no real data.
 - The checks are `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:postgres`, and `npm run check:suppressions`. The pre-commit hook runs the first three. Run `check:suppressions` after your last commit; CI fails the PR when it fails. `DATABASE_URL` is already set for `test:postgres`.
 - This computer has no `.env.local`, and the app needs none for tests or `verify`.
 - `verify`: `DATABASE_URL` is already a loopback owner connection, and `VERIFY_PLAYWRIGHT_MODULE` already points at an installed Playwright with Chromium. Skip the skill's Playwright install.
