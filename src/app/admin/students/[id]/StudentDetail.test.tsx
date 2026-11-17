@@ -20,9 +20,11 @@ const facts: Fact[] = [
   { label: "Past weeks", value: "None yet", muted: true },
 ];
 
+const panels = { week: <p>The live week</p>, weeks: <p>The past weeks</p>, progress: <p>The uploads</p> };
+
 function show(link: string, student = maya) {
   window.history.replaceState(null, "", `/admin/students/s1${link}`);
-  return render(<StudentDetail student={student} facts={facts} thisWeek={<p>The live week</p>} />);
+  return render(<StudentDetail student={student} facts={facts} panels={panels} />);
 }
 const factsShown = () => {
   const values = screen.getAllByRole("definition").map((value) => value.textContent);
@@ -58,18 +60,21 @@ describe("Student detail", () => {
     expect(screen.getByRole("tabpanel").textContent).toBe("The live week");
   });
 
-  it("opens the tab its link names, and the other tabs show a short placeholder", () => {
+  it("opens the tab its link names, with that tab's panel", () => {
     show("?tab=weeks");
     expect(selectedTab()).toBe("Past weeks");
-    expect(screen.getByRole("tabpanel").textContent).toBe("Past weeks is not ready yet.");
+    expect(screen.getByRole("tabpanel").textContent).toBe("The past weeks");
     expect(screen.queryByText("The live week")).toBeNull();
+    cleanup();
+    show("?tab=progress");
+    expect(screen.getByRole("tabpanel").textContent).toBe("The uploads");
   });
 
   it("keeps the picked tab in the page link, beside the list's choices", async () => {
     const { rerender } = show("?sort=newest");
     await userEvent.click(screen.getByRole("tab", { name: "Settings & tests" }));
     expect(window.location.search).toBe("?sort=newest&tab=settings");
-    rerender(<StudentDetail student={maya} facts={facts} thisWeek={<p>The live week</p>} />);
+    rerender(<StudentDetail student={maya} facts={facts} panels={panels} />);
     expect(screen.getByRole("tabpanel").textContent).toBe("Settings & tests is not ready yet.");
 
     await userEvent.keyboard("{Home}");

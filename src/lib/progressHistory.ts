@@ -27,7 +27,10 @@ function countWeekDone(schedule: WeeklySchedule, checkIns: ActivityCheckIn[]): W
   return { done, total, completionPercent: total === 0 ? 0 : Math.round((done / total) * 100) };
 }
 
-function weekLabel(monday: Date) {
+export const monthLabel = (weekStartDate: string) => monthYear.format(new Date(`${weekStartDate}T00:00:00.000Z`));
+
+export function weekLabel(weekStartDate: string) {
+  const monday = new Date(`${weekStartDate}T00:00:00.000Z`);
   const sunday = new Date(monday.getTime() + 6 * DAY_MS);
   const end = sunday.getUTCMonth() === monday.getUTCMonth() ? String(sunday.getUTCDate()) : monthDay.format(sunday);
   return `${monthDay.format(monday)} – ${end}`;
@@ -49,7 +52,7 @@ function pastWeeksNewestFirst<Saved extends SavedWeek>(schedules: Saved[], curre
 function summarize(saved: SavedWeek, checkIns: ActivityCheckIn[]): PastWeek {
   return {
     weekStartDate: saved.weekStartDate,
-    label: weekLabel(new Date(`${saved.weekStartDate}T00:00:00.000Z`)),
+    label: weekLabel(saved.weekStartDate),
     ...countWeekDone(saved.schedule, checkIns.filter((checkIn) => checkIn.scheduleId === saved.id)),
   };
 }
@@ -65,7 +68,7 @@ export function listPastWeekMonths({
 }): PastWeekMonth[] {
   const months: PastWeekMonth[] = [];
   for (const saved of pastWeeksNewestFirst(schedules, currentWeekStartDate)) {
-    const month = monthYear.format(new Date(`${saved.weekStartDate}T00:00:00.000Z`));
+    const month = monthLabel(saved.weekStartDate);
     let group = months.at(-1);
     if (group?.month !== month) {
       group = { month, weeks: [] };

@@ -31,3 +31,20 @@ export async function listApprovedPracticeTestResults(studentId: string): Promis
     .orderBy(desc(practiceTestResults.approvedAt), asc(practiceTestResults.id));
   return records.map((record) => ({ ...record, approvedAt: record.approvedAt.toISOString() }));
 }
+
+export async function listPracticeTestsByWeek(studentId: string) {
+  const records = await getPostgresDatabase()
+    .select({
+      weekOf: practiceTestResults.weekOf,
+      prepTest: practiceTestResults.prepTest,
+      sections: practiceTestResults.sections,
+      missedStemTypeCounts: practiceTestResults.missedStemTypeCounts,
+    })
+    .from(practiceTestResults)
+    .where(eq(practiceTestResults.studentId, studentId))
+    .orderBy(desc(practiceTestResults.approvedAt), asc(practiceTestResults.id));
+  return records.map(({ sections, ...record }) => ({
+    ...record,
+    missed: sections.reduce((total, section) => total + section.missed, 0),
+  }));
+}
