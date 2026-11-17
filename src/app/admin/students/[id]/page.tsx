@@ -21,6 +21,7 @@ import { listPracticeTestsByWeek } from "@/lib/weeklyUploadRepository";
 import PastWeekView from "@/app/progress/PastWeekView";
 import { PastWeeksPanel } from "./HistoryPanels";
 import { ProgressPanel } from "./ProgressPanel";
+import { SettingsPanel } from "./SettingsPanel";
 import { StudentDetail } from "./StudentDetail";
 import { ThisWeekPanel } from "./ThisWeekPanel";
 
@@ -60,6 +61,7 @@ export default async function AdminStudentPage({ params, searchParams }: PagePro
   });
   const needsAnalytics = snapshots.length === 0;
   const name = displayName(record);
+  const today = localDateInTimezone(now, SCHEDULE_TIMEZONE);
 
   return (
     <div data-page-fade className={cx(PAGE_COLUMN, "pt-6 pb-12 md:pt-10")}>
@@ -77,11 +79,12 @@ export default async function AdminStudentPage({ params, searchParams }: PagePro
           needsAnalytics,
         }, now)}
         panels={{
-          week: <ThisWeekPanel week={week} today={localDateInTimezone(now, SCHEDULE_TIMEZONE)} />,
+          week: <ThisWeekPanel week={week} today={today} />,
           weeks: pastWeekRoute.kind === "week"
             ? <PastWeekView {...pastWeekRoute} links={weekLinks} place="panel" />
             : <PastWeeksPanel months={listPastWeekMonths({ schedules: pastWeeks, checkIns: pastWeekCheckIns, currentWeekStartDate: thisWeekStart })} weekPrefix={weekLinks.weekPrefix} />,
           progress: <ProgressPanel months={uploadHistory(snapshots, practiceTests)} score={record.currentScore} goal={record.goalScore} hasPastWeeks={pastWeeks.length > 0} />,
+          settings: <SettingsPanel settings={record} officialAttempts={record.officialAttempts} today={today} />,
         }}
       />
     </div>

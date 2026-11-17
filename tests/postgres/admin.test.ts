@@ -270,6 +270,24 @@ it("the Admin student page lists past weeks and analytics uploads with links tha
   fakeLink.search = "";
 });
 
+it("the Admin student page shows the student's saved settings and official attempts, locked", async () => {
+  vi.setSystemTime(new Date("2026-10-12T16:00:00Z"));
+  const sam = await student("Sam");
+  const attempts = JSON.stringify([{ month: "2026-02", score: 148 }, { month: "2026-08", score: 151 }]);
+  await database.owner.execute(sql`update students set goal_test_date = '2026-10-01', official_attempts = ${attempts}::jsonb where id = ${sam.saved.id}`);
+  const admin = await student("Admin", "admin");
+  signIn(admin.account);
+
+  fakeLink.search = "tab=settings";
+  const settings = renderToStaticMarkup(await studentPage(sam.saved.id, { tab: "settings" }));
+  fakeLink.search = "";
+  const text = settings.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  expect(text).toContain("Goal score 165 Goal test month October 2026 Passed Test time Standard");
+  expect(text).toContain("Saturday 1 h 30 Practice test");
+  expect(text).toContain("2 attempts 151 August 2026 148 February 2026");
+  expect(settings.split('role="tabpanel"')[1]).not.toMatch(/<(input|select|textarea|button)\b/);
+});
+
 it("an Admin gets not found for an Admin-owned, missing, or malformed student ID", async () => {
   const admin = await student("Admin", "admin");
   signIn(admin.account);
