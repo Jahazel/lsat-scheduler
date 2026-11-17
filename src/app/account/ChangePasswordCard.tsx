@@ -1,22 +1,16 @@
 "use client";
 
-import { useActionState, useState } from "react";
 import { FailureNotice } from "@/components/FailureNotice";
 import { Button } from "@/components/ui/Button";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
-import { callAction } from "@/lib/callAction";
-import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
-import { changePassword, type PasswordChangeRefusal } from "./actions";
+import { isUnexpectedFailure } from "@/lib/unexpectedFailure";
+import { useRefusableForm } from "@/lib/useRefusableForm";
+import { changePassword } from "./actions";
 import { PasswordField } from "./PasswordField";
 
 export function ChangePasswordCard() {
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [refusal, formAction, pending] = useActionState(async (previous: Answer<PasswordChangeRefusal>, formData: FormData) => {
-    const result = await callAction(changePassword)(previous, formData);
-    if (!isUnexpectedFailure(result) && result?.field === "currentPassword") setCurrentPassword("");
-    return result;
-  }, null);
+  const { answer: refusal, pending, form } = useRefusableForm(changePassword, null, (refused) =>
+    refused?.field === "currentPassword" ? "currentPassword" : undefined);
   const shown = pending || isUnexpectedFailure(refusal) ? null : refusal;
 
   return (
@@ -27,13 +21,11 @@ export function ChangePasswordCard() {
           Type your current password, then a new one. This signs you out on all your devices, including this one.
         </p>
       </div>
-      <form action={formAction} className="flex shrink-0 flex-col gap-4 md:w-[360px]">
+      <form {...form} className="flex shrink-0 flex-col gap-4 md:w-[360px]">
         <PasswordField
           label="Current password"
           name="currentPassword"
           autoComplete="current-password"
-          value={currentPassword}
-          onChange={setCurrentPassword}
           readOnly={pending}
           error={shown?.field === "currentPassword" ? shown.message : undefined}
         />
@@ -41,8 +33,6 @@ export function ChangePasswordCard() {
           label="New password"
           name="newPassword"
           autoComplete="new-password"
-          value={newPassword}
-          onChange={setNewPassword}
           readOnly={pending}
           helper="At least 8 characters. A long phrase works well."
           error={shown?.field === "newPassword" ? shown.message : undefined}
