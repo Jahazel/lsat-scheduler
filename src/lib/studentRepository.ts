@@ -85,7 +85,7 @@ export async function findStudentWithOwner(id: string) {
 
 export async function findStudentWithJoinDate(id: string) {
   const row = await findNonAdminStudentRow(id);
-  return row ? { ...studentRecord(row), joinedAt: row.student.createdAt } : null;
+  return row ? { ...studentRecord(row), joinedAt: row.student.createdAt, officialAttempts: row.student.officialAttempts } : null;
 }
 
 export async function findStudentByAccountId(accountId: string | undefined) {

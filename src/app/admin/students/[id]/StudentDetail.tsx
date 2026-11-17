@@ -73,15 +73,7 @@ function FactsCard({ student, facts }: { student: DetailStudent; facts: Fact[] }
   );
 }
 
-function NotBuilt({ label }: { label: string }) {
-  return (
-    <div className={cx(DETAIL_CARD, "px-5 py-8 sm:px-6")}>
-      <p className="text-small text-smoke">{label} is not ready yet.</p>
-    </div>
-  );
-}
-
-export function StudentDetail({ student, facts, panels }: { student: DetailStudent; facts: Fact[]; panels: Record<Exclude<Tab, "settings">, ReactNode> }) {
+export function StudentDetail({ student, facts, panels }: { student: DetailStudent; facts: Fact[]; panels: Record<Tab, ReactNode> }) {
   const tab = tabIn(useSearchParams());
   const id = useId();
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
@@ -110,7 +102,7 @@ export function StudentDetail({ student, facts, panels }: { student: DetailStude
         </div>
         <div role="tabpanel" id={`${id}-panel`} aria-labelledby={`${id}-${tab}`} tabIndex={0} key={tab}
           className="animate-[value-in_var(--duration-fast)_var(--ease-out-strong)_both] rounded-md outline-offset-4">
-          {tab === "settings" ? <NotBuilt label={TABS.find((t) => t.key === tab)!.label} /> : panels[tab]}
+          {panels[tab]}
         </div>
       </section>
     </div>

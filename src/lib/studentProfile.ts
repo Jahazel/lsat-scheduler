@@ -69,6 +69,10 @@ const testMonthLabel = new Intl.DateTimeFormat("en-US", { month: "long", year: "
 
 // `today` is the student-side date (YYYY-MM-DD), so an admin's simulated date
 // changes the list.
+export function goalTestMonth(goalTestDate: string, today: string) {
+  return { label: testMonthLabel.format(new Date(`${goalTestDate}T00:00:00Z`)), passed: goalTestDate <= today };
+}
+
 export function upcomingTestMonths(today: string) {
   return LSAT_TEST_MONTHS.filter((month) => month > today).map((value) => ({
     value,
@@ -133,6 +137,8 @@ export const MAX_OFFICIAL_ATTEMPTS = 10;
 const ATTEMPT_MONTH_COUNT = 60;
 
 const attemptMonthLabel = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+
+export const attemptMonthName = (month: string) => attemptMonthLabel.format(new Date(`${month}-01T00:00:00Z`));
 
 export function attemptMonths(today: string) {
   const [year, month] = today.split("-").map(Number);
