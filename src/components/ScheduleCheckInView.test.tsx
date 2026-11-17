@@ -321,7 +321,7 @@ describe("ScheduleCheckInView", () => {
   describe("Today card on This week", () => {
     const TUESDAY = "2026-08-25";
     const todayCard = () => screen.getByRole("region", { name: /^Today/ });
-    const upNext = () => within(todayCard()).getByText("Up next").parentElement!;
+    const upNext = () => within(todayCard()).getByText("Up next").closest<HTMLElement>("[aria-live]")!;
     const markDone = () => within(todayCard()).getByRole("button", { name: /^Mark done/ });
     const renderToday = (today: string, props: { checkIns?: ActivityCheckIn[]; drillLink?: string; schedule?: ReturnType<typeof week> } = {}) => {
       history.replaceState(null, "", "/dashboard");
@@ -373,7 +373,7 @@ describe("ScheduleCheckInView", () => {
       renderToday(TUESDAY, { checkIns: [done("TUESDAY:0"), done("TUESDAY:1"), done("TUESDAY:2")] });
       await userEvent.click(markDone());
       expect(within(todayCard()).getByText("4 of 4 done")).toBeTruthy();
-      const allDone = within(todayCard()).getByText("All done for today").parentElement!;
+      const allDone = within(todayCard()).getByText("All done for today").closest<HTMLElement>("[aria-live]")!;
       expect(allDone.textContent).toBe("All done for todayNext: Thursday, Aug 27 · 5 activities, 1 h 35");
       expect(document.activeElement).toBe(allDone);
       expect(within(todayCard()).queryByRole("button", { name: /^Mark done/ })).toBeNull();
@@ -383,7 +383,7 @@ describe("ScheduleCheckInView", () => {
 
     it("says nothing else is planned when today is the last study day", () => {
       renderToday("2026-08-30", { checkIns: [done("SUNDAY:0")] });
-      expect(within(todayCard()).getByText("All done for today").parentElement!.textContent)
+      expect(within(todayCard()).getByText("All done for today").closest<HTMLElement>("[aria-live]")!.textContent)
         .toBe("All done for todayNothing else is planned this week.");
     });
 

@@ -56,7 +56,7 @@ const shapesFadingOut = () => animations.filter((a) => a.el.textContent?.include
 describe("page placeholder", () => {
   it("keeps the shapes hidden for the first 150 ms, then fades them in over the base duration", () => {
     render(<Loading />);
-    const placeholder = screen.getByText("Grey header").parentElement!;
+    const placeholder = screen.getByText("Grey header").closest<HTMLElement>("[aria-hidden]")!;
     expect(placeholder.style.animationName).toBe("page-placeholder-in");
     expect(placeholder.style.animationDelay).toBe("150ms");
     expect(placeholder.style.animationDuration).toBe("var(--duration-base)");

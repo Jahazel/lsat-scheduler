@@ -95,7 +95,7 @@ function scrollIntoView(element: Element) {
 }
 
 const listSteps = () => within(screen.getByRole("list")).getAllByRole("listitem");
-const intro = () => screen.getAllByText("Four steps. The last one repeats every weekend.")[0].parentElement!;
+const intro = () => screen.getAllByText("Four steps. The last one repeats every weekend.")[0].closest("div")!;
 const hidden = (element: HTMLElement) => element.dataset.reveal === "waiting";
 
 const progressButtons = () => screen.getAllByRole("button", { name: /^Go to step/ });
@@ -265,8 +265,9 @@ describe("HowItWorks", () => {
 
   it("keeps each step's underlined words to 18 characters, so the underline never wraps", () => {
     render(<HowItWorks />);
-    const keys = listSteps().map((step) => within(step).getByRole("heading", { level: 3 }).lastElementChild?.textContent ?? "");
-    expect(keys).toEqual(["your prep", "practice analytics", "your week", "every weekend"]);
+    const keys = ["your prep", "practice analytics", "your week", "every weekend"];
+    const headings = listSteps().map((step) => within(step).getByRole("heading", { level: 3 }));
+    expect(headings.map((heading, index) => within(heading).getByText(keys[index]).textContent)).toEqual(keys);
     expect(keys.every((key) => key.length <= 18)).toBe(true);
   });
 

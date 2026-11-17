@@ -297,7 +297,7 @@ describe("Study settings form", () => {
 
   it("shows the Weekly total the way the week board does", () => {
     renderForm();
-    expect(screen.getByText("Weekly total").nextElementSibling?.textContent).toBe("12 h 30");
+    expect(screen.getByText("Weekly total").closest("p")?.textContent).toBe("Weekly total12 h 30");
   });
 });
 

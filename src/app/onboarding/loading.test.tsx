@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, isInaccessible, render, screen } from "@testing-library/react";
 import OnboardingLoading from "./loading";
 
 afterEach(cleanup);
@@ -18,7 +18,7 @@ describe("Onboarding loading placeholder", () => {
   });
 
   it("is hidden from screen readers", () => {
-    const { container } = render(<OnboardingLoading />);
-    expect(container.firstElementChild!.getAttribute("aria-hidden")).toBe("true");
+    render(<OnboardingLoading />);
+    expect(isInaccessible(screen.getByText("Your road to test day"))).toBe(true);
   });
 });
