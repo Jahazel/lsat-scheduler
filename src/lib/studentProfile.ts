@@ -69,15 +69,15 @@ const testMonthLabel = new Intl.DateTimeFormat("en-US", { month: "long", year: "
 
 // `today` is the student-side date (YYYY-MM-DD), so an admin's simulated date
 // changes the list.
-export function goalTestMonth(goalTestDate: string, today: string) {
-  return { label: testMonthLabel.format(new Date(`${goalTestDate}T00:00:00Z`)), passed: goalTestDate <= today };
-}
-
 export function upcomingTestMonths(today: string) {
   return LSAT_TEST_MONTHS.filter((month) => month > today).map((value) => ({
     value,
     label: testMonthLabel.format(new Date(`${value}T00:00:00Z`)),
   }));
+}
+
+export function goalTestMonth(goalTestDate: string, today: string) {
+  return { label: testMonthLabel.format(new Date(`${goalTestDate}T00:00:00Z`)), passed: goalTestDate <= today };
 }
 
 const dayOfWeekSchema = z.enum(DAY_ORDER as [DayOfWeek, ...DayOfWeek[]]);

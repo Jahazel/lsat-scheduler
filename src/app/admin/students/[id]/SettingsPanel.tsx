@@ -35,7 +35,7 @@ export function SettingsPanel({ settings, officialAttempts, today }: { settings:
             <LockedField label="Goal score"><span className="tabular-nums">{settings.goalScore}</span></LockedField>
             <LockedField label="Goal test month" className="col-span-2 md:col-span-1">
               <span className="min-w-0 truncate">{month.label}</span>
-              {month.passed && <span className="ml-auto shrink-0 rounded-pill bg-paper px-2.5 py-0.5 text-caption text-warning-ink">Passed</span>}
+              {month.passed && <span className="ml-auto shrink-0 pl-2"><span className="rounded-pill bg-paper px-2.5 py-0.5 text-caption text-warning-ink">Passed</span></span>}
             </LockedField>
             <LockedField label="Test time" className="col-span-2 md:col-span-1">{TEST_TIME_LABEL[settings.accommodationMultiplier]}</LockedField>
           </dl>
