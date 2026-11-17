@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, isInaccessible, render, screen } from "@testing-library/react";
+import { cleanup, isInaccessible, render, within } from "@testing-library/react";
 import StudySettingsLoading from "./loading";
 
 afterEach(cleanup);
@@ -18,7 +18,7 @@ describe("Study settings loading placeholder", () => {
   });
 
   it("is hidden from screen readers", () => {
-    render(<StudySettingsLoading />);
-    expect(isInaccessible(screen.getByText("Study settings"))).toBe(true);
+    const { container } = render(<StudySettingsLoading />);
+    expect(isInaccessible(within(container).getByText("Study settings"))).toBe(true);
   });
 });

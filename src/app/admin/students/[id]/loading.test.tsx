@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, isInaccessible, render, screen } from "@testing-library/react";
+import { cleanup, isInaccessible, render, within } from "@testing-library/react";
 import AdminStudentLoading from "./loading";
 
 afterEach(cleanup);
@@ -18,7 +18,7 @@ describe("Admin student loading placeholder", () => {
   });
 
   it("is hidden from screen readers", () => {
-    render(<AdminStudentLoading />);
-    expect(isInaccessible(screen.getByText("Viewing as admin — read only"))).toBe(true);
+    const { container } = render(<AdminStudentLoading />);
+    expect(isInaccessible(within(container).getByText("Viewing as admin — read only"))).toBe(true);
   });
 });

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, isInaccessible, render, screen } from "@testing-library/react";
+import { cleanup, isInaccessible, render, within } from "@testing-library/react";
 import WeeklyUploadLoading from "./loading";
 
 afterEach(cleanup);
@@ -25,7 +25,7 @@ describe("Weekly upload loading placeholder", () => {
   });
 
   it("is hidden from screen readers", () => {
-    render(<WeeklyUploadLoading />);
-    expect(isInaccessible(screen.getByText("Plan this week"))).toBe(true);
+    const { container } = render(<WeeklyUploadLoading />);
+    expect(isInaccessible(within(container).getByText("Plan this week"))).toBe(true);
   });
 });

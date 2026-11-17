@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, isInaccessible, render, screen } from "@testing-library/react";
+import { cleanup, isInaccessible, render, within } from "@testing-library/react";
 import AccountLoading from "./loading";
 
 afterEach(cleanup);
@@ -18,7 +18,7 @@ describe("Account loading placeholder", () => {
 
   it("is hidden from screen readers and offers nothing to press", () => {
     const { container } = render(<AccountLoading />);
-    expect(isInaccessible(screen.getByText("amy@example.test"))).toBe(true);
+    expect(isInaccessible(within(container).getByText("amy@example.test"))).toBe(true);
     expect(container.querySelector("button, a, input")).toBeNull();
   });
 });
