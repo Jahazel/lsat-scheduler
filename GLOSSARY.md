@@ -263,3 +263,7 @@ _Avoid_: test date, fake date, time travel
 **Sample analytics snapshot**:
 An analytics snapshot generated for an admin's student side instead of extracted from a 7Sage screenshot. The admin reviews and approves it in the weekly upload, like an uploaded snapshot.
 _Avoid_: mock analytics, fake analytics
+
+**Schedule lab**:
+The admin tab that shows the weekly schedule the engine builds for any inputs. Every input sits in one column beside the built week: a preset, the goal, test time, analytics, the first week, and daily capacity. A change rebuilds the week at once, with its schedule reasons. The inputs live in the page link, and Open in lab on a student's page copies that student in. The lab saves nothing and never changes a student.
+_Avoid_: sandbox, simulator, playground
