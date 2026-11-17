@@ -324,3 +324,24 @@ week page and the signed-in frame. Each file name ends in `-desktop`, `-tablet`,
 
 Files with `worst`, `32-activities`, `one-activity`, `name-`, and `light-week` hold test data; the This week rules decide
 what the app shows.
+
+## Admin dashboard (`admin-dashboard/`)
+
+Screenshots of the prototype route `/prototypes/admin-dashboard` for spec #941. Each state has a `-desktop` (1440),
+`-tablet` (768), and `-phone` (390) file, except `35-walkthrough-moved`, which is desktop only. Brief and motion spec:
+`research/admin-dashboard/`.
+
+| File | State | Screen ticket |
+| --- | --- | --- |
+| `01-students-*`, `09-avatar-menu-long-name-*` | Admin top bar, tabs, Admin / Student switch, avatar menu | #942 |
+| `01`–`08-students-*`, `10-students-loading-*` | Overview counts, list, filter menu, no match, data cases, loading | #943 |
+| `11-detail-this-week-*`, `17-detail-held-week-*`, `18-detail-no-analytics-*`, `20-detail-not-found-*`, `21-detail-loading-*` | Facts card and This week | #944 |
+| `12`–`15-detail-*`, `19-detail-no-past-weeks-*` | Past weeks and Progress | #945 |
+| `16-detail-settings-*` | Settings & tests | #946 |
+| `22-lab-steady-*`, `23-lab-invalid-input-*`, `24-lab-near-test-*`, `28-lab-copied-from-student-*`, `29-lab-loading-*` | Schedule lab inputs and built week | #947 |
+| `25-lab-next-week-*` | Next week and Earlier week | #948 |
+| `26-lab-screenshots-not-read-*`, `27-lab-screenshots-read-*` | Lab screenshots | #949 |
+| `30`–`38-*` | Student side and the Walkthrough card | #950 |
+
+Names in `07-students-worst-case` and `09-avatar-menu-long-name` are test data. The student side shows a fixture admin
+account; the brief's States table decides what the app shows.
