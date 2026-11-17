@@ -547,17 +547,23 @@ body:has([data-pinned-bar]) .failure-toast-slot { bottom: calc(var(--pinned-bar,
   .start-cta:active, .start-ghost:active { scale: 1; }
 }
 
-/* The floating tab bar's top edge sits 78px above the safe area's bottom (StudentTabBar), so 86px leaves 8px. */
+:root {
+  --tab-bar-inset: calc(0.75rem + env(safe-area-inset-bottom));
+  --tab-bar-height: calc(3.5rem + 10px);
+  --tab-bar-top: calc(var(--tab-bar-inset) + var(--tab-bar-height));
+  --tab-bar-clearance: calc(var(--tab-bar-top) + 8px);
+  --tab-bar-room: calc(var(--tab-bar-top) + 18px);
+}
 .failure-toast-slot {
   bottom: calc(12px + env(safe-area-inset-bottom));
   padding-left: max(12px, env(safe-area-inset-left));
   padding-right: max(12px, env(safe-area-inset-right));
 }
-body:has([data-tab-bar]) .failure-toast-slot { bottom: calc(86px + env(safe-area-inset-bottom)); }
+body:has([data-tab-bar]) .failure-toast-slot { bottom: var(--tab-bar-clearance); }
 @media (min-width: 48rem) {
   .failure-toast-slot,
   body:has([data-tab-bar]) .failure-toast-slot { bottom: calc(32px + env(safe-area-inset-bottom)); }
-  body:has([data-workspace-tabs]) .failure-toast-slot { bottom: calc(86px + env(safe-area-inset-bottom)); }
+  body:has([data-workspace-tabs]) .failure-toast-slot { bottom: var(--tab-bar-clearance); }
 }
 @media (min-width: 64rem) {
   body:has([data-workspace-tabs]) .failure-toast-slot { bottom: calc(32px + env(safe-area-inset-bottom)); }
@@ -591,7 +597,7 @@ body:has([data-tab-bar]) .failure-toast-slot { bottom: calc(86px + env(safe-area
   right: max(12px, env(safe-area-inset-right));
   bottom: calc(12px + env(safe-area-inset-bottom));
 }
-body:has([data-tab-bar]) .save-bar { bottom: calc(86px + env(safe-area-inset-bottom)); }
+body:has([data-tab-bar]) .save-bar { bottom: var(--tab-bar-clearance); }
 @media (min-width: 48rem) {
   .save-bar,
   body:has([data-tab-bar]) .save-bar {
@@ -599,7 +605,7 @@ body:has([data-tab-bar]) .save-bar { bottom: calc(86px + env(safe-area-inset-bot
     right: max(32px, env(safe-area-inset-right));
     bottom: calc(24px + env(safe-area-inset-bottom));
   }
-  body:has([data-workspace-tabs]) .save-bar { bottom: calc(86px + env(safe-area-inset-bottom)); }
+  body:has([data-workspace-tabs]) .save-bar { bottom: var(--tab-bar-clearance); }
 }
 @media (min-width: 64rem) {
   .save-bar,
