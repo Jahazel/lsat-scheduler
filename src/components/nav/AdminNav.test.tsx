@@ -100,12 +100,12 @@ describe("Admin / Student switch", () => {
     }
   });
 
-  it("does not return to an unknown admin link", () => {
+  it.each(["/admin/typo", "/admin/students", "/admin/lab/extra", "/admin/students/real-student/extra"])("does not return to the unknown admin link %s", (unknown) => {
     history.replaceState(null, "", "/admin/lab");
     mocks.pathname = "/admin/lab";
     const { rerender } = render(<AdminNav {...props} />);
-    history.replaceState(null, "", "/admin/typo");
-    mocks.pathname = "/admin/typo";
+    history.replaceState(null, "", unknown);
+    mocks.pathname = unknown;
     rerender(<AdminNav {...props} />);
     history.replaceState(null, "", "/dashboard");
     mocks.pathname = "/dashboard";

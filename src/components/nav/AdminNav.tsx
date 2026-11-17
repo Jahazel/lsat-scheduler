@@ -22,7 +22,7 @@ const ADMIN_TABS: { href: string; label: string; short: string; icon: NavIconNam
 ];
 
 const currentAdminTab = (pathname: string) =>
-  isTabActive(pathname, "/admin/lab") ? "/admin/lab" : pathname === ADMIN_HOME || isTabActive(pathname, "/admin/students") ? ADMIN_HOME : undefined;
+  pathname === "/admin/lab" ? "/admin/lab" : pathname === ADMIN_HOME || /^\/admin\/students\/[^/]+$/.test(pathname) ? ADMIN_HOME : undefined;
 
 const LAST_ADMIN_PAGE = "drillmap:last-admin-page";
 function rememberAdminPage() {
