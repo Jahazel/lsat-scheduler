@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import path from "node:path";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { NextRequest } from "next/server";
@@ -14,11 +14,8 @@ const signedOutRequest = (pathname: string, headers: Record<string, string> = {}
   Object.assign(new NextRequest(`http://localhost:3000${pathname}`, { headers }), { auth: null });
 const run = (req: NextRequest) => (proxy as unknown as (req: NextRequest) => Promise<Response>)(req);
 
-const prototypesDir = path.join(__dirname, "app/prototypes");
-const prototypes = existsSync(prototypesDir) ? readdirSync(prototypesDir) : [];
-
-describe.skipIf(prototypes.length === 0)("design prototypes on the dev server", () => {
-  const prototypePath = `/prototypes/${prototypes[0]}`;
+describe("design prototypes on the dev server", () => {
+  const prototypePath = "/prototypes/admin-dashboard";
   beforeEach(() => vi.stubEnv("CSP_MODE", ""));
   afterEach(() => vi.unstubAllEnvs());
 
@@ -64,6 +61,7 @@ describe.skipIf(prototypes.length === 0)("design prototypes on the dev server", 
     const response = await run(signedOutRequest(prototypePath));
     expect(response.headers.get("Location")).toMatch(/\/login/);
     expect(response.headers.get("X-Frame-Options")).toBe("DENY");
+    expect(response.headers.get("content-security-policy-report-only")).toContain("frame-ancestors 'none'");
   });
 });
 
