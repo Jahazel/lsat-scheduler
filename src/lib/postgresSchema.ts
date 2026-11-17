@@ -50,6 +50,7 @@ export const students = pgTable("students", {
   saturdayCapacityMinutes: dailyCapacity("saturday_capacity_minutes"),
   sundayCapacityMinutes: dailyCapacity("sunday_capacity_minutes"),
   officialAttempts: jsonb("official_attempts").$type<OfficialAttempt[]>().notNull().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const analyticsSnapshots = pgTable("analytics_snapshots", {

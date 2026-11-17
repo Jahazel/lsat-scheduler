@@ -66,7 +66,9 @@ function selectStudentsWithOwners() {
 export async function listStudentsWithOwners() {
   const rows = await selectStudentsWithOwners().where(ne(accounts.role, "admin"));
   // Sorted here so the order does not depend on the database's collation.
-  return rows.map(studentRecord).sort((a, b) => a.name.localeCompare(b.name));
+  return rows
+    .map((row) => ({ ...studentRecord(row), joinedAt: row.student.createdAt }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** Admin-only. Returns null for an invalid ID, a missing student, or an Admin-owned student. */

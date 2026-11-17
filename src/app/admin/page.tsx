@@ -1,69 +1,44 @@
-import Link from "next/link";
 import { requireAdmin } from "./requireAdmin";
 import { PageCue } from "@/components/SiteMotion";
 import { PageArrival } from "@/components/PagePlaceholder";
+import { PAGE_COLUMN, cx } from "@/components/ui/classes";
 import { listStudentIdsWithApprovedAnalytics } from "@/lib/analyticsSnapshotRepository";
-import { PlanStatusBadge } from "@/components/PlanStatusBadge";
 import { loadPlanStatuses } from "@/lib/billingRepository";
-import { formatDuration } from "@/lib/formatDuration";
+import { currentWeekInTimezone } from "@/lib/currentWeeklySchedule";
+import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
+import { listStateFrom, type StudentRow } from "@/lib/studentList";
 import { listStudentsWithOwners } from "@/lib/studentRepository";
+import { listStudentIdsWithScheduleForWeek } from "@/lib/weeklyScheduleRepository";
+import { StudentsLedger } from "./StudentsLedger";
 
-export default async function AdminPage() {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requireAdmin();
 
-  const [students, snapshots] = await Promise.all([
+  const [students, withAnalytics, withThisWeek] = await Promise.all([
     listStudentsWithOwners(),
     listStudentIdsWithApprovedAnalytics(),
+    listStudentIdsWithScheduleForWeek(currentWeekInTimezone(new Date(), SCHEDULE_TIMEZONE)),
   ]);
-  const studentIdsWithAnalytics = new Set(snapshots);
+  const analytics = new Set(withAnalytics);
+  const thisWeek = new Set(withThisWeek);
   const planStatuses = await loadPlanStatuses(students.map((student) => student.userId));
+  const rows: StudentRow[] = students.map((student) => ({
+    id: student.id,
+    name: student.name,
+    email: student.email,
+    plan: planStatuses.get(student.userId)?.kind ?? "no_plan",
+    needsAnalytics: !analytics.has(student.id),
+    hasThisWeek: thisWeek.has(student.id),
+    weeklyMinutes: Object.values(student.dailyCapacityMinutes).reduce((sum, minutes) => sum + minutes, 0),
+    goalTestDate: student.goalTestDate,
+    joinedAt: student.joinedAt,
+  }));
 
   return (
-    <div data-page-fade className="min-h-screen px-6 py-12">
+    <div data-page-fade className={cx(PAGE_COLUMN, "pt-6 pb-12 md:pt-10")}>
       <PageCue page="admin" />
-      <PageArrival page="All students" />
-      <div className="mx-auto max-w-2xl">
-        <h1 data-page-section className="text-h3 font-semibold text-ink">All students</h1>
-
-        {students.length === 0 ? (
-          <div data-page-section className="mt-8 flex flex-col items-center gap-3 border-y border-vellum-line px-6 py-16 text-center">
-            <p className="text-small text-smoke">No students have completed onboarding yet.</p>
-          </div>
-        ) : (
-          <ul className="mt-8 divide-y divide-vellum-line border-y border-vellum-line">
-            {students.map((student) => {
-              const needsAnalytics = !studentIdsWithAnalytics.has(student.id);
-              return (
-                <li key={student.id} data-page-section>
-                  <Link
-                    href={`/admin/students/${student.id}`}
-                    className="group flex items-center gap-4 px-1 py-4 transition-colors duration-(--duration-fast) ease-out hover:bg-vellum-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-vellum"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium text-ink">{student.name}</span>
-                        {needsAnalytics && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-accent/tint px-2 py-0.5 text-caption font-medium text-accent">
-                            Needs analytics
-                          </span>
-                        )}
-                        <PlanStatusBadge status={planStatuses.get(student.userId) ?? { kind: "no_plan" }} />
-                      </div>
-                      <p className="mt-1 truncate text-small text-smoke">
-                        {student.email} ·{" "}
-                        {formatDuration(
-                          Object.values(student.dailyCapacityMinutes).reduce((sum, minutes) => sum + minutes, 0)
-                        )}{" "}
-                        per week
-                      </p>
-                    </div>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+      <PageArrival page="Students" />
+      <StudentsLedger rows={rows} initial={listStateFrom(await searchParams)} />
     </div>
   );
 }

@@ -15,7 +15,7 @@ import UnknownAdminPage from "./[...rest]/page";
 
 const params = Promise.resolve({ id: "real-student" });
 const pages = [
-  ["/admin", () => AdminPage()],
+  ["/admin", () => AdminPage({ searchParams: Promise.resolve({}) })],
   ["/admin/students/real-student", () => AdminStudentPage({ params })],
   ["/admin/lab", () => ScheduleLabPage()],
   ["/admin/anything/else", () => UnknownAdminPage()],

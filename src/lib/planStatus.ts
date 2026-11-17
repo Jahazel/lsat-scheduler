@@ -63,7 +63,7 @@ const PLAN_STATUS_LABELS: Record<PlanStatus["kind"], string> = {
   lapsed: "Lapsed",
 };
 
-export function planStatusLabel(status: PlanStatus) {
+export function planStatusLabel(status: Pick<PlanStatus, "kind">) {
   return PLAN_STATUS_LABELS[status.kind];
 }
 
