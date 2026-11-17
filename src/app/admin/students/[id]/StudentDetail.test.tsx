@@ -20,7 +20,7 @@ const facts: Fact[] = [
   { label: "Past weeks", value: "None yet", muted: true },
 ];
 
-const panels = { week: <p>The live week</p>, weeks: <p>The past weeks</p>, progress: <p>The uploads</p> };
+const panels = { week: <p>The live week</p>, weeks: <p>The past weeks</p>, progress: <p>The uploads</p>, settings: <p>The settings</p> };
 
 function show(link: string, student = maya) {
   window.history.replaceState(null, "", `/admin/students/s1${link}`);
@@ -81,7 +81,7 @@ describe("Student detail", () => {
     await userEvent.click(screen.getByRole("tab", { name: "Settings & tests" }));
     expect(window.location.search).toBe("?sort=newest&tab=settings");
     rerender(<StudentDetail student={maya} facts={facts} panels={panels} />);
-    expect(screen.getByRole("tabpanel").textContent).toBe("Settings & tests is not ready yet.");
+    expect(screen.getByRole("tabpanel").textContent).toBe("The settings");
 
     await userEvent.keyboard("{Home}");
     expect(window.location.search).toBe("?sort=newest");

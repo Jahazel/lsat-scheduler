@@ -20,12 +20,12 @@ export function PanelHeader({ title, aside, children }: { title: string; aside?:
   );
 }
 
-export function MonthCard({ title, count, children }: { title: string; count: string; children: ReactNode }) {
+export function MonthCard({ title, count, children }: { title: string; count?: string; children: ReactNode }) {
   return (
     <section aria-label={title} className={cx(DETAIL_CARD, "overflow-hidden")}>
       <div className="flex items-baseline justify-between gap-4 px-4 py-4 sm:px-5">
         <h3 className="text-small font-medium text-ink">{title}</h3>
-        <span className="text-caption text-smoke">{count}</span>
+        {count && <span className="text-caption text-smoke">{count}</span>}
       </div>
       <ul>{children}</ul>
     </section>

@@ -76,6 +76,10 @@ export function upcomingTestMonths(today: string) {
   }));
 }
 
+export function goalTestMonth(goalTestDate: string, today: string) {
+  return { label: testMonthLabel.format(new Date(`${goalTestDate}T00:00:00Z`)), passed: goalTestDate <= today };
+}
+
 const dayOfWeekSchema = z.enum(DAY_ORDER as [DayOfWeek, ...DayOfWeek[]]);
 
 const dailyCapacitySchema = z
@@ -133,6 +137,8 @@ export const MAX_OFFICIAL_ATTEMPTS = 10;
 const ATTEMPT_MONTH_COUNT = 60;
 
 const attemptMonthLabel = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+
+export const attemptMonthName = (month: string) => attemptMonthLabel.format(new Date(`${month}-01T00:00:00Z`));
 
 export function attemptMonths(today: string) {
   const [year, month] = today.split("-").map(Number);
