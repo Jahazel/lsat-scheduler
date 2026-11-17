@@ -185,7 +185,7 @@ export function StudentTabBar({ uploadNeeded, withWorkspaceSwitcher = false }: {
             href={tab.href}
             aria-current={active ? "page" : undefined}
             className={cx(
-              "flex min-h-14 flex-col items-center justify-center gap-1 rounded-md text-caption active:scale-[0.96]",
+              "flex flex-col items-center justify-center gap-1 rounded-md text-caption active:scale-[0.96]",
               active ? "bg-vellum font-medium text-ink" : "text-smoke",
               PRESS,
               FOCUS,
