@@ -1,0 +1,213 @@
+import { z } from "zod";
+import { weightedTrend } from "./currentWeeklySchedule";
+import { DAY_ORDER, generateWeek } from "./engine";
+import { mockRules } from "./mockData";
+import { generateSampleAnalytics, type SampleDirection } from "./sampleAnalytics";
+import { isoDateInWeek } from "./scheduleReasonText";
+import { dailyCapacityError, everyDay, practiceTestDayError, upcomingTestMonths } from "./studentProfile";
+import { goalScoreMessage, inScoreRange, parseScoreText, scoreRangeMessage, type Accommodation } from "./studyProfileDraft";
+import type { AnalyticsTrend, DayOfWeek, PlanningAnalytics, ScheduleReasonCode, Student, WeeklySchedule } from "./types";
+
+export type LabAnalytics = { kind: "sample"; direction: SampleDirection } | { kind: "student" };
+export type PresetId = "improving" | "steady" | "slipping" | "double" | "soon" | "short";
+
+export type LabInputs = {
+  preset: PresetId | "student";
+  copiedFrom: string | null;
+  weekOf: string;
+  current: string;
+  goal: string;
+  testMonth: string;
+  accommodation: Accommodation;
+  days: Record<DayOfWeek, number>;
+  ptDay: DayOfWeek;
+  analytics: LabAnalytics;
+};
+
+export type CopiedStudent = { id: string; name: string; uploadedOn: string | null; trend: AnalyticsTrend | null };
+
+export type LabErrors = { current?: string; goal?: string; testMonth?: string; days: Partial<Record<DayOfWeek, string>> };
+
+export type LabWeek = { schedule: WeeklySchedule; student: Student; plannedFrom: string };
+
+export const WEEK_COUNT = 26;
+export const DIRECTION_LABEL: Record<SampleDirection, string> = { improving: "Improving", steady: "Steady", slipping: "Slipping" };
+export const PRESET_GROUPS = ["Sample directions", "Edge cases"] as const;
+
+export const REASON_NAME: Record<ScheduleReasonCode, string> = {
+  capacity_overage: "Over daily time",
+  skip_reduction: "Lighter week",
+  starred_rotation: "Starred rotation",
+  full_section_dropped: "No full section",
+  rest_day_moved: "Rest day moved",
+  no_practice_test: "No practice test",
+  near_test_week: "Near-test week",
+  unscheduled_day: "Not scheduled",
+  review_carried_over: "Review carried over",
+  practice_test_review_day_next_week: "Review next Monday",
+  missed_type_priority: "Missed type first",
+};
+
+const SHORT_DAY = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+export const shortDay = (iso: string) => SHORT_DAY.format(new Date(`${iso}T00:00:00Z`));
+
+export const labWeeks = (thisWeek: string) =>
+  Array.from({ length: WEEK_COUNT }, (_, i) => isoDateInWeek(thisWeek, i * 7)).map((value) => ({ value, label: `Week of ${shortDay(value)}` }));
+
+const mondayOnOrBefore = (iso: string) => isoDateInWeek(iso, -((new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7));
+
+function steadyTestMonth(thisWeek: string) {
+  const months = upcomingTestMonths(thisWeek).map((m) => m.value);
+  return months.find((month) => month >= isoDateInWeek(thisWeek, 8 * 7)) ?? months.at(-1) ?? "";
+}
+
+function nearTestWeek(thisWeek: string) {
+  const weeks = labWeeks(thisWeek).map((w) => w.value);
+  for (const { value } of upcomingTestMonths(thisWeek)) {
+    const weekOf = mondayOnOrBefore(isoDateInWeek(value, -7));
+    if (weeks.includes(weekOf)) return { weekOf, testMonth: value };
+  }
+  return { weekOf: thisWeek, testMonth: steadyTestMonth(thisWeek) };
+}
+
+const steadyInputs = (thisWeek: string): LabInputs => ({
+  preset: "steady", copiedFrom: null, weekOf: thisWeek, current: "150", goal: "165", testMonth: steadyTestMonth(thisWeek),
+  accommodation: 1, days: { ...everyDay(120), SATURDAY: 210 }, ptDay: "SATURDAY", analytics: { kind: "sample", direction: "steady" },
+});
+
+export type Preset = { id: PresetId; label: string; group: (typeof PRESET_GROUPS)[number]; inputs: LabInputs };
+
+export function presets(thisWeek: string): Preset[] {
+  const steady = steadyInputs(thisWeek);
+  const preset = (id: PresetId, label: string, group: Preset["group"], change: Partial<LabInputs>): Preset =>
+    ({ id, label, group, inputs: { ...steady, ...change, preset: id } });
+  return [
+    preset("improving", "Improving", "Sample directions", { analytics: { kind: "sample", direction: "improving" } }),
+    preset("steady", "Steady", "Sample directions", {}),
+    preset("slipping", "Slipping", "Sample directions", { analytics: { kind: "sample", direction: "slipping" } }),
+    preset("double", "2× time", "Edge cases", { accommodation: 2, days: { ...everyDay(120), SATURDAY: 240 } }),
+    preset("soon", "Test in 3 weeks", "Edge cases", nearTestWeek(thisWeek)),
+    preset("short", "30 min days", "Edge cases", { days: { ...everyDay(30), SATURDAY: 150 } }),
+  ];
+}
+
+export const presetInputs = (id: string, thisWeek: string) =>
+  (presets(thisWeek).find((p) => p.id === id) ?? presets(thisWeek)[1]!).inputs;
+
+export function copiedInputs(student: Student, copied: CopiedStudent, thisWeek: string): LabInputs {
+  if (!copied.trend) return { ...steadyInputs(thisWeek), copiedFrom: copied.id };
+  return {
+    preset: "student", copiedFrom: copied.id, weekOf: thisWeek,
+    current: String(student.currentScore), goal: String(student.goalScore), testMonth: student.goalTestDate,
+    accommodation: student.accommodationMultiplier, days: student.dailyCapacityMinutes, ptDay: student.preferredPracticeTestDay,
+    analytics: { kind: "student" },
+  };
+}
+
+export function fieldErrors(inputs: LabInputs): LabErrors {
+  const errors: LabErrors = { days: {} };
+  const current = parseScoreText(inputs.current);
+  if (!inScoreRange(current)) errors.current = scoreRangeMessage("the current score");
+  const goal = inScoreRange(current)
+    ? goalScoreMessage(current, inputs.goal)
+    : inScoreRange(parseScoreText(inputs.goal)) ? null : scoreRangeMessage("the goal score");
+  if (goal) errors.goal = goal;
+  if (!upcomingTestMonths(inputs.weekOf).some((m) => m.value === inputs.testMonth)) errors.testMonth = "Choose a test month after this week.";
+  for (const day of DAY_ORDER) {
+    const message = dailyCapacityError(inputs.days[day]);
+    if (message) errors.days[day] = message;
+  }
+  const pt = practiceTestDayError({ dailyCapacityMinutes: inputs.days, preferredPracticeTestDay: inputs.ptDay }, inputs.accommodation);
+  if (pt) errors.days[inputs.ptDay] ??= pt;
+  return errors;
+}
+
+export const hasErrors = (errors: LabErrors) =>
+  Boolean(errors.current || errors.goal || errors.testMonth) || Object.keys(errors.days).length > 0;
+
+export function staleReason(errors: LabErrors) {
+  const fields = [
+    errors.current && "current PT score", errors.goal && "goal score", errors.testMonth && "goal test month",
+    Object.keys(errors.days).length > 0 && "study time",
+  ].filter((field): field is string => Boolean(field));
+  return `Fix the ${fields.join(", ")}.`;
+}
+
+const SEED: Record<SampleDirection, number> = { improving: 11, steady: 22, slipping: 33 };
+
+function seeded(seed: number) {
+  let t = seed;
+  return () => {
+    t = (t + 0x6d2b79f5) | 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function sampleTrend(direction: SampleDirection, currentScore: number, weekOf: string) {
+  const sample = generateSampleAnalytics({
+    previous: null, direction, currentScore, earlierSampleCount: 0,
+    regularTypes: [...mockRules.lrStemTypes, ...mockRules.lrLogicExceptions],
+    restrictedTypes: mockRules.lrLogicTypes.filter((type) => !mockRules.lrLogicExceptions.includes(type)),
+    random: seeded(SEED[direction]),
+  });
+  return weightedTrend([sample], weekOf);
+}
+
+export const plannedFrom = (analytics: LabAnalytics, copied: CopiedStudent | null) =>
+  analytics.kind === "sample" ? `${DIRECTION_LABEL[analytics.direction]} sample` : `${copied?.name}'s latest upload`;
+
+export function buildLabWeek(inputs: LabInputs, copied: CopiedStudent | null): LabWeek | null {
+  if (hasErrors(fieldErrors(inputs))) return null;
+  const student: Student = {
+    currentScore: Number(inputs.current), goalScore: Number(inputs.goal), dailyCapacityMinutes: inputs.days,
+    preferredPracticeTestDay: inputs.ptDay, accommodationMultiplier: inputs.accommodation, goalTestDate: inputs.testMonth,
+  };
+  const a = inputs.analytics;
+  let analytics: PlanningAnalytics;
+  if (a.kind === "sample") analytics = sampleTrend(a.direction, student.currentScore, inputs.weekOf);
+  else if (copied?.trend) analytics = { ...copied.trend, weekOf: inputs.weekOf };
+  else return null;
+  return { schedule: generateWeek(student, analytics, mockRules, copied?.name ?? "Lab"), student, plannedFrom: plannedFrom(a, copied) };
+}
+
+export const weekReasons = (schedule: WeeklySchedule) => schedule.reasons?.filter((r) => r.placement.scope === "week") ?? [];
+
+const linkSchema = z.object({
+  preset: z.enum(["improving", "steady", "slipping", "double", "soon", "short", "student"]),
+  copiedFrom: z.string().nullable(),
+  weekOf: z.string(),
+  current: z.string(),
+  goal: z.string(),
+  testMonth: z.string(),
+  accommodation: z.union([z.literal(1), z.literal(1.5), z.literal(2)]),
+  days: z.object(Object.fromEntries(DAY_ORDER.map((day) => [day, z.number().int()])) as Record<DayOfWeek, z.ZodNumber>),
+  ptDay: z.enum(DAY_ORDER as [DayOfWeek, ...DayOfWeek[]]),
+  analytics: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("sample"), direction: z.enum(["improving", "steady", "slipping"]) }),
+    z.object({ kind: z.literal("student") }),
+  ]),
+});
+
+export function encodeLabLink(inputs: LabInputs): string {
+  const bytes = new TextEncoder().encode(JSON.stringify(inputs));
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+export function readLabLink(text: string, thisWeek: string): LabInputs | null {
+  let value: unknown;
+  try {
+    const binary = atob(text.replace(/-/g, "+").replace(/_/g, "/"));
+    value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(binary, (c) => c.charCodeAt(0))));
+  } catch {
+    return null;
+  }
+  const parsed = linkSchema.safeParse(value);
+  if (!parsed.success) return null;
+  const inputs = parsed.data;
+  const fromStudent = inputs.preset === "student" || inputs.analytics.kind === "student";
+  if (fromStudent && inputs.copiedFrom === null) return null;
+  if (!labWeeks(thisWeek).some((w) => w.value === inputs.weekOf)) return null;
+  return inputs;
+}

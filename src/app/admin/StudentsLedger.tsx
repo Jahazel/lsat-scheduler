@@ -15,7 +15,7 @@ import {
 type Change = (change: Partial<ListState>) => void;
 
 const CARD = "rounded-lg border border-vellum-line bg-paper shadow-control";
-const PRESS = "transition-[color,background-color,scale] duration-(--duration-fast) ease-(--ease-out-strong) active:scale-[0.97] motion-reduce:active:scale-100";
+export const PRESS = "transition-[color,background-color,scale] duration-(--duration-fast) ease-(--ease-out-strong) active:scale-[0.97] motion-reduce:active:scale-100";
 const PILL = cx("flex h-10 items-center gap-1.5 rounded-pill border bg-paper px-4 text-small whitespace-nowrap text-ink shadow-control pointer-hover:hover:bg-vellum", PRESS, FOCUS);
 
 const testMonth = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
