@@ -39,7 +39,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       {/* has-[] adds room for the floating mobile tab bar, only when it is on the page (students). */}
-      <body className={`min-h-full flex flex-col has-[[data-tab-bar]]:pb-[calc(6rem+env(safe-area-inset-bottom))] md:has-[[data-tab-bar]]:pb-0 ${WORKSPACE_NAV_BREAKPOINT.bodyTabBarPadding}`}>
+      <body className={`min-h-full flex flex-col has-[[data-tab-bar]]:pb-(--tab-bar-room) md:has-[[data-tab-bar]]:pb-0 ${WORKSPACE_NAV_BREAKPOINT.bodyTabBarPadding}`}>
         <AdminTestProvider key={`${session?.user?.id ?? "anonymous"}:${session?.user?.role ?? "student"}`}>
           <FailureToastProvider>
             <SiteHeader />
