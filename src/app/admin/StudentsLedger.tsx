@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { FOCUS, FOCUS_INSET, cx } from "@/components/ui/classes";
 import { formatDuration } from "@/lib/formatDuration";
 import { planStatusLabel } from "@/lib/planStatus";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import {
-  PLAN_FILTERS, PLAN_FILTER_KEYS, SORTS, SORT_KEYS, cleared, countsOf, displayName, listQuery, narrowed, visible,
+  PLAN_FILTERS, PLAN_FILTER_KEYS, SORTS, SORT_KEYS, cleared, countsOf, displayName, listQuery, listStateFrom, narrowed, visible,
   type Counts, type ListState, type Sort, type StudentRow,
 } from "@/lib/studentList";
 
@@ -24,7 +25,7 @@ const plural = (n: number, one: string, many: string) => `${n.toLocaleString("en
 
 function Badge({ children, tone = "plain" }: { children: string; tone?: "plain" | "accent" }) {
   return (
-    <span className={cx("inline-flex shrink-0 items-center rounded-pill px-2 py-0.5 text-caption font-medium whitespace-nowrap", tone === "accent" ? "bg-accent/10 text-accent" : "bg-vellum text-smoke")}>
+    <span className={cx("inline-flex shrink-0 items-center rounded-pill px-2 py-0.5 text-caption font-medium whitespace-nowrap", tone === "accent" ? "bg-accent/tint text-accent" : "bg-vellum text-smoke")}>
       {children}
     </span>
   );
@@ -61,7 +62,7 @@ function SearchField({ value, onChange, className }: { value: string; onChange: 
     <div className={cx("relative flex h-10 min-w-0 items-center", className)}>
       <svg aria-hidden viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="pointer-events-none absolute left-3.5 size-4 text-fog"><circle cx="9" cy="9" r="5.5" /><path d="m13 13 3.5 3.5" /></svg>
       <input ref={input} type="search" aria-label="Search students" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Name or email"
-        className="h-full w-full min-w-0 rounded-pill border border-vellum-line bg-paper pr-9 pl-10 text-body text-ink shadow-control placeholder:text-fog focus:border-ink focus:outline-none md:text-small [&::-webkit-search-cancel-button]:hidden" />
+        className={cx("h-full w-full min-w-0 rounded-pill border border-vellum-line bg-paper pr-9 pl-10 text-body text-ink shadow-control placeholder:text-fog md:text-small [&::-webkit-search-cancel-button]:hidden", FOCUS)} />
       {value && (
         <button type="button" aria-label="Clear search" onClick={() => { onChange(""); input.current?.focus(); }}
           className={cx("absolute right-1 flex size-8 items-center justify-center rounded-pill text-smoke pointer-hover:hover:bg-vellum pointer-hover:hover:text-ink", PRESS, FOCUS_INSET)}>
@@ -121,7 +122,7 @@ function MenuItem({ on, onClick, kind = "radio", children, count }: { on: boolea
   );
 }
 
-const MenuHeading = ({ children }: { children: string }) => <p role="presentation" className="px-2.5 pt-2 pb-1 text-caption text-fog">{children}</p>;
+const MenuHeading = ({ children }: { children: string }) => <p role="presentation" className="px-2.5 pt-2 pb-1 text-caption text-smoke">{children}</p>;
 
 const ANALYTICS_LABEL = "Needs analytics";
 const WEEK_LABEL = "Has this week's schedule";
@@ -176,8 +177,8 @@ function TableRow({ row }: { row: StudentRow }) {
         </Link>
       </td>
       <td className="px-4"><PlanBadge row={row} /></td>
-      <td className="px-4">{row.needsAnalytics ? <Badge tone="accent">Needed</Badge> : <span className="text-small text-fog">Done</span>}</td>
-      <td className="px-4 text-small whitespace-nowrap">{row.hasThisWeek ? <span className="text-ink">Ready</span> : <span className="text-fog">None</span>}</td>
+      <td className="px-4">{row.needsAnalytics ? <Badge tone="accent">Needed</Badge> : <span className="text-small text-smoke">Done</span>}</td>
+      <td className="px-4 text-small whitespace-nowrap">{row.hasThisWeek ? <span className="text-ink">Ready</span> : <span className="text-smoke">None</span>}</td>
       <td className="px-4 text-right text-small whitespace-nowrap text-ink tabular-nums">{formatDuration(row.weeklyMinutes)}</td>
       <td className="px-4 text-small whitespace-nowrap text-ink tabular-nums">{testMonth.format(new Date(`${row.goalTestDate}T00:00:00Z`))}</td>
       <td className="pr-5 pl-4 text-small whitespace-nowrap text-smoke tabular-nums">{joinedDay.format(row.joinedAt)}</td>
@@ -209,11 +210,29 @@ function NoMatch({ clear }: { clear: () => void }) {
   );
 }
 
-export function StudentsLedger({ rows, initial }: { rows: StudentRow[]; initial: ListState }) {
-  const [state, setState] = useState(initial);
+const choicesIn = (query: string) => listStateFrom(Object.fromEntries(new URLSearchParams(query)));
+
+export function StudentsLedger({ rows }: { rows: StudentRow[] }) {
+  const link = useSearchParams().toString();
+  const [state, setState] = useState(() => choicesIn(link));
+  const [seenLink, setSeenLink] = useState(link);
+  // Links this list wrote that Next has not reported back yet. Any other new link is a navigation.
+  const [written, setWritten] = useState<string[]>([]);
+  if (link !== seenLink) {
+    setSeenLink(link);
+    const mine = written.indexOf(link);
+    if (mine === -1) {
+      setState(choicesIn(link));
+      setWritten([]);
+    } else {
+      setWritten(written.slice(mine + 1));
+    }
+  }
   const show = (next: ListState) => {
+    const query = listQuery(next);
     setState(next);
-    window.history.replaceState(window.history.state, "", `${window.location.pathname}${listQuery(next)}`);
+    setWritten((pending) => [...pending, query.slice(1)]);
+    window.history.replaceState(null, "", `${window.location.pathname}${query}`);
   };
   const set: Change = (change) => show({ ...state, ...change });
   const clear = () => show(cleared(state));

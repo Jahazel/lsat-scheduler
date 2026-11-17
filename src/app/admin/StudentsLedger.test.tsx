@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { LIST_START, type ListState, type StudentRow } from "@/lib/studentList";
+import { LIST_START, listQuery, type ListState, type StudentRow } from "@/lib/studentList";
 import { StudentsLedger } from "./StudentsLedger";
+
+const next = vi.hoisted(() => ({ link: "" }));
+vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(next.link) }));
 
 afterEach(cleanup);
 beforeEach(() => window.history.replaceState(null, "", "/admin"));
@@ -28,7 +31,12 @@ const ROWS = [
   row("Lucas", { plan: "lapsed", hasThisWeek: false }),
 ];
 
-const show = (initial: Partial<ListState> = {}, rows = ROWS) => render(<StudentsLedger rows={rows} initial={{ ...LIST_START, ...initial }} />);
+function show(link: Partial<ListState> = {}, rows = ROWS) {
+  const query = listQuery({ ...LIST_START, ...link });
+  window.history.replaceState(null, "", `/admin${query}`);
+  next.link = query.slice(1);
+  return render(<StudentsLedger rows={rows} />);
+}
 const NAMES = /^(Maya|Daniel|Priya|Lucas|Old|New)$/;
 const shownNames = () => within(screen.getByRole("table")).getAllByText(NAMES).map((name) => name.textContent);
 const counts = () => screen.getByText((_, element) => element?.tagName === "P" && /on a paid plan/.test(element.textContent ?? "")).textContent;
@@ -117,6 +125,35 @@ describe("Students", () => {
     show({ q: "a", plan: "trouble", sort: "plan" });
     expect(screen.getByRole("searchbox")).toHaveProperty("value", "a");
     expect(shownNames()).toEqual(["Priya", "Lucas"]);
+  });
+
+  it("a navigation to another Students link replaces the choices", () => {
+    const { rerender } = show({ q: "pri" });
+    expect(shownNames()).toEqual(["Priya"]);
+    next.link = "";
+    rerender(<StudentsLedger rows={ROWS} />);
+    expect(screen.getByRole("searchbox")).toHaveProperty("value", "");
+    expect(shownNames()).toEqual(["Daniel", "Lucas", "Maya", "Priya"]);
+  });
+
+  it("keeps newer typing when Next reports the links it wrote late", async () => {
+    const user = userEvent.setup();
+    const { rerender } = show();
+    await user.type(screen.getByRole("searchbox"), "ma");
+    expect(window.location.search).toBe("?q=ma");
+    for (const late of ["q=m", "q=ma"]) {
+      next.link = late;
+      rerender(<StudentsLedger rows={ROWS} />);
+      expect(screen.getByRole("searchbox")).toHaveProperty("value", "ma");
+    }
+    expect(shownNames()).toEqual(["Maya"]);
+  });
+
+  it("opens with the choices in the link", () => {
+    next.link = "q=pri";
+    render(<StudentsLedger rows={ROWS} />);
+    expect(screen.getByRole("searchbox")).toHaveProperty("value", "pri");
+    expect(shownNames()).toEqual(["Priya"]);
   });
 
   it("says when nothing matches, and Clear filters brings every student back but keeps the sort", async () => {

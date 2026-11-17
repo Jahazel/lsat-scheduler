@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import type { Session } from "next-auth";
 import { afterAll, beforeEach, expect, it, vi } from "vitest";
 import { setUpAppTestDatabase } from "./appTestDatabase";
+import { fakeLink } from "./fakeNavigation";
 import { findAccountById } from "../../src/lib/accountRepository";
 import { createStudent, updateStudySettings } from "../../src/lib/studentRepository";
 import { listWeeklySchedulesForStudent } from "../../src/lib/weeklyScheduleRepository";
@@ -67,8 +68,10 @@ async function everyRow() {
   return rows[0];
 }
 
-const studentsPage = async (query: Record<string, string> = {}) =>
-  renderToStaticMarkup(await AdminPage({ searchParams: Promise.resolve(query) }));
+async function studentsPage(query: Record<string, string> = {}) {
+  fakeLink.search = new URLSearchParams(query).toString();
+  return renderToStaticMarkup(await AdminPage());
+}
 const listRows = (markup: string) => markup.split("<li").slice(1);
 const listNames = (markup: string) =>
   listRows(markup).map((row) => row.match(/<span class="min-w-0 font-medium[^"]*">([^<]+)<\/span>/)?.[1]);
@@ -222,7 +225,7 @@ it.each(["student", "no-session"] as const)("refuses a %s the Admin pages, route
   state.session = null;
   if (actor === "student") signIn(other.account);
   const before = await everyRow();
-  await expect(AdminPage({ searchParams: Promise.resolve({}) })).rejects.toThrow("redirect:/dashboard");
+  await expect(AdminPage()).rejects.toThrow("redirect:/dashboard");
   await expect(studentPage(other.saved.id)).rejects.toThrow("redirect:/dashboard");
   expect((await listStudentsRoute()).status).toBe(403);
   expect((await studentApi(other.saved.id)).status).toBe(403);

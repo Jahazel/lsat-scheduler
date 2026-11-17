@@ -329,7 +329,7 @@ it("a demoted Admin reaches no Admin page or Admin action on the next request", 
   expect(await proxyResponse("/admin", request.cookie)).toEqual({ status: 200, location: null });
 
   await ownerSql(sql`update accounts set role = 'student' where id = ${admin.id}`);
-  await expect(AdminPage({ searchParams: Promise.resolve({}) })).rejects.toThrow("redirect:/dashboard");
+  await expect(AdminPage()).rejects.toThrow("redirect:/dashboard");
   await expectUnexpectedFailure(database, setSimulatedDate("2026-10-24"), "AdminAccessRequired");
   expect(await proxyResponse("/admin", request.cookie)).toMatchObject({ status: 307, location: "http://localhost:3000/login?error=SessionEnded" });
   expect((await ownerSql(sql`select simulated_date::text from accounts`)).rows).toEqual([{ simulated_date: "2026-10-23" }]);

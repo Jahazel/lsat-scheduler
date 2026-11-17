@@ -6,12 +6,12 @@ import { listStudentIdsWithApprovedAnalytics } from "@/lib/analyticsSnapshotRepo
 import { loadPlanStatuses } from "@/lib/billingRepository";
 import { currentWeekInTimezone } from "@/lib/currentWeeklySchedule";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
-import { listStateFrom, type StudentRow } from "@/lib/studentList";
+import type { StudentRow } from "@/lib/studentList";
 import { listStudentsWithOwners } from "@/lib/studentRepository";
 import { listStudentIdsWithScheduleForWeek } from "@/lib/weeklyScheduleRepository";
 import { StudentsLedger } from "./StudentsLedger";
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+export default async function AdminPage() {
   await requireAdmin();
 
   const [students, withAnalytics, withThisWeek] = await Promise.all([
@@ -38,7 +38,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     <div data-page-fade className={cx(PAGE_COLUMN, "pt-6 pb-12 md:pt-10")}>
       <PageCue page="admin" />
       <PageArrival page="Students" />
-      <StudentsLedger rows={rows} initial={listStateFrom(await searchParams)} />
+      <StudentsLedger rows={rows} />
     </div>
   );
 }
