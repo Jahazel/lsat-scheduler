@@ -91,7 +91,7 @@ describe("OnboardingWizard · frame and Goal", () => {
     render(<OnboardingWizard {...student} admin goalTestDateOptions={options} onSave={vi.fn()} />);
 
     const count = stepCount("Step 1 of 4 · Goal");
-    expect(count.closest("[data-page-section]")?.firstElementChild?.contains(count)).toBe(true);
+    expect(count.closest("[data-page-section]")?.textContent).toMatch(/^Step 1 of 4 · Goal/);
     expect(count.closest("[data-onboarding-step]")).toBeNull();
   });
 
@@ -488,7 +488,7 @@ describe("OnboardingWizard", () => {
     const saving = screen.getByRole("button", { name: "Saving…" });
     expect(saving.getAttribute("aria-disabled")).toBe("true");
     expect(saving.textContent).toBe("Saving…");
-    expect(saving.parentElement?.textContent).toBe("Saving… · Your schedule starts after you add both.");
+    expect(screen.getByText((_, el) => el?.textContent === "Saving… · Your schedule starts after you add both.")).toBeDefined();
     expect((screen.getByRole("button", { name: "Back" }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText("Saving your plan. This takes a few seconds.")).toBeDefined();
 
@@ -879,7 +879,7 @@ describe("OnboardingWizard", () => {
     const box = (type: string) => screen.getByLabelText(`${type} accuracy`) as HTMLInputElement;
     const flag = (type: string) => screen.getByRole("switch", { name: type }) as HTMLInputElement;
     const tierOf = (type: string) => document.getElementById(flag(type).getAttribute("aria-describedby") ?? "")?.textContent;
-    const rowOf = (type: string) => within(box(type).closest("div")!.parentElement!);
+    const rowOf = (type: string) => within(box(type).closest("div")!);
     const confirmButton = () => screen.getByRole("button", { name: "Confirm snapshot" });
     const statements = ["I reviewed these values and they match my screenshots.", "These screenshots show my latest 7Sage analytics."];
 
@@ -1116,7 +1116,7 @@ describe("OnboardingWizard", () => {
       await user.click(confirmButton());
 
       expect(await screen.findByRole("heading", { level: 1, name: "Your first week is ready" })).toBeDefined();
-      const drills = within(screen.getByRole("heading", { name: "Thursday's drills" }).parentElement!).getAllByRole("listitem");
+      const drills = within(screen.getByRole("heading", { name: "Thursday's drills" }).closest("div")!).getAllByRole("listitem");
       expect(drills.map((row) => row.textContent)).toEqual([
         "43 min2 RC Passages Law L2, Science L458% accuracy",
         "1 h 15 min1 Full LR Section",
@@ -1327,7 +1327,7 @@ describe("OnboardingWizard · Type them", () => {
     expect(stepCount("Step 4 of 4 · Review")).toBeDefined();
     expect(screen.getByRole("heading", { name: "Check your analytics" })).toBeDefined();
     expect(box("Diagram").value).toBe("64");
-    expect(within(box("Law").closest("div")!.parentElement!).getByText("Goes first")).toBeDefined();
+    expect(within(box("Law").closest("div")!).getByText("Goes first")).toBeDefined();
     expect(screen.queryByText(/^Was |Added by you/)).toBeNull();
     const confirm = screen.getByRole("button", { name: "Confirm snapshot" });
     for (const statement of ["I copied these values from my 7Sage Analytics page.", "These are my latest 7Sage analytics."]) {

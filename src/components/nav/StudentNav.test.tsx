@@ -102,8 +102,7 @@ describe("user menu", () => {
   it("shows the email only when the student has no name", async () => {
     render(<StudentNav {...props} name={null} initials={initialsFor(null, props.email)} />);
     const menu = await openMenu();
-    const card = within(menu).getByText("dana@example.test").parentElement!;
-    expect(card.textContent).toBe("dana@example.test");
+    expect(menu.textContent).toBe("Ddana@example.testAccountLog out");
   });
 
   it.each([

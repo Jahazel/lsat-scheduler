@@ -78,6 +78,7 @@ function setup({ withPracticeTest = true, reply = REFUSED }: { withPracticeTest?
 const confirmButton = () => screen.getByRole("button", { name: "Confirm and build next week" });
 const statement = (name: string) => screen.getByRole("checkbox", { name });
 const REVIEWED = "I reviewed these values and they match my screenshots.";
+const rowReading = (text: string) => (_: string, el: Element | null) => el?.textContent === text;
 const LATEST = "These are my latest analytics and this week's practice test.";
 
 describe("Check what we read", () => {
@@ -88,13 +89,12 @@ describe("Check what we read", () => {
     expect(screen.getByText("Compare each value with your screenshots. Nothing counts until you confirm.")).toBeDefined();
     const practiceTest = within(screen.getByRole("region", { name: "Practice test 158" }));
     expect(practiceTest.getByText("Sections · each missed count must match its 7Sage score")).toBeDefined();
-    expect(practiceTest.getByText("Section 1 · RC").parentElement?.textContent).toBe("Section 1 · RCDoes not change your plan−9");
-    expect(practiceTest.getByText("Section 2 · LR").parentElement?.textContent).toBe("Section 2 · LR2 missed · matches−2");
-    expect(practiceTest.getByText("Section 3 · LR").parentElement?.textContent).toBe("Section 3 · LR4 missed · matches−4");
-    expect(practiceTest.getByText("Section 4 · LR").parentElement?.textContent).toBe("Section 4 · LR2 missed · matches−2");
+    expect(practiceTest.getByText(rowReading("Section 1 · RCDoes not change your plan−9"))).toBeDefined();
+    expect(practiceTest.getByText(rowReading("Section 2 · LR2 missed · matches−2"))).toBeDefined();
+    expect(practiceTest.getByText(rowReading("Section 3 · LR4 missed · matches−4"))).toBeDefined();
+    expect(practiceTest.getByText(rowReading("Section 4 · LR2 missed · matches−2"))).toBeDefined();
     expect(practiceTest.getByText("The cursor hid Section 3 Q18. Its score of −4 says Q18 was right.")).toBeDefined();
-    expect(practiceTest.getByText("Flaw or descriptive weakening").parentElement?.textContent)
-      .toBe("Flaw or descriptive weakening2 missed · goes first");
+    expect(practiceTest.getByText(rowReading("Flaw or descriptive weakening2 missed · goes first"))).toBeDefined();
     const score = screen.getByRole("textbox", { name: "Practice test 158" }) as HTMLInputElement;
     expect(score.value).toBe("156");
     expect(within(screen.getByRole("region", { name: "Current score" })).getByText("Saved to study settings")).toBeDefined();
@@ -258,7 +258,8 @@ describe("Check what we read", () => {
     expect(preview.getByText("Next Monday from these values")).toBeDefined();
     expect(preview.getByText("Not confirmed yet")).toBeDefined();
     expect(preview.getByAltText("Your 7Sage Logical Reasoning screenshot")).toBeDefined();
-    expect(preview.getByText("goes first").parentElement?.textContent).toMatch(/^\d+ Flaw or descriptive weakening/);
+    const goesFirst = preview.getAllByRole("listitem").filter((item) => item.textContent?.includes("goes first"));
+    expect(goesFirst.map((item) => item.textContent)).toEqual([expect.stringMatching(/^\d+ Flaw or descriptive weakening/)]);
   });
 
   it("on a weekday, checks last week's practice test and builds this week", async () => {

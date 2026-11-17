@@ -28,7 +28,7 @@ it("waits for Stripe to confirm the plan, then opens This week", async () => {
 
   expect(screen.getByRole("heading", { name: "Starting your plan…" })).toBeDefined();
   expect(screen.getByText("Stripe is confirming your card. This week opens next.")).toBeDefined();
-  expect(within(topBar).getByText("Last step").parentElement!.textContent).toBe("Last step · Plan");
+  expect(within(topBar).getByText("Last step").closest("p")?.textContent).toBe("Last step · Plan");
   expect(screen.getByRole("progressbar", { name: "Starting your plan" })).toBeDefined();
   await wait(ASK_EVERY_MS);
   expect(router.push).not.toHaveBeenCalled();

@@ -60,7 +60,7 @@ it("shows both plans with prices, the free week end, the first charge, and the r
   const topBar = render(<TopBarStepCount first="goal" />).container;
   renderPlanChoice();
 
-  expect(within(topBar).getByText("Last step").parentElement!.textContent).toBe("Last step · Plan");
+  expect(within(topBar).getByText("Last step").closest("p")?.textContent).toBe("Last step · Plan");
   expect(screen.queryByText(/Step \d of/)).toBeNull();
   expect(screen.getByRole("heading", { level: 1, name: "Pick your plan" })).toBeDefined();
   expect(screen.getByText(/Your free week runs until/).textContent).toBe("Your free week runs until Sunday, Nov 22. You pay nothing before then.");

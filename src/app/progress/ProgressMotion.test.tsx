@@ -104,17 +104,15 @@ describe("ProgressMotion", () => {
   });
 
   it("keeps the old week on screen, dimmed and busy, until the new week arrives", async () => {
-    const { container, rerender } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
-    const area = container.firstElementChild!.firstElementChild!;
+    const { rerender } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
     fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
     finishExits();
     await vi.waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/progress?week=2026-10-05", { scroll: false }));
     expect(keyframes(0).at(-1)).toMatchObject({ opacity: 0.5 });
-    expect(area.getAttribute("aria-busy")).toBe("true");
-    expect(screen.getByRole("heading", { name: "Week of 2026-10-12" })).toBeDefined();
+    expect(screen.getByRole("heading", { name: "Week of 2026-10-12" }).closest("[aria-busy]")?.getAttribute("aria-busy")).toBe("true");
 
     show("/progress?week=2026-10-05", <Week week="2026-10-05" />, rerender);
-    expect(area.hasAttribute("aria-busy")).toBe(false);
+    expect(screen.getByRole("heading", { name: "Week of 2026-10-05" }).closest("[aria-busy]")).toBeNull();
     expect(keyframes(1)[0]).toMatchObject({ opacity: 0.5 });
     expect(keyframes(1).at(-1)).toMatchObject({ opacity: 1 });
   });
@@ -175,14 +173,14 @@ describe("ProgressMotion", () => {
   });
 
   it("drops a click when Forward leaves Progress during its exit", async () => {
-    const { container } = show("/progress?week=2026-10-12", <Week week="2026-10-12" />)!;
+    show("/progress?week=2026-10-12", <Week week="2026-10-12" />);
     fireEvent.click(screen.getByRole("link", { name: "← Older week" }));
     history.replaceState(null, "", "/dashboard");
     dispatchEvent(new PopStateEvent("popstate"));
     finishExits();
     await Promise.resolve();
     expect(mocks.push).not.toHaveBeenCalled();
-    expect(container.firstElementChild!.firstElementChild!.hasAttribute("aria-busy")).toBe(false);
+    expect(screen.getByRole("heading", { name: "Week of 2026-10-12" }).closest("[aria-busy]")).toBeNull();
   });
 
   it("drops a held Back when Forward then leaves Progress", async () => {
@@ -308,7 +306,7 @@ describe("ProgressMotion", () => {
     show("/progress?week=2026-10-05", <WeekWithSections week="2026-10-05" />, rerender);
     expect(placeholderShown(container)).toBe(false);
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Week of 2026-10-05" }));
-    expect(container.firstElementChild!.firstElementChild!.hasAttribute("aria-busy")).toBe(false);
+    expect(screen.getByRole("heading", { name: "Week of 2026-10-05" }).closest("[aria-busy]")).toBeNull();
     const rises = animate.mock.contexts.filter((el) => (el as HTMLElement).hasAttribute("data-page-section"));
     expect(rises).toHaveLength(2);
     expect(keyframes(animate.mock.contexts.indexOf(rises[0]))[0]).toMatchObject({ opacity: 0, transform: "translateY(8px)" });

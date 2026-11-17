@@ -110,28 +110,6 @@ const DOM_WALK = {
   message: DOM_WALK_TEST,
 };
 
-const TESTS_STILL_WALKING_THE_DOM = [
-  "src/app/account/PlanCard.test.tsx",
-  "src/app/account/loading.test.tsx",
-  "src/app/admin/loading.test.tsx",
-  "src/app/admin/students/\\[id\\]/loading.test.tsx",
-  "src/app/dashboard/\\(this-week\\)/loading.test.tsx",
-  "src/app/dashboard/upload/WeeklyCheck.test.tsx",
-  "src/app/dashboard/upload/loading.test.tsx",
-  "src/app/onboarding/OnboardingWizard.test.tsx",
-  "src/app/onboarding/PlanChoice.test.tsx",
-  "src/app/onboarding/StartingPlan.test.tsx",
-  "src/app/onboarding/loading.test.tsx",
-  "src/app/progress/ProgressMotion.test.tsx",
-  "src/app/settings/StudySettingsForm.test.tsx",
-  "src/app/settings/loading.test.tsx",
-  "src/components/PagePlaceholder.test.tsx",
-  "src/components/ScheduleCheckInView.test.tsx",
-  "src/components/SiteMotion.test.tsx",
-  "src/components/landing/HowItWorks.test.tsx",
-  "src/components/nav/StudentNav.test.tsx",
-];
-
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -180,12 +158,6 @@ const eslintConfig = defineConfig([
         })),
       ],
       "no-restricted-syntax": ["error", ...testFileSyntax, DOM_WALK],
-    },
-  },
-  {
-    files: TESTS_STILL_WALKING_THE_DOM,
-    rules: {
-      "no-restricted-syntax": ["error", ...testFileSyntax],
     },
   },
   {
