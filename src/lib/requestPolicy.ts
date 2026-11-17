@@ -68,7 +68,7 @@ const EXTRACTION_ROUTES = new Set(["/api/analytics/extract", "/api/practice-test
 const SERVER_ACTION_TYPES = new Set(["text/plain", "multipart/form-data"]);
 
 const ROUTES = new Set([
-  "/", "/account", "/admin", "/dashboard", "/dashboard/upload", "/forgot-password", "/legal/ai-disclosure", "/legal/privacy",
+  "/", "/account", "/admin", "/admin/lab", "/dashboard", "/dashboard/upload", "/forgot-password", "/legal/ai-disclosure", "/legal/privacy",
   "/legal/terms", "/login", "/onboarding", "/progress", "/reset-password", "/settings", "/signup", "/verify-email",
   "/api/analytics/extract", "/api/practice-test/extract", "/api/students", "/api/stripe/webhook",
 ]);

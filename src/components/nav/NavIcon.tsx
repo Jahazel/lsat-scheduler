@@ -1,4 +1,4 @@
-export type NavIconName = "week" | "upload" | "progress" | "settings" | "chevron" | "check" | "account" | "logout" | "flag";
+export type NavIconName = "week" | "upload" | "progress" | "settings" | "chevron" | "check" | "account" | "logout" | "flag" | "students" | "lab";
 
 const PATHS: Record<NavIconName, string> = {
   week: "M7 5.5h10a2.5 2.5 0 0 1 2.5 2.5v9a2.5 2.5 0 0 1-2.5 2.5H7A2.5 2.5 0 0 1 4.5 17V8A2.5 2.5 0 0 1 7 5.5ZM4.5 10h15",
@@ -10,9 +10,11 @@ const PATHS: Record<NavIconName, string> = {
   account: "M15.5 8.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0ZM5 20c1.2-3.5 4-5 7-5s5.8 1.5 7 5",
   logout: "M14 4.5h3a2.5 2.5 0 0 1 2.5 2.5v10a2.5 2.5 0 0 1-2.5 2.5h-3M10 8l-4 4 4 4M6 12h9",
   flag: "M5.5 21V4.5M5.5 5h11l-2 4 2 4h-11",
+  students: "M12.5 8a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0ZM2.5 20c.8-3.4 3.4-5 6.5-5s5.7 1.6 6.5 5M15.5 4.6a3.5 3.5 0 0 1 0 6.8M18 15.4c1.8.7 3 2.2 3.5 4.6",
+  lab: "M9.5 3.5h5M10.5 3.5v6L5.2 18.7A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.3-2.3L13.5 9.5v-6M7.6 15h8.8",
 };
 
-const STROKE: Partial<Record<NavIconName, number>> = { chevron: 1.8, check: 1.8, account: 1.6, logout: 1.6, flag: 1.6 };
+const STROKE: Partial<Record<NavIconName, number>> = { chevron: 1.8, check: 1.8, account: 1.6, logout: 1.6, flag: 1.6, students: 1.5, lab: 1.5 };
 
 export function NavIcon({ name, className = "size-5" }: { name: NavIconName; className?: string }) {
   return (

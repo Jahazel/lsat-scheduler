@@ -86,6 +86,7 @@ describe("forged requests", () => {
     const id = "4b3c2f80-9a8e-4c1d-b7f6-0e5d4c3b2a19";
     const refusedRoute = (pathname: string) => requestPolicy(sameSite({ pathname, origin: null })).refused?.route;
     expect(refusedRoute(`/admin/students/${id}`)).toBe("/admin/students/[id]");
+    expect(refusedRoute("/admin/lab")).toBe("/admin/lab");
     expect(refusedRoute(`/api/students/${id}`)).toBe("/api/students/[id]");
     expect(refusedRoute("/maya.chen@fastmail.com")).toBe("/other");
     expect(refusedRoute("/dashboard/secret-typed-path")).toBe("/other");
@@ -192,7 +193,7 @@ describe("private responses", () => {
   it("marks every private page and Route Handler private, no-store", () => {
     const id = "4b3c2f80-9a8e-4c1d-b7f6-0e5d4c3b2a19";
     for (const pathname of [
-      "/dashboard", "/dashboard/upload", "/progress", "/settings", "/account", "/onboarding", "/admin", `/admin/students/${id}`,
+      "/dashboard", "/dashboard/upload", "/progress", "/settings", "/account", "/onboarding", "/admin", "/admin/lab", `/admin/students/${id}`,
       "/api/students", `/api/students/${id}`, "/api/auth/session", "/api/cron/daily-cleanup", "/api/stripe/webhook",
     ]) {
       expect(cacheControl({ pathname }), pathname).toBe("private, no-store");

@@ -5,86 +5,103 @@ import AdminTestPanel from "@/components/AdminTestPanel";
 import type { TestControlState } from "@/components/TestControls";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
-import StudentNav, { StudentTabBar, type StudentNavProps } from "./StudentNav";
-import { NavIcon } from "./NavIcon";
-import { SignOutButton, SignOutForm } from "@/components/SignOutForm";
-import { FOCUS, PAGE_COLUMN, TAP_AREA, cx } from "@/components/ui/classes";
-import { BAR, HEADER, Logo, TABS, isTabActive } from "./shared";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { AvatarMenu, PRESS, PrimaryTabs, StudentTabBar, TAB_BAR, tabBarItem, type StudentNavProps } from "./StudentNav";
+import { NavIcon, type NavIconName } from "./NavIcon";
+import { NavTab } from "@/components/ui/NavTab";
+import { FOCUS, PAGE_COLUMN, cx } from "@/components/ui/classes";
+import { DESKTOP_BAR, HEADER, Logo, MOBILE_BAR, TABS, isTabActive } from "./shared";
 
-function WorkspaceSwitcher({ studentSide, adminSide }: { studentSide: boolean; adminSide: boolean }) {
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
-  const trigger = useRef<HTMLButtonElement>(null);
-  const menuId = useId();
+const ADMIN_HOME = "/admin";
+const STUDENT_HOME = "/dashboard";
+const STUDENT_SIDE = [...TABS.map(({ href }) => href), "/onboarding", "/account"];
 
-  useEffect(() => {
-    if (!open) return;
-    const dismiss = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      setOpen(false);
-      trigger.current?.focus();
-    };
-    document.addEventListener("pointerdown", dismiss);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", dismiss);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
+const ADMIN_TABS: { href: string; label: string; short: string; icon: NavIconName }[] = [
+  { href: ADMIN_HOME, label: "Students", short: "Students", icon: "students" },
+  { href: "/admin/lab", label: "Schedule lab", short: "Lab", icon: "lab" },
+];
 
+const currentAdminTab = (pathname: string) =>
+  isTabActive(pathname, "/admin/lab") ? "/admin/lab" : pathname === ADMIN_HOME || isTabActive(pathname, "/admin/students") ? ADMIN_HOME : undefined;
+
+const LAST_ADMIN_PAGE = "drillmap:last-admin-page";
+function rememberAdminPage() {
+  if (!isTabActive(location.pathname, ADMIN_HOME)) return;
+  try {
+    sessionStorage.setItem(LAST_ADMIN_PAGE, location.pathname + location.search);
+  } catch {}
+}
+function lastAdminPage() {
+  try {
+    return sessionStorage.getItem(LAST_ADMIN_PAGE) ?? ADMIN_HOME;
+  } catch {
+    return ADMIN_HOME;
+  }
+}
+const noChanges = () => () => {};
+
+function SideSwitch({ pathname, studentSide }: { pathname: string; studentSide: boolean }) {
+  const adminHref = useSyncExternalStore(noChanges, lastAdminPage, () => ADMIN_HOME);
+  const [picked, setPicked] = useState<{ studentSide: boolean; on: string } | null>(null);
+  const pillOnStudent = picked?.on === pathname ? picked.studentSide : studentSide;
+  const segment = cx("relative flex h-8 items-center justify-center rounded-pill px-3 whitespace-nowrap lg:px-4", FOCUS);
+  const current = cx(segment, "font-medium text-ink");
+  const other = cx(segment, "text-smoke pointer-hover:hover:text-ink active:scale-[0.97]", PRESS);
   return (
-    <div
-      ref={root}
-      className="relative"
-      onBlur={(event) => {
-        // Safari mouse clicks may blur without focusing the destination link.
-        // Outside pointer presses are handled separately.
-        if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) setOpen(false);
-      }}
-    >
-      <button
-        ref={trigger}
-        type="button"
-        aria-expanded={open}
-        aria-controls={menuId}
-        onClick={() => setOpen((value) => !value)}
-        className={cx("flex min-h-11 items-center gap-1 rounded-sm px-2 text-small font-medium text-ink pointer-hover:bg-vellum", FOCUS)}
-      >
-        {studentSide ? "My student side" : "All students"}
-        <NavIcon name="chevron" className="size-4 text-smoke" />
-      </button>
-      {open && (
-        <nav
-          id={menuId}
-          aria-label="Workspace"
-          className="absolute -left-20 top-full z-50 w-72 max-w-[calc(100vw-2rem)] rounded-xs border border-vellum-line bg-paper py-1 shadow-e3 sm:left-0"
+    <div role="group" aria-label="Side" className="relative grid shrink-0 grid-cols-2 rounded-pill bg-vellum p-1 text-small">
+      <span
+        aria-hidden
+        className={cx(
+          "absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-pill bg-paper shadow-control transition-transform duration-(--duration-base) ease-(--ease-in-out-strong) motion-reduce:transition-none",
+          pillOnStudent && "translate-x-full",
+        )}
+      />
+      {studentSide ? (
+        <Link href={adminHref} onClick={() => setPicked({ studentSide: false, on: pathname })} className={other}>Admin</Link>
+      ) : (
+        <span aria-current="true" className={current}>Admin</span>
+      )}
+      {studentSide ? (
+        <span aria-current="true" aria-label="Student side" className={current}><StudentLabel /></span>
+      ) : (
+        <Link
+          href={STUDENT_HOME}
+          aria-label="Student side"
+          onClick={() => {
+            rememberAdminPage();
+            setPicked({ studentSide: true, on: pathname });
+          }}
+          className={other}
         >
-          {[
-            { href: "/admin", label: "All students", detail: "Real students on the real date", active: adminSide },
-            { href: "/dashboard", label: "My student side", detail: "Your test profile with date controls", active: studentSide },
-          ].map((option) => (
-            <Link
-              key={option.href}
-              href={option.href}
-              aria-current={option.active ? "true" : undefined}
-              onClick={() => setOpen(false)}
-              className={cx("flex items-center justify-between gap-3 px-4 py-3 text-small text-ink pointer-hover:bg-vellum", option.active && "bg-vellum font-semibold", FOCUS)}
-            >
-              <span>
-                <span className={cx("block font-medium", option.active && "font-semibold")}>{option.label}</span>
-                <span className="block text-caption font-regular text-smoke">{option.detail}</span>
-              </span>
-              {option.active && <NavIcon name="check" className="size-4 text-ink" />}
-            </Link>
-          ))}
-        </nav>
+          <StudentLabel />
+        </Link>
       )}
     </div>
+  );
+}
+
+const StudentLabel = () => <><span className="xl:hidden">Student</span><span className="hidden xl:inline">Student side</span></>;
+
+function AdminTabs({ pathname }: { pathname: string }) {
+  const current = currentAdminTab(pathname);
+  return (
+    <nav data-page-fade aria-label="Admin" className="flex gap-1">
+      {ADMIN_TABS.map((tab) => <NavTab key={tab.href} href={tab.href} current={tab.href === current}>{tab.label}</NavTab>)}
+    </nav>
+  );
+}
+
+function AdminTabBar({ pathname }: { pathname: string }) {
+  const current = currentAdminTab(pathname);
+  return (
+    <nav aria-label="Admin" data-tab-bar data-page-fade className={cx(TAB_BAR, "grid-cols-2")}>
+      {ADMIN_TABS.map((tab) => (
+        <Link key={tab.href} href={tab.href} aria-current={tab.href === current ? "page" : undefined} className={tabBarItem(tab.href === current)}>
+          <span className="flex h-6 w-12 items-center justify-center"><NavIcon name={tab.icon} /></span>
+          {tab.short}
+        </Link>
+      ))}
+    </nav>
   );
 }
 
@@ -94,36 +111,42 @@ export default function AdminNav(props: StudentNavProps & { testState?: TestCont
   const uploadNeeded = currentWeek?.week === props.testState?.weekStartDate
     ? props.uploadNeeded && !currentWeek?.exists
     : props.uploadNeeded;
-  const studentSide = [...TABS.map(({ href }) => href), "/onboarding", "/account"]
-    .some((href) => isTabActive(pathname, href));
-  const adminSide = isTabActive(pathname, "/admin");
-  const switcher = <WorkspaceSwitcher key={pathname} studentSide={studentSide} adminSide={adminSide} />;
+  const studentSide = STUDENT_SIDE.some((href) => isTabActive(pathname, href));
+  const studentTabs = studentSide && !isTabActive(pathname, "/onboarding");
+  const home = studentSide ? STUDENT_HOME : ADMIN_HOME;
   const testState = studentSide ? props.testState : undefined;
+
+  useEffect(rememberAdminPage, [pathname]);
 
   return (
     <>
-      <header data-site-header={studentSide ? "workspace-lg" : "workspace"} className={HEADER}>
-        {studentSide ? (
-          <StudentNav {...props} uploadNeeded={uploadNeeded} workspaceSwitcher={switcher} />
-        ) : (
-          <div className={BAR}>
-            <div className="flex items-center gap-1 sm:gap-3">
-              <Logo href="/admin" form="mark-below-md" />
-              <span className="text-fog" aria-hidden data-workspace-separator="true">/</span>
-              {switcher}
-            </div>
-            <SignOutForm action={props.logOut}>
-              <SignOutButton variant="text" size="md" className={TAP_AREA}>Log out</SignOutButton>
-            </SignOutForm>
+      <header data-site-header="workspace" className={HEADER}>
+        <div className={cx(MOBILE_BAR, "md:hidden")}>
+          <Logo href={home} form="mark" />
+          <div data-page-fade className="flex min-w-0 items-center gap-2">
+            <SideSwitch pathname={pathname} studentSide={studentSide} />
+            <AvatarMenu {...props} compact />
           </div>
-        )}
+        </div>
+        <div className="hidden md:block">
+          <div className={DESKTOP_BAR}>
+            <div className="flex min-w-0 items-center gap-3 lg:gap-8">
+              <Logo href={home} form="mark-below-lg" />
+              {studentSide ? studentTabs && <PrimaryTabs uploadNeeded={uploadNeeded} /> : <AdminTabs pathname={pathname} />}
+            </div>
+            <div data-page-fade className="flex items-center gap-2 lg:gap-3">
+              <SideSwitch pathname={pathname} studentSide={studentSide} />
+              <AvatarMenu {...props} compact={false} />
+            </div>
+          </div>
+        </div>
       </header>
       {testState && (
         <div data-page-fade className={cx(PAGE_COLUMN, "py-5 md:py-8")}>
           <AdminTestPanel state={testState} />
         </div>
       )}
-      {studentSide && <StudentTabBar uploadNeeded={uploadNeeded} withWorkspaceSwitcher />}
+      {studentSide ? studentTabs && <StudentTabBar uploadNeeded={uploadNeeded} /> : <AdminTabBar pathname={pathname} />}
     </>
   );
 }
