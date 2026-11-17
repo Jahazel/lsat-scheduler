@@ -100,6 +100,19 @@ describe("Admin / Student switch", () => {
     }
   });
 
+  it("does not return to an unknown admin link", () => {
+    history.replaceState(null, "", "/admin/lab");
+    mocks.pathname = "/admin/lab";
+    const { rerender } = render(<AdminNav {...props} />);
+    history.replaceState(null, "", "/admin/typo");
+    mocks.pathname = "/admin/typo";
+    rerender(<AdminNav {...props} />);
+    history.replaceState(null, "", "/dashboard");
+    mocks.pathname = "/dashboard";
+    rerender(<AdminNav {...props} />);
+    expect(within(sideSwitches()[0]).getByRole("link", { name: "Admin" }).getAttribute("href")).toBe("/admin/lab");
+  });
+
   it("remembers an admin page reached without the switch", () => {
     history.replaceState(null, "", "/admin/students/real-student");
     mocks.pathname = "/admin/students/real-student";

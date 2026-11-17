@@ -26,7 +26,7 @@ const currentAdminTab = (pathname: string) =>
 
 const LAST_ADMIN_PAGE = "drillmap:last-admin-page";
 function rememberAdminPage() {
-  if (!isTabActive(location.pathname, ADMIN_HOME)) return;
+  if (!currentAdminTab(location.pathname)) return;
   try {
     sessionStorage.setItem(LAST_ADMIN_PAGE, location.pathname + location.search);
   } catch {}
@@ -80,7 +80,7 @@ function SideSwitch({ pathname, studentSide }: { pathname: string; studentSide: 
   );
 }
 
-const StudentLabel = () => <><span className="xl:hidden">Student</span><span className="hidden xl:inline">Student side</span></>;
+const StudentLabel = () => <><span className="min-[1280px]:hidden">Student</span><span className="hidden min-[1280px]:inline">Student side</span></>;
 
 function AdminTabs({ pathname }: { pathname: string }) {
   const current = currentAdminTab(pathname);
