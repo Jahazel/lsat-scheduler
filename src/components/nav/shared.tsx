@@ -22,12 +22,15 @@ export const MOBILE_BAR = "flex h-14 items-center justify-between gap-3 px-5";
 export const DESKTOP_BAR = `@container flex h-18 items-center justify-between gap-6 ${PAGE_COLUMN}`;
 export const BAR = `${MOBILE_BAR} md:h-18 md:px-18`;
 
-export function Logo({ href, form = "full" }: { href: string; form?: "full" | "mark" | "mark-below-md" }) {
+const SWAP = { "mark-below-md": ["md:hidden", "hidden md:block"], "mark-below-lg": ["lg:hidden", "hidden lg:block"] } as const;
+
+export function Logo({ href, form = "full" }: { href: string; form?: "full" | "mark" | keyof typeof SWAP }) {
+  const [mark, full] = form === "full" || form === "mark" ? [] : SWAP[form];
   return (
     <Link href={href} data-page-logo className={cx("flex shrink-0 items-center rounded-xs", LOGO_ON_LIGHT, FOCUS)}>
       <span className="sr-only">DrillMap</span>
-      {form !== "full" && <RouteLogo form="mark" className={form === "mark-below-md" ? "md:hidden" : undefined} />}
-      {form !== "mark" && <RouteLogo form="full" className={form === "mark-below-md" ? "hidden md:block" : undefined} />}
+      {form !== "full" && <RouteLogo form="mark" className={mark} />}
+      {form !== "mark" && <RouteLogo form="full" className={full} />}
     </Link>
   );
 }

@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SignOutButton, SignOutForm } from "@/components/SignOutForm";
 import { FOCUS, cx } from "@/components/ui/classes";
 import { NavTab } from "@/components/ui/NavTab";
 import { NavIcon } from "./NavIcon";
 import { DESKTOP_BAR, Logo, MOBILE_BAR, TABS, UPLOAD_HREF, currentTabHref } from "./shared";
 import type { SignOutAnswer } from "@/lib/requestPolicy";
-import { WORKSPACE_NAV_BREAKPOINT } from "./workspaceBreakpoint";
 
 export interface StudentNavProps {
   name: string | null;
@@ -21,7 +20,7 @@ export interface StudentNavProps {
   logOut: () => Promise<SignOutAnswer>;
 }
 
-const PRESS = "transition-[color,background-color,scale] duration-(--duration-fast) ease-(--ease-out-strong) motion-reduce:active:scale-100";
+export const PRESS = "transition-[color,background-color,scale] duration-(--duration-fast) ease-(--ease-out-strong) motion-reduce:active:scale-100";
 
 function UploadDot({ className }: { className?: string }) {
   return <span className={cx("inline-block size-2 shrink-0 rounded-pill bg-accent", className)} aria-hidden />;
@@ -29,7 +28,7 @@ function UploadDot({ className }: { className?: string }) {
 
 const UploadNeeded = () => <span className="sr-only"> analytics upload needed</span>;
 
-function AvatarMenu({ name, initials, email, logOut, compact }: Pick<StudentNavProps, "name" | "initials" | "email" | "logOut"> & { compact: boolean }) {
+export function AvatarMenu({ name, initials, email, logOut, compact }: Pick<StudentNavProps, "name" | "initials" | "email" | "logOut"> & { compact: boolean }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const root = useRef<HTMLDivElement>(null);
@@ -115,46 +114,43 @@ function CountdownChip({ label, isTestDay, className }: { label: string; isTestD
   );
 }
 
-export default function StudentNav(props: StudentNavProps & { workspaceSwitcher?: ReactNode }) {
+export function PrimaryTabs({ uploadNeeded }: { uploadNeeded: boolean }) {
   const current = currentTabHref(usePathname());
+  return (
+    <nav data-page-fade aria-label="Primary" className="flex gap-1">
+      {TABS.map((tab) => (
+        <NavTab key={tab.href} href={tab.href} current={tab.href === current}>
+          <span className="lg:hidden">{tab.short}</span>
+          <span className="hidden lg:inline">{tab.label}</span>
+          {tab.href === UPLOAD_HREF && uploadNeeded && <><UploadDot /><UploadNeeded /></>}
+        </NavTab>
+      ))}
+    </nav>
+  );
+}
 
+export default function StudentNav(props: StudentNavProps) {
   return (
     <>
-      <div className={cx(MOBILE_BAR, props.workspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.mobileHeader : "md:hidden")}>
-        <div className="flex min-w-0 items-center gap-1 sm:gap-3">
-          <Logo href="/dashboard" form="mark" />
-          {props.workspaceSwitcher && <span className="text-fog" aria-hidden data-workspace-separator="true">/</span>}
-          {props.workspaceSwitcher}
-        </div>
+      <div className={cx(MOBILE_BAR, "md:hidden")}>
+        <Logo href="/dashboard" form="mark" />
         <div data-page-fade className="flex items-center">
           <AvatarMenu {...props} compact />
         </div>
       </div>
 
-      <div className={cx("hidden", props.workspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.desktopHeader : "md:block")}>
+      <div className="hidden md:block">
         <div className={DESKTOP_BAR}>
           <div className="flex min-w-0 items-center gap-8">
-            <div className="flex items-center gap-3">
-              <Logo href="/dashboard" />
-              {props.workspaceSwitcher && <span className="text-fog" aria-hidden data-workspace-separator="true">/</span>}
-              {props.workspaceSwitcher}
-            </div>
-            <nav data-page-fade aria-label="Primary" className="flex gap-1">
-              {TABS.map((tab) => (
-                <NavTab key={tab.href} href={tab.href} current={tab.href === current}>
-                  <span className="lg:hidden">{tab.short}</span>
-                  <span className="hidden lg:inline">{tab.label}</span>
-                  {tab.href === UPLOAD_HREF && props.uploadNeeded && <><UploadDot /><UploadNeeded /></>}
-                </NavTab>
-              ))}
-            </nav>
+            <Logo href="/dashboard" />
+            <PrimaryTabs uploadNeeded={props.uploadNeeded} />
           </div>
           <div data-page-fade className="flex items-center justify-end gap-4 whitespace-nowrap">
             {props.countdownLabel && (
               <CountdownChip
                 label={props.countdownLabel}
                 isTestDay={props.isTestDay}
-                className={cx("hidden", props.workspaceSwitcher ? "@[1040px]:flex" : "@[860px]:flex")}
+                className="hidden @[860px]:flex"
               />
             )}
             <AvatarMenu {...props} compact={false} />
@@ -165,8 +161,17 @@ export default function StudentNav(props: StudentNavProps & { workspaceSwitcher?
   );
 }
 
+export const TAB_BAR = "fixed bottom-(--tab-bar-inset) min-h-(--tab-bar-height) left-[max(0.75rem,env(safe-area-inset-left))] right-[max(0.75rem,env(safe-area-inset-right))] z-40 grid rounded-lg border border-vellum-line bg-paper p-1 shadow-e1 md:hidden";
+
+export const tabBarItem = (active: boolean) => cx(
+  "flex flex-col items-center justify-center gap-1 rounded-md text-caption active:scale-[0.96]",
+  active ? "bg-vellum font-medium text-ink" : "text-smoke",
+  PRESS,
+  FOCUS,
+);
+
 // Floating bottom tab bar, mobile only. Rendered outside the header so it can be fixed to the viewport.
-export function StudentTabBar({ uploadNeeded, withWorkspaceSwitcher = false }: { uploadNeeded: boolean; withWorkspaceSwitcher?: boolean }) {
+export function StudentTabBar({ uploadNeeded }: { uploadNeeded: boolean }) {
   const current = currentTabHref(usePathname());
 
   return (
@@ -174,8 +179,7 @@ export function StudentTabBar({ uploadNeeded, withWorkspaceSwitcher = false }: {
       aria-label="Primary"
       data-tab-bar
       data-page-fade
-      data-workspace-tabs={withWorkspaceSwitcher || undefined}
-      className={cx("fixed bottom-(--tab-bar-inset) min-h-(--tab-bar-height) left-[max(0.75rem,env(safe-area-inset-left))] right-[max(0.75rem,env(safe-area-inset-right))] z-40 grid grid-cols-4 rounded-lg border border-vellum-line bg-paper p-1 shadow-e1", withWorkspaceSwitcher ? WORKSPACE_NAV_BREAKPOINT.mobileTabBar : "md:hidden")}
+      className={cx(TAB_BAR, "grid-cols-4")}
     >
       {TABS.map((tab) => {
         const active = tab.href === current;
@@ -184,12 +188,7 @@ export function StudentTabBar({ uploadNeeded, withWorkspaceSwitcher = false }: {
             key={tab.href}
             href={tab.href}
             aria-current={active ? "page" : undefined}
-            className={cx(
-              "flex flex-col items-center justify-center gap-1 rounded-md text-caption active:scale-[0.96]",
-              active ? "bg-vellum font-medium text-ink" : "text-smoke",
-              PRESS,
-              FOCUS,
-            )}
+            className={tabBarItem(active)}
           >
             <span className="relative flex h-6 w-12 items-center justify-center">
               <NavIcon name={tab.icon} />

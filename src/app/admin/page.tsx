@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { requireAdmin } from "./requireAdmin";
 import { PageCue } from "@/components/SiteMotion";
 import { PageArrival } from "@/components/PagePlaceholder";
 import { listStudentIdsWithApprovedAnalytics } from "@/lib/analyticsSnapshotRepository";
@@ -10,10 +9,7 @@ import { formatDuration } from "@/lib/formatDuration";
 import { listStudentsWithOwners } from "@/lib/studentRepository";
 
 export default async function AdminPage() {
-  const session = await auth();
-  if (session?.user?.role !== "admin") {
-    redirect("/dashboard");
-  }
+  await requireAdmin();
 
   const [students, snapshots] = await Promise.all([
     listStudentsWithOwners(),

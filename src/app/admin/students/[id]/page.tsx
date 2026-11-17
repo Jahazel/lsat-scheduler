@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { requireAdmin } from "../../requireAdmin";
+import { notFound } from "next/navigation";
 import { findStudentWithOwner } from "@/lib/studentRepository";
 import { adminScheduleStateMessage, loadReadOnlyCurrentWeek } from "@/lib/readOnlyCurrentWeekSchedule";
 import { postgresCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
@@ -14,10 +14,7 @@ import { loadAccountPlan } from "@/lib/billingRepository";
 import { isHeldWeek } from "@/lib/planStatus";
 
 export default async function AdminStudentPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (session?.user?.role !== "admin") {
-    redirect("/dashboard");
-  }
+  await requireAdmin();
 
   const { id } = await params;
 

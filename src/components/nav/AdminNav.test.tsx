@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 afterEach(cleanup);
-
-import { renderToStaticMarkup } from "react-dom/server";
 
 const mocks = vi.hoisted(() => ({ pathname: "/admin", prefetch: vi.fn() }));
 vi.mock("@/app/admin/test/actions", () => ({ rebuildThisWeek: vi.fn(), resetTestData: vi.fn(), resetEverything: vi.fn(), setSimulatedDate: vi.fn(), generateTestSample: vi.fn() }));
@@ -21,119 +19,132 @@ const props = {
   isTestDay: false, uploadNeeded: true, logOut: async () => ({ goTo: "/?signedOut=1" as const }),
 };
 
-describe("admin navigation", () => {
+const adminTabs = (name: string) => screen.getAllByRole("navigation", { name }).map((nav) => within(nav).getAllByRole("link"));
+const currentLinks = () => screen.getAllByRole("link").filter((link) => link.getAttribute("aria-current") === "page");
+const sideSwitches = () => screen.getAllByRole("group", { name: "Side" });
+
+describe("admin tabs", () => {
   beforeEach(() => { mocks.pathname = "/admin"; });
 
-  it.each(["/admin", "/admin/students/real-student"])("shows All students without student tabs on %s", (path) => {
+  it.each([
+    ["/admin", "/admin"],
+    ["/admin/students/real-student", "/admin"],
+    ["/admin/lab", "/admin/lab"],
+  ])("on %s marks the tab for %s as current, in the top bar and the phone tab bar", (path, href) => {
     mocks.pathname = path;
-    const markup = renderToStaticMarkup(<AdminNav {...props} />);
-    expect(markup).toContain("All students");
-    expect(markup).not.toContain('href="/settings"');
-    expect(markup).not.toContain("days to test");
+    render(<AdminNav {...props} />);
+    const [bar, phone] = adminTabs("Admin");
+    expect(bar.map((tab) => [tab.textContent, tab.getAttribute("href")])).toEqual([["Students", "/admin"], ["Schedule lab", "/admin/lab"]]);
+    expect(phone.map((tab) => [tab.textContent, tab.getAttribute("href")])).toEqual([["Students", "/admin"], ["Lab", "/admin/lab"]]);
+    expect(currentLinks()).toHaveLength(2);
+    for (const tab of currentLinks()) expect(tab.getAttribute("href")).toBe(href);
+    expect(screen.queryByRole("navigation", { name: "Primary" })).toBeNull();
   });
 
-  it.each(["/dashboard", "/progress", "/settings", "/onboarding", "/account"])("shows My student side and student navigation on %s", (path) => {
-    mocks.pathname = path;
-    const markup = renderToStaticMarkup(<AdminNav {...props} />);
-    expect(markup).toContain("My student side");
-    expect(markup).toContain('href="/dashboard"');
-    expect(markup).toContain('href="/progress"');
-    expect(markup).toContain('href="/settings"');
-    expect(markup).toContain('data-workspace-tabs="true"');
-    expect(markup).toContain('data-workspace-separator="true"');
-  });
-
-  it.each(["/", "/legal/terms", "/issue-47-preview"])("keeps the chosen switcher label and no current option outside workspaces on %s", (path) => {
-    mocks.pathname = path;
-    const markup = renderToStaticMarkup(<AdminNav {...props} />);
-    expect(markup).toContain("All students");
-    expect(markup).not.toContain('aria-current="true"');
-  });
-
-  it("does not add the workspace separator to a real student's header", () => {
-    const markup = renderToStaticMarkup(<StudentNav {...props} />);
-    expect(markup).not.toContain("data-workspace-separator");
-    expect(markup).not.toContain("/</span>");
-  });
-
-  it("uses the shared lg breakpoint for workspace navigation and page padding", () => {
-    mocks.pathname = "/dashboard";
-    const markup = renderToStaticMarkup(<AdminNav {...props} />);
-    expect(markup).toContain("lg:hidden");
-    expect(markup).toContain("lg:block");
+  it("shows no student tabs or test countdown on admin pages", () => {
+    render(<AdminNav {...props} />);
+    expect(screen.queryByRole("link", { name: /Study settings|Settings/ })).toBeNull();
+    expect(screen.queryByText("30 days to test")).toBeNull();
   });
 });
 
-// A null relatedTarget models Safari clicking a link without focusing it.
-describe("workspace switcher interactions", () => {
+describe("Admin / Student switch", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    mocks.pathname = "/admin";
+  });
+
+  it("on admin pages marks Admin and links the Student side to the admin's own This week", () => {
+    render(<AdminNav {...props} />);
+    for (const group of sideSwitches()) {
+      expect(within(group).getByText("Admin").getAttribute("aria-current")).toBe("true");
+      expect(within(group).getByRole("link", { name: "Student side" }).getAttribute("href")).toBe("/dashboard");
+      expect(within(group).queryByRole("link", { name: "Admin" })).toBeNull();
+    }
+  });
+
+  it.each(["/dashboard", "/dashboard/upload", "/progress", "/settings", "/account", "/onboarding"])("on %s marks the Student side and keeps the switch", (path) => {
+    mocks.pathname = path;
+    render(<AdminNav {...props} />);
+    for (const group of sideSwitches()) {
+      expect(within(group).getByLabelText("Student side").getAttribute("aria-current")).toBe("true");
+      expect(within(group).getByRole("link", { name: "Admin" }).getAttribute("href")).toBe("/admin");
+    }
+  });
+
+  it("shows the student tabs on the student side, but not during onboarding", () => {
+    mocks.pathname = "/progress";
+    const { rerender } = render(<AdminNav {...props} />);
+    expect(screen.getAllByRole("navigation", { name: "Primary" })).toHaveLength(2);
+    expect(screen.queryByRole("navigation", { name: "Admin" })).toBeNull();
+    mocks.pathname = "/onboarding";
+    rerender(<AdminNav {...props} />);
+    expect(screen.queryByRole("navigation", { name: "Primary" })).toBeNull();
+    expect(screen.queryByRole("navigation", { name: "Admin" })).toBeNull();
+  });
+
+  it("returns to the admin page used last, with the link it had when the admin left", () => {
+    history.replaceState(null, "", "/admin/lab");
+    mocks.pathname = "/admin/lab";
+    const { rerender } = render(<AdminNav {...props} />);
+    history.replaceState(null, "", "/admin/lab?preset=steady");
+    const studentSide = within(sideSwitches()[1]).getByRole("link", { name: "Student side" });
+    // jsdom cannot navigate; browser QA checks the route change.
+    studentSide.addEventListener("click", (event) => event.preventDefault());
+    fireEvent.click(studentSide);
+    history.replaceState(null, "", "/dashboard");
+    mocks.pathname = "/dashboard";
+    rerender(<AdminNav {...props} />);
+    for (const group of sideSwitches()) {
+      expect(within(group).getByRole("link", { name: "Admin" }).getAttribute("href")).toBe("/admin/lab?preset=steady");
+    }
+  });
+
+  it.each(["/admin/typo", "/admin/students", "/admin/lab/extra", "/admin/students/real-student/extra"])("does not return to the unknown admin link %s", (unknown) => {
+    history.replaceState(null, "", "/admin/lab");
+    mocks.pathname = "/admin/lab";
+    const { rerender } = render(<AdminNav {...props} />);
+    history.replaceState(null, "", unknown);
+    mocks.pathname = unknown;
+    rerender(<AdminNav {...props} />);
+    history.replaceState(null, "", "/dashboard");
+    mocks.pathname = "/dashboard";
+    rerender(<AdminNav {...props} />);
+    expect(within(sideSwitches()[0]).getByRole("link", { name: "Admin" }).getAttribute("href")).toBe("/admin/lab");
+  });
+
+  it("remembers an admin page reached without the switch", () => {
+    history.replaceState(null, "", "/admin/students/real-student");
+    mocks.pathname = "/admin/students/real-student";
+    const { rerender } = render(<AdminNav {...props} />);
+    history.replaceState(null, "", "/account");
+    mocks.pathname = "/account";
+    rerender(<AdminNav {...props} />);
+    expect(within(sideSwitches()[0]).getByRole("link", { name: "Admin" }).getAttribute("href")).toBe("/admin/students/real-student");
+  });
+});
+
+describe("admin avatar menu", () => {
   beforeEach(() => { mocks.pathname = "/admin"; });
-  it("keeps an option clickable when pointer interaction blurs the trigger without a focus target", async () => {
-    render(<AdminNav {...props} />);
-    const trigger = screen.getByRole("button", { name: "All students" });
-    trigger.focus();
-    fireEvent.click(trigger);
-    fireEvent.blur(trigger, { relatedTarget: null });
-    const option = screen.getByRole("link", { name: /My student side/ });
-    expect(option.getAttribute("href")).toBe("/dashboard");
-    // jsdom cannot navigate; browser QA checks the actual route transition.
-    option.addEventListener("click", (event) => event.preventDefault());
-    fireEvent.click(option);
-    expect(screen.queryByRole("navigation", { name: "Workspace" })).toBeNull();
+
+  it("opens from the avatar with a long name and email", async () => {
+    const name = "Maximiliana Alessandra Konstantinopoulou-Vanderbilt";
+    const email = "maximiliana.konstantinopoulou.vanderbilt@extremely-long-university-domain.example.edu";
+    render(<AdminNav {...props} name={name} email={email} initials="MK" />);
+    await userEvent.click(screen.getAllByRole("button", { name: `Account menu for ${email}` })[1]);
+    const menu = screen.getByRole("menu", { name: "Account" });
+    expect(within(menu).getByText(name)).toBeTruthy();
+    expect(within(menu).getByText(email)).toBeTruthy();
+    expect(within(menu).getByRole("menuitem", { name: "Account" }).getAttribute("href")).toBe("/account");
+    expect(within(menu).getByRole("menuitem", { name: "Log out" })).toBeTruthy();
   });
 
-  it("allows keyboard access to options and Escape returns focus to the trigger", async () => {
-    const user = userEvent.setup();
-    render(<AdminNav {...props} />);
-    await user.tab();
-    await user.tab();
-    const trigger = screen.getByRole("button", { name: "All students" });
-    expect(document.activeElement).toBe(trigger);
-    await user.keyboard("{Enter}");
-    await user.tab();
-    expect(document.activeElement).toBe(screen.getByRole("link", { name: /All students/ }));
-    await user.tab();
-    expect(document.activeElement).toBe(screen.getByRole("link", { name: /My student side/ }));
-    await user.keyboard("{Escape}");
-    expect(screen.queryByRole("navigation", { name: "Workspace" })).toBeNull();
-    expect(document.activeElement).toBe(trigger);
-  });
-
-  it("closes on document Escape after a mouse click and returns focus to the trigger", () => {
-    render(<AdminNav {...props} />);
-    const trigger = screen.getByRole("button", { name: "All students" });
-    fireEvent.click(trigger);
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(screen.queryByRole("navigation", { name: "Workspace" })).toBeNull();
-    expect(document.activeElement).toBe(trigger);
-  });
-
-  it("marks the current workspace with a check icon", () => {
-    render(<AdminNav {...props} />);
-    fireEvent.click(screen.getByRole("button", { name: "All students" }));
-    const current = screen.getByRole("link", { name: /All students/ });
-    const other = screen.getByRole("link", { name: /My student side/ });
-    expect(current.getAttribute("aria-current")).toBe("true");
-    expect(current.querySelector("svg")).not.toBeNull();
-    expect(other.hasAttribute("aria-current")).toBe(false);
-    expect(other.querySelector("svg")).toBeNull();
-  });
-
-  it("closes when Tab leaves the switcher", async () => {
-    const user = userEvent.setup();
-    render(<AdminNav {...props} />);
-    await user.click(screen.getByRole("button", { name: "All students" }));
-    await user.tab();
-    await user.tab();
-    await user.tab();
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Log out" }));
-    expect(screen.queryByRole("navigation", { name: "Workspace" })).toBeNull();
-  });
-
-  it("closes on an outside pointer press even without a focus target", () => {
-    render(<AdminNav {...props} />);
-    fireEvent.click(screen.getByRole("button", { name: "All students" }));
-    fireEvent.pointerDown(document.body);
-    expect(screen.queryByRole("navigation", { name: "Workspace" })).toBeNull();
+  it("shows only the email when the admin has no name", async () => {
+    render(<AdminNav {...props} name={null} initials="Q" />);
+    await userEvent.click(screen.getAllByRole("button", { name: "Account menu for qa@example.test" })[0]);
+    const menu = screen.getByRole("menu", { name: "Account" });
+    expect(within(menu).getByText("qa@example.test")).toBeTruthy();
+    expect(within(menu).queryByText("Quinn Avery")).toBeNull();
   });
 });
 
@@ -195,10 +206,11 @@ describe("Log out waiting", () => {
     await expectWaiting(logOut);
   });
 
-  it("shows the waiting ring on the admin bar's Log out while it signs out", async () => {
+  it("shows the waiting ring on the admin avatar menu's Log out while it signs out", async () => {
     mocks.pathname = "/admin";
     render(<FailureToastProvider><AdminNav {...props} logOut={waitingLogOut} /></FailureToastProvider>);
-    const logOut = screen.getByRole("button", { name: "Log out" });
+    await userEvent.click(screen.getAllByRole("button", { name: "Account menu for qa@example.test" })[0]);
+    const logOut = screen.getByRole("menuitem", { name: "Log out" });
     await userEvent.click(logOut);
     await expectWaiting(logOut);
   });
