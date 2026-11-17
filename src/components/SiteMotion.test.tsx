@@ -308,7 +308,7 @@ describe("SiteMotion", () => {
   it("fades back in from the current frame when the logo is clicked during the fade-out", async () => {
     show("/");
     await click("Start free week");
-    const content = screen.getByRole("heading", { name: "Your practice results" }).parentElement!;
+    const content = screen.getByRole("heading", { name: "Your practice results" }).closest<HTMLElement>("[data-page-fade]")!;
     content.style.opacity = "0.4";
     await click("DrillMap");
     finishExits();
@@ -327,7 +327,7 @@ describe("SiteMotion", () => {
     finishExits();
     await vi.waitFor(() => expect(mocks.push).toHaveBeenCalled());
     show("/login", rerender);
-    const form = screen.getByRole("heading", { name: "Log in to DrillMap" }).parentElement!;
+    const form = screen.getByRole("heading", { name: "Log in to DrillMap" }).closest<HTMLElement>("[data-page-swap]")!;
     form.style.opacity = "0.5";
     await click("DrillMap");
     const exit = exits().find((a) => a.el === form)!;
@@ -452,7 +452,7 @@ describe("SiteMotion", () => {
       const { rerender } = show("/")!;
       window.scrollY = 2400;
       await click("Terms of Service");
-      expect(exits().map((a) => a.el)).toEqual([screen.getByRole("heading", { name: "Your practice results" }).parentElement]);
+      expect(exits().map((a) => a.el)).toEqual([screen.getByRole("heading", { name: "Your practice results" }).closest("[data-page-fade]")]);
       expect(exits()[0].options).toMatchObject({ duration: 120, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
       expect(topBar().hasAttribute("inert")).toBe(false);
       finishExits();
@@ -580,7 +580,7 @@ describe("SiteMotion", () => {
   });
 
   describe("between sign-in pages", () => {
-    const formOf = (title: string) => screen.getByRole("heading", { name: title }).parentElement!;
+    const formOf = (title: string) => screen.getByRole("heading", { name: title }).closest<HTMLElement>("[data-page-swap]")!;
     const card = () => screen.getByLabelText("Preview card");
     const anchors = () => [screen.getByLabelText("Top glow"), screen.getByRole("navigation", { name: "Legal" }), screen.getByLabelText("Preview panel"), screen.getByRole("link", { name: "DrillMap" })];
 
@@ -865,8 +865,9 @@ describe("SiteMotion", () => {
       expect(step.style).toMatchObject({ opacity: "0.4", transform: "translateX(-5px)" });
       expect(step.hasAttribute("inert") || step.hasAttribute("aria-busy")).toBe(false);
 
+      const fadesBefore = fadeOuts().length;
       at("/dashboard/upload", <ThisWeek />, rerender);
-      expect(fadeOuts().filter((a) => a.el.parentElement === copy())).toHaveLength(1);
+      expect(fadeOuts().slice(fadesBefore).filter((a) => copy()?.contains(a.el))).toHaveLength(1);
       await finishCopy();
       expect(nextStep).not.toHaveBeenCalled();
       expect(entrances().map((a) => a.el.getAttribute("aria-label"))).toEqual(["Top bar", "This week page"]);

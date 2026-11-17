@@ -35,8 +35,10 @@ function renderCard(record: BillingRecord, now: Date) {
 }
 
 const NBSP = / /g;
-const rows = (card: HTMLElement) =>
-  within(card).getAllByRole("term").map((term) => [term.textContent, term.nextElementSibling?.textContent?.replace(NBSP, " ")]);
+const rows = (card: HTMLElement) => {
+  const definitions = within(card).getAllByRole("definition");
+  return within(card).getAllByRole("term").map((term, index) => [term.textContent, definitions[index]?.textContent?.replace(NBSP, " ")]);
+};
 
 describe("Account Plan card", () => {
   it.each([

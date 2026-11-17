@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, isInaccessible, render, within } from "@testing-library/react";
 import ThisWeekLoading from "./loading";
 
 afterEach(cleanup);
@@ -28,12 +28,12 @@ describe("This week loading placeholder", () => {
 
   it("is hidden from screen readers", () => {
     const { container } = render(<ThisWeekLoading />);
-    expect(container.firstElementChild!.getAttribute("aria-hidden")).toBe("true");
+    expect(isInaccessible(within(container).getByText("Your plan for this week"))).toBe(true);
   });
 
   it("sweeps a band over the shapes, and under reduced motion drops the sweep but keeps the fades", () => {
     const { container } = render(<ThisWeekLoading />);
-    const placeholder = container.firstElementChild as HTMLElement;
+    const placeholder = within(container).getByText("Your plan for this week").closest<HTMLElement>("[aria-hidden]")!;
     expect(placeholder.style.animationName).toBe("page-placeholder-in");
     expect(css).toMatch(/\.page-placeholder-sweep \{[^}]*animation: page-placeholder-sweep 1\.6s linear infinite;/);
     expect(reducedMotionRules).toMatch(/\.page-placeholder-sweep \{ display: none; \}/);
