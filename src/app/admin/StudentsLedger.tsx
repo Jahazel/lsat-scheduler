@@ -210,7 +210,8 @@ function NoMatch({ clear }: { clear: () => void }) {
   );
 }
 
-const choicesIn = (query: string) => listStateFrom(Object.fromEntries(new URLSearchParams(query)));
+const choicesIn = (link: string) => listStateFrom(Object.fromEntries(new URLSearchParams(link)));
+const linkOf = (state: ListState) => listQuery(state).slice(1);
 
 export function StudentsLedger({ rows }: { rows: StudentRow[] }) {
   const link = useSearchParams().toString();
@@ -218,9 +219,11 @@ export function StudentsLedger({ rows }: { rows: StudentRow[] }) {
   const [seenLink, setSeenLink] = useState(link);
   // Links this list wrote that Next has not reported back yet. Any other new link is a navigation.
   const [written, setWritten] = useState<string[]>([]);
-  if (link !== seenLink) {
-    setSeenLink(link);
-    const mine = written.indexOf(link);
+  if (link !== seenLink) setSeenLink(link);
+  if (link === linkOf(state)) {
+    if (written.length > 0) setWritten([]);
+  } else if (link !== seenLink) {
+    const mine = written.lastIndexOf(link);
     if (mine === -1) {
       setState(choicesIn(link));
       setWritten([]);
@@ -229,10 +232,9 @@ export function StudentsLedger({ rows }: { rows: StudentRow[] }) {
     }
   }
   const show = (next: ListState) => {
-    const query = listQuery(next);
     setState(next);
-    setWritten((pending) => [...pending, query.slice(1)]);
-    window.history.replaceState(null, "", `${window.location.pathname}${query}`);
+    setWritten((pending) => [...pending, linkOf(next)]);
+    window.history.replaceState(null, "", `${window.location.pathname}${listQuery(next)}`);
   };
   const set: Change = (change) => show({ ...state, ...change });
   const clear = () => show(cleared(state));

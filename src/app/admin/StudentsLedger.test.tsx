@@ -149,6 +149,20 @@ describe("Students", () => {
     expect(shownNames()).toEqual(["Maya"]);
   });
 
+  it("a navigation still replaces the choices after typing, deleting, and retyping faster than Next reports", async () => {
+    const user = userEvent.setup();
+    const { rerender } = show();
+    const search = screen.getByRole("searchbox");
+    await user.type(search, "ab{Backspace}{Backspace}");
+    await user.type(search, "a");
+    next.link = "q=a";
+    rerender(<StudentsLedger rows={ROWS} />);
+    next.link = "";
+    rerender(<StudentsLedger rows={ROWS} />);
+    expect(search).toHaveProperty("value", "");
+    expect(shownNames()).toEqual(["Daniel", "Lucas", "Maya", "Priya"]);
+  });
+
   it("opens with the choices in the link", () => {
     next.link = "q=pri";
     render(<StudentsLedger rows={ROWS} />);
