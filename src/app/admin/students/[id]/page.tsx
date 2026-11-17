@@ -48,7 +48,7 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
       <PageCue page="admin" />
       <PageArrival page={name ?? record.email} />
       <StudentDetail
-        student={{ initials: initialsFor(name, record.email), name, email: record.email, plan: plan.status.kind, needsAnalytics }}
+        student={{ id: record.id, initials: initialsFor(name, record.email), name, email: record.email, plan: plan.status.kind, needsAnalytics }}
         facts={studentFacts({
           currentScore: record.currentScore,
           goalScore: record.goalScore,

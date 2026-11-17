@@ -17,7 +17,7 @@ const params = Promise.resolve({ id: "real-student" });
 const pages = [
   ["/admin", () => AdminPage()],
   ["/admin/students/real-student", () => AdminStudentPage({ params })],
-  ["/admin/lab", () => ScheduleLabPage()],
+  ["/admin/lab", () => ScheduleLabPage({ params: Promise.resolve({}), searchParams: Promise.resolve({}) })],
   ["/admin/anything/else", () => UnknownAdminPage()],
 ] as const;
 
@@ -38,8 +38,10 @@ describe("admin pages for anyone who is not an admin", () => {
 describe("admin pages for an admin", () => {
   beforeEach(() => mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } }));
 
-  it("opens the Schedule lab placeholder", async () => {
-    expect(renderToStaticMarkup(await ScheduleLabPage())).toContain("Schedule lab");
+  it("opens the Schedule lab on Steady, built", async () => {
+    const page = renderToStaticMarkup(await ScheduleLabPage({ params: Promise.resolve({}), searchParams: Promise.resolve({}) }));
+    expect(page).toContain("Schedule lab");
+    expect(page).toContain("Planned from Steady sample");
   });
 
   it("shows Not found for an unknown admin link", async () => {

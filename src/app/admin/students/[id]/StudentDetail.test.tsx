@@ -11,7 +11,7 @@ import StudentNotFound from "./not-found";
 
 afterEach(cleanup);
 
-const maya: DetailStudent = { initials: "MT", name: "Maya Thompson", email: "maya@example.test", plan: "paid", needsAnalytics: false };
+const maya: DetailStudent = { id: "s1", initials: "MT", name: "Maya Thompson", email: "maya@example.test", plan: "paid", needsAnalytics: false };
 const facts: Fact[] = [
   { label: "Score", value: "158 → 170" },
   { label: "Test", value: "Jan 2027 · 45 days" },
@@ -38,6 +38,12 @@ describe("Student detail", () => {
     for (const text of ["MT", "maya@example.test", "Paid", "Read only"]) expect(within(card).getByText(text)).toBeTruthy();
     expect(within(card).queryByText("Needs analytics")).toBeNull();
     expect(factsShown()).toEqual(["Score: 158 → 170", "Test: Jan 2027 · 45 days", "Study time: 15 h 30 min per week", "Joined: Sep 2", "Past weeks: None yet"]);
+  });
+
+  it("opens the student in the Schedule lab", () => {
+    show("");
+    const card = screen.getByRole("region", { name: "Student" });
+    expect(within(card).getByRole("link", { name: "Open in lab" }).getAttribute("href")).toBe("/admin/lab?student=s1");
   });
 
   it("marks a student who needs analytics and one with no name", () => {

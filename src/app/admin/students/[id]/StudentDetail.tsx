@@ -7,7 +7,7 @@ import { FOCUS, cx } from "@/components/ui/classes";
 import { planStatusLabel } from "@/lib/planStatus";
 import type { Fact } from "@/lib/studentFacts";
 import { listQuery, listStateFrom, type PlanKind } from "@/lib/studentList";
-import { Badge } from "../../StudentsLedger";
+import { Badge, PRESS } from "../../StudentsLedger";
 import { DETAIL_CARD } from "./ThisWeekPanel";
 
 const TABS = [
@@ -44,22 +44,28 @@ export function AllStudentsLink({ className }: { className?: string }) {
   );
 }
 
-export type DetailStudent = { initials: string; name: string | null; email: string; plan: PlanKind; needsAnalytics: boolean };
+export type DetailStudent = { id: string; initials: string; name: string | null; email: string; plan: PlanKind; needsAnalytics: boolean };
 
 function FactsCard({ student, facts }: { student: DetailStudent; facts: Fact[] }) {
   return (
     <section data-page-section aria-label="Student" className={cx(DETAIL_CARD, "flex flex-col gap-5 p-5 md:p-6")}>
-      <div className="flex min-w-0 items-start gap-4">
-        <span aria-hidden className="flex size-12 shrink-0 items-center justify-center rounded-pill bg-ink text-body font-semibold text-chalk">{student.initials}</span>
-        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <h1 className={cx("text-h4 font-semibold [overflow-wrap:anywhere]", student.name ? "text-ink" : "text-smoke italic")}>{student.name ?? "No name"}</h1>
-          <p className="text-small [overflow-wrap:anywhere] text-smoke">{student.email}</p>
-          <div className="flex flex-wrap items-center gap-2">
-            {student.needsAnalytics && <Badge tone="accent">Needs analytics</Badge>}
-            <Badge>{planStatusLabel({ kind: student.plan })}</Badge>
-            <span className="inline-flex shrink-0 items-center rounded-pill border border-vellum-line px-2 py-0.5 text-caption whitespace-nowrap text-smoke">Read only</span>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        <div className="flex min-w-0 flex-1 items-start gap-4">
+          <span aria-hidden className="flex size-12 shrink-0 items-center justify-center rounded-pill bg-ink text-body font-semibold text-chalk">{student.initials}</span>
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <h1 className={cx("text-h4 font-semibold [overflow-wrap:anywhere]", student.name ? "text-ink" : "text-smoke italic")}>{student.name ?? "No name"}</h1>
+            <p className="text-small [overflow-wrap:anywhere] text-smoke">{student.email}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              {student.needsAnalytics && <Badge tone="accent">Needs analytics</Badge>}
+              <Badge>{planStatusLabel({ kind: student.plan })}</Badge>
+              <span className="inline-flex shrink-0 items-center rounded-pill border border-vellum-line px-2 py-0.5 text-caption whitespace-nowrap text-smoke">Read only</span>
+            </div>
           </div>
         </div>
+        <Link href={`/admin/lab?student=${encodeURIComponent(student.id)}`}
+          className={cx("flex h-10 shrink-0 items-center justify-center rounded-pill bg-ink px-[18px] text-small font-medium whitespace-nowrap text-chalk pointer-hover:hover:bg-accent max-sm:w-full", PRESS, FOCUS)}>
+          Open in lab
+        </Link>
       </div>
       <dl className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-vellum-line pt-5 sm:grid-cols-3 lg:grid-cols-5">
         {facts.map((fact) => (
