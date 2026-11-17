@@ -11,7 +11,7 @@ import { accounts, billingRecords, usedFreeWeeks } from "./postgresSchema";
 import { isoDateInWeek } from "./scheduleReasonText";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
 import { stripeRequest, stripeSecretKey } from "./stripeApi";
-import { mayStillBeStarting, paidAgain, stripeCannotCancel } from "./stripeStatus";
+import { mayStillBeStarting, paidByLateRetry, stripeCannotCancel } from "./stripeStatus";
 
 export type PlanChoiceStanding =
   | { kind: "admin" | "has_plan" | "no_account" }
@@ -146,7 +146,7 @@ export async function startCheckout(accountId: string, plan: PlanName, realNow: 
     if (closed.includes("complete")) return { kind: "starting", place: standing.place };
     const held = subscriptions.parse(await stripeRequest(`subscriptions?customer=${customer}&status=all&limit=100`, secretKey))
       .data.filter(({ status }) => !stripeCannotCancel(status));
-    if (held.some(({ id, status }) => (id === standing.subscriptionId ? paidAgain : mayStillBeStarting)(status))) {
+    if (held.some(({ id, status }) => (id === standing.subscriptionId ? paidByLateRetry : mayStillBeStarting)(status))) {
       return { kind: "starting", place: standing.place };
     }
     for (const { id } of held) {
