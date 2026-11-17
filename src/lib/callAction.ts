@@ -3,7 +3,7 @@ import { NO_CONNECTION, type UnexpectedFailure } from "@/lib/unexpectedFailure";
 
 const isSignedOut = (answer: unknown): answer is SignedOut => typeof answer === "object" && answer !== null && "goTo" in answer;
 
-type Followed<T> = T extends SignedOut ? null : T;
+export type Followed<T> = T extends SignedOut ? null : T;
 
 const neverReachedServer = (error: unknown) => error instanceof TypeError;
 

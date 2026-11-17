@@ -14,7 +14,7 @@ const serverActionShape = [
 ];
 
 const handedToAdapter = ({ parent }) =>
-  (parent.type === "CallExpression" && parent.callee.name === "callAction" && parent.arguments[0] !== undefined)
+  (parent.type === "CallExpression" && ["callAction", "useRefusableForm"].includes(parent.callee.name) && parent.arguments[0] !== undefined)
   || (parent.type === "JSXExpressionContainer" && parent.parent.type === "JSXAttribute" && parent.parent.name.name === "action"
     && ["ActionForm", "SignOutForm"].includes(parent.parent.parent.name.name));
 
@@ -43,7 +43,7 @@ const callActionsThroughAdapter = {
     type: "problem",
     schema: [],
     messages: {
-      direct: "Call a Server Action through callAction(action) from @/lib/callAction, or hand it to ActionForm or SignOutForm as `action`, so a lost connection shows the Failure toast and a sign-out leaves the page.",
+      direct: "Call a Server Action through callAction(action) from @/lib/callAction or useRefusableForm(action) from @/lib/useRefusableForm, or hand it to ActionForm or SignOutForm as `action`, so a lost connection shows the Failure toast and a sign-out leaves the page.",
       directProp: "Call a Server Action prop through callAction(prop) from @/lib/callAction, or pass it on to a component, so a lost connection shows the Failure toast and a sign-out leaves the page.",
     },
   },

@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { ActionForm, FailureNotice } from "@/components/FailureNotice";
-import { callAction } from "@/lib/callAction";
 import { fadeFormThrough } from "@/lib/pageMotion";
 import { GoogleButton } from "@/components/signIn/GoogleButton";
 import { OrWithEmail, SubmitButton } from "@/components/signIn/PasswordFormParts";
@@ -14,6 +13,7 @@ import { Checkbox } from "@/components/ui/Checkbox";
 import { TextInput } from "@/components/ui/TextInput";
 import { FOCUS, cx } from "@/components/ui/classes";
 import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
+import { useRefusableForm } from "@/lib/useRefusableForm";
 import { signUpWithGoogle, signUpWithPassword, type SignupState } from "./actions";
 
 const initialState: Answer<SignupState> = { kind: "form", errors: {} };
@@ -61,7 +61,7 @@ export default function SignupPage() {
 }
 
 function Signup({ onSignUpAgain }: { onSignUpAgain: () => void }) {
-  const [state, formAction, pending] = useActionState(callAction(signUpWithPassword), initialState);
+  const { answer: state, pending, form } = useRefusableForm(signUpWithPassword, initialState);
   const notice = <FailureNotice answer={state} />;
   const sentTo = !isUnexpectedFailure(state) && state.kind === "checkYourEmail" ? state.email : null;
   const [shownSentTo, setShownSentTo] = useState<string | null>(null);
@@ -74,13 +74,6 @@ function Signup({ onSignUpAgain }: { onSignUpAgain: () => void }) {
   }, []);
 
   if (shownSentTo) return <>{notice}<CheckYourEmail email={shownSentTo} onSignUpAgain={onSignUpAgain} /></>;
-
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    forgetDraft();
-    const formData = new FormData(event.currentTarget);
-    startTransition(() => formAction(formData));
-  }
 
   const errors = isUnexpectedFailure(state) || state.kind !== "form" ? {} : state.errors;
   return (
@@ -97,7 +90,14 @@ function Signup({ onSignUpAgain }: { onSignUpAgain: () => void }) {
           </p>
         </div>
         <OrWithEmail />
-        <form ref={formRef} action={formAction} onSubmit={submit} className="flex flex-col gap-8">
+        <form
+          ref={formRef}
+          {...form}
+          onSubmit={(event) => {
+            forgetDraft();
+            form.onSubmit(event);
+          }}
+          className="flex flex-col gap-8">
           <div className="flex flex-col gap-4">
             <TextInput label="Name" name="name" autoComplete="name" required error={errors.name} />
             <TextInput label="Email" name="email" type="email" autoComplete="email" required error={errors.email} />
