@@ -7,6 +7,7 @@ import { planStatus, type BillingRecord, type PlanStatus } from "./planStatus";
 import { getPostgresDatabase, type PostgresTransaction } from "./postgres";
 import { accounts, billingRecords } from "./postgresSchema";
 import { stripeRequest, stripeSecretKey } from "./stripeApi";
+import { stripeCannotCancel } from "./stripeStatus";
 
 export type AccountPlan = { status: PlanStatus; record: BillingRecord | null };
 
@@ -95,7 +96,7 @@ export async function endPlanNow(accountId: string, db: PostgresTransaction) {
     await stripeRequest(`subscriptions?customer=${encodeURIComponent(row.customer)}&limit=100`, secretKey),
   );
   for (const subscription of open.data) {
-    if (subscription.status === "incomplete_expired") continue;
+    if (stripeCannotCancel(subscription.status)) continue;
     await stripeRequest(`subscriptions/${subscription.id}`, secretKey, undefined, "DELETE");
   }
 }
