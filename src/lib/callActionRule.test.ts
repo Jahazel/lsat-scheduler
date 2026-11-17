@@ -38,6 +38,14 @@ export const useDelete = () => () => deleteAccount(null, new FormData());
 `, "src/app/account/useDelete.ts")).toEqual([3]);
 });
 
+it("lets a client form hand a Server Action to useRefusableForm", async () => {
+  expect(await adapterMessages(`"use client";
+import { useRefusableForm } from "@/lib/useRefusableForm";
+import { changePassword } from "./actions";
+export const useChange = () => useRefusableForm(changePassword, null);
+`, "src/app/account/useChange.ts")).toEqual([]);
+});
+
 it("lets a server component import Server Actions to pass them on", async () => {
   expect(await adapterMessages(screen(""), "src/app/account/Card.tsx")).toEqual([]);
 });

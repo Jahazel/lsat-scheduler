@@ -1,15 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { useFormStatus } from "react-dom";
 import { ActionForm, FailureNotice } from "@/components/FailureNotice";
 import { GoogleButton } from "@/components/signIn/GoogleButton";
 import { Button } from "@/components/ui/Button";
 import { FOCUS, MOTION, cx } from "@/components/ui/classes";
 import { ADMIN_RESTRICTED_ACTION_MESSAGE } from "@/lib/accessControl";
-import { callAction } from "@/lib/callAction";
 import { CURRENT_PASSWORD_MESSAGES } from "@/lib/currentPasswordMessages";
 import type { Answer } from "@/lib/unexpectedFailure";
+import { useRefusableForm } from "@/lib/useRefusableForm";
 import { deleteAccount, signInAgainToDelete, type DeletionRefusal } from "./actions";
 import { PasswordField } from "./PasswordField";
 
@@ -77,12 +75,8 @@ function AdminNotice() {
 }
 
 function DeletionForm({ mode }: { mode: Exclude<DeletionMode, { kind: "admin" }> }) {
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [refusal, formAction] = useActionState(async (previous: Answer<DeletionRefusal>, formData: FormData) => {
-    const result = await callAction(deleteAccount)(previous, formData);
-    if (result === "wrong-password" || result === "paused") setCurrentPassword("");
-    return result;
-  }, null);
+  const { answer: refusal, pending, form } = useRefusableForm(deleteAccount, null, (refused) =>
+    refused === "wrong-password" || refused === "paused" ? "currentPassword" : undefined);
 
   if (mode.kind === "google" && (!mode.signedInRecently || refusal === "sign-in-too-old")) {
     return (
@@ -99,31 +93,22 @@ function DeletionForm({ mode }: { mode: Exclude<DeletionMode, { kind: "admin" }>
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
-      <ConfirmationFields
-        refusal={refusal}
-        currentPassword={mode.kind === "password" ? { value: currentPassword, onChange: setCurrentPassword } : null}
-      />
+    <form {...form} className="flex flex-col gap-4">
+      <ConfirmationFields refusal={refusal} pending={pending} asksPassword={mode.kind === "password"} />
     </form>
   );
 }
 
-function ConfirmationFields({ refusal, currentPassword }: {
-  refusal: Answer<DeletionRefusal>;
-  currentPassword: { value: string; onChange: (value: string) => void } | null;
-}) {
-  const { pending } = useFormStatus();
-  const [confirmation, setConfirmation] = useState("");
+function ConfirmationFields({ refusal, pending, asksPassword }: { refusal: Answer<DeletionRefusal>; pending: boolean; asksPassword: boolean }) {
   const shown = pending ? null : refusal;
   const invalid = shown === "wrong-text";
   return (
     <>
-      {currentPassword && (
+      {asksPassword && (
         <PasswordField
           label="Current password"
           name="currentPassword"
           autoComplete="current-password"
-          {...currentPassword}
           readOnly={pending}
           error={shown === "wrong-password" || shown === "paused" ? CURRENT_PASSWORD_MESSAGES[shown] : undefined}
         />
@@ -137,8 +122,6 @@ function ConfirmationFields({ refusal, currentPassword }: {
           name="confirmation"
           autoComplete="off"
           placeholder="DELETE"
-          value={confirmation}
-          onChange={(event) => setConfirmation(event.target.value)}
           readOnly={pending}
           aria-invalid={invalid || undefined}
           aria-describedby={invalid ? "deletion-confirmation-message" : undefined}

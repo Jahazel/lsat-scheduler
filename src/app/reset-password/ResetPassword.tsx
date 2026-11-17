@@ -1,20 +1,19 @@
 "use client";
 
-import { startTransition, useActionState, type FormEvent } from "react";
 import { FailureNotice } from "@/components/FailureNotice";
 import { SubmitButton } from "@/components/signIn/PasswordFormParts";
 import { SignInFrame, SwitchPageLink } from "@/components/signIn/SignInFrame";
 import { TodayPreview } from "@/components/signIn/TodayPreview";
 import { ButtonLink } from "@/components/ui/Button";
 import { TextInput } from "@/components/ui/TextInput";
-import { callAction } from "@/lib/callAction";
 import { isUnexpectedFailure, type Answer } from "@/lib/unexpectedFailure";
+import { useRefusableForm } from "@/lib/useRefusableForm";
 import { resetPassword, type ResetPasswordState } from "./actions";
 
 const initialState: Answer<ResetPasswordState> = { kind: "form" };
 
 export function ResetPassword({ token }: { token: string | null }) {
-  const [state, formAction, pending] = useActionState(callAction(resetPassword), initialState);
+  const { answer: state, pending, form } = useRefusableForm(resetPassword, initialState);
   const notice = <FailureNotice answer={state} />;
 
   if (!token || (!isUnexpectedFailure(state) && state.kind === "linkDoesNotWork")) {
@@ -33,12 +32,6 @@ export function ResetPassword({ token }: { token: string | null }) {
     );
   }
 
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    startTransition(() => formAction(formData));
-  }
-
   return (
     <>
       {notice}
@@ -47,7 +40,7 @@ export function ResetPassword({ token }: { token: string | null }) {
         lead="Choose a new password. Saving it signs you out on all your devices."
         preview={<TodayPreview />}
       >
-        <form action={formAction} onSubmit={submit} className="flex flex-col gap-8">
+        <form {...form} className="flex flex-col gap-8">
           <input type="hidden" name="token" value={token} />
           <TextInput
             label="New password"
