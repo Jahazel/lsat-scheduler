@@ -92,6 +92,48 @@ describe("Schedule lab", () => {
     expect(linkInputs()?.copiedFrom).toBeNull();
   });
 
+  it("builds Next week from this one and moves back without dropping it", async () => {
+    openOnSteady();
+    await userEvent.click(screen.getByRole("button", { name: "Next week" }));
+    expect(screen.getByRole("heading", { level: 2, name: "Week 2 · Nov 23" })).toBeTruthy();
+    expect(within(reasons()).getByText("Planned from Steady sample, week 2 upload")).toBeTruthy();
+    expect(linkInputs()).toMatchObject({ built: 2, shown: 1 });
+    await userEvent.click(screen.getByRole("button", { name: "Earlier week" }));
+    expect(screen.getByRole("heading", { level: 2, name: "Week 1 · Nov 16" })).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Earlier week" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(linkInputs()).toMatchObject({ built: 2, shown: 0 });
+  });
+
+  it("opens the built count and shown week from the page link", () => {
+    render(<ScheduleLab thisWeek={THIS_WEEK} start={{ ...presetInputs("steady", THIS_WEEK), built: 4, shown: 2 }} copied={null} />);
+    expect(screen.getByRole("heading", { level: 2, name: "Week 3 · Nov 30" })).toBeTruthy();
+  });
+
+  it("stops before the goal test month, says why, and turns Next week off", async () => {
+    openOnSteady();
+    await userEvent.selectOptions(within(inputs()).getByRole("combobox", { name: "Preset" }), "Test in 3 weeks");
+    expect(within(reasons()).queryByText(/Last week in the chain/)).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Next week" }));
+    expect(screen.getByRole("heading", { level: 2, name: "Week 2 · Dec 28" })).toBeTruthy();
+    expect(within(reasons()).getByText("Last week in the chain. The January 2027 test comes before the week of Jan 4.")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Next week" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("keeps the last chain while a value is out of range, and still moves through it", async () => {
+    render(<ScheduleLab thisWeek={THIS_WEEK} start={{ ...presetInputs("steady", THIS_WEEK), built: 2, shown: 1 }} copied={null} />);
+    const goal = within(inputs()).getByRole("textbox", { name: "Goal score" });
+    await userEvent.clear(goal);
+    await userEvent.type(goal, "20");
+    expect(screen.getByRole("heading", { level: 2, name: "Week 2 · Nov 23" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Earlier week" }));
+    expect(screen.getByRole("heading", { level: 2, name: "Week 1 · Nov 16" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Next week" }));
+    await userEvent.click(screen.getByRole("button", { name: "Next week" }));
+    expect(screen.getByRole("heading", { level: 2, name: "Week 3 · Nov 30" })).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toBe("Showing the last week that built. Fix the goal score.");
+    expect(linkInputs()).toMatchObject({ goal: "20", built: 3, shown: 2 });
+  });
+
   it("saves nothing", async () => {
     openOnSteady();
     await userEvent.click(within(inputs()).getByRole("radio", { name: "Improving" }));
