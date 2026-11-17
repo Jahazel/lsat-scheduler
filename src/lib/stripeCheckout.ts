@@ -11,6 +11,7 @@ import { accounts, billingRecords, usedFreeWeeks } from "./postgresSchema";
 import { isoDateInWeek } from "./scheduleReasonText";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
 import { stripeRequest, stripeSecretKey } from "./stripeApi";
+import { mayStillBeStarting, paidAgain, stripeCannotCancel } from "./stripeStatus";
 
 export type PlanChoiceStanding =
   | { kind: "admin" | "has_plan" | "no_account" }
@@ -81,14 +82,6 @@ const openInvoices = stripeList(z.object({ id: z.string().regex(/^in_\w+$/) }));
 const openSessions = stripeList(z.object({ id: z.string().regex(/^cs_\w+$/) }));
 const checkoutSession = z.object({ status: z.string() });
 
-// Stripe can still be sending the message for one of these, so the billing record does not show it yet.
-const STARTED_OR_STARTING = ["trialing", "active", "past_due", "incomplete"];
-
-const ENDED = ["canceled", "incomplete_expired"];
-
-// A late retry of the lapsed plan can succeed before its message arrives, so the student has paid for it after all.
-const PAID_AGAIN = ["trialing", "active"];
-
 // Stripe takes an expiry 30 minutes to 24 hours after it creates the session; these leave room for the request.
 const MIN_CHECKOUT_MINUTES = 31;
 const MAX_CHECKOUT_HOURS = 23;
@@ -117,7 +110,7 @@ async function cancelUnlessEnded(id: string, secretKey: string) {
     await stripeRequest(`subscriptions/${id}`, secretKey, undefined, "DELETE");
   } catch (error) {
     const { status } = subscription.parse(await stripeRequest(`subscriptions/${id}`, secretKey));
-    if (!ENDED.includes(status)) throw error;
+    if (!stripeCannotCancel(status)) throw error;
   }
 }
 
@@ -152,8 +145,8 @@ export async function startCheckout(accountId: string, plan: PlanName, realNow: 
     for (const session of open.data) closed.push(await closeCheckout(session.id, secretKey));
     if (closed.includes("complete")) return { kind: "starting", place: standing.place };
     const held = subscriptions.parse(await stripeRequest(`subscriptions?customer=${customer}&status=all&limit=100`, secretKey))
-      .data.filter(({ status }) => !ENDED.includes(status));
-    if (held.some(({ id, status }) => (id === standing.subscriptionId ? PAID_AGAIN : STARTED_OR_STARTING).includes(status))) {
+      .data.filter(({ status }) => !stripeCannotCancel(status));
+    if (held.some(({ id, status }) => (id === standing.subscriptionId ? paidAgain : mayStillBeStarting)(status))) {
       return { kind: "starting", place: standing.place };
     }
     for (const { id } of held) {
