@@ -57,6 +57,14 @@ describe("Students", () => {
     expect(within(screen.getByRole("list")).getByRole("link").textContent).toBe("DanielNeeds analyticsFree weekdaniel@example.test · 9 h 30 min per week");
   });
 
+  it("carries the list's search, filter, and sort into each student's link, so ← All students returns to them", async () => {
+    const user = userEvent.setup();
+    show({ sort: "newest" });
+    await user.type(screen.getByRole("searchbox", { name: "Search students" }), "pri");
+    const links = screen.getAllByRole("link", { name: /Priya/ }).map((link) => link.getAttribute("href"));
+    expect(links).toEqual(["/admin/students/id-Priya?q=pri&sort=newest", "/admin/students/id-Priya?q=pri&sort=newest"]);
+  });
+
   it("says when no student has onboarded, with zero counts and no search", () => {
     show({}, []);
     expect(screen.getByText("No students have completed onboarding yet.")).toBeTruthy();

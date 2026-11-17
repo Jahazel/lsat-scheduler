@@ -3,11 +3,9 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import type { RoadToTestDay } from "@/lib/roadToTestDay";
-import { formatScheduleWeekOf } from "@/lib/scheduleCheckInSummary";
+import { formatScheduleWeekOf, weekPace, type WeekCount } from "@/lib/scheduleCheckInSummary";
 import { InfoGlyph, StatusIcon } from "@/components/ui/StatusIcon";
 import { FOCUS, cx } from "@/components/ui/classes";
-
-export type WeekCount = { done: number; total: number; dueBeforeToday: number };
 
 const PHONE_NOTES = 2;
 
@@ -34,10 +32,8 @@ function Notes({ notes }: { notes: string[] }) {
   );
 }
 
-function PacePill({ done, total, dueBeforeToday }: WeekCount) {
-  const lead = done - dueBeforeToday;
-  const behind = done < total && lead < 0;
-  const label = done === total ? "Week done" : behind ? `${-lead} behind` : lead > 0 ? `${lead} ahead` : "On pace";
+function PacePill(count: WeekCount) {
+  const { behind, label } = weekPace(count);
   return (
     <span className={cx("inline-flex h-6 shrink-0 items-center gap-1 rounded-pill px-2.5 text-caption font-medium whitespace-nowrap",
       behind ? "bg-warning-wash text-warning-ink" : "bg-vellum text-ink")}>

@@ -5,7 +5,7 @@ import { DAY_ORDER } from "@/lib/engine";
 import { activityLabel } from "@/lib/activityLabel";
 import { formatDuration } from "@/lib/formatDuration";
 import { plannedActivityMinutes, scheduleActivityId } from "@/lib/currentWeeklySchedule";
-import { doneActivityIds, formatScheduleWeekOf, remainingActivityCount, scheduledActivityCount, weekNotes } from "@/lib/scheduleCheckInSummary";
+import { activitiesDueBefore, doneActivityIds, formatScheduleWeekOf, remainingActivityCount, scheduledActivityCount, weekNotes } from "@/lib/scheduleCheckInSummary";
 import { dayName, isoDateInWeek } from "@/lib/scheduleReasonText";
 import type { ActivityCheckIn, DayOfWeek, DayPlan, Student, WeeklySchedule } from "@/lib/types";
 import { saveActivityCheckIn } from "@/app/dashboard/actions";
@@ -169,7 +169,7 @@ export default function ScheduleCheckInView({
   const activitiesOn = (counts: (date: string) => boolean) => DAY_ORDER.reduce(
     (due, day, index) => counts(dates[index]!) ? due + schedule.days[day].activities.length : due, 0);
   const dueSoFar = today === undefined ? undefined : activitiesOn((date) => date <= today);
-  const dueBeforeToday = today === undefined ? 0 : activitiesOn((date) => date < today);
+  const dueBeforeToday = today === undefined ? 0 : activitiesDueBefore(schedule, today);
   const practiceTestDays = DAY_ORDER.filter((day) => schedule.days[day].type === "practice_test");
   const dayReasons = (day: DayOfWeek) => schedule.reasons?.filter((reason) =>
     reason.placement.scope === "day" && reason.placement.day === day && reason.code !== "capacity_overage") ?? [];

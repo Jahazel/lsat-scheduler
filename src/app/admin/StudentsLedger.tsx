@@ -20,10 +20,10 @@ const PILL = cx("flex h-10 items-center gap-1.5 rounded-pill border bg-paper px-
 
 const testMonth = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
 const joinedDay = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: SCHEDULE_TIMEZONE });
-const studentHref = (row: StudentRow) => `/admin/students/${row.id}`;
+const studentHref = (row: StudentRow, list: ListState) => `/admin/students/${row.id}${listQuery(list)}`;
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
 
-function Badge({ children, tone = "plain" }: { children: string; tone?: "plain" | "accent" }) {
+export function Badge({ children, tone = "plain" }: { children: string; tone?: "plain" | "accent" }) {
   return (
     <span className={cx("inline-flex shrink-0 items-center rounded-pill px-2 py-0.5 text-caption font-medium whitespace-nowrap", tone === "accent" ? "bg-accent/tint text-accent" : "bg-vellum text-smoke")}>
       {children}
@@ -167,11 +167,11 @@ function SortHeader({ label, sort, state, set, className }: { label: string; sor
   );
 }
 
-function TableRow({ row }: { row: StudentRow }) {
+function TableRow({ row, list }: { row: StudentRow; list: ListState }) {
   return (
     <tr className="relative transition-colors duration-(--duration-fast) ease-out pointer-hover:hover:bg-vellum">
       <td className="max-w-80 py-3 pr-4 pl-5">
-        <Link href={studentHref(row)} className="flex flex-col outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-accent">
+        <Link href={studentHref(row, list)} className="flex flex-col outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-accent">
           <Name row={row} className="text-small" />
           <span className="text-caption [overflow-wrap:anywhere] text-smoke">{row.email}</span>
         </Link>
@@ -186,10 +186,10 @@ function TableRow({ row }: { row: StudentRow }) {
   );
 }
 
-function ListRow({ row }: { row: StudentRow }) {
+function ListRow({ row, list }: { row: StudentRow; list: ListState }) {
   return (
     <li>
-      <Link href={studentHref(row)} className={cx("flex w-full min-w-0 flex-col gap-1 px-5 py-4 transition-colors duration-(--duration-fast) ease-out pointer-hover:hover:bg-vellum", FOCUS_INSET)}>
+      <Link href={studentHref(row, list)} className={cx("flex w-full min-w-0 flex-col gap-1 px-5 py-4 transition-colors duration-(--duration-fast) ease-out pointer-hover:hover:bg-vellum", FOCUS_INSET)}>
         <span className="flex min-w-0 flex-wrap items-center gap-2">
           <Name row={row} />
           {row.needsAnalytics && <Badge tone="accent">Needs analytics</Badge>}
@@ -276,9 +276,9 @@ export function StudentsLedger({ rows }: { rows: StudentRow[] }) {
                   <SortHeader label="Joined" sort="newest" state={state} set={set} className="pr-5" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-vellum-line">{shown.map((row) => <TableRow key={row.id} row={row} />)}</tbody>
+              <tbody className="divide-y divide-vellum-line">{shown.map((row) => <TableRow key={row.id} row={row} list={state} />)}</tbody>
             </table>
-            <ul className="divide-y divide-vellum-line lg:hidden">{shown.map((row) => <ListRow key={row.id} row={row} />)}</ul>
+            <ul className="divide-y divide-vellum-line lg:hidden">{shown.map((row) => <ListRow key={row.id} row={row} list={state} />)}</ul>
           </>}
         </section>
       </>}

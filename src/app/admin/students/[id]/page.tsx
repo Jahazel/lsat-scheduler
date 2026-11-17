@@ -1,31 +1,38 @@
-import Link from "next/link";
-import { requireAdmin } from "../../requireAdmin";
 import { notFound } from "next/navigation";
-import { findStudentWithOwner } from "@/lib/studentRepository";
-import { adminScheduleStateMessage, loadReadOnlyCurrentWeek } from "@/lib/readOnlyCurrentWeekSchedule";
-import { postgresCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
-import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
-import { postgresActivityCheckIns } from "@/lib/activityCheckInRepository";
-import { localDateInTimezone } from "@/lib/currentWeeklySchedule";
-import ScheduleCheckInView from "@/components/ScheduleCheckInView";
+import { requireAdmin } from "../../requireAdmin";
 import { PageArrival } from "@/components/PagePlaceholder";
-import { PlanStatusBadge } from "@/components/PlanStatusBadge";
+import { PageCue } from "@/components/SiteMotion";
+import { PAGE_COLUMN, cx } from "@/components/ui/classes";
+import { postgresActivityCheckIns } from "@/lib/activityCheckInRepository";
+import { listApprovedAnalyticsSnapshots } from "@/lib/analyticsSnapshotRepository";
 import { loadAccountPlan } from "@/lib/billingRepository";
+import { currentWeekInTimezone, localDateInTimezone } from "@/lib/currentWeeklySchedule";
 import { isHeldWeek } from "@/lib/planStatus";
+import { loadReadOnlyCurrentWeek } from "@/lib/readOnlyCurrentWeekSchedule";
+import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
+import { studentFacts } from "@/lib/studentFacts";
+import { displayName } from "@/lib/studentList";
+import { initialsFor } from "@/lib/studentNav";
+import { findStudentWithJoinDate } from "@/lib/studentRepository";
+import { postgresCurrentWeekRepositories } from "@/lib/weeklyScheduleRepository";
+import { StudentDetail } from "./StudentDetail";
+import { ThisWeekPanel } from "./ThisWeekPanel";
 
 export default async function AdminStudentPage({ params }: { params: Promise<{ id: string }> }) {
   await requireAdmin();
 
   const { id } = await params;
-
-  const record = await findStudentWithOwner(id);
-  if (!record) {
-    notFound();
-  }
+  const record = await findStudentWithJoinDate(id);
+  if (!record) notFound();
 
   const now = new Date();
-  const plan = await loadAccountPlan(record.userId);
-  const currentWeek = await loadReadOnlyCurrentWeek({
+  const thisWeekStart = currentWeekInTimezone(now, SCHEDULE_TIMEZONE);
+  const [plan, snapshots, pastWeeks] = await Promise.all([
+    loadAccountPlan(record.userId),
+    listApprovedAnalyticsSnapshots(record.id),
+    postgresCurrentWeekRepositories.weeklySchedules.listBeforeWeek(record.id, thisWeekStart),
+  ]);
+  const week = await loadReadOnlyCurrentWeek({
     ...postgresCurrentWeekRepositories,
     activityCheckIns: postgresActivityCheckIns,
     studentId: record.id,
@@ -33,36 +40,26 @@ export default async function AdminStudentPage({ params }: { params: Promise<{ i
     now: () => now,
     isHeldWeek: (weekStartDate) => isHeldWeek(plan.record, weekStartDate),
   });
+  const needsAnalytics = snapshots.length === 0;
+  const name = displayName(record);
 
   return (
-    <div className="min-h-screen">
-      <PageArrival page={record.email} />
-      <div data-page-section className="bg-paper px-5 pt-6 md:px-18">
-        <div className="flex items-center justify-between gap-4">
-          <Link href="/admin" className="text-small font-medium text-accent hover:text-ink">
-            ← All students
-          </Link>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-vellum-line px-2.5 py-1 text-caption font-medium text-smoke">
-            Viewing as admin — read only
-          </span>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <p className="text-small text-smoke">{record.email}</p>
-          <PlanStatusBadge status={plan.status} />
-        </div>
-      </div>
-      {currentWeek.kind === "schedule" ? (
-        <ScheduleCheckInView
-          scheduleId={currentWeek.schedule.id}
-          schedule={currentWeek.schedule.schedule}
-          student={currentWeek.schedule.generationInputs.student}
-          checkIns={currentWeek.checkIns}
-          readOnly
-          today={localDateInTimezone(now, SCHEDULE_TIMEZONE)}
-        />
-      ) : (
-        <p data-page-section className="px-5 py-6 text-small text-smoke md:px-18">{adminScheduleStateMessage(currentWeek)}</p>
-      )}
+    <div data-page-fade className={cx(PAGE_COLUMN, "pt-6 pb-12 md:pt-10")}>
+      <PageCue page="admin" />
+      <PageArrival page={name ?? record.email} />
+      <StudentDetail
+        student={{ initials: initialsFor(name, record.email), name, email: record.email, plan: plan.status.kind, needsAnalytics }}
+        facts={studentFacts({
+          currentScore: record.currentScore,
+          goalScore: record.goalScore,
+          goalTestDate: record.goalTestDate,
+          weeklyMinutes: Object.values(record.dailyCapacityMinutes).reduce((sum, minutes) => sum + minutes, 0),
+          joinedAt: record.joinedAt,
+          pastWeeks: pastWeeks.length,
+          needsAnalytics,
+        }, now)}
+        thisWeek={<ThisWeekPanel week={week} today={localDateInTimezone(now, SCHEDULE_TIMEZONE)} />}
+      />
     </div>
   );
 }
