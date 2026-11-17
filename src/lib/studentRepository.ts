@@ -71,11 +71,21 @@ export async function listStudentsWithOwners() {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+async function findNonAdminStudentRow(id: string) {
+  if (!z.guid().safeParse(id).success) return undefined;
+  const [row] = await selectStudentsWithOwners().where(and(eq(students.id, id), ne(accounts.role, "admin")));
+  return row;
+}
+
 /** Admin-only. Returns null for an invalid ID, a missing student, or an Admin-owned student. */
 export async function findStudentWithOwner(id: string) {
-  if (!z.guid().safeParse(id).success) return null;
-  const [row] = await selectStudentsWithOwners().where(and(eq(students.id, id), ne(accounts.role, "admin")));
+  const row = await findNonAdminStudentRow(id);
   return row ? studentRecord(row) : null;
+}
+
+export async function findStudentWithJoinDate(id: string) {
+  const row = await findNonAdminStudentRow(id);
+  return row ? { ...studentRecord(row), joinedAt: row.student.createdAt } : null;
 }
 
 export async function findStudentByAccountId(accountId: string | undefined) {

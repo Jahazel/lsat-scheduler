@@ -146,10 +146,12 @@ it("an Admin reads a student's Weekly schedule and profile without saving a sche
   signIn(admin.account);
   const before = await everyRow();
   const markup = renderToStaticMarkup(await studentPage(withSchedule.saved.id));
-  expect(markup).toContain("Viewing as admin — read only");
+  expect(markup).toContain("Read only");
   expect(markup).toContain("sam@example.test");
-  expect(markup).toContain("Your plan for this week");
-  expect(renderToStaticMarkup(await studentPage(withoutSchedule.saved.id))).not.toContain("Your plan for this week");
+  expect(markup).toContain("Week of October 12");
+  const without = renderToStaticMarkup(await studentPage(withoutSchedule.saved.id));
+  expect(without).not.toContain("Week of October 12");
+  expect(without).toContain("No schedule this week");
   const response = await studentApi(withSchedule.saved.id);
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({
@@ -186,7 +188,7 @@ it.each(planStatusCases)("both Admin student pages show the plan status %s", asy
   signIn(admin.account);
   const list = await studentsPage();
   expect(planStatusOf(list, "Sam")).toBe(label);
-  expect(renderToStaticMarkup(await studentPage(saved.id))).toMatch(new RegExp(`data-plan-status="[^"]+"[^>]*>${label}<`));
+  expect(renderToStaticMarkup(await studentPage(saved.id))).toMatch(new RegExp(`aria-label="Student".*?>${label}</span>.*?>Read only<`));
 });
 
 it("the Admin student page hides a held weekly schedule until the first charge succeeds", async () => {
@@ -201,11 +203,35 @@ it("the Admin student page hides a held weekly schedule until the first charge s
   signIn(admin.account);
 
   const held = renderToStaticMarkup(await studentPage(sam.saved.id));
-  expect(held).not.toContain("Your plan for this week");
+  expect(held).not.toContain("Week of October 12");
   expect(held).toContain("This student&#x27;s weekly schedule for this week is held.");
 
   await database.owner.execute(sql`update billing_records set first_charge_succeeded = true, stripe_status = 'active'`);
-  expect(renderToStaticMarkup(await studentPage(sam.saved.id))).toContain("Your plan for this week");
+  expect(renderToStaticMarkup(await studentPage(sam.saved.id))).toContain("Week of October 12");
+});
+
+it("the Admin student page reads its facts from the student's saved records", async () => {
+  vi.setSystemTime(new Date("2026-10-05T16:00:00Z"));
+  const sam = await student("Sam Rivera");
+  await approve(sam.saved.id, "2026-10-05");
+  signIn(sam.account);
+  await dashboard();
+  vi.setSystemTime(new Date("2026-10-12T16:00:00Z"));
+  const nia = await student("Nia");
+  await database.owner.execute(sql`update students set created_at = '2026-09-02T17:00:00Z' where id = ${sam.saved.id}`);
+  await database.owner.execute(sql`update students set created_at = '2026-10-12T16:00:00Z' where id = ${nia.saved.id}`);
+  const admin = await student("Admin", "admin");
+  signIn(admin.account);
+
+  const facts = (markup: string) => [...markup.matchAll(/<dt[^>]*>([^<]+)<\/dt><dd[^>]*>([^<]+)<\/dd>/g)].map(([, label, value]) => `${label}: ${value}`);
+  const samPage = renderToStaticMarkup(await studentPage(sam.saved.id));
+  expect(samPage).toContain(">SR</span>");
+  expect(facts(samPage)).toEqual(["Score: 150 → 165", "Test: Jun 2027 · 232 days", "Study time: 10 h 30 min per week", "Joined: Sep 2", "Past weeks: 1"]);
+  expect(samPage).not.toContain("Needs analytics");
+  const niaPage = renderToStaticMarkup(await studentPage(nia.saved.id));
+  expect(facts(niaPage)).toEqual(["Score: No analytics · goal 165", "Test: Jun 2027 · 232 days", "Study time: 10 h 30 min per week", "Joined: Oct 12", "Past weeks: None yet"]);
+  expect(niaPage).toContain("Needs analytics");
+  expect(niaPage).toContain("This student needs confirmed, eligible analytics before a current weekly schedule can be created.");
 });
 
 it("an Admin gets not found for an Admin-owned, missing, or malformed student ID", async () => {
