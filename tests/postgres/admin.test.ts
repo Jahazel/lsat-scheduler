@@ -131,7 +131,7 @@ async function approve(studentId: string, weekOf = "2026-10-12") {
   });
 }
 const dashboard = () => DashboardPage({ searchParams: Promise.resolve({}) });
-const studentPage = (id: string) => AdminStudentPage({ params: Promise.resolve({ id }) });
+const studentPage = (id: string, query: Record<string, string> = {}) => AdminStudentPage({ params: Promise.resolve({ id }), searchParams: Promise.resolve(query) });
 const studentApi = (id: string) => studentRoute(new Request(`http://localhost/api/students/${id}`), { params: Promise.resolve({ id }) });
 
 it("an Admin reads a student's Weekly schedule and profile without saving a schedule or check-in", async () => {
@@ -232,6 +232,42 @@ it("the Admin student page reads its facts from the student's saved records", as
   expect(facts(niaPage)).toEqual(["Score: No analytics · goal 165", "Test: Jun 2027 · 232 days", "Study time: 10 h 30 min per week", "Joined: Oct 12", "Past weeks: None yet"]);
   expect(niaPage).toContain("Needs analytics");
   expect(niaPage).toContain("This student needs confirmed, eligible analytics before a current weekly schedule can be created.");
+});
+
+it("the Admin student page lists past weeks and analytics uploads with links that stay under /admin", async () => {
+  vi.setSystemTime(new Date("2026-10-05T16:00:00Z"));
+  const sam = await student("Sam");
+  await approve(sam.saved.id, "2026-10-05");
+  signIn(sam.account);
+  await dashboard();
+  vi.setSystemTime(new Date("2026-10-12T16:00:00Z"));
+  const nia = await student("Nia");
+  const admin = await student("Admin", "admin");
+  signIn(admin.account);
+  const tab = async (id: string, query: Record<string, string>) => {
+    fakeLink.search = new URLSearchParams(query).toString();
+    return renderToStaticMarkup(await studentPage(id, query)).replaceAll("&amp;", "&");
+  };
+
+  const weeks = await tab(sam.saved.id, { sort: "newest", tab: "weeks" });
+  const weekLink = `/admin/students/${sam.saved.id}?sort=newest&tab=weeks&pastWeek=2026-10-05`;
+  expect(weeks).toContain(`href="${weekLink}"`);
+  expect(weeks).toContain("Oct 5 – 11");
+  const open = await tab(sam.saved.id, { sort: "newest", tab: "weeks", pastWeek: "2026-10-05" });
+  expect(open).toContain("Week of Oct 5");
+  expect(open).toMatch(new RegExp(`href="/admin/students/${sam.saved.id}\\?sort=newest&tab=weeks"[^>]*>← All weeks<`));
+  const progress = await tab(sam.saved.id, { tab: "progress" });
+  expect(progress).toContain("Score 150");
+  expect(progress).toContain("1 upload");
+  expect(progress).toContain("Strengthen 70%");
+  expect(progress).not.toContain("No past weeks yet.");
+  for (const markup of [weeks, open, progress]) expect(markup).not.toContain("/progress");
+
+  expect(await tab(nia.saved.id, { tab: "weeks" })).toContain("No past weeks yet.");
+  const niaProgress = await tab(nia.saved.id, { tab: "progress" });
+  expect(niaProgress).toContain("No past weeks yet.");
+  expect(niaProgress).toContain("No confirmed analytics on file.");
+  fakeLink.search = "";
 });
 
 it("an Admin gets not found for an Admin-owned, missing, or malformed student ID", async () => {

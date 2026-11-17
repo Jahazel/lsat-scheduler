@@ -87,7 +87,7 @@ function NotBuilt({ label }: { label: string }) {
   );
 }
 
-export function StudentDetail({ student, facts, thisWeek }: { student: DetailStudent; facts: Fact[]; thisWeek: ReactNode }) {
+export function StudentDetail({ student, facts, panels }: { student: DetailStudent; facts: Fact[]; panels: Record<Exclude<Tab, "settings">, ReactNode> }) {
   const tab = tabIn(useSearchParams());
   const id = useId();
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
@@ -116,7 +116,7 @@ export function StudentDetail({ student, facts, thisWeek }: { student: DetailStu
         </div>
         <div role="tabpanel" id={`${id}-panel`} aria-labelledby={`${id}-${tab}`} tabIndex={0} key={tab}
           className="animate-[value-in_var(--duration-fast)_var(--ease-out-strong)_both] rounded-md outline-offset-4">
-          {tab === "week" ? thisWeek : <NotBuilt label={TABS.find((t) => t.key === tab)!.label} />}
+          {tab === "settings" ? <NotBuilt label={TABS.find((t) => t.key === tab)!.label} /> : panels[tab]}
         </div>
       </section>
     </div>
