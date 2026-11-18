@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({ auth: vi.fn(), findAccount: vi.fn() }));
 vi.mock("@/auth", () => ({ auth: mocks.auth, signOut: vi.fn() }));
 vi.mock("@/lib/accountRepository", () => ({ findAccountById: mocks.findAccount }));
 vi.mock("@/lib/studentRepository", () => ({ findStudentByAccountId: async () => null }));
+vi.mock("@/lib/weeklyScheduleRepository", () => ({ listScheduledWeeksForAccount: async () => [] }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/dashboard", useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
 import SiteHeader from "./SiteHeader";
 describe("signed-out header", () => {
@@ -25,16 +26,16 @@ describe("signed-out header", () => {
 });
 describe("header's verified admin clock", () => {
   beforeEach(() => { vi.clearAllMocks(); mocks.auth.mockResolvedValue({ user: { id: "admin-1", role: "admin" } }); });
-  it("uses one verified Account record for the simulated date and controls", async () => {
+  it("uses one verified Account record for the simulated date in the switch", async () => {
     mocks.findAccount.mockResolvedValue({ role: "admin", simulatedDate: "2026-10-07" });
     const markup = renderToStaticMarkup(await SiteHeader());
-    expect(markup).toContain("Oct 7");
+    expect(markup).toContain("Student side, simulated date Wed, Oct 7. Walkthrough");
     expect(mocks.findAccount).toHaveBeenCalledOnce();
   });
-  it("does not show simulated-date controls for a stale admin session", async () => {
+  it("does not show the Walkthrough for a stale admin session", async () => {
     mocks.findAccount.mockResolvedValue({ role: "student", simulatedDate: "2026-10-07" });
     const markup = renderToStaticMarkup(await SiteHeader());
     expect(markup).not.toContain("Oct 7");
-    expect(markup).not.toContain("Test controls");
+    expect(markup).not.toContain("Walkthrough");
   });
 });

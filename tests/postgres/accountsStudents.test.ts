@@ -299,8 +299,8 @@ it("Study settings keep another student's profile and the saved Weekly schedule 
   expect(await saveStudySettings({ ...settings, goalScore: 172 })).toBeNull();
   expect(await findStudentByAccountId(b.id)).toMatchObject({ goalScore: 165 });
   expect((await getPostgresDatabase().execute(sql`select * from weekly_schedules`)).rows).toEqual(before.rows);
-  expect(await loadStudentNavState(a.id, new Date("2026-10-15T12:00:00Z"))).toMatchObject({ hasCurrentWeek: true, uploadNeeded: false });
-  expect(await loadStudentNavState(b.id, new Date("2026-10-15T12:00:00Z"))).toMatchObject({ hasCurrentWeek: false, uploadNeeded: true });
+  expect(await loadStudentNavState(a.id, new Date("2026-10-15T12:00:00Z"))).toMatchObject({ uploadNeeded: false });
+  expect(await loadStudentNavState(b.id, new Date("2026-10-15T12:00:00Z"))).toMatchObject({ uploadNeeded: true });
 });
 
 it("Study settings refuse a goal the current score has reached since the page opened, and keep the saved goal", async () => {

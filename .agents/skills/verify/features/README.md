@@ -16,7 +16,7 @@ The recipes name logical browser operations. Bind them to the current harness as
 
 ## Proof and skip reporting
 
-Capture the action, resulting UI, and persisted records. Retain evidence through cleanup. Record each entry point exercised. A Sample analytics snapshot proves sample approval and scheduling. It does not prove screenshot extraction. A direct URL does not prove navigation links. Report an unavailable browser file-input operation or missing provider credentials as an untested path. Never silently substitute a sample, API request, or different entry point.
+Capture the action, resulting UI, and persisted records. Retain evidence through cleanup. Record each entry point exercised. A fake-extractor upload proves review, approval, and scheduling. It does not prove real screenshot reading. A direct URL does not prove navigation links. Report an unavailable browser file-input operation or missing provider credentials as an untested path. Never silently substitute a sample, API request, or different entry point.
 
 ## Features
 
@@ -25,7 +25,7 @@ Capture the action, resulting UI, and persisted records. Retain evidence through
 - [Onboarding and Study settings](study-settings.md): initial study profile, daily capacity, preference editing, and persistence.
 - [Analytics and This week](weekly-schedule.md): the weekly upload (screenshots and practice-test sections), snapshot review and approval, saved schedule views, activity check-ins, held and lapsed-plan weeks, and the daily analytics save limit.
 - [Progress](progress.md): empty state, finished-week summaries, past-week details, and legacy deep links.
-- [Admin](admin.md): all-student read-only views, the admin top bar (tabs, phone tab bar, Admin / Student switch, avatar menu), Simulated date, Sample analytics snapshots, and resets.
+- [Admin](admin.md): all-student read-only views, the admin top bar (tabs, phone tab bar, Admin / Student switch, avatar menu), and the Walkthrough (Simulated date and Start over).
 - [Landing page](landing-page.md): the signed-out `/` page at 1440, 768 and 390 px, its Start free week links, Pricing, and the signed-in redirect.
 - [Page motion](page-motion.md): the fades between the landing page and the sign-in pages, the logo glide, the form-only fade between sign-in pages, and Back and Forward.
 - [Legal pages](legal-pages.md): the Terms, Privacy and AI disclosure pages at 1440, 768 and 390 px, signed out and signed in: the header and page tabs, section links, the On this page list and the phone section bar, copy link, the Related list, Back, and reduced motion.

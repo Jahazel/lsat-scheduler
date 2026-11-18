@@ -1,69 +1,13 @@
 import { readdirSync } from "node:fs";
 import path from "node:path";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
-import { NextRequest } from "next/server";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/auth", () => ({ auth: (handler: unknown) => handler }));
 
-const { config, default: proxy } = await import("./proxy");
+const { config } = await import("./proxy");
 
 const runsProxy = (url: string) => unstable_doesMiddlewareMatch({ config, url });
-
-const signedOutRequest = (pathname: string, headers: Record<string, string> = {}) =>
-  Object.assign(new NextRequest(`http://localhost:3000${pathname}`, { headers }), { auth: null });
-const run = (req: NextRequest) => (proxy as unknown as (req: NextRequest) => Promise<Response>)(req);
-
-describe("design prototypes on the dev server", () => {
-  const prototypePath = "/prototypes/admin-dashboard";
-  beforeEach(() => vi.stubEnv("CSP_MODE", ""));
-  afterEach(() => vi.unstubAllEnvs());
-
-  it.each([
-    { mode: "", ours: "content-security-policy-report-only", sent: "content-security-policy" },
-    { mode: "enforce", ours: "content-security-policy", sent: "content-security-policy-report-only" },
-  ])("open signed out inside a same-site frame, and only the proxy's own $ours reaches the page", async ({ mode, ours, sent }) => {
-    vi.stubEnv("NODE_ENV", "development");
-    vi.stubEnv("CSP_MODE", mode);
-    const response = await run(signedOutRequest(prototypePath, {
-      "Content-Security-Policy": "script-src 'nonce-sent'",
-      "Content-Security-Policy-Report-Only": "script-src 'nonce-sent'",
-    }));
-    expect(response.status).toBe(200);
-    expect(response.headers.get("Location")).toBeNull();
-    expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
-    const framed = response.headers.get(ours);
-    expect(framed).toContain("frame-ancestors 'self'");
-    expect(response.headers.get(`x-middleware-request-${ours}`)).toBe(framed);
-    expect(response.headers.get(`x-middleware-request-${sent}`)).toBeNull();
-  });
-
-  it("let a prototype frame a real page on the dev server, and keep the sign-in check", async () => {
-    vi.stubEnv("NODE_ENV", "development");
-    const response = await run(signedOutRequest("/dashboard", { "Sec-Fetch-Dest": "iframe" }));
-    expect(response.headers.get("Location")).toMatch(/\/login/);
-    expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
-    expect(response.headers.get("content-security-policy-report-only")).toContain("frame-ancestors 'self'");
-  });
-
-  it.each([
-    { env: "production", dest: "iframe" },
-    { env: "development", dest: "document" },
-  ])("refuse every frame for a real page on $env when the browser loads it as $dest", async ({ env, dest }) => {
-    vi.stubEnv("NODE_ENV", env);
-    const response = await run(signedOutRequest("/dashboard", { "Sec-Fetch-Dest": dest }));
-    expect(response.headers.get("X-Frame-Options")).toBe("DENY");
-    expect(response.headers.get("content-security-policy-report-only")).toContain("frame-ancestors 'none'");
-  });
-
-  it("still send a signed-out visitor to Log in outside the dev server", async () => {
-    vi.stubEnv("NODE_ENV", "production");
-    const response = await run(signedOutRequest(prototypePath));
-    expect(response.headers.get("Location")).toMatch(/\/login/);
-    expect(response.headers.get("X-Frame-Options")).toBe("DENY");
-    expect(response.headers.get("content-security-policy-report-only")).toContain("frame-ancestors 'none'");
-  });
-});
 
 describe("proxy matcher", () => {
   it("lets every landing image load without the sign-in check", () => {

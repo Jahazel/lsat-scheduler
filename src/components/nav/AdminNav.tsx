@@ -1,15 +1,15 @@
 "use client";
 
 import { useAdminTest } from "@/components/AdminTestContext";
-import AdminTestPanel from "@/components/AdminTestPanel";
-import type { TestControlState } from "@/components/TestControls";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { mondayOf, type WalkthroughFacts } from "@/lib/walkthrough";
 import { AvatarMenu, PRESS, PrimaryTabs, StudentTabBar, TAB_BAR, tabBarItem, type StudentNavProps } from "./StudentNav";
 import { NavIcon, type NavIconName } from "./NavIcon";
 import { NavTab } from "@/components/ui/NavTab";
-import { FOCUS, PAGE_COLUMN, cx } from "@/components/ui/classes";
+import { FOCUS, cx } from "@/components/ui/classes";
+import { Walkthrough } from "./Walkthrough";
 import { DESKTOP_BAR, HEADER, Logo, MOBILE_BAR, TABS, isTabActive } from "./shared";
 
 const ADMIN_HOME = "/admin";
@@ -40,7 +40,7 @@ function lastAdminPage() {
 }
 const noChanges = () => () => {};
 
-function SideSwitch({ pathname, studentSide }: { pathname: string; studentSide: boolean }) {
+function SideSwitch({ pathname, studentSide, date }: { pathname: string; studentSide: boolean; date?: ReactNode }) {
   const adminHref = useSyncExternalStore(noChanges, lastAdminPage, () => ADMIN_HOME);
   const [picked, setPicked] = useState<{ studentSide: boolean; on: string } | null>(null);
   const pillOnStudent = picked?.on === pathname ? picked.studentSide : studentSide;
@@ -62,7 +62,7 @@ function SideSwitch({ pathname, studentSide }: { pathname: string; studentSide: 
         <span aria-current="true" className={current}>Admin</span>
       )}
       {studentSide ? (
-        <span aria-current="true" aria-label="Student side" className={current}><StudentLabel /></span>
+        date ?? <span aria-current="true" aria-label="Student side" className={current}><StudentLabel /></span>
       ) : (
         <Link
           href={STUDENT_HOME}
@@ -105,16 +105,19 @@ function AdminTabBar({ pathname }: { pathname: string }) {
   );
 }
 
-export default function AdminNav(props: StudentNavProps & { testState?: TestControlState }) {
+export default function AdminNav(props: StudentNavProps & { walkthrough?: WalkthroughFacts }) {
   const pathname = usePathname();
   const { currentWeek } = useAdminTest();
-  const uploadNeeded = currentWeek?.week === props.testState?.weekStartDate
-    ? props.uploadNeeded && !currentWeek?.exists
+  const { walkthrough } = props;
+  const uploadNeeded = walkthrough && currentWeek?.week === mondayOf(walkthrough.today)
+    ? props.uploadNeeded && !currentWeek.exists
     : props.uploadNeeded;
   const studentSide = STUDENT_SIDE.some((href) => isTabActive(pathname, href));
   const studentTabs = studentSide && !isTabActive(pathname, "/onboarding");
   const home = studentSide ? STUDENT_HOME : ADMIN_HOME;
-  const testState = studentSide ? props.testState : undefined;
+  const sideSwitch = studentSide && walkthrough
+    ? <Walkthrough facts={walkthrough}>{(date) => <SideSwitch pathname={pathname} studentSide date={date} />}</Walkthrough>
+    : <SideSwitch pathname={pathname} studentSide={studentSide} />;
 
   useEffect(rememberAdminPage, [pathname]);
 
@@ -124,7 +127,7 @@ export default function AdminNav(props: StudentNavProps & { testState?: TestCont
         <div className={cx(MOBILE_BAR, "md:hidden")}>
           <Logo href={home} form="mark" />
           <div data-page-fade className="flex min-w-0 items-center gap-2">
-            <SideSwitch pathname={pathname} studentSide={studentSide} />
+            {sideSwitch}
             <AvatarMenu {...props} compact />
           </div>
         </div>
@@ -135,17 +138,12 @@ export default function AdminNav(props: StudentNavProps & { testState?: TestCont
               {studentSide ? studentTabs && <PrimaryTabs uploadNeeded={uploadNeeded} /> : <AdminTabs pathname={pathname} />}
             </div>
             <div data-page-fade className="flex items-center gap-2 lg:gap-3">
-              <SideSwitch pathname={pathname} studentSide={studentSide} />
+              {sideSwitch}
               <AvatarMenu {...props} compact={false} />
             </div>
           </div>
         </div>
       </header>
-      {testState && (
-        <div data-page-fade className={cx(PAGE_COLUMN, "py-5 md:py-8")}>
-          <AdminTestPanel state={testState} />
-        </div>
-      )}
       {studentSide ? studentTabs && <StudentTabBar uploadNeeded={uploadNeeded} /> : <AdminTabBar pathname={pathname} />}
     </>
   );

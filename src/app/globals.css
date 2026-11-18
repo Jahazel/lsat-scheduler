@@ -299,6 +299,15 @@ body:has([data-landing-page]) > footer > * { border-color: color-mix(in oklab, v
   }
 }
 
+@keyframes walkthrough-rise { from { opacity: 0; transform: translateY(4px); } }
+@keyframes walkthrough-drop { from { opacity: 0; transform: translateY(-4px); } }
+@keyframes walkthrough-fade { from { opacity: 0; } }
+.walkthrough-date-in { animation: walkthrough-rise var(--duration-base) var(--ease-out-strong) both; }
+.walkthrough-drop-in { animation: walkthrough-drop 160ms var(--ease-out-strong) both; }
+@media (prefers-reduced-motion: reduce) {
+  .walkthrough-date-in, .walkthrough-drop-in { animation-name: walkthrough-fade; }
+}
+
 @keyframes legal-copy-label-in { from { opacity: 0; transform: translateX(-2px); } }
 
 @keyframes page-placeholder-in { from { opacity: 0; } }
