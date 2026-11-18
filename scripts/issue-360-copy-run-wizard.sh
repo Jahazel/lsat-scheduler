@@ -231,10 +231,16 @@ record() {
   printf '  %s✓ recorded%s %s: %s\n' "$GREEN" "$RESET" "$1" "$2"
 }
 
+looks_private() { [[ "$1" == *@* || "$1" == *eyJ* || "$1" == *://* ]]; }
+
 ask_result() {
   local answer=""
-  read -e -r -p "  $BOLD$2$RESET " answer || true
-  record "$1" "$answer"
+  while true; do
+    read -e -r -p "  $BOLD$2$RESET " answer || true
+    if looks_private "$answer"; then warn "That answer holds an @, a token, or a link. Describe it without the value."; continue; fi
+    record "$1" "$answer"
+    return 0
+  done
 }
 
 show_sql() {
@@ -253,7 +259,7 @@ paste_result() {
     text=$(pbpaste | tr '\t\r\n' ' ;;' | tr -s ' ')
     clear_clipboard
     if [[ -z "${text// /}" ]]; then warn "The clipboard is empty. Copy the result again."; continue; fi
-    if [[ "$text" == *@* || "$text" == *eyJ* || "$text" == *postgres://* || "$text" == *postgresql://* ]]; then
+    if looks_private "$text"; then
       warn "The result holds an @, a token, or a connection string. Change the query to show counts only, and copy again."; continue
     fi
     record "$1" "$text"
@@ -296,6 +302,8 @@ prefix() { printf '%s+t%s-' "${BASE_EMAIL%@*}" "$RUN_TAG"; }
 new_password() { printf 'Copy-%s-%s' "$1" "$(openssl rand -hex 6)"; }
 say_value() { printf '  %s%s%s: %s%s%s\n' "$DIM" "$1" "$RESET" "$BOLD" "$2" "$RESET"; }
 now_utc() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+migration_files() { git -C "$REPO_ROOT" ls-tree --name-only "$COMMIT" migrations/ | grep '\.sql$' | sed 's|migrations/||; s|\.sql$||'; }
+migration_list() { printf '%s files, %s' "$(migration_files | wc -l | tr -d ' ')" "$(migration_files | tr '\n' ' ' | sed 's/ $//')"; }
 
 ask_cookie() {
   local value code
@@ -348,6 +356,19 @@ check_headers() {
   if (( ${#problems[@]} )); then printf '%s; ' "${problems[@]}"; else printf 'none'; fi
 }
 
+check_all_headers() {
+  local n="$1" csp_name="$2" problems n1 n2
+  problems=$(check_headers a "$csp_name" "${STUDENT_PAGES[@]}")
+  record "${n}a student pages" "${DEPLOYMENT_ENFORCED:-$DEPLOYMENT}, $csp_name, problems: $problems"
+  problems=$(check_headers admin "$csp_name" "${ADMIN_PAGES[@]}")
+  record "${n}b admin pages" "problems: $problems"
+  problems=$(check_headers none "$csp_name" "${PUBLIC_PAGES[@]}")
+  record "${n}c public pages" "problems: $problems"
+  get none "$RUN_DIR/n1" "$COPY/login" > /dev/null; get none "$RUN_DIR/n2" "$COPY/login" > /dev/null
+  n1=$(nonce_of "$RUN_DIR/n1" "$csp_name"); n2=$(nonce_of "$RUN_DIR/n2" "$csp_name")
+  if [[ -n "$n1" && "$n1" != "$n2" ]]; then record "${n}n nonce" "two loads of /login got different nonces"; else record "${n}n nonce" "FAIL: '$n1' and '$n2'"; fi
+}
+
 capture_curl() {
   local file="$RUN_DIR/$1.curl"
   while true; do
@@ -367,7 +388,7 @@ replay() {
   local command
   command=$(cat "$RUN_DIR/$1.curl")
   if [[ -n "${3:-}" ]]; then command=$(printf '%s' "$command" | perl -0pe "$3"); fi
-  command+=" -sS --max-time 60 -o $(printf '%q' "$2.body") -w '%{http_code} %{time_total}\n'"
+  command+=" -sS --max-time 60 -o $(printf '%q' "$2.body") -D $(printf '%q' "$2.headers") -w '%{http_code} %{time_total}\n'"
   bash -c "$command" > "$2.result" 2>/dev/null || true
   [[ -s "$2.result" ]] || printf '000 0\n' > "$2.result"
 }
@@ -404,7 +425,7 @@ vercel_log_search() {
   open_url "https://vercel.com/dashboard"
   step "COPY project > Logs. Set the time range to the last hour (the Hobby plan keeps one hour)."
   step "Search for each term below, one at a time. Count the matches."
-  say_value "Terms" "$(prefix)   ${ADMIN_EMAIL%@*}   @gmail   eyJ   session-token   sk-ant   sk_test   Bearer   token=   password   base64"
+  say_value "Terms" "$(prefix)   ${ADMIN_EMAIL%@*}   @gmail   eyJ   session-token   sk-ant   sk_test   Bearer   token=   password   base64   tool_use   accuracy"
   note "A match is a problem only when it shows a password, cookie, token, reset link, screenshot, model output, request body, or full email."
   ask_result "$1" "Matches that show private data (0 if none). Name the term and the route, never the value:"
 }
@@ -458,7 +479,7 @@ s_values() {
   step "Open the REAL site's Vercel project. Copy the ID of its current Production deployment (starts dpl_)."
   ask_id REAL_DEPLOYMENT_BEFORE "Real site Production deployment ID:"
   write_env REAL_DEPLOYMENT_BEFORE "$REAL_DEPLOYMENT_BEFORE"
-  record "1 version" "run t$RUN_TAG started $RUN_STARTED. origin/main $COMMIT. Migrations in the commit: $(git -C "$REPO_ROOT" ls-tree --name-only "$COMMIT" migrations/ | grep -c '\.sql$'). Real site before: $REAL_DEPLOYMENT_BEFORE"
+  record "1 version" "run t$RUN_TAG started $RUN_STARTED. origin/main $COMMIT. Migrations in the commit: $(migration_list). Real site before: $REAL_DEPLOYMENT_BEFORE"
   pause
 }
 
@@ -473,9 +494,9 @@ s_migrations() {
     fi
   else record "2a migrations" "Not run"; fi
   show_sql "SELECT count(*) AS journal_rows FROM drillmap_migrations.applied;
-SELECT has_table_privilege('$APP_ROLE', 'public.deletion_list', 'INSERT') AS deletion_list_grant,
+SELECT has_any_column_privilege('$APP_ROLE', 'public.deletion_list', 'INSERT') AS deletion_list_grant,
   to_regclass('public.leads') IS NULL AS leads_dropped;"
-  note "Expected: $(git -C "$REPO_ROOT" ls-tree --name-only "$COMMIT" migrations/ | grep -c '\.sql$') journal rows, then true, true."
+  note "Expected: $(migration_files | wc -l | tr -d ' ') journal rows, then true, true."
   paste_result "2b journal and grants"
   open_url "https://vercel.com/dashboard"
   step "COPY project > Settings > Environment Variables. Check that CSP_MODE is NOT set on Production. Delete it if it is."
@@ -516,6 +537,7 @@ s_csp_report_only() {
   say "Open DevTools > Console on each page. Turn on 'Preserve log'. Type 'Content Security Policy' in the console filter."
   say "A report looks like: [Report Only] Refused to load … because it violates the following Content Security Policy directive."
   step "Private window: sign out the Admin, then sign in again with Google. Watch the console on /login and after the return."
+  step "Normal window: sign A out, then sign in again with the password on /login. Watch the console."
   step "Normal window, as A: This week, the weekly upload (/dashboard/upload) with a screenshot chosen so its preview shows, Progress, Study settings, Account."
   step "Normal window: sign A out. Sign up B ($(addr b), password $P_B), verify, and walk onboarding up to the last step. Do NOT press the final button."
   step "Private window, as the Admin: Admin, one student's page, and the test lab (/admin/lab)."
@@ -528,22 +550,14 @@ s_headers() {
   stage "Headers and private caching (E3)"
   say "The wizard reads every main page with A's and the Admin's cookies, and the public pages with no cookie."
   ask_cookie a
-  local problems out code n1 n2
-  problems=$(check_headers a content-security-policy-report-only "${STUDENT_PAGES[@]}")
-  record "5a student pages" "problems: $problems"
-  problems=$(check_headers admin content-security-policy-report-only "${ADMIN_PAGES[@]}")
-  record "5b admin pages" "problems: $problems"
-  problems=$(check_headers none content-security-policy-report-only "${PUBLIC_PAGES[@]}")
-  record "5c public pages" "problems: $problems"
+  local out code
+  check_all_headers 5 content-security-policy-report-only
   out="$RUN_DIR/rsc"
   code=$(get a "$out" -H "RSC: 1" "$COPY/progress")
   record "5d RSC request" "/progress with RSC: 1, HTTP $code, Cache-Control: $(header_of "$out" cache-control)"
   out="$RUN_DIR/redirect"
   code=$(get none "$out" "$COPY/dashboard")
   record "5e redirect" "/dashboard signed out, HTTP $code to $(header_of "$out" location), Cache-Control: $(header_of "$out" cache-control)"
-  get none "$RUN_DIR/n1" "$COPY/login" > /dev/null; get none "$RUN_DIR/n2" "$COPY/login" > /dev/null
-  n1=$(nonce_of "$RUN_DIR/n1" content-security-policy-report-only); n2=$(nonce_of "$RUN_DIR/n2" content-security-policy-report-only)
-  if [[ -n "$n1" && "$n1" != "$n2" ]]; then record "5f nonce" "two loads of /login got different nonces"; else record "5f nonce" "FAIL: '$n1' and '$n2'"; fi
   pause
 }
 
@@ -573,7 +587,7 @@ s_forged() {
   local origin_line="s{(-H '[Oo]rigin: )\Q$COPY\E'}{\${1}https://forged.example'}"
   local no_origin="s{ *-H '[Oo]rigin: [^']*' *\\\\?\n?}{}"
   local wrong_type="s{(-H '[Cc]ontent-[Tt]ype: )[^']*'}{\${1}application/x-www-form-urlencoded'}"
-  local goal_170="s{(--data-raw .*?)163}{\${1}170}s"
+  local goal_170="s{(--data-raw .*?)(?:(?<=\\\\n)|(?<![0-9A-Za-z_]))163(?![0-9])}{\${1}170}s"
   replay settings "$dir/wrong-origin" "$origin_line; $goal_170"
   replay settings "$dir/no-origin" "$no_origin; $goal_170"
   replay settings "$dir/wrong-type" "$wrong_type; $goal_170"
@@ -593,7 +607,7 @@ FROM students s JOIN accounts a ON a.id = s.account_id WHERE a.email = '$(addr a
   note "Expected: 163 (no forged save), 0, and noOrigin 2, wrongOrigin 2, wrongContentType 3, on /settings, /api/practice-test/extract, /api/students."
   paste_result "7c no write, logged"
   replay settings "$dir/same-site" "$goal_170"
-  record "7d same-site" "HTTP $(status_of "$dir/same-site") (expected 200)"
+  record "7d same-site" "HTTP $(status_of "$dir/same-site") (expected 200). Server Action reply Cache-Control: $(header_of "$dir/same-site" cache-control)"
   show_sql "SELECT s.goal_score FROM students s JOIN accounts a ON a.id = s.account_id WHERE a.email = '$(addr a)';"
   ask_result "7e same-site saved" "Expected 170. What did it show?"
   pause
@@ -622,6 +636,7 @@ FROM accounts a LEFT JOIN students s ON s.account_id = a.id WHERE a.email = '$(a
   step "In B's window, reload. It must open the plan step or This week with no error."
   ask_result "8d page" "What did B's window show after the reload?"
   step "Sign B out and sign A in again in the normal window."
+  vercel_log_search "8e Vercel logs (first hour)"
   pause
 }
 
@@ -720,9 +735,10 @@ s_refusals() {
   show_sql "SELECT event, result, row_count, count(*) FROM security_log
 WHERE logged_at > now() - interval '15 minutes' AND (event = 'model_reply_refused' OR (event = 'sign_in' AND result IN ('googleCancelled', 'setupFault')))
 GROUP BY event, result, row_count;"
-  note "Expected: sign_in googleCancelled 1, no setupFault. A model_reply_refused row if the scan got HTTP 502; no row if the scan was refused as a wrong page."
+  note "Expected: sign_in googleCancelled 1, no setupFault. A model_reply_refused row if the scan got HTTP 502."
+  note "If the scan was answered as a wrong page, no row is expected, and the handoff carries the refused reply check to the unit tests."
   paste_result "11c log entries"
-  vercel_log_search "11d Vercel logs (first hour)"
+  vercel_log_search "11d Vercel logs (second hour)"
   pause
 }
 
@@ -748,9 +764,10 @@ s_failed_deletion() {
   show_sql "REVOKE DELETE ON TABLE public.accounts FROM $APP_ROLE;"
   ask_result "13a revoke" "Expected REVOKE. What did it show?"
   step "Normal window: sign out A. Sign in as C ($(addr c), password $P_C)."
+  ask_cookie c
   step "Account > Delete Account. Sign in again if it asks, and confirm."
   ask_result "13b delete" "Expected Login with '$BEING_DELETED_TEXT'. What did you see?"
-  ask_cookie_old_c
+  old_session_refused
   step "Sign in as C again with the same password."
   ask_result "13c retry" "Expected Login again with '$BEING_DELETED_TEXT', and no way in. What did you see?"
   show_sql "SELECT deleting_since IS NOT NULL AS marked FROM accounts WHERE id = '$C_ACCOUNT_ID';"
@@ -761,22 +778,16 @@ s_failed_deletion() {
   (SELECT count(*) FROM students WHERE id = '$C_STUDENT_ID') AS students,
   (SELECT count(*) FROM analytics_snapshots WHERE student_id = '$C_STUDENT_ID') AS snapshots,
   (SELECT count(*) FROM weekly_schedules WHERE student_id = '$C_STUDENT_ID') AS schedules,
-  (SELECT count(*) FROM activity_check_ins WHERE student_id = '$C_STUDENT_ID') AS check_ins,
   (SELECT count(*) FROM practice_test_results WHERE student_id = '$C_STUDENT_ID') AS practice_tests,
   (SELECT count(*) FROM deletion_list WHERE account_id = '$C_ACCOUNT_ID') AS deletion_list_rows,
   (SELECT string_agg(result, ', ') FROM security_log WHERE event = 'account_deletion' AND account_id IS NULL AND logged_at > '$BEFORE_DELETIONS') AS deletion_events;"
-  note "Expected 0, 0, 0, 0, 0, 0, 1. The deletion events name willFinish for the failed try."
+  note "Expected 0, 0, 0, 0, 0, 1. Activity check-ins hang off Weekly schedules and go with them. The deletion events name willFinish for the failed try."
   paste_result "13f finished by the daily job"
   pause
 }
 
-ask_cookie_old_c() {
-  say "Now C's session from before the deletion. If the browser still holds a C cookie, copy it. Otherwise press Enter on an empty value."
-  local value code path answers=""
-  ask_secret value "C's old session cookie (hidden, may be empty):"
-  clear_clipboard
-  if [[ -z "$value" ]]; then record "13b2 old session" "No C cookie was left in the browser"; return; fi
-  printf 'Cookie: __Secure-authjs.session-token=%s\n' "$value" > "$RUN_DIR/cookie-c"
+old_session_refused() {
+  local code path answers=""
   for path in /dashboard /settings /account; do
     code=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -H "@$RUN_DIR/cookie-c" "$COPY$path" || true)
     answers+="$path $code; "
@@ -787,19 +798,19 @@ ask_cookie_old_c() {
 s_retention() {
   stage "Retention rules (F3, F6)"
   say "The SQL adds old test rows and makes D look inactive for 2 years. The daily job must act on each."
-  show_sql "INSERT INTO security_log (event, result, route, logged_at) VALUES
-  ('unexpected_failure', 'failed', '/issue-360-old', now() - interval '91 days'),
-  ('unexpected_failure', 'failed', '/issue-360-new', now() - interval '89 days');
+  show_sql "INSERT INTO security_log (event, result, route, error_code, error_type, logged_at) VALUES
+  ('unexpected_failure', 'failed', '/issue-360-old', '0360a091', 'Issue360Test', now() - interval '91 days'),
+  ('unexpected_failure', 'failed', '/issue-360-new', '0360a089', 'Issue360Test', now() - interval '89 days');
 INSERT INTO deletion_list (account_id, email_hash, deleted_on) VALUES
-  (gen_random_uuid(), 'issue-360-old', current_date - 31),
-  (gen_random_uuid(), 'issue-360-new', current_date - 29);
+  (gen_random_uuid(), repeat('0', 64), current_date - 31),
+  (gen_random_uuid(), repeat('1', 64), current_date - 29);
 UPDATE accounts SET last_signed_in_at = now() - interval '2 years 1 day' WHERE email = '$(addr d)';"
   ask_result "14a setup" "Expected INSERT 2, INSERT 2, UPDATE 1. What did it show?"
   run_cron
   show_sql "SELECT (SELECT string_agg(route, ', ') FROM security_log WHERE route LIKE '/issue-360-%') AS log_rows_left,
-  (SELECT string_agg(email_hash, ', ') FROM deletion_list WHERE email_hash LIKE 'issue-360-%') AS deletion_rows_left,
+  (SELECT string_agg(deleted_on::text, ', ') FROM deletion_list WHERE email_hash IN (repeat('0', 64), repeat('1', 64))) AS deletion_rows_left,
   (SELECT inactive_warning_sent_at IS NOT NULL FROM accounts WHERE email = '$(addr d)') AS d_warned;"
-  note "Expected /issue-360-new, issue-360-new, true."
+  note "Expected /issue-360-new, the date 29 days ago, true."
   paste_result "14b first daily job"
   step "Check the inbox for the inactive Account warning email to $(addr d)."
   ask_result "14c warning email" "Did it arrive? Did the text read right?"
@@ -811,8 +822,8 @@ UPDATE accounts SET last_signed_in_at = now() - interval '2 years 1 day' WHERE e
   run_cron
   show_sql "SELECT (SELECT count(*) FROM accounts WHERE id = '$D_ACCOUNT_ID') AS d_accounts,
   (SELECT count(*) FROM deletion_list WHERE account_id = '$D_ACCOUNT_ID') AS d_deletion_rows;
-DELETE FROM security_log WHERE route LIKE '/issue-360-%';
-DELETE FROM deletion_list WHERE email_hash LIKE 'issue-360-%';"
+DELETE FROM security_log WHERE error_type = 'Issue360Test';
+DELETE FROM deletion_list WHERE email_hash IN (repeat('0', 64), repeat('1', 64));"
   note "Expected 0, 1. Then the two test rows are removed."
   paste_result "14e second daily job"
   pause
@@ -855,6 +866,10 @@ s_restore() {
   write_env RESTORED_BRANCH "$RESTORED_BRANCH"
   record "16a restore" "branch $RESTORED_BRANCH from $BEFORE_DELETIONS, done $(now_utc)"
   [[ -d "$REPO_ROOT/node_modules" ]] || (cd "$REPO_ROOT" && npm ci --ignore-scripts)
+  if ! git -C "$REPO_ROOT" diff --quiet "$COMMIT" -- scripts src/lib; then
+    warn "This checkout's scripts differ from the run's commit $(printf '%.7s' "$COMMIT"). Check out that commit's scripts, or ask the agent."
+    pause "Press Enter to continue anyway, or Ctrl-C to stop"
+  fi
   local project branch neon_key
   project=$(gh variable get BACKUP_PROJECT_ID --env backup-checker-copy --repo "$REPO" 2>/dev/null || gh variable get BACKUP_PROJECT_ID --repo "$REPO" 2>/dev/null || true)
   branch=$(gh variable get BACKUP_BRANCH_ID --env backup-checker-copy --repo "$REPO" 2>/dev/null || gh variable get BACKUP_BRANCH_ID --repo "$REPO" 2>/dev/null || true)
@@ -870,6 +885,7 @@ s_restore() {
   record "16b age check" "$(printf '%s' "$ages" | tr '\n' ' ' | cut -c1-400)"
   if [[ "$ages" == *"$RESTORED_BRANCH"* ]]; then warn "The age check names the restored branch. Runbook step 2 says stop. Ask the agent."; pause; fi
   say "The replay refuses hosts that are not on the copy list. The wizard adds the restored host for this run and removes it after."
+  cp "$REPO_ROOT/scripts/copyDatabaseHosts.json" "$RUN_DIR/copyDatabaseHosts.json"
   node -e 'const f=process.argv[1],h=process.argv[2],l=require(f);for(const x of [h,h.replace(/^(ep-[^.]+)/,"$1-pooler")])if(!l.includes(x))l.push(x);require("fs").writeFileSync(f,JSON.stringify(l,null,2)+"\n")' \
     "$REPO_ROOT/scripts/copyDatabaseHosts.json" "$RESTORED_HOST"
   local restored_url current_url auth_secret first second
@@ -883,7 +899,7 @@ s_restore() {
   first=$(cd "$REPO_ROOT" && DATABASE_URL="$restored_url" DELETION_LIST_URL="$current_url" AUTH_SECRET="$auth_secret" npm run -s replay-deletions 2>&1 | tail -n1 || true)
   second=$(cd "$REPO_ROOT" && DATABASE_URL="$restored_url" DELETION_LIST_URL="$current_url" AUTH_SECRET="$auth_secret" npm run -s replay-deletions 2>&1 | tail -n1 || true)
   unset restored_url current_url auth_secret
-  git -C "$REPO_ROOT" checkout -- scripts/copyDatabaseHosts.json
+  cp "$RUN_DIR/copyDatabaseHosts.json" "$REPO_ROOT/scripts/copyDatabaseHosts.json"
   record "16c replay" "first: $first second: $second (expected at least 2 deleted, then 0)"
   show_sql "SELECT count(*) FILTER (WHERE email IN ('$(addr c)', '$(addr d)')) AS c_and_d,
   (SELECT count(*) FROM students WHERE id = '$C_STUDENT_ID') AS c_student
@@ -904,19 +920,11 @@ s_enforce() {
   step "COPY project > Settings > Environment Variables. Add CSP_MODE = enforce on Production only."
   redeploy_copy DEPLOYMENT_ENFORCED
   ask_cookie a
-  local problems out n1 n2
-  problems=$(check_headers a content-security-policy "${STUDENT_PAGES[@]}")
-  record "17a student pages" "$DEPLOYMENT_ENFORCED, problems: $problems"
-  problems=$(check_headers admin content-security-policy "${ADMIN_PAGES[@]}")
-  record "17b admin pages" "problems: $problems"
-  problems=$(check_headers none content-security-policy "${PUBLIC_PAGES[@]}")
-  record "17c public pages" "problems: $problems"
-  get none "$RUN_DIR/e1" "$COPY/login" > /dev/null; get none "$RUN_DIR/e2" "$COPY/login" > /dev/null
-  n1=$(nonce_of "$RUN_DIR/e1" content-security-policy); n2=$(nonce_of "$RUN_DIR/e2" content-security-policy)
-  if [[ -n "$n1" && "$n1" != "$n2" ]]; then record "17d nonce" "enforced, two loads got different nonces"; else record "17d nonce" "FAIL: '$n1' and '$n2'"; fi
-  if grep -qi '^content-security-policy-report-only' "$RUN_DIR/e1.headers"; then record "17e mode" "FAIL: still report-only"; else record "17e mode" "enforced header only"; fi
+  check_all_headers 17 content-security-policy
+  if grep -qi '^content-security-policy-report-only' "$RUN_DIR/n1.headers"; then record "17e mode" "FAIL: still report-only"; else record "17e mode" "enforced header only"; fi
   say "Walk the pages again with the console filter 'Content Security Policy'. Enforced errors say 'Refused to …' without [Report Only]."
   step "Private window: sign the Admin out and in again with Google. Open Admin, a student's page, and the test lab."
+  step "Normal window: sign A out, then sign in again with the password on /login."
   step "Normal window: sign up E ($(addr e), password $P_E), verify, and finish onboarding up to the Stripe Checkout page."
   step "Normal window, as A: This week, the weekly upload with a screenshot preview, Progress, Study settings, Account."
   ask_result "17f enforced walk" "How many CSP errors, on which pages? Did every page work, with bars and the preview showing?"
@@ -946,8 +954,8 @@ s_cleanup() {
   show_sql "DELETE FROM accounts WHERE email LIKE '$(prefix)%';
 SELECT count(*) AS test_accounts_left FROM accounts WHERE email LIKE '$(prefix)%';"
   ask_result "19a test Accounts" "Expected DELETE (3 or 4), then 0. What did it show?"
-  step "Stripe sandbox: check that A's and E's subscriptions show as cancelled."
-  ask_result "19b Stripe" "Are they cancelled?"
+  step "Stripe sandbox > Subscriptions: cancel A's subscription now. Deleting rows in SQL does not reach Stripe. E stopped at Checkout and has none."
+  ask_result "19b Stripe" "Is A's subscription cancelled, and does E have none?"
   open_url "https://console.neon.tech/app/settings/api-keys"
   step "Revoke the issue-360-age-check API key."
   pause "When it is revoked, press Enter"
@@ -957,7 +965,7 @@ SELECT count(*) AS test_accounts_left FROM accounts WHERE email LIKE '$(prefix)%
   git -C "$REPO_ROOT" fetch -q origin main
   record "19c real site after" "$REAL_DEPLOYMENT_AFTER (before: $REAL_DEPLOYMENT_BEFORE). origin/main now $(git -C "$REPO_ROOT" rev-parse --short origin/main); run used $(printf '%.7s' "$COMMIT")"
   record "19d end" "$(now_utc)"
-  git -C "$REPO_ROOT" diff --quiet -- scripts/copyDatabaseHosts.json || git -C "$REPO_ROOT" checkout -- scripts/copyDatabaseHosts.json
+  if [[ -f "$RUN_DIR/copyDatabaseHosts.json" ]]; then cp "$RUN_DIR/copyDatabaseHosts.json" "$REPO_ROOT/scripts/copyDatabaseHosts.json"; fi
   cp "$RESULTS" "$RESULTS_KEPT"
   rm -rf "$RUN_DIR"
 }
