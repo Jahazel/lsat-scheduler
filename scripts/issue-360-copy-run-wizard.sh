@@ -866,7 +866,7 @@ s_restore() {
   write_env RESTORED_BRANCH "$RESTORED_BRANCH"
   record "16a restore" "branch $RESTORED_BRANCH from $BEFORE_DELETIONS, done $(now_utc)"
   [[ -d "$REPO_ROOT/node_modules" ]] || (cd "$REPO_ROOT" && npm ci --ignore-scripts)
-  if ! git -C "$REPO_ROOT" diff --quiet "$COMMIT" -- scripts src/lib; then
+  if ! git -C "$REPO_ROOT" diff --quiet "$COMMIT" -- scripts/replay-deletions.mts scripts/deletionReplay.ts scripts/check-backup-ages.mts scripts/backupAges.ts src/lib; then
     warn "This checkout's scripts differ from the run's commit $(printf '%.7s' "$COMMIT"). Check out that commit's scripts, or ask the agent."
     pause "Press Enter to continue anyway, or Ctrl-C to stop"
   fi
