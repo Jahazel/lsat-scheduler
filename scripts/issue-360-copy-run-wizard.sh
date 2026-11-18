@@ -259,6 +259,7 @@ paste_result() {
     text=$(pbpaste | tr '\t\r\n' ' ;;' | tr -s ' ')
     clear_clipboard
     if [[ -z "${text// /}" ]]; then warn "The clipboard is empty. Copy the result again."; continue; fi
+    if [[ "$text" =~ ^[[:space:]]*(SELECT|INSERT|UPDATE|DELETE|REVOKE|GRANT)[[:space:]] ]]; then warn "The clipboard still holds the SQL. Select the result rows in Neon, press Cmd-C, and try again."; continue; fi
     if looks_private "$text"; then
       warn "The result holds an @, a token, or a connection string. Change the query to show counts only, and copy again."; continue
     fi
