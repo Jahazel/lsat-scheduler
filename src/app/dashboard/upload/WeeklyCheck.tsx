@@ -34,23 +34,15 @@ const VALUE_BOX = "flex h-[30px] w-16 shrink-0 items-center justify-end rounded-
 const NOTE = "min-w-0 text-right text-caption text-smoke sm:w-[150px] sm:shrink-0";
 const LABEL = "grow whitespace-nowrap text-small text-ink";
 
-export type CheckSource = "7sage_screenshot" | "admin_sample";
-
 type PracticeTestPart = "read" | "skipped" | "none";
 
-function statementsFor(source: CheckSource, typed: boolean, part: PracticeTestPart, lastWeek: string): { statement: Statement; text: string }[] {
+function statementsFor(typed: boolean, part: PracticeTestPart, lastWeek: string): { statement: Statement; text: string }[] {
   const latest = (withTest: string, alone: string) =>
     part === "read" ? withTest : part === "skipped" ? `${alone} I'm skipping ${lastWeek}'s practice test.` : alone;
   if (typed) {
     return [
       { statement: "extractedValuesMatch", text: "I copied these values from my 7Sage Analytics page." },
       { statement: "isLatestAnalytics", text: latest(`These are my latest analytics and ${lastWeek}'s practice test.`, "These are my latest 7Sage analytics.") },
-    ];
-  }
-  if (source === "admin_sample") {
-    return [
-      { statement: "extractedValuesMatch", text: "I reviewed and approved these sample values." },
-      { statement: "isLatestAnalytics", text: latest(`Use this sample as my latest analytics and ${lastWeek}'s practice test.`, "Use this sample as my latest analytics.") },
     ];
   }
   return [
@@ -126,13 +118,11 @@ function SkippedPracticeTestBlock({ text }: { text: ReturnType<typeof planText> 
   );
 }
 
-export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, onSent }: {
+export default function WeeklyCheck({ basis, read, onBack, onConfirm }: {
   basis: WeeklyUploadBasis;
   read: WeeklyUploadRead;
-  source: CheckSource;
   onBack: () => void;
   onConfirm: typeof confirmWeeklyUpload;
-  onSent?: () => void;
 }) {
   const [draft, dispatch] = useReducer(reviewDraftReducer, read.analytics, startDraft);
   const [scoreText, setScoreText] = useState(String(read.currentScore));
@@ -144,7 +134,7 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
   const text = planText(basis);
   const typed = isTyped(read.analytics);
   const part: PracticeTestPart = practiceTest ? "read" : basis.hadPracticeTest ? "skipped" : "none";
-  const statements = statementsFor(source, typed, part, text.lastWeek);
+  const statements = statementsFor(typed, part, text.lastWeek);
 
   const typedScore = parseScoreText(scoreText);
   const score = inScoreRange(typedScore) ? typedScore : null;
@@ -172,11 +162,10 @@ export default function WeeklyCheck({ basis, read, source, onBack, onConfirm, on
     const practiceTestApproval: PracticeTestApprovalInput | null = practiceTest && {
       readings: practiceTest.readings,
       picks: practiceTest.picks,
-      extraction: { source, extractedAt: practiceTest.extractedAt },
+      extraction: { source: "7sage_screenshot", extractedAt: practiceTest.extractedAt },
       confirmation: { extractedValuesMatch: true, isThisWeeksPracticeTest: true, confirmedAt: approval.confirmation.confirmedAt },
     };
     startSaving(async () => {
-      onSent?.();
       setReply(await callAction(onConfirm)({
         weekOf: basis.weekOf,
         currentScore: score,

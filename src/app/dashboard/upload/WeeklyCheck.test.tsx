@@ -2,12 +2,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { AdminTestProvider, useAdminTest } from "@/components/AdminTestContext";
 import { FailureToastProvider } from "@/components/FailureNotice";
 import { SIGN_IN_EXPIRED } from "@/components/SignInExpired";
 import { readSection } from "@/lib/analyticsReview";
 import { summarizeApprovedRows } from "@/lib/analyticsSnapshots";
-import { samplePracticeTestSections } from "@/lib/adminTestWorkspace";
+import { PT158_FIXTURES } from "@/lib/practiceTestFixtures/pt158";
 import { mockStudent } from "@/lib/mockData";
 import { reviewPracticeTest } from "@/lib/practiceTestResult";
 import type { AnalyticsExtractedRow } from "@/lib/types";
@@ -48,11 +47,13 @@ const LR_ROWS: AnalyticsExtractedRow[] = [
 const RC_ROWS: AnalyticsExtractedRow[] = (["Law", "Comparative", "Science", "Humanities", "Art"] as const)
   .map((type, index) => ({ type, category: "passage", accuracy: [58, 70, 64, 81, 77][index] }));
 
+const SECTIONS = PT158_FIXTURES.flatMap(({ reading }) => (reading.page === "section_review" ? [reading] : []));
+
 const png = (name: string) => new File(["image"], name, { type: "image/png" });
 
 function read(withPracticeTest = true): WeeklyUploadRead {
   const extraction = { source: "7sage_screenshot" as const, extractedAt: EXTRACTED_AT };
-  const sections = samplePracticeTestSections();
+  const sections = SECTIONS;
   const review = reviewPracticeTest(sections);
   if (!review.ok) throw new Error("PrepTest 158 did not produce a result");
   return {
@@ -71,7 +72,7 @@ function setup({ withPracticeTest = true, reply = REFUSED }: { withPracticeTest?
   const confirm = vi.fn<typeof confirmWeeklyUpload>(async () => reply);
   const onBack = vi.fn();
   const user = userEvent.setup();
-  render(<WeeklyCheck basis={basis(withPracticeTest)} read={read(withPracticeTest)} source="7sage_screenshot" onBack={onBack} onConfirm={confirm} />);
+  render(<WeeklyCheck basis={basis(withPracticeTest)} read={read(withPracticeTest)} onBack={onBack} onConfirm={confirm} />);
   return { user, confirm, onBack };
 }
 
@@ -214,7 +215,7 @@ describe("Check what we read", () => {
       .mockResolvedValueOnce(REDIRECTED);
     const user = userEvent.setup();
     render(
-      <WeeklyCheck basis={basis(true)} read={read(true)} source="7sage_screenshot" onBack={vi.fn()} onConfirm={confirm} />,
+      <WeeklyCheck basis={basis(true)} read={read(true)} onBack={vi.fn()} onConfirm={confirm} />,
       { wrapper: FailureToastProvider },
     );
     await user.click(statement(REVIEWED));
@@ -235,7 +236,7 @@ describe("Check what we read", () => {
       .mockResolvedValueOnce({ signedOut: true })
       .mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
     const user = userEvent.setup();
-    render(<WeeklyCheck basis={basis(true)} read={read(true)} source="7sage_screenshot" onBack={vi.fn()} onConfirm={confirm} />);
+    render(<WeeklyCheck basis={basis(true)} read={read(true)} onBack={vi.fn()} onConfirm={confirm} />);
     await user.click(statement(REVIEWED));
     await user.click(statement(LATEST));
 
@@ -265,7 +266,7 @@ describe("Check what we read", () => {
   it("on a weekday, checks last week's practice test and builds this week", async () => {
     const confirm = vi.fn<typeof confirmWeeklyUpload>(async () => REFUSED);
     const user = userEvent.setup();
-    render(<WeeklyCheck basis={basis(true, { plans: "this_week", startsOn: "WEDNESDAY" })} read={read()} source="7sage_screenshot" onBack={() => {}} onConfirm={confirm} />);
+    render(<WeeklyCheck basis={basis(true, { plans: "this_week", startsOn: "WEDNESDAY" })} read={read()} onBack={() => {}} onConfirm={confirm} />);
 
     expect(screen.getByText("Plan this week · Check")).toBeDefined();
     const preview = within(screen.getByRole("complementary", { name: "Your screenshots and this week" }));
@@ -290,40 +291,6 @@ describe("Check what we read", () => {
   });
 });
 
-function SampleButton() {
-  const { setSample } = useAdminTest();
-  return (
-    <button type="button" onClick={() => setSample({ rows: [...LR_ROWS, ...RC_ROWS], sections: samplePracticeTestSections(), extractedAt: EXTRACTED_AT })}>
-      Generate sample
-    </button>
-  );
-}
-
-describe("Plan next week with an admin's sample", () => {
-  it("checks the sample analytics and practice test, sends them as a sample, and Back returns to the upload", async () => {
-    const confirm = vi.fn<typeof confirmWeeklyUpload>(async () => REFUSED);
-    const user = userEvent.setup();
-    render(<AdminTestProvider><SampleButton /><WeeklyUploadFlow basis={basis()} initialScore={156} confirm={confirm} /></AdminTestProvider>);
-    expect(screen.getByRole("heading", { name: "Plan next week" })).toBeDefined();
-
-    await user.click(screen.getByRole("button", { name: "Generate sample" }));
-    expect(screen.getByRole("heading", { name: "Check what we read" })).toBeDefined();
-    expect(screen.getByRole("region", { name: "Practice test 158" })).toBeDefined();
-    await user.click(screen.getByRole("button", { name: "Back" }));
-    expect(screen.queryByRole("heading", { name: "Check what we read" })).toBeNull();
-    expect(screen.getByRole("heading", { name: "Plan next week" })).toBeDefined();
-
-    await user.click(screen.getByRole("button", { name: "Generate sample" }));
-    await user.click(statement("I reviewed and approved these sample values."));
-    await user.click(statement("Use this sample as my latest analytics and this week's practice test."));
-    await user.click(confirmButton());
-    expect(confirm).toHaveBeenCalledWith(expect.objectContaining({
-      analytics: expect.objectContaining({ extraction: { source: "admin_sample", extractedAt: EXTRACTED_AT } }),
-      practiceTest: expect.objectContaining({ extraction: { source: "admin_sample", extractedAt: EXTRACTED_AT } }),
-    }));
-  });
-});
-
 describe("Type them", () => {
   const box = (type: string) => screen.getByRole("textbox", { name: `${type} accuracy` }) as HTMLInputElement;
 
@@ -342,7 +309,7 @@ describe("Type them", () => {
     const fetchSpy = vi.fn(async (url: string, init: RequestInit) => {
       const file = (init.body as FormData).get("image") as File;
       const index = Number(file.name.match(/s(\d)/)?.[1]) - 1;
-      return url === "/api/practice-test/extract" ? Response.json({ reading: samplePracticeTestSections()[index] }) : new Response(null, { status: 500 });
+      return url === "/api/practice-test/extract" ? Response.json({ reading: SECTIONS[index] }) : new Response(null, { status: 500 });
     });
     vi.stubGlobal("fetch", fetchSpy);
     return fetchSpy;
@@ -361,7 +328,7 @@ describe("Type them", () => {
     const fetchSpy = stubSections();
     const confirm = vi.fn<typeof confirmWeeklyUpload>(async () => REFUSED);
     const user = userEvent.setup();
-    render(<AdminTestProvider><WeeklyUploadFlow basis={basis(false)} initialScore={156} confirm={confirm} /></AdminTestProvider>);
+    render(<WeeklyUploadFlow basis={basis(false)} initialScore={156} confirm={confirm} />);
 
     expect(screen.getByText("Screenshots or typed")).toBeDefined();
     await typeAnalytics(user);
@@ -385,7 +352,7 @@ describe("Type them", () => {
     const fetchSpy = stubSections();
     const confirm = vi.fn<typeof confirmWeeklyUpload>(async () => REFUSED);
     const user = userEvent.setup();
-    render(<AdminTestProvider><WeeklyUploadFlow basis={basis()} initialScore={156} confirm={confirm} /></AdminTestProvider>);
+    render(<WeeklyUploadFlow basis={basis()} initialScore={156} confirm={confirm} />);
 
     await typeAnalytics(user);
     await user.upload(screen.getByLabelText("All 4 section screenshots file"), ["pt-s1.png", "pt-s2.png", "pt-s3.png", "pt-s4.png"].map(png));
@@ -405,9 +372,7 @@ describe("Type them", () => {
     const confirm = vi.fn<typeof confirmWeeklyUpload>(async () => REFUSED);
     const user = userEvent.setup();
     render(
-      <AdminTestProvider>
-        <WeeklyUploadFlow basis={basis()} initialScore={156} scanningOff={{ analytics: true, "practice-test-section": true }} confirm={confirm} />
-      </AdminTestProvider>,
+      <WeeklyUploadFlow basis={basis()} initialScore={156} scanningOff={{ analytics: true, "practice-test-section": true }} confirm={confirm} />,
     );
 
     expect(screen.getByText("Scanning is off right now. Enter your analytics by hand.")).toBeDefined();
@@ -432,7 +397,7 @@ describe("Type them", () => {
 
   it("keeps the read button off until a typed value is fixed", async () => {
     const user = userEvent.setup();
-    render(<AdminTestProvider><WeeklyUploadFlow basis={basis(false)} initialScore={156} confirm={vi.fn()} /></AdminTestProvider>);
+    render(<WeeklyUploadFlow basis={basis(false)} initialScore={156} confirm={vi.fn()} />);
 
     await typeAnalytics(user);
     await user.clear(box("Law"));

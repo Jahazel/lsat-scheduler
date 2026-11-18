@@ -1,6 +1,5 @@
 import { isAdminUser } from "@/lib/accessControl";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
-import { PT158_FIXTURES } from "./practiceTestFixtures/pt158";
 import { MAX_AHEAD_DAYS, addDays } from "./walkthrough";
 
 export interface AdminClockRepository {
@@ -173,8 +172,4 @@ export async function resetTestWorkspace(
     }
     await writes.clearSimulatedDate(userId);
   });
-}
-
-export function samplePracticeTestSections() {
-  return PT158_FIXTURES.flatMap(({ reading }) => (reading.page === "section_review" ? [reading] : []));
 }

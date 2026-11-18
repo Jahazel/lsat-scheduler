@@ -1,27 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useAdminTest, type SampleDraft } from "@/components/AdminTestContext";
-import { startReview } from "@/lib/analyticsReview";
-import { reviewPracticeTest } from "@/lib/practiceTestResult";
 import type { ScanningOff } from "@/lib/scanSpending";
 import type { WeeklyUploadBasis } from "@/lib/weeklyUploadPreview";
 import type { confirmWeeklyUpload } from "./actions";
-import WeeklyCheck, { type CheckSource } from "./WeeklyCheck";
+import WeeklyCheck from "./WeeklyCheck";
 import WeeklyUpload, { type WeeklyUploadRead } from "./WeeklyUpload";
-
-function sampleRead(sample: SampleDraft, basis: WeeklyUploadBasis, currentScore: number): WeeklyUploadRead {
-  const review = basis.hadPracticeTest ? reviewPracticeTest(sample.sections) : null;
-  return {
-    currentScore,
-    analytics: startReview(sample.rows, { source: "admin_sample", extractedAt: sample.extractedAt }),
-    lrRead: sample.rows.filter((row) => row.category !== "passage"),
-    files: {},
-    practiceTest: review?.ok
-      ? { result: review.result, readings: sample.sections, picks: [], extractedAt: sample.extractedAt }
-      : null,
-  };
-}
 
 export default function WeeklyUploadFlow({ basis, initialScore, scanningOff, confirm }: {
   basis: WeeklyUploadBasis;
@@ -29,18 +13,7 @@ export default function WeeklyUploadFlow({ basis, initialScore, scanningOff, con
   scanningOff?: ScanningOff;
   confirm: typeof confirmWeeklyUpload;
 }) {
-  const { sample, setSample } = useAdminTest();
-  const [checking, setChecking] = useState<{ read: WeeklyUploadRead; source: CheckSource; key: string } | null>(null);
-  const [reviewedSample, setReviewedSample] = useState<SampleDraft | null>(null);
-  if (sample && sample !== reviewedSample) {
-    setReviewedSample(sample);
-    setChecking({ read: sampleRead(sample, basis, initialScore), source: "admin_sample", key: sample.extractedAt });
-  }
-
-  function back() {
-    setChecking(null);
-    if (checking?.source === "admin_sample") setSample(null);
-  }
+  const [checking, setChecking] = useState<{ read: WeeklyUploadRead; key: string } | null>(null);
 
   return (
     <>
@@ -50,7 +23,7 @@ export default function WeeklyUploadFlow({ basis, initialScore, scanningOff, con
           initialScore={initialScore}
           scanningOff={scanningOff}
           onCheckValues={(read) => {
-            setChecking({ read, source: "7sage_screenshot", key: `${Date.now()}` });
+            setChecking({ read, key: `${Date.now()}` });
             window.scrollTo(0, 0);
           }}
         />
@@ -60,10 +33,8 @@ export default function WeeklyUploadFlow({ basis, initialScore, scanningOff, con
           key={checking.key}
           basis={basis}
           read={checking.read}
-          source={checking.source}
-          onBack={back}
+          onBack={() => setChecking(null)}
           onConfirm={confirm}
-          onSent={() => setSample(null)}
         />
       )}
     </>
