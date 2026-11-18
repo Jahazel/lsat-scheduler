@@ -198,6 +198,7 @@ REPO=Jahazel/lsat-scheduler
 REPO_ROOT=$(git rev-parse --show-toplevel)
 PT_SCREENSHOT="$REPO_ROOT/src/lib/practiceTestFixtures/pt158-s1.png"
 APP_ROLE=drillmap_app
+MIGRATION_ROLE=drillmap_migrator
 RUN_DIR="$HOME/.drillmap-issue-360-run"
 RESULTS_KEPT="$HOME/drillmap-issue-360-results.md"
 umask 077
@@ -417,7 +418,9 @@ redeploy_copy() {
 }
 
 grant_back() {
-  show_sql "GRANT $2 ON TABLE public.$1 TO $APP_ROLE;
+  show_sql "SET ROLE $MIGRATION_ROLE;
+GRANT $2 ON TABLE public.$1 TO $APP_ROLE;
+RESET ROLE;
 SELECT has_table_privilege('$APP_ROLE', 'public.$1', '$2') AS restored;"
   ask_result "$3" "Expected 'restored' true. What did it show?"
 }
@@ -657,8 +660,11 @@ s_errors() {
   step "In the Admin's window, open $COPY/admin/students/not-a-student-id."
   ask_result "9c bad Student ID (page)" "What did the page show? Type the error code if it showed one:"
   say "Now a database failure. The SQL takes the app's read permission on students away for a moment."
-  show_sql "REVOKE SELECT ON TABLE public.students FROM $APP_ROLE;"
-  ask_result "9d revoke" "Expected REVOKE. What did it show?"
+  show_sql "SET ROLE $MIGRATION_ROLE;
+REVOKE SELECT ON TABLE public.students FROM $APP_ROLE;
+RESET ROLE;
+SELECT has_table_privilege('$APP_ROLE', 'public.students', 'SELECT') AS still_allowed;"
+  ask_result "9d revoke" "Expected still_allowed false. What did it show?"
   code=$(get admin "$dir/db" "$COPY/api/students")
   record "9e database failure" "HTTP $code, text '$(grep -oF "$FAILURE_TEXT" "$dir/db.body" | head -n1)', code $(code_in "$dir/db")"
   codes+=("$(code_in "$dir/db")")
@@ -762,8 +768,11 @@ s_failed_deletion() {
   ask_uuid C_STUDENT_ID "C's student_id:"
   write_env C_STUDENT_ID "$C_STUDENT_ID"
   say "The SQL takes the app's delete permission on accounts away, so step 2 of the deletion fails."
-  show_sql "REVOKE DELETE ON TABLE public.accounts FROM $APP_ROLE;"
-  ask_result "13a revoke" "Expected REVOKE. What did it show?"
+  show_sql "SET ROLE $MIGRATION_ROLE;
+REVOKE DELETE ON TABLE public.accounts FROM $APP_ROLE;
+RESET ROLE;
+SELECT has_table_privilege('$APP_ROLE', 'public.accounts', 'DELETE') AS still_allowed;"
+  ask_result "13a revoke" "Expected still_allowed false. What did it show?"
   step "Normal window: sign out A. Sign in as C ($(addr c), password $P_C)."
   ask_cookie c
   step "Account > Delete Account. Sign in again if it asks, and confirm."
