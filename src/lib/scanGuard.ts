@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { isModelReplyRefused, type RecordCost } from "./claudeExtract";
 import { freeScanPlace, takeScanPlace } from "./scanPlaces";
-import { trySendSpendAlert, type ScanKind } from "./scanSpending";
+import { trySendSpendAlert, type ScanKind, type ScanUse } from "./scanSpending";
 import { recordSecurityEvent } from "./securityLog";
 
 /** Anthropic refused our key, account, or model: a setup fault for the owner, not an unreadable screenshot. */
@@ -10,10 +10,17 @@ const SETUP_FAULT_STATUSES = [401, 403, 404];
 
 const SCAN_ROUTES = { analytics: "/api/analytics/extract", "practice-test-section": "/api/practice-test/extract" } as const;
 
+export async function refuseLabRead(accountId: string, kind: ScanKind) {
+  await recordSecurityEvent({ event: "admin_action_refused", result: "refused", route: SCAN_ROUTES[kind], who: { account: accountId } });
+  return NextResponse.json({ error: "Admin access required." }, { status: 403 });
+}
+
 /** Runs one paid screenshot read for a signed-in Account after its file passed its checks. A refusal starts no read. */
-export async function scanWithLimits(accountId: string, kind: ScanKind, read: (recordCost: RecordCost) => Promise<object>): Promise<NextResponse> {
+export async function scanWithLimits(
+  accountId: string, kind: ScanKind, read: (recordCost: RecordCost) => Promise<object>, use: ScanUse = "student",
+): Promise<NextResponse> {
   const realNow = new Date();
-  const place = await takeScanPlace(accountId, kind, realNow);
+  const place = await takeScanPlace(accountId, kind, realNow, use);
   const alertSent = place.alert ? trySendSpendAlert(place.alert, realNow) : undefined;
   const entry = { route: SCAN_ROUTES[kind], who: { account: accountId } };
   if (place.alert === "limit-reached") await recordSecurityEvent({ ...entry, event: "budget_cutoff", result: "limitReached" });

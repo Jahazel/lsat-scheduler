@@ -2,7 +2,7 @@ import { and, eq, lte, sql } from "drizzle-orm";
 import { countAction, limitOf } from "./actionLimits";
 import { getPostgresDatabase } from "./postgres";
 import { runningScans } from "./postgresSchema";
-import { countScanSpend, isScanningOff, claimLimitAlert, replaceScanCount, type ScanKind, type SpendAlert } from "./scanSpending";
+import { countScanSpend, isScanningOff, claimLimitAlert, replaceScanCount, type ScanKind, type ScanUse, type SpendAlert } from "./scanSpending";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
 import { SCANNING_OFF } from "./screenshotUpload";
 
@@ -26,7 +26,7 @@ class Refused extends Error {
 
 const placeFreesAt = (startedAt: Date) => new Date(startedAt.getTime() + PLACE_HELD_MS);
 
-export async function takeScanPlace(subject: string, kind: ScanKind, realNow: Date): Promise<ScanPlace | ScanRefusal> {
+export async function takeScanPlace(subject: string, kind: ScanKind, realNow: Date, use: ScanUse = "student"): Promise<ScanPlace | ScanRefusal> {
   try {
     return await getPostgresDatabase().transaction(async (transaction) => {
       if (await isScanningOff(transaction)) throw new Refused({ refused: "scanning-off", message: SCANNING_OFF });
@@ -66,8 +66,8 @@ export async function takeScanPlace(subject: string, kind: ScanKind, realNow: Da
         });
       }
       await transaction.insert(runningScans).values({ subject, startedAt: realNow });
-      const spend = await countScanSpend(kind, realNow, transaction);
-      if (!spend.added) throw new Refused({ refused: "scanning-off", message: SCANNING_OFF, retryAt: spend.monthEnd }, true);
+      const spend = await countScanSpend(kind, realNow, transaction, use);
+      if (!spend.added) throw new Refused({ refused: "scanning-off", message: SCANNING_OFF, retryAt: spend.monthEnd }, use === "student");
       return { subject, kind, startedAt: realNow, alert: spend.alert };
     });
   } catch (error) {

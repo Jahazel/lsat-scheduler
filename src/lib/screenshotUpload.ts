@@ -1,6 +1,7 @@
 import { callAction } from "./callAction";
 import type { SectionReading } from "./practiceTestResult";
 import type { ScanRefusal } from "./scanPlaces";
+import type { ScanUse } from "./scanSpending";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "./types";
 import { isUnexpectedFailure, NOT_LOGGED, type UnexpectedFailure } from "./unexpectedFailure";
 
@@ -125,15 +126,17 @@ function unexpectedReply(): ScreenshotFailure {
   return { kind: "failed", failure: { unexpectedFailure: NOT_LOGGED } };
 }
 
-export async function extractScreenshot(file: File, section: AnalyticsSection): Promise<ExtractReply> {
-  const reply = await postScreenshot("/api/analytics/extract", file, { section });
+const readUrl = (path: string, use: ScanUse) => (use === "lab" ? `${path}?for=lab` : path);
+
+export async function extractScreenshot(file: File, section: AnalyticsSection, use: ScanUse = "student"): Promise<ExtractReply> {
+  const reply = await postScreenshot(readUrl("/api/analytics/extract", use), file, { section });
   if (reply.kind !== "ok") return reply;
   const { rows, showsPassageTypes } = reply.body as { rows: AnalyticsExtractedRow[]; showsPassageTypes?: boolean };
   return { kind: "rows", rows, showsPassageTypes };
 }
 
-export async function extractPracticeTestScreenshot(file: File): Promise<SectionReply> {
-  const reply = await postScreenshot("/api/practice-test/extract", file);
+export async function extractPracticeTestScreenshot(file: File, use: ScanUse = "student"): Promise<SectionReply> {
+  const reply = await postScreenshot(readUrl("/api/practice-test/extract", use), file);
   return reply.kind === "ok" ? { kind: "reading", reading: (reply.body as { reading: SectionReading }).reading } : reply;
 }
 

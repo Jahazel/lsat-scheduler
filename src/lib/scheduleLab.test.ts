@@ -3,7 +3,7 @@ import { DAY_ORDER } from "./engine";
 import { mockAnalytics, mockStudent } from "./mockData";
 import {
   buildLabChain, chainEndText, copiedInputs, encodeLabLink, fieldErrors, hasErrors, labWeeks, presetInputs, presets, readLabLink, staleReason, weekReasons,
-  showWeek, type CopiedStudent, type LabChain, type LabInputs,
+  showWeek, type CopiedStudent, type LabChain, type LabInputs, type LabRead,
 } from "./scheduleLab";
 
 const THIS_WEEK = "2026-11-16";
@@ -190,5 +190,46 @@ describe("weeks", () => {
     expect(weeks).toHaveLength(26);
     expect(weeks[0]).toEqual({ value: THIS_WEEK, label: "Week of Nov 16" });
     expect(weeks[1]!.value).toBe("2026-11-23");
+  });
+});
+
+describe("screenshots", () => {
+  const read: LabRead = {
+    lr: [
+      { type: "Strengthen", category: "regular", accuracy: 68 },
+      { type: "Necessary assumption", category: "regular", accuracy: 74 },
+      { type: "Causal reasoning", category: "restricted", isTopPriority: true, priorityTier: "highest" },
+    ],
+    rc: [{ type: "Law", category: "passage", accuracy: 58 }, { type: "Art", category: "passage", accuracy: 77 }],
+    practiceTest: null,
+  };
+  const withPracticeTest: LabRead = {
+    ...read,
+    practiceTest: { prepTest: 158, sections: [], hiddenResults: [], missedStemTypes: [], missedQuestions: 4, missedStemTypeCounts: { Weaken: 4 } },
+  };
+  const screenshots: LabInputs = { ...steady, analytics: { kind: "screenshots" } };
+  const missedFirst = (week: LabChain["weeks"][number]) => week.schedule.reasons?.some((r) => r.code === "missed_type_priority") ?? false;
+
+  it("builds nothing until both LR and RC are read, and says what to add", () => {
+    const errors = fieldErrors(screenshots);
+    expect(buildLabChain(screenshots, null)).toBeNull();
+    expect(staleReason(errors)).toBe("Add the Logical Reasoning and Reading Comprehension screenshots.");
+    expect(staleReason({ ...errors, goal: "x" })).toBe("Fix the goal score. Add the Logical Reasoning and Reading Comprehension screenshots.");
+  });
+
+  it("plans every week from what the screenshots read", () => {
+    const chain = buildLabChain({ ...screenshots, built: 2 }, null, read)!;
+    expect(chain.weeks.map((w) => w.plannedFrom)).toEqual(["Screenshots: 2 LR types · 2 RC types", "Screenshots: 2 LR types · 2 RC types, as in week 1"]);
+  });
+
+  it("applies practice test missed types to week 1 only", () => {
+    const chain = buildLabChain({ ...screenshots, built: 2 }, null, withPracticeTest)!;
+    expect(chain.weeks[0]!.plannedFrom).toBe("Screenshots: 2 LR types · 2 RC types · PT 158, 4 missed");
+    expect(chain.weeks.map(missedFirst)).toEqual([true, false]);
+    expect(buildLabChain(screenshots, null, read)!.weeks.map(missedFirst)).toEqual([false]);
+  });
+
+  it("keeps Screenshots in the page link, never what was read", () => {
+    expect(readLabLink(encodeLabLink(screenshots), THIS_WEEK)?.analytics).toEqual({ kind: "screenshots" });
   });
 });

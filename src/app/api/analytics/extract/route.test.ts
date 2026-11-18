@@ -235,7 +235,7 @@ describe("POST /api/analytics/extract", () => {
     });
     expect(mocks.constructClient).toHaveBeenCalledWith({ apiKey: "synthetic-anthropic-key", maxRetries: 0, timeout: 30_000 });
     expect(mocks.createMessage).toHaveBeenCalledOnce();
-    expect(mocks.takeScanPlace).toHaveBeenCalledWith("student-account", "analytics", expect.any(Date));
+    expect(mocks.takeScanPlace).toHaveBeenCalledWith("student-account", "analytics", expect.any(Date), "student");
     expect(mocks.freeScanPlace).toHaveBeenCalledWith(expect.objectContaining({ kind: "analytics" }), 0.0015);
   });
 
@@ -298,6 +298,47 @@ describe("POST /api/analytics/extract", () => {
     expect(await response.json()).toEqual({ error: "Pick a plan to get new weekly schedules." });
     expect(mocks.takeScanPlace).not.toHaveBeenCalled();
     expect(mocks.extractor).not.toHaveBeenCalled();
+  });
+
+  describe("a Schedule lab read", () => {
+    const labRequest = () => screenshotRequest(`${URL}?for=lab`, { image: new File([png], "analytics.png", { type: "image/png" }), section: "RC" });
+
+    beforeEach(() => {
+      vi.stubEnv("SCREENSHOT_EXTRACTOR", "fake");
+      mocks.auth.mockResolvedValue({ user: { id: "admin-account", role: "admin" } });
+      mocks.loadAccountPlan.mockResolvedValue({ status: { kind: "lapsed", reason: "cancelled" }, record: null });
+    });
+
+    it("reads for an admin whose own plan is not active, and counts it as a lab read", async () => {
+      const { POST } = await import("./route");
+      const response = await POST(await labRequest());
+
+      expect(response.status).toBe(200);
+      expect((await response.json()).rows).toHaveLength(5);
+      expect(mocks.loadAccountPlan).not.toHaveBeenCalled();
+      expect(mocks.takeScanPlace).toHaveBeenCalledWith("admin-account", "analytics", expect.any(Date), "lab");
+      expect(mocks.freeScanPlace).toHaveBeenCalledOnce();
+    });
+
+    it("passes on the refusal once lab spending would pass the warning level", async () => {
+      mocks.takeScanPlace.mockResolvedValue({ refused: "scanning-off", message: "Scanning is off right now. Enter your analytics by hand." });
+      const { POST } = await import("./route");
+      const response = await POST(await labRequest());
+
+      expect(response.status).toBe(429);
+      expect(await response.json()).toEqual({ error: "Scanning is off right now. Enter your analytics by hand.", reason: "scanning-off" });
+      expect(mocks.extractor).not.toHaveBeenCalled();
+    });
+
+    it("refuses a student before reading the screenshot or taking a scan place", async () => {
+      mocks.auth.mockResolvedValue({ user: { id: "student-account", role: "student" } });
+      const { POST } = await import("./route");
+      const response = await POST(await labRequest());
+
+      expect(response.status).toBe(403);
+      expect(mocks.takeScanPlace).not.toHaveBeenCalled();
+      expect(mocks.extractor).not.toHaveBeenCalled();
+    });
   });
 
   it("keeps a finished read's rows when its running-scan place cannot be freed", async () => {

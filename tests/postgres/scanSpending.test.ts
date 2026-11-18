@@ -6,7 +6,7 @@ import { actionCounters, runningScans, scanSpending } from "../../src/lib/postgr
 import { scanWithLimits } from "../../src/lib/scanGuard";
 import { freeScanPlace, takeScanPlace } from "../../src/lib/scanPlaces";
 import { ModelReplyRefused } from "../../src/lib/claudeExtract";
-import { readScanningOff } from "../../src/lib/scanSpending";
+import { readScanningOff, type ScanUse } from "../../src/lib/scanSpending";
 
 const WARNING_URL = "https://hc-ping.com/00000000-0000-4000-8000-000000000010";
 const LIMIT_URL = "https://hc-ping.com/00000000-0000-4000-8000-000000000011";
@@ -50,8 +50,8 @@ async function setMonthTotal(monthStart: Date, totalUsd: string) {
 
 const pinged = () => pings.mock.calls.map(([url, init]) => ({ url: String(url), method: init?.method }));
 
-async function scanAndFinish(subject: string, at: Date) {
-  const place = await takeScanPlace(subject, "analytics", at);
+async function scanAndFinish(subject: string, at: Date, use: ScanUse = "student") {
+  const place = await takeScanPlace(subject, "analytics", at, use);
   if ("subject" in place) await freeScanPlace(place, null);
   return place;
 }
@@ -155,6 +155,36 @@ it("reports scanning off for a scan type exactly when its next scan would be ref
 
   await database.owner.execute(sql`update scan_settings set scanning_off = true`);
   expect(await readScanningOff(NOVEMBER)).toEqual({ analytics: true, "practice-test-section": true });
+});
+
+it("counts a lab read in the same month total as a student read", async () => {
+  const lab = await scanWithLimits("admin-a", "analytics", async (recordCost) => {
+    recordCost(0.0071);
+    return { rows: [] };
+  }, "lab");
+  const student = await scanWithLimits("student-a", "practice-test-section", async () => ({ reading: { page: "other" } }));
+
+  expect([lab.status, student.status]).toEqual([200, 200]);
+  expect(await monthTotals()).toEqual([{ monthStart: OCTOBER, totalUsd: 0.0371 }]);
+});
+
+it("refuses a lab read that would pass the spend warning, sends no limit alert, and still lets students scan", async () => {
+  await setMonthTotal(OCTOBER, "7.98");
+  expect(await readScanningOff(MID_OCTOBER, "lab")).toEqual({ analytics: false, "practice-test-section": true });
+  expect(await scanAndFinish("admin-a", MID_OCTOBER, "lab")).toMatchObject({ subject: "admin-a" });
+  expect(await monthTotals()).toEqual([{ monthStart: OCTOBER, totalUsd: 8 }]);
+
+  const read = vi.fn(async () => ({ rows: [] }));
+  const refused = await scanWithLimits("admin-a", "analytics", read, "lab");
+  expect(refused.status).toBe(429);
+  expect(await refused.json()).toEqual({ error: "Scanning is off right now. Enter your analytics by hand.", reason: "scanning-off" });
+  expect(read).not.toHaveBeenCalled();
+  expect(await readScanningOff(MID_OCTOBER, "lab")).toEqual({ analytics: true, "practice-test-section": true });
+  expect(pings).not.toHaveBeenCalled();
+
+  expect(await readScanningOff(MID_OCTOBER)).toEqual({ analytics: false, "practice-test-section": false });
+  expect(await scanAndFinish("student-a", MID_OCTOBER)).toMatchObject({ subject: "student-a" });
+  expect(await monthTotals()).toEqual([{ monthStart: OCTOBER, totalUsd: 8.02 }]);
 });
 
 it("applies the owner's switch and changed limit on the next scan", async () => {
