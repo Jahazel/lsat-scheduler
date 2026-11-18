@@ -97,6 +97,7 @@ function failedRead(reply: ScreenshotFailure): FileRead<never> {
 }
 
 export const NOT_PASSAGE_PAGE = "No passage types in this one.";
+export const NO_LR_ROWS = "We found no LR question types in that screenshot. Choose your Logical Reasoning screenshot.";
 
 export function analyticsRead(reply: ExtractReply, section: AnalyticsSection, at: Date): FileRead<AnalyticsReading> {
   if (reply.kind !== "rows") return failedRead(reply);

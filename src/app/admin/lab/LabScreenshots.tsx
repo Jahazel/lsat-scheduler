@@ -7,6 +7,7 @@ import { ProblemNote } from "@/components/ui/FileRow";
 import { FOCUS, cx } from "@/components/ui/classes";
 import { reviewPracticeTest, type PracticeTestProblem, type SectionReading } from "@/lib/practiceTestResult";
 import type { LabRead } from "@/lib/scheduleLab";
+import { NO_LR_ROWS, analyticsRead } from "@/lib/screenshotReadQueue";
 import {
   CANNOT_READ, CONNECTION_LOST, SCREENSHOT_MEDIA_TYPES, TOOK_TOO_LONG, checkScreenshotType, extractPracticeTestScreenshot, extractScreenshot,
   type ExtractReply, type SectionReply,
@@ -65,7 +66,10 @@ export function useLabScreenshots(serverScanningOff: boolean) {
     set({ state: "reading", name: file.name });
     const reply = await readOneAtATime(() => extractScreenshot(file, section, "lab"));
     if (turn !== latest.current[section]) return;
-    set(reply.kind === "rows" ? { state: "read", name: file.name, value: reply.rows } : { state: "failed", name: file.name, message: failed(reply) });
+    if (reply.kind !== "rows") return set({ state: "failed", name: file.name, message: failed(reply) });
+    const read = analyticsRead(reply, section, new Date());
+    if (read.status === "read") return set({ state: "read", name: file.name, value: read.value.rows });
+    set({ state: "failed", name: file.name, message: read.status === "rejected" ? read.message : NO_LR_ROWS });
   };
 
   const readPracticeTest = async (files: File[]) => {

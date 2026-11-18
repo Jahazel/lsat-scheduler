@@ -185,7 +185,7 @@ describe("Schedule lab", () => {
 
     it("reads each slot with the lab reader, one at a time, and rebuilds once LR and RC are both read", async () => {
       const lr = deferred<unknown>();
-      extractScreenshot.mockImplementation((_file: File, section: string) => (section === "LR" ? lr.promise : Promise.resolve({ kind: "rows", rows: RC_ROWS })));
+      extractScreenshot.mockImplementation((_file: File, section: string) => (section === "LR" ? lr.promise : Promise.resolve({ kind: "rows", rows: RC_ROWS, showsPassageTypes: true })));
       await pickScreenshots();
 
       await userEvent.upload(fileInput("Logical Reasoning"), png("pt158-lr.png"));
@@ -213,6 +213,19 @@ describe("Schedule lab", () => {
       expect(within(reasons()).getByText("Planned from Steady sample")).toBeTruthy();
     });
 
+    it("refuses a page the live upload would refuse, and keeps the last week", async () => {
+      extractScreenshot.mockImplementation((_file: File, section: string) =>
+        Promise.resolve(section === "LR" ? { kind: "rows", rows: RC_ROWS } : { kind: "rows", rows: [], showsPassageTypes: false }));
+      await pickScreenshots();
+      await userEvent.upload(fileInput("Logical Reasoning"), png("rc-page.png"));
+      await userEvent.upload(fileInput("Reading Comprehension"), png("other.png"));
+
+      await waitFor(() => expect(within(inputs()).getByText("Reading Comprehension: No passage types in this one.")).toBeTruthy());
+      expect(within(inputs()).getByText("Logical Reasoning: We found no LR question types in that screenshot. Choose your Logical Reasoning screenshot.")).toBeTruthy();
+      expect(within(reasons()).getByText("Planned from Steady sample")).toBeTruthy();
+      expect(screen.getByRole("status").textContent).toMatch(/^Showing the last week that built\./);
+    });
+
     it("shows the scanning-off note when a read is refused, and typed values still build", async () => {
       extractScreenshot.mockResolvedValue({ kind: "refused", refused: "scanning-off", message: "Scanning is off right now. Enter your analytics by hand." });
       await pickScreenshots();
@@ -231,7 +244,7 @@ describe("Schedule lab", () => {
     });
 
     it("plans week 1 only from a practice test's missed types", async () => {
-      extractScreenshot.mockImplementation((_file: File, section: string) => Promise.resolve({ kind: "rows", rows: section === "LR" ? LR_ROWS : RC_ROWS }));
+      extractScreenshot.mockImplementation((_file: File, section: string) => Promise.resolve({ kind: "rows", rows: section === "LR" ? LR_ROWS : RC_ROWS, showsPassageTypes: section === "RC" }));
       PT158_FIXTURES.forEach(({ reading }) => extractPracticeTestScreenshot.mockResolvedValueOnce({ kind: "reading", reading }));
       const review = reviewPracticeTest(PT158_FIXTURES.map(({ reading }) => reading));
       if (!review.ok) throw new Error("PT 158 fixtures should review cleanly");

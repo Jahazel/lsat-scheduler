@@ -160,6 +160,17 @@ describe("POST /api/practice-test/extract", () => {
       expect(mocks.takeScanPlace).toHaveBeenCalledWith("admin-account", "practice-test-section", expect.any(Date), "lab");
     });
 
+    it("passes on the refusal once lab spending would pass the warning level", async () => {
+      mocks.auth.mockResolvedValue({ user: { id: "admin-account", role: "admin" } });
+      mocks.takeScanPlace.mockResolvedValue({ refused: "scanning-off", message: "Scanning is off right now. Enter your analytics by hand." });
+      const { POST } = await import("./route");
+      const response = await POST(await labRequest());
+
+      expect(response.status).toBe(429);
+      expect(await response.json()).toEqual({ error: "Scanning is off right now. Enter your analytics by hand.", reason: "scanning-off" });
+      expect(mocks.extractor).not.toHaveBeenCalled();
+    });
+
     it("refuses a student before reading the screenshot", async () => {
       const { POST } = await import("./route");
       const response = await POST(await labRequest());
