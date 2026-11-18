@@ -5,9 +5,11 @@ import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
 
 export type ScanKind = "analytics" | "practice-test-section";
 export type SpendAlert = "spend-warning" | "limit-reached";
+export type ScanUse = "student" | "lab";
 
 const COUNTED_USD: Record<ScanKind, string> = { analytics: "0.02", "practice-test-section": "0.03" };
 const WARNING_SHARE = "0.8";
+const SPEND_SHARE: Record<ScanUse, string> = { student: "1", lab: WARNING_SHARE };
 const PING_URL_SETTINGS: Record<SpendAlert, string> = {
   "spend-warning": "SCAN_SPEND_WARNING_PING_URL",
   "limit-reached": "SCAN_LIMIT_REACHED_PING_URL",
@@ -27,9 +29,9 @@ export async function isScanningOff(transaction: PostgresTransaction) {
 
 export type ScanningOff = Record<ScanKind, boolean>;
 
-export async function readScanningOff(realNow: Date): Promise<ScanningOff> {
+export async function readScanningOff(realNow: Date, use: ScanUse = "student"): Promise<ScanningOff> {
   const offAfter = (kind: ScanKind) =>
-    sql`settings.scanning_off or coalesce(spending.total_usd, 0) + ${COUNTED_USD[kind]}::numeric > settings.monthly_limit_usd`;
+    sql`settings.scanning_off or coalesce(spending.total_usd, 0) + ${COUNTED_USD[kind]}::numeric > settings.monthly_limit_usd * ${SPEND_SHARE[use]}::numeric`;
   const result = await getPostgresDatabase().execute<{ analytics: boolean; practice_test_section: boolean }>(sql`
     select ${offAfter("analytics")} as analytics, ${offAfter("practice-test-section")} as practice_test_section
     from ${scanSettings} settings left join ${scanSpending} spending on spending.month_start = ${monthStartOf(realNow)}
@@ -42,7 +44,7 @@ export async function readScanningOff(realNow: Date): Promise<ScanningOff> {
   return { analytics: state.analytics, "practice-test-section": state.practice_test_section };
 }
 
-export async function countScanSpend(kind: ScanKind, realNow: Date, transaction: PostgresTransaction) {
+export async function countScanSpend(kind: ScanKind, realNow: Date, transaction: PostgresTransaction, use: ScanUse) {
   const monthStart = monthStartOf(realNow);
   const count = sql`${COUNTED_USD[kind]}::numeric`;
   const limit = sql`(select monthly_limit_usd from ${scanSettings})`;
@@ -54,7 +56,7 @@ export async function countScanSpend(kind: ScanKind, realNow: Date, transaction:
       total_usd = total_usd + ${count},
       warning_sent_at = coalesce(${scanSpending}.warning_sent_at, case when total_usd + ${count} >= ${limit} * ${WARNING_SHARE}::numeric then ${realNow.toISOString()}::timestamptz end)
     from before
-    where month_start = ${monthStart} and total_usd + ${count} <= ${limit}
+    where month_start = ${monthStart} and total_usd + ${count} <= ${limit} * ${SPEND_SHARE[use]}::numeric
     returning before.warning_sent_at is null and ${scanSpending}.warning_sent_at is not null as send_warning
   `);
   const [counted] = result.rows;

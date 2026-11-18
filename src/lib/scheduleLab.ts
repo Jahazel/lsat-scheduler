@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { summarizeAnalyticsRows } from "./analytics";
 import { weightedTrend } from "./currentWeeklySchedule";
 import { DAY_ORDER, generateWeek } from "./engine";
 import { mockRules } from "./mockData";
@@ -6,9 +7,11 @@ import { generateSampleAnalytics, type SampleDirection } from "./sampleAnalytics
 import { isoDateInWeek } from "./scheduleReasonText";
 import { dailyCapacityError, everyDay, practiceTestDayError, upcomingTestMonths } from "./studentProfile";
 import { goalScoreMessage, inScoreRange, parseScoreText, scoreRangeMessage, type Accommodation } from "./studyProfileDraft";
-import type { AnalyticsTrend, DayOfWeek, PlanningAnalytics, ScheduleReasonCode, Student, WeeklySchedule } from "./types";
+import type { PracticeTestResult } from "./practiceTestResult";
+import type { AnalyticsExtractedRow, AnalyticsTrend, DayOfWeek, PlanningAnalytics, ScheduleReasonCode, Student, WeeklySchedule } from "./types";
 
-export type LabAnalytics = { kind: "sample"; direction: SampleDirection } | { kind: "student" };
+export type LabAnalytics = { kind: "sample"; direction: SampleDirection } | { kind: "student" } | { kind: "screenshots" };
+export type LabRead = { lr: AnalyticsExtractedRow[]; rc: AnalyticsExtractedRow[]; practiceTest: PracticeTestResult | null };
 export type PresetId = "improving" | "steady" | "slipping" | "double" | "soon" | "short";
 
 export type LabInputs = {
@@ -28,7 +31,7 @@ export type LabInputs = {
 
 export type CopiedStudent = { id: string; name: string; uploadedOn: string | null; trend: AnalyticsTrend | null };
 
-export type LabErrors = { current?: string; goal?: string; testMonth?: string; days: Partial<Record<DayOfWeek, string>> };
+export type LabErrors = { current?: string; goal?: string; testMonth?: string; screenshots?: string; days: Partial<Record<DayOfWeek, string>> };
 
 export type LabWeek = { number: number; schedule: WeeklySchedule; student: Student; plannedFrom: string };
 export type ChainEnd = { kind: "limit" } | { kind: "test"; nextWeekOf: string } | null;
@@ -111,8 +114,9 @@ export function copiedInputs(student: Student, copied: CopiedStudent, thisWeek: 
   };
 }
 
-export function fieldErrors(inputs: LabInputs): LabErrors {
+export function fieldErrors(inputs: LabInputs, read: LabRead | null = null): LabErrors {
   const errors: LabErrors = { days: {} };
+  if (inputs.analytics.kind === "screenshots" && !read) errors.screenshots = "Add the Logical Reasoning and Reading Comprehension screenshots.";
   const current = parseScoreText(inputs.current);
   if (!inScoreRange(current)) errors.current = scoreRangeMessage("the current score");
   const goal = inScoreRange(current)
@@ -130,14 +134,14 @@ export function fieldErrors(inputs: LabInputs): LabErrors {
 }
 
 export const hasErrors = (errors: LabErrors) =>
-  Boolean(errors.current || errors.goal || errors.testMonth) || Object.keys(errors.days).length > 0;
+  Boolean(errors.current || errors.goal || errors.testMonth || errors.screenshots) || Object.keys(errors.days).length > 0;
 
 export function staleReason(errors: LabErrors) {
   const fields = [
     errors.current && "current PT score", errors.goal && "goal score", errors.testMonth && "goal test month",
     Object.keys(errors.days).length > 0 && "study time",
   ].filter((field): field is string => Boolean(field));
-  return `Fix the ${fields.join(", ")}.`;
+  return [fields.length > 0 && `Fix the ${fields.join(", ")}.`, errors.screenshots].filter(Boolean).join(" ");
 }
 
 const SEED: Record<SampleDirection, number> = { improving: 11, steady: 22, slipping: 33 };
@@ -166,12 +170,19 @@ function sampleUploads(direction: SampleDirection, currentScore: number, count: 
   return uploads;
 }
 
-export function plannedFrom(analytics: LabAnalytics, copied: CopiedStudent | null, weekNumber = 1) {
+export function readSummary(read: LabRead) {
+  const parts = [`${read.lr.filter((row) => row.category === "regular").length} LR types`, `${read.rc.length} RC types`];
+  if (read.practiceTest) parts.push(`PT ${read.practiceTest.prepTest}, ${read.practiceTest.missedQuestions} missed`);
+  return parts.join(" · ");
+}
+
+export function plannedFrom(analytics: LabAnalytics, copied: CopiedStudent | null, read: LabRead | null, weekNumber = 1) {
   if (analytics.kind === "sample") {
     const sample = `${DIRECTION_LABEL[analytics.direction]} sample`;
     return weekNumber === 1 ? sample : `${sample}, week ${weekNumber} upload`;
   }
-  const upload = `${copied?.name}'s latest upload`;
+  if (analytics.kind === "screenshots" && !read) return "Screenshots not read yet";
+  const upload = analytics.kind === "screenshots" && read ? `Screenshots: ${readSummary(read)}` : `${copied?.name}'s latest upload`;
   return weekNumber === 1 ? upload : `${upload}, as in week 1`;
 }
 
@@ -180,9 +191,10 @@ const priorSundayTestMinutes = (prior: WeeklySchedule | undefined) => {
   return sunday?.type === "practice_test" ? sunday.activities.find((activity) => activity.kind === "PT")?.minutes : undefined;
 };
 
-export function buildLabChain(inputs: LabInputs, copied: CopiedStudent | null): LabChain | null {
-  if (hasErrors(fieldErrors(inputs))) return null;
+export function buildLabChain(inputs: LabInputs, copied: CopiedStudent | null, read: LabRead | null = null): LabChain | null {
+  if (hasErrors(fieldErrors(inputs, read))) return null;
   const a = inputs.analytics;
+  const screenshots = a.kind === "screenshots" && read ? summarizeAnalyticsRows([...read.lr, ...read.rc]) : null;
   const copiedTrend = a.kind === "student" ? copied?.trend : null;
   if (a.kind === "student" && !copiedTrend) return null;
   const student: Student = {
@@ -195,12 +207,15 @@ export function buildLabChain(inputs: LabInputs, copied: CopiedStudent | null): 
   for (let i = 0; i < count; i++) {
     const weekOf = isoDateInWeek(inputs.weekOf, i * 7);
     if (weekOf >= inputs.testMonth) return { weeks, end: { kind: "test", nextWeekOf: weekOf } };
-    const analytics: PlanningAnalytics = copiedTrend ? { ...copiedTrend, weekOf } : weightedTrend(uploads.slice(0, i + 1).reverse(), weekOf);
+    const analytics: PlanningAnalytics = copiedTrend
+      ? { ...copiedTrend, weekOf }
+      : weightedTrend(screenshots ? [screenshots] : uploads.slice(0, i + 1).reverse(), weekOf);
     const priorSchedules = weeks.map((week) => week.schedule);
     const schedule = generateWeek(student, analytics, mockRules, copied?.name ?? "Lab", {
       priorSchedules, priorWeekPracticeTestReviewMinutes: priorSundayTestMinutes(priorSchedules.at(-1)),
+      missedStemTypeCounts: i === 0 ? read?.practiceTest?.missedStemTypeCounts : undefined,
     });
-    weeks.push({ number: i + 1, schedule, student, plannedFrom: plannedFrom(a, copied, i + 1) });
+    weeks.push({ number: i + 1, schedule, student, plannedFrom: plannedFrom(a, copied, read, i + 1) });
   }
   const nextWeekOf = isoDateInWeek(inputs.weekOf, count * 7);
   const end: ChainEnd = count === MAX_WEEKS ? { kind: "limit" } : nextWeekOf >= inputs.testMonth ? { kind: "test", nextWeekOf } : null;
@@ -235,6 +250,7 @@ const linkSchema = z.object({
   analytics: z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("sample"), direction: z.enum(["improving", "steady", "slipping"]) }),
     z.object({ kind: z.literal("student") }),
+    z.object({ kind: z.literal("screenshots") }),
   ]),
   built: z.number().int().min(1).max(MAX_WEEKS).catch(1),
   shown: z.number().int().min(0).catch(0),

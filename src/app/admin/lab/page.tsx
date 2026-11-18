@@ -3,6 +3,7 @@ import { PageCue } from "@/components/SiteMotion";
 import { PAGE_COLUMN, cx } from "@/components/ui/classes";
 import { listApprovedAnalyticsSnapshots } from "@/lib/analyticsSnapshotRepository";
 import { analyticsTrend, currentWeekInTimezone, localDateInTimezone, newestApprovedSnapshots } from "@/lib/currentWeeklySchedule";
+import { readScanningOff } from "@/lib/scanSpending";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { copiedInputs, presetInputs, readLabLink, type CopiedStudent, type LabInputs } from "@/lib/scheduleLab";
 import { displayName } from "@/lib/studentList";
@@ -44,12 +45,12 @@ async function labStart(link: LabLink, thisWeek: string)
 export default async function ScheduleLabPage({ searchParams }: PageProps<"/admin/lab">) {
   await requireAdmin();
   const thisWeek = currentWeekInTimezone(new Date(), SCHEDULE_TIMEZONE);
-  const { inputs, copied } = await labStart(await searchParams, thisWeek);
+  const [{ inputs, copied }, scanningOff] = await Promise.all([labStart(await searchParams, thisWeek), readScanningOff(new Date(), "lab")]);
   return (
     <div data-page-fade className={cx(PAGE_COLUMN, "pt-6 pb-12 md:pt-10")}>
       <PageCue page="admin" />
       <PageArrival page="Schedule lab" />
-      <ScheduleLab thisWeek={thisWeek} start={inputs} copied={copied} />
+      <ScheduleLab thisWeek={thisWeek} start={inputs} copied={copied} scanningOff={scanningOff.analytics} />
     </div>
   );
 }

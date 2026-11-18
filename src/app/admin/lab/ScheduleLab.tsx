@@ -7,10 +7,11 @@ import { FOCUS, cx } from "@/components/ui/classes";
 import type { SampleDirection } from "@/lib/sampleAnalytics";
 import {
   DIRECTION_LABEL, PRESET_GROUPS, REASON_NAME, buildLabChain, chainEndText, encodeLabLink, fieldErrors, hasErrors, labWeeks, plannedFrom, presetInputs,
-  presets, shortDay, showWeek, staleReason, weekReasons, type CopiedStudent, type LabChain, type LabInputs, type LabWeek,
+  presets, shortDay, showWeek, staleReason, weekReasons, type CopiedStudent, type LabChain, type LabInputs, type LabRead, type LabWeek,
 } from "@/lib/scheduleLab";
 import { everyDay, upcomingTestMonths } from "@/lib/studentProfile";
 import { PRESS } from "../StudentsLedger";
+import { LabScreenshots, useLabScreenshots } from "./LabScreenshots";
 
 const CARD = "rounded-lg border border-vellum-line bg-paper shadow-control";
 const SELECT = cx("h-11 w-full min-w-0 rounded-sm border border-vellum-line bg-paper px-3 text-body text-ink", FOCUS);
@@ -93,7 +94,8 @@ function AnalyticsChoice({ lab }: { lab: Lab }) {
     key: direction, label: DIRECTION_LABEL[direction], pick: () => lab.set({ analytics: { kind: "sample", direction } }),
   }));
   if (lab.copied?.trend) options.push({ key: "student", label: "Their upload", pick: () => lab.set({ analytics: { kind: "student" } }) });
-  const active = a.kind === "sample" ? a.direction : "student";
+  options.push({ key: "screenshots", label: "Screenshots", pick: () => lab.set({ analytics: { kind: "screenshots" } }) });
+  const active = a.kind === "sample" ? a.direction : a.kind;
   return (
     <fieldset className="flex min-w-0 flex-col gap-2">
       <legend className="sr-only">Analytics</legend>
@@ -159,30 +161,39 @@ function chainPlace(chain: LabChain | null, shown: number, testMonth: string) {
   return { at, week: chain.weeks[at]!, canNext: !last || chain.end === null, stop: last ? chainEndText(chain.end, testMonth) : null };
 }
 
-export function ScheduleLab({ thisWeek, start, copied }: { thisWeek: string; start: LabInputs; copied: CopiedStudent | null }) {
+type Built = { inputs: LabInputs; read: LabRead | null };
+
+export function ScheduleLab({ thisWeek, start, copied, scanningOff }: {
+  thisWeek: string; start: LabInputs; copied: CopiedStudent | null; scanningOff: boolean;
+}) {
   const [inputs, setInputs] = useState(start);
-  const [built, setBuilt] = useState(hasErrors(fieldErrors(start)) ? null : start);
+  const screenshots = useLabScreenshots(scanningOff);
+  const read = inputs.analytics.kind === "screenshots" ? screenshots.read : null;
+  const [built, setBuilt] = useState<Built | null>(null);
   const [allDays, setAllDays] = useState(start.days.MONDAY);
-  const errors = fieldErrors(inputs);
+  const errors = fieldErrors(inputs, read);
   const stale = hasErrors(errors);
+  if (!stale && (built?.inputs !== inputs || built.read !== read)) setBuilt({ inputs, read });
   const showCopy = inputs.copiedFrom !== null ? copied : null;
   const [travel, setTravel] = useState<Travel | null>(null);
-  const chain = useMemo(() => (built ? buildLabChain(built, built.copiedFrom !== null ? copied : null) : null), [built, copied]);
-  const place = chainPlace(chain, inputs.shown, built?.testMonth ?? inputs.testMonth);
+  const chain = useMemo(
+    () => (built ? buildLabChain(built.inputs, built.inputs.copiedFrom !== null ? copied : null, built.read) : null),
+    [built, copied],
+  );
+  const place = chainPlace(chain, inputs.shown, built?.inputs.testMonth ?? inputs.testMonth);
   const week = place?.week ?? null;
 
   const link = (next: LabInputs) => window.history.replaceState(null, "", `${window.location.pathname}?lab=${encodeLabLink(next)}`);
   const apply = (next: LabInputs) => {
     setInputs(next);
     setTravel(null);
-    if (!hasErrors(fieldErrors(next))) setBuilt(next);
     link(next);
   };
   const go = (to: number) => {
     setTravel(to > (place?.at ?? 0) ? "next" : "earlier");
     const next = showWeek(inputs, to);
     setInputs(next);
-    setBuilt((last) => last && showWeek(last, to));
+    setBuilt((last) => last && { ...last, inputs: showWeek(last.inputs, to) });
     link(next);
   };
   const lab: Lab = {
@@ -229,8 +240,9 @@ export function ScheduleLab({ thisWeek, start, copied }: { thisWeek: string; sta
             <TestMonth lab={lab} message={errors.testMonth} />
             <TestTimeChoice value={inputs.accommodation} onChange={(accommodation) => lab.set({ accommodation })} />
           </Group>
-          <Group title="Analytics" note={plannedFrom(inputs.analytics, showCopy)}>
+          <Group title="Analytics" note={plannedFrom(inputs.analytics, showCopy, read)}>
             <AnalyticsChoice lab={lab} />
+            {inputs.analytics.kind === "screenshots" && <LabScreenshots slots={screenshots} />}
           </Group>
           <Group title="Week">
             <label className="flex min-w-0 flex-col gap-2">

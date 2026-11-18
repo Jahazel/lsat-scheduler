@@ -20,7 +20,7 @@ import {
   reviewPracticeTest, type HiddenPick, type PracticeTestProblem, type PracticeTestResult, type SectionReading, type SectionReview,
 } from "@/lib/practiceTestResult";
 import {
-  addFile, analyticsRead, emptyReadQueue, endRead, moveFiles, nextRead, removeFile, sectionRead, slotFile, slotFiles, startRead,
+  NO_LR_ROWS, addFile, analyticsRead, emptyReadQueue, endRead, moveFiles, nextRead, removeFile, sectionRead, slotFile, slotFiles, startRead,
   type AnalyticsReading, type FileRead, type QueuedFile, type ReadQueue,
 } from "@/lib/screenshotReadQueue";
 import {
@@ -48,7 +48,6 @@ const LINK_BUTTON = cx("shrink-0 text-small font-medium text-ink underline under
 const SCORE_ERROR = `Enter a score from ${MIN_SCORE} to ${MAX_SCORE}.`;
 const SCORE_HINT = `Enter a score from ${MIN_SCORE} to ${MAX_SCORE} to continue.`;
 const LIMITS = `PNG, JPG, or WEBP, ${MAX_SCREENSHOT_MB} MB or less each. Tall screenshots are fine.`;
-const NO_LR_ROWS = "We found no LR question types in that screenshot. Choose your Logical Reasoning screenshot.";
 
 type Read = FileRead<unknown>;
 type UploadReads = Record<AnalyticsSection, AnalyticsReading> & { section: SectionReading };

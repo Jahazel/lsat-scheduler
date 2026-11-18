@@ -139,7 +139,45 @@ describe("POST /api/practice-test/extract", () => {
     const { POST } = await import("./route");
     await POST(await imageRequest());
 
-    expect(mocks.takeScanPlace).toHaveBeenCalledWith("student-account", "practice-test-section", expect.any(Date));
+    expect(mocks.takeScanPlace).toHaveBeenCalledWith("student-account", "practice-test-section", expect.any(Date), "student");
     expect(mocks.freeScanPlace).toHaveBeenCalledWith(await mocks.takeScanPlace.mock.results[0].value, null);
+  });
+
+  describe("a Schedule lab read", () => {
+    const labRequest = () => screenshotRequest("http://localhost/api/practice-test/extract?for=lab", {
+      image: new File([fixture("pt158-s1.png")], "pt158-s1.png", { type: "image/png" }),
+    });
+
+    it("reads for an admin without an active plan and counts it as a lab read", async () => {
+      mocks.auth.mockResolvedValue({ user: { id: "admin-account", role: "admin" } });
+      mocks.loadAccountPlan.mockResolvedValue({ status: { kind: "no_plan" }, record: null });
+      const { POST } = await import("./route");
+      const response = await POST(await labRequest());
+
+      expect(response.status).toBe(200);
+      expect((await response.json()).reading).toMatchObject({ page: "section_review", prepTest: 158, section: 1 });
+      expect(mocks.loadAccountPlan).not.toHaveBeenCalled();
+      expect(mocks.takeScanPlace).toHaveBeenCalledWith("admin-account", "practice-test-section", expect.any(Date), "lab");
+    });
+
+    it("passes on the refusal once lab spending would pass the warning level", async () => {
+      mocks.auth.mockResolvedValue({ user: { id: "admin-account", role: "admin" } });
+      mocks.takeScanPlace.mockResolvedValue({ refused: "scanning-off", message: "Scanning is off right now. Enter your analytics by hand." });
+      const { POST } = await import("./route");
+      const response = await POST(await labRequest());
+
+      expect(response.status).toBe(429);
+      expect(await response.json()).toEqual({ error: "Scanning is off right now. Enter your analytics by hand.", reason: "scanning-off" });
+      expect(mocks.extractor).not.toHaveBeenCalled();
+    });
+
+    it("refuses a student before reading the screenshot", async () => {
+      const { POST } = await import("./route");
+      const response = await POST(await labRequest());
+
+      expect(response.status).toBe(403);
+      expect(mocks.takeScanPlace).not.toHaveBeenCalled();
+      expect(mocks.extractor).not.toHaveBeenCalled();
+    });
   });
 });

@@ -3,6 +3,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 const mocks = vi.hoisted(() => ({ auth: vi.fn() }));
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
+vi.mock("@/lib/scanSpending", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/scanSpending")>(),
+  readScanningOff: async () => ({ analytics: false, "practice-test-section": false }),
+}));
 vi.mock("next/navigation", () => ({
   redirect: (to: string) => { throw new Error(`redirect ${to}`); },
   notFound: () => { throw new Error("not found"); },
