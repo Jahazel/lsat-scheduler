@@ -519,7 +519,7 @@ s_accounts() {
   say_value "D" "$(addr d)   $P_D"
   step "A: finish onboarding with 'Type your analytics'. Choose a plan and pay with test card 4242 4242 4242 4242."
   step "C: finish onboarding with 'Type your analytics'. Stop at the plan step. Then sign out."
-  step "D: verify the email only. Do not start onboarding. Then sign out."
+  step "D: verify the email only. Verifying does not sign D in, so do not sign in and do not start onboarding."
   step "Sign A in again in the normal window. Sign the Admin in with Google in the private window."
   pause "When A is on This week and the Admin is on /admin, press Enter"
   ask_cookie a
