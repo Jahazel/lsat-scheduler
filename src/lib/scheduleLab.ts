@@ -22,13 +22,19 @@ export type LabInputs = {
   days: Record<DayOfWeek, number>;
   ptDay: DayOfWeek;
   analytics: LabAnalytics;
+  built: number;
+  shown: number;
 };
 
 export type CopiedStudent = { id: string; name: string; uploadedOn: string | null; trend: AnalyticsTrend | null };
 
 export type LabErrors = { current?: string; goal?: string; testMonth?: string; days: Partial<Record<DayOfWeek, string>> };
 
-export type LabWeek = { schedule: WeeklySchedule; student: Student; plannedFrom: string };
+export type LabWeek = { number: number; schedule: WeeklySchedule; student: Student; plannedFrom: string };
+export type ChainEnd = { kind: "limit" } | { kind: "test"; nextWeekOf: string } | null;
+export type LabChain = { weeks: LabWeek[]; end: ChainEnd };
+
+export const MAX_WEEKS = 12;
 
 export const WEEK_COUNT = 26;
 export const DIRECTION_LABEL: Record<SampleDirection, string> = { improving: "Improving", steady: "Steady", slipping: "Slipping" };
@@ -73,6 +79,7 @@ function nearTestWeek(thisWeek: string) {
 const steadyInputs = (thisWeek: string): LabInputs => ({
   preset: "steady", copiedFrom: null, weekOf: thisWeek, current: "150", goal: "165", testMonth: steadyTestMonth(thisWeek),
   accommodation: 1, days: { ...everyDay(120), SATURDAY: 210 }, ptDay: "SATURDAY", analytics: { kind: "sample", direction: "steady" },
+  built: 1, shown: 0,
 });
 
 export type Preset = { id: PresetId; label: string; group: (typeof PRESET_GROUPS)[number]; inputs: LabInputs };
@@ -100,7 +107,7 @@ export function copiedInputs(student: Student, copied: CopiedStudent, thisWeek: 
     preset: "student", copiedFrom: copied.id, weekOf: thisWeek,
     current: String(student.currentScore), goal: String(student.goalScore), testMonth: student.goalTestDate,
     accommodation: student.accommodationMultiplier, days: student.dailyCapacityMinutes, ptDay: student.preferredPracticeTestDay,
-    analytics: { kind: "student" },
+    analytics: { kind: "student" }, built: 1, shown: 0,
   };
 }
 
@@ -145,32 +152,73 @@ function seeded(seed: number) {
   };
 }
 
-function sampleTrend(direction: SampleDirection, currentScore: number, weekOf: string) {
-  const sample = generateSampleAnalytics({
-    previous: null, direction, currentScore, earlierSampleCount: 0,
-    regularTypes: [...mockRules.lrStemTypes, ...mockRules.lrLogicExceptions],
-    restrictedTypes: mockRules.lrLogicTypes.filter((type) => !mockRules.lrLogicExceptions.includes(type)),
-    random: seeded(SEED[direction]),
-  });
-  return weightedTrend([sample], weekOf);
+function sampleUploads(direction: SampleDirection, currentScore: number, count: number) {
+  const uploads: ReturnType<typeof generateSampleAnalytics>[] = [];
+  for (let i = 0; i < count; i++) {
+    const previous = uploads.at(-1);
+    uploads.push(generateSampleAnalytics({
+      previous: previous ? { weekOf: "", ...previous } : null, direction, currentScore, earlierSampleCount: i,
+      regularTypes: [...mockRules.lrStemTypes, ...mockRules.lrLogicExceptions],
+      restrictedTypes: mockRules.lrLogicTypes.filter((type) => !mockRules.lrLogicExceptions.includes(type)),
+      random: seeded(SEED[direction] + i),
+    }));
+  }
+  return uploads;
 }
 
-export const plannedFrom = (analytics: LabAnalytics, copied: CopiedStudent | null) =>
-  analytics.kind === "sample" ? `${DIRECTION_LABEL[analytics.direction]} sample` : `${copied?.name}'s latest upload`;
+export function plannedFrom(analytics: LabAnalytics, copied: CopiedStudent | null, weekNumber = 1) {
+  if (analytics.kind === "sample") {
+    const sample = `${DIRECTION_LABEL[analytics.direction]} sample`;
+    return weekNumber === 1 ? sample : `${sample}, week ${weekNumber} upload`;
+  }
+  const upload = `${copied?.name}'s latest upload`;
+  return weekNumber === 1 ? upload : `${upload}, as in week 1`;
+}
 
-export function buildLabWeek(inputs: LabInputs, copied: CopiedStudent | null): LabWeek | null {
+const priorSundayTestMinutes = (prior: WeeklySchedule | undefined) => {
+  const sunday = prior?.days.SUNDAY;
+  return sunday?.type === "practice_test" ? sunday.activities.find((activity) => activity.kind === "PT")?.minutes : undefined;
+};
+
+export function buildLabChain(inputs: LabInputs, copied: CopiedStudent | null): LabChain | null {
   if (hasErrors(fieldErrors(inputs))) return null;
+  const a = inputs.analytics;
+  const copiedTrend = a.kind === "student" ? copied?.trend : null;
+  if (a.kind === "student" && !copiedTrend) return null;
   const student: Student = {
     currentScore: Number(inputs.current), goalScore: Number(inputs.goal), dailyCapacityMinutes: inputs.days,
     preferredPracticeTestDay: inputs.ptDay, accommodationMultiplier: inputs.accommodation, goalTestDate: inputs.testMonth,
   };
-  const a = inputs.analytics;
-  let analytics: PlanningAnalytics;
-  if (a.kind === "sample") analytics = sampleTrend(a.direction, student.currentScore, inputs.weekOf);
-  else if (copied?.trend) analytics = { ...copied.trend, weekOf: inputs.weekOf };
-  else return null;
-  return { schedule: generateWeek(student, analytics, mockRules, copied?.name ?? "Lab"), student, plannedFrom: plannedFrom(a, copied) };
+  const count = clampBuilt(inputs.built);
+  const uploads = a.kind === "sample" ? sampleUploads(a.direction, student.currentScore, count) : [];
+  const weeks: LabWeek[] = [];
+  for (let i = 0; i < count; i++) {
+    const weekOf = isoDateInWeek(inputs.weekOf, i * 7);
+    if (weekOf >= inputs.testMonth) return { weeks, end: { kind: "test", nextWeekOf: weekOf } };
+    const analytics: PlanningAnalytics = copiedTrend ? { ...copiedTrend, weekOf } : weightedTrend(uploads.slice(0, i + 1).reverse(), weekOf);
+    const priorSchedules = weeks.map((week) => week.schedule);
+    const schedule = generateWeek(student, analytics, mockRules, copied?.name ?? "Lab", {
+      priorSchedules, priorWeekPracticeTestReviewMinutes: priorSundayTestMinutes(priorSchedules.at(-1)),
+    });
+    weeks.push({ number: i + 1, schedule, student, plannedFrom: plannedFrom(a, copied, i + 1) });
+  }
+  const nextWeekOf = isoDateInWeek(inputs.weekOf, count * 7);
+  const end: ChainEnd = count === MAX_WEEKS ? { kind: "limit" } : nextWeekOf >= inputs.testMonth ? { kind: "test", nextWeekOf } : null;
+  return { weeks, end };
 }
+
+const LONG_MONTH = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+
+export function chainEndText(end: ChainEnd, testMonth: string) {
+  if (!end) return null;
+  if (end.kind === "limit") return `The lab builds up to ${MAX_WEEKS} weeks.`;
+  return `The ${LONG_MONTH.format(new Date(`${testMonth}T00:00:00Z`))} test comes before the week of ${shortDay(end.nextWeekOf)}.`;
+}
+
+const clampBuilt = (built: number) => Math.min(Math.max(built, 1), MAX_WEEKS);
+
+export const showWeek = (inputs: LabInputs, shown: number): LabInputs =>
+  ({ ...inputs, shown, built: clampBuilt(Math.max(inputs.built, shown + 1)) });
 
 export const weekReasons = (schedule: WeeklySchedule) => schedule.reasons?.filter((r) => r.placement.scope === "week") ?? [];
 
@@ -188,6 +236,8 @@ const linkSchema = z.object({
     z.object({ kind: z.literal("sample"), direction: z.enum(["improving", "steady", "slipping"]) }),
     z.object({ kind: z.literal("student") }),
   ]),
+  built: z.number().int().min(1).max(MAX_WEEKS).catch(1),
+  shown: z.number().int().min(0).catch(0),
 });
 
 export function encodeLabLink(inputs: LabInputs): string {
@@ -205,7 +255,7 @@ export function readLabLink(text: string, thisWeek: string): LabInputs | null {
   }
   const parsed = linkSchema.safeParse(value);
   if (!parsed.success) return null;
-  const inputs = parsed.data;
+  const inputs = { ...parsed.data, shown: Math.min(parsed.data.shown, parsed.data.built - 1) };
   const fromStudent = inputs.preset === "student" || inputs.analytics.kind === "student";
   if (fromStudent && inputs.copiedFrom === null) return null;
   if (!labWeeks(thisWeek).some((w) => w.value === inputs.weekOf)) return null;

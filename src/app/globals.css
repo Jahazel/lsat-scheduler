@@ -358,6 +358,15 @@ body:has([data-landing-page]) > footer > * { border-color: color-mix(in oklab, v
   .up-next-swap { animation-name: up-next-fade; }
 }
 
+@keyframes lab-week-next { from { opacity: 0; transform: translateX(12px); } }
+@keyframes lab-week-earlier { from { opacity: 0; transform: translateX(-12px); } }
+@keyframes lab-week-fade { from { opacity: 0; } }
+.lab-week[data-travel="next"] { animation: lab-week-next var(--duration-base) var(--ease-out-strong) both; }
+.lab-week[data-travel="earlier"] { animation: lab-week-earlier var(--duration-base) var(--ease-out-strong) both; }
+@media (prefers-reduced-motion: reduce) {
+  .lab-week[data-travel] { animation-name: lab-week-fade; }
+}
+
 @keyframes week-reveal-rise { from { opacity: 0; transform: translateY(8px); } }
 @keyframes week-reveal-bar { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0); } }
 @keyframes week-reveal-fade { from { opacity: 0; } }

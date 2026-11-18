@@ -6,13 +6,15 @@ import { FieldMessage, GoalTestDateSelect, ScoreInput, TestTimeChoice, WeekField
 import { FOCUS, cx } from "@/components/ui/classes";
 import type { SampleDirection } from "@/lib/sampleAnalytics";
 import {
-  DIRECTION_LABEL, PRESET_GROUPS, REASON_NAME, buildLabWeek, encodeLabLink, fieldErrors, hasErrors, labWeeks, plannedFrom, presetInputs, presets,
-  shortDay, staleReason, weekReasons, type CopiedStudent, type LabInputs, type LabWeek,
+  DIRECTION_LABEL, PRESET_GROUPS, REASON_NAME, buildLabChain, chainEndText, encodeLabLink, fieldErrors, hasErrors, labWeeks, plannedFrom, presetInputs,
+  presets, shortDay, showWeek, staleReason, weekReasons, type CopiedStudent, type LabChain, type LabInputs, type LabWeek,
 } from "@/lib/scheduleLab";
 import { everyDay, upcomingTestMonths } from "@/lib/studentProfile";
+import { PRESS } from "../StudentsLedger";
 
 const CARD = "rounded-lg border border-vellum-line bg-paper shadow-control";
 const SELECT = cx("h-11 w-full min-w-0 rounded-sm border border-vellum-line bg-paper px-3 text-body text-ink", FOCUS);
+const PILL = cx("flex h-10 shrink-0 items-center gap-1.5 rounded-pill border px-4 text-small whitespace-nowrap shadow-control disabled:pointer-events-none disabled:border-vellum-line disabled:bg-paper disabled:text-fog disabled:shadow-none", PRESS, FOCUS);
 const SEGMENT = "flex h-9 min-w-0 cursor-pointer items-center justify-center rounded px-1 text-center text-small whitespace-nowrap text-smoke transition-colors duration-(--duration-fast) ease-out hover:bg-vellum-line hover:text-ink has-[:checked]:bg-paper has-[:checked]:font-medium has-[:checked]:text-ink has-[:checked]:shadow-control has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent";
 
 type Lab = {
@@ -107,11 +109,27 @@ function AnalyticsChoice({ lab }: { lab: Lab }) {
   );
 }
 
-function BuiltWeek({ week }: { week: LabWeek | null }) {
+type Travel = "next" | "earlier";
+
+function ChainButtons({ at, canNext, stop, go }: { at: number; canNext: boolean; stop: string | null; go: (to: number) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <button type="button" disabled={at === 0} onClick={() => go(at - 1)} className={cx(PILL, "border-vellum-line bg-paper text-ink pointer-hover:hover:bg-vellum")}>
+        <span aria-hidden>←</span> Earlier week
+      </button>
+      <button type="button" disabled={!canNext} onClick={() => go(at + 1)} title={stop ?? undefined}
+        className={cx(PILL, "border-ink bg-ink text-chalk pointer-hover:hover:bg-accent")}>
+        Next week <span aria-hidden>→</span>
+      </button>
+    </div>
+  );
+}
+
+function BuiltWeek({ week, stop, travel }: { week: LabWeek | null; stop: string | null; travel: Travel | null }) {
   if (!week) return <p className="text-small text-smoke">No week yet.</p>;
   const reasons = weekReasons(week.schedule);
   return (
-    <div className="flex flex-col gap-4">
+    <div key={week.number} data-travel={travel ?? undefined} className="lab-week flex flex-col gap-4">
       <section aria-label="Schedule reasons" className={cx(CARD, "flex flex-col gap-3 px-4 py-4 sm:px-5")}>
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h3 className="text-small font-medium text-ink">Schedule reasons</h3>
@@ -127,10 +145,18 @@ function BuiltWeek({ week }: { week: LabWeek | null }) {
                 </li>
               ))}
             </ul>}
+        {stop && <p className="border-t border-vellum-line pt-3 text-caption text-smoke">Last week in the chain. {stop}</p>}
       </section>
       <ScheduleCheckInView scheduleId="lab" schedule={week.schedule} student={week.student} checkIns={[]} readOnly header={<></>} padding="pt-0" />
     </div>
   );
+}
+
+function chainPlace(chain: LabChain | null, shown: number, testMonth: string) {
+  if (!chain) return null;
+  const at = Math.min(shown, chain.weeks.length - 1);
+  const last = at === chain.weeks.length - 1;
+  return { at, week: chain.weeks[at]!, canNext: !last || chain.end === null, stop: last ? chainEndText(chain.end, testMonth) : null };
 }
 
 export function ScheduleLab({ thisWeek, start, copied }: { thisWeek: string; start: LabInputs; copied: CopiedStudent | null }) {
@@ -140,12 +166,24 @@ export function ScheduleLab({ thisWeek, start, copied }: { thisWeek: string; sta
   const errors = fieldErrors(inputs);
   const stale = hasErrors(errors);
   const showCopy = inputs.copiedFrom !== null ? copied : null;
-  const week = useMemo(() => (built ? buildLabWeek(built, built.copiedFrom !== null ? copied : null) : null), [built, copied]);
+  const [travel, setTravel] = useState<Travel | null>(null);
+  const chain = useMemo(() => (built ? buildLabChain(built, built.copiedFrom !== null ? copied : null) : null), [built, copied]);
+  const place = chainPlace(chain, inputs.shown, built?.testMonth ?? inputs.testMonth);
+  const week = place?.week ?? null;
 
+  const link = (next: LabInputs) => window.history.replaceState(null, "", `${window.location.pathname}?lab=${encodeLabLink(next)}`);
   const apply = (next: LabInputs) => {
     setInputs(next);
+    setTravel(null);
     if (!hasErrors(fieldErrors(next))) setBuilt(next);
-    window.history.replaceState(null, "", `${window.location.pathname}?lab=${encodeLabLink(next)}`);
+    link(next);
+  };
+  const go = (to: number) => {
+    setTravel(to > (place?.at ?? 0) ? "next" : "earlier");
+    const next = showWeek(inputs, to);
+    setInputs(next);
+    setBuilt((last) => last && showWeek(last, to));
+    link(next);
   };
   const lab: Lab = {
     inputs, thisWeek, copied: showCopy,
@@ -172,9 +210,12 @@ export function ScheduleLab({ thisWeek, start, copied }: { thisWeek: string; sta
       </div>
       <div data-page-section className="grid items-start gap-x-6 gap-y-4 lg:grid-cols-[400px_minmax(0,1fr)]">
         <h2 className="order-1 flex min-h-8 items-center text-h4 font-semibold text-ink lg:order-none">Inputs</h2>
-        <h2 className="order-3 flex min-h-8 items-center pt-4 text-h4 font-semibold text-ink lg:order-none lg:pt-0">
-          {week ? <span>Week 1 <span className="font-regular text-smoke">· {shortDay(week.schedule.weekOf)}</span></span> : "No week yet"}
-        </h2>
+        <div className="order-3 flex min-h-8 flex-wrap items-center justify-between gap-x-4 gap-y-3 pt-4 lg:order-none lg:pt-0">
+          <h2 className="text-h4 font-semibold text-ink">
+            {week ? <>Week {week.number} <span className="font-regular text-smoke">· {shortDay(week.schedule.weekOf)}</span></> : "No week yet"}
+          </h2>
+          {place && <ChainButtons at={place.at} canNext={place.canNext} stop={place.stop} go={go} />}
+        </div>
         <div role="region" aria-label="Inputs" className={cx(CARD, "order-2 min-w-0 lg:sticky lg:top-24 lg:order-none lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:[scrollbar-width:thin]")}>
           <Group title="Preset" note="Fills every input below">
             <PresetSelect lab={lab} />
@@ -204,7 +245,7 @@ export function ScheduleLab({ thisWeek, start, copied }: { thisWeek: string; sta
               onDayChange={(day, minutes) => lab.set({ days: { ...inputs.days, [day]: minutes } })} onPracticeTestDayChange={(ptDay) => lab.set({ ptDay })} />
           </Group>
         </div>
-        <section aria-label="Built week" className="order-4 min-w-0 lg:order-none"><BuiltWeek week={week} /></section>
+        <section aria-label="Built week" className="order-4 min-w-0 lg:order-none"><BuiltWeek week={week} stop={place?.stop ?? null} travel={travel} /></section>
       </div>
     </div>
   );

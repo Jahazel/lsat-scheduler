@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import { DAY_ORDER } from "./engine";
 import { mockAnalytics, mockStudent } from "./mockData";
 import {
-  buildLabWeek, copiedInputs, encodeLabLink, fieldErrors, hasErrors, labWeeks, presetInputs, presets, readLabLink, staleReason, weekReasons,
-  type CopiedStudent, type LabInputs,
+  buildLabChain, chainEndText, copiedInputs, encodeLabLink, fieldErrors, hasErrors, labWeeks, presetInputs, presets, readLabLink, staleReason, weekReasons,
+  showWeek, type CopiedStudent, type LabChain, type LabInputs,
 } from "./scheduleLab";
 
 const THIS_WEEK = "2026-11-16";
 const steady = presetInputs("steady", THIS_WEEK);
+const firstWeek = (inputs: LabInputs, copied: CopiedStudent | null) => buildLabChain(inputs, copied)?.weeks[0] ?? null;
 const maya: CopiedStudent = { id: "s1", name: "Maya Thompson", uploadedOn: "2026-11-13", trend: { ...mockAnalytics, rcTypesInNewestSnapshot: [] } };
 
 describe("presets", () => {
@@ -20,24 +21,24 @@ describe("presets", () => {
 
   it("starts on Steady this week, with a test about two months away, and builds", () => {
     expect(steady).toMatchObject({ preset: "steady", weekOf: THIS_WEEK, current: "150", goal: "165", testMonth: "2027-02-01" });
-    const week = buildLabWeek(steady, null);
+    const week = firstWeek(steady, null);
     expect(week?.plannedFrom).toBe("Steady sample");
     expect(week?.schedule.weekOf).toBe(THIS_WEEK);
     expect(weekReasons(week!.schedule).map((r) => r.code)).not.toContain("near_test_week");
   });
 
   it("builds every preset", () => {
-    for (const preset of presets(THIS_WEEK)) expect(buildLabWeek(preset.inputs, null), preset.label).not.toBeNull();
+    for (const preset of presets(THIS_WEEK)) expect(firstWeek(preset.inputs, null), preset.label).not.toBeNull();
   });
 
   it("plans each sample direction from its own sample", () => {
-    expect(buildLabWeek(presetInputs("slipping", THIS_WEEK), null)?.plannedFrom).toBe("Slipping sample");
+    expect(firstWeek(presetInputs("slipping", THIS_WEEK), null)?.plannedFrom).toBe("Slipping sample");
   });
 
   it("Test in 3 weeks builds a near-test week with the second practice test and its reason", () => {
     const soon = presetInputs("soon", THIS_WEEK);
     expect(soon).toMatchObject({ weekOf: "2026-12-21", testMonth: "2027-01-01" });
-    const schedule = buildLabWeek(soon, null)!.schedule;
+    const schedule = firstWeek(soon, null)!.schedule;
     expect(DAY_ORDER.filter((day) => schedule.days[day].type === "practice_test")).toHaveLength(2);
     expect(weekReasons(schedule).find((r) => r.code === "near_test_week")?.sentence).toMatch(/2 LawHub practice tests before your January 1 test/);
   });
@@ -56,7 +57,7 @@ describe("field errors", () => {
     const typo: LabInputs = { ...steady, goal: "20" };
     const errors = fieldErrors(typo);
     expect(errors.goal).toBe("LSAT scores go from 120 to 180. Check your goal score.");
-    expect(buildLabWeek(typo, null)).toBeNull();
+    expect(firstWeek(typo, null)).toBeNull();
     expect(staleReason(errors)).toBe("Fix the goal score.");
   });
 
@@ -84,7 +85,7 @@ describe("copy a student", () => {
       preset: "student", copiedFrom: "s1", weekOf: THIS_WEEK, current: "160", goal: "170", testMonth: "2027-01-01",
       days: mockStudent.dailyCapacityMinutes, ptDay: "SATURDAY", analytics: { kind: "student" },
     });
-    const week = buildLabWeek(inputs, maya)!;
+    const week = firstWeek(inputs, maya)!;
     expect(week.plannedFrom).toBe("Maya Thompson's latest upload");
     expect(week.schedule.weekOf).toBe(THIS_WEEK);
   });
@@ -94,10 +95,75 @@ describe("copy a student", () => {
   });
 });
 
+describe("week chain", () => {
+  const weekOfs = (chain: LabChain | null) => chain?.weeks.map((w) => w.schedule.weekOf);
+
+  it("builds each following week from the one before, with one more sample upload a week", () => {
+    const chain = buildLabChain({ ...steady, built: 3 }, null)!;
+    expect(weekOfs(chain)).toEqual(["2026-11-16", "2026-11-23", "2026-11-30"]);
+    expect(chain.weeks.map((w) => w.plannedFrom)).toEqual(["Steady sample", "Steady sample, week 2 upload", "Steady sample, week 3 upload"]);
+    expect(chain.weeks[0]).toEqual(firstWeek(steady, null));
+    expect(chain.end).toBeNull();
+  });
+
+  it("treats the earlier lab weeks as the prior schedules", () => {
+    const copied = copiedInputs(mockStudent, maya, THIS_WEEK);
+    const second = buildLabChain({ ...copied, built: 2 }, maya)!.weeks[1]!;
+    const alone = firstWeek({ ...copied, weekOf: "2026-11-23" }, maya)!;
+    expect(second.plannedFrom).toBe("Maya Thompson's latest upload, as in week 1");
+    expect(second.schedule.weekOf).toBe(alone.schedule.weekOf);
+    expect(second.schedule).not.toEqual(alone.schedule);
+  });
+
+  it("gives Monday to the review of a Sunday practice test the week before", () => {
+    const sunday: LabInputs = { ...steady, days: { ...steady.days, SATURDAY: 120, SUNDAY: 210 }, ptDay: "SUNDAY", built: 2 };
+    const [one, two] = buildLabChain(sunday, null)!.weeks;
+    expect(one!.schedule.days.SUNDAY.type).toBe("practice_test");
+    expect(one!.schedule.days.MONDAY.type).not.toBe("review");
+    expect(two!.schedule.days.MONDAY).toMatchObject({ type: "review", activities: [{ label: "PT Review + Blind Review" }] });
+  });
+
+  it("stops at 12 weeks and says why", () => {
+    const far: LabInputs = { ...steady, testMonth: "2027-06-01", built: 12 };
+    const chain = buildLabChain(far, null)!;
+    expect(chain.weeks).toHaveLength(12);
+    expect(chain.end).toEqual({ kind: "limit" });
+    expect(chainEndText(chain.end, far.testMonth)).toBe("The lab builds up to 12 weeks.");
+    expect(buildLabChain({ ...far, built: 11 }, null)!.end).toBeNull();
+  });
+
+  it("stops before the week that starts on or after the goal test month and says why", () => {
+    const chain = buildLabChain({ ...steady, built: 12 }, null)!;
+    expect(chain.weeks).toHaveLength(11);
+    expect(chain.weeks.at(-1)!.schedule.weekOf).toBe("2027-01-25");
+    expect(chain.end).toEqual({ kind: "test", nextWeekOf: "2027-02-01" });
+    expect(chainEndText(chain.end, steady.testMonth)).toBe("The February 2027 test comes before the week of Feb 1.");
+    expect(buildLabChain({ ...steady, built: 11 }, null)!.end).toEqual(chain.end);
+    expect(buildLabChain({ ...steady, built: 10 }, null)!.end).toBeNull();
+  });
+
+  it("moves back without dropping later weeks, and grows when Next week passes the built count", () => {
+    const back = showWeek({ ...steady, built: 3, shown: 2 }, 0);
+    expect(back).toMatchObject({ built: 3, shown: 0 });
+    expect(showWeek(back, 3)).toMatchObject({ built: 4, shown: 3 });
+  });
+});
+
 describe("page link", () => {
   it("reopens the same inputs", () => {
     const edited: LabInputs = { ...presetInputs("double", THIS_WEEK), goal: "17", copiedFrom: "s1", analytics: { kind: "student" } };
     expect(readLabLink(encodeLabLink(edited), THIS_WEEK)).toEqual(edited);
+  });
+
+  it("keeps the built count and the shown week", () => {
+    expect(readLabLink(encodeLabLink({ ...steady, built: 5, shown: 2 }), THIS_WEEK)).toMatchObject({ built: 5, shown: 2 });
+  });
+
+  it("opens week 1 for a link without a chain, and keeps the shown week inside the built ones", () => {
+    const encode = (value: unknown) => btoa(JSON.stringify(value)).replace(/=+$/, "");
+    expect(readLabLink(encode({ ...steady, built: undefined, shown: undefined }), THIS_WEEK)).toEqual(steady);
+    expect(readLabLink(encode({ ...steady, built: 3, shown: 7 }), THIS_WEEK)).toMatchObject({ built: 3, shown: 2 });
+    expect(readLabLink(encode({ ...steady, built: 40, shown: 1 }), THIS_WEEK)).toMatchObject({ built: 1, shown: 0 });
   });
 
   it("keeps characters outside Latin-1 and stays link safe", () => {
