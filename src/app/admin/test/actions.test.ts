@@ -6,21 +6,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
 vi.mock("@/lib/accountRepository", () => ({ findAccountById: mocks.findAccount }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-import {
-  setSimulatedDate,
-  generateTestSample,
-  resetTestData,
-  resetEverything,
-  rebuildThisWeek,
-} from "./actions";
+import { setSimulatedDate, resetEverything } from "./actions";
 
-const actions = [
-  () => setSimulatedDate("2026-10-07"),
-  () => generateTestSample("steady"),
-  resetTestData,
-  resetEverything,
-  rebuildThisWeek,
-];
+const actions = [() => setSimulatedDate("2026-10-07"), resetEverything];
 describe("admin test actions", () => {
   beforeEach(() => vi.clearAllMocks());
   it.each(actions)(

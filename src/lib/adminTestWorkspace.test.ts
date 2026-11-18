@@ -6,7 +6,6 @@ import {
   type AdminClockRepository,
 } from "./adminTestWorkspace";
 import {
-  rebuildTestWeek,
   resetTestWorkspace,
   type AdminTestRepositories,
 } from "./adminTestWorkspace";
@@ -123,6 +122,14 @@ describe("admin student-side clock", () => {
     await moveSimulatedDate("admin", "2026-09-28", real, repository);
     expect(user.simulatedDate).toBe("2026-09-28");
   });
+  it("moves at most 56 days past the student side's date", async () => {
+    const { user, repository } = clock("admin", "2026-09-23");
+    const real = new Date("2026-09-21T18:00:00Z");
+    await expect(moveSimulatedDate("admin", "2026-11-19", real, repository)).rejects.toThrow("Choose a date within 56 days.");
+    expect(user.simulatedDate).toBe("2026-09-23");
+    await moveSimulatedDate("admin", "2026-11-18", real, repository);
+    expect(user.simulatedDate).toBe("2026-11-18");
+  });
 });
 
 function workspace() {
@@ -142,21 +149,15 @@ function workspace() {
     clock: repository,
     async findStudent() {
       return records.students.includes("admin-student")
-        ? { id: "admin-student", currentScore: 155 }
+        ? { id: "admin-student" }
         : null;
-    },
-    async approvedSnapshots() {
-      return [];
     },
     async inTransaction(work) {
       await work({
-        async deleteSchedules(studentId, week) {
-          const ids = records.schedules
-            .filter((s) => s.studentId === studentId && (!week || s.week === week))
-            .map((s) => s.id);
+        async deleteSchedules(studentId) {
+          const ids = records.schedules.filter((s) => s.studentId === studentId).map((s) => s.id);
           records.checkIns = records.checkIns.filter((id) => !ids.includes(id));
           records.schedules = records.schedules.filter((s) => !ids.includes(s.id));
-          return ids.length;
         },
         async deleteSnapshots(studentId) {
           records.snapshots = records.snapshots.filter((id) => id !== studentId);
@@ -177,111 +178,28 @@ function workspace() {
   return { repos, records, user };
 }
 
-it("rebuilds only the current simulated week's weekly schedule and activity check-ins", async () => {
-  const { repos, records, user } = workspace();
-  await rebuildTestWeek("admin", new Date("2026-09-23T18:00:00Z"), repos);
-  expect(records.schedules.map((s) => s.id)).toEqual(["old", "real"]);
-  expect(records.checkIns).toEqual(["old", "real"]);
-  expect(records.snapshots).toEqual(["admin-student", "real-student"]);
-  expect(records.practiceTests).toEqual(["admin-student", "real-student"]);
-  expect(user.simulatedDate).toBe("2026-10-07");
-});
-
-it("reports an error when there is no weekly schedule to rebuild", async () => {
-  const { repos, records } = workspace();
-  records.students = ["real-student"];
-  await expect(
-    rebuildTestWeek("admin", new Date("2026-09-23T18:00:00Z"), repos),
-  ).rejects.toThrow("There is no weekly schedule to rebuild.");
-});
-
-it("reports an error when this week has no weekly schedule to rebuild", async () => {
-  const { repos, records } = workspace();
-  records.schedules = records.schedules.filter((schedule) => schedule.id !== "current");
-  records.checkIns = records.checkIns.filter((id) => id !== "current");
-
-  await expect(
-    rebuildTestWeek("admin", new Date("2026-09-23T18:00:00Z"), repos),
-  ).rejects.toThrow("There is no weekly schedule to rebuild.");
-  expect(records.schedules.map((schedule) => schedule.id)).toEqual(["old", "real"]);
-  expect(records.checkIns).toEqual(["old", "real"]);
-});
-
-function withNextWeekPreview(simulatedDate: string, keepCurrent = false) {
-  const workspaceRecords = workspace();
-  const { records, user } = workspaceRecords;
-  user.simulatedDate = simulatedDate;
-  if (!keepCurrent) {
-    records.schedules = records.schedules.filter((schedule) => schedule.id !== "current");
-    records.checkIns = records.checkIns.filter((id) => id !== "current");
-  }
-  records.schedules.push({ id: "preview", studentId: "admin-student", week: "2026-10-12" });
-  return workspaceRecords;
-}
-
-it.each(["2026-10-10", "2026-10-11"])("rebuilds next week's preview on %s when this week has no weekly schedule", async (date) => {
-  const { repos, records, user } = withNextWeekPreview(date);
-  await rebuildTestWeek("admin", new Date("2026-09-23T18:00:00Z"), repos);
-  expect(records.schedules.map((s) => s.id)).toEqual(["old", "real"]);
-  expect(records.snapshots).toEqual(["admin-student", "real-student"]);
-  expect(records.practiceTests).toEqual(["admin-student", "real-student"]);
-  expect(user.simulatedDate).toBe(date);
-});
-
-it("rebuilds this week rather than next week's preview when both are saved", async () => {
-  const { repos, records } = withNextWeekPreview("2026-10-10", true);
-  await rebuildTestWeek("admin", new Date("2026-09-23T18:00:00Z"), repos);
-  expect(records.schedules.map((s) => s.id)).toEqual(["old", "real", "preview"]);
-});
-
-it("leaves a saved next week alone from Monday to Friday", async () => {
-  const { repos, records } = withNextWeekPreview("2026-10-09");
-  await expect(
-    rebuildTestWeek("admin", new Date("2026-09-23T18:00:00Z"), repos),
-  ).rejects.toThrow("There is no weekly schedule to rebuild.");
-  expect(records.schedules.map((s) => s.id)).toEqual(["old", "real", "preview"]);
-});
-
-it("rejects a non-admin before reading their Student for rebuild", async () => {
-  const { repos } = workspace();
-  repos.clock = clock("student", "2026-10-07").repository;
-  repos.findStudent = async () => { throw new Error("Student was read"); };
-  await expect(
-    rebuildTestWeek("admin", new Date("2026-09-23T18:00:00Z"), repos),
-  ).rejects.toThrow("Admin access required.");
-});
-
 it("rejects a non-admin before reading their Student for reset", async () => {
   const { repos } = workspace();
   repos.clock = clock("student", "2026-10-07").repository;
   repos.findStudent = async () => { throw new Error("Student was read"); };
-  await expect(resetTestWorkspace("admin", "everything", repos))
+  await expect(resetTestWorkspace("admin", repos))
     .rejects.toThrow("Admin access required.");
 });
 
-it.each(["test-data", "everything"] as const)(
-  "resets %s, preserving real students",
-  async (scope) => {
-    const { repos, records, user } = workspace();
-    await resetTestWorkspace("admin", scope, repos);
-    expect(records.schedules.map((s) => s.id)).toEqual(["real"]);
-    expect(records.checkIns).toEqual(["real"]);
-    expect(records.snapshots).toEqual(["real-student"]);
-    expect(records.practiceTests).toEqual(["real-student"]);
-    expect(records.students).toEqual(
-      scope === "everything" ? ["real-student"] : ["admin-student", "real-student"],
-    );
-    expect(user.simulatedDate).toBeNull();
-    if (scope === "everything") {
-      user.simulatedDate = "2026-10-07";
-      await expect(
-        resetTestWorkspace("admin", "everything", repos),
-      ).resolves.toBeUndefined();
-      expect(records.students).toEqual(["real-student"]);
-      expect(user.simulatedDate).toBeNull();
-    }
-  },
-);
+it("resets everything on the admin's student side, preserving real students", async () => {
+  const { repos, records, user } = workspace();
+  await resetTestWorkspace("admin", repos);
+  expect(records.schedules.map((s) => s.id)).toEqual(["real"]);
+  expect(records.checkIns).toEqual(["real"]);
+  expect(records.snapshots).toEqual(["real-student"]);
+  expect(records.practiceTests).toEqual(["real-student"]);
+  expect(records.students).toEqual(["real-student"]);
+  expect(user.simulatedDate).toBeNull();
+  user.simulatedDate = "2026-10-07";
+  await expect(resetTestWorkspace("admin", repos)).resolves.toBeUndefined();
+  expect(records.students).toEqual(["real-student"]);
+  expect(user.simulatedDate).toBeNull();
+});
 
 it("carries performance trend and Sunday practice-test review across three simulated weeks", async () => {
   const { repository } = clock();
@@ -343,7 +261,6 @@ it("carries performance trend and Sunday practice-test review across three simul
   };
   const now = () =>
     resolveStudentTime({ id: "admin", role: "admin" }, real, repository);
-  let tuesdayCapacity = 90;
   const load = async () => {
     const time = await now();
     return loadOrGenerateCurrentWeek({
@@ -352,10 +269,7 @@ it("carries performance trend and Sunday practice-test review across three simul
       studentId: "admin-student",
       student: {
         ...mockStudent,
-        dailyCapacityMinutes: {
-          ...mockStudent.dailyCapacityMinutes,
-          TUESDAY: tuesdayCapacity,
-        },
+        dailyCapacityMinutes: { ...mockStudent.dailyCapacityMinutes, TUESDAY: 90 },
         preferredPracticeTestDay: "SUNDAY",
         goalTestDate: "2027-06-01",
       },
@@ -406,61 +320,4 @@ it("carries performance trend and Sunday practice-test review across three simul
     ],
   ).toBeCloseTo(0.72);
   expect(third.schedule.generationInputs.priorScheduleIds).toHaveLength(2);
-  const earlier = structuredClone(schedules.slice(0, 2));
-  const earlierCheckIns = structuredClone(
-    checkIns.filter((c) => c.scheduleId !== third.schedule.id),
-  );
-  checkIns
-    .filter((c) => c.scheduleId === third.schedule.id)
-    .forEach((c) => {
-      c.status = "completed";
-    });
-  tuesdayCapacity = 240;
-  const adminRepos = {
-    ...workspace().repos,
-    clock: repository,
-    async inTransaction(work: Parameters<AdminTestRepositories["inTransaction"]>[0]) {
-      await work({
-        async deleteSchedules(studentId, week) {
-          const deleted = schedules.filter(
-            (s) => s.studentId === studentId && s.weekStartDate === week,
-          );
-          schedules.splice(
-            0,
-            schedules.length,
-            ...schedules.filter((s) => !deleted.includes(s)),
-          );
-          checkIns.splice(
-            0,
-            checkIns.length,
-            ...checkIns.filter((c) => !deleted.some((s) => s.id === c.scheduleId)),
-          );
-          return deleted.length;
-        },
-        async deleteSnapshots() {},
-        async deletePracticeTestResults() {},
-        async deleteStudent() {},
-        async clearSimulatedDate() {},
-      });
-    },
-  };
-  await rebuildTestWeek("admin", real, adminRepos);
-  const rebuilt = await load();
-  if (rebuilt.kind !== "schedule")
-    throw new Error("Expected rebuilt weekly schedule");
-  expect(
-    rebuilt.schedule.generationInputs.student.dailyCapacityMinutes.TUESDAY,
-  ).toBe(240);
-  expect(rebuilt.schedule.schedule.days.TUESDAY.totalMinutes).toBeGreaterThan(
-    third.schedule.schedule.days.TUESDAY.totalMinutes,
-  );
-  expect(schedules.slice(0, 2)).toEqual(earlier);
-  expect(checkIns.filter((c) => c.scheduleId !== rebuilt.schedule.id)).toEqual(
-    earlierCheckIns,
-  );
-  expect(
-    checkIns
-      .filter((c) => c.scheduleId === rebuilt.schedule.id)
-      .every((c) => c.status === "not_started"),
-  ).toBe(true);
 });

@@ -1,7 +1,7 @@
 import { isAdminUser } from "@/lib/accessControl";
-import { dateInScheduleTimezone, timeForVerifiedUser } from "@/lib/adminTestWorkspace";
-import { currentWeekInTimezone, isUploadWeekend } from "@/lib/currentWeeklySchedule";
-import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
+import { clockForVerifiedUser, dateInScheduleTimezone } from "@/lib/adminTestWorkspace";
+import { MAX_AHEAD_DAYS, addDays, mondayOf } from "@/lib/walkthrough";
+import { listScheduledWeeksForAccount } from "@/lib/weeklyScheduleRepository";
 import { postgresAdminClock, studentSideNow } from "@/lib/studentClock";
 import { auth } from "@/auth";
 import { loadAccountPlan } from "@/lib/billingRepository";
@@ -32,21 +32,17 @@ export default async function SiteHeader() {
   }
 
   if (isAdminUser(user)) {
-    const realNow = new Date();
     const currentUser = user.id ? await postgresAdminClock.findUser(user.id) : null;
-    const now = timeForVerifiedUser(currentUser, realNow);
-    const state = user.id ? await loadStudentNavState(user.id, now) : null;
-    const testState = isAdminUser(currentUser) ? {
-      date: dateInScheduleTimezone(now), realDate: dateInScheduleTimezone(realNow),
-      weekStartDate: currentWeekInTimezone(now, SCHEDULE_TIMEZONE),
-      simulated: !!currentUser.simulatedDate, onboarded: !!state,
-      weekHasSchedule: state?.hasCurrentWeek ?? false,
-      uploadWeekHasSchedule: state?.hasUploadWeek ?? false,
-      uploadWeekend: isUploadWeekend(now, SCHEDULE_TIMEZONE),
+    const clock = clockForVerifiedUser(currentUser, new Date());
+    const state = user.id ? await loadStudentNavState(user.id, clock.now) : null;
+    const today = dateInScheduleTimezone(clock.now);
+    const walkthrough = user.id && isAdminUser(currentUser) ? {
+      today, realDate: dateInScheduleTimezone(clock.real), simulated: clock.simulated,
+      scheduledWeeks: await listScheduledWeeksForAccount(user.id, mondayOf(today), addDays(today, MAX_AHEAD_DAYS)),
     } : undefined;
     return (
       <AdminNav
-        testState={testState}
+        walkthrough={walkthrough}
         name={user.name?.trim() || null}
         initials={initialsFor(user.name, user.email)}
         email={user.email ?? ""}

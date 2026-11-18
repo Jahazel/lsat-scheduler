@@ -12,12 +12,10 @@ import { analyticsTrend } from "../../src/lib/currentWeeklySchedule";
 import type { Student } from "../../src/lib/types";
 import { POST as extract } from "../../src/app/api/analytics/extract/route";
 import { png, screenshotRequest } from "../../src/lib/screenshotFixtures/files";
-import { generateTestSample, resetEverything, resetTestData } from "../../src/app/admin/test/actions";
+import { resetEverything } from "../../src/app/admin/test/actions";
 import { deleteAccount } from "../../src/app/account/actions";
 import { postgresAdminTestRepositories } from "../../src/lib/adminTestRepositories";
 import { findAccountById } from "../../src/lib/accountRepository";
-import { planned } from "./plannedAnswer";
-import { rebuildThisWeek } from "../../src/app/admin/test/actions";
 
 const state = vi.hoisted((): { session: Session | null } => ({ session: null }));
 vi.mock("@/auth", () => ({ auth: async () => state.session, signOut: vi.fn() }));
@@ -113,31 +111,14 @@ it("reads a snapshot approved before RC analytics without RC accuracy", async ()
   expect(analyticsTrend([snapshot], "2026-10-05").rcAccuracyByType).toBeUndefined();
 });
 
-it("generates an admin Sample analytics snapshot with all five passage types", async () => {
-  await student("admin@example.test", "admin");
-  const sample = planned(await generateTestSample("improving"));
-  expect(sample.rows.length).toBeGreaterThan(0);
-  expect(Object.keys(summarizeAnalyticsRows(sample.rows).rcAccuracyByType ?? {}).sort()).toEqual(["Art", "Comparative", "Humanities", "Law", "Science"]);
-  const next = planned(await generateTestSample("steady"));
-  expect(next.rows.length).toBeGreaterThan(0);
-});
-it("refuses to generate Sample analytics snapshots for a student", async () => {
-  await student("student@example.test");
-  expect(await generateTestSample("steady")).toEqual({ unexpectedFailure: expect.stringMatching(/^[0-9a-f]{8}$/) });
-});
 it("resets only the admin's test snapshots and keeps the other student's approved snapshots", async () => {
   const other = await student("other@example.test");
   await approve(other.saved.id);
   const admin = await student("admin@example.test", "admin");
   await database.owner.execute(sql`update accounts set simulated_date = '2027-03-08' where id = ${admin.account.id}`);
   await approve(admin.saved.id);
-  await resetTestData();
-  expect(await findAccountById(admin.account.id)).toMatchObject({ role: "admin", simulatedDate: null });
-  expect(await listApprovedAnalyticsSnapshots(admin.saved.id)).toEqual([]);
-  expect(await listApprovedAnalyticsSnapshots(other.saved.id)).toHaveLength(1);
-  expect(await createStudent(admin.account.id, profile)).toBeNull();
-  await database.owner.execute(sql`update accounts set simulated_date = '2027-03-15' where id = ${admin.account.id}`);
   await resetEverything();
+  expect(await listApprovedAnalyticsSnapshots(admin.saved.id)).toEqual([]);
   expect(await findAccountById(admin.account.id)).toMatchObject({ role: "admin", simulatedDate: null });
   expect(await createStudent(admin.account.id, profile)).not.toBeNull();
   expect(await listApprovedAnalyticsSnapshots(other.saved.id)).toHaveLength(1);
@@ -185,21 +166,6 @@ it("reset rolls back all Postgres writes if the reset fails", async () => {
   })).rejects.toThrow("forced reset failure");
   expect(await listApprovedAnalyticsSnapshots(saved.id)).toHaveLength(1);
   expect(await checkIns(id)).toEqual([{ activity_id: "MONDAY:0" }]);
-});
-it("admin rebuild deletes only the current week's schedule and its Activity check-ins", async () => {
-  const other = await student("other@example.test");
-  const otherSchedule = await schedule(other.saved.id);
-  const admin = await student("admin@example.test", "admin");
-  await database.owner.execute(sql`update accounts set simulated_date = '2026-10-14' where id = ${admin.account.id}`);
-  const current = await schedule(admin.saved.id);
-  const earlier = await schedule(admin.saved.id, "2026-10-05");
-  await approve(admin.saved.id);
-  await rebuildThisWeek();
-  expect(await checkIns(current)).toEqual([]);
-  expect(await checkIns(earlier)).toHaveLength(1);
-  expect(await checkIns(otherSchedule)).toHaveLength(1);
-  expect(await listApprovedAnalyticsSnapshots(admin.saved.id)).toHaveLength(1);
-  expect(await findAccountById(admin.account.id)).toMatchObject({ simulatedDate: "2026-10-14" });
 });
 it("uses the simulated calendar date when Chicago's evening falls on tomorrow in UTC", async () => {
   vi.useFakeTimers({ toFake: ["Date"] });

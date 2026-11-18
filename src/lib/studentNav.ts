@@ -10,8 +10,6 @@ export interface StudentNavState {
   countdownLabel: string | null;
   isTestDay: boolean;
   uploadNeeded: boolean;
-  hasCurrentWeek?: boolean;
-  hasUploadWeek?: boolean;
 }
 
 const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
@@ -37,16 +35,14 @@ export async function loadStudentNavState(userId: string, now = new Date()): Pro
   const currentWeek = currentWeekInTimezone(now, SCHEDULE_TIMEZONE);
   const uploadWeek = uploadWeekOf(now, SCHEDULE_TIMEZONE);
   const [schedules, snapshots] = await Promise.all([
-    database.execute<{ week: string }>(sql`
-      select to_char(week_start_date, 'YYYY-MM-DD') as week from weekly_schedules
-      where student_id = ${student.id}::uuid
-        and week_start_date in (${currentWeek}::date, ${uploadWeek}::date)
+    database.execute(sql`
+      select 1 from weekly_schedules
+      where student_id = ${student.id}::uuid and week_start_date = ${currentWeek}::date
     `),
     database.select({ approvedAt: analyticsSnapshots.approvedAt }).from(analyticsSnapshots)
       .where(eq(analyticsSnapshots.studentId, student.id)),
   ]);
-  const savedWeeks = new Set(schedules.rows.map(({ week }) => week));
-  const hasCurrentWeek = savedWeeks.has(currentWeek);
+  const hasCurrentWeek = schedules.rows.length > 0;
   // This week builds the weekly schedule while it renders, at the same time as this header.
   // So a confirmed upload turns the dot off before the weekly schedule is saved.
   const approvals = snapshots.map(({ approvedAt }) => ({ approvedAt: approvedAt.toISOString() }));
@@ -56,8 +52,6 @@ export async function loadStudentNavState(userId: string, now = new Date()): Pro
   return {
     countdownLabel: testCountdownLabel(countdown),
     isTestDay: countdown?.kind === "today",
-    hasCurrentWeek,
-    hasUploadWeek: savedWeeks.has(uploadWeek),
     uploadNeeded: !hasCurrentWeek && !uploadConfirmed,
   };
 }

@@ -18,24 +18,9 @@ export default auth(async (req) => {
     enforceCsp: process.env.CSP_MODE === "enforce",
     development: process.env.NODE_ENV === "development",
   });
-  const devPrototype = process.env.NODE_ENV === "development" && req.nextUrl.pathname.startsWith("/prototypes/");
-  const sameSiteFrame = devPrototype || (process.env.NODE_ENV === "development" && req.headers.get("sec-fetch-dest") === "iframe");
-  const policy = sameSiteFrame ? csp.value.replace("frame-ancestors 'none'", "frame-ancestors 'self'") : csp.value;
   const withHeaders = (response: NextResponse) => {
     for (const [name, value] of Object.entries(responseHeaders)) response.headers.set(name, value);
-    if (sameSiteFrame) {
-      response.headers.set(csp.header, policy);
-      response.headers.set("X-Frame-Options", "SAMEORIGIN");
-    }
     return response;
-  };
-  const allow = () => {
-    const requestHeaders = new Headers(req.headers);
-    // Next.js takes the nonce from Content-Security-Policy before the report-only header, so a sent one must not win.
-    requestHeaders.delete("Content-Security-Policy");
-    requestHeaders.delete("Content-Security-Policy-Report-Only");
-    requestHeaders.set(csp.header, policy);
-    return withHeaders(NextResponse.next({ request: { headers: requestHeaders } }));
   };
   if (forged) {
     const accountId = req.auth?.user?.id;
@@ -45,8 +30,6 @@ export default auth(async (req) => {
     });
     return withHeaders(NextResponse.json({ error: "Request refused" }, { status: forged.status }));
   }
-
-  if (devPrototype) return allow();
 
   const route = proxyRoute(req.nextUrl.pathname, req.auth?.user ?? null, {
     sentSessionCookie: hasSessionCookie(req.cookies.getAll().map((cookie) => cookie.name)),
@@ -59,8 +42,14 @@ export default auth(async (req) => {
     });
   }
   switch (route.kind) {
-    case "allow":
-      return allow();
+    case "allow": {
+      const requestHeaders = new Headers(req.headers);
+      // Next.js takes the nonce from Content-Security-Policy before the report-only header, so a sent one must not win.
+      requestHeaders.delete("Content-Security-Policy");
+      requestHeaders.delete("Content-Security-Policy-Report-Only");
+      requestHeaders.set(csp.header, csp.value);
+      return withHeaders(NextResponse.next({ request: { headers: requestHeaders } }));
+    }
     case "redirect":
       return withHeaders(NextResponse.redirect(new URL(route.to, req.nextUrl)));
     case "unauthorized":

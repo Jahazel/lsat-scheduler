@@ -123,9 +123,8 @@ credential is a secret that gives access, such as a password or an API key.
    checks a bad reply, which also writes one `model_reply_refused` entry in the
    security log. Without this setting, the app
    calls Anthropic when a key is set and shows that message when no key is set.
-   Never set `SCREENSHOT_EXTRACTOR` on the real site. Admins can also use Sample
-   analytics snapshots for their student side. An Admin reviews and approves
-   each Sample analytics snapshot like an uploaded snapshot.
+   Never set `SCREENSHOT_EXTRACTOR` on the real site. Admins test their student
+   side with the same weekly upload, and move its date with the Walkthrough.
 
    For a real scan, use the testing key. It is the Anthropic key
    `drillmap-testing` in the `drillmap-copy` workspace, which has a $5 monthly

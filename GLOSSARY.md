@@ -261,9 +261,13 @@ The fixed "today" an admin sets for their own student side. It moves only forwar
 _Avoid_: test date, fake date, time travel
 
 **Sample analytics snapshot**:
-An analytics snapshot generated for an admin's student side instead of extracted from a 7Sage screenshot. The admin reviews and approves it in the weekly upload, like an uploaded snapshot.
+An analytics snapshot generated for an admin's student side instead of extracted from a 7Sage screenshot. The admin reviewed and approved it in the weekly upload, like an uploaded snapshot. The admin UI no longer makes one: Generate sample left with the Test controls; saved ones keep their source.
 _Avoid_: mock analytics, fake analytics
 
 **Schedule lab**:
 The admin tab that shows the week the engine would build for any inputs, without saving it. Every input sits in one column beside the built week: a preset, the goal, test time, analytics, the first week, daily capacity, and the preferred practice-test day. A change rebuilds the week at once, with its schedule reasons. The inputs live in the page link, and Open in lab on a student's page copies that student in. Next week builds the following week as the live weekly upload would, with the earlier lab weeks as history; Earlier week goes back without dropping later weeks. The chain stops at 12 weeks, or at the week that starts on or after the goal test month. Analytics can also come from LR, RC, and practice-test section screenshots, read by the live readers on an admin-only path that skips the plan check, counts in the same spend record as student reads, and stops at the spend warning so scanning never turns off for students. Practice-test missed types apply to week 1 only. The lab saves nothing and never changes a student.
 _Avoid_: sandbox, simulator, playground
+
+**Walkthrough**:
+The card an admin opens from the date in the switch's Student segment on their own student side. It has four controls: the date (simulated or real), named jumps (Next day, Saturday when the weekly upload opens, Monday when a new week starts), a Monday-first calendar under Pick a day, and Start over. A move changes only the Simulated date, forward and up to 56 days ahead, and reloads the real student page; a week with no weekly schedule opens the weekly upload, as for a real student who missed it. Start over deletes the admin's student side and returns to onboarding on the real date. It replaced the Test controls.
+_Avoid_: test controls, time machine, skip ahead

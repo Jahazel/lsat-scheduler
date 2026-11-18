@@ -80,6 +80,8 @@ Flat by default. Depth comes from a 1 px Vellum Line border.
 - **Focus.** Every control shows a 2 px Accent focus ring with a 2 px offset.
 - **Motion.** 120 ms for hover, 200 ms for press and focus; overlays such as the Dialog open in 200 ms
   and close in 120 ms (see `docs/design/research/drill-setup-guide/motion.md`); honor `prefers-reduced-motion`.
-- **Admin controls.** Admins get a workspace dropdown next to the wordmark and, on their student side, a dashed date chip
-  at the top of the page column that opens the test controls for the simulated date. Past dates show a "Past" label; the current date shows "Today" and `aria-current="date"`.
+- **Admin controls.** Admins get an Admin / Student switch in the top bar. On their student side, the switch's Student
+  segment shows the student side's date with a ⌄ (a grey dot, amber when simulated) and drops the Walkthrough card under
+  the switch. In its Pick a day calendar, past days and today are off; today is a filled ink square with
+  `aria-current="date"`.
 - **Don't** build a generic SaaS landing page or a legacy test-prep look (see PRODUCT.md).

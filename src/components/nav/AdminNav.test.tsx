@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event";
 afterEach(cleanup);
 
 const mocks = vi.hoisted(() => ({ pathname: "/admin", prefetch: vi.fn() }));
-vi.mock("@/app/admin/test/actions", () => ({ rebuildThisWeek: vi.fn(), resetTestData: vi.fn(), resetEverything: vi.fn(), setSimulatedDate: vi.fn(), generateTestSample: vi.fn() }));
+vi.mock("@/app/admin/test/actions", () => ({ resetEverything: vi.fn(), setSimulatedDate: vi.fn() }));
 vi.mock("next/navigation", () => ({ usePathname: () => mocks.pathname, useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), prefetch: mocks.prefetch }) }));
 
 import AdminNav from "./AdminNav";
@@ -145,28 +145,6 @@ describe("admin avatar menu", () => {
     const menu = screen.getByRole("menu", { name: "Account" });
     expect(within(menu).getByText("qa@example.test")).toBeTruthy();
     expect(within(menu).queryByText("Quinn Avery")).toBeNull();
-  });
-});
-
-describe("admin simulated date", () => {
-  const testState = { date: "2026-10-07", realDate: "2026-09-27", weekStartDate: "2026-10-05", simulated: true, onboarded: true, weekHasSchedule: true, uploadWeekHasSchedule: true, uploadWeekend: false };
-  beforeEach(() => { mocks.pathname = "/dashboard"; });
-
-  it("sits under the header, at the top of the page column, and opens the live test controls", () => {
-    render(<AdminNav {...props} testState={testState} />);
-    const header = screen.getByRole("banner");
-    const chip = screen.getByRole("button", { name: /Admin date:\s*Oct 7, 2026\s*·\s*Change/ });
-    const slideOver = screen.getByRole("dialog", { hidden: true });
-    expect(header.contains(chip)).toBe(false);
-    expect(header.contains(slideOver)).toBe(false);
-    expect(chip.getAttribute("aria-haspopup")).toBe("dialog");
-    expect(screen.queryByRole("complementary", { name: "Test controls" })).toBeNull();
-  });
-
-  it("is absent on the admin side", () => {
-    mocks.pathname = "/admin";
-    render(<AdminNav {...props} testState={testState} />);
-    expect(screen.queryByRole("button", { name: /Admin date/ })).toBeNull();
   });
 });
 

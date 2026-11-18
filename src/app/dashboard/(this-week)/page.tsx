@@ -97,7 +97,7 @@ export default async function DashboardPage({
       <PageCue page="this-week" />
       <PageArrival page="This week" look="fade" />
       {isAdminUser(session.user) && (
-        <CurrentWeekReport week={currentWeekInTimezone(now, SCHEDULE_TIMEZONE)} hasSchedule={!preview} hasPreview={preview} />
+        <CurrentWeekReport week={currentWeekInTimezone(now, SCHEDULE_TIMEZONE)} hasSchedule={!preview} />
       )}
       <ScheduleCheckInView
         scheduleId={schedule.id}

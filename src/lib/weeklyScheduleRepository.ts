@@ -1,10 +1,10 @@
-import { and, desc, eq, lt } from "drizzle-orm";
+import { and, between, desc, eq, lt } from "drizzle-orm";
 import { listApprovedAnalyticsSnapshots } from "./analyticsSnapshotRepository";
 import type { CurrentWeekRepositories } from "./currentWeeklySchedule";
 import { postgresActivityCheckIns } from "./activityCheckInRepository";
 import { listApprovedPracticeTestResults } from "./weeklyUploadRepository";
 import { getPostgresDatabase } from "./postgres";
-import { weeklySchedules } from "./postgresSchema";
+import { students, weeklySchedules } from "./postgresSchema";
 import type { SavedActivity, SavedWeeklySchedule } from "./postgresSchema";
 import type { Activity, DayOfWeek, DayPlan, PersistedWeeklySchedule, WeeklySchedule } from "./types";
 
@@ -95,4 +95,13 @@ export async function listStudentIdsWithScheduleForWeek(weekStartDate: string) {
     .from(weeklySchedules)
     .where(eq(weeklySchedules.weekStartDate, weekStartDate));
   return records.map((record) => record.studentId);
+}
+
+export async function listScheduledWeeksForAccount(accountId: string, from: string, to: string) {
+  const records = await getPostgresDatabase()
+    .select({ week: weeklySchedules.weekStartDate })
+    .from(weeklySchedules)
+    .innerJoin(students, eq(students.id, weeklySchedules.studentId))
+    .where(and(eq(students.accountId, accountId), between(weeklySchedules.weekStartDate, from, to)));
+  return records.map((record) => record.week);
 }

@@ -1,16 +1,6 @@
 import { isAdminUser } from "@/lib/accessControl";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
-import { currentWeekInTimezone, isUploadWeekend } from "./currentWeeklySchedule";
-import { isoDateInWeek } from "./scheduleReasonText";
-import type { ApprovedAnalyticsSnapshot } from "./types";
-import {
-  generateSampleAnalytics,
-  type SampleDirection,
-} from "./sampleAnalytics";
-import { mockRules } from "./mockData";
-import { PASSAGE_TYPES } from "./analyticsReview";
-import { PT158_FIXTURES } from "./practiceTestFixtures/pt158";
-import type { AnalyticsExtractedRow } from "./types";
+import { MAX_AHEAD_DAYS, addDays } from "./walkthrough";
 
 export interface AdminClockRepository {
   findUser(
@@ -126,13 +116,6 @@ export function clockForVerifiedUser(
     : { now: real, real, simulated: false };
 }
 
-export function timeForVerifiedUser(
-  current: { role: string; simulatedDate?: string | null } | null,
-  real: Date,
-) {
-  return clockForVerifiedUser(current, real).now;
-}
-
 export async function moveSimulatedDate(
   userId: string,
   next: string,
@@ -148,8 +131,9 @@ export async function moveSimulatedDate(
   ) {
     throw new Error("Choose a valid calendar date.");
   }
-  if (next <= (current.simulatedDate ?? dateInScheduleTimezone(real)))
-    throw new Error("Choose a later date.");
+  const today = current.simulatedDate ?? dateInScheduleTimezone(real);
+  if (next <= today) throw new Error("Choose a later date.");
+  if (next > addDays(today, MAX_AHEAD_DAYS)) throw new Error(`Choose a date within ${MAX_AHEAD_DAYS} days.`);
   if (
     !(await repository.moveDate(userId, current.simulatedDate ?? null, next))
   ) {
@@ -157,11 +141,9 @@ export async function moveSimulatedDate(
   }
 }
 
-export type ResetScope = "test-data" | "everything";
-
 export interface AdminTestWrites {
   // This write deletes activity check-ins with their weekly schedule.
-  deleteSchedules(studentId: string, weekStartDate?: string): Promise<number>;
+  deleteSchedules(studentId: string): Promise<void>;
   deleteSnapshots(studentId: string): Promise<void>;
   deletePracticeTestResults(studentId: string): Promise<void>;
   deleteStudent(studentId: string, userId: string): Promise<void>;
@@ -170,42 +152,12 @@ export interface AdminTestWrites {
 
 export interface AdminTestRepositories {
   clock: AdminClockRepository;
-  findStudent(
-    userId: string,
-  ): Promise<{ id: string; currentScore: number } | null>;
-  approvedSnapshots(
-    studentId: string,
-  ): Promise<
-    (ApprovedAnalyticsSnapshot & { extraction?: { source: string } })[]
-  >;
+  findStudent(userId: string): Promise<{ id: string } | null>;
   inTransaction(work: (writes: AdminTestWrites) => Promise<void>): Promise<void>;
-}
-
-export async function rebuildTestWeek(
-  userId: string,
-  real: Date,
-  repositories: AdminTestRepositories,
-) {
-  const user = await repositories.clock.findUser(userId);
-  if (!isAdminUser(user)) throw new Error("Admin access required.");
-  const student = await repositories.findStudent(userId);
-  if (!student) throw new Error("There is no weekly schedule to rebuild.");
-  const now = clockForVerifiedUser(user, real).now;
-  const week = currentWeekInTimezone(now, SCHEDULE_TIMEZONE);
-  await repositories.inTransaction(async (writes) => {
-    if (await writes.deleteSchedules(student.id, week)) return;
-    if (
-      isUploadWeekend(now, SCHEDULE_TIMEZONE) &&
-      (await writes.deleteSchedules(student.id, isoDateInWeek(week, 7)))
-    )
-      return;
-    throw new Error("There is no weekly schedule to rebuild.");
-  });
 }
 
 export async function resetTestWorkspace(
   userId: string,
-  scope: ResetScope,
   repositories: AdminTestRepositories,
 ) {
   const user = await repositories.clock.findUser(userId);
@@ -216,65 +168,8 @@ export async function resetTestWorkspace(
       await writes.deleteSchedules(student.id);
       await writes.deleteSnapshots(student.id);
       await writes.deletePracticeTestResults(student.id);
-      if (scope === "everything")
-        await writes.deleteStudent(student.id, userId);
+      await writes.deleteStudent(student.id, userId);
     }
     await writes.clearSimulatedDate(userId);
   });
-}
-
-export async function generateTestAnalytics(
-  userId: string,
-  direction: SampleDirection,
-  repositories: AdminTestRepositories,
-  random = Math.random,
-) {
-  const student = await repositories.findStudent(userId);
-  if (!student)
-    throw new Error("Complete onboarding before generating a sample.");
-  const snapshots = await repositories.approvedSnapshots(student.id);
-  const previous =
-    [...snapshots].sort((a, b) =>
-      b.approvedAt.localeCompare(a.approvedAt),
-    )[0] ?? null;
-  const regularTypes = [
-    ...mockRules.lrStemTypes,
-    ...mockRules.lrLogicExceptions,
-  ];
-  const restrictedTypes = mockRules.lrLogicTypes.filter(
-    (type) => !mockRules.lrLogicExceptions.includes(type),
-  );
-  const values = generateSampleAnalytics({
-    previous,
-    direction,
-    currentScore: student.currentScore,
-    earlierSampleCount: snapshots.filter(
-      (s) => s.extraction?.source === "admin_sample",
-    ).length,
-    regularTypes,
-    restrictedTypes,
-    random,
-  });
-  const rows: AnalyticsExtractedRow[] = [
-    ...regularTypes.map((type) => ({
-      type,
-      category: "regular" as const,
-      accuracy: Math.round(values.lrAccuracyByType[type]! * 100),
-    })),
-    ...restrictedTypes.map((type) => ({
-      type,
-      category: "restricted" as const,
-      isTopPriority: values.lrTopPriorityLogicTypes.includes(type),
-    })),
-    ...PASSAGE_TYPES.map((type) => ({
-      type,
-      category: "passage" as const,
-      accuracy: Math.round(values.rcAccuracyByType[type]! * 100),
-    })),
-  ];
-  return rows;
-}
-
-export function samplePracticeTestSections() {
-  return PT158_FIXTURES.flatMap(({ reading }) => (reading.page === "section_review" ? [reading] : []));
 }

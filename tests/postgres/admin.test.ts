@@ -5,9 +5,8 @@ import { afterAll, beforeEach, expect, it, vi } from "vitest";
 import { setUpAppTestDatabase } from "./appTestDatabase";
 import { fakeLink } from "./fakeNavigation";
 import { findAccountById } from "../../src/lib/accountRepository";
-import { createStudent, updateStudySettings } from "../../src/lib/studentRepository";
+import { createStudent } from "../../src/lib/studentRepository";
 import { listWeeklySchedulesForStudent } from "../../src/lib/weeklyScheduleRepository";
-import { postgresActivityCheckIns } from "../../src/lib/activityCheckInRepository";
 import { saveActivityCheckIn } from "../../src/app/dashboard/actions";
 import { postgresAdminTestRepositories } from "../../src/lib/adminTestRepositories";
 import { resetTestWorkspace } from "../../src/lib/adminTestWorkspace";
@@ -18,9 +17,7 @@ import AdminStudentPage from "../../src/app/admin/students/[id]/page";
 import DashboardPage from "../../src/app/dashboard/(this-week)/page";
 import { GET as listStudentsRoute } from "../../src/app/api/students/route";
 import { GET as studentRoute } from "../../src/app/api/students/[id]/route";
-import {
-  generateTestSample, rebuildThisWeek, resetEverything, resetTestData, setSimulatedDate,
-} from "../../src/app/admin/test/actions";
+import { resetEverything, setSimulatedDate } from "../../src/app/admin/test/actions";
 
 const state = vi.hoisted((): { session: Session | null } => ({ session: null }));
 vi.mock("@/auth", () => ({ auth: async () => state.session }));
@@ -309,40 +306,10 @@ it.each(["student", "no-session"] as const)("refuses a %s the Admin pages, route
   await expect(studentPage(other.saved.id)).rejects.toThrow("redirect:/dashboard");
   expect((await listStudentsRoute()).status).toBe(403);
   expect((await studentApi(other.saved.id)).status).toBe(403);
-  for (const tool of [
-    () => setSimulatedDate("2026-10-20"), () => generateTestSample("steady"), rebuildThisWeek, resetTestData, resetEverything,
-  ]) {
+  for (const tool of [() => setSimulatedDate("2026-10-20"), resetEverything]) {
     expect(await tool()).toEqual({ unexpectedFailure: expect.stringMatching(/^[0-9a-f]{8}$/) });
   }
   expect(await everyRow()).toEqual(before);
-});
-
-it("Rebuild deletes the current week's schedule and check-ins, and This week recreates it without an update", async () => {
-  vi.setSystemTime(new Date("2026-10-05T16:00:00Z"));
-  const admin = await student("Admin", "admin");
-  await approve(admin.saved.id, "2026-10-05");
-  signIn(admin.account);
-  await dashboard();
-  vi.setSystemTime(new Date("2026-10-12T16:00:00Z"));
-  await approve(admin.saved.id);
-  await dashboard();
-  const [current, earlier] = await listWeeklySchedulesForStudent(admin.saved.id);
-  expect(current.weekStartDate).toBe("2026-10-12");
-  await saveActivityCheckIn({ scheduleId: current.id, activityId: "MONDAY:0", status: "completed" });
-  const capacity = { ...profile.dailyCapacityMinutes, MONDAY: 120 };
-  expect(await updateStudySettings(admin.account.id, { ...profile, dailyCapacityMinutes: capacity }, [])).toBe(true);
-
-  await rebuildThisWeek();
-  expect(await listWeeklySchedulesForStudent(admin.saved.id)).toEqual([earlier]);
-  expect(await postgresActivityCheckIns.listForSchedule(current.id)).toEqual([]);
-
-  await dashboard();
-  const [rebuilt] = await listWeeklySchedulesForStudent(admin.saved.id);
-  expect(rebuilt).toMatchObject({ weekStartDate: "2026-10-12" });
-  expect(rebuilt.id).not.toBe(current.id);
-  expect(rebuilt.generationInputs.student.dailyCapacityMinutes).toEqual(capacity);
-  await expect(database.owner.execute(sql`update weekly_schedules set policy_version = 'changed' where id = ${rebuilt.id}::uuid`)).rejects.toThrow();
-  expect(await findAccountById(admin.account.id)).toMatchObject({ role: "admin", simulatedDate: null });
 });
 
 async function adminWithTestHistory() {
@@ -360,7 +327,7 @@ async function adminWithTestHistory() {
   return { admin, other };
 }
 
-it.each(["test-data", "everything"] as const)("a forced failure inside the %s reset leaves the data unchanged", async (scope) => {
+it("a forced failure inside Reset everything leaves the data unchanged", async () => {
   const { admin } = await adminWithTestHistory();
   const before = await everyRow();
   const failing = {
@@ -371,7 +338,7 @@ it.each(["test-data", "everything"] as const)("a forced failure inside the %s re
         async clearSimulatedDate() { throw new Error("forced reset failure"); },
       })),
   };
-  await expect(resetTestWorkspace(admin.account.id, scope, failing)).rejects.toThrow("forced reset failure");
+  await expect(resetTestWorkspace(admin.account.id, failing)).rejects.toThrow("forced reset failure");
   expect(await everyRow()).toEqual(before);
 });
 

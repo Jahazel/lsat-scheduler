@@ -327,9 +327,9 @@ what the app shows.
 
 ## Admin dashboard (`admin-dashboard/`)
 
-Screenshots of the prototype route `/prototypes/admin-dashboard` for spec #941. Each state has a `-desktop` (1440),
-`-tablet` (768), and `-phone` (390) file, except `35-walkthrough-moved`, which is desktop only. Brief and motion spec:
-`research/admin-dashboard/`.
+Screenshots of the prototype route `/prototypes/admin-dashboard` for spec #941. The clickable prototype was deleted by
+#950. Each state has a `-desktop` (1440), `-tablet` (768), and `-phone` (390) file, except `35-walkthrough-moved`, which
+is desktop only. Brief and motion spec: `research/admin-dashboard/`.
 
 | File | State | Screen ticket |
 | --- | --- | --- |
