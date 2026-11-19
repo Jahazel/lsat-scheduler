@@ -97,12 +97,12 @@ Run `t11180132` on `aed506c`, from 2026-11-18 01:32 UTC to 2026-11-19 15:21 UTC.
 
 ### Findings
 
-1. **The Server Action reply has no `private`.** The `/settings` Server Action reply sends `no-cache, no-store, max-age=0, must-revalidate`. Next.js writes this header over the app's header. `no-store` still stops every cache from saving it, but the rule asks for `private` on every non-GET reply. A follow-up issue fixes it or changes the rule.
+1. **The Server Action reply has no `private`.** The `/settings` Server Action reply sends `no-cache, no-store, max-age=0, must-revalidate`. Next.js writes this header over the app's header. `no-store` still stops every cache from saving it, but the rule asks for `private` on every non-GET reply. [#972](https://github.com/Jahazel/lsat-scheduler/issues/972) fixes it or changes the rule.
 2. **The long `Cache-Control` form is correct.** Private pages send the long Next.js form. It holds `private` and `no-store`. The wizard's exact text check was too strict.
 3. **Step 4 was partial.** Step 17 covers the same pages with the stronger enforced CSP.
-4. **11 DevTools issues on onboarding.** 10 form fields have no `id` or `name`, and 1 lazy image has no size. They are not security issues. A follow-up issue fixes them.
+4. **11 DevTools issues on onboarding.** 10 form fields have no `id` or `name`, and 1 lazy image has no size. They are not security issues. [#973](https://github.com/Jahazel/lsat-scheduler/issues/973) fixes them.
 5. **`/forgot-password` requests in the logs.** Next.js link prefetch makes them. They hold no private data.
-6. **The analytics scan accepts a practice-test page.** It returned 31 question type rows and no accuracy. A follow-up issue decides whether the scan refuses the wrong page type.
+6. **The analytics scan accepts a practice-test page.** It returned 31 question type rows and no accuracy. [#974](https://github.com/Jahazel/lsat-scheduler/issues/974) decides whether the scan refuses the wrong page type.
 7. **The copy's `AUTH_SECRET` cannot be read.** Vercel stores it as sensitive, and no other copy exists. The replay ran with a stand-in, so only Account ID matching was tested. Rotate the copy's `AUTH_SECRET`, save it in the password manager, and test email-hash matching in the Stage 7 restore practice.
 8. **Wizard gaps.** Fixed in this branch; see the commit that follows the run.
 9. **The slow reply took 33.0 s.** The SDK limit is 30 s; the rest is the tunnel and the function start.
@@ -130,8 +130,8 @@ Run `t11180132` on `aed506c`, from 2026-11-18 01:32 UTC to 2026-11-19 15:21 UTC.
 **Carried forward**
 
 - Email-hash matching in the deletion replay: test it in the Stage 7 restore practice with the saved copy `AUTH_SECRET`.
-- The `model_reply_refused` row for a failed reply check: prove it with unit tests.
-- Finding 1 (Server Action `private`), finding 4 (form field names), and finding 6 (wrong page type) as follow-up issues.
+- The `model_reply_refused` row for a failed reply check: prove it with unit tests ([#974](https://github.com/Jahazel/lsat-scheduler/issues/974)).
+- Finding 1 (Server Action `private`), finding 4 (form field names), and finding 6 (wrong page type) as [#972](https://github.com/Jahazel/lsat-scheduler/issues/972), [#973](https://github.com/Jahazel/lsat-scheduler/issues/973), and [#974](https://github.com/Jahazel/lsat-scheduler/issues/974).
 
 **Only the real site can prove**
 
