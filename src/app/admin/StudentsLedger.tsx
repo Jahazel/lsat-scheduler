@@ -7,6 +7,7 @@ import { FOCUS, FOCUS_INSET, cx } from "@/components/ui/classes";
 import { formatDuration } from "@/lib/formatDuration";
 import { planStatusLabel } from "@/lib/planStatus";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
+import { FEW_TEST_MONTHS } from "@/lib/testMonths";
 import {
   PLAN_FILTERS, PLAN_FILTER_KEYS, SORTS, SORT_KEYS, THIS_WEEK_LABELS, cleared, countsOf, displayName, listQuery, listStateFrom, narrowed, visible,
   type Counts, type ListState, type Sort, type StudentRow,
@@ -214,7 +215,20 @@ function NoMatch({ clear }: { clear: () => void }) {
 const choicesIn = (link: string) => listStateFrom(Object.fromEntries(new URLSearchParams(link)));
 const linkOf = (state: ListState) => listQuery(state).slice(1);
 
-export function StudentsLedger({ rows }: { rows: StudentRow[] }) {
+function FewTestMonthsNote({ upcoming }: { upcoming: number }) {
+  return (
+    <p className="flex items-start gap-2 rounded-sm border border-warning-line bg-warning-wash px-3 py-2 text-small text-ink">
+      <span aria-hidden className="mt-1.5 size-1.5 shrink-0 rounded-pill bg-warning-ink" />
+      <span>
+        {upcoming === 0 ? "No upcoming test months are left" : `Only ${upcoming} upcoming test ${upcoming === 1 ? "month is" : "months are"} left`}, so students
+        have few goal months to pick. Add LSAC&apos;s next dates in{" "}
+        <Link href="/admin/test-dates" className={cx("rounded-sm font-medium text-accent underline-offset-2 pointer-hover:underline", FOCUS)}>Test dates</Link>.
+      </span>
+    </p>
+  );
+}
+
+export function StudentsLedger({ rows, upcomingTestMonthCount }: { rows: StudentRow[]; upcomingTestMonthCount: number }) {
   const link = useSearchParams().toString();
   const [state, setState] = useState(() => choicesIn(link));
   const [seenLink, setSeenLink] = useState(link);
@@ -247,6 +261,7 @@ export function StudentsLedger({ rows }: { rows: StudentRow[] }) {
         <h1 className="text-h3 font-semibold text-ink">Students</h1>
         <Summary counts={counts} />
       </div>
+      {upcomingTestMonthCount < FEW_TEST_MONTHS && <div data-page-section><FewTestMonthsNote upcoming={upcomingTestMonthCount} /></div>}
       {rows.length === 0 ? (
         <div data-page-section className={cx(CARD, "px-6 py-16 text-center text-small text-smoke")}>No students have completed onboarding yet.</div>
       ) : <>

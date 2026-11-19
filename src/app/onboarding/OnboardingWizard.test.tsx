@@ -5,11 +5,14 @@ import userEvent from "@testing-library/user-event";
 import { SECTION_NAME } from "@/lib/analyticsReview";
 import type { ExtractReply } from "@/lib/screenshotUpload";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "@/lib/types";
-import { upcomingTestMonths } from "@/lib/studentProfile";
+import { testMonthOptions } from "@/lib/testMonths";
+import { SEEDED_TEST_MONTHS } from "@/lib/testMonthsFixture";
 import type { FailureCode } from "@/lib/unexpectedFailure";
 import { FailureToastProvider } from "@/components/FailureNotice";
 import OnboardingWizard from "./OnboardingWizard";
 import { TopBarStepCount } from "./StepCount";
+
+const upcomingTestMonths = (today: string) => testMonthOptions(SEEDED_TEST_MONTHS, today);
 
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/onboarding" }));

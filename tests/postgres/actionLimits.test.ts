@@ -18,7 +18,8 @@ const database = setUpAppTestDatabase();
 beforeEach(async () => {
   request.ip = "203.0.113.7";
   request.session = null;
-  vi.useRealTimers();
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-19T15:00:00Z"));
   await database.owner.execute(sql`truncate accounts, action_counters cascade`);
 });
 afterAll(() => {
