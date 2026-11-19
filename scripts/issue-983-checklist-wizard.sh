@@ -169,12 +169,13 @@ s_version() {
   student b
   step "Sign up A and B at $COPY/signup with these emails and passwords, and click each verify link. The Admin signs in with Google."
   note "Stage 2 uses A, B, and the Admin. Make any other copy test student with this run's address, so step 5.1 finds it."
+  pause "When A and B are on onboarding and the Admin is on /admin, press Enter"
   open_url "https://vercel.com/dashboard"
   step "COPY project > Deployments: open the Production deployment that $COPY_HOST serves. Check its commit is ${CANDIDATE:0:7}."
   ask_id COPY_DEPLOYMENT "Copy Production deployment ID (dpl_…):"
   real_deployment REAL_BEFORE "Real site live Production deployment ID now:"
   record "1.3 version" "run t$RUN_TAG started $RUN_STARTED. Copy $COPY_DEPLOYMENT. Real site before: $REAL_BEFORE"
-  expect "The copy serves the candidate."
+  expect "The copy serves the candidate. A and B reach onboarding."
   ask_verdict 1.3
 }
 
