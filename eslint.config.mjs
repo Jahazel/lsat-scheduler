@@ -156,6 +156,11 @@ const eslintConfig = defineConfig([
           property,
           message: CLASS_NAME_TEST,
         })),
+        {
+          object: "Storage",
+          property: "prototype",
+          message: "Spy on Object.getPrototypeOf(sessionStorage). From Node 25, the global Storage is Node's own class, not the one behind jsdom's storage, so the spy never fires.",
+        },
       ],
       "no-restricted-syntax": ["error", ...testFileSyntax, DOM_WALK],
     },
