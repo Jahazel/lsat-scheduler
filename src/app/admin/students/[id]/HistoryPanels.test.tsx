@@ -60,8 +60,8 @@ describe("Past weeks", () => {
   });
 });
 
-const snapshot = (id: string, weekOf: string, lr: Record<string, number>) =>
-  ({ id, weekOf, approvedAt: `${weekOf}T12:00:00.000Z`, lrAccuracyByType: lr, rcAccuracyByType: { Law: 0.6 } });
+const snapshot = (id: string, weekOf: string, lr: Record<string, number>, score: number | null = null) =>
+  ({ id, weekOf, approvedAt: `${weekOf}T12:00:00.000Z`, lrAccuracyByType: lr, rcAccuracyByType: { Law: 0.6 }, score });
 const nineTypes = Object.fromEntries(["Weaken", "Flaw", "Evaluate", "Inference", "Principle", "Strengthen", "Must be true", "Must be false", "Argument part"]
   .map((type, index) => [type, 0.3 + index * 0.05]));
 
@@ -97,5 +97,20 @@ describe("Progress", () => {
     expect(older!.textContent).toContain("PT 141 · 13 missed");
     expect(screen.getByText("PT 141 missed")).toBeTruthy();
     expect(screen.queryAllByRole("link")).toEqual([]);
+  });
+
+  it("shows each upload's score with its change, and a dash for an upload saved without one", () => {
+    render(<ProgressPanel score={159} goal={170} hasPastWeeks months={uploadHistory([
+      snapshot("unscored", "2026-10-19", { Weaken: 0.5 }),
+      snapshot("first", "2026-10-26", { Weaken: 0.5 }, 157),
+      snapshot("same", "2026-11-02", { Weaken: 0.5 }, 157),
+      snapshot("newest", "2026-11-09", { Weaken: 0.5 }, 155),
+    ], [])} />);
+    const rows = screen.getAllByRole("button", { expanded: true }).concat(screen.getAllByRole("button", { expanded: false }))
+      .map((row) => row.textContent);
+    expect(rows[0]).toContain("Score 155▼−2 points");
+    expect(rows[1]).toContain("Score 157•±0 points");
+    expect(rows[2]).toContain("Score 157Weakest");
+    expect(rows[3]).toContain("Score —Weakest");
   });
 });

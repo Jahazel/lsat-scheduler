@@ -8,7 +8,7 @@ import type { PreparedWeeklyUpload } from "./weeklyUpload";
 export async function approveWeeklyUpload(studentId: string, upload: PreparedWeeklyUpload, saver: SnapshotSaver) {
   await getPostgresDatabase().transaction(async (transaction) => {
     await countSnapshotSave(transaction, saver);
-    await transaction.insert(analyticsSnapshots).values(approvedSnapshotColumns(studentId, upload.snapshot));
+    await transaction.insert(analyticsSnapshots).values(approvedSnapshotColumns(studentId, upload.snapshot, upload.currentScore));
     if (upload.practiceTest) {
       await transaction.insert(practiceTestResults).values({ studentId, ...upload.practiceTest });
     }
