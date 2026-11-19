@@ -1043,7 +1043,7 @@ s_restore_cleanup() {
   pause "When they are deleted, press Enter"
   ask_neon_key
   record "3.10 age check" "$(age_check "$RESTORED_BRANCH_ID") (expected within-30-days)"
-  expect "within-30-days. Only the restored branch and the former branch are left."
+  expect "No branch named except the former branch, which step 4.6 deletes. Only the restored and the former branch are left."
   unset RESTORED_URL
   pause
 }
@@ -1057,9 +1057,10 @@ real_fail_signal() {
     if [[ "$url" == https://hc-ping.com/* ]] || dry; then break; fi
     warn "That is not a Healthchecks.io ping URL (https://hc-ping.com/…). Copy it again."
   done
-  answer=$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -X POST "$url/fail" || printf '000')
+  if dry; then record "$1" "not sent (dry run)"; return 0; fi
+  answer=$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -X POST "$url/fail" || true)
   unset url
-  record "$1" "one fail signal sent, Healthchecks.io answered HTTP $answer (expected 200)"
+  record "$1" "one fail signal sent, Healthchecks.io answered HTTP ${answer:-000} (expected 200)"
 }
 
 s_alert_anthropic() {
@@ -1144,7 +1145,7 @@ s_alert_uptime() {
 
 s_alert_stale() {
   begin_step 4.6 "Backup failed: stale backup"
-  needs FORMER_BRANCH_ID RESTORED_BRANCH_ID RESTORE_STARTED_EPOCH
+  needs COPY_PROJECT_ID FORMER_BRANCH_ID RESTORED_BRANCH_ID RESTORE_STARTED_EPOCH
   cite "$CHECKER" "Copy proof" "the stale backup proof"
   say "The copy checker looks at the former branch for one run. Its newest real backup is older than 24 hours."
   note "No backup is changed. The limit stays 24 hours."
@@ -1156,6 +1157,10 @@ s_alert_stale() {
   set_checker_branch "$RESTORED_BRANCH_ID"
   run_checker "4.6c recovery" copy || true
   ask_result "4.6d up email" "Did the UP email arrive?"
+  if ! confirm "Did run 4.6a report \"stale\" and send the DOWN email?"; then
+    warn "Keep the former branch: it is the only stale-backup fixture. Run --from 4.6 again later."
+    pause "Press Ctrl-C to stop"; exit 1
+  fi
   step "Neon console, COPY project: with your approval, delete the former branch now."
   pause "When it is deleted, press Enter"
   ask_neon_key
