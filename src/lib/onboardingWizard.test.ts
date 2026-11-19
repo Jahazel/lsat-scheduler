@@ -4,7 +4,9 @@ import {
   blockedReason,
   confirmSnapshotInput,
   initialWizardState,
+  onboardingDraft,
   profileWithAttempts,
+  restoreOnboardingDraft,
   goalGain,
   previewDrills,
   savedAnswers,
@@ -740,5 +742,96 @@ describe("onboarding wizard", () => {
 
       expect(flagged?.detail).toEqual({ kind: "flag", tier: "highest" });
     });
+  });
+});
+
+describe("onboarding draft across a reload", () => {
+  const reload = (state: WizardState) => restoreOnboardingDraft(JSON.stringify(onboardingDraft(state)));
+  const png = (name: string) => new File(["png"], name, { type: "image/png" });
+
+  it("brings back the step, the Goal and Week answers, attempts, and left score boxes", () => {
+    const week = run(
+      validGoal,
+      { type: "leaveScoreBox", box: "goalScore" },
+      { type: "setAttemptsTaken", taken: true },
+      { type: "editAttempt", id: 0, values: { score: "151", month: "2026-06" } },
+      { type: "leaveAttempt", id: 0, part: "score" },
+      { type: "continue" },
+      pickSaturday,
+    );
+
+    const restored = reload(week);
+
+    expect(restored?.step).toBe("week");
+    expect(restored?.values).toEqual(week.values);
+    expect(restored?.attempts).toEqual(week.attempts);
+    expect(restored?.leftScoreBoxes).toEqual({ currentScore: false, goalScore: true });
+    expect(restored?.changedStep).toBe(false);
+  });
+
+  it("brings back typed analytics, a value that is not a number included", () => {
+    const typed = run(
+      validGoal,
+      { type: "continue" },
+      pickSaturday,
+      { type: "continue" },
+      { type: "chooseInput", input: "typed", at: READ_AT },
+      { type: "editAccuracy", rowType: "Law", text: "58" },
+      { type: "editAccuracy", rowType: "Art", text: "7a" },
+      { type: "leaveRow", rowType: "Art" },
+    );
+
+    const restored = reload(typed);
+
+    expect(restored?.step).toBe("analytics");
+    expect(restored?.analyticsInput).toBe("typed");
+    expect(restored?.typedDraft).toEqual(typed.typedDraft);
+    expect(blockedReason(restored!)).toBe(blockedReason(typed));
+  });
+
+  it("sends a student who read screenshots back to Analytics with no screenshots", () => {
+    const review = run(
+      validGoal,
+      { type: "continue" },
+      pickSaturday,
+      { type: "continue" },
+      { type: "readQueued", section: "LR", file: png("lr.png") }, { type: "readStarted", id: 0 },
+      { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows: [{ type: "Diagram", category: "regular", accuracy: 64 }] }, at: READ_AT },
+      { type: "readQueued", section: "RC", file: png("rc.png") }, { type: "readStarted", id: 1 },
+      { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: [{ type: "Law", category: "passage", accuracy: 58 }], showsPassageTypes: true }, at: READ_AT },
+      { type: "continue" },
+    );
+    expect(review.step).toBe("review");
+
+    const restored = reload(review);
+
+    expect(restored?.step).toBe("analytics");
+    expect(restored?.values).toEqual(review.values);
+    expect(screenshot(restored!, "LR")).toBeUndefined();
+    expect(restored?.draft).toBeNull();
+  });
+
+  it("starts a restored draft as not saving", () => {
+    const failed = run(validGoal, { type: "continue" }, pickSaturday, { type: "continue" }, { type: "saveStarted" }, { type: "saveFailed" });
+
+    expect(reload(failed)?.save).toBe("idle");
+  });
+
+  it("stops at the first step a restored answer no longer passes", () => {
+    const week = run(validGoal, { type: "continue" }, pickSaturday);
+    const stored = JSON.stringify({ ...onboardingDraft(week), step: "review", values: { ...week.values, goalScore: "140" } });
+
+    expect(restoreOnboardingDraft(stored)?.step).toBe("goal");
+  });
+
+  it("starts fresh from a missing, unreadable, or wrong-shaped draft", () => {
+    const draft = onboardingDraft(run(validGoal));
+
+    expect(restoreOnboardingDraft(null)).toBeNull();
+    expect(restoreOnboardingDraft("{not json")).toBeNull();
+    expect(restoreOnboardingDraft("null")).toBeNull();
+    expect(restoreOnboardingDraft(JSON.stringify({ ...draft, step: "reveal" }))).toBeNull();
+    expect(restoreOnboardingDraft(JSON.stringify({ ...draft, values: { ...draft.values, currentScore: 150 } }))).toBeNull();
+    expect(restoreOnboardingDraft(JSON.stringify({ ...draft, analyticsInput: "typed", typedDraft: { review: {} } }))).toBeNull();
   });
 });
