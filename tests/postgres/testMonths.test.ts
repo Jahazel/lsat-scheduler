@@ -74,7 +74,7 @@ afterEach(() => vi.useRealTimers());
 describe("the test-month list after the migration", () => {
   it("holds the six months that were in code, oldest first", async () => {
     await database.owner.execute(sql`delete from test_months`);
-    const [, seed] = readFileSync("migrations/0026_test_months.sql", "utf8").split("--> statement-breakpoint");
+    const [, seed] = readFileSync("migrations/0027_test_months.sql", "utf8").split("--> statement-breakpoint");
     await database.owner.execute(sql.raw(seed!));
     expect(await listTestMonths()).toEqual([...SEEDED_TEST_MONTHS]);
   });

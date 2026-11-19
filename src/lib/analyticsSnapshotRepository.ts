@@ -6,7 +6,7 @@ import { analyticsSnapshots } from "./postgresSchema";
 
 type ApprovedSnapshotInput = ReturnType<typeof prepareApprovedSnapshot>;
 
-export function approvedSnapshotColumns(studentId: string, snapshot: ApprovedSnapshotInput) {
+export function approvedSnapshotColumns(studentId: string, snapshot: ApprovedSnapshotInput, score: number | null) {
   return {
     studentId,
     weekOf: snapshot.weekOf,
@@ -19,6 +19,7 @@ export function approvedSnapshotColumns(studentId: string, snapshot: ApprovedSna
     extractedValuesMatch: snapshot.confirmation.extractedValuesMatch,
     isLatestAnalytics: snapshot.confirmation.isLatestAnalytics,
     confirmedAt: snapshot.confirmation.confirmedAt,
+    score,
   } satisfies typeof analyticsSnapshots.$inferInsert;
 }
 
@@ -30,8 +31,8 @@ export async function countSnapshotSave(transaction: PostgresTransaction, saver:
   }
 }
 
-export async function createApprovedAnalyticsSnapshot(studentId: string, snapshot: ApprovedSnapshotInput) {
-  await getPostgresDatabase().insert(analyticsSnapshots).values(approvedSnapshotColumns(studentId, snapshot));
+export async function createApprovedAnalyticsSnapshot(studentId: string, snapshot: ApprovedSnapshotInput, score: number | null = null) {
+  await getPostgresDatabase().insert(analyticsSnapshots).values(approvedSnapshotColumns(studentId, snapshot, score));
 }
 
 export async function listApprovedAnalyticsSnapshots(studentId: string) {
@@ -53,6 +54,7 @@ export async function listApprovedAnalyticsSnapshots(studentId: string) {
       isLatestAnalytics: record.isLatestAnalytics,
       confirmedAt: record.confirmedAt.toISOString(),
     },
+    score: record.score,
   }));
 }
 

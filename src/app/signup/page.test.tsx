@@ -88,9 +88,9 @@ describe("Signup", () => {
 
   it("still signs up when the browser refuses storage", async () => {
     const refuse = () => { throw new DOMException("blocked", "SecurityError"); };
-    vi.spyOn(Storage.prototype, "getItem").mockImplementation(refuse);
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(refuse);
-    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(refuse);
+    vi.spyOn(Object.getPrototypeOf(sessionStorage), "getItem").mockImplementation(refuse);
+    vi.spyOn(Object.getPrototypeOf(sessionStorage), "setItem").mockImplementation(refuse);
+    vi.spyOn(Object.getPrototypeOf(sessionStorage), "removeItem").mockImplementation(refuse);
     actions.signUpWithPassword.mockResolvedValue({ kind: "checkYourEmail", email: "maya.chen@fastmail.com" });
     render(<SignupPage />);
     await fillIn();
