@@ -70,7 +70,7 @@ function Score({ lab, which, label, message }: { lab: Lab; which: "current" | "g
   const id = useId();
   return (
     <div className="flex min-w-0 flex-col gap-2">
-      <ScoreInput label={label} value={lab.inputs[which]} messageId={message ? id : null} onChange={(value) => lab.set({ [which]: value })} />
+      <ScoreInput label={label} name={`${which}Score`} value={lab.inputs[which]} messageId={message ? id : null} onChange={(value) => lab.set({ [which]: value })} />
       {message && <FieldMessage id={id} icon>{message}</FieldMessage>}
     </div>
   );

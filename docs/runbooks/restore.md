@@ -120,8 +120,25 @@ Do every step in order. Do not change the site's `DATABASE_URL` before step 7.
    the counts at the backup time minus the deleted Accounts' records. The `used_free_weeks` table is
    the exception: the replay and the billing resync add rows to it, so it holds at least `F` rows.
    Check that each deleted test Account is gone. Record counts only.
-7. **Let the site use the restored branch.** With the owner's approval, change the site's
-   `DATABASE_URL` in Vercel to the restored branch and deploy. Recheck both Admins.
+7. **Switch the site to the restored branch.** With the owner's approval:
+
+   1. In the Neon console, open the restored branch's Connect dialog. Choose the app role
+      `drillmap_app` and the pooled host, and copy its connection string with `sslmode=verify-full`.
+      The restored branch keeps the roles and passwords of the backup, so the app role's password is the
+      one the site used at the backup time. If it changed since, reset it on the restored branch as
+      [Rotate the app database password](emergency.md#rotate-the-app-database-password) says.
+   2. In Vercel, open the site's project → Settings → Environment Variables, and replace `DATABASE_URL`
+      for Production with that string, marked Sensitive. Do not save it in a file.
+   3. Redeploy the latest production deployment, and wait until it is Ready.
+   4. Check the site: sign in with a test Account, and open This week and Progress. Recheck both Admins:
+      each signs in and opens the Admin pages.
+   5. Record the UTC time the site works on the restored branch.
+
+   **Timing.** The recovery target is 48 hours, from the start of step 1 to the end of this step (I2).
+   Record both times and the time taken. A restore that takes longer fails I2, even when every count
+   matches. If step 2, 4, or 5 stops for an owner decision, the clock keeps running; tell the owner how
+   much of the 48 hours is left. Students see the site as it was before the restore until the switch,
+   and see the restored data after it.
 8. **Protect the restored branch.** Set `BACKUP_BRANCH_ID` to the restored branch's ID in both
    backup checker environments. Run the backup checker and confirm a fresh backup of the restored
    branch.
@@ -133,6 +150,7 @@ Do every step in order. Do not change the site's `DATABASE_URL` before step 7.
 
 ## Evidence record
 
-Record the UTC date, the commit, the restored branch name, the backup time, both age check results,
+Record the UTC date, the commit, the restored branch name, the backup time, the start of step 1, the end
+of step 7, the time taken against the 48-hour limit, both age check results,
 the three replay counts, both billing resync counts, the table counts, and what was deleted in step 9.
 Record no email, Account ID, connection string, or key.
