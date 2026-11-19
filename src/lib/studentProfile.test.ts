@@ -5,9 +5,9 @@ import {
   minuteOptionsForHour,
   parseStudentProfile,
   studentProfileSchema,
-  upcomingTestMonths,
 } from "./studentProfile";
 import { mockStudent } from "./mockData";
+import { SEEDED_TEST_MONTHS } from "./testMonthsFixture";
 
 describe("studentProfileSchema", () => {
   it("accepts a daily capacity for each day and a preferred practice-test day", () => {
@@ -124,40 +124,21 @@ describe("goalScoreError", () => {
   });
 });
 
-describe("upcomingTestMonths", () => {
-  it("offers only test months after the given date, labelled by month and year", () => {
-    expect(upcomingTestMonths("2026-10-18")).toEqual([
-      { value: "2026-11-01", label: "November 2026" },
-      { value: "2027-01-01", label: "January 2027" },
-      { value: "2027-02-01", label: "February 2027" },
-      { value: "2027-04-01", label: "April 2027" },
-      { value: "2027-06-01", label: "June 2027" },
-    ]);
-  });
-
-  it("drops a test month on its first day", () => {
-    expect(upcomingTestMonths("2026-11-01").map((month) => month.value)).not.toContain("2026-11-01");
-  });
-
-  it("keeps a test month the day before it starts", () => {
-    expect(upcomingTestMonths("2026-10-31")[0].value).toBe("2026-11-01");
-  });
-
-  it("offers nothing after the last known test month", () => {
-    expect(upcomingTestMonths("2027-06-01")).toEqual([]);
-  });
-});
-
 describe("parseStudentProfile", () => {
   it("accepts a goal test date the form offers on that day", () => {
-    expect(parseStudentProfile({ ...mockStudent, goalTestDate: "2026-11-01" }, "2026-10-31").goalTestDate).toBe("2026-11-01");
+    expect(parseStudentProfile({ ...mockStudent, goalTestDate: "2026-11-01" }, "2026-10-31", SEEDED_TEST_MONTHS).goalTestDate).toBe("2026-11-01");
+  });
+
+  it("accepts a month an Admin added to the list", () => {
+    const added = [...SEEDED_TEST_MONTHS, "2027-08-01"];
+    expect(parseStudentProfile({ ...mockStudent, goalTestDate: "2027-08-01" }, "2027-07-01", added).goalTestDate).toBe("2027-08-01");
   });
 
   it.each([
     ["has started", "2026-11-01", "2026-11-02"],
     ["is not a test month", "2026-12-01", "2026-10-18"],
   ])("rejects a goal test date that %s", (_, goalTestDate, today) => {
-    expect(() => parseStudentProfile({ ...mockStudent, goalTestDate }, today)).toThrow("Choose an upcoming LSAT test month.");
+    expect(() => parseStudentProfile({ ...mockStudent, goalTestDate }, today, SEEDED_TEST_MONTHS)).toThrow("Choose an upcoming LSAT test month.");
   });
 });
 

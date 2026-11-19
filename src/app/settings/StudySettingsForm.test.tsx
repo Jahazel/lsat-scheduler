@@ -10,10 +10,14 @@ import { FailureToastProvider } from "@/components/FailureNotice";
 import { SignOutForm } from "@/components/SignOutForm";
 import SiteMotion from "@/components/SiteMotion";
 import type { SignOutAnswer } from "@/lib/requestPolicy";
-import { everyDay, upcomingTestMonths, type StudySettingsInput } from "@/lib/studentProfile";
+import { everyDay, type StudySettingsInput } from "@/lib/studentProfile";
+import { testMonthOptions } from "@/lib/testMonths";
+import { SEEDED_TEST_MONTHS } from "@/lib/testMonthsFixture";
 import type { FailureCode, FormState } from "@/lib/unexpectedFailure";
 import type { StudySettingsAnswer } from "./actions";
 import { StudySettingsForm } from "./StudySettingsForm";
+
+const upcomingTestMonths = (today: string) => testMonthOptions(SEEDED_TEST_MONTHS, today);
 
 const saved: StudySettingsInput = {
   goalScore: 165,

@@ -47,7 +47,7 @@ import { SCREENSHOT_LIMITS, SCREENSHOT_NOTICE, checkScreenshotType, extractScree
 import type { AnalyticsSection } from "@/lib/types";
 import { slideStep } from "@/lib/pageMotion";
 import { isUnexpectedFailure } from "@/lib/unexpectedFailure";
-import { MAX_OFFICIAL_ATTEMPTS, type upcomingTestMonths } from "@/lib/studentProfile";
+import { MAX_OFFICIAL_ATTEMPTS } from "@/lib/studentProfile";
 import type { Accommodation } from "@/lib/studyProfileDraft";
 import { TEST_TIME_LABEL } from "@/lib/studyWeek";
 import type { createStudentProfile } from "./actions";
@@ -60,6 +60,7 @@ import { usePinnedBarHeight } from "./usePinnedBarHeight";
 import { RevealAction, WeekReveal } from "./WeekReveal";
 import { ScreenshotDropArea, WhereToFindIt } from "./ScreenshotDropArea";
 import { WEEK_NOTE_ID, WeekStepperTable } from "./WeekStepperTable";
+import type { TestMonthOption } from "@/lib/testMonths";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline aria-disabled:no-underline ${FOCUS}`;
@@ -68,7 +69,7 @@ interface OnboardingWizardProps {
   accountId: string;
   firstName: string;
   today: string;
-  goalTestDateOptions: ReturnType<typeof upcomingTestMonths>;
+  goalTestDateOptions: TestMonthOption[];
   scanningOff?: boolean;
   admin?: boolean;
   onSave: typeof createStudentProfile;

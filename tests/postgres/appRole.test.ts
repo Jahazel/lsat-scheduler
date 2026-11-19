@@ -566,3 +566,14 @@ it("reads and adds to the used free week list, and removes rows only through the
   expect(Number(pruned.rows[0]?.removed)).toBe(1);
   expect((await ownerDb().execute(sql`select count(*)::integer as left from used_free_weeks`)).rows).toEqual([{ left: 2 }]);
 });
+
+it("reads, adds, and removes test months but cannot change or empty the list", async () => {
+  await appDb().execute(sql`insert into test_months (month) values ('2027-08-01')`);
+  expect((await appDb().execute(sql`select month::text from test_months where month > '2027-05-01' order by month`)).rows)
+    .toEqual([{ month: "2027-06-01" }, { month: "2027-08-01" }]);
+  for (const query of [sql`update test_months set month = '2027-09-01' where month = '2027-08-01'`, sql`truncate test_months`]) {
+    await expect(appDb().execute(query)).rejects.toMatchObject({ cause: { code: "42501" } });
+  }
+  await appDb().execute(sql`delete from test_months where month = '2027-08-01'`);
+  expect((await appDb().execute(sql`select count(*)::integer as months from test_months`)).rows).toEqual([{ months: 6 }]);
+});
