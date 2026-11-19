@@ -68,7 +68,7 @@ Flat by default. Depth comes from a 1 px Vellum Line border.
 | e0 | `shadow-e0` (none) with a 1 px Vellum Line border | Sidebars, inputs, cards in a panel |
 | e1 | `shadow-e1` | A card that floats over its panel; the phone tab bar |
 | e2 | `shadow-e2` | Hero product panels on Vellum |
-| e3 | `shadow-e3` | Menus, popovers, the admin workspace dropdown, toasts |
+| e3 | `shadow-e3` | Menus (the avatar menu, the Students Filter and Sort menus), popovers (the Walkthrough card), dialogs, toasts |
 
 `shadow-control` is the selected segment of the segmented switch (Onboarding · States).
 
