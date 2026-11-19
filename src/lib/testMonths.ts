@@ -12,9 +12,6 @@ export function testMonthOptions(testMonths: readonly string[], today: string): 
   return testMonths.filter((month) => month > today).map((value) => ({ value, label: testMonthName(value) }));
 }
 
-export const fewTestMonthsLeft = (testMonths: readonly string[], today: string) =>
-  testMonthOptions(testMonths, today).length < FEW_TEST_MONTHS;
-
 const MONTH_PICK = z.object({
   month: z.coerce.number().int().min(1).max(12),
   year: z.coerce.number().int().min(2000).max(2999),

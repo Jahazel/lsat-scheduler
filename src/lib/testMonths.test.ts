@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fewTestMonthsLeft, parseTestMonthPick, testMonthOptions } from "./testMonths";
+import { parseTestMonthPick, testMonthOptions } from "./testMonths";
 import { SEEDED_TEST_MONTHS } from "./testMonthsFixture";
 
 describe("testMonthOptions", () => {
@@ -27,16 +27,6 @@ describe("testMonthOptions", () => {
 
   it("offers a month an Admin added once the date is before it", () => {
     expect(testMonthOptions([...SEEDED_TEST_MONTHS, "2027-08-01"], "2027-06-01")).toEqual([{ value: "2027-08-01", label: "August 2027" }]);
-  });
-});
-
-describe("fewTestMonthsLeft", () => {
-  it.each([
-    ["2026-11-19", false],
-    ["2027-01-01", true],
-    ["2027-06-01", true],
-  ])("on %s is %s, with four future months the line", (today, few) => {
-    expect(fewTestMonthsLeft(SEEDED_TEST_MONTHS, today)).toBe(few);
   });
 });
 
