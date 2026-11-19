@@ -7,6 +7,7 @@ import { arriveSections } from "@/lib/pageMotion";
 export const PLACEHOLDER_WAIT_MS = 150;
 
 function fadeOutRemovedPlaceholder(placeholder: HTMLElement, at: DOMRect, opacity: string) {
+  if (!("animate" in placeholder)) return;
   const layer = document.createElement("div");
   layer.setAttribute("aria-hidden", "true");
   layer.inert = true;
