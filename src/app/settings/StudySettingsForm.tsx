@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { FOCUS, cx } from "@/components/ui/classes";
 import { callAction } from "@/lib/callAction";
 import { DAY_ORDER } from "@/lib/engine";
-import { attemptMonths, dailyCapacityError, everyDay, practiceTestDayError, type StudySettingsInput, type upcomingTestMonths } from "@/lib/studentProfile";
+import { attemptMonths, dailyCapacityError, everyDay, practiceTestDayError, type StudySettingsInput } from "@/lib/studentProfile";
 import {
   addAttempt,
   attemptProblemMessage,
@@ -25,6 +25,7 @@ import type { saveStudySettings, StudySettingsAnswer } from "./actions";
 import { LeaveGuard } from "./LeaveGuard";
 import { OfficialAttemptList } from "./OfficialAttemptList";
 import { SettingsWeekPreview } from "./SettingsWeekPreview";
+import type { TestMonthOption } from "@/lib/testMonths";
 
 const SAVED_HOLD_MS = 6000;
 const SAVE_NOTE = "Changes apply to your next weekly schedule.";
@@ -150,7 +151,7 @@ export function StudySettingsForm({
   currentScore: number;
   saved: StudySettingsInput;
   today: string;
-  goalTestDateOptions: ReturnType<typeof upcomingTestMonths>;
+  goalTestDateOptions: TestMonthOption[];
   onSave: typeof saveStudySettings;
 }) {
   const [state, dispatch] = useReducer(reducer, null, (): State => {

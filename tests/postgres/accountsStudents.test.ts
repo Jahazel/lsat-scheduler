@@ -46,6 +46,8 @@ const database = setUpAppTestDatabase();
 beforeEach(async () => {
   request.session = null;
   request.signIn.mockClear();
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-19T15:00:00Z"));
   await database.owner.execute(sql`truncate accounts cascade`);
 });
 

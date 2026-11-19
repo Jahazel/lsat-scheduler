@@ -6,6 +6,7 @@ import { mockAnalytics, mockStudent } from "@/lib/mockData";
 import { PT158_FIXTURES } from "@/lib/practiceTestFixtures/pt158";
 import { reviewPracticeTest } from "@/lib/practiceTestResult";
 import { copiedInputs, presetInputs, readLabLink, type CopiedStudent } from "@/lib/scheduleLab";
+import { SEEDED_TEST_MONTHS as MONTHS } from "@/lib/testMonthsFixture";
 
 const { saveActivityCheckIn, extractScreenshot, extractPracticeTestScreenshot } = vi.hoisted(() => ({
   saveActivityCheckIn: vi.fn(), extractScreenshot: vi.fn(), extractPracticeTestScreenshot: vi.fn(),
@@ -31,7 +32,7 @@ const reasons = () => screen.getByRole("region", { name: "Schedule reasons" });
 const linkInputs = () => readLabLink(new URLSearchParams(window.location.search).get("lab") ?? "", THIS_WEEK);
 
 function openOnSteady() {
-  return render(<ScheduleLab thisWeek={THIS_WEEK} start={presetInputs("steady", THIS_WEEK)} copied={null} scanningOff={false} />);
+  return render(<ScheduleLab thisWeek={THIS_WEEK} testMonths={MONTHS} start={presetInputs("steady", THIS_WEEK, MONTHS)} copied={null} scanningOff={false} />);
 }
 
 describe("Schedule lab", () => {
@@ -57,7 +58,7 @@ describe("Schedule lab", () => {
     expect(within(reasons()).getByText("Near-test week")).toBeTruthy();
     expect(within(reasons()).getByText(/2 LawHub practice tests before your January 1 test/)).toBeTruthy();
     expect(screen.getAllByText(/Practice test 2 of 2/)).toHaveLength(1);
-    expect(linkInputs()).toEqual(presetInputs("soon", THIS_WEEK));
+    expect(linkInputs()).toEqual(presetInputs("soon", THIS_WEEK, MONTHS));
   });
 
   it("rebuilds when a sample direction changes, and keeps it in the page link", async () => {
@@ -80,7 +81,7 @@ describe("Schedule lab", () => {
   });
 
   it("shows where a copied student came from and plans from their upload", () => {
-    render(<ScheduleLab thisWeek={THIS_WEEK} start={copiedInputs(mockStudent, maya, THIS_WEEK)} copied={maya} scanningOff={false} />);
+    render(<ScheduleLab thisWeek={THIS_WEEK} testMonths={MONTHS} start={copiedInputs(mockStudent, maya, THIS_WEEK, MONTHS)} copied={maya} scanningOff={false} />);
     expect(within(inputs()).getByText((_, node) => node?.tagName === "P" && node.textContent === "Copied from Maya Thompson, Nov 13. Edits here do not change the student.")).toBeTruthy();
     expect((within(inputs()).getByRole("combobox", { name: "Preset" }) as HTMLSelectElement).selectedOptions[0]!.textContent).toBe("Maya Thompson (copied)");
     expect((within(inputs()).getByRole("radio", { name: "Their upload" }) as HTMLInputElement).checked).toBe(true);
@@ -89,14 +90,14 @@ describe("Schedule lab", () => {
 
   it("says a copied student without analytics started from Steady", () => {
     const copied = { ...maya, uploadedOn: null, trend: null };
-    render(<ScheduleLab thisWeek={THIS_WEEK} start={copiedInputs(mockStudent, copied, THIS_WEEK)} copied={copied} scanningOff={false} />);
+    render(<ScheduleLab thisWeek={THIS_WEEK} testMonths={MONTHS} start={copiedInputs(mockStudent, copied, THIS_WEEK, MONTHS)} copied={copied} scanningOff={false} />);
     expect(within(inputs()).getByText((_, node) => node?.tagName === "P" && node.textContent === "Maya Thompson has no analytics yet, so the lab started from the Steady preset.")).toBeTruthy();
     expect(within(inputs()).queryByRole("radio", { name: "Their upload" })).toBeNull();
     expect(within(reasons()).getByText("Planned from Steady sample")).toBeTruthy();
   });
 
   it("drops the copy when a preset is picked", async () => {
-    render(<ScheduleLab thisWeek={THIS_WEEK} start={copiedInputs(mockStudent, maya, THIS_WEEK)} copied={maya} scanningOff={false} />);
+    render(<ScheduleLab thisWeek={THIS_WEEK} testMonths={MONTHS} start={copiedInputs(mockStudent, maya, THIS_WEEK, MONTHS)} copied={maya} scanningOff={false} />);
     await userEvent.selectOptions(within(inputs()).getByRole("combobox", { name: "Preset" }), "Steady");
     expect(within(inputs()).queryByText(/Copied from/)).toBeNull();
     expect(linkInputs()?.copiedFrom).toBeNull();
@@ -115,7 +116,7 @@ describe("Schedule lab", () => {
   });
 
   it("opens the built count and shown week from the page link", () => {
-    render(<ScheduleLab thisWeek={THIS_WEEK} start={{ ...presetInputs("steady", THIS_WEEK), built: 4, shown: 2 }} copied={null} scanningOff={false} />);
+    render(<ScheduleLab thisWeek={THIS_WEEK} testMonths={MONTHS} start={{ ...presetInputs("steady", THIS_WEEK, MONTHS), built: 4, shown: 2 }} copied={null} scanningOff={false} />);
     expect(screen.getByRole("heading", { level: 2, name: "Week 3 · Nov 30" })).toBeTruthy();
   });
 
@@ -130,7 +131,7 @@ describe("Schedule lab", () => {
   });
 
   it("keeps the last chain while a value is out of range, and still moves through it", async () => {
-    render(<ScheduleLab thisWeek={THIS_WEEK} start={{ ...presetInputs("steady", THIS_WEEK), built: 2, shown: 1 }} copied={null} scanningOff={false} />);
+    render(<ScheduleLab thisWeek={THIS_WEEK} testMonths={MONTHS} start={{ ...presetInputs("steady", THIS_WEEK, MONTHS), built: 2, shown: 1 }} copied={null} scanningOff={false} />);
     const goal = within(inputs()).getByRole("textbox", { name: "Goal score" });
     await userEvent.clear(goal);
     await userEvent.type(goal, "20");
@@ -169,7 +170,7 @@ describe("Schedule lab", () => {
     }
 
     async function pickScreenshots(scanningOff = false) {
-      render(<ScheduleLab thisWeek={THIS_WEEK} start={presetInputs("steady", THIS_WEEK)} copied={null} scanningOff={scanningOff} />);
+      render(<ScheduleLab thisWeek={THIS_WEEK} testMonths={MONTHS} start={presetInputs("steady", THIS_WEEK, MONTHS)} copied={null} scanningOff={scanningOff} />);
       await userEvent.click(within(inputs()).getByRole("radio", { name: "Screenshots" }));
     }
 

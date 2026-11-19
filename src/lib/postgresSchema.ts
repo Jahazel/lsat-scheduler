@@ -174,3 +174,7 @@ export const stripeMessages = pgTable("stripe_messages", {
   id: text("id").primaryKey(),
   handledAt: timestamp("handled_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const testMonths = pgTable("test_months", {
+  month: date("month", { mode: "string" }).primaryKey(),
+});

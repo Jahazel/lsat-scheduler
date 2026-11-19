@@ -8,6 +8,7 @@ import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import { copiedInputs, presetInputs, readLabLink, type CopiedStudent, type LabInputs } from "@/lib/scheduleLab";
 import { displayName } from "@/lib/studentList";
 import { findStudentWithOwner } from "@/lib/studentRepository";
+import { listTestMonths } from "@/lib/testMonthRepository";
 import { requireAdmin } from "../requireAdmin";
 import { ScheduleLab } from "./ScheduleLab";
 
@@ -27,12 +28,12 @@ async function copyStudent(id: string, thisWeek: string) {
 
 type LabLink = Awaited<PageProps<"/admin/lab">["searchParams"]>;
 
-async function labStart(link: LabLink, thisWeek: string)
+async function labStart(link: LabLink, thisWeek: string, testMonths: readonly string[])
   : Promise<{ inputs: LabInputs; copied: CopiedStudent | null }> {
-  const steady = { inputs: presetInputs("steady", thisWeek), copied: null };
+  const steady = { inputs: presetInputs("steady", thisWeek, testMonths), copied: null };
   if (typeof link.student === "string") {
     const found = await copyStudent(link.student, thisWeek);
-    return found ? { inputs: copiedInputs(found.record, found.copied, thisWeek), copied: found.copied } : steady;
+    return found ? { inputs: copiedInputs(found.record, found.copied, thisWeek, testMonths), copied: found.copied } : steady;
   }
   const inputs = typeof link.lab === "string" ? readLabLink(link.lab, thisWeek) : null;
   if (!inputs) return steady;
@@ -45,12 +46,13 @@ async function labStart(link: LabLink, thisWeek: string)
 export default async function ScheduleLabPage({ searchParams }: PageProps<"/admin/lab">) {
   await requireAdmin();
   const thisWeek = currentWeekInTimezone(new Date(), SCHEDULE_TIMEZONE);
-  const [{ inputs, copied }, scanningOff] = await Promise.all([labStart(await searchParams, thisWeek), readScanningOff(new Date(), "lab")]);
+  const testMonths = await listTestMonths();
+  const [{ inputs, copied }, scanningOff] = await Promise.all([labStart(await searchParams, thisWeek, testMonths), readScanningOff(new Date(), "lab")]);
   return (
     <div data-page-fade className={cx(PAGE_COLUMN, "pt-6 pb-12 md:pt-10")}>
       <PageCue page="admin" />
       <PageArrival page="Schedule lab" />
-      <ScheduleLab thisWeek={thisWeek} start={inputs} copied={copied} scanningOff={scanningOff.analytics} />
+      <ScheduleLab thisWeek={thisWeek} testMonths={testMonths} start={inputs} copied={copied} scanningOff={scanningOff.analytics} />
     </div>
   );
 }
