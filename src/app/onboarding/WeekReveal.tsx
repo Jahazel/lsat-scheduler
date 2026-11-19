@@ -8,9 +8,10 @@ import { cx } from "@/components/ui/classes";
 import { slideOutForServer, stayAfterServer } from "@/lib/pageMotion";
 import { weekReveal, weeksToTest, type PreviewDrill, type SaveInput } from "@/lib/onboardingWizard";
 import { shortDuration } from "@/lib/formatDuration";
-import { DAY_LABEL, type upcomingTestMonths } from "@/lib/studentProfile";
+import { DAY_LABEL } from "@/lib/studentProfile";
 import type { DayOfWeek } from "@/lib/types";
 import { STEP_SLIDE } from "./shell";
+import type { TestMonthOption } from "@/lib/testMonths";
 
 const RISE_MS = [0, 70, 120, 160];
 const BAR_PX = 80;
@@ -39,7 +40,7 @@ export function WeekReveal({
 }: {
   saved: SaveInput;
   today: string;
-  testMonths: ReturnType<typeof upcomingTestMonths>;
+  testMonths: TestMonthOption[];
 }) {
   const week = weekReveal(saved, today);
   const month = testMonths.find((option) => option.value === saved.goalTestDate)?.label;

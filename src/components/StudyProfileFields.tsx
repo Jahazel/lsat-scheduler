@@ -9,7 +9,7 @@ import { DAY_ORDER } from "@/lib/engine";
 import { shortDuration } from "@/lib/formatDuration";
 import { attemptMessage, type OnboardingAttemptRow } from "@/lib/onboardingWizard";
 import type { Accommodation } from "@/lib/studyProfileDraft";
-import { DAY_LABEL, attemptMonths, type upcomingTestMonths } from "@/lib/studentProfile";
+import { DAY_LABEL, attemptMonths } from "@/lib/studentProfile";
 import {
   DAY_SHORT_LABEL,
   TEST_TIME_LABEL,
@@ -19,6 +19,7 @@ import {
   type WeekValues,
 } from "@/lib/studyWeek";
 import type { DayOfWeek } from "@/lib/types";
+import type { TestMonthOption } from "@/lib/testMonths";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 const FIELD_SHAPE = `h-11 w-full rounded-sm border bg-paper px-3 text-body ${FOCUS}`;
@@ -95,7 +96,7 @@ export function GoalTestDateSelect({
 }: {
   label: string;
   value: string;
-  options: ReturnType<typeof upcomingTestMonths>;
+  options: TestMonthOption[];
   messageId?: string | null;
   placeholder?: string;
   noticeId?: string | null;

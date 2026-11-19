@@ -28,7 +28,10 @@ function UploadDot({ className }: { className?: string }) {
 
 const UploadNeeded = () => <span className="sr-only"> analytics upload needed</span>;
 
-export function AvatarMenu({ name, initials, email, logOut, compact }: Pick<StudentNavProps, "name" | "initials" | "email" | "logOut"> & { compact: boolean }) {
+export function AvatarMenu({ name, initials, email, logOut, compact, admin = false }: Pick<StudentNavProps, "name" | "initials" | "email" | "logOut"> & {
+  compact: boolean;
+  admin?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const root = useRef<HTMLDivElement>(null);
@@ -90,6 +93,12 @@ export function AvatarMenu({ name, initials, email, logOut, compact }: Pick<Stud
             <p className="text-caption [overflow-wrap:anywhere] text-smoke">{email}</p>
           </div>
         </div>
+        {admin && (
+          <Link role="menuitem" href="/admin/test-dates" onClick={() => setOpen(false)} className={cx(item, "text-ink")}>
+            <NavIcon name="flag" className="size-4.5 text-smoke" />
+            Test dates
+          </Link>
+        )}
         <Link role="menuitem" href="/account" onClick={() => setOpen(false)} className={cx(item, "text-ink")}>
           <NavIcon name="account" className="size-4.5 text-smoke" />
           Account

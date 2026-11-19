@@ -128,7 +128,7 @@ export default function AdminNav(props: StudentNavProps & { walkthrough?: Walkth
           <Logo href={home} form="mark" />
           <div data-page-fade className="flex min-w-0 items-center gap-2">
             {sideSwitch}
-            <AvatarMenu {...props} compact />
+            <AvatarMenu {...props} compact admin />
           </div>
         </div>
         <div className="hidden md:block">
@@ -139,7 +139,7 @@ export default function AdminNav(props: StudentNavProps & { walkthrough?: Walkth
             </div>
             <div data-page-fade className="flex items-center gap-2 lg:gap-3">
               {sideSwitch}
-              <AvatarMenu {...props} compact={false} />
+              <AvatarMenu {...props} compact={false} admin />
             </div>
           </div>
         </div>
