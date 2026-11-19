@@ -677,12 +677,26 @@ function ScreenshotToggle({ section, file }: { section: AnalyticsSection; file: 
 }
 
 export function ScreenshotCard({ section, file }: { section: AnalyticsSection; file: File }) {
-  const image = useRef<HTMLImageElement>(null);
+  const [shown, setShown] = useState<{ file: File; url: string; width?: number; height?: number } | null>(null);
   useEffect(() => {
-    const url = URL.createObjectURL(file);
-    if (image.current) image.current.src = url;
-    return () => URL.revokeObjectURL(url);
+    let live = true;
+    let url: string | null = null;
+    const show = (size: { width?: number; height?: number }) => {
+      if (!live) return;
+      url = URL.createObjectURL(file);
+      setShown({ file, url, ...size });
+    };
+    createImageBitmap(file).then((bitmap) => {
+      const { width, height } = bitmap;
+      bitmap.close();
+      show({ width, height });
+    }, () => show({}));
+    return () => {
+      live = false;
+      if (url) URL.revokeObjectURL(url);
+    };
   }, [file]);
+  const image = shown?.file === file ? shown : null;
 
   return (
     <figure className="flex flex-col gap-2">
@@ -691,8 +705,11 @@ export function ScreenshotCard({ section, file }: { section: AnalyticsSection; f
         <span className="truncate font-mono text-caption text-smoke">{file.name}</span>
       </figcaption>
       <div className="rounded-sm border border-vellum-line bg-paper p-2 shadow-e1">
-        {/* eslint-disable-next-line @next/next/no-img-element -- a local object URL; next/image cannot load it */}
-        <img ref={image} alt={`Your 7Sage ${SECTION_NAME[section]} screenshot`} className="max-h-[440px] w-full rounded object-contain object-top" />
+        {image && (
+          // eslint-disable-next-line @next/next/no-img-element -- a local object URL; next/image cannot load it
+          <img src={image.url} width={image.width} height={image.height} alt={`Your 7Sage ${SECTION_NAME[section]} screenshot`}
+            className="max-h-[440px] w-full rounded object-contain object-top" />
+        )}
       </div>
     </figure>
   );

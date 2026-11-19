@@ -25,6 +25,7 @@ beforeEach(() => {
       static revokeObjectURL = vi.fn();
     },
   );
+  vi.stubGlobal("createImageBitmap", async () => ({ width: 1200, height: 900, close() {} }));
   vi.stubGlobal("matchMedia", () => ({ matches: false }));
   vi.stubGlobal("scrollTo", vi.fn());
   vi.stubGlobal("ResizeObserver", class {
@@ -124,6 +125,20 @@ describe("OnboardingWizard · frame and Goal", () => {
     await user.tab();
     expect(screen.queryByText(/from your current score/)).toBeNull();
     expect(screen.getByText("Your goal must be higher than your current score, 150.")).toBeDefined();
+  });
+
+  it("gives every Goal and Week field a name or id, so browsers can autofill and name it", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<OnboardingWizard {...student} goalTestDateOptions={options} onSave={vi.fn()} />);
+    const unnamed = () => [...container.querySelectorAll("input, select, textarea")].filter((field) => !field.id && !field.getAttribute("name"));
+
+    expect(unnamed()).toEqual([]);
+    await user.type(screen.getByLabelText("Current PT score"), "150");
+    await user.type(screen.getByLabelText("Goal score"), "165");
+    await user.selectOptions(screen.getByLabelText("Goal test date"), "January 2027");
+    await user.click(continueButton());
+    expect(screen.getByLabelText("Sunday study time")).toBeDefined();
+    expect(unnamed()).toEqual([]);
   });
 
   it("keeps score boxes to three digits and lists past attempts by short month", async () => {
@@ -1136,7 +1151,8 @@ describe("OnboardingWizard", () => {
       expect(toggle.getAttribute("aria-expanded")).toBe("true");
       expect(toggle.textContent).toBe("Hide screenshot of Logical Reasoning");
       const inline = within(document.getElementById(toggle.getAttribute("aria-controls") ?? "")!);
-      await waitFor(() => expect(inline.getByRole("img", { name: "Your 7Sage Logical Reasoning screenshot" }).getAttribute("src")).toBe("blob:screenshot"));
+      const image = await inline.findByRole("img", { name: "Your 7Sage Logical Reasoning screenshot" });
+      expect([image.getAttribute("src"), image.getAttribute("width"), image.getAttribute("height")]).toEqual(["blob:screenshot", "1200", "900"]);
       expect(URL.createObjectURL).toHaveBeenCalledWith(screenshot);
       await user.click(toggle);
       expect(screen.queryByRole("img", { name: "Your 7Sage Logical Reasoning screenshot" })).toBeNull();

@@ -47,6 +47,7 @@ export function FieldMessage({ id, icon = false, children }: { id: string; icon?
 
 export function ScoreInput({
   label,
+  name,
   value,
   messageId,
   hintId = null,
@@ -55,6 +56,7 @@ export function ScoreInput({
   onBlur,
 }: {
   label: string;
+  name: string;
   value: string;
   messageId: string | null;
   hintId?: string | null;
@@ -66,6 +68,7 @@ export function ScoreInput({
     <label className="flex flex-1 flex-col gap-2">
       <span className="text-small font-medium text-ink">{label}</span>
       <input
+        name={name}
         inputMode="numeric"
         autoComplete="off"
         maxLength={3}
