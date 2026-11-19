@@ -24,7 +24,7 @@ const profile: Student = {
 };
 
 beforeEach(async () => {
-  vi.stubEnv("AUTH_SECRET", "inactive-accounts-test-secret-0123456789");
+  vi.stubEnv("EMAIL_HASH_SECRET", "inactive-accounts-test-secret-0123456789");
   vi.stubEnv("RESEND_API_KEY", "");
   vi.stubEnv("VERCEL", "");
   vi.useFakeTimers({ toFake: ["Date"] });

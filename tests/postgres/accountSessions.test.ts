@@ -56,6 +56,7 @@ beforeAll(() => {
   vi.stubEnv("ANTHROPIC_API_KEY", "test-key-never-sent");
 });
 beforeEach(async () => {
+  vi.stubEnv("EMAIL_HASH_SECRET", "account-sessions-email-hash-secret-0123456789");
   request.cookie = "";
   request.setCookie.mockReset();
   request.createMessage.mockReset().mockRejectedValue(new request.APIError("no network in tests"));
