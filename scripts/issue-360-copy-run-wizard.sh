@@ -225,6 +225,10 @@ CSP_PARTS=("'strict-dynamic'" "object-src 'none'" "base-uri 'self'" "form-action
 STUDENT_PAGES=(/dashboard /dashboard/upload /progress /settings /account)
 ADMIN_PAGES=(/admin /admin/lab /api/students)
 PUBLIC_PAGES=(/ /login /signup /legal/privacy /legal/ai-disclosure)
+REAL_DOMAIN=drillmap.xyz
+VERCEL_SCOPE=jahazels-projects
+VERCEL_COPY_PROJECT=drillmap-copy
+have_cli() { command -v "$1" > /dev/null 2>&1; }
 
 record() {
   [[ -f "$RESULTS" ]] || printf '| Step | Result |\n| --- | --- |\n' > "$RESULTS"
@@ -239,6 +243,7 @@ ask_result() {
   while true; do
     read -e -r -p "  $BOLD$2$RESET " answer || true
     if looks_private "$answer"; then warn "That answer holds an @, a token, or a link. Describe it without the value."; continue; fi
+    if [[ -z "$answer" || "$answer" == "$2"* || "$answer" == Expected* ]]; then warn "Type the result you saw, not the question."; continue; fi
     record "$1" "$answer"
     return 0
   done
@@ -271,7 +276,7 @@ paste_result() {
 
 ask_id() {
   while true; do
-    ask "$1" "$2"
+    ask "$1" "$2" || { warn "The input closed. Run the wizard again with --from $_STAGE_INDEX."; exit 1; }
     printf -v "$1" '%s' "${!1#dpl_}"
     if [[ "${!1}" =~ ^[A-Za-z0-9]{10,}$ ]]; then printf -v "$1" 'dpl_%s' "${!1}"; return 0; fi
     warn "That is not a deployment ID. Copy only the part after the last / in the deployment's Vercel address."
@@ -292,7 +297,7 @@ ask_email() {
 
 ask_uuid() {
   while true; do
-    ask "$1" "$2"
+    ask "$1" "$2" || { warn "The input closed. Run the wizard again with --from $_STAGE_INDEX."; exit 1; }
     if [[ "${!1}" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then return 0; fi
     warn "That is not an ID like 1b2c3d4e-…. Copy the id column's value."
     printf -v "$1" '%s' ""; write_env "$1" "" > /dev/null
@@ -404,6 +409,12 @@ scan() {
 }
 
 run_cron() {
+  if have_cli vercel && vercel crons run /api/cron/daily-cleanup --scope "$VERCEL_SCOPE" --project "$VERCEL_COPY_PROJECT" > /dev/null 2>&1; then
+    say "The Vercel CLI started the daily job on the copy. Waiting 20 seconds for it to finish."
+    sleep 20
+    return 0
+  fi
+  have_cli vercel && warn "The Vercel CLI could not start the job. Use the dashboard."
   open_url "https://vercel.com/dashboard"
   step "COPY project > Settings > Cron Jobs. On /api/cron/daily-cleanup, press Run."
   step "Wait until the run shows as finished (about 10 seconds)."
@@ -413,6 +424,7 @@ run_cron() {
 redeploy_copy() {
   step "COPY project > Deployments. On the current Production deployment, open the … menu > Redeploy."
   step "When it is Ready, open it and promote it, so $COPY_HOST serves it."
+  note "If it shows Staged or Running Checks and is not Current, open its … menu > Promote to Production."
   ask_id "$1" "New copy deployment ID (dpl_…):"
   write_env "$1" "${!1}"
 }
@@ -426,12 +438,68 @@ SELECT has_table_privilege('$APP_ROLE', 'public.$1', '$2') AS restored;"
 }
 
 vercel_log_search() {
-  open_url "https://vercel.com/dashboard"
-  step "COPY project > Logs. Set the time range to the last hour (the Hobby plan keeps one hour)."
-  step "Search for each term below, one at a time. Count the matches."
-  say_value "Terms" "$(prefix)   ${ADMIN_EMAIL%@*}   @gmail   eyJ   session-token   sk-ant   sk_test   Bearer   token=   password   base64   tool_use   accuracy"
+  local labels=("student email prefix" "Admin email name" @gmail eyJ session-token sk-ant sk_test Bearer token= password base64 tool_use accuracy)
+  local terms=("$(prefix)" "${ADMIN_EMAIL%@*}" @gmail eyJ session-token sk-ant sk_test Bearer token= password base64 tool_use accuracy)
+  if have_cli vercel && have_cli jq; then
+    local req="$RUN_DIR/log-requests.jsonl" rt="$RUN_DIR/log-runtime.jsonl" page="$RUN_DIR/log-page.jsonl" next="" i hits found=""
+    local flags=(--json --scope "$VERCEL_SCOPE" --project "$VERCEL_COPY_PROJECT")
+    : > "$req"
+    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+      if [[ -n "$next" ]]; then vercel logs requests --next "$next" --since 1h --until now --limit 1000 "${flags[@]}" > "$page" 2>/dev/null || break
+      else vercel logs requests --since 1h --until now --limit 1000 "${flags[@]}" > "$page" 2>/dev/null || break; fi
+      grep '"type":"request"' "$page" >> "$req" || true
+      next=$(grep '"type":"summary"' "$page" | jq -r '.pagination.next // empty' | head -n1)
+      [[ -n "$next" ]] || break
+    done
+    # The Hobby plan keeps runtime logs for one hour, so ask for 59 minutes.
+    vercel logs runtime --since 59m --until now --limit 1000 "${flags[@]}" > "$rt" 2>/dev/null || : > "$rt"
+    say "Searched $(grep -c . "$req" || true) request records and $(grep -c . "$rt" || true) runtime lines from the last hour."
+    for i in "${!terms[@]}"; do
+      (( ${#terms[i]} >= 4 )) || continue
+      hits=$(cat "$req" "$rt" | grep -iF -- "${terms[i]}" | jq -rR 'fromjson? | .data.route // "runtime line"' | sort | uniq -c | awk '{print $2 " x" $1}' | paste -sd, - || true)
+      [[ -n "$hits" ]] && found+="${labels[i]}: $hits; "
+    done
+    rm -f "$req" "$rt" "$page"
+    say_value "Terms that matched, with routes" "${found:-none}"
+    note "Request records hold no bodies. A /forgot-password route match for 'password' is the page path, from link prefetch."
+  else
+    open_url "https://vercel.com/dashboard"
+    step "COPY project > Logs. Set the time range to the last hour (the Hobby plan keeps one hour)."
+    step "Search for each term below, one at a time. Count the matches."
+    say_value "Terms" "${terms[*]}"
+  fi
   note "A match is a problem only when it shows a password, cookie, token, reset link, screenshot, model output, request body, or full email."
   ask_result "$1" "Matches that show private data (0 if none). Name the term and the route, never the value:"
+}
+
+real_deployment() {
+  local id=""
+  if have_cli vercel; then
+    # Read only: inspect names the deployment the real domain serves now.
+    id=$(vercel inspect "$REAL_DOMAIN" --scope "$VERCEL_SCOPE" 2>&1 | grep -oE 'dpl_[A-Za-z0-9]+' | head -n1 || true)
+  fi
+  if [[ -n "$id" ]]; then
+    printf -v "$1" '%s' "$id"
+    say "The real site's live Production deployment: $id"
+    return 0
+  fi
+  open_url "https://vercel.com/dashboard"
+  step "Open the REAL site's Vercel project > Overview. Copy the ID of the Production Deployment the domain serves now."
+  note "Use the live one (marked Current), not the newest build in the Deployments list."
+  ask_id "$1" "$2"
+}
+
+google_cancel() {
+  local jar="$RUN_DIR/google-cancel.jar" csrf loc state landing
+  csrf=$(curl -sS -c "$jar" -b "$jar" "$COPY/api/auth/csrf" | sed -n 's/.*"csrfToken":"\([^"]*\)".*/\1/p')
+  loc=$(curl -sS -o /dev/null -w '%{redirect_url}' -c "$jar" -b "$jar" -H "Origin: $COPY" \
+    --data-urlencode "csrfToken=$csrf" --data-urlencode "callbackUrl=$COPY/" "$COPY/api/auth/signin/google")
+  state=$(printf '%s' "$loc" | sed -n 's/.*[?&]state=\([^&]*\).*/\1/p')
+  # Google answers a Cancel with error=access_denied and its issuer. The consent screen is skipped for an approved app.
+  landing=$(curl -sS -o /dev/null -w '%{redirect_url}' -c "$jar" -b "$jar" \
+    "$COPY/api/auth/callback/google?error=access_denied&state=$state&iss=https%3A%2F%2Faccounts.google.com")
+  rm -f "$jar"
+  printf '%s' "$landing"
 }
 
 run_release_workflow() {
@@ -481,7 +549,7 @@ s_values() {
   say "origin/main: $COMMIT"
   open_url "https://vercel.com/dashboard"
   step "Open the REAL site's Vercel project. Copy the ID of its current Production deployment (starts dpl_)."
-  ask_id REAL_DEPLOYMENT_BEFORE "Real site Production deployment ID:"
+  real_deployment REAL_DEPLOYMENT_BEFORE "Real site live Production deployment ID:"
   write_env REAL_DEPLOYMENT_BEFORE "$REAL_DEPLOYMENT_BEFORE"
   record "1 version" "run t$RUN_TAG started $RUN_STARTED. origin/main $COMMIT. Migrations in the commit: $(migration_list). Real site before: $REAL_DEPLOYMENT_BEFORE"
   pause
@@ -736,9 +804,12 @@ s_refusals() {
   ask_cookie a
   result=$(scan a /api/analytics/extract "$PT_SCREENSHOT" "$out" LR)
   record "11a wrong page scan" "HTTP ${result% *}, reason $(reason_in "$out"), code $(code_in "$out")"
-  step "Private window: sign the Admin out. On Login, press Continue with Google. On Google's screen, press Cancel."
-  ask_result "11b Google cancel" "Where did you land, and what did the page say?"
-  step "Sign the Admin in again with Google."
+  local landing
+  landing=$(google_cancel)
+  say_value "The cancel landed on" "${landing#"$COPY"}"
+  [[ -n "$landing" ]] && open_url "$landing"
+  step "Read the page that opened in the browser."
+  ask_result "11b Google cancel" "Which page is it, and what does it say?"
   show_sql "SELECT event, result, row_count, count(*) FROM security_log
 WHERE logged_at > now() - interval '15 minutes' AND (event = 'model_reply_refused' OR (event = 'sign_in' AND result IN ('googleCancelled', 'setupFault')))
 GROUP BY event, result, row_count;"
@@ -857,7 +928,7 @@ s_legal() {
   get a "$out" "$COPY/dashboard/upload" > /dev/null
   if grep -qF "$NOTICE_TEXT" "$out.body"; then record "15c upload notice" "shown on /dashboard/upload"; else record "15c upload notice" "NOT found on /dashboard/upload"; fi
   step "Read both pages on $COPY with the approved text in docs/security/issue-76-decisions.md beside them."
-  ask_result "15d text read" "Do both pages match the approved text and today's facts? Note any difference:"
+  ask_result "15d text read" "Do both pages match the approved text and today's facts? Note any difference. Write 'the privacy address', never the address:"
   step "From your own email, send a short test message to privacy@drillmap.xyz. Check the DrillMap mailbox."
   ask_result "15e privacy mailbox" "Did it arrive? Is 2-Step Verification on for that mailbox?"
   pause
@@ -899,23 +970,40 @@ s_restore() {
   node -e 'const f=process.argv[1],h=process.argv[2],l=require(f);for(const x of [h,h.replace(/^(ep-[^.]+)/,"$1-pooler")])if(!l.includes(x))l.push(x);require("fs").writeFileSync(f,JSON.stringify(l,null,2)+"\n")' \
     "$REPO_ROOT/scripts/copyDatabaseHosts.json" "$RESTORED_HOST"
   local restored_url current_url auth_secret first second
-  step "Copy the RESTORED branch's owner connection string (Connect dialog, sslmode=verify-full)."
-  ask_secret restored_url "Restored branch connection string (hidden):"
-  step "Copy the CURRENT copy branch's owner connection string."
-  ask_secret current_url "Current branch connection string (hidden):"
-  step "Copy the copy's AUTH_SECRET (Vercel copy project settings, or your password manager)."
+  if have_cli neonctl; then
+    restored_url=$(neonctl connection-string "$RESTORED_BRANCH" --project-id "$project" --database-name neondb --role-name neondb_owner --ssl verify-full 2>/dev/null || true)
+    current_url=$(neonctl connection-string "$branch" --project-id "$project" --database-name neondb --role-name neondb_owner --ssl verify-full 2>/dev/null || true)
+  fi
+  if [[ -z "${restored_url:-}" ]]; then
+    step "Copy the RESTORED branch's owner connection string (Connect dialog, sslmode=verify-full)."
+    ask_secret restored_url "Restored branch connection string (hidden):"
+  fi
+  if [[ -z "${current_url:-}" ]]; then
+    step "Copy the CURRENT copy branch's owner connection string."
+    ask_secret current_url "Current branch connection string (hidden):"
+  fi
+  step "Copy the copy's AUTH_SECRET (your password manager). Vercel cannot show it, because it is Sensitive."
+  note "Without it the replay matches Accounts only by ID. Type any stand-in, and record that email-hash matching was not tested."
   ask_secret auth_secret "Copy's AUTH_SECRET (hidden):"
   clear_clipboard
   first=$(cd "$REPO_ROOT" && DATABASE_URL="$restored_url" DELETION_LIST_URL="$current_url" AUTH_SECRET="$auth_secret" npm run -s replay-deletions 2>&1 | tail -n1 || true)
   second=$(cd "$REPO_ROOT" && DATABASE_URL="$restored_url" DELETION_LIST_URL="$current_url" AUTH_SECRET="$auth_secret" npm run -s replay-deletions 2>&1 | tail -n1 || true)
-  unset restored_url current_url auth_secret
+  unset current_url auth_secret
   cp "$RUN_DIR/copyDatabaseHosts.json" "$REPO_ROOT/scripts/copyDatabaseHosts.json"
   record "16c replay" "first: $first second: $second (expected at least 2 deleted, then 0)"
-  show_sql "SELECT count(*) FILTER (WHERE email IN ('$(addr c)', '$(addr d)')) AS c_and_d,
+  local check_sql counts=""
+  check_sql="SELECT count(*) FILTER (WHERE email IN ('$(addr c)', '$(addr d)')) AS c_and_d,
   (SELECT count(*) FROM students WHERE id = '$C_STUDENT_ID') AS c_student
 FROM accounts;"
-  note "Run this on the RESTORED branch (choose it in the SQL Editor's branch menu). Expected 0, 0."
-  paste_result "16d restored branch"
+  if have_cli psql; then counts=$(PGSSLROOTCERT=system psql "$restored_url" -X -A -t -F ' ' -c "$check_sql" 2>/dev/null || true); fi
+  unset restored_url
+  if [[ -n "$counts" ]]; then
+    record "16d restored branch" "c_and_d, c_student on $RESTORED_BRANCH by psql: $counts (expected 0 0)"
+  else
+    show_sql "$check_sql"
+    note "Run this on the RESTORED branch (choose it in the SQL Editor's branch menu). Expected 0, 0."
+    paste_result "16d restored branch"
+  fi
   step "Delete the restored branch in the Neon console. Delete any other restore or _old_ branch named by the age check."
   pause "When the branch is deleted, press Enter"
   ages=$(cd "$REPO_ROOT" && BACKUP_PROJECT_ID="$project" BACKUP_BRANCH_ID="$branch" NEON_API_KEY="$neon_key" npm run -s check-backup-ages 2>&1 || true)
@@ -935,8 +1023,9 @@ s_enforce() {
   say "Walk the pages again with the console filter 'Content Security Policy'. Enforced errors say 'Refused to …' without [Report Only]."
   step "Private window: sign the Admin out and in again with Google. Open Admin, a student's page, and the test lab."
   step "Normal window: sign A out, then sign in again with the password on /login."
-  step "Normal window: sign up E ($(addr e), password $P_E), verify, and finish onboarding up to the Stripe Checkout page."
-  step "Normal window, as A: This week, the weekly upload with a screenshot preview, Progress, Study settings, Account."
+  step "Normal window: sign A out. Sign up E ($(addr e), password $P_E), verify, and finish onboarding up to the Stripe Checkout page."
+  note "Check the screenshot preview on E's Screenshots step: A's weekly upload is closed after A uploads this week."
+  step "Normal window: sign E out and A in. Open This week, Progress, Study settings, Account."
   ask_result "17f enforced walk" "How many CSP errors, on which pages? Did every page work, with bars and the preview showing?"
   pause
 }
@@ -959,19 +1048,53 @@ FROM security_log WHERE logged_at > '$RUN_STARTED' GROUP BY event, result ORDER 
   pause
 }
 
+stripe_key_file() {
+  local main
+  main=$(dirname "$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)")
+  for f in "$REPO_ROOT/.env.local" "$main/.env.local"; do [[ -f "$f" ]] && { printf '%s' "$f"; return 0; }; done
+  return 1
+}
+
+stripe_get() { printf 'user = "%s:"\n' "$1" | curl -sS -K - "${@:2}"; }
+
+stripe_cancel_a() {
+  local file key cust sub done_n=0 e_subs=0
+  have_cli jq || return 0
+  file=$(stripe_key_file) || return 0
+  key=$(sed -n 's/^STRIPE_SECRET_KEY=//p' "$file" | tr -d "\"'" | head -n1)
+  # Only a test key may run here. A live key is never on this computer.
+  [[ "$key" == sk_test_* ]] || return 0
+  for cust in $(stripe_get "$key" -G https://api.stripe.com/v1/customers --data-urlencode "email=$(addr a)" | jq -r '.data[].id'); do
+    for sub in $(stripe_get "$key" -G https://api.stripe.com/v1/subscriptions -d "customer=$cust" -d status=all | jq -r '.data[] | select(.status != "canceled") | .id'); do
+      [[ "$(stripe_get "$key" -X DELETE "https://api.stripe.com/v1/subscriptions/$sub" | jq -r .status)" == canceled ]] && done_n=$((done_n + 1))
+    done
+  done
+  for cust in $(stripe_get "$key" -G https://api.stripe.com/v1/customers --data-urlencode "email=$(addr e)" | jq -r '.data[].id'); do
+    e_subs=$((e_subs + $(stripe_get "$key" -G https://api.stripe.com/v1/subscriptions -d "customer=$cust" -d status=all | jq -r '.data | length')))
+  done
+  unset key
+  printf 'A: %s subscription(s) cancelled through the Stripe API with the copy test key. E: %s subscription(s).' "$done_n" "$e_subs"
+}
+
 s_cleanup() {
   stage "Clean up"
   show_sql "DELETE FROM accounts WHERE email LIKE '$(prefix)%';
 SELECT count(*) AS test_accounts_left FROM accounts WHERE email LIKE '$(prefix)%';"
   ask_result "19a test Accounts" "Expected DELETE (3 or 4), then 0. What did it show?"
-  step "Stripe sandbox > Subscriptions: cancel A's subscription now. Deleting rows in SQL does not reach Stripe. E stopped at Checkout and has none."
-  ask_result "19b Stripe" "Is A's subscription cancelled, and does E have none?"
+  local stripe_line
+  stripe_line=$(stripe_cancel_a)
+  if [[ -n "$stripe_line" ]]; then
+    record "19b Stripe" "$stripe_line"
+  else
+    note "The copy uses its own Stripe test account, \"DrillMap sandbox\". It is not the sandbox in the DrillMap account menu."
+    step "Sign in to that test account > Subscriptions (status All): cancel A's subscription now. Deleting rows in SQL does not reach Stripe."
+    ask_result "19b Stripe" "Is A's subscription cancelled, and does E have none?"
+  fi
   open_url "https://console.neon.tech/app/settings/api-keys"
   step "Revoke the issue-360-age-check API key."
   pause "When it is revoked, press Enter"
   step "Keep CSP_MODE = enforce on the copy. Check that ANTHROPIC_BASE_URL is gone from copy Production."
-  open_url "https://vercel.com/dashboard"
-  ask_id REAL_DEPLOYMENT_AFTER "Real site Production deployment ID now:"
+  real_deployment REAL_DEPLOYMENT_AFTER "Real site live Production deployment ID now:"
   git -C "$REPO_ROOT" fetch -q origin main
   record "19c real site after" "$REAL_DEPLOYMENT_AFTER (before: $REAL_DEPLOYMENT_BEFORE). origin/main now $(git -C "$REPO_ROOT" rev-parse --short origin/main); run used $(printf '%.7s' "$COMMIT")"
   record "19d end" "$(now_utc)"
