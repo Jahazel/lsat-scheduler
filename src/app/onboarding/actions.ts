@@ -12,6 +12,7 @@ import { isPlanName, PLAN_CHOICE_PATHS } from "@/lib/planChoice";
 import { mayStartWeeklyUpload } from "@/lib/planStatus";
 import { startCheckout } from "@/lib/stripeCheckout";
 import { parseOfficialAttempts, parseStudentProfile, type OfficialAttempt, type StudentProfileInput } from "@/lib/studentProfile";
+import { listTestMonths } from "@/lib/testMonthRepository";
 import type { AnalyticsExtractedRow } from "@/lib/types";
 import type { Answer } from "@/lib/unexpectedFailure";
 
@@ -31,7 +32,7 @@ export async function createStudentProfile(
     const { officialAttempts, analyticsRows, analyticsApproval, ...profile } = input;
     const clock = await studentSideClock(session.user);
     const today = dateInScheduleTimezone(clock.now);
-    const studentFields = parseStudentProfile(profile, today);
+    const studentFields = parseStudentProfile(profile, today, await listTestMonths());
     const attempts = parseOfficialAttempts(officialAttempts, today);
 
     const existing = await findStudentByAccountId(session.user.id);

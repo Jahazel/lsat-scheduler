@@ -9,7 +9,8 @@ import {
   DIRECTION_LABEL, PRESET_GROUPS, REASON_NAME, buildLabChain, chainEndText, encodeLabLink, fieldErrors, hasErrors, labWeeks, plannedFrom, presetInputs,
   presets, shortDay, showWeek, staleReason, weekReasons, type CopiedStudent, type LabChain, type LabInputs, type LabRead, type LabWeek,
 } from "@/lib/scheduleLab";
-import { everyDay, upcomingTestMonths } from "@/lib/studentProfile";
+import { everyDay } from "@/lib/studentProfile";
+import { testMonthOptions } from "@/lib/testMonths";
 import { PRESS } from "../StudentsLedger";
 import { LabScreenshots, useLabScreenshots } from "./LabScreenshots";
 
@@ -23,6 +24,7 @@ type Lab = {
   set: (change: Partial<LabInputs>) => void;
   start: (inputs: LabInputs) => void;
   thisWeek: string;
+  testMonths: readonly string[];
   copied: CopiedStudent | null;
 };
 
@@ -43,11 +45,11 @@ function PresetSelect({ lab }: { lab: Lab }) {
   return (
     <label className="flex min-w-0 flex-col gap-2">
       <span className="sr-only">Preset</span>
-      <select value={inputs.preset} onChange={(e) => lab.start(presetInputs(e.target.value, lab.thisWeek))} className={SELECT}>
+      <select value={inputs.preset} onChange={(e) => lab.start(presetInputs(e.target.value, lab.thisWeek, lab.testMonths))} className={SELECT}>
         {inputs.preset === "student" && copied && <option value="student" disabled>{copied.name} (copied)</option>}
         {PRESET_GROUPS.map((group) => (
           <optgroup key={group} label={group}>
-            {presets(lab.thisWeek).filter((p) => p.group === group).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+            {presets(lab.thisWeek, lab.testMonths).filter((p) => p.group === group).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </optgroup>
         ))}
       </select>
@@ -78,7 +80,7 @@ function Score({ lab, which, label, message }: { lab: Lab; which: "current" | "g
 
 function TestMonth({ lab, message }: { lab: Lab; message?: string }) {
   const id = useId();
-  const options = upcomingTestMonths(lab.inputs.weekOf);
+  const options = testMonthOptions(lab.testMonths, lab.inputs.weekOf);
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <GoalTestDateSelect label="Goal test month" value={options.some((m) => m.value === lab.inputs.testMonth) ? lab.inputs.testMonth : ""} options={options}
@@ -163,22 +165,22 @@ function chainPlace(chain: LabChain | null, shown: number, testMonth: string) {
 
 type Built = { inputs: LabInputs; read: LabRead | null };
 
-export function ScheduleLab({ thisWeek, start, copied, scanningOff }: {
-  thisWeek: string; start: LabInputs; copied: CopiedStudent | null; scanningOff: boolean;
+export function ScheduleLab({ thisWeek, testMonths, start, copied, scanningOff }: {
+  thisWeek: string; testMonths: readonly string[]; start: LabInputs; copied: CopiedStudent | null; scanningOff: boolean;
 }) {
   const [inputs, setInputs] = useState(start);
   const screenshots = useLabScreenshots(scanningOff);
   const read = inputs.analytics.kind === "screenshots" ? screenshots.read : null;
   const [built, setBuilt] = useState<Built | null>(null);
   const [allDays, setAllDays] = useState(start.days.MONDAY);
-  const errors = fieldErrors(inputs, read);
+  const errors = fieldErrors(inputs, testMonths, read);
   const stale = hasErrors(errors);
   if (!stale && (built?.inputs !== inputs || built.read !== read)) setBuilt({ inputs, read });
   const showCopy = inputs.copiedFrom !== null ? copied : null;
   const [travel, setTravel] = useState<Travel | null>(null);
   const chain = useMemo(
-    () => (built ? buildLabChain(built.inputs, built.inputs.copiedFrom !== null ? copied : null, built.read) : null),
-    [built, copied],
+    () => (built ? buildLabChain(built.inputs, testMonths, built.inputs.copiedFrom !== null ? copied : null, built.read) : null),
+    [built, testMonths, copied],
   );
   const place = chainPlace(chain, inputs.shown, built?.inputs.testMonth ?? inputs.testMonth);
   const week = place?.week ?? null;
@@ -197,7 +199,7 @@ export function ScheduleLab({ thisWeek, start, copied, scanningOff }: {
     link(next);
   };
   const lab: Lab = {
-    inputs, thisWeek, copied: showCopy,
+    inputs, thisWeek, testMonths, copied: showCopy,
     set: (change) => apply({ ...inputs, ...change }),
     start: (next) => {
       apply(next);

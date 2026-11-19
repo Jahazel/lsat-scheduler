@@ -3,6 +3,7 @@ import { DAY_ORDER } from "./engine";
 import { shortDuration } from "./formatDuration";
 import { mockRules } from "./mockData";
 import type { Accommodation } from "./studyProfileDraft";
+import { testMonthName, testMonthOptions } from "./testMonths";
 import type { DayOfWeek } from "./types";
 
 export const DAY_LABEL: Record<DayOfWeek, string> = {
@@ -63,21 +64,8 @@ export function practiceTestDayError(
   return `${DAY_LABEL[day]} needs at least ${shortDuration(shortestOffered)} for a full practice test. Add time or pick another day.`;
 }
 
-const LSAT_TEST_MONTHS = ["2026-10-01", "2026-11-01", "2027-01-01", "2027-02-01", "2027-04-01", "2027-06-01"];
-
-const testMonthLabel = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
-
-// `today` is the student-side date (YYYY-MM-DD), so an admin's simulated date
-// changes the list.
-export function upcomingTestMonths(today: string) {
-  return LSAT_TEST_MONTHS.filter((month) => month > today).map((value) => ({
-    value,
-    label: testMonthLabel.format(new Date(`${value}T00:00:00Z`)),
-  }));
-}
-
 export function goalTestMonth(goalTestDate: string, today: string) {
-  return { label: testMonthLabel.format(new Date(`${goalTestDate}T00:00:00Z`)), passed: goalTestDate <= today };
+  return { label: testMonthName(goalTestDate), passed: goalTestDate <= today };
 }
 
 const dayOfWeekSchema = z.enum(DAY_ORDER as [DayOfWeek, ...DayOfWeek[]]);
@@ -111,9 +99,9 @@ export const studentProfileSchema = z.object({
 
 // The server-side parse: the goal test date must also be one the form offers
 // today, so a form left open past a test month cannot save it.
-export function parseStudentProfile(input: unknown, today: string) {
+export function parseStudentProfile(input: unknown, today: string, testMonths: readonly string[]) {
   return studentProfileSchema
-    .refine((profile) => upcomingTestMonths(today).some((month) => month.value === profile.goalTestDate), {
+    .refine((profile) => testMonthOptions(testMonths, today).some((month) => month.value === profile.goalTestDate), {
       path: ["goalTestDate"],
       message: "Choose an upcoming LSAT test month.",
     })
@@ -126,9 +114,11 @@ export type StudentProfileInput = Omit<z.input<typeof studentProfileSchema>, "pl
 
 export type StudySettingsInput = Omit<StudentProfileInput, "currentScore"> & { officialAttempts: OfficialAttempt[] };
 
-export function parseStudySettings({ officialAttempts, ...input }: StudySettingsInput, storedCurrentScore: number, today: string) {
+export function parseStudySettings(
+  { officialAttempts, ...input }: StudySettingsInput, storedCurrentScore: number, today: string, testMonths: readonly string[],
+) {
   return {
-    settings: parseStudentProfile({ ...input, currentScore: storedCurrentScore }, today),
+    settings: parseStudentProfile({ ...input, currentScore: storedCurrentScore }, today, testMonths),
     officialAttempts: parseOfficialAttempts(officialAttempts, today),
   };
 }

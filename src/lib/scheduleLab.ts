@@ -5,7 +5,8 @@ import { DAY_ORDER, generateWeek } from "./engine";
 import { mockRules } from "./mockData";
 import { generateSampleAnalytics, type SampleDirection } from "./sampleAnalytics";
 import { isoDateInWeek } from "./scheduleReasonText";
-import { dailyCapacityError, everyDay, practiceTestDayError, upcomingTestMonths } from "./studentProfile";
+import { dailyCapacityError, everyDay, practiceTestDayError } from "./studentProfile";
+import { testMonthOptions } from "./testMonths";
 import { goalScoreMessage, inScoreRange, parseScoreText, scoreRangeMessage, type Accommodation } from "./studyProfileDraft";
 import type { PracticeTestResult } from "./practiceTestResult";
 import type { AnalyticsExtractedRow, AnalyticsTrend, DayOfWeek, PlanningAnalytics, ScheduleReasonCode, Student, WeeklySchedule } from "./types";
@@ -65,30 +66,30 @@ export const labWeeks = (thisWeek: string) =>
 
 const mondayOnOrBefore = (iso: string) => isoDateInWeek(iso, -((new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7));
 
-function steadyTestMonth(thisWeek: string) {
-  const months = upcomingTestMonths(thisWeek).map((m) => m.value);
+function steadyTestMonth(thisWeek: string, testMonths: readonly string[]) {
+  const months = testMonthOptions(testMonths, thisWeek).map((m) => m.value);
   return months.find((month) => month >= isoDateInWeek(thisWeek, 8 * 7)) ?? months.at(-1) ?? "";
 }
 
-function nearTestWeek(thisWeek: string) {
+function nearTestWeek(thisWeek: string, testMonths: readonly string[]) {
   const weeks = labWeeks(thisWeek).map((w) => w.value);
-  for (const { value } of upcomingTestMonths(thisWeek)) {
+  for (const { value } of testMonthOptions(testMonths, thisWeek)) {
     const weekOf = mondayOnOrBefore(isoDateInWeek(value, -7));
     if (weeks.includes(weekOf)) return { weekOf, testMonth: value };
   }
-  return { weekOf: thisWeek, testMonth: steadyTestMonth(thisWeek) };
+  return { weekOf: thisWeek, testMonth: steadyTestMonth(thisWeek, testMonths) };
 }
 
-const steadyInputs = (thisWeek: string): LabInputs => ({
-  preset: "steady", copiedFrom: null, weekOf: thisWeek, current: "150", goal: "165", testMonth: steadyTestMonth(thisWeek),
+const steadyInputs = (thisWeek: string, testMonths: readonly string[]): LabInputs => ({
+  preset: "steady", copiedFrom: null, weekOf: thisWeek, current: "150", goal: "165", testMonth: steadyTestMonth(thisWeek, testMonths),
   accommodation: 1, days: { ...everyDay(120), SATURDAY: 210 }, ptDay: "SATURDAY", analytics: { kind: "sample", direction: "steady" },
   built: 1, shown: 0,
 });
 
 export type Preset = { id: PresetId; label: string; group: (typeof PRESET_GROUPS)[number]; inputs: LabInputs };
 
-export function presets(thisWeek: string): Preset[] {
-  const steady = steadyInputs(thisWeek);
+export function presets(thisWeek: string, testMonths: readonly string[]): Preset[] {
+  const steady = steadyInputs(thisWeek, testMonths);
   const preset = (id: PresetId, label: string, group: Preset["group"], change: Partial<LabInputs>): Preset =>
     ({ id, label, group, inputs: { ...steady, ...change, preset: id } });
   return [
@@ -96,16 +97,18 @@ export function presets(thisWeek: string): Preset[] {
     preset("steady", "Steady", "Sample directions", {}),
     preset("slipping", "Slipping", "Sample directions", { analytics: { kind: "sample", direction: "slipping" } }),
     preset("double", "2× time", "Edge cases", { accommodation: 2, days: { ...everyDay(120), SATURDAY: 240 } }),
-    preset("soon", "Test in 3 weeks", "Edge cases", nearTestWeek(thisWeek)),
+    preset("soon", "Test in 3 weeks", "Edge cases", nearTestWeek(thisWeek, testMonths)),
     preset("short", "30 min days", "Edge cases", { days: { ...everyDay(30), SATURDAY: 150 } }),
   ];
 }
 
-export const presetInputs = (id: string, thisWeek: string) =>
-  (presets(thisWeek).find((p) => p.id === id) ?? presets(thisWeek)[1]!).inputs;
+export function presetInputs(id: string, thisWeek: string, testMonths: readonly string[]) {
+  const all = presets(thisWeek, testMonths);
+  return (all.find((p) => p.id === id) ?? all[1]!).inputs;
+}
 
-export function copiedInputs(student: Student, copied: CopiedStudent, thisWeek: string): LabInputs {
-  if (!copied.trend) return { ...steadyInputs(thisWeek), copiedFrom: copied.id };
+export function copiedInputs(student: Student, copied: CopiedStudent, thisWeek: string, testMonths: readonly string[]): LabInputs {
+  if (!copied.trend) return { ...steadyInputs(thisWeek, testMonths), copiedFrom: copied.id };
   return {
     preset: "student", copiedFrom: copied.id, weekOf: thisWeek,
     current: String(student.currentScore), goal: String(student.goalScore), testMonth: student.goalTestDate,
@@ -114,7 +117,7 @@ export function copiedInputs(student: Student, copied: CopiedStudent, thisWeek: 
   };
 }
 
-export function fieldErrors(inputs: LabInputs, read: LabRead | null = null): LabErrors {
+export function fieldErrors(inputs: LabInputs, testMonths: readonly string[], read: LabRead | null = null): LabErrors {
   const errors: LabErrors = { days: {} };
   if (inputs.analytics.kind === "screenshots" && !read) errors.screenshots = "Add the Logical Reasoning and Reading Comprehension screenshots.";
   const current = parseScoreText(inputs.current);
@@ -123,7 +126,7 @@ export function fieldErrors(inputs: LabInputs, read: LabRead | null = null): Lab
     ? goalScoreMessage(current, inputs.goal)
     : inScoreRange(parseScoreText(inputs.goal)) ? null : scoreRangeMessage("the goal score");
   if (goal) errors.goal = goal;
-  if (!upcomingTestMonths(inputs.weekOf).some((m) => m.value === inputs.testMonth)) errors.testMonth = "Choose a test month after this week.";
+  if (!testMonthOptions(testMonths, inputs.weekOf).some((m) => m.value === inputs.testMonth)) errors.testMonth = "Choose a test month after this week.";
   for (const day of DAY_ORDER) {
     const message = dailyCapacityError(inputs.days[day]);
     if (message) errors.days[day] = message;
@@ -191,8 +194,10 @@ const priorSundayTestMinutes = (prior: WeeklySchedule | undefined) => {
   return sunday?.type === "practice_test" ? sunday.activities.find((activity) => activity.kind === "PT")?.minutes : undefined;
 };
 
-export function buildLabChain(inputs: LabInputs, copied: CopiedStudent | null, read: LabRead | null = null): LabChain | null {
-  if (hasErrors(fieldErrors(inputs, read))) return null;
+export function buildLabChain(
+  inputs: LabInputs, testMonths: readonly string[], copied: CopiedStudent | null, read: LabRead | null = null,
+): LabChain | null {
+  if (hasErrors(fieldErrors(inputs, testMonths, read))) return null;
   const a = inputs.analytics;
   const screenshots = a.kind === "screenshots" && read ? summarizeAnalyticsRows([...read.lr, ...read.rc]) : null;
   const copiedTrend = a.kind === "student" ? copied?.trend : null;
