@@ -99,6 +99,9 @@ Rotate the Stripe secret key and the Stripe message secret after a leak, and in 
 | Copy | Sandbox (test mode) | Test secret key (`sk_test_`). Your computer's `.env.local` holds the same key (J7). | The copy's endpoint signing secret |
 | Real site | Live mode | Restricted live key (`rk_live_`) | The real site's endpoint signing secret |
 
+The copy's sandbox is its own Stripe test account, named "DrillMap sandbox". It is not the sandbox in the
+DrillMap account menu. Look for the copy's customers and subscriptions there.
+
 The real site also has a price-check key: a restricted live key whose only permission is Prices: Read. The
 release check in J8 uses it. It lives only in the password manager.
 
