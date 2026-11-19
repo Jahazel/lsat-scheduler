@@ -34,7 +34,7 @@ A visitor or student sees the DrillMap route logo wherever the site names itself
 | Rest, dark ground | Landing footer (Void Eclipse after #813) and legal footer (graphite) | Reversed logo: every part Silver Mist |
 | Log in and Sign up below 1200 px | Phone and tablet widths | No logo on the glow band (owner, 2026-11-11: the reversed logo on the band looked ugly) |
 | Keyboard focus | Tab onto a logo link | The site's focus ring around the whole logo; the dark-ground ring on dark grounds |
-| Phone, signed in | Signed-in bar below the desktop width, sometimes beside the workspace switcher | A logo that fits beside the switcher and the tab pill at 320 px |
+| Phone, signed in | Signed-in bar below the desktop width; on the admin top bar, beside the Admin / Student switch and the avatar | A logo that fits beside the Admin / Student switch and the avatar at 320 px |
 | Page change | Moving between pages that both show a top-bar logo | The existing glide; no new logo motion |
 | Reduced motion | The device asks for less motion | No glide (existing rule) |
 | Browser tab | Any page | The small cut at 16 px; it stays readable on a light and on a dark browser tab |
@@ -43,7 +43,7 @@ A visitor or student sees the DrillMap route logo wherever the site names itself
 
 The logo shows no user data. The layout cases are:
 
-- The narrowest phone, 320 px, with the workspace switcher and the tab pill beside the logo.
+- The narrowest phone, 320 px, on the admin top bar with the Admin / Student switch and the avatar beside the logo.
 - 200% browser zoom on every top bar.
 - Log in and Sign up below 1200 px keep the empty logo row above the form, as the screenshots show; only the logo goes.
 - Light and dark browser tabs for the favicon.

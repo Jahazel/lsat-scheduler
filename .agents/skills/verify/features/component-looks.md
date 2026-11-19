@@ -2,7 +2,7 @@
 
 Vitest runs in jsdom, which computes no styles, and lint refuses class-name checks in `src/**/*.test.{ts,tsx}`. These looks are proved only here. Run this recipe when a change touches `src/components/ui/`, `FOCUS` or `MOTION` in `src/components/ui/classes.ts`, the test dock, the Admin / Student switch, the nav tabs, the check-in lines, the screenshot file rows, the phone classes in `src/app/dashboard/upload/WeeklyUpload.tsx`, or the failure toast (`src/components/FailureNotice.tsx`, `src/lib/callAction.ts`).
 
-Read each value with `getComputedStyle` in a short read-only `page.evaluate`. Colour and outline transitions run for up to 200 ms, so wait about 400 ms after a focus or state change before reading. Reach keyboard focus with `Shift+Tab` then `Tab` from the control, so `:focus-visible` matches. Colours: accent `rgb(18, 58, 148)`, danger `rgb(240, 82, 79)`, danger ink `rgb(194, 53, 50)`, smoke `rgb(92, 92, 92)`, ink `rgb(10, 10, 10)`, vellum line `rgb(228, 228, 228)`.
+Read each value with `getComputedStyle` in a short read-only `page.evaluate`. Colour and outline transitions run for up to 200 ms, so wait about 400 ms after a focus or state change before reading. Reach keyboard focus with `Shift+Tab` then `Tab` from the control, so `:focus-visible` matches. Colours: accent `rgb(43, 59, 121)`, danger `rgb(240, 82, 79)`, danger ink `rgb(194, 53, 50)`, smoke `rgb(92, 92, 92)`, ink `rgb(10, 10, 10)`, vellum line `rgb(228, 228, 228)`.
 
 ## Entry points
 
