@@ -412,7 +412,8 @@ Steps:
    - Delete a test Account that used its free week after the rotation, and sign up again with the same email.
      Checkout offers no free week.
    - Do the same with a test Account that used its free week before the rotation; delete it after the
-     rotation. Checkout offers a free week again, because of the defect above. Record it as the defect, not
+     rotation. Start its free week at least a day before the rotation, so Stripe's messages for it were
+     handled before it. Checkout offers a free week again, because of the defect above. Record it as the defect, not
      as a pass.
 
 ### Rotate the Anthropic key
@@ -653,10 +654,11 @@ This key exists only for the real site (J8), so this section has no copy steps.
      https://SITE/api/stripe/webhook
    ```
 
-2. Copy only: send a message signed with the old test secret from step 1. The site must answer `400`.
+2. Copy only: send a message signed with the old test secret from step 1. The site must answer `400`. The
+   check stops with an error when the shell holds no old secret, so a blank prompt cannot pass.
 
    ```sh
-   node -e '
+   : "${OLD_WEBHOOK_SECRET:?enter the old secret from step 1}" && node -e '
    const { createHmac } = require("crypto");
    const body = JSON.stringify({ id: "evt_rotation_check", type: "customer.subscription.updated" });
    const t = Math.floor(Date.now() / 1000);
