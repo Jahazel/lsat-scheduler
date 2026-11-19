@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  LIST_START, cleared, countsOf, listQuery, listStateFrom, narrowed, visible, type ListState, type StudentRow,
+  LIST_START, THIS_WEEK_LABELS, cleared, countsOf, listQuery, listStateFrom, narrowed, visible, type ListState, type StudentRow,
 } from "./studentList";
 
 const row = (name: string, extra: Partial<StudentRow> = {}): StudentRow => ({
@@ -9,7 +9,7 @@ const row = (name: string, extra: Partial<StudentRow> = {}): StudentRow => ({
   email: `${name.toLowerCase() || "nobody"}@example.test`,
   plan: "paid",
   needsAnalytics: false,
-  hasThisWeek: true,
+  thisWeek: "ready",
   weeklyMinutes: 600,
   goalTestDate: "2027-01-01",
   joinedAt: new Date("2026-10-01T12:00:00Z"),
@@ -20,8 +20,8 @@ const ROWS = [
   row("Maya", { plan: "paid", joinedAt: new Date("2026-09-02T12:00:00Z") }),
   row("Daniel", { plan: "free_week", needsAnalytics: true, joinedAt: new Date("2026-11-09T12:00:00Z") }),
   row("Priya", { plan: "retrying", joinedAt: new Date("2026-10-05T12:00:00Z") }),
-  row("Lucas", { plan: "lapsed", hasThisWeek: false, joinedAt: new Date("2026-08-17T12:00:00Z") }),
-  row("Hannah", { plan: "no_plan", needsAnalytics: true, hasThisWeek: false, joinedAt: new Date("2026-11-12T12:00:00Z") }),
+  row("Lucas", { plan: "lapsed", thisWeek: "none", joinedAt: new Date("2026-08-17T12:00:00Z") }),
+  row("Hannah", { plan: "no_plan", needsAnalytics: true, thisWeek: "none", joinedAt: new Date("2026-11-12T12:00:00Z") }),
 ];
 
 const names = (rows: StudentRow[]) => rows.map((r) => r.name);
@@ -34,6 +34,23 @@ describe("counts", () => {
 
   it("are all zero with no students", () => {
     expect(countsOf([])).toEqual({ all: 0, paid: 0, free_week: 0, trouble: 0, no_plan: 0, analytics: 0, week: 0 });
+  });
+});
+
+describe("a held week", () => {
+  const rows = [...ROWS, row("Omar", { plan: "free_week", thisWeek: "held" })];
+
+  it("is not counted as having this week's schedule", () => {
+    expect(countsOf(rows).week).toBe(3);
+  });
+
+  it("does not match Has this week's schedule", () => {
+    expect(names(visible(rows, { ...LIST_START, week: true }))).toEqual(["Daniel", "Maya", "Priya"]);
+    expect(names(visible(rows, LIST_START))).toContain("Omar");
+  });
+
+  it("reads Held, apart from Ready and None", () => {
+    expect(THIS_WEEK_LABELS).toEqual({ ready: "Ready", held: "Held", none: "None" });
   });
 });
 

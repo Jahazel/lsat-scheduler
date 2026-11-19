@@ -1,6 +1,9 @@
 import type { PlanStatus } from "./planStatus";
 
 export type PlanKind = PlanStatus["kind"];
+export type ThisWeek = "ready" | "held" | "none";
+
+export const THIS_WEEK_LABELS: Record<ThisWeek, string> = { ready: "Ready", held: "Held", none: "None" };
 
 export type StudentRow = {
   id: string;
@@ -8,7 +11,7 @@ export type StudentRow = {
   email: string;
   plan: PlanKind;
   needsAnalytics: boolean;
-  hasThisWeek: boolean;
+  thisWeek: ThisWeek;
   weeklyMinutes: number;
   goalTestDate: string;
   joinedAt: Date;
@@ -51,7 +54,7 @@ export function visible(rows: StudentRow[], state: ListState): StudentRow[] {
     .filter((row) =>
       PLAN_FILTERS[state.plan].test(row)
       && (!state.analytics || row.needsAnalytics)
-      && (!state.week || row.hasThisWeek)
+      && (!state.week || row.thisWeek === "ready")
       && (!q || fold(`${row.name} ${row.email}`).includes(q)))
     .toSorted(COMPARE[state.sort]);
 }
@@ -70,7 +73,7 @@ export function countsOf(rows: StudentRow[]): Counts {
     trouble: count(PLAN_FILTERS.trouble.test),
     no_plan: count(PLAN_FILTERS.no_plan.test),
     analytics: count((row) => row.needsAnalytics),
-    week: count((row) => row.hasThisWeek),
+    week: count((row) => row.thisWeek === "ready"),
   };
 }
 

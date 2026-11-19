@@ -17,7 +17,7 @@ const row = (name: string, extra: Partial<StudentRow> = {}): StudentRow => ({
   email: `${name.toLowerCase() || "blank"}@example.test`,
   plan: "paid",
   needsAnalytics: false,
-  hasThisWeek: true,
+  thisWeek: "ready",
   weeklyMinutes: 570,
   goalTestDate: "2027-02-01",
   joinedAt: new Date("2026-11-09T18:00:00Z"),
@@ -28,7 +28,7 @@ const ROWS = [
   row("Maya"),
   row("Daniel", { plan: "free_week", needsAnalytics: true }),
   row("Priya", { plan: "retrying" }),
-  row("Lucas", { plan: "lapsed", hasThisWeek: false }),
+  row("Lucas", { plan: "lapsed", thisWeek: "none" }),
 ];
 
 function show(link: Partial<ListState> = {}, rows = ROWS) {
@@ -55,6 +55,16 @@ describe("Students", () => {
     expect(cells).toEqual(["Danieldaniel@example.test", "Free week", "Needed", "Ready", "9 h 30 min", "Feb 2027", "Nov 9"]);
     expect(within(screen.getByRole("table")).getByRole("link")).toHaveProperty("pathname", "/admin/students/id-Daniel");
     expect(within(screen.getByRole("list")).getByRole("link").textContent).toBe("DanielNeeds analyticsFree weekdaniel@example.test · 9 h 30 min per week");
+  });
+
+  it("shows Held for a held week in the table and the phone and tablet rows, and None in the table only", () => {
+    show({}, [row("Daniel", { plan: "free_week", thisWeek: "held" }), row("Lucas", { plan: "lapsed", thisWeek: "none" })]);
+    const thisWeek = within(screen.getByRole("table")).getAllByRole("row").slice(1).map((tr) => within(tr).getAllByRole("cell")[3].textContent);
+    expect(thisWeek).toEqual(["Held", "None"]);
+    expect(within(screen.getByRole("list")).getAllByRole("link").map((link) => link.textContent)).toEqual([
+      "DanielFree weekHelddaniel@example.test · 9 h 30 min per week",
+      "LucasLapsedlucas@example.test · 9 h 30 min per week",
+    ]);
   });
 
   it("carries the list's search, filter, and sort into each student's link, so ← All students returns to them", async () => {
