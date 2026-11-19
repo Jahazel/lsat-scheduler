@@ -49,12 +49,12 @@ export async function loadAccountPlan(accountId: string): Promise<AccountPlan> {
   return row ? accountPlan(row, new Date()) : { status: { kind: "no_plan" }, record: null };
 }
 
-export async function loadPlanStatuses(accountIds: string[]): Promise<Map<string, PlanStatus>> {
+export async function loadAccountPlans(accountIds: string[]): Promise<Map<string, AccountPlan>> {
   const ids = accountIds.filter(isAccountId);
   if (ids.length === 0) return new Map();
   const rows = await selectAccountPlans().where(inArray(accounts.id, ids));
   const realNow = new Date();
-  return new Map(rows.map((row) => [row.accountId, accountPlan(row, realNow).status]));
+  return new Map(rows.map((row) => [row.accountId, accountPlan(row, realNow)]));
 }
 
 const PORTAL_RETURN_PATHS = { account: "/account", this_week: "/dashboard" } as const;
