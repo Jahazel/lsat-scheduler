@@ -265,6 +265,7 @@ export function StudySettingsForm({
               <div className="flex flex-col gap-2">
                 <ScoreInput
                   label="Goal score"
+                  name="goalScore"
                   value={draft.goalScore}
                   messageId={goalMessageId}
                   onChange={(goalScore) => edit({ goalScore })}

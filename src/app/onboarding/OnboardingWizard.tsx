@@ -270,6 +270,7 @@ function GoalStep({
           <div className="flex flex-col gap-2">
             <ScoreInput
               label="Current PT score"
+              name="currentScore"
               placeholder="150"
               value={state.values.currentScore}
               messageId={messages.currentScore ? "current-score-message" : null}
@@ -281,6 +282,7 @@ function GoalStep({
           <div className="flex flex-col gap-2">
             <ScoreInput
               label="Goal score"
+              name="goalScore"
               placeholder="165"
               value={state.values.goalScore}
               messageId={goalMessage ? "goal-score-message" : null}
