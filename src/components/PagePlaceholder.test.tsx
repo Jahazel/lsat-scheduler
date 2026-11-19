@@ -95,6 +95,16 @@ describe("page placeholder", () => {
     expect(screen.queryByText("Grey header")).toBeNull();
   });
 
+  it("removes a slow page's shapes at once in a browser with no Element.animate", async () => {
+    delete (Element.prototype as Partial<Element>).animate;
+    const { rerender } = render(<Loading />);
+    act(() => vi.advanceTimersByTime(400));
+    rerender(<p>Your plan for this week</p>);
+    await act(async () => {});
+    expect(screen.queryByText("Grey header")).toBeNull();
+    expect(document.body.textContent).toBe("Your plan for this week");
+  });
+
   it("shows no shapes for a page that is ready within 150 ms, and still rises the page in", async () => {
     const { rerender } = render(<Loading />);
     act(() => vi.advanceTimersByTime(100));
