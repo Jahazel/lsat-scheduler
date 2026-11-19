@@ -366,7 +366,7 @@ expect() { printf '  %sExpected:%s %s\n' "$GREEN" "$RESET" "$1"; }
 ask_cookie() {
   local value code
   if [[ -f "$RUN_DIR/cookie-$1" ]]; then
-    code=$(curl -s -o /dev/null -w '%{http_code}' -H "@$RUN_DIR/cookie-$1" "$COPY/account" || true)
+    code=$(curl -s -o /dev/null -w '%{http_code}' -H "Origin: $COPY" -H "@$RUN_DIR/cookie-$1" "$COPY/account" || true)
     if [[ "$code" == 200 ]]; then note "The saved cookie for $1 still opens /account."; return 0; fi
   fi
   while true; do
@@ -375,7 +375,7 @@ ask_cookie() {
     printf 'Cookie: __Secure-authjs.session-token=%s\n' "$value" > "$RUN_DIR/cookie-$1"
     unset value
     clear_clipboard
-    code=$(curl -s -o /dev/null -w '%{http_code}' -H "@$RUN_DIR/cookie-$1" "$COPY/account" || true)
+    code=$(curl -s -o /dev/null -w '%{http_code}' -H "Origin: $COPY" -H "@$RUN_DIR/cookie-$1" "$COPY/account" || true)
     if [[ "$code" == 200 ]]; then note "The cookie opens /account (HTTP 200)."; return 0; fi
     warn "With that cookie /account answers HTTP $code, not 200. Copy the cookie again from the signed-in tab."
   done
@@ -832,10 +832,6 @@ SELECT count(*) AS accounts FROM accounts;"
 }
 
 restored_sql() {
-  if [[ -n "${RESTORED_URL:-}" ]] && have_cli psql; then
-    PASTED=$(PGSSLROOTCERT=system psql "$RESTORED_URL" -X -A -t -F ' ' -c "$2" 2>/dev/null | tr '\n' ';' | sed 's/;$//' || true)
-    if [[ -n "$PASTED" ]]; then record "$1" "$PASTED (psql on the restored branch)"; return 0; fi
-  fi
   show_sql "$2" "RESTORED branch (choose it in the SQL Editor's branch menu)"
   paste_result "$1"
 }
@@ -936,6 +932,7 @@ s_restore_branch() {
   ask_branch_id RESTORED_BRANCH_ID "The restored branch's ID (br-…):"
   ask RESTORED_HOST "Restored branch host (ep-…neon.tech, no pooler):" && write_env RESTORED_HOST "$RESTORED_HOST" > /dev/null
   record "3.4 restore" "restored $RESTORE_POINT into a new branch, started $RESTORE_STARTED, done $(now_utc)"
+  expect "A new branch from the restore point. The current branch is untouched, and the copy still uses it."
   pause
 }
 
@@ -946,7 +943,6 @@ s_restore_counts() {
   ask_neon_key
   record "3.5a age check" "$(age_check "$FORMER_BRANCH_ID") (expected: the restored branch not named)"
   cite_restore 3 "migrations on the restored branch"
-  ask_owner_url RESTORED_URL RESTORED "$RESTORED_BRANCH_ID"
   restored_sql "3.5b journal" "SELECT count(*) AS journal_rows FROM drillmap_migrations.applied;"
   note "Expected $(git -C "$REPO_ROOT" ls-tree --name-only "$CANDIDATE" migrations/ | grep -c '\.sql$') journal rows: the candidate's migration files."
   restored_sql "3.5c counts before the replay" "$TABLE_COUNTS"
@@ -1042,21 +1038,28 @@ s_restore_cleanup() {
   begin_step 3.10 "Delete unused branches and run the age check"
   needs COPY_PROJECT_ID RESTORED_BRANCH_ID
   cite_restore 9 "removing expired copies"
-  step "Neon console, COPY project: with your approval of each, delete the former branch and every other unused restore or _old_ branch."
-  note "Snapshots stay. Step 4.6 uses the former branch ID for the stale-backup alert."
+  step "Neon console, COPY project: with your approval of each, delete every unused restore or _old_ branch."
+  note "Keep the former branch until step 4.6: its backups are the stale-backup fixture. Step 4.6 deletes it."
   pause "When they are deleted, press Enter"
   ask_neon_key
   record "3.10 age check" "$(age_check "$RESTORED_BRANCH_ID") (expected within-30-days)"
+  expect "within-30-days. Only the restored branch and the former branch are left."
   unset RESTORED_URL
   pause
 }
 
-healthchecks_ping() {
-  local url
-  ask_secret url "$1 ping URL (hidden, https://hc-ping.com/…):" || exit 1
-  clear_clipboard
-  if [[ "$url" != https://hc-ping.com/* ]]; then warn "That is not a Healthchecks.io ping URL. Not sent."; printf 'not sent'; return 0; fi
-  curl -sS --max-time 10 -o /dev/null -w 'HTTP %{http_code}' -X POST "$url/fail" || printf 'HTTP 000'
+real_fail_signal() {
+  local url="" answer
+  step "Healthchecks.io > $2 > copy its ping URL."
+  while true; do
+    ask_secret url "$2 ping URL (hidden):" || exit 1
+    clear_clipboard
+    if [[ "$url" == https://hc-ping.com/* ]] || dry; then break; fi
+    warn "That is not a Healthchecks.io ping URL (https://hc-ping.com/…). Copy it again."
+  done
+  answer=$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -X POST "$url/fail" || printf '000')
+  unset url
+  record "$1" "one fail signal sent, Healthchecks.io answered HTTP $answer (expected 200)"
 }
 
 s_alert_anthropic() {
@@ -1088,7 +1091,7 @@ FROM scan_settings s LEFT JOIN scan_spending m ON m.month_start = $MONTH_START;"
   paste_result "4.2c warning sent"
   ask_result "4.2d copy email" "Did the copy's 80% check email you (DOWN)? At what UTC time? Pause the check again."
   say "The real site's check: the wizard sends it one fail signal. It does not touch the real site."
-  record "4.2e real check" "$(healthchecks_ping "The REAL site's 80% check")"
+  real_fail_signal "4.2e real check" "the REAL site's 80% check"
   ask_result "4.2f real email" "Did the real 80% check email you? Is SCAN_SPEND_WARNING_PING_URL set on real Production? Pause the check again."
   expect "Scan HTTP 200, warning_sent true, both emails arrive, both checks paused again."
   pause
@@ -1107,7 +1110,7 @@ UPDATE scan_settings SET monthly_limit_usd = ${LIMIT_BEFORE:-10};
 SELECT monthly_limit_usd FROM scan_settings;"
   paste_result "4.3c alert sent, limit restored"
   ask_result "4.3d copy email" "Did the copy's limit check email you (DOWN)? At what UTC time? Pause the check again."
-  record "4.3e real check" "$(healthchecks_ping "The REAL site's limit check")"
+  real_fail_signal "4.3e real check" "the REAL site's limit check"
   ask_result "4.3f real email" "Did the real limit check email you? Is SCAN_LIMIT_REACHED_PING_URL set on real Production? Pause the check again."
   expect "Scan HTTP 429 '$SCANNING_OFF_TEXT', limit_alert_sent true, limit back to ${LIMIT_BEFORE:-10}, both emails arrive."
   pause
@@ -1153,9 +1156,13 @@ s_alert_stale() {
   set_checker_branch "$RESTORED_BRANCH_ID"
   run_checker "4.6c recovery" copy || true
   ask_result "4.6d up email" "Did the UP email arrive?"
-  run_checker "4.6e production" production || true
-  ask_result "4.6f real settings" "Production checker: same schedule, grace, and email? Its run above reported fresh?"
-  expect "\"status\":\"stale\" then \"fresh\". DOWN and UP emails. Production reports fresh with the same settings."
+  step "Neon console, COPY project: with your approval, delete the former branch now."
+  pause "When it is deleted, press Enter"
+  ask_neon_key
+  record "4.6e age check" "$(age_check "$RESTORED_BRANCH_ID") (expected within-30-days)"
+  run_checker "4.6f production" production || true
+  ask_result "4.6g real settings" "Production checker: same schedule, grace, and email? Its run above reported fresh?"
+  expect "\"status\":\"stale\" then \"fresh\". DOWN and UP emails. The former branch is gone and the age check says within-30-days. Production reports fresh with the same settings."
   pause
 }
 
@@ -1225,7 +1232,7 @@ dry_run_stubs() {
   have_cli() { return 1; }
   scan() { printf 'not sent (dry run)'; }
   local probe
-  for probe in probe_postgres probe_google probe_anthropic probe_neon probe_cron probe_stripe probe_resend probe_webhook age_check healthchecks_ping; do
+  for probe in probe_postgres probe_google probe_anthropic probe_neon probe_cron probe_stripe probe_resend probe_webhook age_check; do
     eval "$probe() { printf 'not tried (dry run)'; }"
   done
   local cmd
