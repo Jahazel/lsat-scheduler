@@ -11,10 +11,10 @@ const LIST_HEAD = "pb-1 text-caption font-medium text-smoke";
 const LIST_ROW = "flex justify-between gap-3 py-1 text-caption";
 
 const percent = (accuracy: number) => `${Math.round(accuracy * 100)}%`;
+const accuracyPoints = (change: number | null) => change === null ? null : Math.round(change * 100);
 
-function Change({ value, className }: { value: number | null; className?: string }) {
-  if (value === null) return <span className={cx("text-fog", className)}>—</span>;
-  const points = Math.round(value * 100);
+function Change({ points, className }: { points: number | null; className?: string }) {
+  if (points === null) return <span className={cx("text-fog", className)}>—</span>;
   const tone = points > 0 ? "text-success-ink" : points < 0 ? "text-danger-ink" : "text-smoke";
   return (
     <span className={cx("inline-flex items-center gap-1 whitespace-nowrap tabular-nums", tone, className)}>
@@ -35,11 +35,15 @@ function UploadRow({ upload, open, toggle }: { upload: Upload; open: boolean; to
           {upload.tag && <span className="text-caption text-smoke">{upload.tag}</span>}
         </span>
         <span className="col-start-1 flex min-w-0 flex-col gap-1 sm:col-start-2 sm:row-start-1">
-          {test && <span className="w-fit rounded-pill bg-vellum px-2 py-0.5 text-caption text-ink">PT {test.prepTest} · {test.missed} missed</span>}
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-small text-smoke">Score <span className="font-medium text-ink tabular-nums">{upload.score ?? "—"}</span></span>
+            {upload.scoreChange !== null && <Change points={upload.scoreChange} className="text-caption" />}
+            {test && <span className="w-fit rounded-pill bg-vellum px-2 py-0.5 text-caption text-ink">PT {test.prepTest} · {test.missed} missed</span>}
+          </span>
           <span className="text-caption text-smoke">Weakest: {upload.lr.slice(0, 3).map((row) => `${row.type} ${percent(row.accuracy)}`).join(" · ")}</span>
           {upload.movedMost.length > 0 && (
             <span className="flex flex-wrap gap-x-3 gap-y-1 text-caption text-smoke">
-              Moved most: {upload.movedMost.map((row) => <span key={row.type} className="inline-flex items-center gap-1">{row.type} <Change value={row.change} /></span>)}
+              Moved most: {upload.movedMost.map((row) => <span key={row.type} className="inline-flex items-center gap-1">{row.type} <Change points={accuracyPoints(row.change)} /></span>)}
             </span>
           )}
         </span>
@@ -52,7 +56,7 @@ function UploadRow({ upload, open, toggle }: { upload: Upload; open: boolean; to
             {(allTypes ? upload.lr : upload.lr.slice(0, FIRST_TYPES)).map((row) => (
               <dd key={row.type} className={LIST_ROW}>
                 <span className="min-w-0 text-ink">{row.type}</span>
-                <span className="flex shrink-0 gap-2 tabular-nums"><span className="text-ink">{percent(row.accuracy)}</span><Change value={row.change} className="w-9 justify-end" /></span>
+                <span className="flex shrink-0 gap-2 tabular-nums"><span className="text-ink">{percent(row.accuracy)}</span><Change points={accuracyPoints(row.change)} className="w-9 justify-end" /></span>
               </dd>
             ))}
             {upload.lr.length > FIRST_TYPES && (

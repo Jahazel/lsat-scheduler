@@ -25,8 +25,9 @@ bash scripts/issue-982-drill-wizard.sh --from 3.6  # resume at step 3.6
 bash scripts/issue-982-drill-wizard.sh --dry-run   # print every step; call no provider
 ```
 
-`scripts/issue-982-drill-wizard.test.mjs` checks the wizard with `bash -n`, with `shellcheck --severity=warning` when
-shellcheck is installed, and with a dry run whose provider commands fail if called.
+`scripts/issue-982-drill-wizard.test.mjs` checks the wizard with `bash -n`, with `shellcheck -x --severity=warning` when
+shellcheck is installed, and with a dry run whose provider commands fail if called. Its shared helpers live in
+`scripts/stage7-wizard-lib.sh`, which the full-checklist wizard of #983 also uses.
 
 The wizard sends the copy's `Origin` header on every request to a copy page, form, or scan. It calls the daily job and the Stripe message route without it, as Vercel and Stripe do. It keeps cookies, emails, and test
 passwords in `~/.drillmap-issue-982-run` (mode 700). It never prints a secret: a new `AUTH_SECRET` goes to the

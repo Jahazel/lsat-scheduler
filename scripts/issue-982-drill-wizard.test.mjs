@@ -53,7 +53,7 @@ describe("Stage 7 drill wizard", () => {
   });
 
   it.skipIf(!hasShellcheck())("passes shellcheck at warning level", () => {
-    expect(() => execFileSync("shellcheck", ["--severity=warning", wizard])).not.toThrow();
+    expect(() => execFileSync("shellcheck", ["-x", "--severity=warning", wizard])).not.toThrow();
   });
 
   it("prints every run sheet step in a dry run without calling a provider or keeping a file", () => {

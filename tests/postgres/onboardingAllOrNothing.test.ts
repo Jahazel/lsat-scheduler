@@ -90,6 +90,7 @@ it("a failure after the Student insert leaves no Student, no Analytics snapshot,
 
   await expect(createStudentProfile(input)).resolves.toBeUndefined();
   expect(await savedRows()).toEqual({ students: 1, snapshots: 1 });
+  expect((await database.owner.execute(sql`select score from analytics_snapshots`)).rows).toEqual([{ score: 150 }]);
   expect(await countSnapshotSaves(5, account.id)).toEqual([...Array(4).fill({ allowed: true }), expect.objectContaining({ allowed: false })]);
 });
 
