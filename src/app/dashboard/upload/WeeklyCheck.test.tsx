@@ -25,6 +25,7 @@ beforeEach(() => {
     static createObjectURL = vi.fn(() => "blob:screenshot");
     static revokeObjectURL = vi.fn();
   });
+  vi.stubGlobal("createImageBitmap", async () => ({ width: 1200, height: 900, close() {} }));
   vi.stubGlobal("scrollTo", vi.fn());
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
@@ -252,13 +253,14 @@ describe("Check what we read", () => {
     expect(confirm).toHaveBeenCalledTimes(2);
   });
 
-  it("previews next Monday from these values, marked not confirmed, with the most-missed type first", () => {
+  it("previews next Monday from these values, marked not confirmed, with the most-missed type first", async () => {
     setup();
     const preview = within(screen.getByRole("complementary", { name: "Your screenshots and next Monday" }));
 
     expect(preview.getByText("Next Monday from these values")).toBeDefined();
     expect(preview.getByText("Not confirmed yet")).toBeDefined();
-    expect(preview.getByAltText("Your 7Sage Logical Reasoning screenshot")).toBeDefined();
+    const image = await preview.findByAltText("Your 7Sage Logical Reasoning screenshot");
+    expect([image.getAttribute("width"), image.getAttribute("height")]).toEqual(["1200", "900"]);
     const goesFirst = preview.getAllByRole("listitem").filter((item) => item.textContent?.includes("goes first"));
     expect(goesFirst.map((item) => item.textContent)).toEqual([expect.stringMatching(/^\d+ Flaw or descriptive weakening/)]);
   });

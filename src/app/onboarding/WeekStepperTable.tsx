@@ -33,13 +33,14 @@ const STEP_BUTTON = cx(
   FOCUS,
 );
 
-function Stepper({ label, dayName, minutes, onChange }: { label: string; dayName: string; minutes: number; onChange: (minutes: number) => void }) {
+function Stepper({ label, name, dayName, minutes, onChange }: { label: string; name: string; dayName: string; minutes: number; onChange: (minutes: number) => void }) {
   return (
     <div className="flex h-11 items-center rounded-sm border border-vellum-line bg-paper">
       <button type="button" aria-label={`15 min less on ${dayName}`} disabled={minutes <= MIN} onClick={() => onChange(clamp(minutes - STEP))} className={STEP_BUTTON}>
         −
       </button>
       <select
+        name={name}
         aria-label={label}
         value={minutes}
         onChange={(e) => onChange(Number(e.target.value))}
@@ -96,7 +97,7 @@ export function WeekStepperTable({
           <tr className="bg-vellum">
             <th scope="row" className="rounded-l-sm py-2 pl-2 text-left text-small font-medium text-ink">All</th>
             <td className="py-2">
-              <Stepper label="All days study time" dayName="all days" minutes={allDaysMinutes} onChange={onAllDaysChange} />
+              <Stepper label="All days study time" name="allDaysMinutes" dayName="all days" minutes={allDaysMinutes} onChange={onAllDaysChange} />
             </td>
             <td className="rounded-r-sm py-2 pr-2 pl-2 sm:pl-3">
               <button
@@ -122,7 +123,7 @@ export function WeekStepperTable({
                     {DAY_SHORT_LABEL[day]}
                   </th>
                   <td className="py-2">
-                    <Stepper label={`${DAY_LABEL[day]} study time`} dayName={DAY_LABEL[day]} minutes={values.dailyCapacityMinutes[day]} onChange={(minutes) => onDayChange(day, minutes)} />
+                    <Stepper label={`${DAY_LABEL[day]} study time`} name={`${day.toLowerCase()}Minutes`} dayName={DAY_LABEL[day]} minutes={values.dailyCapacityMinutes[day]} onChange={(minutes) => onDayChange(day, minutes)} />
                   </td>
                   <td className="py-2 pr-2 text-center">
                     <label className="inline-flex size-11 cursor-pointer items-center justify-center">
