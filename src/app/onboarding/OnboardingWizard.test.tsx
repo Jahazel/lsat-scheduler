@@ -38,13 +38,14 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  sessionStorage.clear();
 });
 
 function continueButton() {
   return screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement;
 }
 
-const student = { firstName: "Dana", today: "2026-10-19" };
+const student = { accountId: "account-dana", firstName: "Dana", today: "2026-10-19" };
 const countText = (text: string) => (_: string, el: Element | null) => el?.tagName === "P" && el.textContent === text;
 const stepCount = (text: string) => screen.getByText(countText(text));
 const queryStepCount = (text: string) => screen.queryByText(countText(text));
@@ -1563,5 +1564,77 @@ describe("OnboardingWizard · step slide", () => {
     expect(all[0].keyframes).toEqual([{ opacity: 0 }, { opacity: 1 }]);
     expect(all[0].options.duration).toBe(120);
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Pick your study days" }));
+  });
+});
+
+describe("OnboardingWizard · reload", () => {
+  const options = upcomingTestMonths("2026-10-18");
+  let page: ReturnType<typeof render>;
+  const open = (props: Partial<Parameters<typeof OnboardingWizard>[0]> = {}) => {
+    page = render(<OnboardingWizard {...student} goalTestDateOptions={options} onSave={vi.fn(async () => {})} {...props} />);
+  };
+  const reload = (props: Partial<Parameters<typeof OnboardingWizard>[0]> = {}) => {
+    page.unmount();
+    open(props);
+  };
+
+  async function fillGoalAndWeek(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByLabelText("Current PT score"), "150");
+    await user.type(screen.getByLabelText("Goal score"), "165");
+    await user.selectOptions(screen.getByLabelText("Goal test date"), "January 2027");
+    await user.click(continueButton());
+    await user.click(screen.getByLabelText("Practice test on Sunday"));
+    await user.selectOptions(screen.getByLabelText("Sunday study time"), "3 h");
+  }
+
+  it("brings back the step and the answers after a reload", async () => {
+    const user = userEvent.setup();
+    open();
+    await fillGoalAndWeek(user);
+
+    reload();
+
+    await waitFor(() => expect(stepCount("Step 2 of 4 · Week")).toBeDefined());
+    expect((screen.getByLabelText("Practice test on Sunday") as HTMLInputElement).checked).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect((screen.getByLabelText("Current PT score") as HTMLInputElement).value).toBe("150");
+  });
+
+  it("shows another account an empty form in the same tab", async () => {
+    const user = userEvent.setup();
+    open();
+    await fillGoalAndWeek(user);
+
+    reload({ accountId: "account-lee" });
+
+    expect(stepCount("Step 1 of 4 · Goal")).toBeDefined();
+    expect((screen.getByLabelText("Current PT score") as HTMLInputElement).value).toBe("");
+  });
+
+  it("forgets the draft once the profile saves", async () => {
+    const user = userEvent.setup();
+    open();
+    await fillGoalAndWeek(user);
+    await user.click(continueButton());
+    await user.click(screen.getByRole("button", { name: "Skip for now" }));
+    await waitFor(() => expect(sessionStorage.getItem("drillmap:onboardingDraft:account-dana")).toBeNull());
+
+    reload();
+
+    expect(stepCount("Step 1 of 4 · Goal")).toBeDefined();
+    expect((screen.getByLabelText("Current PT score") as HTMLInputElement).value).toBe("");
+  });
+
+  it("works as before when storage is blocked", async () => {
+    const blocked = () => {
+      throw new DOMException("Storage is blocked", "SecurityError");
+    };
+    vi.stubGlobal("sessionStorage", { getItem: blocked, setItem: blocked, removeItem: blocked, clear() {} });
+    const user = userEvent.setup();
+    open();
+    await fillGoalAndWeek(user);
+    await user.click(continueButton());
+
+    expect(stepCount("Step 3 of 4 · Analytics")).toBeDefined();
   });
 });

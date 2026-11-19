@@ -8,7 +8,7 @@ import { formatDuration } from "@/lib/formatDuration";
 import { planStatusLabel } from "@/lib/planStatus";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import {
-  PLAN_FILTERS, PLAN_FILTER_KEYS, SORTS, SORT_KEYS, cleared, countsOf, displayName, listQuery, listStateFrom, narrowed, visible,
+  PLAN_FILTERS, PLAN_FILTER_KEYS, SORTS, SORT_KEYS, THIS_WEEK_LABELS, cleared, countsOf, displayName, listQuery, listStateFrom, narrowed, visible,
   type Counts, type ListState, type Sort, type StudentRow,
 } from "@/lib/studentList";
 
@@ -178,7 +178,7 @@ function TableRow({ row, list }: { row: StudentRow; list: ListState }) {
       </td>
       <td className="px-4"><PlanBadge row={row} /></td>
       <td className="px-4">{row.needsAnalytics ? <Badge tone="accent">Needed</Badge> : <span className="text-small text-smoke">Done</span>}</td>
-      <td className="px-4 text-small whitespace-nowrap">{row.hasThisWeek ? <span className="text-ink">Ready</span> : <span className="text-smoke">None</span>}</td>
+      <td className={cx("px-4 text-small whitespace-nowrap", row.thisWeek === "ready" ? "text-ink" : "text-smoke")}>{THIS_WEEK_LABELS[row.thisWeek]}</td>
       <td className="px-4 text-right text-small whitespace-nowrap text-ink tabular-nums">{formatDuration(row.weeklyMinutes)}</td>
       <td className="px-4 text-small whitespace-nowrap text-ink tabular-nums">{testMonth.format(new Date(`${row.goalTestDate}T00:00:00Z`))}</td>
       <td className="pr-5 pl-4 text-small whitespace-nowrap text-smoke tabular-nums">{joinedDay.format(row.joinedAt)}</td>
@@ -194,6 +194,7 @@ function ListRow({ row, list }: { row: StudentRow; list: ListState }) {
           <Name row={row} />
           {row.needsAnalytics && <Badge tone="accent">Needs analytics</Badge>}
           <PlanBadge row={row} />
+          {row.thisWeek === "held" && <Badge>{THIS_WEEK_LABELS.held}</Badge>}
         </span>
         <span className="min-w-0 text-small [overflow-wrap:anywhere] text-smoke">{row.email} · {formatDuration(row.weeklyMinutes)} per week</span>
       </Link>

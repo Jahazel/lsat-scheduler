@@ -55,6 +55,7 @@ import { ReviewBars, ReviewStatementList } from "./ReviewBars";
 import { RoadToTestDay } from "./RoadToTestDay";
 import { PINNED_BAR, ROAD_PANEL, STEP_COLUMN, STEP_CONTENT, STEP_GRID, STEP_SLIDE } from "./shell";
 import { StepCount } from "./StepCount";
+import { useOnboardingDraft } from "./useOnboardingDraft";
 import { usePinnedBarHeight } from "./usePinnedBarHeight";
 import { RevealAction, WeekReveal } from "./WeekReveal";
 import { ScreenshotDropArea, WhereToFindIt } from "./ScreenshotDropArea";
@@ -64,6 +65,7 @@ const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visi
 const LINK_BUTTON = `font-medium text-ink underline underline-offset-[3px] disabled:cursor-not-allowed disabled:no-underline aria-disabled:no-underline ${FOCUS}`;
 
 interface OnboardingWizardProps {
+  accountId: string;
   firstName: string;
   today: string;
   goalTestDateOptions: ReturnType<typeof upcomingTestMonths>;
@@ -76,6 +78,7 @@ interface OnboardingWizardProps {
 type Dispatch = (action: WizardAction) => void;
 
 export default function OnboardingWizard({
+  accountId,
   firstName,
   today,
   goalTestDateOptions,
@@ -87,6 +90,7 @@ export default function OnboardingWizard({
   const [state, dispatch] = useReducer(wizardReducer, scanningOff, (off) => off
     ? wizardReducer(initialWizardState(), { type: "chooseInput", input: "typed", at: new Date() })
     : initialWizardState());
+  useOnboardingDraft(accountId, state, dispatch, scanningOff);
   const draft = activeDraft(state);
   const { screenshots } = state;
   const [saveAnswer, setSaveAnswer] = useState<Awaited<ReturnType<typeof onSave>>>();

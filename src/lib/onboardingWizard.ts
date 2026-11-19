@@ -1,6 +1,8 @@
+import { z } from "zod";
 import {
   accuracyError,
   dropSection,
+  PASSAGE_TYPES,
   readSection,
   SECTIONS,
   reviewedRows,
@@ -46,7 +48,10 @@ import {
 } from "./studyProfileDraft";
 import { previewWeek, weeklyTotalMinutes, type WeekValues } from "./studyWeek";
 import { testCountdown } from "./testCountdown";
-import type { Activity, AnalyticsExtractedRow, AnalyticsSection, DayOfWeek, PriorityTier } from "./types";
+import {
+  PRIORITY_TIERS,
+  type Activity, type AnalyticsExtractedRow, type AnalyticsSection, type DayOfWeek, type LRType, type PriorityTier, type RCType,
+} from "./types";
 
 const STEP_NAMES = ["Goal", "Week", "Analytics", "Review"] as const;
 export type WizardStep = "goal" | "week" | "analytics" | "review";
@@ -108,7 +113,8 @@ export type WizardAction =
   | { type: "saveFailed" }
   | { type: "saveEnded" }
   | { type: "saveRefused"; message: string }
-  | { type: "saved"; input: SaveInput };
+  | { type: "saved"; input: SaveInput }
+  | { type: "restored"; state: WizardState };
 
 const DEFAULT_DAILY_MINUTES = 90;
 
@@ -453,9 +459,101 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       return { ...state, save: { refused: action.message } };
     case "saved":
       return { ...state, save: { saved: action.input } };
+    case "restored":
+      return action.state;
     default: {
       const _exhaustive: never = action;
       return _exhaustive;
     }
   }
+}
+
+// The answers kept in tab storage across a reload. Screenshots and their reads
+// stay out: a File cannot be stored, so the student adds them again.
+export type OnboardingDraft = Pick<WizardState, "step" | "values" | "attempts" | "leftScoreBoxes" | "analyticsInput" | "typedDraft">;
+
+export function onboardingDraft({ step, values, attempts, leftScoreBoxes, analyticsInput, typedDraft }: WizardState): OnboardingDraft {
+  return { step, values, attempts, leftScoreBoxes, analyticsInput, typedDraft };
+}
+
+const lrTypes = new Set<string>([...mockRules.lrStemTypes, ...mockRules.lrLogicTypes]);
+const rcTypes = new Set<string>(PASSAGE_TYPES);
+const lrTypeSchema = z.custom<LRType>((value) => typeof value === "string" && lrTypes.has(value));
+const rcTypeSchema = z.custom<RCType>((value) => typeof value === "string" && rcTypes.has(value));
+const dayOfWeekSchema = z.enum(DAY_ORDER as [DayOfWeek, ...DayOfWeek[]]);
+// JSON writes NaN, the accuracy of a typed value that is not a number, as null.
+const accuracySchema = z.number().nullable().optional().transform((accuracy) => (accuracy === null ? NaN : accuracy));
+
+const extractedRowSchema = z.union([
+  z.object({
+    type: lrTypeSchema,
+    category: z.enum(["regular", "restricted"]),
+    accuracy: accuracySchema,
+    isTopPriority: z.boolean().optional(),
+    priorityTier: z.enum(PRIORITY_TIERS).optional(),
+  }),
+  z.object({ type: rcTypeSchema, category: z.literal("passage"), accuracy: accuracySchema }),
+]);
+
+const reviewDraftSchema = z.object({
+  review: z.object({
+    extraction: z.object({ source: z.enum(["7sage_screenshot", "admin_sample", "manual_entry"]), extractedAt: z.string() }),
+    readAt: z.partialRecord(z.enum(SECTIONS as [AnalyticsSection, ...AnalyticsSection[]]), z.string()).optional(),
+    rows: z.array(z.object({ row: extractedRowSchema, original: extractedRowSchema.nullable() })),
+    confirmation: z.union([
+      z.object({ extractedValuesMatch: z.boolean(), isLatestAnalytics: z.boolean(), confirmedAt: z.null() }),
+      z.object({ extractedValuesMatch: z.literal(true), isLatestAnalytics: z.literal(true), confirmedAt: z.string() }),
+    ]),
+  }),
+  typedText: z.partialRecord(z.union([lrTypeSchema, rcTypeSchema]), z.string()),
+  revealedBoxes: z.array(z.union([lrTypeSchema, rcTypeSchema])),
+});
+
+const onboardingDraftSchema = z.object({
+  step: z.enum(STEPS as [WizardStep, ...WizardStep[]]),
+  values: z.object({
+    currentScore: z.string(),
+    goalScore: z.string(),
+    goalTestDate: z.string(),
+    accommodationMultiplier: z.union([z.literal(1), z.literal(1.5), z.literal(2)]),
+    dailyCapacityMinutes: z.record(dayOfWeekSchema, z.number()),
+    allDaysMinutes: z.number(),
+    preferredPracticeTestDay: dayOfWeekSchema.nullable(),
+  }),
+  attempts: z.object({
+    taken: z.boolean(),
+    rows: z.array(z.object({ id: z.number(), score: z.string(), month: z.string(), leftScore: z.boolean(), leftRow: z.boolean() })),
+    nextId: z.number(),
+  }),
+  leftScoreBoxes: z.object({ currentScore: z.boolean(), goalScore: z.boolean() }),
+  analyticsInput: z.enum(["screenshots", "typed"]),
+  typedDraft: reviewDraftSchema.nullable(),
+}) satisfies z.ZodType<OnboardingDraft, unknown>;
+
+function parseDraft(stored: string): unknown {
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return null;
+  }
+}
+
+// The step a restored student lands on: the stored one, unless a step before
+// it no longer lets them through. Screenshots are not kept, so a student who
+// read them lands back on Analytics.
+function reachableStep(state: WizardState, stored: WizardStep): WizardStep {
+  const blocked = STEPS.slice(0, STEPS.indexOf(stored)).find((step) => blockedReason({ ...state, step }));
+  if (blocked) return blocked;
+  return stored === "review" && !activeDraft(state) ? "analytics" : stored;
+}
+
+// The wizard as a reload left it, or null when the stored draft is missing,
+// unreadable, or the wrong shape.
+export function restoreOnboardingDraft(stored: string | null): WizardState | null {
+  if (stored === null) return null;
+  const parsed = onboardingDraftSchema.safeParse(parseDraft(stored));
+  if (!parsed.success) return null;
+  const { step, ...answers } = parsed.data;
+  const state: WizardState = { ...initialWizardState(), ...answers };
+  return { ...state, step: reachableStep(state, step) };
 }
