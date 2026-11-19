@@ -414,7 +414,8 @@ value lets someone test whether a guessed email is on a list. It signs nobody in
 Record the leak and make the plan.
 
 **What students see:** nothing, as long as the value stays the same. If it is unset or blank, Account
-deletion and Checkout fail.
+deletion and Checkout fail, the Stripe message receiver refuses messages that start a free week (Stripe
+retries them), and the security log drops its unknown-email entries.
 
 **Missing value.** If the password manager loses the value, the site keeps working, but a restore cannot
 replay deletions by email hash. Vercel cannot show a Sensitive value. Treat it as a rotation and make the

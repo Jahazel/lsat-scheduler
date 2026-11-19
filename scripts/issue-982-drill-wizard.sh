@@ -308,7 +308,7 @@ s_rot_auth_secret() {
   redeploy_copy DEPLOYMENT_AUTH
   clear_clipboard
   if confirm "Is the new AUTH_SECRET saved in the password manager?"; then record "1.11a saved" "new copy AUTH_SECRET saved in the password manager, $(now_utc)"
-  else record "1.11a saved" "NOT saved: save it before stage 3"; fi
+  else record "1.11a saved" "NOT saved: save it before the drill ends"; fi
   record "1.11b old cookie" "$(cookie_answer r-old) (expected a redirect to /login for each)"
   rm -f "$RUN_DIR/cookie-r-old"
   say "Now walk the site once with every new value."
