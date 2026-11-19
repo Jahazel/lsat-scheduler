@@ -139,6 +139,14 @@ describe("admin avatar menu", () => {
     expect(within(menu).getByRole("menuitem", { name: "Log out" })).toBeTruthy();
   });
 
+  it("links to Test dates above Account", async () => {
+    render(<AdminNav {...props} />);
+    await userEvent.click(screen.getAllByRole("button", { name: `Account menu for ${props.email}` })[0]);
+    const menu = screen.getByRole("menu", { name: "Account" });
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Test dates", "Account", "Log out"]);
+    expect(within(menu).getByRole("menuitem", { name: "Test dates" }).getAttribute("href")).toBe("/admin/test-dates");
+  });
+
   it("shows only the email when the admin has no name", async () => {
     render(<AdminNav {...props} name={null} initials="Q" />);
     await userEvent.click(screen.getAllByRole("button", { name: "Account menu for qa@example.test" })[0]);

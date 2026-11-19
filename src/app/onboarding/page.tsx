@@ -6,8 +6,8 @@ import { PLAN_CHOICE_PATHS } from "@/lib/planChoice";
 import { readScanningOff } from "@/lib/scanSpending";
 import { planChoiceStanding } from "@/lib/stripeCheckout";
 import { studentSideToday } from "@/lib/studentClock";
-import { upcomingTestMonths } from "@/lib/studentProfile";
 import { findStudentByAccountId } from "@/lib/studentRepository";
+import { upcomingTestMonths } from "@/lib/testMonthRepository";
 import OnboardingWizard from "./OnboardingWizard";
 import { PlanChoiceScreen, type PlanChoiceSearchParams } from "./PlanChoiceScreen";
 import { createStudentProfile } from "./actions";
@@ -41,7 +41,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
         accountId={session.user.id}
         firstName={session.user.name?.trim().split(/\s+/)[0] || "there"}
         today={today}
-        goalTestDateOptions={upcomingTestMonths(today)}
+        goalTestDateOptions={await upcomingTestMonths(today)}
         scanningOff={(await readScanningOff(new Date())).analytics}
         admin={isAdminUser(session.user)}
         onSave={createStudentProfile}

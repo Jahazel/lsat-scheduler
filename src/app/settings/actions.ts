@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { studentSideToday } from "@/lib/studentClock";
 import { goalScoreError, parseStudySettings, type StudySettingsInput } from "@/lib/studentProfile";
 import { findStudentByAccountId, updateStudySettings } from "@/lib/studentRepository";
+import { listTestMonths } from "@/lib/testMonthRepository";
 import { answerAction } from "@/lib/securityLog";
 import type { FormState } from "@/lib/unexpectedFailure";
 
@@ -23,7 +24,9 @@ export async function saveStudySettings(input: StudySettingsInput): Promise<Stud
       return { refused: "goalScore", currentScore: stored.currentScore };
     }
 
-    const { settings, officialAttempts } = parseStudySettings(input, stored.currentScore, await studentSideToday(session.user));
+    const { settings, officialAttempts } = parseStudySettings(
+      input, stored.currentScore, await studentSideToday(session.user), await listTestMonths(),
+    );
     if (!(await updateStudySettings(session.user.id, settings, officialAttempts))) {
       const raised = await findStudentByAccountId(session.user.id);
       if (raised && goalScoreError(raised.currentScore, settings.goalScore)) {
