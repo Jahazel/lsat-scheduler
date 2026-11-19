@@ -66,6 +66,7 @@ export const analyticsSnapshots = pgTable("analytics_snapshots", {
   extractedValuesMatch: boolean("extracted_values_match").notNull(),
   isLatestAnalytics: boolean("is_latest_analytics").notNull(),
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }).notNull(),
+  score: integer("score"),
 });
 
 export const practiceTestResults = pgTable("practice_test_results", {
