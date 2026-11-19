@@ -165,6 +165,10 @@ s_version() {
     [[ -n "${!key:-}" ]] || write_env "$key" "$(new_password "$who")" > /dev/null
   done
   [[ -n "${RUN_STARTED:-}" ]] || write_env RUN_STARTED "$(now_utc)" > /dev/null
+  student a
+  student b
+  step "Sign up A and B at $COPY/signup with these emails and passwords, and click each verify link. The Admin signs in with Google."
+  note "Stage 2 uses A, B, and the Admin. Make any other copy test student with this run's address, so step 5.1 finds it."
   open_url "https://vercel.com/dashboard"
   step "COPY project > Deployments: open the Production deployment that $COPY_HOST serves. Check its commit is ${CANDIDATE:0:7}."
   ask_id COPY_DEPLOYMENT "Copy Production deployment ID (dpl_…):"
@@ -388,15 +392,15 @@ SELECT scanning_off, (SELECT coalesce(sum(total_usd), 0) FROM scan_spending) AS 
 s_j8() {
   begin_step 4.8 "J8: real prices"
   cite "$GUIDE" "price-check key" "the price check"
-  local key weekly monthly result
+  local price_key weekly_price monthly_price result
   say "Enter the real site's values at hidden prompts. They stay in this process only."
-  ask_secret key "Real site's restricted price key (rk_live_…, hidden):" || key=""
-  ask_secret weekly "STRIPE_PRICE_WEEKLY of the real site (hidden):" || weekly=""
-  ask_secret monthly "STRIPE_PRICE_MONTHLY of the real site (hidden):" || monthly=""
+  ask_secret price_key "Real site's restricted price key (rk_live_…, hidden):" || price_key=""
+  ask_secret weekly_price "STRIPE_PRICE_WEEKLY of the real site (hidden):" || weekly_price=""
+  ask_secret monthly_price "STRIPE_PRICE_MONTHLY of the real site (hidden):" || monthly_price=""
   clear_clipboard
-  result=$(cd "$REPO_ROOT" && STRIPE_SECRET_KEY="$key" STRIPE_PRICE_WEEKLY="$weekly" STRIPE_PRICE_MONTHLY="$monthly" \
+  result=$(cd "$REPO_ROOT" && STRIPE_SECRET_KEY="$price_key" STRIPE_PRICE_WEEKLY="$weekly_price" STRIPE_PRICE_MONTHLY="$monthly_price" \
     npm run --silent check-stripe-prices 2>&1 | grep -oE '\{"ok":(true|false)[^}]*\}' | tail -n1 || true)
-  unset key weekly monthly
+  unset price_key weekly_price monthly_price
   record "4.8 prices" "${result:-no result line}"
   expect '{"ok":true,"status":"match","mode":"live"}'
   ask_verdict 4.8
@@ -415,7 +419,7 @@ s_cron() {
 
 s_live_cleanup() {
   begin_step 4.10 "Clean up the real site"
-  cite "$GUIDE" "Turn scanning off" "the scanning switch"
+  cite "$EVIDENCE" "What the wizard may touch" "the real-site cleanup"
   step "RA, then RB: Account > Delete Account. Deleting RA's Account cancels its Stripe subscription first."
   show_sql "SELECT count(*) AS test_accounts_left FROM accounts WHERE email LIKE '$(prefix)r%';
 SELECT count(*) AS test_signups_left FROM pending_signups WHERE email LIKE '$(prefix)r%';
@@ -437,6 +441,7 @@ s_copy_cleanup() {
   show_sql "DELETE FROM accounts WHERE email LIKE '$(prefix)%';
 SELECT count(*) AS test_accounts_left FROM accounts WHERE email LIKE '$(prefix)%';"
   paste_result "5.1a copy accounts"
+  step "If the Google test user of steps 2.5 to 2.8 still has an Account on the copy, delete it from its Account page."
   step "Stripe sandbox > Subscriptions: cancel every subscription of this run's copy students. A SQL delete does not reach Stripe."
   ask_result "5.1b sandbox" "Are this run's sandbox subscriptions cancelled?"
   expect "0 test Accounts on the copy. No open sandbox subscription of this run."

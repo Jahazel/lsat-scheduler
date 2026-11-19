@@ -154,7 +154,7 @@ result from another version does not count; it runs again on the candidate. A Se
 | --- | --- | --- | --- |
 | 1.1 | Candidate | Record the candidate. The wizard checks that it is on `main`, lists the commits after it, and reads the state of #695, #972, #980, #984, #985, #986, and #987. | The candidate is on `main`. Every commit after it is docs-only. Every listed issue is closed. |
 | 1.2 | Auto, H7 | The wizard finds the candidate's Checks run and Release migrations run. | Both succeeded on the candidate's push. The copy job says `Target: copy.` |
-| 1.3 | Version | Record the copy's Production deployment, its commit, and the real site's Production deployment. Choose the test addresses. | The copy serves the candidate. |
+| 1.3 | Version | A and B sign up with a password on the copy at this run's addresses and verify. The Admin signs in with Google. Record the copy's Production deployment, its commit, and the real site's Production deployment. | The copy serves the candidate. A and B reach onboarding. |
 | 2.1 | A1 | Auto: the Checks run (1.2). Copy: with the verify skill, A opens B's Student page, weekly schedule, and check-in by ID, and sends a check-off with B's check-in ID. Then the same with no session. SQL fingerprints B's records before and after. | Checks passed. Every foreign address answers not found or a refusal and shows none of B's data. B's fingerprint is unchanged. |
 | 2.2 | A2 | Auto: the Checks run (1.2). | Checks passed. |
 | 2.3 | A3 | Auto: the Checks run (1.2). Copy: the Admin opens A's weekly schedule. SQL counts A's weekly schedules before and after. | Checks passed. The Admin sees the schedule. The count is the same. |
@@ -230,7 +230,7 @@ result from another version does not count; it runs again on the candidate. A Se
 | 4.8 | J8 | `npm run check-stripe-prices` with the real site's restricted price key and price IDs at hidden prompts. | `{"ok":true,"status":"match","mode":"live"}`. |
 | 4.9 | F3, F6 | [#937](https://github.com/Jahazel/lsat-scheduler/issues/937): after 09:00 UTC on the day after the release, find the daily cleanup in the real project's Vercel logs. | `GET /api/cron/daily-cleanup` answered 200. #937 can close. |
 | 4.10 | Cleanup | RA and RB delete their Accounts. SQL counts this run's test Accounts on production. Check Stripe live for their subscriptions. | 0 test Accounts. RA's subscription is cancelled with nothing charged. Scanning is on. |
-| 5.1 | Cleanup | Delete the copy's test Accounts of this run and cancel their sandbox subscriptions. | 0 test Accounts on the copy. |
+| 5.1 | Cleanup | Delete the copy's test Accounts of this run and the Google test user's Account, and cancel their sandbox subscriptions. | 0 test Accounts on the copy. No open sandbox subscription of this run. |
 | 5.2 | Readiness | The wizard lists the commits from the candidate to `main` again. | Every one is docs-only, or the readiness record names a new candidate. |
 | 5.3 | Readiness | Fill the [readiness record](#readiness-record) from the results. The wizard keeps the results file and deletes its folder. | Every row has a result and an evidence link. |
 
