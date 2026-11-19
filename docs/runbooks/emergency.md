@@ -228,7 +228,8 @@ Rules for every rotation:
 - **Prove a copy check works before you trust its refusal.** Enter the old value at the hidden prompt
   before you revoke it, and run the section's check once: it must give the "works" answer the section
   names. Keep that terminal open. After the revoke, run the same check again: it must give the refusal
-  answer. Each check stops with an error when its value is empty, so a blank prompt cannot pass.
+  answer. To run it again, run only the lines after `read -rs`. Each check stops with an error when its
+  value is empty, so a blank prompt cannot pass.
 - **The copy's old value must come from the password manager.** Most providers show a value only once. If
   the password manager does not hold the copy's old value, the provider's list is the copy's proof too, and
   the evidence says so.
@@ -355,7 +356,8 @@ cannot turn a hash back into an email. So after a rotation:
   hash is not on the list (`src/lib/stripeCheckout.ts`). It looks up the hash made with the new secret, so a
   row written before the rotation never matches. An Account that still has its billing record, such as a
   lapsed student, is still refused by that record. But **a new Account for an email whose earlier Account
-  used its free week and was deleted before the rotation gets a second free week**, until the row would
+  used its free week before the rotation gets a second free week**, whether that Account was deleted before
+  or after the rotation, until the row would
   have expired anyway, 12 months after its date. This breaks J11,
   which requires the refusal to hold after every rotation. It is a defect, reported from
   [issue 979](https://github.com/Jahazel/lsat-scheduler/issues/979). This guide does not change the rule.
@@ -385,18 +387,20 @@ Steps:
 4. Check that the site refuses the old secret: a browser that was signed in before the redeploy opens This
    week and goes to Log in with "Your session ended. Log in again."
 
-   Copy only, also check a saved cookie. Before step 2, sign in as a test Account. In the browser's
+   Copy only, also check a saved cookie. Before step 2, sign in as a test Account that has finished
+   onboarding. In the browser's
    developer tools, copy the session cookie as one `name=value` pair: the name is
    `__Secure-authjs.session-token`. If the browser splits it into `.0` and `.1` parts, copy both pairs,
-   joined by `; `. Enter it at the prompt and run the check: it must print `200` and no
-   location. Keep the terminal open. After step 3, run it again: it must print a `3xx` status and the
-   location `/login?error=SessionEnded`. A missing or misnamed cookie goes to plain `/login`, so that answer
+   joined by `; `. Enter it at the prompt and run the check. It opens the Account page, which redirects only
+   a signed-out or not-onboarded Account: it must print `200` and `null`. Keep the terminal open. After
+   step 3, run it again: it must print a `3xx` status and a location that ends in
+   `/login?error=SessionEnded`. A missing or misnamed cookie goes to plain `/login`, so that answer
    does not pass. Do not do this on the real site.
 
    ```sh
    read -rs OLD_COOKIE && export OLD_COOKIE   # __Secure-authjs.session-token=VALUE, from before the rotation
    : "${OLD_COOKIE:?enter the old cookie first}" &&
-     node -e 'fetch(process.argv[1] + "/dashboard", { headers: { cookie: process.env.OLD_COOKIE }, redirect: "manual" }).then((response) => console.log(response.status, response.headers.get("location")))' https://COPY-SITE
+     node -e 'fetch(process.argv[1] + "/account", { headers: { cookie: process.env.OLD_COOKIE }, redirect: "manual" }).then((response) => console.log(response.status, response.headers.get("location")))' https://COPY-SITE
    ```
 
    Then `unset OLD_COOKIE`.
@@ -407,8 +411,9 @@ Steps:
      billing record refuses it.
    - Delete a test Account that used its free week after the rotation, and sign up again with the same email.
      Checkout offers no free week.
-   - Do the same with a test Account whose free week and deletion were before the rotation. Checkout offers a
-     free week again, because of the defect above. Record it as the defect, not as a pass.
+   - Do the same with a test Account that used its free week before the rotation; delete it after the
+     rotation. Checkout offers a free week again, because of the defect above. Record it as the defect, not
+     as a pass.
 
 ### Rotate the Anthropic key
 
@@ -604,8 +609,9 @@ reach DrillMap late: Stripe retries each message for up to 3 days.
 
 ### Rotate the price-check key
 
-This key exists only for the real site (J8), so this section has no copy steps. **What students see:**
-nothing; only the release check uses it.
+This key exists only for the real site (J8), so this section has no copy steps.
+
+**What students see:** nothing; only the release check uses it.
 
 1. In the Stripe Dashboard, switch to live mode and open Developers → API keys.
 2. Find the restricted key whose only permission is Prices: Read, and choose Rotate key. Choose Now: only the
