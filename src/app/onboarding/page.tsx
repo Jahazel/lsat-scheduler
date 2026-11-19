@@ -38,6 +38,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   return (
     <div className={CLIP_SIDEWAYS_SLIDE}>
       <OnboardingWizard
+        accountId={session.user.id}
         firstName={session.user.name?.trim().split(/\s+/)[0] || "there"}
         today={today}
         goalTestDateOptions={upcomingTestMonths(today)}
