@@ -1,8 +1,9 @@
 import { cx } from "@/components/ui/classes";
-import { DAY_LABEL, type upcomingTestMonths } from "@/lib/studentProfile";
+import { DAY_LABEL } from "@/lib/studentProfile";
 import { goalGain, weeksToTest, type WeekDrills, type WizardValues } from "@/lib/onboardingWizard";
 import { shortDuration } from "@/lib/formatDuration";
 import { DAY_SHORT_LABEL, previewWeek, testTimeName, weeklyTotalMinutes } from "@/lib/studyWeek";
+import type { TestMonthOption } from "@/lib/testMonths";
 
 const W = 400;
 const H = 120;
@@ -24,7 +25,7 @@ export function RoadToTestDay({
   values: WizardValues;
   firstName: string;
   today: string;
-  testMonths: ReturnType<typeof upcomingTestMonths>;
+  testMonths: TestMonthOption[];
   weekSet: boolean;
   focusWeek: boolean;
   analyticsAdded: boolean;
