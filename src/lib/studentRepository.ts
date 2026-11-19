@@ -116,7 +116,7 @@ export async function createStudent(
     if (!row) return null;
     if (snapshot) {
       await countSnapshotSave(transaction, { accountId, realNow: snapshot.realNow });
-      await transaction.insert(analyticsSnapshots).values(approvedSnapshotColumns(row.id, snapshot.values));
+      await transaction.insert(analyticsSnapshots).values(approvedSnapshotColumns(row.id, snapshot.values, row.currentScore));
     }
     return persistedStudent(row);
   });
