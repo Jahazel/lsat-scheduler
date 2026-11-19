@@ -121,7 +121,7 @@ it("a Saturday confirmation saves the snapshot, the practice-test result, and th
   await expect(confirmWeeklyUpload(upload(SATURDAY))).rejects.toThrow("redirect:/dashboard");
 
   const after = await saved(studentId, accountId);
-  expect(after.snapshots).toHaveLength(2);
+  expect(after.snapshots.map(({ approvedAt, score }) => [approvedAt, score])).toEqual([[SATURDAY.toISOString(), 160], [expect.any(String), null]]);
   expect(after.practiceTests).toEqual([expect.objectContaining({
     prepTest: 158, approvedAt: SATURDAY.toISOString(), missedStemTypeCounts: expect.objectContaining({ "Flaw or descriptive weakening": 2 }),
   })]);

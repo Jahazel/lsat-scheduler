@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { uploadHistory } from "./uploadHistory";
 
-const snapshot = (id: string, weekOf: string, lr: Record<string, number>, rc?: Record<string, number>) =>
-  ({ id, weekOf, approvedAt: `${weekOf}T12:00:00.000Z`, lrAccuracyByType: lr, ...(rc && { rcAccuracyByType: rc }) });
+const snapshot = (id: string, weekOf: string, lr: Record<string, number>, rc?: Record<string, number>, score: number | null = null) =>
+  ({ id, weekOf, approvedAt: `${weekOf}T12:00:00.000Z`, lrAccuracyByType: lr, ...(rc && { rcAccuracyByType: rc }), score });
 
 describe("uploadHistory", () => {
   it("lists uploads by month, newest first, tagging the newest and the first", () => {
@@ -27,6 +27,18 @@ describe("uploadHistory", () => {
     ]);
     expect(newest!.movedMost.map((row) => row.type)).toEqual(["Weaken", "Evaluate"]);
     expect(newest!.rc).toEqual([{ type: "Law", accuracy: 0.6 }]);
+  });
+
+  it("gives each upload its score and the change since the last earlier upload with a score", () => {
+    const [{ uploads }] = uploadHistory([
+      snapshot("before-scores", "2026-11-02", { Weaken: 0.5 }),
+      snapshot("first-score", "2026-11-09", { Weaken: 0.5 }, undefined, 155),
+      snapshot("no-score", "2026-11-16", { Weaken: 0.5 }),
+      snapshot("newest", "2026-11-23", { Weaken: 0.5 }, undefined, 159),
+    ], [])!;
+    expect(uploads.map((row) => [row.id, row.score, row.scoreChange])).toEqual([
+      ["newest", 159, 4], ["no-score", null, null], ["first-score", 155, null], ["before-scores", null, null],
+    ]);
   });
 
   it("shows the practice test confirmed with the same upload, most missed types first", () => {

@@ -1,7 +1,7 @@
 import { monthLabel, weekLabel } from "./progressHistory";
 import type { AnalyticsSnapshot, LRStemType, LRType, RCType } from "./types";
 
-type Snapshot = Pick<AnalyticsSnapshot, "weekOf" | "lrAccuracyByType" | "rcAccuracyByType"> & { id: string; approvedAt: string };
+type Snapshot = Pick<AnalyticsSnapshot, "weekOf" | "lrAccuracyByType" | "rcAccuracyByType"> & { id: string; approvedAt: string; score: number | null };
 type PracticeTest = { weekOf: string; prepTest: number; missed: number; missedStemTypeCounts: Partial<Record<LRStemType, number>> };
 
 export type TypeAccuracy = { type: LRType; accuracy: number; change: number | null };
@@ -10,6 +10,8 @@ export type Upload = {
   id: string;
   label: string;
   tag: "Newest" | "First upload" | null;
+  score: number | null;
+  scoreChange: number | null;
   lr: TypeAccuracy[];
   rc: { type: RCType; accuracy: number }[];
   movedMost: TypeAccuracy[];
@@ -24,7 +26,7 @@ function entries<Key extends string>(record: Partial<Record<Key, number>> | unde
   return Object.entries(record ?? {}) as [Key, number][];
 }
 
-function upload(snapshot: Snapshot, before: Snapshot | undefined, tag: Upload["tag"], practiceTests: PracticeTest[]): Upload {
+function upload(snapshot: Snapshot, before: Snapshot | undefined, scoreBefore: number | null, tag: Upload["tag"], practiceTests: PracticeTest[]): Upload {
   const lr = entries(snapshot.lrAccuracyByType)
     .map(([type, accuracy]) => {
       const earlier = before?.lrAccuracyByType[type];
@@ -36,6 +38,8 @@ function upload(snapshot: Snapshot, before: Snapshot | undefined, tag: Upload["t
     id: snapshot.id,
     label: weekLabel(snapshot.weekOf),
     tag,
+    score: snapshot.score,
+    scoreChange: snapshot.score === null || scoreBefore === null ? null : snapshot.score - scoreBefore,
     lr,
     rc: entries(snapshot.rcAccuracyByType).map(([type, accuracy]) => ({ type, accuracy })),
     movedMost: lr
@@ -65,7 +69,8 @@ export function uploadHistory(snapshots: Snapshot[], practiceTests: PracticeTest
       group = { month, uploads: [] };
       months.push(group);
     }
-    group.uploads.push(upload(snapshot, oldestFirst[index - 1], tag, practiceTests));
+    const scoreBefore = oldestFirst.slice(0, index).findLast((earlier) => earlier.score !== null)?.score ?? null;
+    group.uploads.push(upload(snapshot, oldestFirst[index - 1], scoreBefore, tag, practiceTests));
   }
   return months;
 }

@@ -183,6 +183,13 @@
       "when": 1793664000000,
       "tag": "0025_student_joined_at",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793750400000,
+      "tag": "0026_snapshot_score",
+      "breakpoints": true
     }
   ]
 }
