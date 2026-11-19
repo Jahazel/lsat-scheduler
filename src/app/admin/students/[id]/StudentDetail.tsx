@@ -100,7 +100,7 @@ export function StudentDetail({ student, facts, panels }: { student: DetailStude
           {TABS.map((t, index) => (
             <button key={t.key} ref={(button) => { buttons.current[index] = button; }} id={`${id}-${t.key}`} role="tab" type="button"
               aria-selected={tab === t.key} aria-controls={`${id}-panel`} tabIndex={tab === t.key ? 0 : -1} onClick={() => showTab(t.key)}
-              className={cx("relative h-11 shrink-0 rounded-md px-3 text-small whitespace-nowrap outline-offset-[-3px] after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:rounded-pill max-[359px]:flex-1 max-[359px]:px-0 max-[359px]:after:inset-x-0",
+              className={cx("relative h-11 shrink-0 rounded-md px-3 text-small whitespace-nowrap outline-offset-[-3px] after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:rounded-pill max-[359px]:flex-1 max-[359px]:px-0 max-[359px]:after:inset-x-0", PRESS,
                 tab === t.key ? "font-medium text-ink after:bg-ink" : "text-smoke pointer-hover:hover:text-ink")}>
               {"short" in t ? <><span aria-hidden className="sm:hidden">{t.short}</span><span className="max-sm:sr-only">{t.label}</span></> : t.label}
             </button>
