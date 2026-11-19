@@ -161,7 +161,7 @@ export default function StudentNav(props: StudentNavProps) {
   );
 }
 
-export const TAB_BAR = "fixed bottom-(--tab-bar-inset) min-h-(--tab-bar-height) left-[max(0.75rem,env(safe-area-inset-left))] right-[max(0.75rem,env(safe-area-inset-right))] z-40 grid rounded-lg border border-vellum-line bg-paper p-1 shadow-e1 md:hidden";
+export const TAB_BAR = "fixed bottom-(--tab-bar-inset) h-(--tab-bar-height) left-[max(0.75rem,env(safe-area-inset-left))] right-[max(0.75rem,env(safe-area-inset-right))] z-40 grid rounded-lg border border-vellum-line bg-paper p-1 shadow-e1 md:hidden";
 
 export const tabBarItem = (active: boolean) => cx(
   "flex flex-col items-center justify-center gap-1 rounded-md text-caption active:scale-[0.96]",
