@@ -130,20 +130,21 @@ Typing analytics by hand, This week, and Progress keep working. Without the swit
 error and a code instead, so turn the switch on first.
 
 1. [Turn scanning off](#turn-scanning-off) on the site's branch.
-2. In the Anthropic Console, open the site's workspace: the $5 copy workspace or the real site's workspace.
-   Open Settings → API keys. Find the key whose name matches the site. Choose its menu → Delete.
-3. Prove that Anthropic refuses the old key: the key is gone from the list. On the copy, if the password
-   manager holds the old key, also run this check. Anthropic must answer `401`. The request lists models and
-   costs nothing.
+2. Copy only, if the password manager holds the current key: enter it, and run the check below. Anthropic
+   must answer `200`. Keep the terminal open. The request lists models and costs nothing.
 
    ```sh
-   read -rs OLD_ANTHROPIC_KEY && export OLD_ANTHROPIC_KEY
-   node -e 'fetch("https://api.anthropic.com/v1/models", { headers: { "x-api-key": process.env.OLD_ANTHROPIC_KEY, "anthropic-version": "2023-06-01" } }).then((response) => console.log(response.status))'
-   unset OLD_ANTHROPIC_KEY
+   read -rs OLD_ANTHROPIC_KEY && export OLD_ANTHROPIC_KEY   # the copy's current Anthropic key
+   : "${OLD_ANTHROPIC_KEY:?enter the old key first}" &&
+     node -e 'fetch("https://api.anthropic.com/v1/models", { headers: { "x-api-key": process.env.OLD_ANTHROPIC_KEY, "anthropic-version": "2023-06-01" } }).then((response) => console.log(response.status))'
    ```
 
-   Do not test the real site's key from your computer, not even the old one.
-4. Record the UTC time of the revoke. Scans stay off until you give the site a new key with
+3. In the Anthropic Console, open the site's workspace: the $5 copy workspace or the real site's workspace.
+   Open Settings → API keys. Find the key whose name matches the site. Choose its menu → Delete.
+4. Prove that Anthropic refuses the old key: the key is gone from the list. Copy: run the check from step 2
+   again in the same terminal. Anthropic must answer `401`. Then `unset OLD_ANTHROPIC_KEY`. Do not test the
+   real site's key from your computer, not even the old one.
+5. Record the UTC time of the revoke. Scans stay off until you give the site a new key with
    [Rotate the Anthropic key](#rotate-the-anthropic-key).
 
 ## Sign out every session
@@ -224,6 +225,10 @@ Rules for every rotation:
   `unset` each value after its check. Never print a value. Record only the date of each rotation.
 - **Never test a real-site value from your computer, not even the old one** (H4, J7). On the real site the
   refusal proof is the provider's own list, which shows the old value revoked, expired, or gone.
+- **Prove a copy check works before you trust its refusal.** Enter the old value at the hidden prompt
+  before you revoke it, and run the section's check once: it must give the "works" answer the section
+  names. Keep that terminal open. After the revoke, run the same check again: it must give the refusal
+  answer. Each check stops with an error when its value is empty, so a blank prompt cannot pass.
 - **The copy's old value must come from the password manager.** Most providers show a value only once. If
   the password manager does not hold the copy's old value, the provider's list is the copy's proof too, and
   the evidence says so.
@@ -236,7 +241,7 @@ Rules for every rotation:
 The app's login is the role `drillmap_app` on the site's Neon branch. `DATABASE_URL` in Vercel holds its
 password.
 
-**What students see:** pages that read data fail between step 2 and step 4, so do the steps without a
+**What students see:** pages that read data fail between step 1 and step 4, so do the steps without a
 break, or [pause the site](#pause-the-site) first after a leak. Nothing saved is lost.
 
 1. In Neon, open the site's project and branch → Roles → `drillmap_app` → Reset password. Neon shows the new
@@ -306,27 +311,32 @@ secret. Google lets a client hold two secrets at once, so the rotation can overl
 
 **What students see:** nothing during the overlap. After a leak, when you disable the old secret first,
 Google sign-in shows "Google sign-in didn't finish. Try again, or use a Google account with a verified
-email." until step 4 is done. Students already signed in stay signed in, and password sign-in keeps working.
+email." until step 5 is done. Students already signed in stay signed in, and password sign-in keeps working.
 
-1. In Google Cloud Console, open APIs & Services → Credentials → the site's OAuth client. Check the client
+1. Copy only, if the password manager holds the current secret: enter the client ID and the secret, and run
+   the check in step 8. Google must print `invalid_grant`, which means it accepted the secret and refused
+   only the fake code. Keep the terminal open.
+2. In Google Cloud Console, open APIs & Services → Credentials → the site's OAuth client. Check the client
    name twice.
-2. Choose Add secret. Copy the new secret once; do not save it in a file.
-3. In Vercel, replace `AUTH_GOOGLE_SECRET`.
-4. Redeploy in Vercel.
-5. Check that the site works with the new secret: sign in with Google in a private window. This week opens.
-6. In the OAuth client, disable the old secret, then delete it.
-7. Check that Google refuses the old secret. Real site: the old secret is gone from the client's list.
-   Copy: the same, and if the password manager holds the old secret, run this check. A wrong secret gets
-   `invalid_client`; the right secret with this fake code would get `invalid_grant`.
+3. Choose Add secret. Copy the new secret once; do not save it in a file.
+4. In Vercel, replace `AUTH_GOOGLE_SECRET`.
+5. Redeploy in Vercel.
+6. Check that the site works with the new secret: sign in with Google in a private window. This week opens.
+7. In the OAuth client, disable the old secret, then delete it.
+8. Check that Google refuses the old secret. Real site: the old secret is gone from the client's list.
+   Copy: the same, and run this check again in the terminal from step 1. A refused secret gets
+   `invalid_client`.
 
    ```sh
-   read -rs GOOGLE_CLIENT_ID && read -rs OLD_GOOGLE_SECRET && export GOOGLE_CLIENT_ID OLD_GOOGLE_SECRET
-   node -e 'fetch("https://oauth2.googleapis.com/token", { method: "POST", body: new URLSearchParams({ grant_type: "authorization_code", code: "rotation-check", redirect_uri: process.argv[1] + "/api/auth/callback/google", client_id: process.env.GOOGLE_CLIENT_ID, client_secret: process.env.OLD_GOOGLE_SECRET }) }).then((response) => response.json()).then((body) => console.log(body.error))' https://COPY-SITE
-   unset GOOGLE_CLIENT_ID OLD_GOOGLE_SECRET
+   read -rs GOOGLE_CLIENT_ID     # the copy's Google client ID
+   read -rs OLD_GOOGLE_SECRET    # the copy's current (old) Google client secret
+   export GOOGLE_CLIENT_ID OLD_GOOGLE_SECRET
+   : "${GOOGLE_CLIENT_ID:?enter the client ID first}" "${OLD_GOOGLE_SECRET:?enter the old secret first}" &&
+     node -e 'fetch("https://oauth2.googleapis.com/token", { method: "POST", body: new URLSearchParams({ grant_type: "authorization_code", code: "rotation-check", redirect_uri: process.argv[1] + "/api/auth/callback/google", client_id: process.env.GOOGLE_CLIENT_ID, client_secret: process.env.OLD_GOOGLE_SECRET }) }).then((response) => response.json()).then((body) => console.log(body.error))' https://COPY-SITE
    ```
 
-   It must print `invalid_client`.
-8. Save the new secret in the password manager.
+   After step 7 it must print `invalid_client`. Then `unset GOOGLE_CLIENT_ID OLD_GOOGLE_SECRET`.
+9. Save the new secret in the password manager.
 
 ### Rotate `AUTH_SECRET`
 
@@ -341,9 +351,12 @@ email." until step 4 is done. Students already signed in stay signed in, and pas
 differs from the hash of the same email made before. The old rows are not rewritten, because the app
 cannot turn a hash back into an email. So after a rotation:
 
-- **Used free week list.** Checkout looks up the hash of the student's email made with the new secret. A row
-  written before the rotation never matches. **An email that used its free week before the rotation gets a
-  second free week** until the row would have expired anyway, 12 months after its date. This breaks J11,
+- **Used free week list.** Checkout gives a free week only to an Account with no billing record whose email
+  hash is not on the list (`src/lib/stripeCheckout.ts`). It looks up the hash made with the new secret, so a
+  row written before the rotation never matches. An Account that still has its billing record, such as a
+  lapsed student, is still refused by that record. But **a new Account for an email whose earlier Account
+  used its free week and was deleted before the rotation gets a second free week**, until the row would
+  have expired anyway, 12 months after its date. This breaks J11,
   which requires the refusal to hold after every rotation. It is a defect, reported from
   [issue 979](https://github.com/Jahazel/lsat-scheduler/issues/979). This guide does not change the rule.
 - **Deletion list.** The deletion replay (`npm run replay-deletions`) matches restored Accounts by Account ID
@@ -370,20 +383,32 @@ Steps:
 2. In Vercel, replace `AUTH_SECRET`.
 3. Redeploy in Vercel.
 4. Check that the site refuses the old secret: a browser that was signed in before the redeploy opens This
-   week and goes to Log in. A session cookie saved before the rotation is refused too:
+   week and goes to Log in with "Your session ended. Log in again."
+
+   Copy only, also check a saved cookie. Before step 2, sign in as a test Account. In the browser's
+   developer tools, copy the session cookie as one `name=value` pair: the name is
+   `__Secure-authjs.session-token`. If the browser splits it into `.0` and `.1` parts, copy both pairs,
+   joined by `; `. Enter it at the prompt and run the check: it must print `200` and no
+   location. Keep the terminal open. After step 3, run it again: it must print a `3xx` status and the
+   location `/login?error=SessionEnded`. A missing or misnamed cookie goes to plain `/login`, so that answer
+   does not pass. Do not do this on the real site.
 
    ```sh
-   read -rs OLD_COOKIE && export OLD_COOKIE
-   node -e 'fetch(process.argv[1] + "/dashboard", { headers: { cookie: process.env.OLD_COOKIE }, redirect: "manual" }).then((response) => console.log(response.status, response.headers.get("location")))' https://SITE
-   unset OLD_COOKIE
+   read -rs OLD_COOKIE && export OLD_COOKIE   # __Secure-authjs.session-token=VALUE, from before the rotation
+   : "${OLD_COOKIE:?enter the old cookie first}" &&
+     node -e 'fetch(process.argv[1] + "/dashboard", { headers: { cookie: process.env.OLD_COOKIE }, redirect: "manual" }).then((response) => console.log(response.status, response.headers.get("location")))' https://COPY-SITE
    ```
 
-   It must print a `3xx` status and a location on `/login`. On the real site, use only a test Account's
-   cookie, and only one saved before the rotation.
+   Then `unset OLD_COOKIE`.
 5. Check that the site works with the new secret: sign in with Google and with a test password Account.
    This week opens.
-6. Check J11 on the copy: an email that used its free week after the rotation is refused a second one. An
-   email that used it before the rotation is not, because of the defect above; record the result.
+6. Check J11 on the copy and record each result:
+   - A lapsed test Account that used its free week before the rotation is still refused a free week: its
+     billing record refuses it.
+   - Delete a test Account that used its free week after the rotation, and sign up again with the same email.
+     Checkout offers no free week.
+   - Do the same with a test Account whose free week and deletion were before the rotation. Checkout offers a
+     free week again, because of the defect above. Record it as the defect, not as a pass.
 
 ### Rotate the Anthropic key
 
@@ -401,7 +426,7 @@ follow [Revoke the Anthropic key](#revoke-the-anthropic-key) first; scanning sta
    Account. The scan fills the form. On the real site, check that the Console's usage page shows the new key's
    next call; do not spend money only to test.
 6. Delete the old key and prove Anthropic refuses it, as in
-   [Revoke the Anthropic key](#revoke-the-anthropic-key) step 3.
+   [Revoke the Anthropic key](#revoke-the-anthropic-key) steps 2 to 4.
 
 ### Rotate the Resend key
 
@@ -409,26 +434,27 @@ follow [Revoke the Anthropic key](#revoke-the-anthropic-key) first; scanning sta
 the real site's mail domain.
 
 **What students see:** nothing during the overlap. After a leak, when you delete the old key first, emails
-(verify, reset, and plan emails) are not sent until step 3 is done; the site logs `Email not sent`.
+(verify, reset, and plan emails) are not sent until step 4 is done; the site logs `Email not sent`.
 
-1. In Resend, open API Keys → Create API key. Give it Sending access, for the site's domain only. Copy it
+1. Copy only, if the password manager holds the current key: enter it, and run the check in step 7 with
+   the copy's `EMAIL_FROM` address. Resend must answer `200`. Keep the terminal open.
+2. In Resend, open API Keys → Create API key. Give it Sending access, for the site's domain only. Copy it
    once; do not save it in a file.
-2. In Vercel, replace `RESEND_API_KEY`.
-3. Redeploy in Vercel.
-4. Check that the site works with the new key: on the site's Log in page, ask for a password reset for a test
+3. In Vercel, replace `RESEND_API_KEY`.
+4. Redeploy in Vercel.
+5. Check that the site works with the new key: on the site's Log in page, ask for a password reset for a test
    password Account. The email arrives.
-5. In Resend, delete the old key.
-6. Check that Resend refuses the old key: it is gone from the API Keys list. Copy: if the password manager
-   holds the old key, also run this check with the copy's `EMAIL_FROM` address. Resend's test address
-   receives it, so nobody gets an email. A valid key answers `200`; the old key must not.
+6. In Resend, delete the old key.
+7. Check that Resend refuses the old key: it is gone from the API Keys list. Copy: run this check again in
+   the terminal from step 1. Resend's test address receives the message, so nobody gets an email.
 
    ```sh
-   read -rs OLD_RESEND_KEY && export OLD_RESEND_KEY
-   node -e 'fetch("https://api.resend.com/emails", { method: "POST", headers: { authorization: `Bearer ${process.env.OLD_RESEND_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ from: process.argv[1], to: ["delivered@resend.dev"], subject: "Rotation check", text: "Rotation check" }) }).then((response) => console.log(response.status))' 'COPY_EMAIL_FROM'
-   unset OLD_RESEND_KEY
+   read -rs OLD_RESEND_KEY && export OLD_RESEND_KEY   # the copy's current (old) Resend key
+   : "${OLD_RESEND_KEY:?enter the old key first}" &&
+     node -e 'fetch("https://api.resend.com/emails", { method: "POST", headers: { authorization: `Bearer ${process.env.OLD_RESEND_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ from: process.argv[1], to: ["delivered@resend.dev"], subject: "Rotation check", text: "Rotation check" }) }).then((response) => console.log(response.status))' 'COPY_EMAIL_FROM'
    ```
 
-   It must print `401` or `403`.
+   After step 6 it must print `401` or `403`. Then `unset OLD_RESEND_KEY`.
 
 ### Rotate the backup checker's Neon key
 
@@ -438,52 +464,64 @@ manager. See the [backup checker guide](../security/backup-checker.md).
 
 **What students see:** nothing. The checker only reads Neon.
 
-1. In the Neon Console, open the project's settings → API keys, and create a project-scoped key for the
-   site's project. Copy it once; do not save it in a file.
-2. Run `gh secret set NEON_API_KEY --env backup-checker-copy` (copy) or
+1. Copy only, if the password manager holds the current key: enter it with the copy's project ID, and run
+   the check in step 6. Neon must answer `200`. Keep the terminal open.
+2. In the Neon Console, create a new key of the same kind the
+   [backup checker guide](../security/backup-checker.md#owner-setup) records for this checker (steps 2 to 4
+   there): a key of the read-only Viewer collaborator, or the approved project-scoped key when Viewer access
+   is not available. Never use the owner's personal key or an organization-wide key. Copy it once; do not
+   save it in a file.
+3. Run `gh secret set NEON_API_KEY --env backup-checker-copy` (copy) or
    `gh secret set NEON_API_KEY --env backup-checker-production` (real site), and paste the key at the hidden
    prompt.
-3. Check that the checker works with the new key: in GitHub Actions, run the site's backup checker workflow
+4. Check that the checker works with the new key: in GitHub Actions, run the site's backup checker workflow
    by hand from `main`. It must pass, and its Healthchecks.io check must show the success ping.
-4. In the Neon Console, revoke the old key.
-5. Check that Neon refuses the old key: it is gone from the API keys list. Copy: if the password manager
-   holds the old key, also run this check with the copy's project ID. Neon must answer `401`.
+5. In the Neon Console, revoke the old key.
+6. Check that Neon refuses the old key: it is gone from the API keys list. Copy: run this check again in the
+   terminal from step 1.
 
    ```sh
-   read -rs OLD_NEON_KEY && read -rs BACKUP_PROJECT_ID && export OLD_NEON_KEY BACKUP_PROJECT_ID
-   node -e 'fetch(`https://console.neon.tech/api/v2/projects/${process.env.BACKUP_PROJECT_ID}`, { headers: { authorization: `Bearer ${process.env.OLD_NEON_KEY}` } }).then((response) => console.log(response.status))'
-   unset OLD_NEON_KEY BACKUP_PROJECT_ID
+   read -rs OLD_NEON_KEY        # the copy checker's current (old) Neon key
+   read -rs BACKUP_PROJECT_ID   # the copy's Neon project ID
+   export OLD_NEON_KEY BACKUP_PROJECT_ID
+   : "${OLD_NEON_KEY:?enter the old key first}" "${BACKUP_PROJECT_ID:?enter the project ID first}" &&
+     node -e 'fetch(`https://console.neon.tech/api/v2/projects/${process.env.BACKUP_PROJECT_ID}`, { headers: { authorization: `Bearer ${process.env.OLD_NEON_KEY}` } }).then((response) => console.log(response.status))'
    ```
 
-6. Replace the key in the password manager.
+   After step 5 it must print `401`. Then `unset OLD_NEON_KEY BACKUP_PROJECT_ID`.
+7. Replace the key in the password manager.
 
 ### Rotate the cron secret
 
 Vercel Cron sends `CRON_SECRET` as the bearer token on each daily cleanup run. No provider holds it; the
 site is the only place that checks it.
 
-**What students see:** nothing. If the daily run fails between steps 2 and 3, it runs again the next day.
+**What students see:** nothing. If the daily run fails between steps 3 and 4, it runs again the next day.
 
-1. In the password manager, generate a random value of at least 32 characters, with letters and digits only.
-2. In Vercel, replace `CRON_SECRET`.
-3. Redeploy in Vercel.
-4. Check that the site works with the new secret: open the project's Cron Jobs and choose Run on the daily
+1. Copy only, if the password manager holds the current value: enter it, and run the old-value check in
+   step 6. It must print `200`, which also runs the daily cleanup once. Keep the terminal open.
+2. In the password manager, generate a random value of at least 32 characters, with letters and digits only.
+3. In Vercel, replace `CRON_SECRET`.
+4. Redeploy in Vercel.
+5. Check that the site works with the new secret: open the project's Cron Jobs and choose Run on the daily
    cleanup. Request Logs show `GET /api/cron/daily-cleanup` with `200`.
-5. Check that the site refuses the old secret. Each site, with no secret:
+6. Check that the site refuses the old secret. Each site, with no secret:
 
    ```sh
    curl -s -o /dev/null -w '%{http_code}\n' https://SITE/api/cron/daily-cleanup
    ```
 
-   It must print `401`. Copy: also send the old value from the password manager. It must print `401`.
+   It must print `401`. Copy: also send the old value, from the terminal of step 1.
 
    ```sh
-   read -rs OLD_CRON_SECRET && export OLD_CRON_SECRET
-   node -e 'fetch(process.argv[1] + "/api/cron/daily-cleanup", { headers: { authorization: `Bearer ${process.env.OLD_CRON_SECRET}` } }).then((response) => console.log(response.status))' https://COPY-SITE
-   unset OLD_CRON_SECRET
+   read -rs OLD_CRON_SECRET && export OLD_CRON_SECRET   # the copy's current (old) CRON_SECRET
+   : "${OLD_CRON_SECRET:?enter the old secret first}" &&
+     node -e 'fetch(process.argv[1] + "/api/cron/daily-cleanup", { headers: { authorization: `Bearer ${process.env.OLD_CRON_SECRET}` } }).then((response) => console.log(response.status))' https://COPY-SITE
    ```
 
-6. Save the new value in the password manager.
+   After step 4 it must print `401`. Then `unset OLD_CRON_SECRET`.
+
+7. Save the new value in the password manager.
 
 ## Rotate the Stripe credentials
 
@@ -565,6 +603,9 @@ reach DrillMap late: Stripe retries each message for up to 3 days.
   it from your computer.
 
 ### Rotate the price-check key
+
+This key exists only for the real site (J8), so this section has no copy steps. **What students see:**
+nothing; only the release check uses it.
 
 1. In the Stripe Dashboard, switch to live mode and open Developers → API keys.
 2. Find the restricted key whose only permission is Prices: Read, and choose Rotate key. Choose Now: only the
