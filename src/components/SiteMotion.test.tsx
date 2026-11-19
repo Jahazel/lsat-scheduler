@@ -530,8 +530,8 @@ describe("SiteMotion", () => {
     });
 
     it("lands at the top on Back after a reload when the browser refuses storage", async () => {
-      vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new DOMException("blocked", "SecurityError"); });
-      vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new DOMException("blocked", "SecurityError"); });
+      vi.spyOn(Object.getPrototypeOf(sessionStorage), "getItem").mockImplementation(() => { throw new DOMException("blocked", "SecurityError"); });
+      vi.spyOn(Object.getPrototypeOf(sessionStorage), "setItem").mockImplementation(() => { throw new DOMException("blocked", "SecurityError"); });
       await reloadTermsThenBack();
       expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: "instant" });
       expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your practice results" }));
