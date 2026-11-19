@@ -35,7 +35,7 @@ function show(link: Partial<ListState> = {}, rows = ROWS) {
   const query = listQuery({ ...LIST_START, ...link });
   window.history.replaceState(null, "", `/admin${query}`);
   next.link = query.slice(1);
-  return render(<StudentsLedger rows={rows} />);
+  return render(<StudentsLedger rows={rows} upcomingTestMonthCount={4} />);
 }
 const NAMES = /^(Maya|Daniel|Priya|Lucas|Old|New)$/;
 const shownNames = () => within(screen.getByRole("table")).getAllByText(NAMES).map((name) => name.textContent);
@@ -149,7 +149,7 @@ describe("Students", () => {
     const { rerender } = show({ q: "pri" });
     expect(shownNames()).toEqual(["Priya"]);
     next.link = "";
-    rerender(<StudentsLedger rows={ROWS} />);
+    rerender(<StudentsLedger rows={ROWS} upcomingTestMonthCount={4} />);
     expect(screen.getByRole("searchbox")).toHaveProperty("value", "");
     expect(shownNames()).toEqual(["Daniel", "Lucas", "Maya", "Priya"]);
   });
@@ -161,7 +161,7 @@ describe("Students", () => {
     expect(window.location.search).toBe("?q=ma");
     for (const late of ["q=m", "q=ma"]) {
       next.link = late;
-      rerender(<StudentsLedger rows={ROWS} />);
+      rerender(<StudentsLedger rows={ROWS} upcomingTestMonthCount={4} />);
       expect(screen.getByRole("searchbox")).toHaveProperty("value", "ma");
     }
     expect(shownNames()).toEqual(["Maya"]);
@@ -174,16 +174,16 @@ describe("Students", () => {
     await user.type(search, "ab{Backspace}{Backspace}");
     await user.type(search, "a");
     next.link = "q=a";
-    rerender(<StudentsLedger rows={ROWS} />);
+    rerender(<StudentsLedger rows={ROWS} upcomingTestMonthCount={4} />);
     next.link = "";
-    rerender(<StudentsLedger rows={ROWS} />);
+    rerender(<StudentsLedger rows={ROWS} upcomingTestMonthCount={4} />);
     expect(search).toHaveProperty("value", "");
     expect(shownNames()).toEqual(["Daniel", "Lucas", "Maya", "Priya"]);
   });
 
   it("opens with the choices in the link", () => {
     next.link = "q=pri";
-    render(<StudentsLedger rows={ROWS} />);
+    render(<StudentsLedger rows={ROWS} upcomingTestMonthCount={4} />);
     expect(screen.getByRole("searchbox")).toHaveProperty("value", "pri");
     expect(shownNames()).toEqual(["Priya"]);
   });
@@ -195,5 +195,26 @@ describe("Students", () => {
     await user.click(within(screen.getByRole("region", { name: "Student list" })).getByRole("button", { name: "Clear filters" }));
     expect(shownNames()).toEqual(["Priya", "Lucas", "Daniel", "Maya"]);
     expect(window.location.search).toBe("?sort=plan");
+  });
+});
+
+describe("the few test months note", () => {
+  const note = () => screen.queryByText(/upcoming test month/);
+
+  it.each([3, 1, 0])("shows with %i upcoming months, linking to Test dates", (upcoming) => {
+    render(<StudentsLedger rows={ROWS} upcomingTestMonthCount={upcoming} />);
+    expect(note()).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Test dates" }).getAttribute("href")).toBe("/admin/test-dates");
+  });
+
+  it("says how many months are left", () => {
+    render(<StudentsLedger rows={ROWS} upcomingTestMonthCount={3} />);
+    expect(note()?.textContent).toMatch(/^Only 3 upcoming test months are left/);
+  });
+
+  it.each([4, 6])("hides with %i upcoming months", (upcoming) => {
+    render(<StudentsLedger rows={ROWS} upcomingTestMonthCount={upcoming} />);
+    expect(note()).toBeNull();
+    expect(screen.queryByRole("link", { name: "Test dates" })).toBeNull();
   });
 });

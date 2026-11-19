@@ -15,6 +15,8 @@ import { createStudentProfile } from "../../src/app/onboarding/actions";
 const database = setUpAppTestDatabase();
 beforeEach(async () => {
   request.session = null;
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-19T15:00:00Z"));
   await database.owner.execute(sql`truncate accounts, action_counters cascade`);
 });
 

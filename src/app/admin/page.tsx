@@ -4,22 +4,25 @@ import { PageArrival } from "@/components/PagePlaceholder";
 import { PAGE_COLUMN, cx } from "@/components/ui/classes";
 import { listStudentIdsWithApprovedAnalytics } from "@/lib/analyticsSnapshotRepository";
 import { loadAccountPlans } from "@/lib/billingRepository";
-import { currentWeekInTimezone } from "@/lib/currentWeeklySchedule";
+import { currentWeekInTimezone, localDateInTimezone } from "@/lib/currentWeeklySchedule";
 import { isHeldWeek } from "@/lib/planStatus";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
 import type { StudentRow } from "@/lib/studentList";
 import { listStudentsWithOwners } from "@/lib/studentRepository";
+import { upcomingTestMonths } from "@/lib/testMonthRepository";
 import { listStudentIdsWithScheduleForWeek } from "@/lib/weeklyScheduleRepository";
 import { StudentsLedger } from "./StudentsLedger";
 
 export default async function AdminPage() {
   await requireAdmin();
 
-  const week = currentWeekInTimezone(new Date(), SCHEDULE_TIMEZONE);
-  const [students, withAnalytics, withThisWeek] = await Promise.all([
+  const now = new Date();
+  const week = currentWeekInTimezone(now, SCHEDULE_TIMEZONE);
+  const [students, withAnalytics, withThisWeek, testMonths] = await Promise.all([
     listStudentsWithOwners(),
     listStudentIdsWithApprovedAnalytics(),
     listStudentIdsWithScheduleForWeek(week),
+    upcomingTestMonths(localDateInTimezone(now, SCHEDULE_TIMEZONE)),
   ]);
   const analytics = new Set(withAnalytics);
   const thisWeek = new Set(withThisWeek);
@@ -43,7 +46,7 @@ export default async function AdminPage() {
     <div data-page-fade className={cx(PAGE_COLUMN, "pt-6 pb-12 md:pt-10")}>
       <PageCue page="admin" />
       <PageArrival page="Students" />
-      <StudentsLedger rows={rows} />
+      <StudentsLedger rows={rows} upcomingTestMonthCount={testMonths.length} />
     </div>
   );
 }

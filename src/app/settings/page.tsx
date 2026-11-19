@@ -3,8 +3,8 @@ import { PageArrival } from "@/components/PagePlaceholder";
 import { auth } from "@/auth";
 import { loadChosenPlan } from "@/lib/billingRepository";
 import { studentSideToday } from "@/lib/studentClock";
-import { upcomingTestMonths } from "@/lib/studentProfile";
 import { findOfficialAttempts, findStudentByAccountId } from "@/lib/studentRepository";
+import { upcomingTestMonths } from "@/lib/testMonthRepository";
 import { saveStudySettings } from "./actions";
 import { StudySettingsForm } from "./StudySettingsForm";
 
@@ -31,7 +31,7 @@ export default async function StudySettingsPage() {
           officialAttempts: await findOfficialAttempts(session.user.id),
         }}
         today={today}
-        goalTestDateOptions={upcomingTestMonths(today)}
+        goalTestDateOptions={await upcomingTestMonths(today)}
         onSave={saveStudySettings}
       />
     </div>
