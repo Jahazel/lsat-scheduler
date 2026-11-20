@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-
-export const SIGN_IN_EXPIRED = "Your sign-in expired. Sign in again, then upload your screenshot again.";
+import { SIGN_IN_EXPIRED } from "@/lib/screenshotUpload";
 
 export function SignInAgainLink({ className, ref }: { className: string; ref?: React.Ref<HTMLAnchorElement> }) {
   return (

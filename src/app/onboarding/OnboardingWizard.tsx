@@ -42,8 +42,8 @@ import {
   type WizardAction,
   type WizardState,
 } from "@/lib/onboardingWizard";
-import { nextRead } from "@/lib/screenshotReadQueue";
-import { SCREENSHOT_LIMITS, SCREENSHOT_NOTICE, checkScreenshotType, extractScreenshot } from "@/lib/screenshotUpload";
+import { nextRead, readScreenshot } from "@/lib/screenshotReadQueue";
+import { SCREENSHOT_LIMITS, SCREENSHOT_NOTICE, checkScreenshotType } from "@/lib/screenshotUpload";
 import type { AnalyticsSection } from "@/lib/types";
 import { slideStep } from "@/lib/pageMotion";
 import { isUnexpectedFailure } from "@/lib/unexpectedFailure";
@@ -73,7 +73,6 @@ interface OnboardingWizardProps {
   scanningOff?: boolean;
   admin?: boolean;
   onSave: typeof createStudentProfile;
-  extract?: typeof extractScreenshot;
 }
 
 type Dispatch = (action: WizardAction) => void;
@@ -86,7 +85,6 @@ export default function OnboardingWizard({
   scanningOff = false,
   admin = false,
   onSave,
-  extract = extractScreenshot,
 }: OnboardingWizardProps) {
   const [state, dispatch] = useReducer(wizardReducer, scanningOff, (off) => off
     ? wizardReducer(initialWizardState(), { type: "chooseInput", input: "typed", at: new Date() })
@@ -111,10 +109,10 @@ export default function OnboardingWizard({
     const next = nextRead(screenshots, SECTIONS);
     if (!next) return;
     dispatch({ type: "readStarted", id: next.id });
-    void extract(next.file, next.slot).then((reply) => dispatch({ type: "readEnded", section: next.slot, id: next.id, reply, at: new Date() }));
-  }, [screenshots, extract]);
+    void readScreenshot(next.file, next.slot).then(({ read }) => dispatch({ type: "readEnded", section: next.slot, id: next.id, read }));
+  }, [screenshots]);
 
-  function readScreenshot(section: AnalyticsSection, file: File) {
+  function addScreenshot(section: AnalyticsSection, file: File) {
     const rejection = checkScreenshotType(file);
     dispatch(rejection ? { type: "screenshotRejected", section, message: rejection.message } : { type: "readQueued", section, file });
   }
@@ -160,7 +158,7 @@ export default function OnboardingWizard({
             {saved ? <WeekReveal saved={saved} today={today} testMonths={goalTestDateOptions} /> : <>
             {state.step === "goal" && <GoalStep state={state} dispatch={send} firstName={firstName} goalTestDateOptions={goalTestDateOptions} today={today} />}
             {state.step === "week" && <WeekStep state={state} dispatch={send} />}
-            {state.step === "analytics" && <AnalyticsStep state={state} scanningOff={scanningOff} dispatch={send} onFile={readScreenshot} />}
+            {state.step === "analytics" && <AnalyticsStep state={state} scanningOff={scanningOff} dispatch={send} onFile={addScreenshot} />}
             {state.step === "review" && draft && <ReviewStep state={state} draft={draft} dispatch={send} />}
             </>}
           </div>

@@ -1,10 +1,23 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SectionReading } from "./practiceTestResult";
 import {
-  addFile, analyticsRead, emptyReadQueue, endRead, nextRead, sectionRead, slotFile, slotFiles, startRead,
+  NO_LR_ROWS, addFile, emptyReadQueue, endRead, nextRead, readScreenshot, settleAnalyticsRead, settleSectionRead, slotFile, slotFiles, startRead,
   type AnalyticsReading, type ReadQueue,
 } from "./screenshotReadQueue";
+import {
+  CANNOT_READ, CONNECTION_LOST, SIGN_IN_EXPIRED, TOOK_TOO_LONG, WRONG_TYPE, extractPracticeTestScreenshot, extractScreenshot,
+  type ExtractReply,
+} from "./screenshotUpload";
 import type { AnalyticsExtractedRow } from "./types";
+import { NOT_LOGGED } from "./unexpectedFailure";
+
+vi.mock("./screenshotUpload", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./screenshotUpload")>(),
+  extractScreenshot: vi.fn(),
+  extractPracticeTestScreenshot: vi.fn(),
+}));
+
+const analyticsRead = (reply: ExtractReply, section: "LR" | "RC", at: Date) => settleAnalyticsRead(reply, section, at).read;
 
 type Reads = { LR: AnalyticsReading; RC: AnalyticsReading; section: SectionReading };
 const ORDER = ["LR", "RC", "section"] as const;
@@ -93,8 +106,82 @@ describe("reply to file status", () => {
   });
 
   it("names each failure the same way for analytics and section screenshots", () => {
-    expect(sectionRead({ kind: "timed-out" })).toEqual({ status: "timed-out" });
-    expect(sectionRead({ kind: "rejected", message: "Too big." })).toEqual({ status: "rejected", message: "Too big." });
+    expect(settleSectionRead({ kind: "timed-out" }).read).toEqual({ status: "timed-out" });
+    expect(settleSectionRead({ kind: "rejected", message: "Too big." }).read).toEqual({ status: "rejected", message: "Too big." });
     expect(analyticsRead({ kind: "signed-out" }, "RC", AT)).toEqual({ status: "signed-out" });
+  });
+});
+
+describe("settled read", () => {
+  const failure = { unexpectedFailure: NOT_LOGGED } as const;
+  const scanningOff = { kind: "refused", refused: "scanning-off", message: "Scanning is off right now." } as const;
+  const stillReading = { kind: "refused", refused: "still-reading", message: "We're still reading your last screenshot." } as const;
+
+  it.each<[string, ExtractReply, string | null]>([
+    ["a lost connection", { kind: "connection-lost" }, CONNECTION_LOST],
+    ["an unreadable screenshot", { kind: "cannot-read" }, CANNOT_READ],
+    ["a read that ran out of time", { kind: "timed-out" }, TOOK_TOO_LONG],
+    ["an expired sign-in", { kind: "signed-out" }, SIGN_IN_EXPIRED],
+    ["a file the server refused", { kind: "rejected", message: "Too big." }, "Too big."],
+    ["a refused scan", stillReading, stillReading.message],
+    ["an unexpected failure, which the failure notice names", { kind: "failed", failure }, null],
+    ["an LR page with no question types", { kind: "rows", rows: [] }, NO_LR_ROWS],
+  ])("gives one message for %s", (_, reply, message) => {
+    expect(settleAnalyticsRead(reply, "LR", AT).message).toBe(message);
+  });
+
+  it("says nothing for a good read", () => {
+    expect(settleAnalyticsRead({ kind: "rows", rows: [lrRow] }, "LR", AT)).toEqual({
+      read: { status: "read", value: { rows: [lrRow], at: AT.toISOString() } }, message: null, scanningOff: false,
+    });
+  });
+
+  it("turns scanning off only when the scan was refused because scanning is off", () => {
+    expect(settleAnalyticsRead(scanningOff, "RC", AT)).toEqual({
+      read: { status: "refused", message: scanningOff.message, tryAgain: false }, message: scanningOff.message, scanningOff: true,
+    });
+    expect(settleSectionRead(scanningOff).scanningOff).toBe(true);
+    expect(settleSectionRead(stillReading).scanningOff).toBe(false);
+    expect(settleAnalyticsRead({ kind: "refused", refused: "daily-limit", message: "Limit." }, "LR", AT).scanningOff).toBe(false);
+  });
+
+  it("gives the same message for a section screenshot as for an analytics one", () => {
+    expect(settleSectionRead({ kind: "signed-out" }).message).toBe(SIGN_IN_EXPIRED);
+    expect(settleSectionRead({ kind: "cannot-read" }).message).toBe(CANNOT_READ);
+  });
+});
+
+describe("read a screenshot", () => {
+  beforeEach(() => {
+    vi.mocked(extractScreenshot).mockReset();
+    vi.mocked(extractPracticeTestScreenshot).mockReset();
+  });
+
+  it("refuses a file that is not a screenshot type without sending it", async () => {
+    const settled = await readScreenshot(new File(["gif"], "a.gif", { type: "image/gif" }), "LR", "lab");
+
+    expect(settled).toEqual({ read: { status: "rejected", message: WRONG_TYPE.message }, message: WRONG_TYPE.message, scanningOff: false });
+    expect(extractScreenshot).not.toHaveBeenCalled();
+  });
+
+  it("sends an analytics screenshot to the analytics reader for its section and keeps that section's rows", async () => {
+    vi.mocked(extractScreenshot).mockResolvedValue({ kind: "rows", showsPassageTypes: true, rows: [lrRow, { type: "Law", category: "passage", accuracy: 58 }] });
+    const file = png("rc.png");
+
+    const settled = await readScreenshot(file, "RC", "lab");
+
+    expect(extractScreenshot).toHaveBeenCalledWith(file, "RC", "lab");
+    expect(settled.read).toMatchObject({ status: "read", value: { rows: [{ type: "Law" }] } });
+  });
+
+  it("sends a practice-test section to the section reader", async () => {
+    const reading: SectionReading = { page: "other" };
+    vi.mocked(extractPracticeTestScreenshot).mockResolvedValue({ kind: "reading", reading });
+    const file = png("s1.png");
+
+    const settled = await readScreenshot(file, "section");
+
+    expect(extractPracticeTestScreenshot).toHaveBeenCalledWith(file, "student");
+    expect(settled).toEqual({ read: { status: "read", value: reading }, message: null, scanningOff: false });
   });
 });

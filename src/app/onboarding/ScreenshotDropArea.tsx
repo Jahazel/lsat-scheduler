@@ -2,13 +2,14 @@
 
 import { useEffect, useId, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { PauseGlyph } from "@/components/ScanningOffNote";
-import { SIGN_IN_EXPIRED, SignInAgainLink } from "@/components/SignInExpired";
+import { SignInAgainLink } from "@/components/SignInExpired";
 import { ReadingBar, useReadingBar } from "@/components/ui/ReadingBar";
 import { ClockGlyph, ReadingGlyph } from "@/components/ui/StatusIcon";
 import { FOCUS, TAP_AREA, cx } from "@/components/ui/classes";
 import { SECTION_NAME } from "@/lib/analyticsReview";
 import type { Screenshot } from "@/lib/onboardingWizard";
-import { CONNECTION_LOST, SCREENSHOT_MEDIA_TYPES } from "@/lib/screenshotUpload";
+import { readMessage } from "@/lib/screenshotReadQueue";
+import { SCREENSHOT_MEDIA_TYPES } from "@/lib/screenshotUpload";
 import type { AnalyticsSection } from "@/lib/types";
 
 const ACCEPT = SCREENSHOT_MEDIA_TYPES.join(",");
@@ -27,17 +28,21 @@ const HINT: Record<AnalyticsSection, string> = {
 type Read = Screenshot["read"];
 type Look = "waiting" | "reading" | "read" | "problem" | "refused" | "paused";
 
-const STATUS: Record<Exclude<Read["status"], "read" | "rejected" | "refused">, { text: string; look: Look }> = {
-  added: { text: "Waiting to read", look: "waiting" },
-  waiting: { text: "Waiting to read", look: "waiting" },
-  reading: { text: "Reading your screenshot…", look: "reading" },
-  failed: { text: "", look: "problem" },
-  "timed-out": { text: "Reading took too long and stopped.", look: "problem" },
-  "connection-lost": { text: CONNECTION_LOST, look: "paused" },
-  "cannot-read": { text: "We couldn't read the rows in it.", look: "problem" },
-  "signed-out": { text: SIGN_IN_EXPIRED, look: "problem" },
-  "no-rows": { text: "No question types in this one.", look: "problem" },
+const LOOK: Record<Exclude<Read["status"], "read">, Look> = {
+  added: "waiting",
+  waiting: "waiting",
+  reading: "reading",
+  failed: "problem",
+  rejected: "problem",
+  refused: "refused",
+  "timed-out": "problem",
+  "connection-lost": "paused",
+  "cannot-read": "problem",
+  "signed-out": "problem",
+  "no-rows": "problem",
 };
+const WAITING = "Waiting to read";
+const READING = "Reading your screenshot…";
 
 function readSummary(section: AnalyticsSection, count: number) {
   const noun = section === "LR" ? "question type" : "passage type";
@@ -45,11 +50,10 @@ function readSummary(section: AnalyticsSection, count: number) {
 }
 
 function describe(section: AnalyticsSection, read: Read, reading: boolean): { text: string; look: Look } {
-  if (reading) return STATUS.reading;
+  if (reading || read.status === "reading") return { text: READING, look: "reading" };
   if (read.status === "read") return { text: readSummary(section, read.value.rows.length), look: "read" };
-  if (read.status === "rejected") return { text: read.message, look: "problem" };
-  if (read.status === "refused") return { text: read.message, look: "refused" };
-  return STATUS[read.status];
+  if (read.status === "added" || read.status === "waiting") return { text: WAITING, look: "waiting" };
+  return { text: readMessage(read) ?? "", look: LOOK[read.status] };
 }
 
 function useDrag(onFile: (file: File) => void) {

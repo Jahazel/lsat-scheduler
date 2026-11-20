@@ -214,6 +214,14 @@ describe("Schedule lab", () => {
       expect(within(reasons()).getByText("Planned from Steady sample")).toBeTruthy();
     });
 
+    it("asks the admin to sign in again when the read finds them signed out, like the live upload", async () => {
+      extractScreenshot.mockResolvedValue({ kind: "signed-out" });
+      await pickScreenshots();
+      await userEvent.upload(fileInput("Logical Reasoning"), png("lr.png"));
+
+      await waitFor(() => expect(within(inputs()).getByText("Logical Reasoning: Your sign-in expired. Sign in again, then upload your screenshot again.")).toBeTruthy());
+    });
+
     it("refuses a page the live upload would refuse, and keeps the last week", async () => {
       extractScreenshot.mockImplementation((_file: File, section: string) =>
         Promise.resolve(section === "LR" ? { kind: "rows", rows: RC_ROWS } : { kind: "rows", rows: [], showsPassageTypes: false }));

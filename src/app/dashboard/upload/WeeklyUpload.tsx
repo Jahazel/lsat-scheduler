@@ -20,12 +20,11 @@ import {
   reviewPracticeTest, type HiddenPick, type PracticeTestProblem, type PracticeTestResult, type SectionReading, type SectionReview,
 } from "@/lib/practiceTestResult";
 import {
-  NO_LR_ROWS, addFile, analyticsRead, emptyReadQueue, endRead, moveFiles, nextRead, removeFile, sectionRead, slotFile, slotFiles, startRead,
-  type AnalyticsReading, type FileRead, type QueuedFile, type ReadQueue,
+  addFile, emptyReadQueue, endRead, moveFiles, nextRead, readMessage, readScreenshot, removeFile, slotFile, slotFiles, startRead,
+  type FileRead, type QueuedFile, type ReadQueue, type ScreenshotReads,
 } from "@/lib/screenshotReadQueue";
 import {
-  CANNOT_READ, CONNECTION_LOST, MAX_SCREENSHOT_MB, SCREENSHOT_MEDIA_TYPES, SCREENSHOT_NOTICE, TOOK_TOO_LONG, checkScreenshotType, extractPracticeTestScreenshot,
-  extractScreenshot,
+  CONNECTION_LOST, MAX_SCREENSHOT_MB, SCREENSHOT_MEDIA_TYPES, SCREENSHOT_NOTICE, checkScreenshotType,
 } from "@/lib/screenshotUpload";
 import type { ScanningOff } from "@/lib/scanSpending";
 import { DAY_LABEL } from "@/lib/studentProfile";
@@ -50,20 +49,21 @@ const SCORE_HINT = `Enter a score from ${MIN_SCORE} to ${MAX_SCORE} to continue.
 const LIMITS = `PNG, JPG, or WEBP, ${MAX_SCREENSHOT_MB} MB or less each. Tall screenshots are fine.`;
 
 type Read = FileRead<unknown>;
-type UploadReads = Record<AnalyticsSection, AnalyticsReading> & { section: SectionReading };
-type AnalyticsUpload = QueuedFile<UploadReads, AnalyticsSection>;
-type SectionUpload = QueuedFile<UploadReads, "section">;
+type AnalyticsUpload = QueuedFile<ScreenshotReads, AnalyticsSection>;
+type SectionUpload = QueuedFile<ScreenshotReads, "section">;
 
 const READ_ORDER = [...SECTIONS, "section"] as const;
 const PENDING: Read["status"][] = ["added", "waiting", "reading"];
 
 function readProblem(read: Read): { message: string | null; tryAgain: boolean } | null {
   switch (read.status) {
-    case "rejected": return { message: read.message, tryAgain: false };
-    case "no-rows": return { message: NO_LR_ROWS, tryAgain: false };
-    case "failed": return { message: null, tryAgain: true };
-    case "timed-out": return { message: TOOK_TOO_LONG, tryAgain: true };
-    case "cannot-read": return { message: CANNOT_READ, tryAgain: true };
+    case "rejected":
+    case "no-rows":
+      return { message: readMessage(read), tryAgain: false };
+    case "failed":
+    case "timed-out":
+    case "cannot-read":
+      return { message: readMessage(read), tryAgain: true };
     default: return null;
   }
 }
@@ -100,7 +100,7 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
   const needsSections = basis.hadPracticeTest && !skipsPracticeTest;
   const text = planText(basis);
   const [scoreText, setScoreText] = useState(String(initialScore));
-  const [reads, setReads] = useState<ReadQueue<UploadReads>>(emptyReadQueue);
+  const [reads, setReads] = useState<ReadQueue<ScreenshotReads>>(emptyReadQueue);
   const analytics: Partial<Record<AnalyticsSection, AnalyticsUpload>> = { LR: slotFile(reads, "LR"), RC: slotFile(reads, "RC") };
   const sections = slotFiles(reads, "section");
   const [rejections, setRejections] = useState<Record<string, string>>({});
@@ -121,20 +121,17 @@ export default function WeeklyUpload({ basis, initialScore, scanningOff: serverS
     });
 
   useEffect(() => {
-    async function read(upload: QueuedFile<UploadReads>) {
+    async function read(upload: QueuedFile<ScreenshotReads>) {
       setReads((current) => startRead(current, upload.id));
+      const settled = await readScreenshot(upload.file, upload.slot);
+      setReads((current) => endRead(current, upload.id, settled.read));
+      if (!settled.scanningOff) return;
       if (upload.slot === "section") {
-        const reply = await extractPracticeTestScreenshot(upload.file);
-        setReads((current) => endRead(current, upload.id, sectionRead(reply)));
-        if (reply.kind === "refused" && reply.refused === "scanning-off") setScanningOff((current) => ({ ...current, "practice-test-section": true }));
+        setScanningOff((current) => ({ ...current, "practice-test-section": true }));
         return;
       }
-      const reply = await extractScreenshot(upload.file, upload.slot);
-      setReads((current) => endRead(current, upload.id, analyticsRead(reply, upload.slot, new Date())));
-      if (reply.kind === "refused" && reply.refused === "scanning-off") {
-        setScanningOff({ analytics: true, "practice-test-section": true });
-        setInput("typed");
-      }
+      setScanningOff({ analytics: true, "practice-test-section": true });
+      setInput("typed");
     }
 
     const next = nextRead(reads, READ_ORDER);

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FailureToastProvider } from "@/components/FailureNotice";
-import { SIGN_IN_EXPIRED } from "@/components/SignInExpired";
+import { SIGN_IN_EXPIRED } from "@/lib/screenshotUpload";
 import { readSection } from "@/lib/analyticsReview";
 import { summarizeApprovedRows } from "@/lib/analyticsSnapshots";
 import { PT158_FIXTURES } from "@/lib/practiceTestFixtures/pt158";

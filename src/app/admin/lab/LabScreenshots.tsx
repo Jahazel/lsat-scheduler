@@ -1,36 +1,27 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { problemMessage } from "@/app/dashboard/upload/weeklyUploadText";
+import { LastFinishedReadNotice } from "@/components/FailureNotice";
 import { ScanningOffNote } from "@/components/ScanningOffNote";
 import { ProblemNote } from "@/components/ui/FileRow";
 import { FOCUS, cx } from "@/components/ui/classes";
-import { reviewPracticeTest, type PracticeTestProblem, type SectionReading } from "@/lib/practiceTestResult";
+import { reviewPracticeTest, type PracticeTestProblem } from "@/lib/practiceTestResult";
 import type { LabRead } from "@/lib/scheduleLab";
-import { NO_LR_ROWS, analyticsRead } from "@/lib/screenshotReadQueue";
 import {
-  CANNOT_READ, CONNECTION_LOST, SCREENSHOT_MEDIA_TYPES, TOOK_TOO_LONG, checkScreenshotType, extractPracticeTestScreenshot, extractScreenshot,
-  type ExtractReply, type SectionReply,
-} from "@/lib/screenshotUpload";
-import type { AnalyticsExtractedRow, AnalyticsSection } from "@/lib/types";
+  addFile, emptyReadQueue, endRead, nextRead, readMessage, readScreenshot, removeFile, slotFile, slotFiles, startRead,
+  type FileRead, type QueuedFile, type ReadQueue, type ScreenshotReads, type ScreenshotSlot,
+} from "@/lib/screenshotReadQueue";
+import { SCREENSHOT_MEDIA_TYPES } from "@/lib/screenshotUpload";
+import type { AnalyticsSection } from "@/lib/types";
 import { PRESS } from "../StudentsLedger";
 
-type Slot<T> =
-  | { state: "empty" }
-  | { state: "reading"; name: string }
-  | { state: "read"; name: string; value: T }
-  | { state: "failed"; name: string; message: string };
-type Rows = AnalyticsExtractedRow[];
+type LabFile = QueuedFile<ScreenshotReads>;
 
-const EMPTY = { state: "empty" } as const;
 const ACCEPT = SCREENSHOT_MEDIA_TYPES.join(",");
-
-function failure(reply: Exclude<ExtractReply | SectionReply, { kind: "rows" } | { kind: "reading" }>) {
-  if (reply.kind === "rejected" || reply.kind === "refused") return reply.message;
-  if (reply.kind === "timed-out") return TOOK_TOO_LONG;
-  if (reply.kind === "connection-lost") return CONNECTION_LOST;
-  return CANNOT_READ;
-}
+const READ_ORDER: readonly ScreenshotSlot[] = ["LR", "RC", "section"];
+const PENDING: FileRead<unknown>["status"][] = ["added", "waiting", "reading"];
+const pending = ({ read }: { read: FileRead<unknown> }) => PENDING.includes(read.status);
 
 function practiceTestProblem(problem: PracticeTestProblem) {
   if (problem.problem === "section-missing") return `Section ${problem.section} is missing. Add all 4 sections together.`;
@@ -39,63 +30,49 @@ function practiceTestProblem(problem: PracticeTestProblem) {
 }
 
 export function useLabScreenshots(serverScanningOff: boolean) {
-  const [lr, setLr] = useState<Slot<Rows>>(EMPTY);
-  const [rc, setRc] = useState<Slot<Rows>>(EMPTY);
-  const [pt, setPt] = useState<Slot<SectionReading>[]>([]);
+  const [reads, setReads] = useState<ReadQueue<ScreenshotReads>>(emptyReadQueue);
   const [scanningOff, setScanningOff] = useState(serverScanningOff);
-  const latest = useRef({ LR: 0, RC: 0, PT: 0 });
-  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const lr = slotFile(reads, "LR");
+  const rc = slotFile(reads, "RC");
+  const pt = useMemo(() => slotFiles(reads, "section"), [reads]);
 
-  const readOneAtATime = <T,>(read: () => Promise<T>) => {
-    const next = queue.current.then(read);
-    queue.current = next.catch(() => undefined);
-    return next;
+  useEffect(() => {
+    async function read(file: LabFile) {
+      setReads((current) => startRead(current, file.id));
+      const settled = await readScreenshot(file.file, file.slot, "lab");
+      setReads((current) => endRead(current, file.id, settled.read));
+      if (settled.scanningOff) setScanningOff(true);
+    }
+
+    const next = nextRead(reads, READ_ORDER);
+    if (next) void read(next);
+  }, [reads]);
+
+  const readSection = (section: AnalyticsSection) => ([file]: File[]) => {
+    if (file) setReads((current) => addFile(current, { slot: section, file, status: "waiting", replacing: slotFile(current, section)?.id }));
   };
 
-  const failed = (reply: Parameters<typeof failure>[0]) => {
-    if (reply.kind === "refused" && reply.refused === "scanning-off") setScanningOff(true);
-    return failure(reply);
-  };
-
-  const readSection = (section: AnalyticsSection) => async ([file]: File[]) => {
-    if (!file) return;
-    const set = section === "LR" ? setLr : setRc;
-    const turn = ++latest.current[section];
-    const wrong = checkScreenshotType(file);
-    if (wrong) return set({ state: "failed", name: file.name, message: wrong.message });
-    set({ state: "reading", name: file.name });
-    const reply = await readOneAtATime(() => extractScreenshot(file, section, "lab"));
-    if (turn !== latest.current[section]) return;
-    if (reply.kind !== "rows") return set({ state: "failed", name: file.name, message: failed(reply) });
-    const read = analyticsRead(reply, section, new Date());
-    if (read.status === "read") return set({ state: "read", name: file.name, value: read.value.rows });
-    set({ state: "failed", name: file.name, message: read.status === "rejected" ? read.message : NO_LR_ROWS });
-  };
-
-  const readPracticeTest = async (files: File[]) => {
+  const readPracticeTest = (files: File[]) => {
     if (files.length === 0) return;
-    const turn = ++latest.current.PT;
-    setPt(files.map((file) => ({ state: "reading", name: file.name })));
-    const read = await Promise.all(files.map(async (file): Promise<Slot<SectionReading>> => {
-      const wrong = checkScreenshotType(file);
-      if (wrong) return { state: "failed", name: file.name, message: wrong.message };
-      const reply = await readOneAtATime(() => extractPracticeTestScreenshot(file, "lab"));
-      return reply.kind === "reading" ? { state: "read", name: file.name, value: reply.reading } : { state: "failed", name: file.name, message: failed(reply) };
-    }));
-    if (turn === latest.current.PT) setPt(read);
+    setReads((current) => {
+      const cleared = slotFiles(current, "section").reduce((next, { id }) => removeFile(next, id), current);
+      return files.reduce((next, file) => addFile(next, { slot: "section", file, status: "waiting" }), cleared);
+    });
   };
 
   const review = useMemo(() => {
-    const readings = pt.flatMap((file) => (file.state === "read" ? [file.value] : []));
-    return readings.length > 0 && !pt.some((file) => file.state === "reading") ? reviewPracticeTest(readings) : null;
+    const readings = pt.flatMap((file) => (file.read.status === "read" ? [file.read.value] : []));
+    return readings.length > 0 && !pt.some(pending) ? reviewPracticeTest(readings) : null;
   }, [pt]);
 
   const read = useMemo<LabRead | null>(
-    () => (lr.state === "read" && rc.state === "read" ? { lr: lr.value, rc: rc.value, practiceTest: review?.ok ? review.result : null } : null),
+    () => (lr?.read.status === "read" && rc?.read.status === "read"
+      ? { lr: lr.read.value.rows, rc: rc.read.value.rows, practiceTest: review?.ok ? review.result : null }
+      : null),
     [lr, rc, review],
   );
 
-  return { lr, rc, pt, review, scanningOff, read, readSection, readPracticeTest };
+  return { reads, lr, rc, pt, review, scanningOff, read, readSection, readPracticeTest };
 }
 
 export type LabScreenshotSlots = ReturnType<typeof useLabScreenshots>;
@@ -135,40 +112,50 @@ function Row({ title, detail, tone, action }: { title: string; detail: string; t
 
 const shortName = (name: string) => (name.length > 24 ? `${name.slice(0, 12)}…${name.slice(-10)}` : name);
 
-function slotDetail<T>(slot: Slot<T>, read: (value: T) => string) {
-  if (slot.state === "empty") return "Not added";
-  if (slot.state === "reading") return `Reading ${shortName(slot.name)}…`;
-  if (slot.state === "failed") return shortName(slot.name);
-  return `${shortName(slot.name)} · ${read(slot.value)}`;
+function fileDetail<S extends ScreenshotSlot>(file: QueuedFile<ScreenshotReads, S> | undefined, read: (value: ScreenshotReads[S]) => string) {
+  if (!file) return "Not added";
+  if (pending(file)) return `Reading ${shortName(file.file.name)}…`;
+  if (file.read.status !== "read") return shortName(file.file.name);
+  return `${shortName(file.file.name)} · ${read(file.read.value)}`;
 }
 
-const TONE: Record<Slot<unknown>["state"], Tone> = { empty: "idle", reading: "busy", read: "done", failed: "bad" };
+const fileTone = (file: { read: FileRead<unknown> } | undefined): Tone => (!file ? "idle" : pending(file) ? "busy" : file.read.status === "read" ? "done" : "bad");
+
+function problemNote(file: { read: FileRead<unknown> } | undefined) {
+  return file ? readMessage(file.read) : null;
+}
 
 export function LabScreenshots({ slots }: { slots: LabScreenshotSlots }) {
-  const { lr, rc, pt, review, scanningOff } = slots;
-  const ptReading = pt.some((file) => file.state === "reading");
-  const ptRead = pt.filter((file) => file.state === "read").length;
-  const ptFailed = pt.flatMap((file) => (file.state === "failed" ? [`${shortName(file.name)}: ${file.message}`] : []));
+  const { reads, lr, rc, pt, review, scanningOff } = slots;
+  const ptReading = pt.some(pending);
+  const ptRead = pt.filter((file) => file.read.status === "read").length;
+  const ptFailed = pt.flatMap((file) => {
+    const message = problemNote(file);
+    return message ? [`${shortName(file.file.name)}: ${message}`] : [];
+  });
   const ptDetail = pt.length === 0 ? "Optional · all 4 sections" : ptReading ? `Reading ${pt.length} files…`
     : review?.ok ? `PT ${review.result.prepTest} · ${review.result.missedQuestions} missed` : `${ptRead} of ${pt.length} read`;
   const ptTone: Tone = pt.length === 0 ? "idle" : ptReading ? "busy" : review?.ok ? "done" : "bad";
   const pickLabel = (empty: boolean) => (empty ? "Choose" : "Replace");
+  const lrProblem = problemNote(lr);
+  const rcProblem = problemNote(rc);
 
   return (
     <div className="flex flex-col gap-2">
       {scanningOff && <ScanningOffNote>Sample directions and every typed input still build the week.</ScanningOffNote>}
       <ul aria-label="Screenshots" className="flex flex-col gap-2">
-        <Row title="Logical Reasoning" detail={slotDetail(lr, (rows) => `${rows.filter((row) => row.category === "regular").length} types`)} tone={TONE[lr.state]}
-          action={<Pick label={pickLabel(lr.state === "empty")} slot="Logical Reasoning" disabled={scanningOff} onFiles={slots.readSection("LR")} />} />
-        <Row title="Reading Comprehension" detail={slotDetail(rc, (rows) => `${rows.length} passage types`)} tone={TONE[rc.state]}
-          action={<Pick label={pickLabel(rc.state === "empty")} slot="Reading Comprehension" disabled={scanningOff} onFiles={slots.readSection("RC")} />} />
+        <Row title="Logical Reasoning" detail={fileDetail(lr, ({ rows }) => `${rows.filter((row) => row.category === "regular").length} types`)} tone={fileTone(lr)}
+          action={<Pick label={pickLabel(!lr)} slot="Logical Reasoning" disabled={scanningOff} onFiles={slots.readSection("LR")} />} />
+        <Row title="Reading Comprehension" detail={fileDetail(rc, ({ rows }) => `${rows.length} passage types`)} tone={fileTone(rc)}
+          action={<Pick label={pickLabel(!rc)} slot="Reading Comprehension" disabled={scanningOff} onFiles={slots.readSection("RC")} />} />
         <Row title="Practice test sections" detail={ptDetail} tone={ptTone}
           action={<Pick label={pickLabel(pt.length === 0)} slot="practice test section" multiple disabled={scanningOff} onFiles={slots.readPracticeTest} />} />
       </ul>
-      {lr.state === "failed" && <ProblemNote>Logical Reasoning: {lr.message}</ProblemNote>}
-      {rc.state === "failed" && <ProblemNote>Reading Comprehension: {rc.message}</ProblemNote>}
+      {lrProblem && <ProblemNote>Logical Reasoning: {lrProblem}</ProblemNote>}
+      {rcProblem && <ProblemNote>Reading Comprehension: {rcProblem}</ProblemNote>}
       {ptFailed.map((message) => <ProblemNote key={message}>{message}</ProblemNote>)}
       {review && !review.ok && review.problems.map((problem, i) => <ProblemNote key={i}>{practiceTestProblem(problem)}</ProblemNote>)}
+      {reads.files.map((file) => <LastFinishedReadNotice key={file.rowKey} read={file.read} />)}
       <p className="text-caption text-smoke">PNG, JPG, or WEBP. Read, never saved. Each read counts toward the monthly scan limit.</p>
     </div>
   );
