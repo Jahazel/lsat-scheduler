@@ -10,7 +10,7 @@ DrillMap fit is judged against `DESIGN.md` and `docs/design/design-system/tokens
 - Motion: 120 ms hover, 200 ms press and focus, 320 ms overlays. Reduced motion drops movement and keeps 120 ms fades.
 - `shadow-e3` is listed for "Menus, popovers, the admin workspace dropdown, toasts" (`DESIGN.md` line 62).
 - Danger tokens: `--color-danger` `#F0524F` (dots and icons), `--color-danger-ink` `#C23532` (text).
-- The student tab bar (`src/components/nav/StudentNav.tsx` line 168) is `fixed inset-x-3 bottom-3 z-40`, items `min-h-16` (64 px), plus the safe-area inset. Its top edge is about 76 px plus the inset above the screen bottom.
+- The student tab bar (`TAB_BAR` in `src/components/nav/StudentNav.tsx`) is fixed at the screen bottom, `--tab-bar-inset` (12 px plus the safe-area inset) above the edge. Its height is exactly `--tab-bar-height` in `src/app/globals.css` (66 px today). Its top edge is `--tab-bar-top`: about 78 px plus the safe-area inset above the screen bottom.
 - Today failures show as inline `role="alert"` paragraphs (`FailureNotice.tsx`, `OnboardingWizard.tsx`, `DropZone.tsx`).
 
 ## Source notes
