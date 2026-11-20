@@ -23,7 +23,7 @@ import { formatDuration } from "./formatDuration";
 import { mockRules } from "./mockData";
 import type { ExtractReply } from "./screenshotUpload";
 import {
-  addFile, analyticsRead, emptyReadQueue, endRead, removeFile, slotFile, startRead,
+  addFile, emptyReadQueue, endRead, removeFile, settleAnalyticsRead, slotFile, startRead,
   type AnalyticsReading, type QueuedFile, type ReadQueue,
 } from "./screenshotReadQueue";
 import {
@@ -380,7 +380,7 @@ function readQueued(state: WizardState, section: AnalyticsSection, file: File): 
 }
 
 function readEnded(state: WizardState, section: AnalyticsSection, id: number, reply: ExtractReply, at: Date): WizardState {
-  const read = analyticsRead(reply, section, at);
+  const { read } = settleAnalyticsRead(reply, section, at);
   const screenshots = endRead(state.screenshots, id, read);
   if (screenshot(state, section)?.id !== id) return { ...state, screenshots };
   switch (read.status) {

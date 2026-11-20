@@ -1,6 +1,10 @@
 import { sectionOf } from "./analyticsReview";
 import type { SectionReading } from "./practiceTestResult";
-import { stopsLaterScans, type ExtractReply, type SectionReply } from "./screenshotUpload";
+import type { ScanUse } from "./scanSpending";
+import {
+  CANNOT_READ, CONNECTION_LOST, SIGN_IN_EXPIRED, TOOK_TOO_LONG, checkScreenshotType, extractPracticeTestScreenshot, extractScreenshot, stopsLaterScans,
+  type ExtractReply, type SectionReply,
+} from "./screenshotUpload";
 import type { AnalyticsExtractedRow, AnalyticsSection } from "./types";
 import type { UnexpectedFailure } from "./unexpectedFailure";
 
@@ -99,13 +103,70 @@ function failedRead(reply: ScreenshotFailure): FileRead<never> {
 export const NOT_PASSAGE_PAGE = "No passage types in this one.";
 export const NO_LR_ROWS = "We found no LR question types in that screenshot. Choose your Logical Reasoning screenshot.";
 
-export function analyticsRead(reply: ExtractReply, section: AnalyticsSection, at: Date): FileRead<AnalyticsReading> {
+/** What a settled read says to the student or admin. Null when the read needs no words, or when the failure notice names it. */
+export function readMessage(read: FileRead<unknown>): string | null {
+  switch (read.status) {
+    case "added":
+    case "waiting":
+    case "reading":
+    case "read":
+    case "failed":
+      return null;
+    case "rejected":
+    case "refused":
+      return read.message;
+    case "connection-lost":
+      return CONNECTION_LOST;
+    case "cannot-read":
+      return CANNOT_READ;
+    case "timed-out":
+      return TOOK_TOO_LONG;
+    case "signed-out":
+      return SIGN_IN_EXPIRED;
+    case "no-rows":
+      return NO_LR_ROWS;
+    default: {
+      const _exhaustive: never = read;
+      return _exhaustive;
+    }
+  }
+}
+
+export type ScreenshotReads = { LR: AnalyticsReading; RC: AnalyticsReading; section: SectionReading };
+export type ScreenshotSlot = keyof ScreenshotReads;
+
+export interface SettledRead<T> {
+  read: FileRead<T>;
+  message: string | null;
+  scanningOff: boolean;
+}
+
+function settled<T>(read: FileRead<T>, reply: ExtractReply | SectionReply): SettledRead<T> {
+  return { read, message: readMessage(read), scanningOff: reply.kind === "refused" && reply.refused === "scanning-off" };
+}
+
+function analyticsFileRead(reply: ExtractReply, section: AnalyticsSection, at: Date): FileRead<AnalyticsReading> {
   if (reply.kind !== "rows") return failedRead(reply);
   if (section === "RC" && reply.showsPassageTypes !== true) return { status: "rejected", message: NOT_PASSAGE_PAGE };
   const rows = reply.rows.filter((row) => sectionOf(row) === section);
   return section === "LR" && rows.length === 0 ? { status: "no-rows" } : { status: "read", value: { rows, at: at.toISOString() } };
 }
 
-export function sectionRead(reply: SectionReply): FileRead<SectionReading> {
-  return reply.kind === "reading" ? { status: "read", value: reply.reading } : failedRead(reply);
+export function settleAnalyticsRead(reply: ExtractReply, section: AnalyticsSection, at: Date): SettledRead<AnalyticsReading> {
+  return settled(analyticsFileRead(reply, section, at), reply);
+}
+
+export function settleSectionRead(reply: SectionReply): SettledRead<SectionReading> {
+  return settled(reply.kind === "reading" ? { status: "read", value: reply.reading } : failedRead(reply), reply);
+}
+
+const wrongType = (message: string): SettledRead<never> => ({ read: { status: "rejected", message }, message, scanningOff: false });
+
+export async function readScreenshot(file: File, slot: AnalyticsSection, use?: ScanUse): Promise<SettledRead<AnalyticsReading>>;
+export async function readScreenshot(file: File, slot: ScreenshotSlot, use?: ScanUse): Promise<SettledRead<AnalyticsReading> | SettledRead<SectionReading>>;
+export async function readScreenshot(file: File, slot: ScreenshotSlot, use: ScanUse = "student") {
+  const rejection = checkScreenshotType(file);
+  if (rejection) return wrongType(rejection.message);
+  if (slot === "section") return settleSectionRead(await extractPracticeTestScreenshot(file, use));
+  return settleAnalyticsRead(await extractScreenshot(file, slot, use), slot, new Date());
 }

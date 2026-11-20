@@ -143,5 +143,6 @@ export async function extractPracticeTestScreenshot(file: File, use: ScanUse = "
 export const CANNOT_READ = "Couldn't read that screenshot. Try again or a clearer image.";
 export const CONNECTION_LOST = "Connection lost. Your file is still here.";
 export const TOOK_TOO_LONG = "Reading took too long and stopped. Try again.";
+export const SIGN_IN_EXPIRED = "Your sign-in expired. Sign in again, then upload your screenshot again.";
 
 export const stopsLaterScans = ({ refused }: ScanRefused) => refused === "scanning-off" || refused === "daily-limit" || refused === "monthly-limit";

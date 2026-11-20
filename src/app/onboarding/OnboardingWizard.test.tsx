@@ -696,7 +696,7 @@ describe("OnboardingWizard", () => {
 
       await upload(user);
 
-      expect(await screen.findByText(/We couldn't read the rows in it\./)).toBeDefined();
+      expect(await screen.findByText(/Couldn't read that screenshot\. Try again or a clearer image\./)).toBeDefined();
       expect(screen.getByRole("button", { name: "Choose a sharper screenshot" })).toBeDefined();
       expect(continueButton().disabled).toBe(true);
     });
@@ -710,7 +710,7 @@ describe("OnboardingWizard", () => {
 
       await upload(user, new File(["png"], "progress-chart.png", { type: "image/png" }));
 
-      expect(await screen.findByText(/No question types in this one\./)).toBeDefined();
+      expect(await screen.findByText(/We found no LR question types in that screenshot\. Choose your Logical Reasoning screenshot\./)).toBeDefined();
       expect(screen.getByText("Capture this part of 7Sage Analytics")).toBeDefined();
       expect(screen.getByText("Logical Reasoning question types")).toBeDefined();
       expect(continueButton().disabled).toBe(true);
@@ -789,7 +789,7 @@ describe("OnboardingWizard", () => {
       replies[1](rows);
 
       expect(await findInArea("LR", "2 question types found")).toBeDefined();
-      expect(screen.queryByText(/We couldn't read the rows in it\./)).toBeNull();
+      expect(screen.queryByText(/Couldn't read that screenshot\. Try again or a clearer image\./)).toBeNull();
     });
 
     it("reads the RC screenshot only after the LR read ends", async () => {
@@ -867,7 +867,7 @@ describe("OnboardingWizard", () => {
       const { user } = await fillGoalAndWeek(undefined, extract);
 
       await upload(user);
-      expect(await findInArea("LR", "Reading took too long and stopped.")).toBeDefined();
+      expect(await findInArea("LR", "Reading took too long and stopped. Try again.")).toBeDefined();
       await user.click(screen.getByRole("button", { name: "Try again" }));
 
       expect(await findInArea("LR", "2 question types found")).toBeDefined();
