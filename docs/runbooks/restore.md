@@ -66,14 +66,14 @@ Do every step in order. Do not change the site's `DATABASE_URL` before step 7.
    ```sh
    read -rs DATABASE_URL        # the restored branch
    read -rs DELETION_LIST_URL   # the current branch
-   read -rs AUTH_SECRET         # the site's AUTH_SECRET from Vercel, for the email hashes
-   export DATABASE_URL DELETION_LIST_URL AUTH_SECRET
+   read -rs EMAIL_HASH_SECRET   # the site's EMAIL_HASH_SECRET from the password manager
+   export DATABASE_URL DELETION_LIST_URL EMAIL_HASH_SECRET
    npm run replay-deletions
    ```
 
    It prints `Deletion list rows: N. Restored Accounts deleted: M. Used free week rows: F.` Record
    the three counts. Run it a second time. It must print `Restored Accounts deleted: 0.` Then `unset
-   DATABASE_URL DELETION_LIST_URL AUTH_SECRET`. If the current branch is lost, the deletions since the backup are
+   DATABASE_URL DELETION_LIST_URL EMAIL_HASH_SECRET`. If the current branch is lost, the deletions since the backup are
    lost too. Stop and ask the owner before going on.
 
    The script refuses every host except a local database and the approved copy hosts in
@@ -92,14 +92,14 @@ Do every step in order. Do not change the site's `DATABASE_URL` before step 7.
      subscriptions and their paid invoices, and ends the plans of deleted Accounts. Copy the key once from
      the Stripe dialog. Do not save it anywhere, not even in the password manager.
 
-   Copy the site's `AUTH_SECRET` again: the used free week list is keyed with it. Use the restored branch's
+   Copy the site's `EMAIL_HASH_SECRET` again: the used free week list is keyed with it. Use the restored branch's
    owner connection string again:
 
    ```sh
    read -rs DATABASE_URL        # the restored branch
    read -rs STRIPE_SECRET_KEY   # the copy's sandbox key, or the one-run restore key
-   read -rs AUTH_SECRET         # the site's AUTH_SECRET from Vercel, for the email hashes
-   export DATABASE_URL STRIPE_SECRET_KEY AUTH_SECRET
+   read -rs EMAIL_HASH_SECRET   # the site's EMAIL_HASH_SECRET from the password manager
+   export DATABASE_URL STRIPE_SECRET_KEY EMAIL_HASH_SECRET
    npm run resync-billing
    ```
 
@@ -109,7 +109,7 @@ Do every step in order. Do not change the site's `DATABASE_URL` before step 7.
    counts. When `K` is not 0, the script exits with an error after it resyncs the rest: those
    subscriptions use a price this site does not sell. Give the owner their IDs; the Stripe message
    receiver keeps refusing them too. Run it a second time. It must print the same counts. Then `unset
-   DATABASE_URL STRIPE_SECRET_KEY AUTH_SECRET`. When `U` is not 0, the script exits with an error: the
+   DATABASE_URL STRIPE_SECRET_KEY EMAIL_HASH_SECRET`. When `U` is not 0, the script exits with an error: the
    restored branch holds a billing record that this Stripe account does not know, which usually means the
    key is from the other mode. Check the key and run it again. If `U` stays above 0, stop and ask the owner. The
    same host rule as the replay applies.

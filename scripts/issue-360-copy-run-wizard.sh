@@ -969,7 +969,7 @@ s_restore() {
   cp "$REPO_ROOT/scripts/copyDatabaseHosts.json" "$RUN_DIR/copyDatabaseHosts.json"
   node -e 'const f=process.argv[1],h=process.argv[2],l=require(f);for(const x of [h,h.replace(/^(ep-[^.]+)/,"$1-pooler")])if(!l.includes(x))l.push(x);require("fs").writeFileSync(f,JSON.stringify(l,null,2)+"\n")' \
     "$REPO_ROOT/scripts/copyDatabaseHosts.json" "$RESTORED_HOST"
-  local restored_url current_url auth_secret first second
+  local restored_url current_url email_hash_secret first second
   if have_cli neonctl; then
     restored_url=$(neonctl connection-string "$RESTORED_BRANCH" --project-id "$project" --database-name neondb --role-name neondb_owner --ssl verify-full 2>/dev/null || true)
     current_url=$(neonctl connection-string "$branch" --project-id "$project" --database-name neondb --role-name neondb_owner --ssl verify-full 2>/dev/null || true)
@@ -982,13 +982,13 @@ s_restore() {
     step "Copy the CURRENT copy branch's owner connection string."
     ask_secret current_url "Current branch connection string (hidden):"
   fi
-  step "Copy the copy's AUTH_SECRET (your password manager). Vercel cannot show it, because it is Sensitive."
+  step "Copy the copy's EMAIL_HASH_SECRET (your password manager). Vercel cannot show it, because it is Sensitive."
   note "Without it the replay matches Accounts only by ID. Type any stand-in, and record that email-hash matching was not tested."
-  ask_secret auth_secret "Copy's AUTH_SECRET (hidden):"
+  ask_secret email_hash_secret "Copy's EMAIL_HASH_SECRET (hidden):"
   clear_clipboard
-  first=$(cd "$REPO_ROOT" && DATABASE_URL="$restored_url" DELETION_LIST_URL="$current_url" AUTH_SECRET="$auth_secret" npm run -s replay-deletions 2>&1 | tail -n1 || true)
-  second=$(cd "$REPO_ROOT" && DATABASE_URL="$restored_url" DELETION_LIST_URL="$current_url" AUTH_SECRET="$auth_secret" npm run -s replay-deletions 2>&1 | tail -n1 || true)
-  unset current_url auth_secret
+  first=$(cd "$REPO_ROOT" && DATABASE_URL="$restored_url" DELETION_LIST_URL="$current_url" EMAIL_HASH_SECRET="$email_hash_secret" npm run -s replay-deletions 2>&1 | tail -n1 || true)
+  second=$(cd "$REPO_ROOT" && DATABASE_URL="$restored_url" DELETION_LIST_URL="$current_url" EMAIL_HASH_SECRET="$email_hash_secret" npm run -s replay-deletions 2>&1 | tail -n1 || true)
+  unset current_url email_hash_secret
   cp "$RUN_DIR/copyDatabaseHosts.json" "$REPO_ROOT/scripts/copyDatabaseHosts.json"
   record "16c replay" "first: $first second: $second (expected at least 2 deleted, then 0)"
   local check_sql counts=""

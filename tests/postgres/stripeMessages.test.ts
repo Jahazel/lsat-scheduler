@@ -8,7 +8,7 @@ import { setUpAppTestDatabase } from "./appTestDatabase";
 const SECRET = "whsec_test_receiver_secret";
 const OTHER_SITE_SECRET = "whsec_test_other_site_secret";
 const KEY = "sk_test_receiver_key";
-const AUTH_SECRET = "stripe-messages-test-secret-0123456789";
+const EMAIL_HASH_SECRET = "stripe-messages-test-secret-0123456789";
 const FREE_WEEK_END = 1_794_000_000;
 const PERIOD_END = FREE_WEEK_END + 7 * 86_400;
 
@@ -67,7 +67,7 @@ let messageNumber = 0;
 beforeEach(async () => {
   vi.stubEnv("STRIPE_WEBHOOK_SECRET", SECRET);
   vi.stubEnv("STRIPE_SECRET_KEY", KEY);
-  vi.stubEnv("AUTH_SECRET", AUTH_SECRET);
+  vi.stubEnv("EMAIL_HASH_SECRET", EMAIL_HASH_SECRET);
   stripe.subscriptions.clear();
   stripe.paidInvoices.clear();
   stripe.requests = [];
@@ -538,7 +538,7 @@ it("adds the email to the used free week list once when Stripe confirms a plan w
   await send(checkoutCompleted("sub_maya"));
   await send(subscriptionChanged("sub_maya", "created"));
 
-  const mayaHash = createHmac("sha256", AUTH_SECRET).update("maya@example.test").digest("hex");
+  const mayaHash = createHmac("sha256", EMAIL_HASH_SECRET).update("maya@example.test").digest("hex");
   expect(await usedFreeWeeks()).toEqual([{ email_hash: mayaHash, used_today: true }]);
 });
 

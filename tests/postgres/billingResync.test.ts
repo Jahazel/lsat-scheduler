@@ -6,7 +6,7 @@ import { billingResyncReport, resyncBillingRecords } from "../../src/lib/stripeM
 import { setUpAppTestDatabase } from "./appTestDatabase";
 
 const KEY = "sk_test_resync_key";
-const AUTH_SECRET = "billing-resync-test-secret-0123456789";
+const EMAIL_HASH_SECRET = "billing-resync-test-secret-0123456789";
 const FREE_WEEK_END = 1_794_000_000;
 const PERIOD_END = FREE_WEEK_END + 7 * 86_400;
 const PAGE_SIZE = 2;
@@ -56,7 +56,7 @@ const database = setUpAppTestDatabase();
 
 beforeEach(async () => {
   vi.stubEnv("STRIPE_SECRET_KEY", KEY);
-  vi.stubEnv("AUTH_SECRET", AUTH_SECRET);
+  vi.stubEnv("EMAIL_HASH_SECRET", EMAIL_HASH_SECRET);
   stripe.subscriptions.clear();
   stripe.paidInvoices.clear();
   stripe.down = false;
@@ -221,7 +221,7 @@ it("saves nothing when Stripe fails, so the run can start again", async () => {
 
 const usedFreeWeeks = async () =>
   (await database.owner.execute(sql`select email_hash, used_on from used_free_weeks order by email_hash`)).rows;
-const hashOf = (email: string) => createHmac("sha256", AUTH_SECRET).update(email).digest("hex");
+const hashOf = (email: string) => createHmac("sha256", EMAIL_HASH_SECRET).update(email).digest("hex");
 const FREE_WEEK_START_DAY = new Date((FREE_WEEK_END - 7 * 86_400) * 1000).toISOString().slice(0, 10);
 
 it("adds the used free week row, dated by the free week's start, for each Account whose plan is in or had a free week", async () => {
@@ -274,8 +274,8 @@ it("refuses to run without a Stripe key", async () => {
   expect(await runScript({ DATABASE_URL: database.ownerSetting })).toEqual({ code: 1, output: "STRIPE_SECRET_KEY is not set.\n" });
 });
 
-it("refuses to run without AUTH_SECRET, which keys the used free week list", async () => {
-  expect(await runScript({ DATABASE_URL: database.ownerSetting, STRIPE_SECRET_KEY: KEY })).toEqual({ code: 1, output: "AUTH_SECRET is not set.\n" });
+it("refuses to run without EMAIL_HASH_SECRET, which keys the used free week list", async () => {
+  expect(await runScript({ DATABASE_URL: database.ownerSetting, STRIPE_SECRET_KEY: KEY })).toEqual({ code: 1, output: "EMAIL_HASH_SECRET is not set.\n" });
 });
 
 it("refuses a database host that is not local or an approved copy", async () => {

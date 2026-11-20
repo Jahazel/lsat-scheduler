@@ -172,7 +172,7 @@ their password. Nothing they saved is lost. Both Admins are signed out too.
 
 A new `AUTH_SECRET` also refuses every old cookie, because the site can no longer read it. Use
 [Rotate `AUTH_SECRET`](#rotate-auth_secret) when the secret itself may have leaked. When only cookies leaked,
-the update above is enough and leaves the email hashes alone.
+the update above is enough.
 
 ## Restore the database from a backup
 
@@ -184,7 +184,7 @@ that branch:
 2. Run `npm run replay-deletions` on the restored branch, with the current branch's deletion list. Run it
    twice. The second run must print `Restored Accounts deleted: 0.`
 3. Then run `npm run resync-billing` on the restored branch with a Stripe key and the site's
-   `AUTH_SECRET`. The copy uses its sandbox key. The real site uses a one-run restricted key that you create
+   `EMAIL_HASH_SECRET`. The copy uses its sandbox key. The real site uses a one-run restricted key that you create
    for the restore and delete after it; the [restore runbook](restore.md) says how. Run it twice. Both
    runs must print the same counts and end with `Billing records Stripe does not list: 0.`
 
@@ -204,7 +204,8 @@ year.
 | App database password | `DATABASE_URL` | Vercel | [Rotate the app database password](#rotate-the-app-database-password) |
 | Migration role password | `MIGRATION_DATABASE_URL` | GitHub environments `migrations-copy` and `migrations-production` | [Rotate the migration role password](#rotate-the-migration-role-password) |
 | Google client secret | `AUTH_GOOGLE_SECRET` | Vercel | [Rotate the Google client secret](#rotate-the-google-client-secret) |
-| Auth.js secret | `AUTH_SECRET` | Vercel, and the password manager for restores | [Rotate `AUTH_SECRET`](#rotate-auth_secret) |
+| Auth.js secret | `AUTH_SECRET` | Vercel | [Rotate `AUTH_SECRET`](#rotate-auth_secret) |
+| Email hash key | `EMAIL_HASH_SECRET` | Vercel, and the password manager for restores | [Do not rotate](#email_hash_secret-do-not-rotate) |
 | Anthropic key | `ANTHROPIC_API_KEY` | Vercel | [Rotate the Anthropic key](#rotate-the-anthropic-key) |
 | Resend key | `RESEND_API_KEY` | Vercel | [Rotate the Resend key](#rotate-the-resend-key) |
 | Backup checker's Neon key | `NEON_API_KEY` | GitHub environments `backup-checker-copy` and `backup-checker-production`, and the password manager for restores | [Rotate the backup checker's Neon key](#rotate-the-backup-checkers-neon-key) |
@@ -341,48 +342,17 @@ email." until step 5 is done. Students already signed in stay signed in, and pas
 
 ### Rotate `AUTH_SECRET`
 
-`AUTH_SECRET` does two jobs:
-
-- Auth.js encrypts every session cookie with it. A new secret refuses every old cookie.
-- `emailHash` in `src/lib/emailHash.ts` keys each email hash with it (HMAC-SHA256). The deletion list
-  (`deletion_list.email_hash`), the used free week list (`used_free_weeks.email_hash`), and the security
-  log's unknown-email entries hold these hashes.
-
-**What the new secret does to old rows.** Every hash made after the rotation uses the new secret, so it
-differs from the hash of the same email made before. The old rows are not rewritten, because the app
-cannot turn a hash back into an email. So after a rotation:
-
-- **Used free week list.** Checkout gives a free week only to an Account with no billing record whose email
-  hash is not on the list (`src/lib/stripeCheckout.ts`). It looks up the hash made with the new secret, so a
-  row written before the rotation never matches. An Account that still has its billing record, such as a
-  lapsed student, is still refused by that record. But **a new Account for an email whose earlier Account
-  used its free week before the rotation gets a second free week**, whether that Account was deleted before
-  or after the rotation, until the row would
-  have expired anyway, 12 months after its date. This breaks J11,
-  which requires the refusal to hold after every rotation. It is a defect, reported from
-  [issue 979](https://github.com/Jahazel/lsat-scheduler/issues/979). This guide does not change the rule.
-- **Deletion list.** The deletion replay (`npm run replay-deletions`) matches restored Accounts by Account ID
-  and by email hash, with the one `AUTH_SECRET` it is given. After a rotation, rows written before it match
-  only by Account ID; their email-hash matching no longer works. The daily cleanup removes deletion list
-  rows after 30 days, so this lasts at most 30 days after the rotation. This is part of the same defect.
-- **Security log.** Unknown-email entries before and after the rotation no longer link to each other. The
-  daily cleanup removes them after 90 days.
-
-**Safe order.**
-
-1. Finish any restore first. When a restore is in progress, run its replay and billing resync with the
-   current secret to the end ([restore runbook](restore.md) steps 4 and 5), and switch the site to the
-   restored branch. Never rotate between a replay and its billing resync.
-2. Then rotate. After a leak, rotate at once anyway: a leaked secret lets anyone make a valid session cookie
-   for any Account. The broken matching above is the cost.
+Auth.js encrypts every session cookie with `AUTH_SECRET`. A new secret refuses every old cookie. Email
+hashes do not use it: they use [`EMAIL_HASH_SECRET`](#email_hash_secret-do-not-rotate), so a rotation leaves
+the deletion list, the used free week list, and the security log matching as before.
 
 **What students see:** every student and both Admins are signed out at the next page and sign in again.
 
 Steps:
 
 1. In the password manager, generate a random value of at least 32 characters. Save it in the site's entry
-   as the new `AUTH_SECRET`, with the date. A restore needs it for the replay and the billing resync.
-2. In Vercel, replace `AUTH_SECRET`.
+   as the new `AUTH_SECRET`, with the date.
+2. In Vercel, replace `AUTH_SECRET`. Leave `EMAIL_HASH_SECRET` unchanged.
 3. Redeploy in Vercel.
 4. Check that the site refuses the old secret: a browser that was signed in before the redeploy opens This
    week and goes to Log in with "Your session ended. Log in again."
@@ -413,8 +383,43 @@ Steps:
      Checkout offers no free week.
    - Do the same with a test Account that used its free week before the rotation; delete it after the
      rotation. Start its free week at least a day before the rotation, so Stripe's messages for it were
-     handled before it. Checkout offers a free week again, because of the defect above. Record it as the defect, not
-     as a pass.
+     handled before it. Checkout offers no free week: the used free week row from before the rotation
+     still matches.
+
+### `EMAIL_HASH_SECRET`: do not rotate
+
+`emailHash` in `src/lib/emailHash.ts` keys each email hash with `EMAIL_HASH_SECRET` (HMAC-SHA256), and
+with nothing else. The deletion list (`deletion_list.email_hash`), the used free week list
+(`used_free_weeks.email_hash`), and the security log's unknown-email entries hold these hashes. The
+deletion replay and the billing resync need the same value ([restore runbook](restore.md) steps 4 and 5).
+Each site has its own value. Its first value on each site was that site's `AUTH_SECRET` on the day the
+key was split from it, so every hash made before then still matches.
+
+**Do not rotate it without a written plan for the old hashes.** A new value changes the hash of every
+email. The app cannot hash the old rows again, because it does not keep the emails it hashed. So after a
+rotation:
+
+- **Used free week list.** A new Account for an email whose earlier Account used its free week before the
+  rotation gets a second free week, until the row would have expired, 12 months after its date. This
+  breaks J11.
+- **Deletion list.** The deletion replay matches rows written before the rotation only by Account ID, for
+  up to 30 days, until the daily cleanup removes them.
+- **Security log.** Unknown-email entries before and after the rotation no longer link to each other, for
+  up to 90 days.
+
+A plan names how the app keeps matching the old rows, for example by checking both the old and the new
+value until the last old row expires. That needs a code change first. This is the only credential
+in this guide whose leak does not call for an immediate rotation. With a copy of the hashes too, a leaked
+value lets someone test whether a guessed email is on a list. It signs nobody in and moves no money.
+Record the leak and make the plan.
+
+**What students see:** nothing, as long as the value stays the same. If it is unset or blank, Account
+deletion and Checkout fail, the Stripe message receiver refuses messages that start a free week (Stripe
+retries them), and the security log drops its unknown-email entries.
+
+**Missing value.** If the password manager loses the value, the site keeps working, but a restore cannot
+replay deletions by email hash. Vercel cannot show a Sensitive value. Treat it as a rotation and make the
+plan above before you set a new one.
 
 ### Rotate the Anthropic key
 

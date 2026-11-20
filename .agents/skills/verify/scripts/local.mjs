@@ -212,9 +212,11 @@ async function launch() {
     const authSecret = randomBytes(32).toString("base64");
     mkdirSync(resolve(run, "scratch"), { recursive: true });
     writeFileSync(resolve(run, "scratch/auth-secret"), authSecret, { mode: 0o600 });
+    const emailHashSecret = randomBytes(32).toString("base64");
+    writeFileSync(resolve(run, "scratch/email-hash-secret"), emailHashSecret, { mode: 0o600 });
     const production = extra[0] === "--production";
     const appEnv = { ...process.env, NODE_ENV: production ? "production" : "development", DATABASE_URL: postgresDatabase.setting,
-      AUTH_SECRET: authSecret, AUTH_URL: url, NEXTAUTH_URL: url, AUTH_TRUST_HOST: "true", SITE_URL: url, RESEND_API_KEY: "", EMAIL_FROM: "",
+      AUTH_SECRET: authSecret, EMAIL_HASH_SECRET: emailHashSecret, AUTH_URL: url, NEXTAUTH_URL: url, AUTH_TRUST_HOST: "true", SITE_URL: url, RESEND_API_KEY: "", EMAIL_FROM: "",
       AUTH_GOOGLE_ID: "", AUTH_GOOGLE_SECRET: "", GOOGLE_CLIENT_ID: "", GOOGLE_CLIENT_SECRET: "",
       ANTHROPIC_API_KEY: "", SCAN_SPEND_WARNING_PING_URL: "", SCAN_LIMIT_REACHED_PING_URL: "", SCREENSHOT_EXTRACTOR: process.env.VERIFY_SCREENSHOT_EXTRACTOR ?? "fake", VERCEL_ENV: "development", NEXT_TELEMETRY_DISABLED: "1" };
     const next = resolve(root, "node_modules/next/dist/bin/next");
@@ -310,8 +312,7 @@ if (command === "session") {
 if (command === "plan") {
   await doctor();
   const [email, change] = extra;
-  // The app hashes emails with the run's Auth.js secret, so the used-free-week row matches the app's.
-  process.env.AUTH_SECRET = readFileSync(resolve(run, "scratch/auth-secret"), "utf8");
+  process.env.EMAIL_HASH_SECRET = readFileSync(resolve(run, "scratch/email-hash-secret"), "utf8");
   const { emailHash } = await tsImport("../../../../src/lib/emailHash.ts", import.meta.url);
   const { freeWeekEnd } = await tsImport("../../../../src/lib/planStatus.ts", import.meta.url);
   let plan = "none";

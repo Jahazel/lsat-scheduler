@@ -34,12 +34,14 @@ beforeAll(async () => {
   passwordHash = await hashPassword(PASSWORD);
 });
 beforeEach(async () => {
+  vi.stubEnv("EMAIL_HASH_SECRET", "security-log-email-hash-secret-0123456789");
   await database.owner.execute(sql`truncate accounts, action_counters, security_log cascade`);
   await database.owner.execute(sql`update scan_settings set scanning_off = false`);
   await database.owner.execute(sql`truncate security_log`);
   incoming.headers = null;
 });
 afterAll(() => {
+  vi.unstubAllEnvs();
   process.env.AUTH_SECRET = originalSecret;
 });
 

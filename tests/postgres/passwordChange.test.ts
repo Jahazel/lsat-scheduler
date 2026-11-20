@@ -50,6 +50,7 @@ beforeAll(async () => {
   oldPasswordHash = await hashPassword(OLD_PASSWORD);
 });
 beforeEach(async () => {
+  vi.stubEnv("EMAIL_HASH_SECRET", "password-change-email-hash-secret-0123456789");
   request.ip = "203.0.113.1";
   request.cookie = "";
   vi.useFakeTimers({ toFake: ["Date"] });
