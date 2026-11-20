@@ -48,7 +48,7 @@ it("replay-deletions refuses a production host for the deletion list before conn
     const result = await runGuarded("replay-deletions", [], {
       DATABASE_URL: "postgresql://guard-user:guard-password@localhost/drillmap",
       DELETION_LIST_URL: `postgresql://guard-user:guard-password@${host}/drillmap`,
-      AUTH_SECRET: "guard-secret",
+      EMAIL_HASH_SECRET: "guard-secret",
     });
     expect(result.code).toBe(1);
     expect(result.output).toContain(`Refusing database host ${host}`);

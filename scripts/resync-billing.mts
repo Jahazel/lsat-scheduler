@@ -6,7 +6,7 @@ const connections: ReturnType<typeof createPostgresConnection>[] = [];
 try {
   requirePostgresScriptTarget();
   const secretKey = stripeSecretKey();
-  if (!process.env.AUTH_SECRET) throw new Error("AUTH_SECRET is not set.");
+  if (!process.env.EMAIL_HASH_SECRET?.trim()) throw new Error("EMAIL_HASH_SECRET is not set.");
   const restored = createPostgresConnection();
   connections.push(restored);
   const counts = await resyncBillingRecords(restored.db, secretKey);
@@ -15,7 +15,7 @@ try {
 } catch (error) {
   const message = error instanceof Error && (error.message.startsWith("Refusing database host ")
     || error.message === "STRIPE_SECRET_KEY is not set."
-    || error.message === "AUTH_SECRET is not set."
+    || error.message === "EMAIL_HASH_SECRET is not set."
     || error.message === "Remote Postgres requires sslmode=verify-full.")
     ? error.message
     : "Billing resync failed. Check the connection setting and the Stripe key, then run it again.";

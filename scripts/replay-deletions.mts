@@ -7,7 +7,7 @@ try {
   requirePostgresScriptTarget();
   const listSetting = process.env.DELETION_LIST_URL;
   requireLocalDatabase(listSetting);
-  if (!process.env.AUTH_SECRET) throw new Error("AUTH_SECRET is not set.");
+  if (!process.env.EMAIL_HASH_SECRET?.trim()) throw new Error("EMAIL_HASH_SECRET is not set.");
   const list = createPostgresConnection({ connectionString: listSetting });
   connections.push(list);
   const restored = createPostgresConnection();
@@ -16,7 +16,7 @@ try {
   process.stdout.write(`Deletion list rows: ${counts.listed}. Restored Accounts deleted: ${counts.deleted}. Used free week rows: ${counts.freeWeeks}.\n`);
 } catch (error) {
   const message = error instanceof Error && (error.message.startsWith("Refusing database host ")
-    || error.message === "AUTH_SECRET is not set."
+    || error.message === "EMAIL_HASH_SECRET is not set."
     || error.message === "Remote Postgres requires sslmode=verify-full.")
     ? error.message
     : "Deletion replay failed. Check both connection settings and the database permissions, then run it again.";
