@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { sql } from "drizzle-orm";
 import { createPostgresConnection, postgresSettingForDatabase, requirePostgresTestTarget } from "../../src/lib/postgres";
 import { applyPostgresMigrations } from "../../src/lib/postgresMigrations";
+
+export const MIGRATION_COUNT = (JSON.parse(readFileSync(path.resolve("migrations/meta/_journal.json"), "utf8")) as { entries: unknown[] }).entries.length;
 
 export async function createPostgresTestDatabase() {
   // The copy-site allowlist must never authorize destructive test setup.

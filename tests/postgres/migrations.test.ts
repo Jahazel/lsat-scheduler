@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 import { sql } from "drizzle-orm";
 import { expect, it } from "vitest";
 import { createPostgresConnection } from "../../src/lib/postgres";
-import { createPostgresTestDatabase } from "./testDatabase";
+import { createPostgresTestDatabase, MIGRATION_COUNT } from "./testDatabase";
 
 const exec = promisify(execFile);
 
@@ -20,7 +20,7 @@ it("applies the migration command once and leaves the applied list unchanged on 
     const first = await exec(process.execPath, ["--import", "tsx", "scripts/migrate-postgres.mts"], options);
     expect(first.stdout).toContain("Postgres migrations are up to date.");
     const applied = await db.execute(sql`select * from drillmap_migrations.applied order by id`);
-    expect(applied.rows).toHaveLength(28);
+    expect(applied.rows).toHaveLength(MIGRATION_COUNT);
     const second = await exec(process.execPath, ["--import", "tsx", "scripts/migrate-postgres.mts"], options);
     expect(second.stdout).toContain("Postgres migrations are up to date.");
     expect((await db.execute(sql`select * from drillmap_migrations.applied order by id`)).rows).toEqual(applied.rows);
