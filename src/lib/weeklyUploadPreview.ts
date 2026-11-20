@@ -1,7 +1,7 @@
 import { summarizeAnalyticsRows } from "./analytics";
 import { generateRemainingWeek } from "./currentWeeklySchedule";
 import { mockRules } from "./mockData";
-import { weightedTrend, type NextWeekHistory } from "./nextWeekInputs";
+import { nextWeekOptions, weightedTrend, type SavedWeek } from "./nextWeekInputs";
 import type {
   AnalyticsExtractedRow, AnalyticsSnapshot, ApprovedAnalyticsSnapshot, DayOfWeek, LRStemType, Student, WeeklySchedule,
 } from "./types";
@@ -9,13 +9,14 @@ import type {
 export const MIN_SCORE = 120;
 export const MAX_SCORE = 180;
 
-export interface WeeklyUploadBasis extends NextWeekHistory {
+export interface WeeklyUploadBasis {
   weekOf: string;
   plans: "this_week" | "next_week";
   startsOn: DayOfWeek;
   student: Student;
   hadPracticeTest: boolean;
   priorSnapshots: ApprovedAnalyticsSnapshot[];
+  savedWeeks: SavedWeek[];
 }
 
 export function plannedWeekAnalytics(basis: WeeklyUploadBasis, rows: AnalyticsExtractedRow[]): AnalyticsSnapshot {
@@ -30,9 +31,7 @@ export function previewPlannedWeek(
   missedStemTypeCounts?: Partial<Record<LRStemType, number>>,
 ): WeeklySchedule {
   return generateRemainingWeek({ ...basis.student, currentScore }, analytics, mockRules, "", {
+    ...nextWeekOptions({ weekOf: basis.weekOf, saved: basis.savedWeeks, missedStemTypeCounts }),
     createdOn: basis.startsOn,
-    priorWeekPracticeTestReviewMinutes: basis.priorWeekPracticeTestReviewMinutes,
-    priorSchedules: basis.priorSchedules,
-    missedStemTypeCounts,
   });
 }

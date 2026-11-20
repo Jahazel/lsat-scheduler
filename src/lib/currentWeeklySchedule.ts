@@ -1,7 +1,7 @@
 import { DAY_ORDER, generateWeek, type WeekShapeOptions } from "./engine";
 import type { ApprovedPracticeTestResult } from "./practiceTestResult";
 import { mayStartWeeklyUpload, type PlanStatus } from "./planStatus";
-import { nextWeekHistory, TREND_WINDOW, weightedTrend } from "./nextWeekInputs";
+import { nextWeekOptions, TREND_WINDOW, weightedTrend } from "./nextWeekInputs";
 import { isoDateInWeek, unscheduledDaySentence } from "./scheduleReasonText";
 import type {
   AnalyticsTrend,
@@ -208,13 +208,10 @@ async function buildAndSaveWeek(
 
   const analytics = weightedTrend(snapshots, weekStartDate);
   const history = await input.weeklySchedules.listBeforeWeek(input.studentId, weekStartDate);
-  const { priorWeekPracticeTestReviewMinutes, priorSchedules } = nextWeekHistory(weekStartDate, history);
-  const schedule = generateRemainingWeek(input.student, analytics, input.rules, input.studentName, {
-    createdOn,
-    priorWeekPracticeTestReviewMinutes,
-    priorSchedules,
-    missedStemTypeCounts: practiceTest?.missedStemTypeCounts,
+  const options = nextWeekOptions({
+    weekOf: weekStartDate, saved: history, missedStemTypeCounts: practiceTest?.missedStemTypeCounts,
   });
+  const schedule = generateRemainingWeek(input.student, analytics, input.rules, input.studentName, { ...options, createdOn });
   return input.weeklySchedules.create({
     id: `${input.studentId}:${weekStartDate}`,
     studentId: input.studentId,
@@ -227,7 +224,7 @@ async function buildAndSaveWeek(
       timezone: input.timezone,
       remainingDays: DAY_ORDER.slice(DAY_ORDER.indexOf(createdOn)),
       analytics,
-      priorWeekPracticeTestReviewMinutes,
+      priorWeekPracticeTestReviewMinutes: options.priorWeekPracticeTestReviewMinutes,
       priorScheduleIds: history.map((record) => record.id),
       ...(practiceTest && { practiceTestResultId: practiceTest.id }),
     },

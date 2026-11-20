@@ -2,7 +2,7 @@ import { z } from "zod";
 import { summarizeAnalyticsRows } from "./analytics";
 import { DAY_ORDER, generateWeek } from "./engine";
 import { mockRules } from "./mockData";
-import { nextWeekHistory, weightedTrend } from "./nextWeekInputs";
+import { nextWeekOptions, weightedTrend } from "./nextWeekInputs";
 import { generateSampleAnalytics, type SampleDirection } from "./sampleAnalytics";
 import { isoDateInWeek } from "./scheduleReasonText";
 import { dailyCapacityError, everyDay, practiceTestDayError } from "./studentProfile";
@@ -210,11 +210,11 @@ export function buildLabChain(
     const analytics: PlanningAnalytics = copiedTrend
       ? { ...copiedTrend, weekOf }
       : weightedTrend(screenshots ? [screenshots] : uploads.slice(0, i + 1).reverse(), weekOf);
-    const history = weeks.map(({ schedule }) => ({ weekStartDate: schedule.weekOf, schedule }));
-    const schedule = generateWeek(student, analytics, mockRules, copied?.name ?? "Lab", {
-      ...nextWeekHistory(weekOf, history),
+    const schedule = generateWeek(student, analytics, mockRules, copied?.name ?? "Lab", nextWeekOptions({
+      weekOf,
+      saved: weeks.map((week) => ({ weekStartDate: week.schedule.weekOf, schedule: week.schedule })),
       missedStemTypeCounts: i === 0 ? read?.practiceTest?.missedStemTypeCounts : undefined,
-    });
+    }));
     weeks.push({ number: i + 1, schedule, student, plannedFrom: plannedFrom(a, copied, read, i + 1) });
   }
   const nextWeekOf = isoDateInWeek(inputs.weekOf, count * 7);

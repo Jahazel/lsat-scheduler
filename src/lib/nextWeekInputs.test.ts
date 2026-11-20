@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { generateWeek } from "./engine";
 import { mockAnalytics, mockRules, mockStudent } from "./mockData";
-import { nextWeekHistory, weightedTrend } from "./nextWeekInputs";
+import { nextWeekOptions, weightedTrend } from "./nextWeekInputs";
 import type { DayOfWeek } from "./types";
 
 const week = (weekStartDate: string, preferredPracticeTestDay: DayOfWeek = "SATURDAY") => ({
@@ -9,26 +9,31 @@ const week = (weekStartDate: string, preferredPracticeTestDay: DayOfWeek = "SATU
   schedule: generateWeek({ ...mockStudent, preferredPracticeTestDay }, { ...mockAnalytics, weekOf: weekStartDate }, mockRules, "Student"),
 });
 
-describe("nextWeekHistory", () => {
+describe("nextWeekOptions", () => {
   it("carries last week's Sunday practice test into the review minutes", () => {
     const lastWeek = week("2026-09-28", "SUNDAY");
     const sundayTest = lastWeek.schedule.days.SUNDAY.activities.find((activity) => activity.kind === "PT");
     expect(sundayTest?.minutes).toBeGreaterThan(0);
-    expect(nextWeekHistory("2026-10-05", [lastWeek]).priorWeekPracticeTestReviewMinutes).toBe(sundayTest?.minutes);
+    expect(nextWeekOptions({ weekOf: "2026-10-05", saved: [lastWeek] }).priorWeekPracticeTestReviewMinutes).toBe(sundayTest?.minutes);
   });
 
   it("carries nothing when last week's practice test was not on Sunday", () => {
-    expect(nextWeekHistory("2026-10-05", [week("2026-09-28")]).priorWeekPracticeTestReviewMinutes).toBeUndefined();
+    expect(nextWeekOptions({ weekOf: "2026-10-05", saved: [week("2026-09-28")] }).priorWeekPracticeTestReviewMinutes).toBeUndefined();
   });
 
   it("carries nothing from a Sunday test two weeks back", () => {
-    expect(nextWeekHistory("2026-10-05", [week("2026-09-21", "SUNDAY")]).priorWeekPracticeTestReviewMinutes).toBeUndefined();
+    expect(nextWeekOptions({ weekOf: "2026-10-05", saved: [week("2026-09-21", "SUNDAY")] }).priorWeekPracticeTestReviewMinutes).toBeUndefined();
   });
 
   it("uses only weeks before the planned week as history, in the order given", () => {
     const saved = [week("2026-09-28"), week("2026-10-05"), week("2026-09-21"), week("2026-10-12")];
-    expect(nextWeekHistory("2026-10-05", saved).priorSchedules.map((schedule) => schedule.weekOf))
+    expect(nextWeekOptions({ weekOf: "2026-10-05", saved }).priorSchedules.map((schedule) => schedule.weekOf))
       .toEqual(["2026-09-28", "2026-09-21"]);
+  });
+
+  it("passes this week's missed question types to the engine", () => {
+    expect(nextWeekOptions({ weekOf: "2026-10-05", saved: [], missedStemTypeCounts: { Strengthen: 3 } }).missedStemTypeCounts)
+      .toEqual({ Strengthen: 3 });
   });
 });
 

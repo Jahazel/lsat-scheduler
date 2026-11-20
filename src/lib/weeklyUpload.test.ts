@@ -3,6 +3,7 @@ import { generateWeek } from "./engine";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "./mockData";
 import type { ApprovedAnalyticsSnapshot, PersistedWeeklySchedule, Student } from "./types";
 import { PT158_FIXTURES } from "./practiceTestFixtures/pt158";
+import { nextWeekOptions } from "./nextWeekInputs";
 import { openWeeklyUpload, prepareWeeklyUpload } from "./weeklyUpload";
 
 const TIMEZONE = "America/Chicago";
@@ -24,6 +25,11 @@ function savedWeek(weekStartDate: string, student: Student = mockStudent): Persi
 
 const openAt = (now: Date, schedules: PersistedWeeklySchedule[], snapshots: ApprovedAnalyticsSnapshot[] = []) =>
   openWeeklyUpload({ clock: { now, real: now, simulated: false }, student: mockStudent, schedules, snapshots });
+
+const carriedReviewMinutes = (now: Date, schedules: PersistedWeeklySchedule[]) => {
+  const basis = basisAt(now, schedules);
+  return nextWeekOptions({ weekOf: basis.weekOf, saved: basis.savedWeeks }).priorWeekPracticeTestReviewMinutes;
+};
 
 function basisAt(now: Date, schedules: PersistedWeeklySchedule[], snapshots: ApprovedAnalyticsSnapshot[] = []) {
   const basis = openAt(now, schedules, snapshots);
@@ -61,8 +67,8 @@ describe("openWeeklyUpload", () => {
 
   it("carries a Sunday practice test into next week's review day", () => {
     const sunday = savedWeek("2026-09-28", { ...mockStudent, preferredPracticeTestDay: "SUNDAY" });
-    expect(basisAt(saturday, [sunday]).priorWeekPracticeTestReviewMinutes).toBeGreaterThan(0);
-    expect(basisAt(saturday, [savedWeek("2026-09-28")]).priorWeekPracticeTestReviewMinutes).toBeUndefined();
+    expect(carriedReviewMinutes(saturday, [sunday])).toBeGreaterThan(0);
+    expect(carriedReviewMinutes(saturday, [savedWeek("2026-09-28")])).toBeUndefined();
   });
 
   it("plans the rest of the current week from Monday to Friday, starting today", () => {
@@ -75,7 +81,7 @@ describe("openWeeklyUpload", () => {
     expect(basisAt(wednesday, [savedWeek("2026-09-28")]).hadPracticeTest).toBe(true);
     expect(basisAt(wednesday, [savedWeek("2026-09-21")]).hadPracticeTest).toBe(false);
     const sunday = savedWeek("2026-09-28", { ...mockStudent, preferredPracticeTestDay: "SUNDAY" });
-    expect(basisAt(wednesday, [sunday]).priorWeekPracticeTestReviewMinutes).toBeGreaterThan(0);
+    expect(carriedReviewMinutes(wednesday, [sunday])).toBeGreaterThan(0);
   });
 
   it("is closed on a weekday once this week has a weekly schedule, and open on the weekend", () => {

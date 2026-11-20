@@ -1,3 +1,4 @@
+import type { WeekShapeOptions } from "./engine";
 import { isoDateInWeek } from "./scheduleReasonText";
 import type { AnalyticsSnapshot, AnalyticsTrend, PersistedWeeklySchedule, RCType, WeeklySchedule } from "./types";
 
@@ -6,12 +7,13 @@ export const TREND_WINDOW = TREND_WEIGHTS.length;
 
 export type SavedWeek = Pick<PersistedWeeklySchedule, "weekStartDate" | "schedule">;
 
-export interface NextWeekHistory {
-  priorWeekPracticeTestReviewMinutes?: number;
-  priorSchedules: WeeklySchedule[];
-}
+export type NextWeekOptions = Omit<WeekShapeOptions, "createdOn"> & { priorSchedules: WeeklySchedule[] };
 
-export function nextWeekHistory(weekOf: string, saved: SavedWeek[]): NextWeekHistory {
+export function nextWeekOptions({ weekOf, saved, missedStemTypeCounts }: {
+  weekOf: string;
+  saved: SavedWeek[];
+  missedStemTypeCounts?: WeekShapeOptions["missedStemTypeCounts"];
+}): NextWeekOptions {
   const earlier = saved.filter((week) => week.weekStartDate < weekOf);
   const lastWeek = isoDateInWeek(weekOf, -7);
   const sunday = earlier.find((week) => week.weekStartDate === lastWeek)?.schedule.days.SUNDAY;
@@ -20,6 +22,7 @@ export function nextWeekHistory(weekOf: string, saved: SavedWeek[]): NextWeekHis
       ? sunday.activities.find((activity) => activity.kind === "PT")?.minutes
       : undefined,
     priorSchedules: earlier.map((week) => week.schedule),
+    missedStemTypeCounts,
   };
 }
 

@@ -7,7 +7,7 @@ import {
   approvedForWeek, currentDayInTimezone, currentWeekInTimezone, newestApprovedSnapshots, uploadWeekOf,
 } from "./currentWeeklySchedule";
 import { DAY_ORDER } from "./engine";
-import { nextWeekHistory, TREND_WINDOW } from "./nextWeekInputs";
+import { TREND_WINDOW } from "./nextWeekInputs";
 import { reviewPracticeTest, type SectionReview } from "./practiceTestResult";
 import type { ScanningOff } from "./scanSpending";
 import { isoDateInWeek } from "./scheduleReasonText";
@@ -55,7 +55,7 @@ export function openWeeklyUpload({ clock, student, schedules, snapshots }: {
       .slice(0, TREND_WINDOW - 1)
       .map(({ id, approvedAt, weekOf, lrAccuracyByType, lrTopPriorityLogicTypes, rcAccuracyByType }) =>
         ({ id, approvedAt, weekOf, lrAccuracyByType, lrTopPriorityLogicTypes, ...(rcAccuracyByType && { rcAccuracyByType }) })),
-    ...nextWeekHistory(basis.weekOf, schedules),
+    savedWeeks: schedules.map(({ weekStartDate, schedule }) => ({ weekStartDate, schedule })),
   };
 }
 

@@ -36,7 +36,7 @@ const basis = (hadPracticeTest = true, start: Pick<WeeklyUploadBasis, "plans" | 
   student: { ...mockStudent, currentScore: 156, goalTestDate: "2027-06-01" },
   hadPracticeTest,
   priorSnapshots: [],
-  priorSchedules: [],
+  savedWeeks: [],
 });
 
 const EXTRACTED_AT = "2026-10-17T17:00:00.000Z";
