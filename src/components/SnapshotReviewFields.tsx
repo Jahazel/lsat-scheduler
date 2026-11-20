@@ -635,24 +635,14 @@ export function AddType({
 }
 
 function ScreenshotToggle({ section, file }: { section: AnalyticsSection; file: File }) {
-  const [url, setUrl] = useState<string | null>(null);
-  const shown = useRef<string | null>(null);
-  useEffect(() => () => {
-    if (shown.current) URL.revokeObjectURL(shown.current);
-  }, []);
-
-  function toggle() {
-    if (shown.current) URL.revokeObjectURL(shown.current);
-    shown.current = url ? null : URL.createObjectURL(file);
-    setUrl(shown.current);
-  }
+  const [open, setOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-3 lg:hidden">
       <button
         type="button"
-        aria-expanded={url !== null}
-        onClick={toggle}
+        aria-expanded={open}
+        onClick={() => setOpen((shown) => !shown)}
         className={`flex items-center gap-3 rounded-sm border border-vellum-line bg-paper p-3 text-left ${FOCUS}`}
       >
         <span aria-hidden className="flex h-9 w-11 shrink-0 flex-col justify-center gap-1 rounded bg-vellum px-2">
@@ -661,22 +651,19 @@ function ScreenshotToggle({ section, file }: { section: AnalyticsSection; file: 
           <span className="h-0.5 w-6 bg-fog" />
         </span>
         <span className="flex min-w-0 grow flex-col gap-0.5">
-          <span className="text-small font-medium text-ink">{`${url ? "Hide" : "Show"} your ${section} screenshot`}</span>
+          <span className="text-small font-medium text-ink">{`${open ? "Hide" : "Show"} your ${section} screenshot`}</span>
           <span className="truncate font-mono text-caption text-smoke">{file.name}</span>
         </span>
-        <svg aria-hidden viewBox="0 0 16 16" className={`size-4 shrink-0 transition-transform duration-(--duration-fast) motion-reduce:transition-none ${url ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg aria-hidden viewBox="0 0 16 16" className={`size-4 shrink-0 transition-transform duration-(--duration-fast) motion-reduce:transition-none ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 6l4 4 4-4" />
         </svg>
       </button>
-      {url && (
-        // eslint-disable-next-line @next/next/no-img-element -- a local object URL; next/image cannot load it
-        <img src={url} alt={`Your 7Sage ${SECTION_NAME[section]} screenshot`} className="w-full rounded-sm border border-vellum-line" />
-      )}
+      {open && <ScreenshotImage section={section} file={file} className="w-full rounded-sm border border-vellum-line" />}
     </div>
   );
 }
 
-export function ScreenshotCard({ section, file }: { section: AnalyticsSection; file: File }) {
+function ScreenshotImage({ section, file, className }: { section: AnalyticsSection; file: File; className: string }) {
   const [shown, setShown] = useState<{ file: File; url: string; width?: number; height?: number } | null>(null);
   useEffect(() => {
     let live = true;
@@ -697,7 +684,15 @@ export function ScreenshotCard({ section, file }: { section: AnalyticsSection; f
     };
   }, [file]);
   const image = shown?.file === file ? shown : null;
+  if (!image) return null;
 
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- a local object URL; next/image cannot load it
+    <img src={image.url} width={image.width} height={image.height} alt={`Your 7Sage ${SECTION_NAME[section]} screenshot`} className={className} />
+  );
+}
+
+export function ScreenshotCard({ section, file }: { section: AnalyticsSection; file: File }) {
   return (
     <figure className="flex flex-col gap-2">
       <figcaption className="flex items-baseline justify-between gap-4">
@@ -705,11 +700,7 @@ export function ScreenshotCard({ section, file }: { section: AnalyticsSection; f
         <span className="truncate font-mono text-caption text-smoke">{file.name}</span>
       </figcaption>
       <div className="rounded-sm border border-vellum-line bg-paper p-2 shadow-e1">
-        {image && (
-          // eslint-disable-next-line @next/next/no-img-element -- a local object URL; next/image cannot load it
-          <img src={image.url} width={image.width} height={image.height} alt={`Your 7Sage ${SECTION_NAME[section]} screenshot`}
-            className="max-h-[440px] w-full rounded object-contain object-top" />
-        )}
+        <ScreenshotImage section={section} file={file} className="max-h-[440px] w-full rounded object-contain object-top" />
       </div>
     </figure>
   );
