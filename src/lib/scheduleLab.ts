@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { summarizeAnalyticsRows } from "./analytics";
-import { weightedTrend } from "./currentWeeklySchedule";
 import { DAY_ORDER, generateWeek } from "./engine";
 import { mockRules } from "./mockData";
+import { nextWeekOptions, weightedTrend } from "./nextWeekInputs";
 import { generateSampleAnalytics, type SampleDirection } from "./sampleAnalytics";
 import { isoDateInWeek } from "./scheduleReasonText";
 import { dailyCapacityError, everyDay, practiceTestDayError } from "./studentProfile";
@@ -189,11 +189,6 @@ export function plannedFrom(analytics: LabAnalytics, copied: CopiedStudent | nul
   return weekNumber === 1 ? upload : `${upload}, as in week 1`;
 }
 
-const priorSundayTestMinutes = (prior: WeeklySchedule | undefined) => {
-  const sunday = prior?.days.SUNDAY;
-  return sunday?.type === "practice_test" ? sunday.activities.find((activity) => activity.kind === "PT")?.minutes : undefined;
-};
-
 export function buildLabChain(
   inputs: LabInputs, testMonths: readonly string[], copied: CopiedStudent | null, read: LabRead | null = null,
 ): LabChain | null {
@@ -215,11 +210,11 @@ export function buildLabChain(
     const analytics: PlanningAnalytics = copiedTrend
       ? { ...copiedTrend, weekOf }
       : weightedTrend(screenshots ? [screenshots] : uploads.slice(0, i + 1).reverse(), weekOf);
-    const priorSchedules = weeks.map((week) => week.schedule);
-    const schedule = generateWeek(student, analytics, mockRules, copied?.name ?? "Lab", {
-      priorSchedules, priorWeekPracticeTestReviewMinutes: priorSundayTestMinutes(priorSchedules.at(-1)),
+    const schedule = generateWeek(student, analytics, mockRules, copied?.name ?? "Lab", nextWeekOptions({
+      weekOf,
+      saved: weeks.map((week) => ({ weekStartDate: week.schedule.weekOf, schedule: week.schedule })),
       missedStemTypeCounts: i === 0 ? read?.practiceTest?.missedStemTypeCounts : undefined,
-    });
+    }));
     weeks.push({ number: i + 1, schedule, student, plannedFrom: plannedFrom(a, copied, read, i + 1) });
   }
   const nextWeekOf = isoDateInWeek(inputs.weekOf, count * 7);

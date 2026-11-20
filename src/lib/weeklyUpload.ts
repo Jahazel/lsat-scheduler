@@ -7,6 +7,7 @@ import {
   approvedForWeek, currentDayInTimezone, currentWeekInTimezone, newestApprovedSnapshots, uploadWeekOf,
 } from "./currentWeeklySchedule";
 import { DAY_ORDER } from "./engine";
+import { TREND_WINDOW } from "./nextWeekInputs";
 import { reviewPracticeTest, type SectionReview } from "./practiceTestResult";
 import type { ScanningOff } from "./scanSpending";
 import { isoDateInWeek } from "./scheduleReasonText";
@@ -14,7 +15,6 @@ import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
 import type { ApprovedAnalyticsSnapshot, PersistedWeeklySchedule, Student } from "./types";
 import { MAX_SCORE, MIN_SCORE, type WeeklyUploadBasis } from "./weeklyUploadPreview";
 
-const TREND_WINDOW = 3;
 const STALE_PAGE = "This page is out of date. Open This week to continue.";
 
 const scheduleForWeek = (schedules: PersistedWeeklySchedule[], weekStartDate: string) =>
@@ -33,7 +33,6 @@ function uploadNeeds(now: Date, schedules: PersistedWeeklySchedule[]) {
   const plansThisWeek = weekOf === currentWeek;
   return {
     weekOf,
-    lastWeek,
     plans: plansThisWeek ? "this_week" as const : "next_week" as const,
     startsOn: plansThisWeek ? currentDayInTimezone(now, SCHEDULE_TIMEZONE) : "MONDAY" as const,
     hadPracticeTest: weekHadPracticeTest(schedules, lastWeek),
@@ -46,11 +45,9 @@ export function openWeeklyUpload({ clock, student, schedules, snapshots }: {
   schedules: PersistedWeeklySchedule[];
   snapshots: ApprovedAnalyticsSnapshot[];
 }): WeeklyUploadBasis | null {
-  const needs = uploadNeeds(clock.now, schedules);
-  if (!needs) return null;
-  const { lastWeek, ...basis } = needs;
+  const basis = uploadNeeds(clock.now, schedules);
+  if (!basis) return null;
   if (basis.plans === "this_week" && approvedForWeek(snapshots, basis.weekOf, SCHEDULE_TIMEZONE).length > 0) return null;
-  const sunday = scheduleForWeek(schedules, lastWeek)?.days.SUNDAY;
   return {
     ...basis,
     student,
@@ -58,10 +55,7 @@ export function openWeeklyUpload({ clock, student, schedules, snapshots }: {
       .slice(0, TREND_WINDOW - 1)
       .map(({ id, approvedAt, weekOf, lrAccuracyByType, lrTopPriorityLogicTypes, rcAccuracyByType }) =>
         ({ id, approvedAt, weekOf, lrAccuracyByType, lrTopPriorityLogicTypes, ...(rcAccuracyByType && { rcAccuracyByType }) })),
-    priorWeekPracticeTestReviewMinutes: sunday?.type === "practice_test"
-      ? sunday.activities.find((activity) => activity.kind === "PT")?.minutes
-      : undefined,
-    priorSchedules: schedules.filter((record) => record.weekStartDate < basis.weekOf).map((record) => record.schedule),
+    savedWeeks: schedules.map(({ weekStartDate, schedule }) => ({ weekStartDate, schedule })),
   };
 }
 

@@ -1,22 +1,19 @@
 import { DAY_ORDER, generateWeek, type WeekShapeOptions } from "./engine";
 import type { ApprovedPracticeTestResult } from "./practiceTestResult";
 import { mayStartWeeklyUpload, type PlanStatus } from "./planStatus";
+import { nextWeekOptions, TREND_WINDOW, weightedTrend } from "./nextWeekInputs";
 import { isoDateInWeek, unscheduledDaySentence } from "./scheduleReasonText";
 import type {
-  AnalyticsSnapshot,
   AnalyticsTrend,
   Activity,
   ApprovedAnalyticsSnapshot,
   DayOfWeek,
   PersistedWeeklySchedule,
   PlanningAnalytics,
-  RCType,
   RulesConfig,
   Student,
   WeeklySchedule,
 } from "./types";
-
-const TREND_WEIGHTS = [0.6, 0.3, 0.1];
 
 export interface CurrentWeekRepositories {
   snapshots: {
@@ -126,38 +123,8 @@ export function newestApprovedSnapshots(snapshots: ApprovedAnalyticsSnapshot[]) 
   return [...snapshots].sort((a, b) => b.approvedAt.localeCompare(a.approvedAt) || a.id.localeCompare(b.id));
 }
 
-function weightedAccuracy<Type extends string>(maps: (Partial<Record<Type, number>> | undefined)[]) {
-  const trend: Partial<Record<Type, number>> = {};
-  const types = new Set(maps.flatMap((map) => Object.keys(map ?? {}) as Type[]));
-  for (const type of types) {
-    let weightedSum = 0;
-    let weightTotal = 0;
-    maps.forEach((map, index) => {
-      const accuracy = map?.[type];
-      if (accuracy !== undefined) {
-        weightedSum += accuracy * TREND_WEIGHTS[index];
-        weightTotal += TREND_WEIGHTS[index];
-      }
-    });
-    if (weightTotal > 0) trend[type] = weightedSum / weightTotal;
-  }
-  return trend;
-}
-
 export function analyticsTrend(snapshots: ApprovedAnalyticsSnapshot[], weekOf: string): AnalyticsTrend {
   return weightedTrend(newestApprovedSnapshots(snapshots), weekOf);
-}
-
-export function weightedTrend(newestFirst: Omit<AnalyticsSnapshot, "weekOf">[], weekOf: string): AnalyticsTrend {
-  const window = newestFirst.slice(0, TREND_WEIGHTS.length);
-  const rcAccuracyByType = weightedAccuracy(window.map((snapshot) => snapshot.rcAccuracyByType));
-  return {
-    weekOf,
-    lrAccuracyByType: weightedAccuracy(window.map((snapshot) => snapshot.lrAccuracyByType)),
-    lrTopPriorityLogicTypes: window[0].lrTopPriorityLogicTypes,
-    ...(Object.keys(rcAccuracyByType).length > 0 && { rcAccuracyByType }),
-    rcTypesInNewestSnapshot: Object.keys(window[0].rcAccuracyByType ?? {}) as RCType[],
-  };
 }
 
 export function generateRemainingWeek(
@@ -184,10 +151,6 @@ function remainingSchedule(schedule: WeeklySchedule, currentDay: DayOfWeek): Wee
     }
   }
   return { ...schedule, days, reasons };
-}
-
-function previousWeekStartDate(weekStartDate: string) {
-  return isoDateInWeek(weekStartDate, -7);
 }
 
 export function scheduleActivityId(day: DayOfWeek, activityIndex: number) {
@@ -238,26 +201,17 @@ async function buildAndSaveWeek(
 ) {
   const [latestSnapshot] = newestApprovedSnapshots(approvedForWeek(eligibleSnapshots, weekStartDate, input.timezone));
   if (!latestSnapshot) return null;
-  const snapshots = newestApprovedSnapshots(approvedUpToWeek(eligibleSnapshots, weekStartDate, input.timezone)).slice(0, 3);
+  const snapshots = newestApprovedSnapshots(approvedUpToWeek(eligibleSnapshots, weekStartDate, input.timezone)).slice(0, TREND_WINDOW);
   const [practiceTest] = approvedForWeek(await input.practiceTestResults.listForStudent(input.studentId), weekStartDate, input.timezone)
     .filter((result) => new Date(result.approvedAt) >= new Date(latestSnapshot.approvedAt))
     .sort((a, b) => b.approvedAt.localeCompare(a.approvedAt) || a.id.localeCompare(b.id));
 
-  const analytics = analyticsTrend(snapshots, weekStartDate);
-  const priorSchedule = await input.weeklySchedules.findByStudentAndWeek(
-    input.studentId, previousWeekStartDate(weekStartDate)
-  );
+  const analytics = weightedTrend(snapshots, weekStartDate);
   const history = await input.weeklySchedules.listBeforeWeek(input.studentId, weekStartDate);
-  const priorSunday = priorSchedule?.schedule.days.SUNDAY;
-  const priorWeekPracticeTestReviewMinutes = priorSunday?.type === "practice_test"
-    ? priorSunday.activities.find((activity) => activity.kind === "PT")?.minutes
-    : undefined;
-  const schedule = generateRemainingWeek(input.student, analytics, input.rules, input.studentName, {
-    createdOn,
-    priorWeekPracticeTestReviewMinutes,
-    priorSchedules: history.map((record) => record.schedule),
-    missedStemTypeCounts: practiceTest?.missedStemTypeCounts,
+  const options = nextWeekOptions({
+    weekOf: weekStartDate, saved: history, missedStemTypeCounts: practiceTest?.missedStemTypeCounts,
   });
+  const schedule = generateRemainingWeek(input.student, analytics, input.rules, input.studentName, { ...options, createdOn });
   return input.weeklySchedules.create({
     id: `${input.studentId}:${weekStartDate}`,
     studentId: input.studentId,
@@ -270,7 +224,7 @@ async function buildAndSaveWeek(
       timezone: input.timezone,
       remainingDays: DAY_ORDER.slice(DAY_ORDER.indexOf(createdOn)),
       analytics,
-      priorWeekPracticeTestReviewMinutes,
+      priorWeekPracticeTestReviewMinutes: options.priorWeekPracticeTestReviewMinutes,
       priorScheduleIds: history.map((record) => record.id),
       ...(practiceTest && { practiceTestResultId: practiceTest.id }),
     },

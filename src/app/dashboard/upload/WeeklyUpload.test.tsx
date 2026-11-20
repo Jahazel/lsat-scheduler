@@ -23,7 +23,7 @@ const basis = (hadPracticeTest = true, start: Pick<WeeklyUploadBasis, "plans" | 
   student: { ...mockStudent, currentScore: 156, goalTestDate: "2027-06-01" },
   hadPracticeTest,
   priorSnapshots: [],
-  priorSchedules: [],
+  savedWeeks: [],
 });
 
 const LR_ROWS = [
