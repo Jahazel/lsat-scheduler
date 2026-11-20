@@ -318,7 +318,7 @@ export default function ScheduleCheckInView({
       {notice && <div data-page-section className={cx(PAGE_COLUMN, NOTICE_SLOT)}>{notice}</div>}
       <div data-page-section>
         {thisWeek ? <WeekHeader
-          className={cx(PAGE_COLUMN, notice ? "pt-6" : "pt-5 md:pt-8 lg:pt-10")}
+          className={cx(PAGE_COLUMN, notice ? "pt-4" : "pt-5 md:pt-8 lg:pt-10")}
           weekOf={schedule.weekOf}
           preview={readOnly}
           notes={weekNotes(schedule)}
