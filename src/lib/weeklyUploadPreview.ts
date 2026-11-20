@@ -1,6 +1,7 @@
 import { summarizeAnalyticsRows } from "./analytics";
-import { generateRemainingWeek, weightedTrend } from "./currentWeeklySchedule";
+import { generateRemainingWeek } from "./currentWeeklySchedule";
 import { mockRules } from "./mockData";
+import { weightedTrend, type NextWeekHistory } from "./nextWeekInputs";
 import type {
   AnalyticsExtractedRow, AnalyticsSnapshot, ApprovedAnalyticsSnapshot, DayOfWeek, LRStemType, Student, WeeklySchedule,
 } from "./types";
@@ -8,15 +9,13 @@ import type {
 export const MIN_SCORE = 120;
 export const MAX_SCORE = 180;
 
-export interface WeeklyUploadBasis {
+export interface WeeklyUploadBasis extends NextWeekHistory {
   weekOf: string;
   plans: "this_week" | "next_week";
   startsOn: DayOfWeek;
   student: Student;
   hadPracticeTest: boolean;
   priorSnapshots: ApprovedAnalyticsSnapshot[];
-  priorWeekPracticeTestReviewMinutes?: number;
-  priorSchedules: WeeklySchedule[];
 }
 
 export function plannedWeekAnalytics(basis: WeeklyUploadBasis, rows: AnalyticsExtractedRow[]): AnalyticsSnapshot {
