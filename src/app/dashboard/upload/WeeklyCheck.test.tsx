@@ -265,6 +265,25 @@ describe("Check what we read", () => {
     expect(goesFirst.map((item) => item.textContent)).toEqual([expect.stringMatching(/^\d+ Flaw or descriptive weakening/)]);
   });
 
+  it("on a narrow screen, opens the screenshot at its real size and frees it when hidden", async () => {
+    const { user } = setup();
+    const preview = screen.getByRole("complementary", { name: "Your screenshots and next Monday" });
+    const narrowImage = () => screen.queryAllByAltText("Your 7Sage Logical Reasoning screenshot").find((image) => !preview.contains(image));
+    const toggle = screen.getByRole("button", { name: /^Show your LR screenshot/ });
+
+    await user.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    await waitFor(() => expect(narrowImage()).toBeDefined());
+    const image = narrowImage()!;
+    expect([image.getAttribute("src"), image.getAttribute("width"), image.getAttribute("height")]).toEqual(["blob:screenshot", "1200", "900"]);
+
+    vi.mocked(URL.revokeObjectURL).mockClear();
+    await user.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(narrowImage()).toBeUndefined();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:screenshot");
+  });
+
   it("on a weekday, checks last week's practice test and builds this week", async () => {
     const confirm = vi.fn<typeof confirmWeeklyUpload>(async () => REFUSED);
     const user = userEvent.setup();
