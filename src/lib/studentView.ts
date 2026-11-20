@@ -21,8 +21,6 @@ export async function loadPastWeeks(studentId: string, plan: BillingRecord | nul
   return { schedules, checkIns: await postgresActivityCheckIns.listForSchedules(schedules.map((schedule) => schedule.id)) };
 }
 
-export type PastWeeks = Awaited<ReturnType<typeof loadPastWeeks>>;
-
 /** Admin-only. Returns null for an invalid ID, a missing student, or an Admin-owned student. */
 export async function loadStudentView(id: string, now: Date) {
   const record = await findStudentWithJoinDate(id);
