@@ -4,14 +4,12 @@ import { auth } from "@/auth";
 import { findStudentByAccountId } from "@/lib/studentRepository";
 import { currentWeekInTimezone } from "@/lib/currentWeeklySchedule";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
-import { listWeeklySchedulesForStudent } from "@/lib/weeklyScheduleRepository";
-import { postgresActivityCheckIns } from "@/lib/activityCheckInRepository";
+import { loadPastWeeks } from "@/lib/studentView";
 import { resolveProgressRoute } from "@/lib/progressHistory";
 import PastWeekView from "./PastWeekView";
 import { ProgressScreen } from "./ProgressMotion";
 import ProgressOverview from "./ProgressOverview";
 import { loadChosenPlan } from "@/lib/billingRepository";
-import { isHeldWeek } from "@/lib/planStatus";
 import { planProblemNote } from "@/lib/planNotes";
 import { PlanNotice } from "@/components/PlanNotes";
 
@@ -29,11 +27,9 @@ export default async function ProgressPage({
   if (!student) redirect("/onboarding");
 
   const currentWeekStartDate = currentWeekInTimezone(await studentSideNow(session.user), SCHEDULE_TIMEZONE);
-  const [schedules, { status, record }] = await Promise.all([listWeeklySchedulesForStudent(student.id), loadChosenPlan(session.user.id)]);
-  const history = schedules.filter((schedule) => !isHeldWeek(record, schedule.weekStartDate));
+  const { status, record } = await loadChosenPlan(session.user.id);
   const route = resolveProgressRoute({
-    schedules: history,
-    checkIns: await postgresActivityCheckIns.listForSchedules(history.map((schedule) => schedule.id)),
+    ...await loadPastWeeks(student.id, record, currentWeekStartDate),
     currentWeekStartDate,
     requestedWeek,
   });
