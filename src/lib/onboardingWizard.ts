@@ -21,10 +21,9 @@ import { currentWeekInTimezone } from "./currentWeeklySchedule";
 import { DAY_ORDER, generateWeek } from "./engine";
 import { formatDuration } from "./formatDuration";
 import { mockRules } from "./mockData";
-import type { ExtractReply } from "./screenshotUpload";
 import {
-  addFile, emptyReadQueue, endRead, removeFile, settleAnalyticsRead, slotFile, startRead,
-  type AnalyticsReading, type QueuedFile, type ReadQueue,
+  addFile, emptyReadQueue, endRead, removeFile, slotFile, startRead,
+  type AnalyticsReading, type FileRead, type QueuedFile, type ReadQueue,
 } from "./screenshotReadQueue";
 import {
   everyDay,
@@ -106,7 +105,7 @@ export type WizardAction =
   | { type: "screenshotRejected"; section: AnalyticsSection; message: string }
   | { type: "readQueued"; section: AnalyticsSection; file: File }
   | { type: "readStarted"; id: number }
-  | { type: "readEnded"; section: AnalyticsSection; id: number; reply: ExtractReply; at: Date }
+  | { type: "readEnded"; section: AnalyticsSection; id: number; read: FileRead<AnalyticsReading> }
   | { type: "chooseInput"; input: AnalyticsInput; at: Date }
   | ReviewAction
   | { type: "saveStarted" }
@@ -379,8 +378,7 @@ function readQueued(state: WizardState, section: AnalyticsSection, file: File): 
   };
 }
 
-function readEnded(state: WizardState, section: AnalyticsSection, id: number, reply: ExtractReply, at: Date): WizardState {
-  const { read } = settleAnalyticsRead(reply, section, at);
+function readEnded(state: WizardState, section: AnalyticsSection, id: number, read: FileRead<AnalyticsReading>): WizardState {
   const screenshots = endRead(state.screenshots, id, read);
   if (screenshot(state, section)?.id !== id) return { ...state, screenshots };
   switch (read.status) {
@@ -437,7 +435,7 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
     case "readStarted":
       return { ...state, screenshots: startRead(state.screenshots, action.id) };
     case "readEnded":
-      return readEnded(state, action.section, action.id, action.reply, action.at);
+      return readEnded(state, action.section, action.id, action.read);
     case "chooseInput":
       return { ...state, analyticsInput: action.input, typedDraft: state.typedDraft ?? (action.input === "typed" ? startTypedDraft(action.at) : null) };
     case "editAccuracy":

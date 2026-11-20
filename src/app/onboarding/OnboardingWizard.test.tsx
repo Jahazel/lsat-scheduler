@@ -9,12 +9,23 @@ import { testMonthOptions } from "@/lib/testMonths";
 import { SEEDED_TEST_MONTHS } from "@/lib/testMonthsFixture";
 import type { FailureCode } from "@/lib/unexpectedFailure";
 import { FailureToastProvider } from "@/components/FailureNotice";
-import OnboardingWizard from "./OnboardingWizard";
+import Wizard from "./OnboardingWizard";
 import { TopBarStepCount } from "./StepCount";
 
 const upcomingTestMonths = (today: string) => testMonthOptions(SEEDED_TEST_MONTHS, today);
 
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+const extractClient = vi.hoisted(() => ({ extractScreenshot: vi.fn(), real: undefined as unknown as Extract }));
+vi.mock("@/lib/screenshotUpload", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/screenshotUpload")>();
+  extractClient.real = real.extractScreenshot;
+  return { ...real, extractScreenshot: extractClient.extractScreenshot };
+});
+
+function OnboardingWizard({ extract = extractClient.real, ...props }: React.ComponentProps<typeof Wizard> & { extract?: Extract }) {
+  extractClient.extractScreenshot.mockImplementation((file: File, section: AnalyticsSection) => extract(file, section));
+  return <Wizard {...props} />;
+}
 vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/onboarding" }));
 
 let topBar: HTMLElement;

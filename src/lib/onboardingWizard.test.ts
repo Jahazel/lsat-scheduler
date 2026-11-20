@@ -21,6 +21,7 @@ import {
   type WizardState,
 } from "./onboardingWizard";
 import { PASSAGE_TYPES } from "./analyticsReview";
+import { settleAnalyticsRead } from "./screenshotReadQueue";
 import { generateWeek } from "./engine";
 import { accuracyMessage, addTypeOptions, boxText, emptyListNote } from "./reviewDraft";
 import { mockRules } from "./mockData";
@@ -269,7 +270,7 @@ describe("onboarding wizard", () => {
     );
 
     const ended = wizardReducer(replaced, {
-      type: "readEnded", section: "LR", id: 0, reply: { kind: "refused", refused: "daily-limit", message }, at: READ_AT,
+      type: "readEnded", section: "LR", id: 0, read: settleAnalyticsRead({ kind: "refused", refused: "daily-limit", message }, "LR", READ_AT).read,
     });
 
     expect(screenshot(ended, "LR")).toMatchObject({ read: { status: "refused", message, tryAgain: false }, file: { name: "lr-2.png" } });
@@ -281,7 +282,7 @@ describe("onboarding wizard", () => {
     const reading = run({ type: "readQueued", section: "LR", file }, { type: "readStarted", id: 0 });
     const message = "That file is 4.2 MB. Choose one that is 4 MB or less.";
 
-    const rejected = wizardReducer(reading, { type: "readEnded", section: "LR", id: 0, reply: { kind: "rejected", message }, at: READ_AT });
+    const rejected = wizardReducer(reading, { type: "readEnded", section: "LR", id: 0, read: settleAnalyticsRead({ kind: "rejected", message }, "LR", READ_AT).read });
 
     expect(screenshot(rejected, "LR")).toBeUndefined();
     expect(rejected.rejections).toEqual({ LR: message, RC: null });
@@ -293,7 +294,7 @@ describe("onboarding wizard", () => {
     const reading = run({ type: "readQueued", section: "RC", file }, { type: "readStarted", id: 0 });
 
     const refused = wizardReducer(reading, {
-      type: "readEnded", section: "RC", id: 0, reply: { kind: "rows", rows: [{ type: "Law", category: "passage", accuracy: 58 }], showsPassageTypes: false }, at: READ_AT,
+      type: "readEnded", section: "RC", id: 0, read: settleAnalyticsRead({ kind: "rows", rows: [{ type: "Law", category: "passage", accuracy: 58 }], showsPassageTypes: false }, "RC", READ_AT).read,
     });
 
     expect(screenshot(refused, "RC")).toBeUndefined();
@@ -307,7 +308,7 @@ describe("onboarding wizard", () => {
     const reading = wizardReducer(queued, { type: "readStarted", id: 0 });
     const saving = wizardReducer(reading, { type: "saveStarted" });
 
-    const ended = wizardReducer(saving, { type: "readEnded", section: "LR", id: 0, reply: { kind: "connection-lost" }, at: READ_AT });
+    const ended = wizardReducer(saving, { type: "readEnded", section: "LR", id: 0, read: settleAnalyticsRead({ kind: "connection-lost" }, "LR", READ_AT).read });
 
     expect(screenshot(ended, "LR")?.read.status).toBe("connection-lost");
   });
@@ -335,9 +336,9 @@ describe("onboarding wizard", () => {
         pickSaturday,
         { type: "continue" },
         { type: "readQueued", section: "LR", file: new File(["png"], "lr-analytics.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
-        { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows }, at: READ_AT },
+        { type: "readEnded", section: "LR", id: 0, read: settleAnalyticsRead({ kind: "rows", rows }, "LR", READ_AT).read },
         { type: "readQueued", section: "RC", file: new File(["png"], "rc-analytics.png", { type: "image/png" }) }, { type: "readStarted", id: 1 },
-        { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: passageRows, showsPassageTypes: true }, at: READ_AT },
+        { type: "readEnded", section: "RC", id: 1, read: settleAnalyticsRead({ kind: "rows", rows: passageRows, showsPassageTypes: true }, "RC", READ_AT).read },
         { type: "continue" },
         ...actions,
       );
@@ -542,7 +543,7 @@ describe("onboarding wizard", () => {
         pickSaturday,
         { type: "continue" },
         { type: "readQueued", section: "LR", file: new File(["png"], "lr.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
-        { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows: readRows }, at: READ_AT },
+        { type: "readEnded", section: "LR", id: 0, read: settleAnalyticsRead({ kind: "rows", rows: readRows }, "LR", READ_AT).read },
         { type: "continue" },
       );
       expect(lrOnly.step).toBe("analytics");
@@ -556,9 +557,9 @@ describe("onboarding wizard", () => {
         pickSaturday,
         { type: "continue" },
         { type: "readQueued", section: "LR", file: new File(["png"], "lr.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
-        { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows: readRows }, at: READ_AT },
+        { type: "readEnded", section: "LR", id: 0, read: settleAnalyticsRead({ kind: "rows", rows: readRows }, "LR", READ_AT).read },
         { type: "readQueued", section: "RC", file: new File(["png"], "rc.png", { type: "image/png" }) }, { type: "readStarted", id: 1 },
-        { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: [], showsPassageTypes: true }, at: READ_AT },
+        { type: "readEnded", section: "RC", id: 1, read: settleAnalyticsRead({ kind: "rows", rows: [], showsPassageTypes: true }, "RC", READ_AT).read },
         { type: "continue" },
         ...tickBoth,
       );
@@ -575,9 +576,9 @@ describe("onboarding wizard", () => {
         pickSaturday,
         { type: "continue" },
         { type: "readQueued", section: "LR", file: new File(["png"], "lr.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
-        { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows: readRows }, at: READ_AT },
+        { type: "readEnded", section: "LR", id: 0, read: settleAnalyticsRead({ kind: "rows", rows: readRows }, "LR", READ_AT).read },
         { type: "readQueued", section: "RC", file: new File(["png"], "rc.png", { type: "image/png" }) }, { type: "readStarted", id: 1 },
-        { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: passageRows.slice(0, 4), showsPassageTypes: true }, at: READ_AT },
+        { type: "readEnded", section: "RC", id: 1, read: settleAnalyticsRead({ kind: "rows", rows: passageRows.slice(0, 4), showsPassageTypes: true }, "RC", READ_AT).read },
         { type: "continue" },
         ...tickBoth,
       );
@@ -661,7 +662,7 @@ describe("onboarding wizard", () => {
         pickSaturday,
         { type: "continue" },
         { type: "readQueued", section: "LR", file: new File(["png"], "7sage-analytics.png", { type: "image/png" }) }, { type: "readStarted", id: 0 },
-        { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows }, at: READ_AT },
+        { type: "readEnded", section: "LR", id: 0, read: settleAnalyticsRead({ kind: "rows", rows }, "LR", READ_AT).read },
         ...actions,
       );
     }
@@ -725,7 +726,7 @@ describe("onboarding wizard", () => {
       const state = read(
         { type: "edit", values: { dailyCapacityMinutes: { ...initialWizardState().values.dailyCapacityMinutes, MONDAY: 480 } } },
         { type: "readQueued", section: "RC", file: new File(["png"], "rc.png", { type: "image/png" }) }, { type: "readStarted", id: 1 },
-        { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: passages, showsPassageTypes: true }, at: READ_AT },
+        { type: "readEnded", section: "RC", id: 1, read: settleAnalyticsRead({ kind: "rows", rows: passages, showsPassageTypes: true }, "RC", READ_AT).read },
       );
       const rc = previewDrills(state, TODAY)?.items.find(({ activity }) => activity.kind === "RC" && !activity.isFullSection);
 
@@ -796,9 +797,9 @@ describe("onboarding draft across a reload", () => {
       pickSaturday,
       { type: "continue" },
       { type: "readQueued", section: "LR", file: png("lr.png") }, { type: "readStarted", id: 0 },
-      { type: "readEnded", section: "LR", id: 0, reply: { kind: "rows", rows: [{ type: "Diagram", category: "regular", accuracy: 64 }] }, at: READ_AT },
+      { type: "readEnded", section: "LR", id: 0, read: settleAnalyticsRead({ kind: "rows", rows: [{ type: "Diagram", category: "regular", accuracy: 64 }] }, "LR", READ_AT).read },
       { type: "readQueued", section: "RC", file: png("rc.png") }, { type: "readStarted", id: 1 },
-      { type: "readEnded", section: "RC", id: 1, reply: { kind: "rows", rows: [{ type: "Law", category: "passage", accuracy: 58 }], showsPassageTypes: true }, at: READ_AT },
+      { type: "readEnded", section: "RC", id: 1, read: settleAnalyticsRead({ kind: "rows", rows: [{ type: "Law", category: "passage", accuracy: 58 }], showsPassageTypes: true }, "RC", READ_AT).read },
       { type: "continue" },
     );
     expect(review.step).toBe("review");
