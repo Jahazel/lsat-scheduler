@@ -22,12 +22,12 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-vercel-forwarded-for": "203.0.113.1" }) }));
 
 const database = setUpAppTestDatabase();
-const AUTH_SECRET = "account-deletion-test-secret-0123456789";
+const EMAIL_HASH_SECRET = "account-deletion-email-hash-secret-0123456789";
 
 beforeEach(async () => {
   state.session = null;
   signOut.mockClear();
-  vi.stubEnv("AUTH_SECRET", AUTH_SECRET);
+  vi.stubEnv("EMAIL_HASH_SECRET", EMAIL_HASH_SECRET);
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-10-22T12:00:00Z"));
   await database.owner.execute(sql`truncate accounts, deletion_list, security_log cascade`);
@@ -155,7 +155,7 @@ it("leaves another student's records untouched", async () => {
   expect(await ownedRecords(other.account.id, other.student.id)).toEqual(allRecords);
 });
 
-const emailHashOf = (email: string) => createHmac("sha256", AUTH_SECRET).update(email).digest("hex");
+const emailHashOf = (email: string) => createHmac("sha256", EMAIL_HASH_SECRET).update(email).digest("hex");
 const passwordForm = (password: string) => {
   const form = confirmation("DELETE");
   form.set("currentPassword", password);

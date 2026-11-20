@@ -10,8 +10,11 @@ import {
 import { createPostgresTestDatabase } from "./testDatabase";
 
 const AUTH_SECRET = "deletion-replay-test-secret-0123456789";
+const ROTATED_AUTH_SECRET = "deletion-replay-rotated-secret-0123456789";
+const EMAIL_HASH_SECRET = "deletion-replay-email-hash-secret-0123456789";
 const originalSetting = process.env.DATABASE_URL;
 const originalSecret = process.env.AUTH_SECRET;
+const originalEmailHashSecret = process.env.EMAIL_HASH_SECRET;
 const liveName = `drillmap_test_${randomUUID().replaceAll("-", "")}`;
 const liveSetting = postgresSettingForDatabase(liveName);
 let backup: Awaited<ReturnType<typeof createPostgresTestDatabase>>;
@@ -89,7 +92,7 @@ const noRecords = {
 function replay() {
   return new Promise<{ code: number; stdout: string; stderr: string }>((resolve, reject) => {
     execFile(process.execPath, ["--import", "tsx", "scripts/replay-deletions.mts"], {
-      env: { PATH: process.env.PATH, NODE_ENV: "test", DATABASE_URL: backup.setting, DELETION_LIST_URL: liveSetting, AUTH_SECRET },
+      env: { PATH: process.env.PATH, NODE_ENV: "test", DATABASE_URL: backup.setting, DELETION_LIST_URL: liveSetting, AUTH_SECRET: ROTATED_AUTH_SECRET, EMAIL_HASH_SECRET },
       timeout: 15000,
     }, (error, stdout, stderr) => {
       if (error?.killed || error?.signal) return reject(new Error("replay-deletions timed out."));
@@ -101,6 +104,7 @@ function replay() {
 beforeAll(async () => {
   await closePostgresDatabase();
   process.env.AUTH_SECRET = AUTH_SECRET;
+  process.env.EMAIL_HASH_SECRET = EMAIL_HASH_SECRET;
   backup = await createPostgresTestDatabase();
   const seeding = createPostgresConnection({ database: backup.name });
   try {
@@ -150,9 +154,10 @@ afterAll(async () => {
   }
   process.env.DATABASE_URL = originalSetting;
   process.env.AUTH_SECRET = originalSecret;
+  process.env.EMAIL_HASH_SECRET = originalEmailHashSecret;
 });
 
-it("deletes each restored Account on the deletion list or marked deleting, brings back the used free week list, and a second run changes nothing", async () => {
+it("deletes each restored Account on the deletion list or marked deleting, matches email hashes made before AUTH_SECRET changed, brings back the used free week list, and a second run changes nothing", async () => {
   expect(await recordsOf(deletedId)).toEqual(allRecords);
   expect(await recordsOf(sameEmailId)).toEqual(allRecords);
   expect(await recordsOf(markedId)).toEqual(allRecords);
@@ -185,9 +190,9 @@ it("deletes each restored Account on the deletion list or marked deleting, bring
 it("refuses to run without the key that made the email hashes", async () => {
   const result = await new Promise<{ code: number; output: string }>((resolve) => {
     execFile(process.execPath, ["--import", "tsx", "scripts/replay-deletions.mts"], {
-      env: { PATH: process.env.PATH, NODE_ENV: "test", DATABASE_URL: backup.setting, DELETION_LIST_URL: liveSetting },
+      env: { PATH: process.env.PATH, NODE_ENV: "test", DATABASE_URL: backup.setting, DELETION_LIST_URL: liveSetting, AUTH_SECRET },
       timeout: 15000,
     }, (error, stdout, stderr) => resolve({ code: typeof error?.code === "number" ? error.code : 0, output: stdout + stderr }));
   });
-  expect(result).toEqual({ code: 1, output: "AUTH_SECRET is not set.\n" });
+  expect(result).toEqual({ code: 1, output: "EMAIL_HASH_SECRET is not set.\n" });
 });

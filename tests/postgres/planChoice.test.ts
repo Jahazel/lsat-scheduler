@@ -5,6 +5,7 @@ import type { Session } from "next-auth";
 import { afterAll, beforeEach, expect, it, vi } from "vitest";
 import { setUpAppTestDatabase } from "./appTestDatabase";
 import { expectUnexpectedFailure } from "./plannedAnswer";
+import { finishDeletion } from "../../src/lib/accountDeletion";
 import { createStudent } from "../../src/lib/studentRepository";
 import { createApprovedAnalyticsSnapshot } from "../../src/lib/analyticsSnapshotRepository";
 import type { Student } from "../../src/lib/types";
@@ -20,6 +21,7 @@ import DashboardPage from "../../src/app/dashboard/(this-week)/page";
 
 const KEY = "sk_test_plan_choice_key";
 const AUTH_SECRET = randomBytes(32).toString("hex");
+const EMAIL_HASH_SECRET = randomBytes(32).toString("hex");
 const SITE = "https://copy.drillmap.test";
 const CHECKOUT_URL = "https://checkout.stripe.com/c/pay/";
 
@@ -136,6 +138,7 @@ beforeEach(async () => {
   vi.stubEnv("STRIPE_PRICE_WEEKLY", "price_weekly_test");
   vi.stubEnv("STRIPE_PRICE_MONTHLY", "price_monthly_test");
   vi.stubEnv("AUTH_SECRET", AUTH_SECRET);
+  vi.stubEnv("EMAIL_HASH_SECRET", EMAIL_HASH_SECRET);
   vi.stubEnv("SITE_URL", SITE);
   stripe.customers = [];
   stripe.sessions = [];
@@ -170,7 +173,7 @@ async function onboardedStudent(email = "maya@example.test", role: "student" | "
   return { accountId: account.id, studentId: student.id };
 }
 
-const emailHash = (email: string) => createHmac("sha256", AUTH_SECRET).update(email).digest("hex");
+const emailHash = (email: string) => createHmac("sha256", EMAIL_HASH_SECRET).update(email).digest("hex");
 const onboarding = async (searchParams: Record<string, string> = {}) =>
   renderToStaticMarkup(await OnboardingPage({ searchParams: Promise.resolve(searchParams) }));
 const billingRows = async () => (await database.owner.execute(sql`select account_id from billing_records`)).rows;
@@ -292,6 +295,19 @@ it("gives no free week while an old used free week row waits for the daily clean
     insert into used_free_weeks (email_hash, used_on) values (${emailHash("maya@example.test")}, current_date - interval '12 months' - interval '1 day')
   `);
 
+  await openStripeCheckout("weekly");
+
+  expect(stripe.sessions[0].form.has("subscription_data[trial_end]")).toBe(false);
+});
+
+it("still refuses a second free week after AUTH_SECRET changes", async () => {
+  const { accountId } = await onboardedStudent();
+  await database.owner.execute(sql`update accounts set deleting_since = now() where id = ${accountId}::uuid`);
+  await database.owner.execute(sql`insert into used_free_weeks (email_hash, used_on) values (${emailHash("maya@example.test")}, current_date - 3)`);
+  expect(await finishDeletion(accountId, "/account")).toBe("deleted");
+
+  vi.stubEnv("AUTH_SECRET", randomBytes(32).toString("hex"));
+  await onboardedStudent();
   await openStripeCheckout("weekly");
 
   expect(stripe.sessions[0].form.has("subscription_data[trial_end]")).toBe(false);

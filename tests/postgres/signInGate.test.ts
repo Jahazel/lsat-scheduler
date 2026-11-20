@@ -10,7 +10,7 @@ const ROUTE = "/login";
 const NOW = new Date("2026-11-02T12:00:00Z");
 
 beforeEach(async () => {
-  vi.stubEnv("AUTH_SECRET", "x".repeat(32));
+  vi.stubEnv("EMAIL_HASH_SECRET", "x".repeat(32));
   await database.owner.execute(sql`truncate accounts, deletion_list, security_log cascade`);
 });
 afterEach(() => {

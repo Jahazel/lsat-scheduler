@@ -565,7 +565,7 @@ it("onboarding works for an Account that signed in before and has no Student (D4
 
   expect(await findStudentByAccountId(existing.id)).toMatchObject({ currentScore: 150, goalScore: 165 });
   expect(await accountRows()).toHaveLength(1);
-  vi.stubEnv("AUTH_SECRET", "accounts-students-test-secret-0123456789");
+  vi.stubEnv("EMAIL_HASH_SECRET", "accounts-students-test-secret-0123456789");
   expect(renderToStaticMarkup(await OnboardingPage({ searchParams: Promise.resolve({}) }))).toContain("Pick your plan");
   vi.unstubAllEnvs();
 });

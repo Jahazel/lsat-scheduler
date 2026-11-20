@@ -53,7 +53,7 @@ vi.stubGlobal("fetch", async (input: string | URL, init?: RequestInit) => {
 
 beforeEach(async () => {
   vi.stubEnv("STRIPE_SECRET_KEY", KEY);
-  vi.stubEnv("AUTH_SECRET", "plan-end-test-auth-secret".padEnd(32, "-"));
+  vi.stubEnv("EMAIL_HASH_SECRET", "plan-end-test-email-hash-secret".padEnd(32, "-"));
   stripe.subscriptions.clear();
   stripe.requests.length = 0;
   stripe.accountsWhenCancelled.length = 0;

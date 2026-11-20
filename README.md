@@ -108,7 +108,9 @@ credential is a secret that gives access, such as a password or an API key.
    Keep `DATABASE_URL` at a loopback address. This connection string tells the
    app where to find the local database. Generate a new local Auth.js secret
    with the command in `.env.example`. Auth.js uses this secret to protect
-   sign-in sessions. Put it in `AUTH_SECRET`.
+   sign-in sessions. Put it in `AUTH_SECRET`. Generate a second value the same way
+   and put it in `EMAIL_HASH_SECRET`. It keys the email hashes that the app keeps
+   for deleted Accounts and used free weeks.
 
    For Google sign-in, create a separate Google client for local work. Set its
    authorized origin to `http://localhost:3000` and its only authorized redirect

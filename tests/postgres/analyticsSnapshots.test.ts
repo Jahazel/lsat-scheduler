@@ -124,7 +124,7 @@ it("resets only the admin's test snapshots and keeps the other student's approve
   expect(await listApprovedAnalyticsSnapshots(other.saved.id)).toHaveLength(1);
 });
 it("deletes the signed-in student's Account and cascades snapshots while refusing admin deletion", async () => {
-  vi.stubEnv("AUTH_SECRET", "analytics-snapshots-test-secret-0123456789");
+  vi.stubEnv("EMAIL_HASH_SECRET", "analytics-snapshots-test-secret-0123456789");
   const other = await student("other@example.test");
   await approve(other.saved.id);
   const owner = await student("owner@example.test");

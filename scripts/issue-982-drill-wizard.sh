@@ -296,19 +296,19 @@ s_rot_auth_secret() {
   begin_step 1.11 "AUTH_SECRET, then the full walk"
   needs DRILL_STARTED
   cite "$GUIDE" "AUTH_SECRET" "AUTH_SECRET"
-  say "A new AUTH_SECRET signs every student out and changes every new email hash."
+  say "A new AUTH_SECRET signs every student out. Email hashes use EMAIL_HASH_SECRET, so they stay the same."
   ask_cookie r
   keep_cookie r r-old
   say_value "R's saved cookie now" "$(cookie_answer r-old)"
   if dry; then note "[dry run] would make a new AUTH_SECRET and copy it to the clipboard"
   else openssl rand -base64 32 | tr -d '\n' | pbcopy; fi
   say "A new AUTH_SECRET is in the clipboard. The wizard never shows it."
-  step "Save it in the password manager as the copy's AUTH_SECRET, with today's date. The restore practice needs it."
-  step "COPY project > Settings > Environment Variables: replace AUTH_SECRET on Production, marked Sensitive."
+  step "Save it in the password manager as the copy's AUTH_SECRET, with today's date."
+  step "COPY project > Settings > Environment Variables: replace AUTH_SECRET on Production, marked Sensitive. Leave EMAIL_HASH_SECRET as it is."
   redeploy_copy DEPLOYMENT_AUTH
   clear_clipboard
   if confirm "Is the new AUTH_SECRET saved in the password manager?"; then record "1.11a saved" "new copy AUTH_SECRET saved in the password manager, $(now_utc)"
-  else record "1.11a saved" "NOT saved: save it before stage 3"; fi
+  else record "1.11a saved" "NOT saved: save it before the drill ends"; fi
   record "1.11b old cookie" "$(cookie_answer r-old) (expected a redirect to /login for each)"
   rm -f "$RUN_DIR/cookie-r-old"
   say "Now walk the site once with every new value."
@@ -540,19 +540,19 @@ s_restore_counts() {
 }
 
 s_restore_replay() {
-  begin_step 3.6 "Replay the deletions with the saved AUTH_SECRET"
+  begin_step 3.6 "Replay the deletions with the saved EMAIL_HASH_SECRET"
   needs COPY_PROJECT_ID FORMER_BRANCH_ID RESTORED_BRANCH_ID RESTORED_HOST
   cite_restore 4 "the replay"
   ask_owner_url RESTORED_URL RESTORED "$RESTORED_BRANCH_ID"
-  local current_url="" auth_secret first second
+  local current_url="" email_hash_secret first second
   ask_owner_url current_url CURRENT "$FORMER_BRANCH_ID"
-  step "Copy the copy's AUTH_SECRET from the password manager (saved in step 1.11)."
-  ask_secret auth_secret "Copy's AUTH_SECRET (hidden):" || exit 1
+  step "Copy the copy's EMAIL_HASH_SECRET from the password manager."
+  ask_secret email_hash_secret "Copy's EMAIL_HASH_SECRET (hidden):" || exit 1
   clear_clipboard
   hosts_add
-  first=$(cd "$REPO_ROOT" && DATABASE_URL="$RESTORED_URL" DELETION_LIST_URL="$current_url" AUTH_SECRET="$auth_secret" npm run -s replay-deletions 2>&1 | tail -n1 || true)
-  second=$(cd "$REPO_ROOT" && DATABASE_URL="$RESTORED_URL" DELETION_LIST_URL="$current_url" AUTH_SECRET="$auth_secret" npm run -s replay-deletions 2>&1 | tail -n1 || true)
-  unset current_url auth_secret
+  first=$(cd "$REPO_ROOT" && DATABASE_URL="$RESTORED_URL" DELETION_LIST_URL="$current_url" EMAIL_HASH_SECRET="$email_hash_secret" npm run -s replay-deletions 2>&1 | tail -n1 || true)
+  second=$(cd "$REPO_ROOT" && DATABASE_URL="$RESTORED_URL" DELETION_LIST_URL="$current_url" EMAIL_HASH_SECRET="$email_hash_secret" npm run -s replay-deletions 2>&1 | tail -n1 || true)
+  unset current_url email_hash_secret
   record "3.6a replay" "first: $first second: $second"
   restored_sql "3.6b D and M gone" "SELECT count(*) FILTER (WHERE email = '$(addr d)') AS d, count(*) FILTER (WHERE email = '$(addr m)') AS m_by_hash,
   count(*) FILTER (WHERE email IN ('$(addr k)', '$(addr n)')) AS k_n FROM accounts;"
@@ -565,16 +565,16 @@ s_restore_resync() {
   needs COPY_PROJECT_ID RESTORED_BRANCH_ID RESTORED_HOST
   cite_restore 5 "the billing resync"
   ask_owner_url RESTORED_URL RESTORED "$RESTORED_BRANCH_ID"
-  local stripe_key auth_secret first second
-  step "Copy the sandbox secret key (Stripe sandbox > Developers > API keys), then the copy's AUTH_SECRET from the password manager."
+  local stripe_key email_hash_secret first second
+  step "Copy the sandbox secret key (Stripe sandbox > Developers > API keys), then the copy's EMAIL_HASH_SECRET from the password manager."
   ask_secret stripe_key "Sandbox secret key (hidden):" || exit 1
-  ask_secret auth_secret "Copy's AUTH_SECRET (hidden):" || exit 1
+  ask_secret email_hash_secret "Copy's EMAIL_HASH_SECRET (hidden):" || exit 1
   clear_clipboard
   hosts_add
-  if [[ "$stripe_key" != sk_test_* && "$DRY_RUN" == no ]]; then warn "That is not a test key. The copy uses only test keys."; unset stripe_key auth_secret; exit 1; fi
-  first=$(cd "$REPO_ROOT" && DATABASE_URL="$RESTORED_URL" STRIPE_SECRET_KEY="$stripe_key" AUTH_SECRET="$auth_secret" npm run -s resync-billing 2>&1 | tail -n1 || true)
-  second=$(cd "$REPO_ROOT" && DATABASE_URL="$RESTORED_URL" STRIPE_SECRET_KEY="$stripe_key" AUTH_SECRET="$auth_secret" npm run -s resync-billing 2>&1 | tail -n1 || true)
-  unset stripe_key auth_secret
+  if [[ "$stripe_key" != sk_test_* && "$DRY_RUN" == no ]]; then warn "That is not a test key. The copy uses only test keys."; unset stripe_key email_hash_secret; exit 1; fi
+  first=$(cd "$REPO_ROOT" && DATABASE_URL="$RESTORED_URL" STRIPE_SECRET_KEY="$stripe_key" EMAIL_HASH_SECRET="$email_hash_secret" npm run -s resync-billing 2>&1 | tail -n1 || true)
+  second=$(cd "$REPO_ROOT" && DATABASE_URL="$RESTORED_URL" STRIPE_SECRET_KEY="$stripe_key" EMAIL_HASH_SECRET="$email_hash_secret" npm run -s resync-billing 2>&1 | tail -n1 || true)
+  unset stripe_key email_hash_secret
   hosts_back
   record "3.7a resync" "first: $first second: $second"
   restored_sql "3.7b plans" "SELECT CASE a.email WHEN '$(addr k)' THEN 'K' WHEN '$(addr n)' THEN 'N' END AS who, b.plan, b.stripe_status
