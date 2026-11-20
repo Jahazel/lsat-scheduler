@@ -4,7 +4,9 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import userEvent from "@testing-library/user-event";
 import { generateWeek } from "@/lib/engine";
 import { mockAnalytics, mockRules, mockStudent, mockStudentName } from "@/lib/mockData";
-import type { ActivityCheckIn } from "@/lib/types";
+import { loadOrGenerateCurrentWeek, localDateInTimezone, type CurrentWeekRepositories } from "@/lib/currentWeeklySchedule";
+import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
+import type { ActivityCheckIn, PersistedWeeklySchedule } from "@/lib/types";
 import type { RoadToTestDay } from "@/lib/roadToTestDay";
 
 const { saveActivityCheckIn } = vi.hoisted(() => ({ saveActivityCheckIn: vi.fn() }));
@@ -406,6 +408,43 @@ describe("ScheduleCheckInView", () => {
       expect(within(todayCard()).getAllByText("Not scheduled because this weekly schedule started Tuesday.")).toHaveLength(1);
       expect(within(todayCard()).getByText("Rest day moved to Wednesday.")).toBeTruthy();
       expect(within(todayCard()).getByText(/^Next:/).textContent).toBe("Next: Tuesday, Aug 25 · 4 activities, 1 h 37");
+    });
+
+    it("shows the unscheduled-day text when a later visit saves the week first, across midnight", async () => {
+      const saved: PersistedWeeklySchedule[] = [];
+      const repositories = (beforeCreate: Promise<void>): CurrentWeekRepositories => ({
+        snapshots: { listEligibleForStudent: async () => [{ ...mockAnalytics, id: "snapshot-1", approvedAt: "2026-09-14T13:00:00.000Z" }] },
+        practiceTestResults: { listForStudent: async () => [] },
+        weeklySchedules: {
+          findByStudentAndWeek: async (_, weekStartDate) => saved.find((record) => record.weekStartDate === weekStartDate) ?? null,
+          listBeforeWeek: async () => [],
+          create: async (schedule) => {
+            await beforeCreate;
+            return saved.find((record) => record.weekStartDate === schedule.weekStartDate) ?? (saved.push(schedule), schedule);
+          },
+        },
+        activityCheckIns: { ensureForSchedule: async () => {} },
+      });
+      const visit = (now: Date, beforeCreate = Promise.resolve()) => loadOrGenerateCurrentWeek({
+        ...repositories(beforeCreate), studentId: "student-1", student: mockStudent, studentName: mockStudentName,
+        rules: mockRules, timezone: SCHEDULE_TIMEZONE, now: () => now, plan: { kind: "paid", plan: "weekly" },
+      });
+      const mondayNight = new Date("2026-09-15T04:59:59.000Z");
+      let tuesdayVisitSaved!: () => void;
+      const mondayVisit = visit(mondayNight, new Promise((resolve) => { tuesdayVisitSaved = resolve; }));
+      await visit(new Date("2026-09-15T05:00:01.000Z"));
+      tuesdayVisitSaved();
+      const shown = await mondayVisit;
+      if (shown.kind !== "schedule") throw new Error("Expected a saved schedule");
+
+      history.replaceState(null, "", "/dashboard");
+      render(<ScheduleCheckInView scheduleId={shown.schedule.id} schedule={shown.schedule.schedule} student={shown.schedule.generationInputs.student}
+        checkIns={[]} today={localDateInTimezone(mondayNight, SCHEDULE_TIMEZONE)} thisWeek={{ drillLink: null, road }} />,
+      { wrapper: FailureToastProvider });
+      expect(within(todayCard()).getByRole("heading", { level: 2 }).textContent).toBe("TodayMonday, Sep 14");
+      expect(within(todayCard()).getAllByText("Not scheduled because this weekly schedule started Tuesday.")).toHaveLength(1);
+      expect(within(todayCard()).queryByText("Not scheduled.")).toBeNull();
+      expect(within(todayCard()).getByText(/^Next:/).textContent).toMatch(/^Next: Tuesday, Sep 15 · /);
     });
 
     it.each([
