@@ -80,7 +80,7 @@ export function planChoicePlace(status: PlanStatus): PlanChoicePlace | null {
 export const deletionEndsPlan = (status: PlanStatus) =>
   status.kind === "free_week" || status.kind === "paid" || status.kind === "retrying";
 
-export function isHeldWeek(record: BillingRecord | null, weekStartDate: string) {
+export function isHeldWeek(record: Pick<BillingRecord, "freeWeekEndsAt" | "firstChargeSucceeded"> | null, weekStartDate: string) {
   if (!record?.freeWeekEndsAt || record.firstChargeSucceeded) return false;
   return weekStartDate === localDateInTimezone(record.freeWeekEndsAt, SCHEDULE_TIMEZONE);
 }

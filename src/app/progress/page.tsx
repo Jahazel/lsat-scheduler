@@ -27,9 +27,9 @@ export default async function ProgressPage({
   if (!student) redirect("/onboarding");
 
   const currentWeekStartDate = currentWeekInTimezone(await studentSideNow(session.user), SCHEDULE_TIMEZONE);
-  const { status, record } = await loadChosenPlan(session.user.id);
+  const { status } = await loadChosenPlan(session.user.id);
   const route = resolveProgressRoute({
-    ...await loadPastWeeks(student.id, record, currentWeekStartDate),
+    ...await loadPastWeeks(student.id, currentWeekStartDate),
     currentWeekStartDate,
     requestedWeek,
   });

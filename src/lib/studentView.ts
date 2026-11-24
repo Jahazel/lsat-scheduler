@@ -2,7 +2,7 @@ import { postgresActivityCheckIns } from "./activityCheckInRepository";
 import { listApprovedAnalyticsSnapshots, listStudentIdsWithApprovedAnalytics } from "./analyticsSnapshotRepository";
 import { loadAccountPlan, loadAccountPlans } from "./billingRepository";
 import { currentWeekInTimezone } from "./currentWeeklySchedule";
-import { isHeldWeek, type BillingRecord } from "./planStatus";
+import { studentsWithHeldWeek, withoutHeldWeek } from "./heldWeek";
 import { loadReadOnlyCurrentWeek } from "./readOnlyCurrentWeekSchedule";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
 import type { StudentRow } from "./studentList";
@@ -15,9 +15,9 @@ import { listPracticeTestsByWeek } from "./weeklyUploadRepository";
 const weeklyMinutes = (daily: Record<DayOfWeek, number>) => Object.values(daily).reduce((sum, minutes) => sum + minutes, 0);
 
 /** Saved weeks before this week, newest first, without the held week, with their check-ins. */
-export async function loadPastWeeks(studentId: string, plan: BillingRecord | null, thisWeekStart: string) {
+export async function loadPastWeeks(studentId: string, thisWeekStart: string) {
   const saved = await postgresCurrentWeekRepositories.weeklySchedules.listBeforeWeek(studentId, thisWeekStart);
-  const schedules = saved.filter((schedule) => !isHeldWeek(plan, schedule.weekStartDate));
+  const schedules = await withoutHeldWeek(studentId, saved);
   return { schedules, checkIns: await postgresActivityCheckIns.listForSchedules(schedules.map((schedule) => schedule.id)) };
 }
 
@@ -32,14 +32,13 @@ export async function loadStudentView(id: string, now: Date) {
     listPracticeTestsByWeek(record.id),
   ]);
   const [pastWeeks, thisWeek] = await Promise.all([
-    loadPastWeeks(record.id, plan.record, thisWeekStart),
+    loadPastWeeks(record.id, thisWeekStart),
     loadReadOnlyCurrentWeek({
       ...postgresCurrentWeekRepositories,
       activityCheckIns: postgresActivityCheckIns,
       studentId: record.id,
       timezone: SCHEDULE_TIMEZONE,
       now: () => now,
-      isHeldWeek: (weekStartDate) => isHeldWeek(plan.record, weekStartDate),
     }),
   ]);
   return {
@@ -63,7 +62,10 @@ export async function listStudentRows(now: Date): Promise<StudentRow[]> {
   ]);
   const analytics = new Set(withAnalytics);
   const thisWeek = new Set(withThisWeek);
-  const plans = await loadAccountPlans(students.map((student) => student.userId));
+  const [plans, held] = await Promise.all([
+    loadAccountPlans(students.map((student) => student.userId)),
+    studentsWithHeldWeek(students.filter((student) => thisWeek.has(student.id)).map((student) => student.id), week),
+  ]);
   return students.map((student) => {
     const plan = plans.get(student.userId);
     return {
@@ -72,7 +74,7 @@ export async function listStudentRows(now: Date): Promise<StudentRow[]> {
       email: student.email,
       plan: plan?.status.kind ?? "no_plan",
       needsAnalytics: !analytics.has(student.id),
-      thisWeek: !thisWeek.has(student.id) ? "none" : isHeldWeek(plan?.record ?? null, week) ? "held" : "ready",
+      thisWeek: !thisWeek.has(student.id) ? "none" : held.has(student.id) ? "held" : "ready",
       weeklyMinutes: weeklyMinutes(student.dailyCapacityMinutes),
       goalTestDate: student.goalTestDate,
       joinedAt: student.joinedAt,

@@ -1,4 +1,5 @@
 import { approvedForWeek, currentWeekInTimezone, isUploadWeekend } from "./currentWeeklySchedule";
+import { isWeekHeld } from "./heldWeek";
 import { isoDateInWeek } from "./scheduleReasonText";
 import type { ActivityCheckIn, ApprovedAnalyticsSnapshot, PersistedWeeklySchedule } from "./types";
 
@@ -18,7 +19,6 @@ interface LoadReadOnlyCurrentWeekInput extends ReadOnlyCurrentWeekRepositories {
   studentId: string;
   timezone: string;
   now: () => Date;
-  isHeldWeek: (weekStartDate: string) => boolean;
 }
 
 export type ReadOnlyCurrentWeekResult =
@@ -35,7 +35,7 @@ export async function loadReadOnlyCurrentWeek(input: LoadReadOnlyCurrentWeekInpu
   const weekStartDate = currentWeekInTimezone(input.now(), input.timezone);
   const schedule = await input.weeklySchedules.findByStudentAndWeek(input.studentId, weekStartDate);
   if (schedule) {
-    if (input.isHeldWeek(weekStartDate)) return { kind: "held_week" };
+    if (await isWeekHeld(input.studentId, weekStartDate)) return { kind: "held_week" };
     return {
       kind: "schedule",
       schedule,

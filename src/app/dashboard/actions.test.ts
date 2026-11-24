@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   findSchedule: vi.fn(),
   save: vi.fn(),
   studentSideNow: vi.fn(),
+  isWeekHeld: vi.fn(),
 }));
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -15,6 +16,7 @@ vi.mock("@/lib/studentRepository", () => ({ findStudentByAccountId: async () => 
 vi.mock("@/lib/weeklyScheduleRepository", () => ({ findWeeklyScheduleForStudent: mocks.findSchedule }));
 vi.mock("@/lib/activityCheckInRepository", () => ({ postgresActivityCheckIns: { save: mocks.save } }));
 vi.mock("@/lib/studentClock", () => ({ studentSideNow: mocks.studentSideNow }));
+vi.mock("@/lib/heldWeek", () => ({ isWeekHeld: mocks.isWeekHeld }));
 
 import { saveActivityCheckIn } from "./actions";
 
@@ -30,6 +32,7 @@ describe("saveActivityCheckIn", () => {
     vi.clearAllMocks();
     mocks.auth.mockResolvedValue({ user: { id: "account-1", role: "student" } });
     mocks.studentSideNow.mockResolvedValue(new Date("2026-10-07T15:00:00.000Z"));
+    mocks.isWeekHeld.mockResolvedValue(false);
     mocks.save.mockImplementation(async (checkIn: Omit<ActivityCheckIn, "id">) => ({ id: "saved", ...checkIn }));
   });
 
@@ -42,6 +45,14 @@ describe("saveActivityCheckIn", () => {
   it.each(["2026-09-28", "2026-10-12"])("refuses a check-in for the week of %s with an error code", async (weekStartDate) => {
     mocks.findSchedule.mockResolvedValue(scheduleForWeek(weekStartDate));
     expect(await saveActivityCheckIn(input)).toEqual({ unexpectedFailure: expect.stringMatching(/^[0-9a-f]{8}$/) });
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
+  it("refuses a check-in on the student's held weekly schedule", async () => {
+    mocks.findSchedule.mockResolvedValue(scheduleForWeek("2026-10-05"));
+    mocks.isWeekHeld.mockResolvedValue(true);
+    expect(await saveActivityCheckIn(input)).toEqual({ unexpectedFailure: expect.stringMatching(/^[0-9a-f]{8}$/) });
+    expect(mocks.isWeekHeld).toHaveBeenCalledWith("student-1", "2026-10-05");
     expect(mocks.save).not.toHaveBeenCalled();
   });
 
