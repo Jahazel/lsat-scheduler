@@ -59,22 +59,37 @@ async function holdWeekOf(accountId: string, monday: string) {
   });
 }
 
-it("loads a student's past weeks newest first without the held week, with only their check-ins", async () => {
+it("resolves a student's past weeks without the held week, with months and only that week's check-ins", async () => {
   const sam = await student("Sam");
   for (const monday of ["2026-09-28", "2026-10-05", "2026-10-12"]) await saveWeek(sam, monday);
   await holdWeekOf(sam.account.id, "2026-10-05");
   const now = new Date("2026-10-19T16:00:00Z");
+  const weekLabels = (months: { weeks: { label: string }[] }[]) => months.flatMap((month) => month.weeks.map((week) => week.label));
 
-  const view = await loadStudentView(sam.saved.id, now);
-  expect(view?.thisWeekStart).toBe("2026-10-19");
-  expect(view?.pastWeeks.schedules.map((week) => week.weekStartDate)).toEqual(["2026-10-12", "2026-09-28"]);
-  const kept = new Set(view?.pastWeeks.schedules.map((week) => week.id));
-  expect(view?.pastWeeks.checkIns.length).toBeGreaterThan(0);
-  expect(view?.pastWeeks.checkIns.every((checkIn) => kept.has(checkIn.scheduleId))).toBe(true);
+  const list = await loadStudentView(sam.saved.id, now);
+  expect(list?.pastWeeks.count).toBe(2);
+  expect(list?.pastWeeks.route.kind).toBe("list");
+  expect(list?.pastWeeks.months.map((month) => month.month)).toEqual(["October 2026", "September 2026"]);
+  expect(weekLabels(list?.pastWeeks.months ?? [])).toEqual(["Oct 12 – 18", "Sep 28 – Oct 4"]);
+
+  const open = await loadStudentView(sam.saved.id, now, "2026-10-12");
+  const route = open?.pastWeeks.route;
+  if (route?.kind !== "week") throw new Error(`Expected the week route, got ${route?.kind}`);
+  expect(route.schedule.weekStartDate).toBe("2026-10-12");
+  expect(route.older?.weekStartDate).toBe("2026-09-28");
+  expect(route.newer).toBeUndefined();
+  expect(route.checkIns.length).toBeGreaterThan(0);
+  expect(route.checkIns.every((checkIn) => checkIn.scheduleId === route.schedule.id)).toBe(true);
+  expect(weekLabels(open?.pastWeeks.months ?? [])).toEqual(["Oct 12 – 18", "Sep 28 – Oct 4"]);
+
+  expect((await loadStudentView(sam.saved.id, now, "2026-10-05"))?.pastWeeks.route.kind).toBe("list");
+  const thisWeek = await loadStudentView(sam.saved.id, now, "2026-10-19");
+  expect(thisWeek?.pastWeeks.route.kind).toBe("this_week");
+  expect(thisWeek?.pastWeeks.count).toBe(2);
 
   await database.owner.execute(sql`update billing_records set first_charge_succeeded = true, stripe_status = 'active'`);
   const paid = await loadStudentView(sam.saved.id, now);
-  expect(paid?.pastWeeks.schedules.map((week) => week.weekStartDate)).toEqual(["2026-10-12", "2026-10-05", "2026-09-28"]);
+  expect(weekLabels(paid?.pastWeeks.months ?? [])).toEqual(["Oct 12 – 18", "Oct 5 – 11", "Sep 28 – Oct 4"]);
 });
 
 it("loads a student's facts, this week, and uploads, and hides a held this week", async () => {
@@ -96,7 +111,7 @@ it("loads a student's facts, this week, and uploads, and hides a held this week"
 
   const nia = await student("Nia");
   expect(await loadStudentView(nia.saved.id, now)).toMatchObject({
-    needsAnalytics: true, uploads: [], pastWeeks: { schedules: [], checkIns: [] }, thisWeek: { kind: "analytics_required" },
+    needsAnalytics: true, uploads: [], pastWeeks: { count: 0, months: [], route: { kind: "list", months: [] } }, thisWeek: { kind: "analytics_required" },
   });
 });
 
