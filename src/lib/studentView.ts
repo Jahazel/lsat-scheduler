@@ -2,7 +2,7 @@ import { postgresActivityCheckIns } from "./activityCheckInRepository";
 import { listApprovedAnalyticsSnapshots, listStudentIdsWithApprovedAnalytics } from "./analyticsSnapshotRepository";
 import { loadAccountPlan, loadAccountPlans } from "./billingRepository";
 import { currentWeekInTimezone } from "./currentWeeklySchedule";
-import { studentsWithHeldWeek, withoutHeldWeek } from "./heldWeek";
+import { studentsWhoseWeekIsHeld, withoutHeldWeek } from "./heldWeek";
 import { loadReadOnlyCurrentWeek } from "./readOnlyCurrentWeekSchedule";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
 import type { StudentRow } from "./studentList";
@@ -64,7 +64,7 @@ export async function listStudentRows(now: Date): Promise<StudentRow[]> {
   const thisWeek = new Set(withThisWeek);
   const [plans, held] = await Promise.all([
     loadAccountPlans(students.map((student) => student.userId)),
-    studentsWithHeldWeek(students.filter((student) => thisWeek.has(student.id)).map((student) => student.id), week),
+    studentsWhoseWeekIsHeld(students.filter((student) => thisWeek.has(student.id)).map((student) => student.id), week),
   ]);
   return students.map((student) => {
     const plan = plans.get(student.userId);

@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { beforeEach, expect, it } from "vitest";
 import { setUpAppTestDatabase } from "./appTestDatabase";
-import { isWeekHeld, studentsWithHeldWeek, withoutHeldWeek } from "../../src/lib/heldWeek";
+import { isWeekHeld, studentsWhoseWeekIsHeld, withoutHeldWeek } from "../../src/lib/heldWeek";
 import { createStudent } from "../../src/lib/studentRepository";
 import type { Student } from "../../src/lib/types";
 
@@ -47,9 +47,9 @@ it("holds only the week after the free week, and only before the first charge su
   expect(await withoutHeldWeek(paid, weeks)).toEqual(weeks);
   expect(await withoutHeldWeek(noPlan, weeks)).toEqual(weeks);
 
-  expect(await studentsWithHeldWeek([freeWeek, paid, noPlan], "2026-10-12")).toEqual(new Set([freeWeek]));
-  expect(await studentsWithHeldWeek([freeWeek, paid, noPlan], "2026-10-05")).toEqual(new Set());
-  expect(await studentsWithHeldWeek([], "2026-10-12")).toEqual(new Set());
+  expect(await studentsWhoseWeekIsHeld([freeWeek, paid, noPlan], "2026-10-12")).toEqual(new Set([freeWeek]));
+  expect(await studentsWhoseWeekIsHeld([freeWeek, paid, noPlan], "2026-10-05")).toEqual(new Set());
+  expect(await studentsWhoseWeekIsHeld([], "2026-10-12")).toEqual(new Set());
 
   await database.owner.execute(sql`update billing_records set first_charge_succeeded = true, stripe_status = 'active'`);
   expect(await isWeekHeld(freeWeek, "2026-10-12")).toBe(false);
