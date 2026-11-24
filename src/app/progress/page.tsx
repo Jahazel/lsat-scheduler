@@ -4,8 +4,7 @@ import { auth } from "@/auth";
 import { findStudentByAccountId } from "@/lib/studentRepository";
 import { currentWeekInTimezone } from "@/lib/currentWeeklySchedule";
 import { SCHEDULE_TIMEZONE } from "@/lib/scheduleTimezone";
-import { loadPastWeeks } from "@/lib/studentView";
-import { resolveProgressRoute } from "@/lib/progressHistory";
+import { loadPastWeeks } from "@/lib/pastWeeks";
 import PastWeekView from "./PastWeekView";
 import { ProgressScreen } from "./ProgressMotion";
 import ProgressOverview from "./ProgressOverview";
@@ -26,13 +25,9 @@ export default async function ProgressPage({
   const student = await findStudentByAccountId(session.user.id);
   if (!student) redirect("/onboarding");
 
-  const currentWeekStartDate = currentWeekInTimezone(await studentSideNow(session.user), SCHEDULE_TIMEZONE);
+  const thisWeekStart = currentWeekInTimezone(await studentSideNow(session.user), SCHEDULE_TIMEZONE);
   const { status, record } = await loadChosenPlan(session.user.id);
-  const route = resolveProgressRoute({
-    ...await loadPastWeeks(student.id, record, currentWeekStartDate),
-    currentWeekStartDate,
-    requestedWeek,
-  });
+  const { route } = await loadPastWeeks({ studentId: student.id, plan: record, thisWeekStart, requestedWeek });
 
   const lapsedNote = status.kind === "lapsed" && planProblemNote(status);
 

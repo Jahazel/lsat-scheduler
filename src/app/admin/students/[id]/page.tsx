@@ -9,7 +9,6 @@ import { studentFacts } from "@/lib/studentFacts";
 import { displayName, listQuery, listStateFrom } from "@/lib/studentList";
 import { initialsFor } from "@/lib/studentNav";
 import { loadStudentView } from "@/lib/studentView";
-import { listPastWeekMonths, resolveProgressRoute } from "@/lib/progressHistory";
 import PastWeekView from "@/app/progress/PastWeekView";
 import { PastWeeksPanel } from "./HistoryPanels";
 import { ProgressPanel } from "./ProgressPanel";
@@ -22,15 +21,10 @@ export default async function AdminStudentPage({ params, searchParams }: PagePro
 
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const now = new Date();
-  const view = await loadStudentView(id, now);
+  const view = await loadStudentView(id, now, typeof query.pastWeek === "string" ? query.pastWeek : undefined);
   if (!view) notFound();
-  const { student, pastWeeks, thisWeekStart } = view;
+  const { student, pastWeeks } = view;
 
-  const pastWeekRoute = resolveProgressRoute({
-    ...pastWeeks,
-    currentWeekStartDate: thisWeekStart,
-    requestedWeek: typeof query.pastWeek === "string" ? query.pastWeek : undefined,
-  });
   const weeksLink = new URLSearchParams(listQuery(listStateFrom(query)));
   weeksLink.set("tab", "weeks");
   const weekLinks = { all: `/admin/students/${id}?${weeksLink}`, weekPrefix: `/admin/students/${id}?${weeksLink}&pastWeek=` };
@@ -43,13 +37,13 @@ export default async function AdminStudentPage({ params, searchParams }: PagePro
       <PageArrival page={name ?? student.email} />
       <StudentDetail
         student={{ id: student.id, initials: initialsFor(name, student.email), name, email: student.email, plan: view.plan, needsAnalytics: view.needsAnalytics }}
-        facts={studentFacts({ ...student, pastWeeks: pastWeeks.schedules.length, needsAnalytics: view.needsAnalytics }, now)}
+        facts={studentFacts({ ...student, pastWeeks: pastWeeks.count, needsAnalytics: view.needsAnalytics }, now)}
         panels={{
           week: <ThisWeekPanel week={view.thisWeek} today={today} />,
-          weeks: pastWeekRoute.kind === "week"
-            ? <PastWeekView {...pastWeekRoute} links={weekLinks} place="panel" />
-            : <PastWeeksPanel months={listPastWeekMonths({ ...pastWeeks, currentWeekStartDate: thisWeekStart })} weekPrefix={weekLinks.weekPrefix} />,
-          progress: <ProgressPanel months={view.uploads} score={student.currentScore} goal={student.goalScore} hasPastWeeks={pastWeeks.schedules.length > 0} />,
+          weeks: pastWeeks.route.kind === "week"
+            ? <PastWeekView {...pastWeeks.route} links={weekLinks} place="panel" />
+            : <PastWeeksPanel months={pastWeeks.months} weekPrefix={weekLinks.weekPrefix} />,
+          progress: <ProgressPanel months={view.uploads} score={student.currentScore} goal={student.goalScore} hasPastWeeks={pastWeeks.count > 0} />,
           settings: <SettingsPanel settings={student} officialAttempts={student.officialAttempts} today={today} />,
         }}
       />

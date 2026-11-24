@@ -2,7 +2,8 @@ import { postgresActivityCheckIns } from "./activityCheckInRepository";
 import { listApprovedAnalyticsSnapshots, listStudentIdsWithApprovedAnalytics } from "./analyticsSnapshotRepository";
 import { loadAccountPlan, loadAccountPlans } from "./billingRepository";
 import { currentWeekInTimezone } from "./currentWeeklySchedule";
-import { isHeldWeek, type BillingRecord } from "./planStatus";
+import { loadPastWeeks } from "./pastWeeks";
+import { isHeldWeek } from "./planStatus";
 import { loadReadOnlyCurrentWeek } from "./readOnlyCurrentWeekSchedule";
 import { SCHEDULE_TIMEZONE } from "./scheduleTimezone";
 import type { StudentRow } from "./studentList";
@@ -14,15 +15,8 @@ import { listPracticeTestsByWeek } from "./weeklyUploadRepository";
 
 const weeklyMinutes = (daily: Record<DayOfWeek, number>) => Object.values(daily).reduce((sum, minutes) => sum + minutes, 0);
 
-/** Saved weeks before this week, newest first, without the held week, with their check-ins. */
-export async function loadPastWeeks(studentId: string, plan: BillingRecord | null, thisWeekStart: string) {
-  const saved = await postgresCurrentWeekRepositories.weeklySchedules.listBeforeWeek(studentId, thisWeekStart);
-  const schedules = saved.filter((schedule) => !isHeldWeek(plan, schedule.weekStartDate));
-  return { schedules, checkIns: await postgresActivityCheckIns.listForSchedules(schedules.map((schedule) => schedule.id)) };
-}
-
 /** Admin-only. Returns null for an invalid ID, a missing student, or an Admin-owned student. */
-export async function loadStudentView(id: string, now: Date) {
+export async function loadStudentView(id: string, now: Date, requestedPastWeek?: string) {
   const record = await findStudentWithJoinDate(id);
   if (!record) return null;
   const thisWeekStart = currentWeekInTimezone(now, SCHEDULE_TIMEZONE);
@@ -32,7 +26,7 @@ export async function loadStudentView(id: string, now: Date) {
     listPracticeTestsByWeek(record.id),
   ]);
   const [pastWeeks, thisWeek] = await Promise.all([
-    loadPastWeeks(record.id, plan.record, thisWeekStart),
+    loadPastWeeks({ studentId: record.id, plan: plan.record, thisWeekStart, requestedWeek: requestedPastWeek }),
     loadReadOnlyCurrentWeek({
       ...postgresCurrentWeekRepositories,
       activityCheckIns: postgresActivityCheckIns,
@@ -46,7 +40,6 @@ export async function loadStudentView(id: string, now: Date) {
     student: { ...record, weeklyMinutes: weeklyMinutes(record.dailyCapacityMinutes) },
     plan: plan.status.kind,
     needsAnalytics: snapshots.length === 0,
-    thisWeekStart,
     thisWeek,
     pastWeeks,
     uploads: uploadHistory(snapshots, practiceTests),
