@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 const held = vi.hoisted(() => ({ weeks: [] as string[] }));
 vi.mock("./heldWeek", () => ({ isWeekHeld: async (_studentId: string, week: string) => held.weeks.includes(week) }));
 
-import { adminScheduleStateMessage, loadReadOnlyCurrentWeek } from "./readOnlyCurrentWeekSchedule";
+import { adminScheduleStateMessage } from "./adminScheduleState";
+import { loadReadOnlyCurrentWeek } from "./readOnlyCurrentWeekSchedule";
 import { mockAnalytics, mockStudent } from "./mockData";
 import type { ActivityCheckIn, ApprovedAnalyticsSnapshot, PersistedWeeklySchedule } from "./types";
 
