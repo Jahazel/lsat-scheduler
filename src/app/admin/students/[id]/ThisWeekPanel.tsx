@@ -1,6 +1,7 @@
 import ScheduleCheckInView from "@/components/ScheduleCheckInView";
 import { cx } from "@/components/ui/classes";
-import { adminScheduleStateMessage, type ReadOnlyCurrentWeekResult } from "@/lib/readOnlyCurrentWeekSchedule";
+import { adminScheduleStateMessage } from "@/lib/adminScheduleState";
+import type { ReadOnlyCurrentWeekResult } from "@/lib/readOnlyCurrentWeekSchedule";
 import {
   activitiesDueBefore, doneActivityIds, formatScheduleWeekOf, scheduledActivityCount, weekNotes, weekPace,
 } from "@/lib/scheduleCheckInSummary";

@@ -19,7 +19,7 @@ import { PageCue } from "@/components/SiteMotion";
 import { PageArrival } from "@/components/PagePlaceholder";
 import { CurrentWeekReport } from "@/components/AdminTestContext";
 import { loadChosenPlan } from "@/lib/billingRepository";
-import { isHeldWeek } from "@/lib/planStatus";
+import { isWeekHeld } from "@/lib/heldWeek";
 import { freeWeekEndingNote, planProblemNote, showsUploadCard } from "@/lib/planNotes";
 import { HeldWeek, PlanNotices } from "@/components/PlanNotes";
 
@@ -77,7 +77,7 @@ export default async function DashboardPage({
   const preview = currentWeek.kind === "next_week_preview";
   const realNow = new Date();
   const problem = planProblemNote(plan);
-  if (isHeldWeek(record, schedule.weekStartDate)) return (
+  if (await isWeekHeld(doc.id, schedule.weekStartDate)) return (
     <div data-page-fade className="min-h-screen">
       <PageCue page="this-week" />
       <PageArrival page="This week" look="fade" />

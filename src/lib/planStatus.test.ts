@@ -163,8 +163,9 @@ describe("plan status", () => {
 
 describe("held weekly schedule", () => {
   it("holds only the week after the free week, until the first charge succeeds", () => {
+    const firstChargeRetrying: BillingRecord = { ...inFreeWeek, stripeStatus: "past_due" };
     expect(isHeldWeek(inFreeWeek, "2026-11-23")).toBe(true);
-    expect(isHeldWeek({ ...inFreeWeek, stripeStatus: "past_due" }, "2026-11-23")).toBe(true);
+    expect(isHeldWeek(firstChargeRetrying, "2026-11-23")).toBe(true);
     expect(isHeldWeek(inFreeWeek, "2026-11-16")).toBe(false);
     expect(isHeldWeek(inFreeWeek, "2026-11-30")).toBe(false);
     expect(isHeldWeek(paid, "2026-11-23")).toBe(false);

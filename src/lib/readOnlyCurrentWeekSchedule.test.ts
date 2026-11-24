@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { adminScheduleStateMessage, loadReadOnlyCurrentWeek } from "./readOnlyCurrentWeekSchedule";
+import { describe, expect, it, vi } from "vitest";
+
+const held = vi.hoisted(() => ({ weeks: [] as string[] }));
+vi.mock("./heldWeek", () => ({ isWeekHeld: async (_studentId: string, week: string) => held.weeks.includes(week) }));
+
+import { adminScheduleStateMessage } from "./adminScheduleState";
+import { loadReadOnlyCurrentWeek } from "./readOnlyCurrentWeekSchedule";
 import { mockAnalytics, mockStudent } from "./mockData";
 import type { ActivityCheckIn, ApprovedAnalyticsSnapshot, PersistedWeeklySchedule } from "./types";
 
@@ -43,8 +48,8 @@ function repositories({
   savedWeeks?: string[];
   heldWeeks?: string[];
 } = {}) {
+  held.weeks = heldWeeks;
   return {
-    isHeldWeek: (week: string) => heldWeeks.includes(week),
     weeklySchedules: {
       findByStudentAndWeek: async (_studentId: string, week: string) =>
         savedWeeks ? (savedWeeks.includes(week) ? { ...savedSchedule, weekStartDate: week } : null) : schedule,
